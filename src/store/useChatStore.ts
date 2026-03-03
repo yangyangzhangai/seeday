@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
-import { callChatAPI, callClassifierAPI } from '../api/client';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
-import { getLocalDateString, mapDbRowToMessage, buildChatApiMessages, getAiErrorText } from './chatHelpers';
+import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
+import { closePreviousActivity, persistMessageToSupabase, triggerMoodDetection, handleAIChatResponse } from './chatActions';
 
 export type MessageType = 'text' | 'system' | 'ai';
 
@@ -202,35 +202,7 @@ export const useChatStore = create<ChatState>()(
 
         // If in record mode, find the last activity to update its duration
         if (effectiveMode === 'record') {
-          // Find the last activity message with mode='record' (skip mood records)
-          let lastRecordIndex = -1;
-          for (let i = updatedMessages.length - 1; i >= 0; i--) {
-            if (updatedMessages[i].mode === 'record' && !updatedMessages[i].isMood) {
-              lastRecordIndex = i;
-              break;
-            }
-          }
-
-          if (lastRecordIndex !== -1) {
-            const lastMsg = updatedMessages[lastRecordIndex];
-            // Calculate duration based on current time
-            const duration = Math.max(0, Math.round((now - lastMsg.timestamp) / (1000 * 60)));
-
-            updatedMessages[lastRecordIndex] = {
-              ...lastMsg,
-              duration
-            };
-
-            // Update previous message in Supabase if logged in
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-              await supabase.from('messages').update({ duration }).eq('id', lastMsg.id).eq('user_id', session.user.id);
-            }
-
-            const moodStore = useMoodStore.getState();
-            const detected = autoDetectMood(lastMsg.content, duration);
-            moodStore.setMood(lastMsg.id, detected);
-          }
+          updatedMessages = await closePreviousActivity(updatedMessages, now);
         }
 
         const newMessage: Message = {
@@ -251,40 +223,13 @@ export const useChatStore = create<ChatState>()(
         });
 
         if (effectiveMode === 'record') {
-          const moodStore = useMoodStore.getState();
-          (async () => {
-            try {
-              let mood = autoDetectMood(content, 0);
-
-              const resp = await callClassifierAPI({ rawInput: content, lang: 'zh' });
-              const e = (resp as any)?.data?.energy_log?.[0];
-
-              if (mood === '平静' && e && e.energy_level) {
-                if (e.energy_level === 'high') mood = '开心';
-                else if (e.energy_level === 'medium') mood = '平静';
-                else if (e.energy_level === 'low') mood = '疲惫';
-              }
-
-              moodStore.setMood(newMessage.id, mood);
-            } catch {
-              const mood = autoDetectMood(content, 0);
-              moodStore.setMood(newMessage.id, mood);
-            }
-          })();
+          void triggerMoodDetection(newMessage.id, content);
         }
 
         // Persist to Supabase if logged in
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const { error } = await supabase.from('messages').insert([{
-            id: newMessage.id,
-            content: newMessage.content,
-            timestamp: newMessage.timestamp,
-            type: newMessage.type,
-            activity_type: newMessage.activityType,
-            user_id: session.user.id
-          }]);
-          if (error) console.error('Error sending message:', error);
+          await persistMessageToSupabase(newMessage, session.user.id);
         }
 
         // 触发 AI 批注（记录模式下）
@@ -314,50 +259,8 @@ export const useChatStore = create<ChatState>()(
 
         // AI Response Logic
         if (effectiveMode === 'chat') {
-          try {
-            // 构建符合 API 标准的对话历史（system prompt + 历史记录）
-            const apiMessages = buildChatApiMessages(updatedMessages);
-            const aiResponse = await callChatAPI({
-              messages: apiMessages,
-              temperature: 0.9,
-              max_tokens: 512,
-            });
-
-            const aiMessage: Message = {
-              id: uuidv4(),
-              content: aiResponse,
-              timestamp: Date.now(),
-              type: 'ai',
-              mode: 'chat',
-              activityType: 'chat'
-            };
-
-            set(state => ({ messages: [...state.messages, aiMessage] }));
-
-            if (session) {
-              await supabase.from('messages').insert([{
-                id: aiMessage.id,
-                content: aiMessage.content,
-                timestamp: aiMessage.timestamp,
-                type: aiMessage.type,
-                activity_type: 'chat',
-                user_id: session.user.id
-              }]);
-            }
-          } catch (error) {
-            console.error('AI Error:', error);
-            const errorText = getAiErrorText();
-
-            const errorMessage: Message = {
-              id: uuidv4(),
-              content: errorText,
-              timestamp: Date.now(),
-              type: 'system',
-              mode: 'chat',
-              activityType: 'chat'
-            };
-            set(state => ({ messages: [...state.messages, errorMessage] }));
-          }
+          const aiMessage = await handleAIChatResponse(updatedMessages, session?.user.id);
+          set((currentState) => ({ messages: [...currentState.messages, aiMessage] }));
         } else {
           // Record mode AI analysis
           // ... (existing logic for record mode analysis)

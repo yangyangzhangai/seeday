@@ -724,3 +724,16 @@ docs/                 # 架构与交接文档
 
 1. 若需回滚部署修复，可恢复 `.gitignore` 对应行（不建议，会再次导致云端缺文件）。
 2. `ChatPage` 仅修改监听器清理方式，属于低风险行为一致性修复。
+
+#### 今日执行总结（同步）
+
+1. 已完成（部署恢复直接相关）：
+   - 清除 `.gitignore` 的 `chat/` 误忽略规则，确保 `ChatInputBar.tsx`、`EditInsertModal.tsx`、`MessageItem.tsx`、`MoodPickerModal.tsx` 可被 Git 跟踪并进入云端构建。
+   - 修复 `ChatPage` 跨天日报 `visibilitychange` 监听器清理不对称问题，移除 `gen as any` 用法，避免潜在监听泄漏。
+2. 已完成（小范围逻辑修正，非大拆分）：
+   - `useChatStore.ts`：补齐 `sendMood` 的接口声明；AI 响应分支条件改为 `effectiveMode === 'chat'`。
+   - `useReportStore.ts`：报告活动统计过滤增加 `!m.isMood`，避免将心情消息误计入活动记录。
+3. 明确未完成（保持原计划）：
+   - C3/C4/C6/C7（ReportPage/useReportStore/useChatStore 大体量拆分）尚未执行，状态不变。
+4. 本轮目标达成判断：
+   - 已解除 Vercel 当前构建阻塞点；在不做大拆分前提下完成了低风险优化与可部署修复。
