@@ -92,6 +92,7 @@ const it: TranslationKeys = {
     // ── Pagina Rapporto ──
     report_title: 'Rapporto Temporale',
     report_calendar_view: 'Vista Calendario',
+    report_daily: 'Giornaliero',
     report_weekly: 'Settimanale',
     report_monthly: 'Mensile',
     report_custom: 'Rapporto Personalizzato',

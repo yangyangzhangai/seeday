@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const MAX_MOOD_ENTRIES = 500;
+
 export type MoodOption =
   | '开心'
   | '平静'
@@ -26,6 +28,48 @@ interface MoodState {
   clear: () => void;
 }
 
+type MoodRecordMaps = {
+  activityMood: Record<string, MoodOption | undefined>;
+  customMoodLabel: Record<string, string | undefined>;
+  customMoodApplied: Record<string, boolean | undefined>;
+  moodNote: Record<string, string | undefined>;
+};
+
+function pruneMoodRecordMaps(maps: MoodRecordMaps): MoodRecordMaps {
+  const orderedIds = Array.from(
+    new Set([
+      ...Object.keys(maps.activityMood),
+      ...Object.keys(maps.customMoodLabel),
+      ...Object.keys(maps.customMoodApplied),
+      ...Object.keys(maps.moodNote),
+    ])
+  );
+
+  const overflowCount = orderedIds.length - MAX_MOOD_ENTRIES;
+  if (overflowCount <= 0) {
+    return maps;
+  }
+
+  const idsToRemove = new Set(orderedIds.slice(0, overflowCount));
+
+  const trim = <T>(record: Record<string, T | undefined>): Record<string, T | undefined> => {
+    const next: Record<string, T | undefined> = {};
+    for (const [key, value] of Object.entries(record)) {
+      if (!idsToRemove.has(key)) {
+        next[key] = value;
+      }
+    }
+    return next;
+  };
+
+  return {
+    activityMood: trim(maps.activityMood),
+    customMoodLabel: trim(maps.customMoodLabel),
+    customMoodApplied: trim(maps.customMoodApplied),
+    moodNote: trim(maps.moodNote),
+  };
+}
+
 export const useMoodStore = create<MoodState>()(
   persist(
     (set, get) => ({
@@ -35,17 +79,32 @@ export const useMoodStore = create<MoodState>()(
       customMoodOptions: [],
       moodNote: {},
       setMood: (activityId, mood) =>
-        set(state => ({
-          activityMood: { ...state.activityMood, [activityId]: mood },
-        })),
+        set(state =>
+          pruneMoodRecordMaps({
+            activityMood: { ...state.activityMood, [activityId]: mood },
+            customMoodLabel: state.customMoodLabel,
+            customMoodApplied: state.customMoodApplied,
+            moodNote: state.moodNote,
+          })
+        ),
       setCustomMoodLabel: (activityId, label) =>
-        set(state => ({
-          customMoodLabel: { ...state.customMoodLabel, [activityId]: label },
-        })),
+        set(state =>
+          pruneMoodRecordMaps({
+            activityMood: state.activityMood,
+            customMoodLabel: { ...state.customMoodLabel, [activityId]: label },
+            customMoodApplied: state.customMoodApplied,
+            moodNote: state.moodNote,
+          })
+        ),
       setCustomMoodApplied: (activityId, applied) =>
-        set(state => ({
-          customMoodApplied: { ...state.customMoodApplied, [activityId]: applied },
-        })),
+        set(state =>
+          pruneMoodRecordMaps({
+            activityMood: state.activityMood,
+            customMoodLabel: state.customMoodLabel,
+            customMoodApplied: { ...state.customMoodApplied, [activityId]: applied },
+            moodNote: state.moodNote,
+          })
+        ),
       addCustomMoodOption: (label) =>
         set(state => {
           const value = label.trim();
@@ -55,9 +114,14 @@ export const useMoodStore = create<MoodState>()(
           };
         }),
       setMoodNote: (activityId, note) =>
-        set(state => ({
-          moodNote: { ...state.moodNote, [activityId]: note },
-        })),
+        set(state =>
+          pruneMoodRecordMaps({
+            activityMood: state.activityMood,
+            customMoodLabel: state.customMoodLabel,
+            customMoodApplied: state.customMoodApplied,
+            moodNote: { ...state.moodNote, [activityId]: note },
+          })
+        ),
       getMood: (activityId) => get().activityMood[activityId],
       clear: () => set({ activityMood: {}, customMoodLabel: {}, customMoodApplied: {}, moodNote: {} }),
     }),

@@ -53,6 +53,30 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     return () => observer.disconnect();
   }, [selectedReport]);
 
+  const getReportDisplayTitle = (report: Report): string => {
+    if (report.type === 'daily') {
+      return `${format(report.date, 'yyyy-MM-dd')} ${t('report_daily')}`;
+    }
+
+    if (report.type === 'weekly') {
+      const start = report.startDate ? new Date(report.startDate) : new Date(report.date);
+      const end = report.endDate ? new Date(report.endDate) : new Date(report.date);
+      return `${format(start, 'MM-dd')} ~ ${format(end, 'MM-dd')} ${t('report_weekly')}`;
+    }
+
+    if (report.type === 'monthly') {
+      return `${format(report.date, 'yyyy-MM')} ${t('report_monthly')}`;
+    }
+
+    if (report.type === 'custom') {
+      const start = report.startDate ? new Date(report.startDate) : new Date(report.date);
+      const end = report.endDate ? new Date(report.endDate) : new Date(report.date);
+      return `${format(start, 'yyyy-MM-dd')} ~ ${format(end, 'yyyy-MM-dd')} ${t('report_custom')}`;
+    }
+
+    return report.title;
+  };
+
   if (!selectedReport) return null;
 
   return (
@@ -76,7 +100,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         <div className="max-w-lg mx-auto pt-2 pb-4">
           <div className="flex justify-between items-start mb-4" ref={reportHeaderRef}>
             <div>
-              <h2 className="text-xl font-bold font-siyuan">{selectedReport.title}</h2>
+              <h2 className="text-xl font-bold font-siyuan">{getReportDisplayTitle(selectedReport)}</h2>
               <p className="text-sm text-gray-500 font-siyuan">{format(selectedReport.date, 'yyyy-MM-dd HH:mm')}</p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

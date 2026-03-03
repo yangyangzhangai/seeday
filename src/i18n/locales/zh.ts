@@ -92,6 +92,7 @@ const zh: TranslationKeys = {
     // ── 报告页面 ──
     report_title: '时间报告',
     report_calendar_view: '日历视图',
+    report_daily: '日报',
     report_weekly: '周报',
     report_monthly: '月报',
     report_custom: '定制报告',

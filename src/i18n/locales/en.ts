@@ -90,6 +90,7 @@ const en = {
     // ── Report Page ──
     report_title: 'Reports',
     report_calendar_view: 'Calendar',
+    report_daily: 'Daily',
     report_weekly: 'Weekly',
     report_monthly: 'Monthly',
     report_custom: 'Custom',

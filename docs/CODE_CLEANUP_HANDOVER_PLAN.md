@@ -328,11 +328,11 @@ docs/                 # 架构与交接文档
 - [x] A4: 清理 `useStardustStore.ts` 中硬编码 Bearer
 
 ### Phase B: 文档同构
-- [ ] B1: 重写根 `README.md`
-- [ ] B2: 新建 `PROJECT_CONTEXT.md`
-- [ ] B3: 新建 `FEATURE_STATUS.md`
-- [ ] B4: 重写 `docs/ARCHITECTURE.md`（仅真实实现）
-- [ ] B5: 新建 `docs/CHANGELOG.md`
+- [x] B1: 重写根 `README.md`
+- [x] B2: 新建 `PROJECT_CONTEXT.md`
+- [x] B3: 新建 `FEATURE_STATUS.md`
+- [x] B4: 重写 `docs/ARCHITECTURE.md`（仅真实实现）
+- [x] B5: 新建 `docs/CHANGELOG.md`
 
 ### Phase C: 结构拆分
 - [x] C1: 拆分 `ChatPage.tsx`
@@ -348,9 +348,9 @@ docs/                 # 架构与交接文档
 - [x] C11: **[P1]** 移动跨天日报生成逻辑从 ChatPage → App.tsx
 - [ ] C12: **[P2]** 恢复 `annotationHelpers.ts` 概率逻辑（移除测试模式 100% 触发）
 - [ ] C13: **[P2/暂缓]** 清理 DEBUG console.log（~26 处分布在 5 个 store 文件）— 用户调试中，暂不删除
-- [ ] C14: **[P2]** MoodStore 数据清理策略（防止 localStorage 溢出）
+- [x] C14: **[P2]** MoodStore 数据清理策略（防止 localStorage 溢出）
 - [x] C15: **[P2]** 统一 Todo 字段映射函数（`toDbTodo()`）
-- [ ] C16: **[P2]** 修复 `sendMood` 缺失 `ChatState` 接口声明
+- [x] C16: **[P2]** 修复 `sendMood` 缺失 `ChatState` 接口声明
 
 ### Phase D: 目录治理
 - [x] D1: 新建 `docs/PROJECT_MAP.md`（目录职责/入口/边界/状态）
@@ -974,3 +974,82 @@ docs/                 # 架构与交接文档
      - 头像弹窗按钮（选择头像/关闭/更多/更换头像）文案随语言切换。
 - 结果记录
   - 当前 CLI 环境无法进行浏览器点击交互；上述手测项已回填为执行清单，待本机人工确认后可在本节补记“通过/失败 + 复现路径”。
+
+### 2026-03-03 (续) — C14 收口 + 报告标题 i18n 补丁
+
+#### 变更来源
+
+- 来源: cleanup 主线剩余项 C14（P2）+ 用户反馈“报告详情标题仍显示中文‘日报’”。
+
+#### 决策结论
+
+- 采纳“先完成 C14，再做单点 UI 文案补丁”的顺序，不夹带 C12/C13。
+- C12 维持测试阶段 100% 触发，不做改动。
+
+#### 代码变更范围
+
+1. C14（MoodStore 数据收口）
+   - `src/store/useMoodStore.ts`
+   - 新增 `MAX_MOOD_ENTRIES = 500` 上限。
+   - 新增 `pruneMoodRecordMaps()`，对 `activityMood`、`customMoodLabel`、`customMoodApplied`、`moodNote` 四类按 `messageId` 的本地映射执行统一裁剪。
+   - 在 `setMood` / `setCustomMoodLabel` / `setCustomMoodApplied` / `setMoodNote` 写入路径接入裁剪，避免 localStorage 持续膨胀。
+2. 报告标题 i18n 补丁（用户反馈修复）
+   - `src/features/report/ReportDetailModal.tsx`：详情标题改为按 `report.type` + 日期动态拼接并走 i18n，不再直接显示历史 `selectedReport.title`。
+   - `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：新增 `report_daily` 词条。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓（保留既有 chunk size warning，不影响构建成功）
+
+#### 任务看板变化
+
+- [x] C14 完成（MoodStore 数据清理策略已落地）
+- [x] C16 完成（看板状态已与代码一致）
+
+#### 风险与回滚点
+
+1. C14 的裁剪策略为“按数量上限保留最近键集合”，主要影响极早历史 mood 映射，不影响消息主数据。
+2. 报告标题改为动态 i18n 后，旧报告标题不再原样显示；若需回退可仅回退 `ReportDetailModal.tsx` 与新增 locale key 的提交。
+
+### 2026-03-03 (续) — Phase B 文档同构收口（B1-B5）
+
+#### 变更来源
+
+- 来源: cleanup 主线 Phase B，按 B1 -> B2 -> B3 -> B4 -> B5 顺序逐项落地。
+
+#### 决策结论
+
+- 采纳“文档只描述真实实现”的原则，不再保留愿景型或已弃用模块叙述。
+- 本批仅做文档同构，不夹带代码行为改动。
+
+#### 代码/文档变更范围
+
+1. `README.md`
+   - 完整重写为当前项目真实说明：功能、运行方式、环境变量、目录、验证方式、已知事项。
+2. `PROJECT_CONTEXT.md`
+   - 新增全局上下文文档，沉淀产品定位、分层、数据流、风险与接手路径。
+3. `FEATURE_STATUS.md`
+   - 新增模块状态文档，按 Auth/Chat/Todo/Report/Annotation/Stardust/i18n/API 记录状态与入口。
+4. `docs/ARCHITECTURE.md`
+   - 重写为“真实架构版”，移除历史中未实现或已偏离现状的模块描述。
+5. `docs/CHANGELOG.md`
+   - 新增变更日志基线，并回填当日关键文档与收口事项。
+
+#### 验证结果
+
+- 文档文件存在性校验通过（B1-B5 均已创建/重写到位）
+- 本批为文档同构，未引入运行时代码路径变更
+
+#### 任务看板变化
+
+- [x] B1 完成（根 README 重写）
+- [x] B2 完成（新增 `PROJECT_CONTEXT.md`）
+- [x] B3 完成（新增 `FEATURE_STATUS.md`）
+- [x] B4 完成（重写 `docs/ARCHITECTURE.md`）
+- [x] B5 完成（新增 `docs/CHANGELOG.md`）
+
+#### 风险与回滚点
+
+1. 风险主要为文档与实现漂移；后续每次 PR 合并后应持续按协议回填本文件与 changelog。
+2. 回滚可按文档文件逐个回退，不影响运行时功能。
