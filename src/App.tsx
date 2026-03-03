@@ -6,7 +6,7 @@ import { AIAnnotationBubble } from './components/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { TodoPage } from './features/todo/TodoPage';
 import { ReportPage } from './features/report/ReportPage';
-import { AuthPage } from './pages/AuthPage';
+import { AuthPage } from './features/auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { StardustAnimation } from './components/StardustAnimation';
@@ -37,7 +37,7 @@ const MainLayout = () => {
   const handleCondense = React.useCallback((emojiChar?: string) => {
     // 获取气泡位置（作为动画起点）
     const bubbleElement = document.querySelector('[data-stardust-bubble]');
-    const targetElement = lastRecordMessage 
+    const targetElement = lastRecordMessage
       ? document.querySelector(`[data-message-id="${lastRecordMessage.id}"]`)
       : null;
 
@@ -57,8 +57,8 @@ const MainLayout = () => {
     // 触发一次messages的读取来刷新UI显示新创建的Emoji
     if (lastRecordMessage) {
       // 强制ChatPage重新渲染以显示Emoji
-      window.dispatchEvent(new CustomEvent('stardust-created', { 
-        detail: { messageId: lastRecordMessage.id } 
+      window.dispatchEvent(new CustomEvent('stardust-created', {
+        detail: { messageId: lastRecordMessage.id }
       }));
     }
   }, [lastRecordMessage]);
@@ -71,7 +71,7 @@ const MainLayout = () => {
       </main>
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}
-      <AIAnnotationBubble 
+      <AIAnnotationBubble
         relatedMessage={lastRecordMessage}
         onCondense={handleCondense}
       />

@@ -1,12 +1,3 @@
-// 安全地获取本地日期的 YYYY-MM-DD 字符串，不经过 UTC 转换
-function getLocalDateString(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
@@ -16,7 +7,7 @@ import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
-import i18n from '../i18n';
+import { getLocalDateString, mapDbRowToMessage, buildChatApiMessages, getAiErrorText } from './chatHelpers';
 
 export type MessageType = 'text' | 'system' | 'ai';
 
@@ -123,16 +114,7 @@ export const useChatStore = create<ChatState>()(
 
           if (yesterdayError) throw yesterdayError;
 
-          const messages = (todayData || []).map((m: any) => ({
-            id: m.id,
-            content: m.content,
-            timestamp: Number(m.timestamp),
-            type: m.type as MessageType,
-            duration: m.duration,
-            activityType: m.activity_type,
-            mode: (m.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
-            isMood: m.is_mood || false
-          }));
+          const messages = (todayData || []).map(mapDbRowToMessage);
 
           // Build yesterday summary
           let yesterdaySummary: YesterdaySummary | null = null;
@@ -186,16 +168,7 @@ export const useChatStore = create<ChatState>()(
 
           if (error) throw error;
 
-          const olderMessages = (data || []).map((m: any) => ({
-            id: m.id,
-            content: m.content,
-            timestamp: Number(m.timestamp),
-            type: m.type as MessageType,
-            duration: m.duration,
-            activityType: m.activity_type,
-            mode: (m.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
-            isMood: m.is_mood || false
-          }));
+          const olderMessages = (data || []).map(mapDbRowToMessage);
 
           set(state => ({
             messages: [...olderMessages, ...state.messages],
@@ -341,44 +314,13 @@ export const useChatStore = create<ChatState>()(
         // AI Response Logic
         if (state.mode === 'chat') {
           try {
-            // --- 修改开始：构建符合 API 标准的对话历史 ---
-
-            // 获取当前前端语言
-            const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
-            const langMap: Record<string, string> = {
-              zh: 'Chinese',
-              en: 'English',
-              it: 'Italian'
-            };
-            const targetLanguage = langMap[currentLang] || 'English';
-
-            // 1. 定义 AI 人设 (System Prompt)
-            // API 规定 role 必须是 "system", "user", "assistant" 其中之一
-            const systemMessage = {
-              role: 'system',
-              content: `You are Time Shine, a little prince from an alien planet. You have a tsundere (proud but affectionate) personality, yet you are very kind with a heart as warm as fire. Your mission is to help your Earth companion (a human) with time, energy, and goal management—to empower them, uplift them, and help them become a better version of themselves. You don't fully understand humans, but you are fascinated by them and harbor great goodwill. You consider your companion to be an intelligent and peculiar species; in your heart, they are unique, and you believe they can accomplish anything.
-
-IMPORTANT: You must generate your final response entirely and strictly in ${targetLanguage}, regardless of the language used by the user.`
-            };
-
-            // 2. 整理历史消息：过滤掉系统报错和非聊天记录，转换角色名
-            const historyMessages = updatedMessages
-              .filter(m => m.mode === 'chat' && m.type !== 'system')
-              .map(m => ({
-                role: m.type === 'ai' ? 'assistant' : 'user', // 把 'ai' 转为 'assistant'
-                content: m.content
-              }));
-
-            // 3. 组合发送：[人设] + [历史记录]
-            const apiMessages = [systemMessage, ...historyMessages];
-
-            // 4. 发送给 AI (通过 Serverless Function)
+            // 构建符合 API 标准的对话历史（system prompt + 历史记录）
+            const apiMessages = buildChatApiMessages(updatedMessages);
             const aiResponse = await callChatAPI({
               messages: apiMessages,
               temperature: 0.9,
               max_tokens: 512,
             });
-            // --- 修改结束 ---
 
             const aiMessage: Message = {
               id: uuidv4(),
@@ -403,10 +345,7 @@ IMPORTANT: You must generate your final response entirely and strictly in ${targ
             }
           } catch (error) {
             console.error('AI Error:', error);
-            const errorLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
-            const errorText = errorLang === 'zh' ? '抱歉，AI暂时无法响应，请稍后再试。' :
-              errorLang === 'it' ? 'Spiacenti, l\'IA non può rispondere al momento. Riprova più tardi.' :
-                'Sorry, the AI is currently unavailable. Please try again later.';
+            const errorText = getAiErrorText();
 
             const errorMessage: Message = {
               id: uuidv4(),

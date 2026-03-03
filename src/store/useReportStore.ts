@@ -9,7 +9,7 @@ import { useAuthStore } from './useAuthStore';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, format, eachDayOfInterval, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
 import { callReportAPI, callClassifierAPI, callDiaryAPI } from '../api/client';
-import { computeAll, formatForDiaryAI, type ComputedResult, type ClassifiedData, type MoodRecord } from '../utils/reportCalculator';
+import { computeAll, formatForDiaryAI, type ComputedResult, type ClassifiedData, type MoodRecord } from '../lib/reportCalculator';
 import i18n from '../i18n';
 
 const FALLBACK_SUMMARY = '今天的你是一个很棒自己。';
@@ -228,37 +228,37 @@ export const useReportStore = create<ReportState>()(
 
           if (!isSameDayAsNow) {
             // 五大类关键词（字符串数组，便于匹配）
-            const kw: Record<'生存'|'连接与交互'|'成长与创造'|'修复与娱乐'|'巅峰体验', string[]> = {
+            const kw: Record<'生存' | '连接与交互' | '成长与创造' | '修复与娱乐' | '巅峰体验', string[]> = {
               生存: [
-                '吃饭','用餐','餐','午餐','晚餐','早餐','睡','睡觉','小憩','午休','卫生','洗澡','刷牙','如厕','上厕所','排泄',
-                '工作','上班','打工','谋生','收入','加班','通勤','地铁','公交','打车',
-                '看病','就医','体检','保险','储蓄','理财','交房租','交水电','缴费',
-                '打扫','清洁','扫地','拖地','收纳','整理','洗衣','做饭','买菜'
+                '吃饭', '用餐', '餐', '午餐', '晚餐', '早餐', '睡', '睡觉', '小憩', '午休', '卫生', '洗澡', '刷牙', '如厕', '上厕所', '排泄',
+                '工作', '上班', '打工', '谋生', '收入', '加班', '通勤', '地铁', '公交', '打车',
+                '看病', '就医', '体检', '保险', '储蓄', '理财', '交房租', '交水电', '缴费',
+                '打扫', '清洁', '扫地', '拖地', '收纳', '整理', '洗衣', '做饭', '买菜'
               ],
               连接与交互: [
-                '家人','父母','孩子','朋友','同学','聊天','闲聊','约会','恋爱','拥抱','陪伴','育儿',
-                '沟通','会议','面谈','讨论','协作','对接','商务','谈判',
-                '聚会','酒局','发朋友圈','社交媒体','微博','小红书','点赞','私信','人情','联络'
+                '家人', '父母', '孩子', '朋友', '同学', '聊天', '闲聊', '约会', '恋爱', '拥抱', '陪伴', '育儿',
+                '沟通', '会议', '面谈', '讨论', '协作', '对接', '商务', '谈判',
+                '聚会', '酒局', '发朋友圈', '社交媒体', '微博', '小红书', '点赞', '私信', '人情', '联络'
               ],
               成长与创造: [
-                '学习','读书','阅读','复盘','复习','上课','课程','作业','考试','备考','练习','刻意练习','训练',
-                '写作','绘画','画画','设计','编程','开发','产品','发明','创造','深度思考','笔记',
-                '宗教','信仰','哲学','志愿','公益','义工','意义'
+                '学习', '读书', '阅读', '复盘', '复习', '上课', '课程', '作业', '考试', '备考', '练习', '刻意练习', '训练',
+                '写作', '绘画', '画画', '设计', '编程', '开发', '产品', '发明', '创造', '深度思考', '笔记',
+                '宗教', '信仰', '哲学', '志愿', '公益', '义工', '意义'
               ],
               修复与娱乐: [
-                '短视频','刷视频','刷抖音','刷快手','追剧','电影','电视剧','音乐','听歌','发呆',
-                '旅行','旅游','出游','游戏','打游戏','电竞','运动','跑步','健身','瑜伽','看演出','观演',
-                '冥想','正念','心理','咨询','日记','倾诉'
+                '短视频', '刷视频', '刷抖音', '刷快手', '追剧', '电影', '电视剧', '音乐', '听歌', '发呆',
+                '旅行', '旅游', '出游', '游戏', '打游戏', '电竞', '运动', '跑步', '健身', '瑜伽', '看演出', '观演',
+                '冥想', '正念', '心理', '咨询', '日记', '倾诉'
               ],
               巅峰体验: [
-                '心流','忘我','沉浸','人琴合一','上头','出神','状态拉满',
-                '登山','攀登','冲顶','破 PB','比赛夺冠',
-                '婚礼','结婚','毕业典礼','节日','团聚','庆典'
+                '心流', '忘我', '沉浸', '人琴合一', '上头', '出神', '状态拉满',
+                '登山', '攀登', '冲顶', '破 PB', '比赛夺冠',
+                '婚礼', '结婚', '毕业典礼', '节日', '团聚', '庆典'
               ]
             };
 
-            const categories: Array<'生存'|'连接与交互'|'成长与创造'|'修复与娱乐'|'巅峰体验'|'其他'> =
-              ['生存','连接与交互','成长与创造','修复与娱乐','巅峰体验','其他'];
+            const categories: Array<'生存' | '连接与交互' | '成长与创造' | '修复与娱乐' | '巅峰体验' | '其他'> =
+              ['生存', '连接与交互', '成长与创造', '修复与娱乐', '巅峰体验', '其他'];
             const minutesByCat: Record<(typeof categories)[number], number> = {
               生存: 0, 连接与交互: 0, 成长与创造: 0, 修复与娱乐: 0, 巅峰体验: 0, 其他: 0
             };
@@ -293,10 +293,10 @@ export const useReportStore = create<ReportState>()(
               stats.actionAnalysis = entries;
 
               // 生成约100字的鼓励式总结
-              const top = [...entries].sort((a,b)=>b.minutes-a.minutes)[0];
-              const sec = [...entries].sort((a,b)=>b.minutes-a.minutes)[1];
+              const top = [...entries].sort((a, b) => b.minutes - a.minutes)[0];
+              const sec = [...entries].sort((a, b) => b.minutes - a.minutes)[1];
               const parts: string[] = [];
-              parts.push(`今天你的行动重心在「${top.category}」，约${Math.round(top.percent*100)}%。`);
+              parts.push(`今天你的行动重心在「${top.category}」，约${Math.round(top.percent * 100)}%。`);
               if (sec) parts.push(`其次是「${sec.category}」，节奏平衡。`);
               if (top.category === '生存') parts.push('稳定打底很重要，你在打磨生活的地基。');
               if (top.category === '连接与交互') parts.push('好的人际让能量流动，你在建立支持与被支持。');

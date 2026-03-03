@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ArrowLeft, Mail, Lock, Loader2, User, MoreHorizontal, X } from 'lucide-react';
 
 export const AuthPage = () => {

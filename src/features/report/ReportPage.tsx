@@ -8,7 +8,8 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { FileText, Sparkles, X, Clock, CheckCircle, Circle } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { cn, formatDuration } from '../../lib/utils';
+import { cn } from '../../lib/utils';
+import { formatDuration } from '../../lib/time';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -309,30 +310,30 @@ export const ReportPage = () => {
   const dailyMoodDistribution =
     selectedReport && selectedReport.type === 'daily'
       ? (() => {
-          const start = selectedReport.startDate || startOfDay(new Date(selectedReport.date)).getTime();
-          const end = selectedReport.endDate || endOfDay(new Date(selectedReport.date)).getTime();
-          const moodMinutes: Record<string, number> = {};
+        const start = selectedReport.startDate || startOfDay(new Date(selectedReport.date)).getTime();
+        const end = selectedReport.endDate || endOfDay(new Date(selectedReport.date)).getTime();
+        const moodMinutes: Record<string, number> = {};
 
-          chatMessages
-            .filter(m =>
-              m.timestamp >= start &&
-              m.timestamp <= end &&
-              m.mode === 'record' &&
-              !m.isMood &&
-              m.duration !== undefined
-            )
-            .forEach(m => {
-              const mood = activityMood[m.id];
-              if (!mood) return;
-              const minutes = m.duration || 0;
-              moodMinutes[mood] = (moodMinutes[mood] || 0) + minutes;
-            });
+        chatMessages
+          .filter(m =>
+            m.timestamp >= start &&
+            m.timestamp <= end &&
+            m.mode === 'record' &&
+            !m.isMood &&
+            m.duration !== undefined
+          )
+          .forEach(m => {
+            const mood = activityMood[m.id];
+            if (!mood) return;
+            const minutes = m.duration || 0;
+            moodMinutes[mood] = (moodMinutes[mood] || 0) + minutes;
+          });
 
-          return Object.entries(moodMinutes).map(([mood, minutes]) => ({
-            mood,
-            minutes: minutes as number,
-          }));
-        })()
+        return Object.entries(moodMinutes).map(([mood, minutes]) => ({
+          mood,
+          minutes: minutes as number,
+        }));
+      })()
       : [];
 
   const handleDateClick = (value: Date) => {

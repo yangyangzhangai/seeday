@@ -1,6 +1,6 @@
 ﻿# Tshine 代码整理交接计划
 
-- 文档版本: v1.3
+- 文档版本: v1.4
 - 创建日期: 2026-03-03
 - 适用范围: `Tshine2-13-mainc` 全仓
 - 目标: 在不重写项目的前提下，完成安全清理、文档同构、结构拆分与可维护性提升
@@ -140,6 +140,118 @@
 3. `npm run build` 通过。
 4. 关键页面冒烟测试通过（`/chat`, `/todo`, `/report`）。
 
+### C.5 深度代码审计（2026-03-03）
+
+> 审计范围: 全部 4 个 Feature 页面 + 全部 7 个 Store 文件 + 2 个 Helper 文件，共 13 个文件 ~3750 行 ~155KB。
+
+#### C.5.1 文件规模现状
+
+| 类别 | 文件 | 行数 | 大小 |
+|------|------|------|------|
+| Feature | `ChatPage.tsx` | 476 | 20KB |
+| Feature | `ReportPage.tsx` | 633 | 28KB |
+| Feature | `TodoPage.tsx` | 472 | 19KB |
+| Feature | `AuthPage.tsx` | 304 | 13KB |
+| Store | `useChatStore.ts` | 614 | 22KB |
+| Store | `useReportStore.ts` | 680 | 31KB |
+| Store | `useTodoStore.ts` | 289 | 10KB |
+| Store | `useStardustStore.ts` | 402 | 14KB |
+| Store | `useAnnotationStore.ts` | 344 | 11KB |
+| Store | `useAuthStore.ts` | 172 | 6KB |
+| Store | `useMoodStore.ts` | 76 | 3KB |
+| Helper | `chatHelpers.ts` | 68 | 3KB |
+| Helper | `annotationHelpers.ts` | 212 | 5KB |
+
+#### C.5.2 严重问题（P0）
+
+**P0-1: `useReportStore.ts` 巨型函数 + 业务逻辑内联（680 行）**
+
+- `generateReport`（L144–L435）约 290 行，混合了：日期范围计算、Todo 过滤统计、中文关键词分类器（60+ 行硬编码关键词）、心情分布计算、摘要文案生成、Supabase 持久化。
+- `generateTimeshineDiary`（L496–L669）约 170 行，与 `triggerAIAnalysis` 大量重复：
+  - 时间范围计算逻辑重复 3 次（L448–L460, L510–L521, L152–L172）
+  - 活动消息过滤逻辑重复 3 次（L266–L273, L468–L474, L524–L529）
+  - Todo 统计过滤逻辑重复 2 次（L176–L186, L532–L536）
+- **方案**: 提取 `reportHelpers.ts`，含 `getDateRange()`, `filterActivities()`, `filterRelevantTodos()`, `classifyActivities()`, `computeMoodDistribution()`, `generateActionSummary()`, `generateMoodSummary()`。预计 store 减少 ~200 行。
+
+**P0-2: `useChatStore.ts` `sendMessage` 过于庞大（170 行）**
+
+- `sendMessage`（L195–L363）混合 7 种职责：计算上一活动 duration、更新 Supabase、自动检测心情 + 分类器 API、创建消息 + 乐观更新、持久化、触发 AI 批注、AI 聊天响应。
+- `sendMood`（L550–L593）未在 `ChatState` 接口声明，类型不完整。
+- **方案**: 提取 `chatActions.ts`，含 `closePreviousActivity()`, `persistMessageToSupabase()`, `triggerMoodDetection()`, `handleAIChatResponse()`。预计 store 减少 ~120 行。
+
+#### C.5.3 中等问题（P1）
+
+**P1-1: 硬编码中文字符串（绕过 i18n）**
+
+| 文件 | 位置 | 硬编码内容 |
+|------|------|------------|
+| `ChatPage.tsx` | L47, L51, L430, L433–L434 | `'自定义'` |
+| `ChatPage.tsx` | L290 | `'加载更多记录…'` |
+| `ChatPage.tsx` | L296 | `'— 已是最早的记录 —'` |
+| `ChatPage.tsx` | L308–L311 | `'昨天你记录了...'`, `'最后在做：'`, `'点击或上滑...'` |
+| `ChatPage.tsx` | L326–L327 | `'新的一天…'`, `'记录你正在做的事情'` |
+| `ReportPage.tsx` | L153 | `'分钟'` |
+| `ReportPage.tsx` | L559 | `'今日心情光谱'` |
+| `useReportStore.ts` | L15, L155–L167 | `FALLBACK_SUMMARY`, 标题生成 |
+| `useReportStore.ts` | L231–L258 | 整个关键词分类器（60 行中文） |
+| `useReportStore.ts` | L299–L311 | 行动总结模板 |
+| `useReportStore.ts` | L385–L392 | 心情简评模板 |
+| `useChatStore.ts` | L241, L258, L373 | `'待分类'`, `'chat'` |
+| `useMoodStore.ts` | L4–L12 | MoodOption 类型使用中文字面量 |
+| `AuthPage.tsx` | L71, L127, L270, L287 | `'请输入有效的手机号'`, `'选择头像'`, `'关闭'`, `'更换头像'` |
+
+**P1-2: Supabase session 获取模式重复 ~20 次**
+
+同一 `const { data: { session } } = await supabase.auth.getSession()` 模式在所有 store 中重复。方案：新建 `lib/supabase-utils.ts` 提供 `withSession()` 封装。
+
+**P1-3: `ReportPage.tsx` 未拆分子组件（633 行）**
+
+一个文件内定义 4 个组件（`ActivityRecordsView`, `MoodPieChart`, `ReportStatsView`, `ReportPage`），主页面 JSX 含 3 层嵌套模态框，约 250 行。方案：拆分到独立文件，主文件降至 ~200 行。
+
+**P1-4: `TodoPage.tsx` `catMap` 重复定义**
+
+`catMap`（类别翻译映射）在 `TodoItem`（L35–L41）和 `TodoPage`（L155–L161）中完全重复。方案：提取到 `lib/todoHelpers.ts`。
+
+**P1-5: `ChatPage.tsx` 跨天日报生成逻辑错放**
+
+L113–L134 的 `useEffect` 负责跨天自动生成日报，与聊天页面无关，且事件监听器清理有 bug（L132: `gen as any`）。方案：移到 `App.tsx`。
+
+#### C.5.4 低优先级问题（P2）
+
+1. **`annotationHelpers.ts` 测试模式硬编码**: L141–L143 直接 `return true`，跳过全部概率逻辑（L145–L200 被注释掉），生产环境也使用 100% 触发率。
+2. **过度 console.log**: `useTodoStore`(8处), `useStardustStore`(6处), `useAnnotationStore`(5处), `useChatStore`(4处), `useReportStore`(3处)。建议统一 `import.meta.env.DEV && console.log()`。
+3. **`useStardustStore.ts` Emoji 正则过长**: L79 约 800 字符的 Unicode 正则，建议改用 `emoji-regex` npm 包。
+4. **`useTodoStore.ts` `updateTodo` 字段映射脆弱**: L125–L163 手动驼峰→下划线映射，容易遗漏。建议统一 `toDbTodo()` 映射函数。
+5. **`useMoodStore.ts` Record 对象持续膨胀**: `activityMood`、`customMoodLabel` 等按 message ID 为 key 的 Record 从不清理，长期使用有 localStorage 溢出风险。
+6. **`insertActivity` 时间冲突处理复杂**: `useChatStore.ts` L366–L458 含 3 种碰撞处理逻辑，缺乏测试。建议提取为纯函数。
+
+#### C.5.5 整体健康度评分
+
+| 维度 | 评分 | 说明 |
+|------|:----:|------|
+| 可维护性 | 4/10 | 大函数多、职责不清 |
+| i18n 完整度 | 5/10 | 核心流程有 i18n，UI/数据层有大量硬编码中文 |
+| 代码重复 | 3/10 | 时间范围/session/消息过滤重复率高 |
+| 类型安全 | 6/10 | 基本类型定义在，但有 `any` 和缺失接口 |
+| 性能 | 6/10 | 基本合理，MoodStore 无限增长和每秒 timer 有隐患 |
+| 测试覆盖 | 1/10 | 无任何单元测试 |
+
+#### C.5.6 推荐优化执行顺序
+
+| 优先级 | 任务 | 预估工时 | 影响范围 |
+|:------:|------|:--------:|----------|
+| P0 | 提取 `reportHelpers.ts` | 2h | `useReportStore` 减少 ~200 行 |
+| P0 | 拆分 `sendMessage` 到 `chatActions.ts` | 2h | `useChatStore` 减少 ~120 行 |
+| P1 | 统一 Supabase session 封装 | 1h | 所有 store 文件 |
+| P1 | 拆分 `ReportPage.tsx` 子组件 | 1.5h | 单文件减少 ~350 行 |
+| P1 | 修复硬编码中文→i18n | 2h | ChatPage, ReportPage, AuthPage |
+| P1 | 提取 `catMap` 到 todoHelpers | 0.5h | TodoPage, TodoItem |
+| P1 | 移动跨天日报逻辑到 App 层 | 0.5h | ChatPage → App.tsx |
+| P2 | 恢复 annotationHelpers 概率逻辑 | 0.5h | annotationHelpers.ts |
+| P2 | 清理 DEBUG console.log | 0.5h | 所有 store 文件 |
+| P2 | MoodStore 数据清理策略 | 1h | useMoodStore |
+| P2 | 统一 Todo 字段映射函数 | 1h | useTodoStore |
+
 ## Phase D: 目录治理与地图（规范化）
 
 ### D.1 目标
@@ -209,29 +321,49 @@ docs/                 # 架构与交接文档
 
 ## 4. 任务看板（供交接更新）
 
-- [ ] A1: 移除 `aiService.ts` 明文密钥
-- [ ] A2: 处理 `qwen.ts`（删除或迁移为服务端调用）
+### Phase A: 安全清理
+- [x] A1: 移除 `aiService.ts` 明文密钥
+- [x] A2: 处理 `qwen.ts`（删除或迁移为服务端调用）
 - [x] A3: 清理调试脚本中的明文密钥（部分完成）
-- [ ] A4: 清理 `useStardustStore.ts` 中硬编码 Bearer
+- [x] A4: 清理 `useStardustStore.ts` 中硬编码 Bearer
+
+### Phase B: 文档同构
 - [ ] B1: 重写根 `README.md`
 - [ ] B2: 新建 `PROJECT_CONTEXT.md`
 - [ ] B3: 新建 `FEATURE_STATUS.md`
-- [ ] C1: 拆分 `ChatPage.tsx`
-- [ ] C2: 拆分 `useChatStore.ts`
-- [ ] C3: 拆分 `ReportPage.tsx`
-- [ ] C4: 拆分 `useReportStore.ts`
-- [ ] C5: 拆分 `TodoPage.tsx`
-- [ ] D1: 新建 `docs/PROJECT_MAP.md`（目录职责/入口/边界/状态）
-- [ ] D2: 统一页面入口策略（`pages` 向 `features` 收敛）
-- [ ] D3: 统一前后端 API 分层边界（`src/*` 调用、`api/*` 服务端）
-- [ ] D4: 清理或迁移遗留直连实现（含 `src/api/qwen.ts`）
-- [ ] D5: 清理占位目录 README，合并为单一地图文档
-- [ ] D6: 锁定单一包管理器并确认主锁文件策略
-- [ ] D7: 清理 `src/i18n/locales/en.ts.temp`
-- [ ] D8: 清理空目录与占位目录（`src/assets`, `src/styles`, `src/layouts`）
-- [ ] D9: 根目录残留文件评估处置（`TO-DO.json`, `YOUWARE.md`, `SECURITY_FIX.md`, `scripts/test-minmax.ts`）
 - [ ] B4: 重写 `docs/ARCHITECTURE.md`（仅真实实现）
 - [ ] B5: 新建 `docs/CHANGELOG.md`
+
+### Phase C: 结构拆分
+- [x] C1: 拆分 `ChatPage.tsx`
+- [x] C2: 拆分 `useChatStore.ts`（chatHelpers 已提取）
+- [ ] C3: 拆分 `ReportPage.tsx` — 拆分子组件到独立文件
+- [ ] C4: 拆分 `useReportStore.ts` — 提取 `reportHelpers.ts`
+- [ ] C5: 拆分 `TodoPage.tsx`
+- [ ] C6: **[P0]** 提取 `reportHelpers.ts`（时间范围/过滤/分类器逻辑），useReportStore 减少 ~200 行
+- [ ] C7: **[P0]** 拆分 `sendMessage` → `chatActions.ts`（关闭活动/持久化/心情检测/AI 响应），useChatStore 减少 ~120 行
+- [ ] C8: **[P1]** 统一 Supabase session 封装 → `lib/supabase-utils.ts`
+- [ ] C9: **[P1]** 修复硬编码中文 → i18n（ChatPage ~10 处, ReportPage ~3 处, AuthPage ~4 处, useReportStore ~多处）
+- [ ] C10: **[P1]** 提取 `catMap` 到 `lib/todoHelpers.ts`（消除 TodoPage + TodoItem 重复）
+- [ ] C11: **[P1]** 移动跨天日报生成逻辑从 ChatPage → App.tsx
+- [ ] C12: **[P2]** 恢复 `annotationHelpers.ts` 概率逻辑（移除测试模式 100% 触发）
+- [ ] C13: **[P2/暂缓]** 清理 DEBUG console.log（~26 处分布在 5 个 store 文件）— 用户调试中，暂不删除
+- [ ] C14: **[P2]** MoodStore 数据清理策略（防止 localStorage 溢出）
+- [ ] C15: **[P2]** 统一 Todo 字段映射函数（`toDbTodo()`）
+- [ ] C16: **[P2]** 修复 `sendMood` 缺失 `ChatState` 接口声明
+
+### Phase D: 目录治理
+- [x] D1: 新建 `docs/PROJECT_MAP.md`（目录职责/入口/边界/状态）
+- [x] D2: 统一页面入口策略（`pages` 向 `features` 收敛）
+- [ ] D3: 统一前后端 API 分层边界（`src/*` 调用、`api/*` 服务端）
+- [x] D4: 清理或迁移遗留直连实现（含 `src/api/qwen.ts`）
+- [x] D5: 清理占位目录 README，合并为单一地图文档
+- [ ] D6: 锁定单一包管理器并确认主锁文件策略
+- [x] D7: 清理 `src/i18n/locales/en.ts.temp`
+- [x] D8: 清理空目录与占位目录（`src/assets`, `src/styles`, `src/layouts`）
+- [ ] D9: 根目录残留文件评估处置（`TO-DO.json`, `YOUWARE.md`, `SECURITY_FIX.md`, `scripts/test-minmax.ts`）
+
+### Phase E: 规范化
 - [ ] E1: 新建 `CONTRIBUTING.md`
 - [ ] E2: 组件目录按职责分组（`layout/feedback`）
 - [ ] E3: 配置文件行数约束（`max-lines`）
@@ -326,11 +458,56 @@ docs/                 # 架构与交接文档
    - 聊天/记录/插入/编辑流程通过
 3. 回滚点：仅回退本 PR。
 
-### PR-08 Report 模块拆分
+### PR-08 Report 模块拆分 + Store 深度优化
 
-1. 范围：`ReportPage.tsx` 与 `useReportStore.ts` 分步拆分（必要时再拆 PR-08A/08B）。
-2. 验收：周报/月报/自定义报告流程不回归。
-3. 回滚点：按子 PR 独立回退。
+已基于 C.5 深度代码审计拆分为以下子 PR：
+
+#### PR-08A: 提取 `reportHelpers.ts`（P0）
+
+1. 范围：从 `useReportStore.ts` 提取以下纯函数到 `src/store/reportHelpers.ts`：
+   - `getDateRange(type, date, customEndDate)` — 合并 3 处重复的日期范围计算
+   - `filterActivities(messages, start, end)` — 合并 3 处重复的活动过滤
+   - `filterRelevantTodos(todos, start, end, type)` — 合并 2 处重复的 Todo 过滤
+   - `classifyActivities(records)` — 提取 60 行中文关键词分类器
+   - `computeMoodDistribution(messages, moodStore, start, end)` — 心情分布计算
+   - `generateActionSummary(analysis)` — 行动总结模板
+   - `generateMoodSummary(distribution)` — 心情简评模板
+2. `useReportStore.ts` 的 `generateReport`、`triggerAIAnalysis`、`generateTimeshineDiary` 改为调用 helpers。
+3. 验收：store 减少 ~200 行，周报/月报/日报流程不回归。
+4. 回滚点：回退本子 PR。
+
+#### PR-08B: 拆分 `ReportPage.tsx` 子组件（P1）
+
+1. 范围：将 `ReportPage.tsx`（633 行）拆分为：
+   - `src/features/report/ActivityRecordsView.tsx`（L17–L63）
+   - `src/features/report/MoodPieChart.tsx`（L75–L160）
+   - `src/features/report/ReportStatsView.tsx`（L162–L260）
+   - `src/features/report/ReportDetailModal.tsx`
+   - `src/features/report/TaskListModal.tsx`
+2. `ReportPage.tsx` 主文件从 633 行降至 ~200 行。
+3. 验收：日报详情、心情饼图、任务列表弹窗正常渲染。
+4. 回滚点：回退本子 PR。
+
+#### PR-08C: 拆分 `chatActions.ts`（P0）
+
+1. 范围：从 `useChatStore.ts` 的 `sendMessage`（170 行）提取到 `src/store/chatActions.ts`：
+   - `closePreviousActivity(messages, now)` — 关闭上一活动 + 更新 duration
+   - `persistMessageToSupabase(message, session)` — 消息持久化
+   - `triggerMoodDetection(messageId, content)` — 心情检测 + 分类器 API
+   - `handleAIChatResponse(messages, session)` — AI 聊天响应
+2. 同时修复 `sendMood` 缺失 `ChatState` 接口声明。
+3. 验收：store 减少 ~120 行，聊天/记录/AI 对话流程不回归。
+4. 回滚点：回退本子 PR。
+
+#### PR-08D: Supabase session 统一 + 杂项优化（P1/P2）
+
+1. 范围：
+   - 新建 `src/lib/supabase-utils.ts`（`withSession()` 封装）
+   - 修复硬编码中文 → i18n（ChatPage ~10 处, ReportPage ~3 处, AuthPage ~4 处）
+   - 提取共享 `catMap` → `lib/todoHelpers.ts`
+   - 移动跨天日报生成逻辑从 ChatPage → App.tsx
+2. 验收：构建通过，所有页面中文/英文/意文 UI 正常显示。
+3. 回滚点：回退本子 PR。
 
 ### PR-09 文档同构收口
 
@@ -436,3 +613,72 @@ docs/                 # 架构与交接文档
 1. 手测关键页面（`/chat`, `/todo`, `/report`）确认无功能回归。
 2. 推进 PR-04（目录归一：`pages → features` 收敛、`utils → lib` 合并）。
 3. 推进 PR-05（`docs/PROJECT_MAP.md` 地图文档）。
+
+#### PR-04 目录归一（已完成） ✅
+
+- 变更范围：
+  1. 将 `src/pages/AuthPage.tsx` 迁移至 `src/features/auth/AuthPage.tsx`，并更新所有引入。
+  2. 彻底删除空的 `src/pages` 目录。
+  3. 将 `src/utils/reportCalculator.ts` 迁移至 `src/lib/reportCalculator.ts`，并删除了空的 `src/utils` 目录。
+  4. 拆解 `src/lib/utils.ts` 中的 AI 格式化及提取函数至 `src/lib/aiParser.ts`，时间转换逻辑至 `src/lib/time.ts`。
+- 验收结果：
+  - `npx tsc --noEmit` 修复无误通过 ✓
+  - `npm run build` 处理了全部衍生路径依赖问题，顺利构建成功 ✓
+
+#### PR-05 地图文档落地（已完成） ✅
+
+- 变更范围：
+  1. 新增 `docs/PROJECT_MAP.md`，定义架构地图。
+  2. 收口规范了目标分层的定义 `/api`, `/docs`, `/src/features`, `/src/shared` 等核心边界。
+
+#### 更新任务看板状态
+- [x] D1: 新建 `docs/PROJECT_MAP.md`
+- [x] D2: 统一页面入口策略
+
+
+#### PR-06 ChatPage 拆分（已完成） ✅
+
+- 变更范围：
+  1. 新建 `MessageItem.tsx` — 单条消息展示组件（心情模式 + 活动模式）。
+  2. 新建 `MoodPickerModal.tsx` — 心情选择弹窗组件。
+  3. 新建 `EditInsertModal.tsx` — 编辑/插入活动弹窗组件。
+  4. 新建 `ChatInputBar.tsx` — 底部输入栏组件。
+  5. `ChatPage.tsx` 缩减到宾容器组件，保留状态/effects/handlers。
+- 验收结果：`npx tsc --noEmit` ✔，`npm run build` ✔
+
+#### PR-07 useChatStore 拆分（已完成） ✅
+
+- 变更范围：
+  1. 新建 `src/store/chatHelpers.ts`，提取纯函数：`getLocalDateString`、`mapDbRowToMessage`、`buildChatApiMessages`、`getAiErrorText`。
+  2. `useChatStore.ts` 移除重复/内联逻辑，改为引用 helpers。
+- 验收结果：`npx tsc --noEmit` ✔，`npm run build` ✔
+
+下一步建议： 手测关键页面（`/chat`, `/todo`, `/report`），然后推进 PR-08（Report 模块拆分）或 PR-09（文档同构）。
+
+### 2026-03-03 (续) — C.5 深度代码审计
+
+#### 变更来源
+
+- 报告名称: 核心 Feature & Store 代码审计报告
+- 日期: 2026-03-03
+- 范围: 全部 4 个 Feature 页面 + 全部 7 个 Store 文件 + 2 个 Helper 文件
+
+#### 决策结论
+
+- 采纳全部 P0（2 项）和 P1（5 项）优化建议
+- P2（5 项）标记为后续批次
+- 审计发现 14 个问题点，按严重程度 P0/P1/P2 分级
+
+#### 任务看板变化
+
+新增任务 C6–C16（详见第 4 节任务看板），其中：
+- C6, C7 为 P0，对应 PR-08A、PR-08C
+- C8–C11 为 P1，对应 PR-08D
+- C12–C16 为 P2，暂不排入 PR 计划
+
+#### 风险与回滚点
+
+1. `reportHelpers.ts` 提取需确保分类器关键词列表完整迁移，错误会导致日报行动分析数据为空。
+2. `sendMessage` 拆分涉及乐观更新逻辑，需保证异步时序不变。
+3. i18n 硬编码修复需同步更新 `zh.ts`、`en.ts`、`it.ts` 三份翻译文件，遗漏会导致 key 显示 raw string。
+4. 跨天日报逻辑移到 App.tsx 需确认 `useReportStore.getState()` 在路由未加载时可正常调用。
