@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { callChatAPI, callClassifierAPI } from '../api/client';
 import { autoDetectMood } from '../lib/mood';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
 import type { Message } from './useChatStore';
@@ -25,7 +26,7 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   const duration = Math.max(0, Math.round((now - lastMessage.timestamp) / (1000 * 60)));
   updatedMessages[lastRecordIndex] = { ...lastMessage, duration };
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getSupabaseSession();
   if (session) {
     await supabase
       .from('messages')

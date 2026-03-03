@@ -11,6 +11,7 @@ import type {
 import { callAnnotationAPI } from '../api/client';
 import { shouldGenerateAnnotation, recordEvent } from './annotationHelpers';
 import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import i18n from '../i18n';
 
 interface AnnotationStore extends AnnotationState {
@@ -186,11 +187,11 @@ export const useAnnotationStore = create<AnnotationStore>()(
           });
 
           // 异步同步到云端
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData?.session) {
+          const session = await getSupabaseSession();
+          if (session) {
             const { error: insertError } = await supabase.from('annotations').insert([{
               id: annotationId,
-              user_id: sessionData.session.user.id,
+              user_id: session.user.id,
               content: annotation.content,
               tone: annotation.tone,
               event_timestamp: annotation.timestamp,
@@ -273,7 +274,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
        * 从云端拉取历史批注
        */
       fetchAnnotations: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) return;
 
         const { data, error } = await supabase

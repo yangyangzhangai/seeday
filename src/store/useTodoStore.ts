@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
-import { isSameDay, isSameWeek, isSameMonth, startOfDay } from 'date-fns';
 import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAnnotationStore } from './useAnnotationStore';
 import type { AnnotationEvent } from '../types/annotation';
 
@@ -39,11 +39,30 @@ interface TodoState {
   togglePin: (id: string) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   addCategory: (category: string) => void;
-  checkDueDates: () => void;
   startTodo: (id: string) => Promise<void>; // 开始计时
   completeActiveTodo: () => Promise<void>; // 完成当前活动的待办
   completeTodoWithDuration: (id: string, duration: number) => Promise<void>; // 手动完成并记录耗时
   setActiveTodoId: (id: string | null) => void; // 设置当前活动待办
+}
+
+type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
+
+const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
+  dueDate: 'due_date',
+  completedAt: 'completed_at',
+  isPinned: 'is_pinned',
+  startedAt: 'started_at',
+};
+
+function toDbTodoUpdates(updates: TodoUpdates): Record<string, unknown> {
+  const dbUpdates: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(updates) as [keyof TodoUpdates, TodoUpdates[keyof TodoUpdates]][]) {
+    const mappedKey = TODO_DB_FIELD_MAP[key] || key;
+    dbUpdates[mappedKey] = value === undefined ? null : value;
+  }
+
+  return dbUpdates;
 }
 
 export const useTodoStore = create<TodoState>()(
@@ -55,7 +74,7 @@ export const useTodoStore = create<TodoState>()(
       activeTodoId: null,
 
       fetchTodos: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) return;
 
         set({ isLoading: true });
@@ -104,7 +123,7 @@ export const useTodoStore = create<TodoState>()(
 
         set(state => ({ todos: [newTodo, ...state.todos] }));
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           const { error } = await supabase.from('todos').insert([{
             id: newTodo.id,
@@ -128,33 +147,9 @@ export const useTodoStore = create<TodoState>()(
           todos: state.todos.map(t => t.id === id ? { ...t, ...updates } : t)
         }));
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
-          // 2. 准备数据库更新数据
-          const { ...remoteUpdates } = updates;
-
-          const dbUpdates: any = {
-            ...remoteUpdates,
-          };
-
-          // 字段映射转换
-          if (remoteUpdates.dueDate) dbUpdates.due_date = remoteUpdates.dueDate;
-          if (remoteUpdates.completedAt) dbUpdates.completed_at = remoteUpdates.completedAt;
-          if (remoteUpdates.startedAt) dbUpdates.started_at = remoteUpdates.startedAt;
-          if (typeof remoteUpdates.duration !== 'undefined') dbUpdates.duration = remoteUpdates.duration;
-
-          // 新增：处理置顶状态映射 (驼峰转下划线)
-          if (typeof remoteUpdates.isPinned !== 'undefined') {
-            dbUpdates.is_pinned = remoteUpdates.isPinned;
-          }
-
-          // 删除前端专用的字段名，防止报错
-          delete dbUpdates.dueDate;
-          delete dbUpdates.completedAt;
-          delete dbUpdates.isPinned;
-          delete dbUpdates.startedAt;
-          // 注意：dbUpdates.duration 保留，不要删除
-          // 注意：started_at 已经在上面映射，startedAt 需要删除避免冲突 
+          const dbUpdates = toDbTodoUpdates(updates);
 
           if (Object.keys(dbUpdates).length > 0) {
             const { error } = await supabase.from('todos').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
@@ -202,7 +197,7 @@ export const useTodoStore = create<TodoState>()(
           annotationStore.triggerAnnotation(event).catch(console.error);
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           const { error } = await supabase.from('todos').delete().eq('id', id).eq('user_id', session.user.id);
           if (error) console.error('Error deleting todo:', error);
@@ -210,17 +205,6 @@ export const useTodoStore = create<TodoState>()(
       },
 
       addCategory: (category) => set(state => ({ categories: [...state.categories, category] })),
-
-      checkDueDates: () => {
-        const now = Date.now();
-        const { todos, updateTodo } = get();
-
-        todos.forEach(todo => {
-          if (todo.recurrence && todo.recurrence !== 'none' && todo.completed) {
-            // Logic for recurrence... (omitted for brevity as it wasn't changed)
-          }
-        });
-      },
 
       // 开始计时某个待办
       startTodo: async (id: string) => {

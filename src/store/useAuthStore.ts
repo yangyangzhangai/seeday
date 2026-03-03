@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from './useChatStore';
 import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
@@ -22,7 +23,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     // Get initial session
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await getSupabaseSession();
     set({ user: session?.user || null, loading: false });
 
     // Listen for changes

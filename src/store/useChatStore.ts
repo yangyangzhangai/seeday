@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
@@ -75,7 +76,7 @@ export const useChatStore = create<ChatState>()(
       currentDateStr: null,
 
       fetchMessages: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) {
           set({ hasInitialized: true });
           return;
@@ -145,7 +146,7 @@ export const useChatStore = create<ChatState>()(
         const state = get();
         if (state.isLoadingMore || !state.hasMoreHistory || !state.oldestLoadedDate) return;
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) return;
 
         set({ isLoadingMore: true });
@@ -227,7 +228,7 @@ export const useChatStore = create<ChatState>()(
         }
 
         // Persist to Supabase if logged in
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
         }
@@ -336,7 +337,7 @@ export const useChatStore = create<ChatState>()(
 
         set({ messages: finalMessages });
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           const insertPayload = messagesToInsert.map(msg => ({
             id: msg.id,
@@ -372,7 +373,7 @@ export const useChatStore = create<ChatState>()(
           ).sort((a, b) => a.timestamp - b.timestamp)
         }));
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           await supabase.from('messages').update({
             content,
@@ -395,7 +396,7 @@ export const useChatStore = create<ChatState>()(
           )
         }));
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           await supabase.from('messages').update({ duration }).eq('id', id).eq('user_id', session.user.id);
         }
@@ -411,7 +412,7 @@ export const useChatStore = create<ChatState>()(
           messages: state.messages.filter(m => m.id !== id)
         }));
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           await supabase.from('messages').delete().eq('id', id).eq('user_id', session.user.id);
         }
@@ -443,7 +444,7 @@ export const useChatStore = create<ChatState>()(
         }));
 
         // 同步到 Supabase
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           await supabase.from('messages').update({ duration }).eq('id', targetMessage.id).eq('user_id', session.user.id);
         }
@@ -481,7 +482,7 @@ export const useChatStore = create<ChatState>()(
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
 
         // Persist to Supabase if logged in
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           const { error } = await supabase.from('messages').insert([{
             id: newMessage.id,

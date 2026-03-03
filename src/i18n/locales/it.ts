@@ -46,6 +46,15 @@ const it: TranslationKeys = {
     chat_title_edit: 'Modifica',
     chat_title_insert: 'Inserisci dopo',
     chat_title_delete: 'Elimina',
+    chat_load_more_records: 'Caricamento di altri record…',
+    chat_reached_oldest: '— Hai raggiunto il record piu vecchio —',
+    chat_custom_label_default: 'Personalizzato',
+    chat_unknown_mood_label: 'Non classificato',
+    chat_pick_mood_for_record: 'Scegli l\'umore per questo record',
+    chat_mood_note_label: 'Nota sull\'umore',
+    chat_mood_note_placeholder: 'Scrivi come ti sentivi durante questa attivita…',
+    chat_adjust_mood_label: 'Modifica etichetta umore',
+    chat_end_activity: 'Fine',
 
     // ── Pagina Attività ──
     todo_title: 'Attività',
@@ -109,6 +118,9 @@ const it: TranslationKeys = {
     report_completed_tasks: 'Attività Completate',
     report_all_tasks: 'Tutte le Attività',
     report_no_tasks: 'Nessuna attività',
+    report_today_mood_spectrum: 'Spettro dell\'umore di oggi',
+    report_close_detail: 'Chiudi dettaglio report',
+    report_error_unknown: 'Errore sconosciuto',
 
     // ── Pagina Autenticazione ──
     auth_welcome_back: 'Bentornato',
@@ -131,7 +143,12 @@ const it: TranslationKeys = {
     auth_error_user_exists: 'Questa email è già registrata',
     auth_error_password_short: 'La password deve essere di almeno 6 caratteri',
     auth_error_invalid_grant: 'Informazioni di accesso non valide o scadute',
+    auth_error_invalid_account: 'Inserisci un numero di telefono o un indirizzo email valido',
     auth_error_generic: 'Si è verificato un errore: ',
+    auth_select_avatar: 'Seleziona avatar',
+    auth_close: 'Chiudi',
+    auth_more: 'Altro',
+    auth_change_avatar: 'Cambia avatar',
 
     // ── Bolla Annotazione AI ──
     annotation_condensing: 'Cristallizzando…',
@@ -150,6 +167,16 @@ const it: TranslationKeys = {
     category_social: 'Sociale',
     category_life: 'Vita',
     category_entertainment: 'Intrattenimento',
+
+    // ── Etichette umore ──
+    mood_happy: 'Felice',
+    mood_calm: 'Calmo',
+    mood_focused: 'Concentrato',
+    mood_satisfied: 'Soddisfatto',
+    mood_tired: 'Stanco',
+    mood_anxious: 'Ansioso',
+    mood_bored: 'Annoiato',
+    mood_down: 'Giù',
 
     // ── Selettore Lingua ──
     language_switch: 'Lingua',

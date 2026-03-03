@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from './useChatStore';
 import { callStardustAPI } from '../api/client';
 import type {
@@ -149,7 +150,7 @@ export const useStardustStore = create<StardustStore>()(
             finalEmoji = await generateEmojiWithAI(userRawContent, message);
           }
 
-          const { data: { session } } = await supabase.auth.getSession();
+          const session = await getSupabaseSession();
           const userId = session?.user?.id || 'anonymous';
 
           // 创建珍藏对象
@@ -236,7 +237,7 @@ export const useStardustStore = create<StardustStore>()(
         }));
 
         // 同步到服务器
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           try {
             await supabase
@@ -265,7 +266,7 @@ export const useStardustStore = create<StardustStore>()(
         }));
 
         // 同步删除到服务器
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (session) {
           try {
             await supabase
@@ -301,7 +302,7 @@ export const useStardustStore = create<StardustStore>()(
         const pending = get().memories.filter((m) => m.syncStatus === 'pending_sync');
         if (pending.length === 0) return;
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) return;
 
         for (const stardust of pending) {
@@ -342,7 +343,7 @@ export const useStardustStore = create<StardustStore>()(
        * 注意：调用前应先执行 syncPendingStardusts，确保本地 pending 已推送
        */
       fetchStardusts: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getSupabaseSession();
         if (!session) return;
 
         const { data, error } = await supabase

@@ -44,6 +44,15 @@ const en = {
     chat_title_edit: 'Edit',
     chat_title_insert: 'Insert after',
     chat_title_delete: 'Delete',
+    chat_load_more_records: 'Loading more records…',
+    chat_reached_oldest: '— Reached the earliest record —',
+    chat_custom_label_default: 'Custom',
+    chat_unknown_mood_label: 'Unlabeled',
+    chat_pick_mood_for_record: 'Pick a mood for this record',
+    chat_mood_note_label: 'Mood note',
+    chat_mood_note_placeholder: 'Write how you felt during this activity…',
+    chat_adjust_mood_label: 'Adjust mood label',
+    chat_end_activity: 'End',
 
     // ── Todo Page ──
     todo_title: 'Tasks',
@@ -107,6 +116,9 @@ const en = {
     report_completed_tasks: 'Completed Tasks',
     report_all_tasks: 'All Tasks',
     report_no_tasks: 'No tasks',
+    report_today_mood_spectrum: "Today's mood spectrum",
+    report_close_detail: 'Close report detail',
+    report_error_unknown: 'Unknown error',
 
     // ── Auth Page ──
     auth_welcome_back: 'Welcome Back',
@@ -129,7 +141,12 @@ const en = {
     auth_error_user_exists: 'This email is already registered',
     auth_error_password_short: 'Password must be at least 6 characters',
     auth_error_invalid_grant: 'Login information is invalid or expired',
+    auth_error_invalid_account: 'Please enter a valid phone number or email address',
     auth_error_generic: 'An error occurred: ',
+    auth_select_avatar: 'Select avatar',
+    auth_close: 'Close',
+    auth_more: 'More',
+    auth_change_avatar: 'Change avatar',
 
     // ── AI Annotation Bubble ──
     annotation_condensing: 'Crystallizing…',
@@ -148,6 +165,16 @@ const en = {
     category_social: 'Social',
     category_life: 'Life',
     category_entertainment: 'Entertainment',
+
+    // ── Mood Labels ──
+    mood_happy: 'Happy',
+    mood_calm: 'Calm',
+    mood_focused: 'Focused',
+    mood_satisfied: 'Satisfied',
+    mood_tired: 'Tired',
+    mood_anxious: 'Anxious',
+    mood_bored: 'Bored',
+    mood_down: 'Down',
 
     // ── Language Switcher ──
     language_switch: 'Language',

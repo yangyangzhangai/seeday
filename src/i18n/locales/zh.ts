@@ -46,6 +46,15 @@ const zh: TranslationKeys = {
     chat_title_edit: '编辑',
     chat_title_insert: '在此后插入',
     chat_title_delete: '删除',
+    chat_load_more_records: '加载更多记录…',
+    chat_reached_oldest: '— 已是最早的记录 —',
+    chat_custom_label_default: '自定义',
+    chat_unknown_mood_label: '待识别',
+    chat_pick_mood_for_record: '选择这条记录的心情',
+    chat_mood_note_label: '心情记录',
+    chat_mood_note_placeholder: '写下你做这件事时的心情...',
+    chat_adjust_mood_label: '调整心情标签',
+    chat_end_activity: '结束',
 
     // ── 待办页面 ──
     todo_title: '待办管理',
@@ -109,6 +118,9 @@ const zh: TranslationKeys = {
     report_completed_tasks: '已完成任务',
     report_all_tasks: '总任务',
     report_no_tasks: '暂无任务',
+    report_today_mood_spectrum: '今日心情光谱',
+    report_close_detail: '关闭报告详情',
+    report_error_unknown: '未知错误',
 
     // ── 认证页面 ──
     auth_welcome_back: '欢迎回来',
@@ -131,7 +143,12 @@ const zh: TranslationKeys = {
     auth_error_user_exists: '该邮箱已被注册',
     auth_error_password_short: '密码长度至少为6位',
     auth_error_invalid_grant: '登录信息无效或已过期',
+    auth_error_invalid_account: '请输入有效的手机号或邮箱地址',
     auth_error_generic: '发生错误：',
+    auth_select_avatar: '选择头像',
+    auth_close: '关闭',
+    auth_more: '更多',
+    auth_change_avatar: '更换头像',
 
     // ── AI 批注气泡 ──
     annotation_condensing: '凝结中...',
@@ -150,6 +167,16 @@ const zh: TranslationKeys = {
     category_social: '社交',
     category_life: '生活',
     category_entertainment: '娱乐',
+
+    // ── 心情标签 ──
+    mood_happy: '开心',
+    mood_calm: '平静',
+    mood_focused: '专注',
+    mood_satisfied: '满足',
+    mood_tired: '疲惫',
+    mood_anxious: '焦虑',
+    mood_bored: '无聊',
+    mood_down: '低落',
 
     // ── 语言切换 ──
     language_switch: '语言',

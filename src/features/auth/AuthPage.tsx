@@ -9,7 +9,7 @@ export const AuthPage = () => {
   const { signIn, signUp, updateAvatar } = useAuthStore();
   const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
-  const [account, setAccount] = useState(''); // 手机号/邮箱
+  const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export const AuthPage = () => {
       const isPhone = isValidPhone(acc);
       const isEmail = isValidEmail(acc);
       if (!isPhone && !isEmail) {
-        throw new Error('请输入有效的手机号或邮箱地址');
+        throw new Error(t('auth_error_invalid_account'));
       }
       const emailToUse = isPhone ? toPhoneAliasEmail(acc) : acc;
 
@@ -124,7 +124,7 @@ export const AuthPage = () => {
                       setShowAvatarModal(true);
                       setShowAvatarMenu(false);
                     }}
-                    title="选择头像"
+                    title={t('auth_select_avatar')}
                   >
                     {avatarPreview ? (
                       <img src={avatarPreview} alt="avatar preview" className="w-full h-full object-cover" />
@@ -267,14 +267,14 @@ export const AuthPage = () => {
                 setShowAvatarModal(false);
                 setShowAvatarMenu(false);
               }}
-              title="关闭"
+              title={t('auth_close')}
             >
               <X size={16} />
             </button>
             <button
               className="absolute right-10 top-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 shadow"
               onClick={() => setShowAvatarMenu((v) => !v)}
-              title="更多"
+              title={t('auth_more')}
             >
               <MoreHorizontal size={16} />
             </button>
@@ -284,7 +284,7 @@ export const AuthPage = () => {
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                   onClick={() => avatarInputRef.current?.click()}
                 >
-                  更换头像
+                  {t('auth_change_avatar')}
                 </button>
               </div>
             )}

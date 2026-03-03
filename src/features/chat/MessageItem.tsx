@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { formatDuration } from '../../lib/time';
 import { getMoodColor } from '../../lib/moodColor';
@@ -35,10 +36,28 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     onStardustSelect,
     onEndActivity,
 }) => {
+    const { t } = useTranslation();
+
     const getMoodLabelForMsg = () => {
-        return (customMoodApplied[msg.id] && customMoodLabel[msg.id] && customMoodLabel[msg.id] !== '自定义')
+        return (customMoodApplied[msg.id] && customMoodLabel[msg.id] && customMoodLabel[msg.id] !== t('chat_custom_label_default') && customMoodLabel[msg.id] !== '自定义')
             ? customMoodLabel[msg.id]!
             : activityMood[msg.id];
+    };
+
+    const getTranslatedMoodLabel = (label?: string) => {
+        if (!label) return t('chat_unknown_mood_label');
+        const keyMap: Record<string, string> = {
+            开心: 'mood_happy',
+            平静: 'mood_calm',
+            专注: 'mood_focused',
+            满足: 'mood_satisfied',
+            疲惫: 'mood_tired',
+            焦虑: 'mood_anxious',
+            无聊: 'mood_bored',
+            低落: 'mood_down',
+        };
+        const key = keyMap[label];
+        return key ? t(key) : label;
     };
 
     const stardust = getStardustByMessageId(msg.id);
@@ -78,7 +97,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     <div className="text-[10px] text-gray-500">{format(msg.timestamp, 'HH:mm')}</div>
                 </div>
                 <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1 bg-white/80 backdrop-blur-sm rounded p-1 shadow-sm border border-gray-100">
-                    <button onClick={() => onDelete(msg.id)} className="p-1 text-gray-500 hover:text-red-600" title="删除"><Trash2 size={14} /></button>
+                    <button onClick={() => onDelete(msg.id)} className="p-1 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={14} /></button>
                 </div>
             </div>
         );
@@ -123,10 +142,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                                     return bg ? { backgroundColor: bg, border: 'none' } as React.CSSProperties : {} as React.CSSProperties;
                                 })()
                             }
-                            title="调整心情标签"
+                            title={t('chat_adjust_mood_label')}
                         >
                             <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-                                {label || '待识别'}
+                                {getTranslatedMoodLabel(label)}
                             </span>
                         </button>
                     </div>
@@ -140,14 +159,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             onClick={() => onEndActivity(msg.id)}
                             className="text-[9px] text-gray-500 border border-gray-200 rounded-full px-2 py-0.5 hover:bg-gray-50"
                         >
-                            结束
+                            {t('chat_end_activity')}
                         </button>
                     )}
                     <div className="text-[10px] text-gray-500 whitespace-nowrap relative group/time cursor-pointer flex flex-col items-end">
                         <div>
                             {format(msg.timestamp, 'HH:mm')} - {msg.duration !== undefined
                                 ? `${format(msg.timestamp + msg.duration * 60 * 1000, 'HH:mm')}`
-                                : '进行中'}
+                                : t('chat_ongoing')}
                         </div>
                         {msg.duration !== undefined && (
                             <div className="mt-1">
@@ -160,9 +179,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             </div>
                         )}
                         <div className="absolute -top-4 right-0 hidden group-hover/time:flex space-x-0.5 bg-white/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-gray-200">
-                            <button onClick={() => onEditClick(msg)} className="p-0.5 text-gray-500 hover:text-blue-600" title="编辑"><Edit2 size={12} /></button>
-                            <button onClick={() => onInsertClick(msg)} className="p-0.5 text-gray-500 hover:text-green-600" title="在此后插入"><Plus size={12} /></button>
-                            <button onClick={() => onDelete(msg.id)} className="p-0.5 text-gray-500 hover:text-red-600" title="删除"><Trash2 size={12} /></button>
+                            <button onClick={() => onEditClick(msg)} className="p-0.5 text-gray-500 hover:text-blue-600" title={t('chat_title_edit')}><Edit2 size={12} /></button>
+                            <button onClick={() => onInsertClick(msg)} className="p-0.5 text-gray-500 hover:text-green-600" title={t('chat_title_insert')}><Plus size={12} /></button>
+                            <button onClick={() => onDelete(msg.id)} className="p-0.5 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={12} /></button>
                         </div>
                     </div>
                 </div>

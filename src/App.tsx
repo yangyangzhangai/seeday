@@ -9,11 +9,13 @@ import { ReportPage } from './features/report/ReportPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
+import { useReportStore } from './store/useReportStore';
 import { StardustAnimation } from './components/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 
 const MainLayout = () => {
   const messages = useChatStore(state => state.messages);
+  const user = useAuthStore(state => state.user);
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;
@@ -62,6 +64,37 @@ const MainLayout = () => {
       }));
     }
   }, [lastRecordMessage]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const reportStore = useReportStore.getState();
+    let lastDay = new Date().toDateString();
+
+    const generatePreviousDayReport = () => {
+      const nowStr = new Date().toDateString();
+      if (nowStr !== lastDay) {
+        const previousDay = new Date();
+        previousDay.setDate(previousDay.getDate() - 1);
+        reportStore.generateReport('daily', previousDay.getTime());
+        lastDay = nowStr;
+      }
+    };
+
+    const intervalId = setInterval(generatePreviousDayReport, 60_000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        generatePreviousDayReport();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id]);
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden">

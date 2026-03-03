@@ -337,19 +337,19 @@ docs/                 # 架构与交接文档
 ### Phase C: 结构拆分
 - [x] C1: 拆分 `ChatPage.tsx`
 - [x] C2: 拆分 `useChatStore.ts`（chatHelpers 已提取）
-- [ ] C3: 拆分 `ReportPage.tsx` — 拆分子组件到独立文件
-- [ ] C4: 拆分 `useReportStore.ts` — 提取 `reportHelpers.ts`
-- [ ] C5: 拆分 `TodoPage.tsx`
-- [ ] C6: **[P0]** 提取 `reportHelpers.ts`（时间范围/过滤/分类器逻辑），useReportStore 减少 ~200 行
-- [ ] C7: **[P0]** 拆分 `sendMessage` → `chatActions.ts`（关闭活动/持久化/心情检测/AI 响应），useChatStore 减少 ~120 行
-- [ ] C8: **[P1]** 统一 Supabase session 封装 → `lib/supabase-utils.ts`
-- [ ] C9: **[P1]** 修复硬编码中文 → i18n（ChatPage ~10 处, ReportPage ~3 处, AuthPage ~4 处, useReportStore ~多处）
-- [ ] C10: **[P1]** 提取 `catMap` 到 `lib/todoHelpers.ts`（消除 TodoPage + TodoItem 重复）
-- [ ] C11: **[P1]** 移动跨天日报生成逻辑从 ChatPage → App.tsx
+- [x] C3: 拆分 `ReportPage.tsx` — 子组件独立 + 页面逻辑下沉到 `reportPageHelpers.ts`
+- [x] C4: 拆分 `useReportStore.ts` — 提取 `reportActions.ts`，store 改为编排式调用
+- [x] C5: 拆分 `TodoPage.tsx`
+- [x] C6: **[P0]** 提取 `reportHelpers.ts`（时间范围/过滤/分类器逻辑），useReportStore 减少 ~200 行
+- [x] C7: **[P0]** 拆分 `sendMessage` → `chatActions.ts`（关闭活动/持久化/心情检测/AI 响应），useChatStore 减少 ~120 行
+- [x] C8: **[P1]** 统一 Supabase session 封装 → `lib/supabase-utils.ts`
+- [x] C9: **[P1]** 修复硬编码中文 → i18n（ChatPage ~10 处, ReportPage ~3 处, AuthPage ~4 处, useReportStore ~多处）
+- [x] C10: **[P1]** 提取 `catMap` 到 `lib/todoHelpers.ts`（消除 TodoPage + TodoItem 重复）
+- [x] C11: **[P1]** 移动跨天日报生成逻辑从 ChatPage → App.tsx
 - [ ] C12: **[P2]** 恢复 `annotationHelpers.ts` 概率逻辑（移除测试模式 100% 触发）
 - [ ] C13: **[P2/暂缓]** 清理 DEBUG console.log（~26 处分布在 5 个 store 文件）— 用户调试中，暂不删除
 - [ ] C14: **[P2]** MoodStore 数据清理策略（防止 localStorage 溢出）
-- [ ] C15: **[P2]** 统一 Todo 字段映射函数（`toDbTodo()`）
+- [x] C15: **[P2]** 统一 Todo 字段映射函数（`toDbTodo()`）
 - [ ] C16: **[P2]** 修复 `sendMood` 缺失 `ChatState` 接口声明
 
 ### Phase D: 目录治理
@@ -737,3 +737,240 @@ docs/                 # 架构与交接文档
    - C3/C4/C6/C7（ReportPage/useReportStore/useChatStore 大体量拆分）尚未执行，状态不变。
 4. 本轮目标达成判断：
    - 已解除 Vercel 当前构建阻塞点；在不做大拆分前提下完成了低风险优化与可部署修复。
+
+### 2026-03-03 (续) — PR-08A / PR-08C 首轮落地（P0）
+
+#### 变更来源
+
+- 来源: 当日执行计划（优先推进 C6/C7），目标先完成 Report 与 Chat 的 P0 拆分，不做一次性大爆炸重构。
+
+#### 决策结论
+
+- 采纳并落地 C6（PR-08A）与 C7（PR-08C）第一批改造。
+- 保持“行为不变优先”，先抽取复用逻辑并通过 `tsc` + `build`，再做体验层优化。
+
+#### 代码变更范围
+
+1. 新增 `src/store/reportHelpers.ts`：
+   - `getDateRange()`
+   - `filterActivities()`
+   - `filterRelevantTodos()`
+   - `classifyActivities()`
+   - `computeMoodDistribution()`
+   - `generateActionSummary()`
+   - `generateMoodSummary()`
+2. 重构 `src/store/useReportStore.ts`：
+   - `generateReport`、`triggerAIAnalysis`、`generateTimeshineDiary` 改为调用 helper，移除重复的时间范围/过滤/分类逻辑。
+3. 新增 `src/store/chatActions.ts`：
+   - `closePreviousActivity()`
+   - `persistMessageToSupabase()`
+   - `triggerMoodDetection()`
+   - `handleAIChatResponse()`
+4. 重构 `src/store/useChatStore.ts`：
+   - `sendMessage` 改为编排式调用 `chatActions`，缩减内联逻辑。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] C6 完成（`reportHelpers.ts` 已提取并接入）
+- [x] C7 完成（`chatActions.ts` 已提取并接入）
+
+#### 风险与回滚点
+
+1. 当前日报“行为分析/心情拼图”仍沿用原有触发条件（非当天、记录需有 duration）；对“今天实时可见”的体验尚未优化。
+2. 若本批拆分出现回归，回滚点为 PR-08A 或 PR-08C 对应提交，按子 PR 独立回退。
+
+### 2026-03-03 (续) — C3 + C4 收口（Report 页面与 Store 同步优化）
+
+#### 变更来源
+
+- 来源: 当日执行调整（先做 C4，再统一回写 cleanup 主文档），目标减少 Report 模块内联逻辑与跨层耦合。
+
+#### 决策结论
+
+- 采纳“先优化后拆分”的执行策略：在不改变行为前提下，完成 `ReportPage.tsx` 与 `useReportStore.ts` 双侧收口。
+- C3 与 C4 同步标记完成，后续优先推进 C5 或 C8。
+
+#### 代码变更范围
+
+1. C3（页面层）
+   - 新增 `src/features/report/reportPageHelpers.ts`（时间范围、日报心情分布、任务筛选）。
+   - 新增 `ActivityRecordsView.tsx`、`MoodPieChart.tsx`、`ReportStatsView.tsx`、`ReportDetailModal.tsx`、`TaskListModal.tsx`。
+   - `src/features/report/ReportPage.tsx` 由 633 行收敛至 170 行，保留容器编排职责。
+2. C4（Store 层）
+   - 新增 `src/store/reportActions.ts`，提取 `createGeneratedReport`、`runReportAIAnalysis`、`runTimeshineDiary`、`syncReportToSupabase`。
+   - `src/store/useReportStore.ts` 改为编排式调用 actions，移除长函数内联流程。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] C3 完成（ReportPage 拆分 + 页面逻辑收口）
+- [x] C4 完成（useReportStore 拆分 + reportActions 接入）
+
+#### 风险与回滚点
+
+1. `runTimeshineDiary` 仍依赖分类器/日记 API 的稳定性，若远端波动会进入 `analysisStatus: error`。
+2. 若出现回归，可独立回退 `src/features/report/*`（C3）或 `src/store/reportActions.ts` + `src/store/useReportStore.ts`（C4）。
+
+### 2026-03-03 (续) — C5 收口 + Todo 低风险优化
+
+#### 变更来源
+
+- 来源: cleanup 主线延续（C5 未完成项）+ C.5 审计中 Todo 相关建议（C10/C15）。
+
+#### 决策结论
+
+- 采纳“先拆页面，再收口重复逻辑”的策略：同批完成 C5、C10、C15。
+- 同步清理 Todo 范围内已确认死代码（`checkDueDates` 空壳调用链）。
+
+#### 代码变更范围
+
+1. C5（页面拆分）
+   - 新增 `src/features/todo/TodoItem.tsx`（单项展示与交互）。
+   - 新增 `src/features/todo/TodoEditorModal.tsx`（新增/编辑弹窗）。
+   - 新增 `src/features/todo/todoPageHelpers.ts`（筛选/排序/优先级展示逻辑）。
+   - `src/features/todo/TodoPage.tsx` 由 471 行收敛至 187 行，保留容器编排职责。
+2. C10（重复逻辑提取）
+   - 新增 `src/lib/todoHelpers.ts`，提取 `getCategoryLabel()`，消除 TodoPage 与 TodoItem 的重复 `catMap`。
+3. C15（字段映射统一）
+   - `src/store/useTodoStore.ts` 新增 `toDbTodoUpdates()` + `TODO_DB_FIELD_MAP`，统一 Todo 更新字段（camelCase → snake_case）映射。
+   - 移除 `updateTodo` 内联映射与删除字段逻辑，避免遗漏字段风险。
+4. 死代码清理（Todo 范围）
+   - 删除 `checkDueDates` 空实现与页面调用链。
+   - 清理 `useTodoStore.ts` 中未使用的 `date-fns` 导入。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] C5 完成（TodoPage 拆分 + 页面逻辑收口）
+- [x] C10 完成（`catMap` 提取到 `lib/todoHelpers.ts`）
+- [x] C15 完成（Todo 字段映射统一）
+
+#### 风险与回滚点
+
+1. Todo 交互路径（开始计时 → 跳转 chat）保持原顺序，若出现回归可仅回退 `src/features/todo/*`。
+2. `toDbTodoUpdates()` 将显式 `undefined` 映射为 `null`，可修复 `completedAt` 清空不同步；若后端约束变化可仅回退 `useTodoStore.ts` 对应提交。
+
+### 2026-03-03 (续) — C8 收口（Supabase session 统一封装）
+
+#### 变更来源
+
+- 来源: cleanup 主线 C8（P1），收敛 store/action 层重复 `supabase.auth.getSession()` 模式。
+
+#### 决策结论
+
+- 采纳“先封装、后替换、行为不变”的策略：新增统一 helper，并在所有 store/action 中替换重复 session 获取。
+- 本轮不夹带 C9/C11，保持单主题提交可独立回滚。
+
+#### 代码变更范围
+
+1. 新增 `src/lib/supabase-utils.ts`：
+   - `getSupabaseSession()`
+   - `getSessionUserId()`
+   - `withSession()`
+2. 替换以下文件中的重复会话获取逻辑：
+   - `src/store/useTodoStore.ts`
+   - `src/store/useReportStore.ts`
+   - `src/store/reportActions.ts`
+   - `src/store/useChatStore.ts`
+   - `src/store/chatActions.ts`
+   - `src/store/useStardustStore.ts`
+   - `src/store/useAnnotationStore.ts`
+   - `src/store/useAuthStore.ts`
+3. 兼容性说明：
+   - 保留原有无会话分支行为（如 `fetchMessages` 的 `hasInitialized` 回写）。
+   - `useAnnotationStore` 的 `sessionData.session` 旧判空分支已统一为 helper 判空，不改业务语义。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓（保留既有 chunk size warning，不影响构建成功）
+
+#### 任务看板变化
+
+- [x] C8 完成（Supabase session 统一封装并完成全量替换）
+
+#### 风险与回滚点
+
+1. 主要风险为会话判空分支遗漏；本次已按原逻辑逐处保留。
+2. 若出现回归，可仅回退 `src/lib/supabase-utils.ts` + 8 个 store/action 文件对应提交，其他阶段任务不受影响。
+
+### 2026-03-03 (续) — C11 + C9 收口（跨天日报迁移 + i18n 硬编码修复）
+
+#### 变更来源
+
+- 来源: cleanup 主线待办（C11、C9），按“先低风险职责迁移，再做多语言收口”顺序执行。
+
+#### 决策结论
+
+- 先完成 C11：将跨天自动生成前一日日报逻辑从 `ChatPage` 迁移到 `App/MainLayout`，避免页面职责错位。
+- 同批完成 C9：将 Chat/Auth/Report 及相关组件中的用户可见硬编码中文收敛到 i18n key，并补齐 `zh/en/it` 词条。
+
+#### 代码变更范围
+
+1. C11（跨天日报迁移）
+   - `src/App.tsx`
+     - 新增跨天日报定时检查逻辑（60s interval + `visibilitychange`）。
+     - 增加登录态保护（仅 `user?.id` 存在时执行）。
+   - `src/features/chat/ChatPage.tsx`
+     - 删除跨天自动生成前一日日报的 `useEffect`。
+2. C9（硬编码中文 → i18n）
+   - 页面与核心文件：
+     - `src/features/chat/ChatPage.tsx`
+     - `src/features/auth/AuthPage.tsx`
+     - `src/features/report/ReportPage.tsx`
+     - `src/store/useReportStore.ts`
+   - 同步收口相关组件：
+     - `src/features/chat/MoodPickerModal.tsx`
+     - `src/features/chat/MessageItem.tsx`
+     - `src/features/report/ReportDetailModal.tsx`
+     - `src/features/report/MoodPieChart.tsx`
+   - 多语言词条补齐：
+     - `src/i18n/locales/zh.ts`
+     - `src/i18n/locales/en.ts`
+     - `src/i18n/locales/it.ts`
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓（保留既有 chunk size warning，不影响构建成功）
+
+#### 任务看板变化
+
+- [x] C11 完成（跨天日报生成逻辑迁移到 App 层）
+- [x] C9 完成（核心页面 + 关联组件硬编码中文收口到 i18n）
+
+#### 风险与回滚点
+
+1. 跨天逻辑迁移后，主要风险为触发时机变化；当前保留原有“跨天才生成前一日”判定，并加登录态保护。
+2. i18n 收口风险为 key 遗漏导致 raw key 展示；本次已同步补齐 `zh/en/it`。若回归，可先局部回退对应页面或 locale 提交。
+
+#### 手测冒烟清单回填（/chat /report /auth）
+
+- 自动化可验证项（已完成）
+  1. `npx tsc --noEmit` 通过。
+  2. `npm run build` 通过（含既有 chunk warning，不阻塞）。
+- 交互手测项（需在浏览器人工点击确认）
+  1. `/chat`
+     - 语言切换后检查：加载更多文案、最早记录提示、昨日摘要、新日空态文案是否同步变化。
+     - 心情标签弹窗检查：自定义标签默认文案、心情记录输入 placeholder、活动项操作按钮 tooltip 文案。
+  2. `/report`
+     - 日历星期缩写应随语言切换（`zh/en/it`）。
+     - 报告详情弹窗检查：关闭按钮 aria-label、今日心情光谱标题与心情标签文案。
+  3. `/auth`
+     - 非法账号输入报错为 i18n 文案。
+     - 头像弹窗按钮（选择头像/关闭/更多/更换头像）文案随语言切换。
+- 结果记录
+  - 当前 CLI 环境无法进行浏览器点击交互；上述手测项已回填为执行清单，待本机人工确认后可在本节补记“通过/失败 + 复现路径”。

@@ -11,7 +11,6 @@ import { zhCN, enUS, it } from 'date-fns/locale';
 import { StardustCard } from '../../components/StardustCard';
 import type { StardustCardData } from '../../types/stardust';
 import { useMoodStore } from '../../store/useMoodStore';
-import { useReportStore } from '../../store/useReportStore';
 
 // Sub-components
 import { MessageItem } from './MessageItem';
@@ -43,12 +42,15 @@ export const ChatPage = () => {
   const { t, i18n } = useTranslation();
   const [isMoodMode, setIsMoodMode] = useState(false);
 
+  const customLabelDefault = t('chat_custom_label_default');
+  const isDefaultCustomLabel = (label: string) => !label || label === customLabelDefault || label === '自定义';
+
   const saveCustomLabel = (value: string) => {
-    const next = value.trim() || '自定义';
+    const next = value.trim() || customLabelDefault;
     setCustomLabelInput(next);
     if (moodPickerFor) {
       setCustomMoodLabel(moodPickerFor, next);
-      const applied = !!next && next !== '自定义';
+      const applied = !isDefaultCustomLabel(next);
       setCustomMoodApplied(moodPickerFor, applied);
       if (applied) setSelectedMoodOpt('__custom__');
     }
@@ -109,30 +111,6 @@ export const ChatPage = () => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [checkAndRefreshForNewDay]);
-
-  // ── 跨天自动生成"前一日"日报 ───────────
-  useEffect(() => {
-    const reportStore = useReportStore.getState();
-    let lastDay = new Date().toDateString();
-    const gen = () => {
-      const nowStr = new Date().toDateString();
-      if (nowStr !== lastDay) {
-        const prev = new Date();
-        prev.setDate(prev.getDate() - 1);
-        reportStore.generateReport('daily', prev.getTime());
-        lastDay = nowStr;
-      }
-    };
-    const t = setInterval(gen, 60_000);
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') gen();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      clearInterval(t);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
 
   // ── 上滑加载更多 (IntersectionObserver) ─────────────────────
   const handleLoadMore = useCallback(async () => {
@@ -292,13 +270,13 @@ export const ChatPage = () => {
         {isLoadingMore && (
           <div className="flex items-center justify-center py-3 gap-2 text-gray-400 text-sm">
             <Loader2 size={16} className="animate-spin" />
-            <span>加载更多记录…</span>
+            <span>{t('chat_load_more_records')}</span>
           </div>
         )}
 
         {!hasMoreHistory && messages.length > 0 && (
           <div className="flex items-center justify-center py-3 text-xs text-gray-300">
-            — 已是最早的记录 —
+            {t('chat_reached_oldest')}
           </div>
         )}
 
@@ -310,15 +288,15 @@ export const ChatPage = () => {
             <div className="text-2xl mt-0.5">🌙</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-indigo-800">
-                昨天你记录了 {yesterdaySummary.count} 件事
+                {t('yesterday_summary', { count: yesterdaySummary.count })}
               </p>
               <p className="text-xs text-indigo-500 mt-0.5 truncate">
-                最后在做：{yesterdaySummary.lastContent}
+                {t('yesterday_last_activity', { content: yesterdaySummary.lastContent })}
               </p>
               {hasMoreHistory && (
                 <p className="text-xs text-indigo-400 mt-1.5 flex items-center gap-1">
                   <ChevronUp size={12} />
-                  点击或上滑查看昨天的记录
+                  {t('yesterday_tap_to_view')}
                 </p>
               )}
             </div>
@@ -328,8 +306,8 @@ export const ChatPage = () => {
         {messages.length === 0 && !isLoading && hasInitialized && !yesterdaySummary && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
             <div className="text-4xl mb-3">✨</div>
-            <p className="text-sm font-medium">新的一天，从一条记录开始</p>
-            <p className="text-xs mt-1 text-gray-300">记录你正在做的事情</p>
+            <p className="text-sm font-medium">{t('new_day_start')}</p>
+            <p className="text-xs mt-1 text-gray-300">{t('record_what_you_do')}</p>
           </div>
         )}
 
@@ -432,17 +410,19 @@ export const ChatPage = () => {
           onCustomLabelClick={() => {
             if (!moodPickerFor) return;
             setShowCustomLabelInput(true);
-            const next = customMoodLabel[moodPickerFor] || customLabelInput || '自定义';
+            const next = customMoodLabel[moodPickerFor] || customLabelInput || customLabelDefault;
             setCustomLabelInput(next);
             setCustomMoodLabel(moodPickerFor, next);
-            setCustomMoodApplied(moodPickerFor, !!next && next !== '自定义');
-            if (!!next && next !== '自定义') setSelectedMoodOpt('__custom__');
+            const applied = !isDefaultCustomLabel(next);
+            setCustomMoodApplied(moodPickerFor, applied);
+            if (applied) setSelectedMoodOpt('__custom__');
           }}
           onCustomLabelChange={(value) => {
             setCustomLabelInput(value);
             if (moodPickerFor) {
-              setCustomMoodLabel(moodPickerFor, value.trim() || '自定义');
-              const applied = !!value.trim() && value.trim() !== '自定义';
+              const next = value.trim() || customLabelDefault;
+              setCustomMoodLabel(moodPickerFor, next);
+              const applied = !isDefaultCustomLabel(next);
               setCustomMoodApplied(moodPickerFor, applied);
               if (applied) setSelectedMoodOpt('__custom__');
             }

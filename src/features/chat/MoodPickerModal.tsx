@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { X, Umbrella, Pencil } from 'lucide-react';
 import { allMoodOptions } from '../../lib/mood';
@@ -36,15 +37,19 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
     onCustomLabelChange,
     onCustomLabelSave,
     onMoodNoteChange,
-}) => (
-    <div
-        className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4"
-        onClick={onClose}
-    >
+}) => {
+    const { t } = useTranslation();
+    const customLabelDefault = t('chat_custom_label_default');
+
+    return (
         <div
-            className="bg-pink-50 w-full max-w-xs rounded-xl p-4 shadow-lg relative border border-pink-100"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4"
+            onClick={onClose}
         >
+            <div
+                className="bg-pink-50 w-full max-w-xs rounded-xl p-4 shadow-lg relative border border-pink-100"
+                onClick={(e) => e.stopPropagation()}
+            >
             <button
                 type="button"
                 onClick={onClose}
@@ -56,7 +61,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                 className="text-sm font-light text-gray-500 mb-3 pr-6 flex items-center gap-1.5"
                 style={{ fontFamily: 'PingFang SC, -apple-system, system-ui, sans-serif' }}
             >
-                <span>选择这条记录的心情</span>
+                <span>{t('chat_pick_mood_for_record')}</span>
                 <span className="inline-flex items-center justify-center p-[3px] text-sky-400">
                     <Umbrella size={12} className="stroke-[1.8] text-sky-400" />
                 </span>
@@ -115,7 +120,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                             autoFocus
                         />
                     ) : (
-                        customMoodLabel[moodPickerFor] || '自定义'
+                        customMoodLabel[moodPickerFor] || customLabelDefault
                     )}
                 </button>
             </div>
@@ -124,7 +129,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                     className="flex items-center gap-1 text-sm font-light text-gray-500 mb-1"
                     style={{ fontFamily: 'PingFang SC, -apple-system, system-ui, sans-serif' }}
                 >
-                    <span>心情记录</span>
+                    <span>{t('chat_mood_note_label')}</span>
                     {!moodPickerReadonly && <Pencil size={12} className="stroke-[1.8] text-sky-400" />}
                 </div>
                 <div className="mb-1">
@@ -144,10 +149,11 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                         readOnly={moodPickerReadonly}
                         disabled={moodPickerReadonly}
                         rows={2}
-                        placeholder="写下你做这件事时的心情..."
+                        placeholder={t('chat_mood_note_placeholder')}
                     />
                 </div>
             </div>
         </div>
-    </div>
-);
+        </div>
+    );
+};
