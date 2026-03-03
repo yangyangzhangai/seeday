@@ -49,3 +49,12 @@ coverage/
 *.temp
 .env
 .env
+
+# Local generated artifacts / debug leftovers
+chat/
+.sisyphus/
+session-ses_*.md
+output-utf8.txt
+error*-utf8.log
+error*.log
+vercel-login.png
