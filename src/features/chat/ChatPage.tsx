@@ -21,7 +21,7 @@ import { ChatInputBar } from './ChatInputBar';
 
 export const ChatPage = () => {
   const {
-    messages, sendMessage, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
+    messages, sendMessage, sendMood, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
     updateActivity, insertActivity, deleteActivity, endActivity, isLoading, isLoadingMore,
     hasMoreHistory, yesterdaySummary,
     hasInitialized, setHasInitialized, updateMessageDuration,
@@ -124,12 +124,13 @@ export const ChatPage = () => {
       }
     };
     const t = setInterval(gen, 60_000);
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') gen();
-    });
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       clearInterval(t);
-      document.removeEventListener('visibilitychange', gen as any);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -247,7 +248,11 @@ export const ChatPage = () => {
       }
     }
 
-    await sendMessage(input);
+    if (isMoodMode) {
+      await sendMood(input);
+    } else {
+      await sendMessage(input);
+    }
     setInput('');
   };
 

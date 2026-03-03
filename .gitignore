@@ -51,7 +51,6 @@ coverage/
 .env
 
 # Local generated artifacts / debug leftovers
-chat/
 .sisyphus/
 session-ses_*.md
 output-utf8.txt

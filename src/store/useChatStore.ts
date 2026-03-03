@@ -47,6 +47,7 @@ interface ChatState {
   fetchOlderMessages: () => Promise<void>;
   checkAndRefreshForNewDay: () => void;
   sendMessage: (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record') => Promise<void>;
+  sendMood: (content: string) => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
   endActivity: (id: string) => Promise<void>;
@@ -312,7 +313,7 @@ export const useChatStore = create<ChatState>()(
         }
 
         // AI Response Logic
-        if (state.mode === 'chat') {
+        if (effectiveMode === 'chat') {
           try {
             // 构建符合 API 标准的对话历史（system prompt + 历史记录）
             const apiMessages = buildChatApiMessages(updatedMessages);

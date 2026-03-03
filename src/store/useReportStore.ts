@@ -466,7 +466,11 @@ export const useReportStore = create<ReportState>()(
         });
 
         const activities = chatStore.messages.filter(m =>
-          m.timestamp >= start.getTime() && m.timestamp <= end.getTime() && m.type !== 'system' && m.mode === 'record'
+          m.timestamp >= start.getTime() &&
+          m.timestamp <= end.getTime() &&
+          m.type !== 'system' &&
+          m.mode === 'record' &&
+          !m.isMood
         ).map(m => ({
           time: format(m.timestamp, 'MM-dd HH:mm'),
           content: m.content,
@@ -525,7 +529,8 @@ export const useReportStore = create<ReportState>()(
             m.timestamp >= start.getTime() &&
             m.timestamp <= end.getTime() &&
             m.type !== 'system' &&
-            m.mode === 'record'
+            m.mode === 'record' &&
+            !m.isMood
           );
 
           // 获取待办统计

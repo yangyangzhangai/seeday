@@ -682,3 +682,45 @@ docs/                 # 架构与交接文档
 2. `sendMessage` 拆分涉及乐观更新逻辑，需保证异步时序不变。
 3. i18n 硬编码修复需同步更新 `zh.ts`、`en.ts`、`it.ts` 三份翻译文件，遗漏会导致 key 显示 raw string。
 4. 跨天日报逻辑移到 App.tsx 需确认 `useReportStore.getState()` 在路由未加载时可正常调用。
+
+### 2026-03-03 (续) — 部署阻塞修复 + 轻量优化（未做大拆分）
+
+#### 变更来源
+
+- 来源: 本地构建复核 + Vercel 报错复盘（`Could not resolve "./MessageItem" from "src/features/chat/ChatPage.tsx"`）
+
+#### 决策结论
+
+- 本轮不执行 C3/C4/C6/C7 大拆分，仅先解决部署阻塞与低风险代码问题。
+- 结构拆分任务保持原计划，不提前标记完成。
+
+#### 代码与配置变更
+
+1. 修复 Vercel 构建失败根因：
+   - 原因: `.gitignore` 误配置 `chat/`，导致 `src/features/chat/*.tsx` 子组件未被 Git 跟踪，云端构建缺失文件。
+   - 处理: 删除 `.gitignore` 中 `chat/` 忽略规则。
+2. 修复 `ChatPage` 事件监听清理缺陷：
+   - 文件: `src/features/chat/ChatPage.tsx`
+   - 原问题: `addEventListener` 使用匿名函数，`removeEventListener` 却传 `gen as any`，清理对象不一致。
+   - 处理: 改为命名函数 `handleVisibilityChange`，确保 add/remove 对称。
+
+#### 当前行数复核（实测）
+
+- `src/store/useChatStore.ts`: 614
+- `src/features/chat/ChatPage.tsx`: 480
+- `src/store/useReportStore.ts`: 684
+- `src/features/report/ReportPage.tsx`: 633
+- `src/features/todo/TodoPage.tsx`: 471
+- `src/store/chatHelpers.ts`: 67
+
+结论: 与 C.5 审计结论基本一致，说明核心拆分任务（C3/C4/C6/C7）仍待落地。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 风险与回滚点
+
+1. 若需回滚部署修复，可恢复 `.gitignore` 对应行（不建议，会再次导致云端缺文件）。
+2. `ChatPage` 仅修改监听器清理方式，属于低风险行为一致性修复。
