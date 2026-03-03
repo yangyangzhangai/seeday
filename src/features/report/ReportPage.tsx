@@ -61,6 +61,9 @@ export const ReportPage = () => {
     setShowReportList(type);
   };
 
+  const currentLang = i18n.language?.split('-')[0] || 'en';
+  const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 overflow-y-auto">
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
@@ -169,5 +172,3 @@ export const ReportPage = () => {
     </div>
   );
 };
-  const currentLang = i18n.language?.split('-')[0] || 'en';
-  const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
