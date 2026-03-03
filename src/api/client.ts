@@ -209,3 +209,35 @@ export async function callDiaryAPI(request: DiaryRequest): Promise<DiaryResponse
 
   return await response.json();
 }
+
+// ── Stardust Emoji 生成 API ───────────────────────────────────────────────────
+
+interface StardustRequest {
+  userRawContent: string;
+  message: string;
+}
+
+interface StardustResponse {
+  emojiChar: string;
+}
+
+/**
+ * 调用 Stardust API - 为珍藏记忆生成 Emoji 字符
+ * 替代 useStardustStore 中的前端直连 Chutes API 行为
+ */
+export async function callStardustAPI(request: StardustRequest): Promise<StardustResponse> {
+  const response = await fetch(`${API_BASE}/stardust`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  return await response.json();
+}

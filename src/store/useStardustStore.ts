@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { useChatStore } from './useChatStore';
+import { callStardustAPI } from '../api/client';
 import type {
   StardustMemory,
   CreateStardustRequest,
@@ -105,66 +106,16 @@ function extractEmojiFromResponse(content: string | null | undefined): string | 
 }
 
 /**
- * 调用AI生成Emoji
+ * 调用 AI 生成 Emoji（通过 /api/stardust serverless 中转，不暴露密钥）
  */
 async function generateEmojiWithAI(userRawContent: string, message: string): Promise<string> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.warn('[Stardust] 无用户会话，使用默认Emoji');
-      return DEFAULT_EMOJI;
-    }
-
-    console.log('[Stardust] 开始调用AI生成Emoji...');
-
-    // 调用AI服务生成Emoji（使用与 aiService 相同的模型）
-    const response = await fetch('https://llm.chutes.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer cpk_38f7d5fd384e4b22a1dfbfcda753b36b.222def67407b56dea6d82490041412aa.pndwFrTxPgF323q5yxLABuCYEZgr2EpV',
-      },
-      body: JSON.stringify({
-        model: 'NousResearch/Hermes-4-405B-FP8-TEE', // 使用与 aiService 相同的模型
-        messages: [
-          { role: 'system', content: '你是一个Emoji选择助手，根据情感内容选择最合适的Unicode Emoji。只输出Emoji字符，不要解释。' },
-          { role: 'user', content: generateEmojiPrompt(userRawContent, message) },
-        ],
-        temperature: 0.7,
-        max_tokens: 10,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Stardust] AI生成Emoji API错误:', response.status, errorText);
-      return DEFAULT_EMOJI;
-    }
-
-    const data = await response.json();
-    const rawContent = data.choices?.[0]?.message?.content;
-
-    console.log('[Stardust] AI完整响应:', JSON.stringify(data, null, 2));
-    console.log('[Stardust] AI原始内容:', rawContent);
-
-    // 检查响应是否有效
-    if (!rawContent) {
-      console.warn('[Stardust] API返回空响应，使用默认Emoji');
-      return DEFAULT_EMOJI;
-    }
-
-    // 使用改进的提取函数
-    const emoji = extractEmojiFromResponse(rawContent);
-
-    if (emoji) {
-      console.log('[Stardust] 提取到Emoji:', emoji);
-      return emoji;
-    }
-
-    console.warn('[Stardust] 无法从响应中提取Emoji，使用默认值');
-    return DEFAULT_EMOJI;
+    console.log('[Stardust] 开始通过 serverless 生成 Emoji...');
+    const result = await callStardustAPI({ userRawContent, message });
+    console.log('[Stardust] Emoji 生成成功:', result.emojiChar);
+    return result.emojiChar || DEFAULT_EMOJI;
   } catch (error) {
-    console.error('[Stardust] AI生成Emoji失败:', error);
+    console.error('[Stardust] generateEmojiWithAI 失败，使用默认 Emoji:', error);
     return DEFAULT_EMOJI;
   }
 }
