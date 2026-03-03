@@ -11,8 +11,9 @@ interface AuthState {
   loading: boolean;
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
-  signUp: (email: string, pass: string, nickname?: string) => Promise<{ error: any }>;
+  signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -63,13 +64,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error };
   },
 
-  signUp: async (email, password, nickname) => {
+  signUp: async (email, password, nickname, avatarDataUrl) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          display_name: nickname || email.split('@')[0]
+          display_name: nickname || email.split('@')[0],
+          avatar_url: avatarDataUrl || null
         }
       }
     });
@@ -78,6 +80,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+  },
+
+  updateAvatar: async (avatarDataUrl: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { avatar_url: avatarDataUrl }
+    });
+    if (!error && data?.user) {
+      set({ user: data.user });
+    }
+    return { error };
   }
 }));
 

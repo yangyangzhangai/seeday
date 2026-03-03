@@ -53,8 +53,8 @@ const TodoItem = ({
 
   return (
     <div className={cn(
-      "bg-white p-4 rounded-xl shadow-sm border flex items-start space-x-3 transition-all",
-      todo.isPinned ? "border-blue-200 bg-blue-50/30" : "border-gray-100"
+      "bg-white p-2 rounded-lg border flex items-start space-x-3 transition-all",
+      todo.isPinned ? "border-blue-200 bg-blue-50/30" : "border-gray-200"
     )}>
       <button onClick={() => toggleTodo(todo.id)} className="mt-1 flex-shrink-0 text-gray-400 hover:text-blue-600">
         {todo.completed ? <CheckCircle className="text-green-500" size={20} /> : <Circle size={20} />}

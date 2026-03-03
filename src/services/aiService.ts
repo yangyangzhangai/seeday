@@ -19,7 +19,7 @@ import { removeThinkingTags, extractComment } from '../lib/utils';
 // Chutes API 配置
 const CHUTES_CONFIG = {
   baseURL: 'https://llm.chutes.ai/v1',
-  apiKey: 'cpk_38f7d5fd384e4b22a1dfbfcda753b36b.222def67407b56dea6d82490041412aa.pndwFrTxPgF323q5yxLABuCYEZgr2EpV',
+  apiKey: 'cpk_724fa280b3254bfbae113acab68373e5.222def67407b56dea6d82490041412aa.COLX5INUpTaXlSl3p9KAHQAukvEXF2hY',
   model: 'NousResearch/Hermes-4-405B-FP8-TEE',  // Hermes 4 405B FP8 TEE
   defaultTemperature: 0.9,
   defaultMaxTokens: 512,  // 增加 token 限制，为推理模型留出思考空间

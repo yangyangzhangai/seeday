@@ -13,3 +13,80 @@
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+.font-siyuan {
+  font-family: 'Source Han Sans SC', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 隐藏滚动条但保留滚动能力（日报等内部容器使用） */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Calendar custom styles for 时间报告 */
+.calendar-wrapper .react-calendar {
+  width: min(70vw, 420px);
+  max-width: 100%;
+  border: none;
+  font-family: 'Source Han Sans SC', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.calendar-wrapper .react-calendar__navigation {
+  margin-bottom: 0.75rem;
+}
+
+.calendar-wrapper .react-calendar__month-view {
+  padding-top: 0.25rem;
+}
+
+.calendar-wrapper .react-calendar__month-view__weekdays {
+  text-transform: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.calendar-wrapper .react-calendar__month-view__weekdays__weekday {
+  padding: 0.35rem 0 0.6rem;
+  color: #111827;
+}
+
+.calendar-wrapper .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.calendar-wrapper .react-calendar__tile {
+  padding: 0.45rem 0 0.55rem;
+  background: transparent;
+  font-size: 0.8rem;
+  color: #111827;
+}
+
+.calendar-wrapper .react-calendar__tile:enabled:hover,
+.calendar-wrapper .react-calendar__tile:enabled:focus {
+  background: transparent;
+}
+
+.calendar-wrapper .react-calendar__tile--now {
+  background: transparent;
+  font-weight: 600;
+  color: #c26a53;
+}
+
+.calendar-wrapper .react-calendar__tile--active {
+  background: transparent;
+  color: #111827;
+  font-weight: 700;
+}
+
+.calendar-wrapper .react-calendar__tile--active::after {
+  content: '';
+  display: block;
+  margin: 0.1rem auto 0;
+  width: 0.75rem;
+  height: 1px;
+  background-color: #e5e7eb;
+}

@@ -11,8 +11,10 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
-import { callChatAPI } from '../api/client';
+import { callChatAPI, callClassifierAPI } from '../api/client';
 import { useAnnotationStore } from './useAnnotationStore';
+import { useMoodStore } from './useMoodStore';
+import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import i18n from '../i18n';
 
@@ -40,8 +42,8 @@ interface YesterdaySummary {
 interface ChatState {
   messages: Message[];
   mode: 'chat' | 'record';
-  isMoodMode: boolean;
   lastActivityTime: number | null;
+  isMoodMode: boolean;
   isLoading: boolean;
   hasInitialized: boolean;
   // Day-based loading state
@@ -54,13 +56,12 @@ interface ChatState {
   fetchOlderMessages: () => Promise<void>;
   checkAndRefreshForNewDay: () => void;
   sendMessage: (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record') => Promise<void>;
-  sendMood: (content: string) => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
+  endActivity: (id: string) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   setMode: (mode: 'chat' | 'record') => void;
-  setIsMoodMode: (isMoodMode: boolean) => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
 }
@@ -70,8 +71,8 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       messages: [],
       mode: 'record',
-      isMoodMode: false,
       lastActivityTime: null,
+      isMoodMode: false,
       isLoading: false,
       hasInitialized: false,
       // Day-based loading state
@@ -251,6 +252,10 @@ export const useChatStore = create<ChatState>()(
             if (session) {
               await supabase.from('messages').update({ duration }).eq('id', lastMsg.id).eq('user_id', session.user.id);
             }
+
+            const moodStore = useMoodStore.getState();
+            const detected = autoDetectMood(lastMsg.content, duration);
+            moodStore.setMood(lastMsg.id, detected);
           }
         }
 
@@ -270,6 +275,29 @@ export const useChatStore = create<ChatState>()(
           messages: updatedMessages,
           lastActivityTime: effectiveMode === 'record' ? now : state.lastActivityTime
         });
+
+        if (effectiveMode === 'record') {
+          const moodStore = useMoodStore.getState();
+          (async () => {
+            try {
+              let mood = autoDetectMood(content, 0);
+
+              const resp = await callClassifierAPI({ rawInput: content, lang: 'zh' });
+              const e = (resp as any)?.data?.energy_log?.[0];
+
+              if (mood === '平静' && e && e.energy_level) {
+                if (e.energy_level === 'high') mood = '开心';
+                else if (e.energy_level === 'medium') mood = '平静';
+                else if (e.energy_level === 'low') mood = '疲惫';
+              }
+
+              moodStore.setMood(newMessage.id, mood);
+            } catch {
+              const mood = autoDetectMood(content, 0);
+              moodStore.setMood(newMessage.id, mood);
+            }
+          })();
+        }
 
         // Persist to Supabase if logged in
         const { data: { session } } = await supabase.auth.getSession();
@@ -511,6 +539,30 @@ IMPORTANT: You must generate your final response entirely and strictly in ${targ
         }
       },
 
+      endActivity: async (id) => {
+        const state = get();
+        const target = state.messages.find(m => m.id === id);
+        if (!target || target.duration !== undefined) return;
+
+        const duration = Math.max(0, Math.round((Date.now() - target.timestamp) / (1000 * 60)));
+
+        set(state => ({
+          messages: state.messages.map(m =>
+            m.id === id ? { ...m, duration } : m
+          )
+        }));
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from('messages').update({ duration }).eq('id', id).eq('user_id', session.user.id);
+        }
+
+        const moodStore = useMoodStore.getState();
+        if (!moodStore.getMood(id)) {
+          moodStore.setMood(id, autoDetectMood(target.content, duration));
+        }
+      },
+
       deleteActivity: async (id) => {
         set(state => ({
           messages: state.messages.filter(m => m.id !== id)
@@ -602,7 +654,6 @@ IMPORTANT: You must generate your final response entirely and strictly in ${targ
       },
 
       setMode: (mode) => set({ mode }),
-      setIsMoodMode: (isMoodMode) => set({ isMoodMode }),
       setHasInitialized: (value) => set({ hasInitialized: value }),
 
       clearHistory: async () => {
