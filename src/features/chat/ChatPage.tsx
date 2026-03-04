@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
@@ -11,6 +11,7 @@ import { zhCN, enUS, it } from 'date-fns/locale';
 import { StardustCard } from '../../components/feedback/StardustCard';
 import type { StardustCardData } from '../../types/stardust';
 import { useMoodStore } from '../../store/useMoodStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // Sub-components
 import { MessageItem } from './MessageItem';
@@ -69,14 +70,27 @@ export const ChatPage = () => {
     data: StardustCardData;
     position: { x: number; y: number };
   } | null>(null);
-  const activityMood = useMoodStore(state => state.activityMood);
-  const setMood = useMoodStore(state => state.setMood);
-  const customMoodLabel = useMoodStore(state => state.customMoodLabel);
-  const setCustomMoodLabel = useMoodStore(state => state.setCustomMoodLabel);
-  const customMoodApplied = useMoodStore(state => state.customMoodApplied);
-  const setCustomMoodApplied = useMoodStore(state => state.setCustomMoodApplied);
-  const moodNote = useMoodStore(state => state.moodNote);
-  const setMoodNote = useMoodStore(state => state.setMoodNote);
+  const {
+    activityMood,
+    setMood,
+    customMoodLabel,
+    setCustomMoodLabel,
+    customMoodApplied,
+    setCustomMoodApplied,
+    moodNote,
+    setMoodNote,
+  } = useMoodStore(
+    useShallow((state) => ({
+      activityMood: state.activityMood,
+      setMood: state.setMood,
+      customMoodLabel: state.customMoodLabel,
+      setCustomMoodLabel: state.setCustomMoodLabel,
+      customMoodApplied: state.customMoodApplied,
+      setCustomMoodApplied: state.setCustomMoodApplied,
+      moodNote: state.moodNote,
+      setMoodNote: state.setMoodNote,
+    }))
+  );
 
 
   // ── 初始化 ──────────────────────────────────────────────────
@@ -147,10 +161,14 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  const activeRecord = useMemo(
+    () => [...messages].reverse().find(m => m.mode === 'record' && !m.isMood && m.duration === undefined),
+    [messages]
+  );
+
   // ── 当前活动计时器 ──────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
-      const activeRecord = [...messages].reverse().find(m => m.mode === 'record' && !m.isMood && m.duration === undefined);
       if (activeRecord) {
         const duration = Math.floor((Date.now() - activeRecord.timestamp) / (1000 * 60));
         setCurrentDuration(duration);
@@ -159,7 +177,7 @@ export const ChatPage = () => {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [messages]);
+  }, [activeRecord]);
 
   // ── 编辑 / 插入 handlers ────────────────────────────────────
   const handleEditClick = (msg: any) => {
@@ -253,8 +271,6 @@ export const ChatPage = () => {
           : 'MMMM d, EEEE';
     return format(ts, datePattern, { locale });
   };
-
-  const activeRecord = [...messages].reverse().find(m => m.mode === 'record' && !m.isMood && m.duration === undefined);
 
   return (
     <div className="flex flex-col h-full bg-gray-50">

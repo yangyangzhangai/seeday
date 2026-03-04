@@ -368,6 +368,41 @@ docs/                 # 架构与交接文档
 - [x] E2: 组件目录按职责分组（`layout/feedback`）
 - [x] E3: 配置文件行数约束（`max-lines`）
 
+### 编号约定（防止 B 编号混淆）
+
+- `Phase B` 的 `B1-B5`：指“文档同构”任务编号（本计划原始编号体系）
+- `审计报告` 的 `B1-B7`：在本计划内统一重命名为 `AB1-AB7`（Audit Bug）
+- 映射规则：`AB1 = 审计B1`，`AB2 = 审计B2` ... `AB7 = 审计B7`
+- 本文件后续凡出现 `ABx`，均指 2026-03-04 审计报告缺陷编号，不再与 Phase B 混用
+
+### 状态口径约定（防止“历史日志”与“当前状态”混淆）
+
+- `第 4 节 任务看板` 是当前有效状态（单一事实源）
+- `第 8 节 交接日志` 仅记录时间序列历史，可能包含“已完成 -> 回切 -> 停止执行”等阶段性状态
+- 如任务看板与历史日志存在差异，以任务看板为准；日志只用于追溯
+
+### Phase F: 2026-03-04 审计修复批次（按用户约束执行）
+- [x] F1: **[P0/AB7]** 清理 `src/api/client.ts` 恒等三元与死代码（`API_BASE` 固定 `'/api'`）
+- [x] F2: **[P0/AB6]** 清理 `useChatStore.sendMessage` 中 record 分支空逻辑注释（避免误导）
+- [x] F3: **[P1/AB4]** 统一“今日日期”口径为本地时间（`useAnnotationStore` 对齐 `getLocalDateString`）
+- [x] F4: **[P1/AB2]** 修复 `triggerMoodDetection` 语言硬编码（`lang` 改为按 `i18n.language` 动态）
+- [x] F5: **[P1/AB5]** 统一消息持久化：`sendMood` 复用 `persistMessageToSupabase`（支持 `isMood`）
+- [x] F6: **[P1]** 统一 `reportActions` 同日判断为 `isSameDay`，提取单次 `isToday` 复用
+- [x] F7: **[P1]** 抽取 `src/api/client.ts` 通用 `postJson<TReq,TRes>`，收口 6 个重复 `fetch` 模式
+- [x] F8: **[P1]** 收敛 `ChatPage` 中 MoodStore 分散 selector（单 selector/`useShallow`）
+- [ ] F9: **[P2]** 处理 `supabase-utils.ts` 未使用封装（`withSession` / `getSessionUserId`）
+- [ ] F10: **[P2]** 清理死代码：`pulseSlowStyle`、`generateEmojiPrompt`、`extractEmojiFromResponse`（若确认无引用）
+- [x] F11: **[P2]** 移除 `ReportPage` 中 `setTimeout(50)` 竞态，改为可预测返回（`reportId`/report 对象）
+- [ ] F12: **[P2]** 抽取 `api/*` 公共包装（CORS/Method Guard/Error JSON）以消除重复
+- [ ] F13: **[P2]** 统一 AI 批注提取逻辑（`api/annotation.ts` 与 `src/lib/aiParser.ts` 合并策略）
+- [ ] F14: **[P2]** `Stardust` 查询与写回优化（`messageId -> memory` 映射；跨 store 写回改 action 化）
+- [ ] F15: **[P2]** 优化 `ChatPage` 每秒遍历消息的计时器路径（减少 O(n) 高频扫描）
+- [ ] F16: **[P2]** 限制 `useAnnotationStore.todayStats.events` 增长（上限/裁剪或去持久化）
+- [ ] F17: **[P3]** 统一 DB Row 映射函数（Todo/Report/Stardust/Annotation/Auth 同构）
+- [ ] F18: **[P3]** 心情领域 i18n 深改（`MoodOption` 中文字面量去耦）
+- [ ] F19: **[停止执行/AB1]** 审计项 AB1/C12（`FORCE_ANNOTATION_TRIGGER`）本轮不改，后续由用户自行执行
+- [ ] F20: **[停止执行]** 审计项 C13（DEBUG `console.log` 批量清理）本轮不改，后续由用户自行执行
+
 ## 5. 每阶段统一验证清单
 
 1. `npx tsc --noEmit`
@@ -523,6 +558,18 @@ docs/                 # 架构与交接文档
    - 分组后路径可读性提升且不破坏现有功能
    - 规则可执行且不造成大面积误报
 3. 回滚点：拆分为 `PR-10A/10B/10C` 独立回退。
+
+### PR-11 审计修复批次（2026-03-04 报告对齐）
+
+1. 范围：按 Phase F 执行审计修复（F1-F18），并显式排除 F19/F20（用户自行执行）。
+2. 推荐拆分：
+   - PR-11A（P0）：`client.ts` 死代码清理 + `sendMessage` 空分支收口（F1/F2）
+   - PR-11B（P1）：日期口径、语言口径、消息持久化一致性（F3/F4/F5/F6）
+   - PR-11C（P1）：API Client 复用封装 + ChatPage selector 收口（F7/F8）
+   - PR-11D（P2）：setTimeout 竞态、死代码与 store 性能修正（F9-F16）
+   - PR-11E（P3）：DB 映射同构 + MoodOption i18n 深改（F17/F18）
+3. 验收：`npx tsc --noEmit`、`npm run build`、`/chat /todo /report` 冒烟测试通过。
+4. 回滚点：按子 PR 独立回退，避免跨主题连带回滚。
 
 ## 8. 交接日志（持续追加）
 
@@ -1238,3 +1285,100 @@ docs/                 # 架构与交接文档
 
 1. 风险为文档语义误读；已统一为“停止执行”口径降低歧义。
 2. 回滚点为文档提交级回退，不影响运行时行为。
+
+### 2026-03-04 (续) — 审计报告对齐更新（用户指定：日志与 C12 不改）
+
+#### 变更来源
+
+- 报告名称: `Tshine2-13-mainc 代码审计报告`
+- 报告日期: 2026-03-04
+- 审计范围: `src/` 全仓核心文件 + `api/` serverless functions
+- 外部输入结论: 审计 `AB1-AB7`（原报告 B1-B7）、`R1-R5`、`Q1-Q6`、`P1-P3` 的优先级分层修复建议
+
+#### 决策结论（采纳/部分采纳/不采纳）
+
+1. **采纳（本轮纳入执行池）**
+   - AB7: `client.ts` 恒等三元与死代码清理（F1）
+   - AB6: `sendMessage` record 分支空逻辑注释收口（F2）
+   - AB4: 批注系统 UTC/本地日期不一致修复（F3）
+   - AB2: `triggerMoodDetection` 语言硬编码修复（F4）
+   - AB5: `sendMood` 与 `persistMessageToSupabase` 持久化路径统一（F5）
+   - R1 + Q5: `reportActions` 同日判断统一为 `isSameDay` + `isToday` 单次复用（F6）
+   - R4: `client.ts` 6 个 API 调用模板提取（F7）
+   - R5: `ChatPage` MoodStore selector 收敛（F8）
+2. **采纳（本轮作为 P2/P3 后续批次）**
+   - R2/R3: DB Row 映射函数同构（F17）
+   - Q1: Emoji 提取实现统一与维护性优化（并入 F10/F12/F13）
+   - Q3: `withSession()` 推广策略（F9）
+   - Q6: MoodPicker 状态收敛（可并入 F8 后续迭代）
+   - P1/P2/P3: 计时器路径、Annotation events 上限、Stardust 跨 store 写回解耦（F14/F15/F16）
+   - `ReportPage` `setTimeout(50)` 竞态改造（F11）
+   - `api/*` 公共包装（CORS/Method/Error）与批注提取逻辑同构（F12/F13）
+3. **部分采纳（拆分立项）**
+   - AB3 + 硬编码中文深层问题：`MoodOption` 中文字面量与心情域 i18n 深改影响面大，独立为 P3（F18）
+4. **不采纳（本轮明确排除）**
+   - AB1 / C12: `FORCE_ANNOTATION_TRIGGER` 100% 触发，本轮不改（用户自行处理）
+   - C13 / Q2: DEBUG `console.log` 清理，本轮不改（用户自行处理）
+
+#### 任务看板变化
+
+1. 新增 Phase F（F1-F20）用于承接 2026-03-04 审计修复。
+2. 新增 PR-11（`PR-11A ~ PR-11E`）作为可独立回滚执行清单。
+3. 明确排除项固化为 F19/F20，避免后续执行漂移。
+
+#### 风险与回滚点
+
+1. `F4/F5/F6` 涉及核心消息与报表流程，需保持“行为不变优先”，并在 `/chat`、`/report` 做完整冒烟回归。
+2. `F7/F12/F13` 涉及 API 请求与错误路径，需重点验证失败分支（HTTP 非 2xx、空响应、解析失败）。
+3. `F14/F15/F16` 属性能与状态结构优化，需防止因优化引入持久化语义变化。
+4. 回滚策略: 按 `PR-11A~E` 子批次独立回滚，不与 C12/C13 绑定。
+
+### 2026-03-04 (续) — Phase F 首批落地（F1-F8 + F11）
+
+#### 变更来源
+
+- 来源: 用户指令“开始执行新增任务”，按 Phase F 的 P0/P1 优先级先落地。
+
+#### 决策结论
+
+1. 完成 P0 基线：F1/F2。
+2. 完成 P1 核心一致性修复：F3/F4/F5/F6/F7/F8。
+3. 提前完成 P2 中的低风险竞态修复：F11。
+4. 维持排除项不变：F19/F20（用户自行处理）。
+
+#### 代码变更范围
+
+1. `src/api/client.ts`
+   - 固化 `API_BASE = '/api'`。
+   - 新增通用 `postJson<TReq, TRes>()`，收口 `callChatAPI/callReportAPI/callAnnotationAPI/callClassifierAPI/callDiaryAPI/callStardustAPI` 的重复请求模板。
+2. `src/store/chatActions.ts`
+   - `triggerMoodDetection` 使用当前 i18n 语言传递 `lang`。
+   - `persistMessageToSupabase` 增加 `isMood` 参数并写入 `is_mood` 字段。
+3. `src/store/useChatStore.ts`
+   - 删除 `sendMessage` 中 record 模式空逻辑分支注释。
+   - `sendMood` 改为复用 `persistMessageToSupabase(..., true)`。
+4. `src/store/useAnnotationStore.ts`
+   - `getTodayString()` 改为本地日期口径（复用 `getLocalDateString`）。
+5. `src/store/reportActions.ts`
+   - 提取单次 `isToday = isSameDay(targetDate, new Date())`，统一复用在 action/mood 两处判断。
+6. `src/store/useReportStore.ts` + `src/features/report/ReportPage.tsx`
+   - `generateReport` 返回新报告 `id`（`Promise<string>`）。
+   - `ReportPage` 移除 `setTimeout(50)` 竞态，改为 `await generateReport` 后直接选中 report。
+   - `ReportPage` 同日匹配改用 `isSameDay`。
+7. `src/features/chat/ChatPage.tsx`
+   - MoodStore selector 合并为单 selector（`useShallow`）。
+   - `activeRecord` 计算提取为 `useMemo`，计时器依赖改为 `activeRecord`。
+
+#### 验证结果
+
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] F1, F2, F3, F4, F5, F6, F7, F8, F11
+
+#### 风险与回滚点
+
+1. `generateReport` 签名从 `void` 改为 `Promise<string>`，若后续调用方有严格类型依赖需同步签名。
+2. API 请求统一封装后，若需差异化 header/timeout，应在 `postJson` 增加可选参数而非回到复制实现。
+3. 回滚建议按文件分组回滚：`client.ts`、`chatActions/useChatStore`、`reportActions/useReportStore/ReportPage`、`ChatPage`。

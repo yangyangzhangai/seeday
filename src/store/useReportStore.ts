@@ -67,7 +67,7 @@ export interface Report {
 interface ReportState {
   reports: Report[];
   fetchReports: () => Promise<void>;
-  generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => void;
+  generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => Promise<string>;
   updateReport: (id: string, updates: Partial<Report>) => void;
   triggerAIAnalysis: (reportId: string) => Promise<void>;
   // 三步走新流程
@@ -153,6 +153,7 @@ export const useReportStore = create<ReportState>()(
         }));
 
         syncReportToSupabase(newReport);
+        return newReport.id;
       },
 
       triggerAIAnalysis: async (reportId) => {

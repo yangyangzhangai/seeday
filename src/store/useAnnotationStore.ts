@@ -13,6 +13,7 @@ import { shouldGenerateAnnotation, recordEvent } from './annotationHelpers';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import i18n from '../i18n';
+import { getLocalDateString } from './chatHelpers';
 
 interface AnnotationStore extends AnnotationState {
   // 内部状态（不持久化）
@@ -37,7 +38,7 @@ interface AnnotationStore extends AnnotationState {
  * 获取今日日期字符串 YYYY-MM-DD
  */
 function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  return getLocalDateString(new Date());
 }
 
 /**

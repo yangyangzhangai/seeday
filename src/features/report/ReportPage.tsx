@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -35,23 +35,16 @@ export const ReportPage = () => {
     [chatMessages, activityMood, selectedReport]
   );
 
-  const handleDateClick = (value: Date) => {
+  const handleDateClick = async (value: Date) => {
     const existingReport = reports.find(
-      (report) => report.type === 'daily' && new Date(report.date).toDateString() === value.toDateString()
+      (report) => report.type === 'daily' && isSameDay(new Date(report.date), value)
     );
 
     const needRegenerate = !existingReport || !existingReport.stats?.moodDistribution;
 
     if (needRegenerate) {
-      generateReport('daily', value.getTime());
-      setTimeout(() => {
-        const newReport = useReportStore
-          .getState()
-          .reports.find(
-            (report) => report.type === 'daily' && new Date(report.date).toDateString() === value.toDateString()
-          );
-        if (newReport) setSelectedReportId(newReport.id);
-      }, 50);
+      const reportId = await generateReport('daily', value.getTime());
+      setSelectedReportId(reportId);
     } else if (existingReport) {
       setSelectedReportId(existingReport.id);
     }

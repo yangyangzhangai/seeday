@@ -262,9 +262,6 @@ export const useChatStore = create<ChatState>()(
         if (effectiveMode === 'chat') {
           const aiMessage = await handleAIChatResponse(updatedMessages, session?.user.id);
           set((currentState) => ({ messages: [...currentState.messages, aiMessage] }));
-        } else {
-          // Record mode AI analysis
-          // ... (existing logic for record mode analysis)
         }
       },
 
@@ -484,16 +481,7 @@ export const useChatStore = create<ChatState>()(
         // Persist to Supabase if logged in
         const session = await getSupabaseSession();
         if (session) {
-          const { error } = await supabase.from('messages').insert([{
-            id: newMessage.id,
-            content: newMessage.content,
-            timestamp: newMessage.timestamp,
-            type: newMessage.type,
-            activity_type: newMessage.activityType,
-            user_id: session.user.id,
-            is_mood: true
-          }]);
-          if (error) console.error('Error sending mood:', error);
+          await persistMessageToSupabase(newMessage, session.user.id, true);
         }
       },
 

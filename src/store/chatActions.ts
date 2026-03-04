@@ -5,6 +5,7 @@ import { autoDetectMood } from '../lib/mood';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
+import i18n from '../i18n';
 import type { Message } from './useChatStore';
 
 export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
@@ -41,7 +42,7 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   return updatedMessages;
 }
 
-export async function persistMessageToSupabase(message: Message, userId: string): Promise<void> {
+export async function persistMessageToSupabase(message: Message, userId: string, isMood = false): Promise<void> {
   const { error } = await supabase.from('messages').insert([
     {
       id: message.id,
@@ -49,6 +50,7 @@ export async function persistMessageToSupabase(message: Message, userId: string)
       timestamp: message.timestamp,
       type: message.type,
       activity_type: message.activityType,
+      is_mood: isMood,
       user_id: userId,
     },
   ]);
@@ -60,10 +62,11 @@ export async function persistMessageToSupabase(message: Message, userId: string)
 
 export async function triggerMoodDetection(messageId: string, content: string): Promise<void> {
   const moodStore = useMoodStore.getState();
+  const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
 
   try {
     let mood = autoDetectMood(content, 0);
-    const response = await callClassifierAPI({ rawInput: content, lang: 'zh' });
+    const response = await callClassifierAPI({ rawInput: content, lang: currentLang });
     const energyLog = response?.data?.energy_log?.[0];
 
     if (mood === '平静' && energyLog?.energy_level) {

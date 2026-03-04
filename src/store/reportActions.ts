@@ -45,6 +45,7 @@ export function createGeneratedReport({
   moodStore,
 }: GenerateReportInput): Report {
   const targetDate = new Date(date);
+  const isToday = isSameDay(targetDate, new Date());
   const { start, end, title } = getDateRange(type, date, customEndDate);
   const relevantTodos = filterRelevantTodos(todos, start, end, type);
   const total = relevantTodos.length;
@@ -77,13 +78,7 @@ export function createGeneratedReport({
         completed: todo.completed,
       }));
 
-    const now = new Date();
-    const isSameDayAsNow =
-      now.getFullYear() === targetDate.getFullYear() &&
-      now.getMonth() === targetDate.getMonth() &&
-      now.getDate() === targetDate.getDate();
-
-    if (!isSameDayAsNow) {
+    if (!isToday) {
       const records = filterActivities(messages, start, end, { requireDuration: true });
       const actionAnalysis = classifyActivities(records);
       stats.actionAnalysis = actionAnalysis;
@@ -125,12 +120,7 @@ export function createGeneratedReport({
 
   stats.moodDistribution = computeMoodDistribution(messages, moodStore, start, end);
 
-  const now = new Date();
-  const isSameDayNow =
-    now.getFullYear() === targetDate.getFullYear() &&
-    now.getMonth() === targetDate.getMonth() &&
-    now.getDate() === targetDate.getDate();
-  if (!isSameDayNow) {
+  if (!isToday) {
     stats.moodSummary = generateMoodSummary(stats.moodDistribution || []);
   }
 
