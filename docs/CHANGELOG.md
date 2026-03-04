@@ -18,7 +18,8 @@ All notable changes to this repository are documented here.
 - Reviewed and improved `.gitignore` by removing duplicate `.env` rules and adding `.vercel/` ignore.
 - Rewrote `api/README.md` and `src/store/README.md` to align with current implementation boundaries and reduce drift.
 - Grouped shared components by responsibility into `src/components/layout` and `src/components/feedback`, then updated imports in app entry points and chat feature.
-- Restored annotation probability logic in `src/store/annotationHelpers.ts` (removed test-only 100% trigger path).
+- Synced cleanup status decision: C12 and C13 are now marked as stop-execution items and will be handled by the user later.
+- Corrected documentation alignment across `FEATURE_STATUS.md`, `PROJECT_CONTEXT.md`, and `docs/ARCHITECTURE.md` for the C12/C13 stop-execution status.
 
 ### Removed
 
@@ -42,4 +43,4 @@ All notable changes to this repository are documented here.
 
 ### Notes
 
-- C13 remains postponed while debugging logs are still needed.
+- C12/C13 are now marked as stop-execution items and are intentionally left for user-owned follow-up.
