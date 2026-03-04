@@ -1,6 +1,6 @@
 # Tshine 功能状态（Feature Status）
 
-- 更新时间: 2026-03-03
+- 更新时间: 2026-03-04
 - 状态等级:
   - `stable`: 主流程可用，已纳入当前架构主线
   - `beta`: 可用但仍有已知限制
@@ -54,19 +54,18 @@
 ## 5. Annotation Bubble（全局）
 
 - 状态: `beta`
-- 入口/组件: `src/components/AIAnnotationBubble.tsx`
+- 入口/组件: `src/components/feedback/AIAnnotationBubble.tsx`
 - 数据/状态:
   - `src/store/useAnnotationStore.ts`
   - `src/store/annotationHelpers.ts`
   - `api/annotation.ts`
 - 说明:
-  - 目前保持 test 阶段 100% 触发（C12 按当前决策冻结）。
-  - 后续切生产策略时再恢复概率与冷却逻辑。
+  - 已恢复权重+概率触发策略，含全局/同类事件冷却（C12 已完成）。
 
 ## 6. Stardust（星尘）
 
 - 状态: `beta`
-- 组件: `src/components/Stardust*.tsx`
+- 组件: `src/components/feedback/Stardust*.tsx`
 - 数据/状态: `src/store/useStardustStore.ts`
 - 服务端: `api/stardust.ts`
 - 说明:
@@ -92,5 +91,4 @@
 
 ## 9. 待办重点（来自 cleanup 看板）
 
-1. E2: 组件目录按职责分组（`layout/feedback`）。
-2. E3: 配置文件行数约束（`max-lines`）。
+1. C13: 调试日志清理（暂缓项，待用户调试完成后推进）。

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import type { StardustCardData } from '../types/stardust';
+import type { StardustCardData } from '../../types/stardust';
 
 interface StardustCardProps {
   isOpen: boolean;

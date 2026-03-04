@@ -8,7 +8,7 @@ import { Activity, ChevronUp, Loader2 } from 'lucide-react';
 import { formatDuration } from '../../lib/time';
 import { format, isSameDay } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
-import { StardustCard } from '../../components/StardustCard';
+import { StardustCard } from '../../components/feedback/StardustCard';
 import type { StardustCardData } from '../../types/stardust';
 import { useMoodStore } from '../../store/useMoodStore';
 

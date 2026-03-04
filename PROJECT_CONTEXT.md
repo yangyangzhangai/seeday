@@ -1,6 +1,6 @@
 # Tshine 项目上下文（Project Context）
 
-- 更新时间: 2026-03-03
+- 更新时间: 2026-03-04
 - 适用范围: `Tshine2-13-mainc` 全仓
 - 目标: 让接手人 30 分钟内建立可执行心智模型
 
@@ -53,7 +53,8 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 - `src/features/`: 业务模块（auth/chat/todo/report）
 - `src/store/`: Zustand store 与 actions/helpers
 - `src/api/`: 前端 API client 与 Supabase 实例
-- `src/components/`: 跨页面共享 UI 组件
+- `src/components/layout`: 布局类共享组件
+- `src/components/feedback`: 反馈/提示类共享组件
 - `src/lib/`: 工具与纯函数
 - `src/i18n/`: 国际化初始化与词条
 - `docs/`: 交接主文档与结构文档
@@ -61,9 +62,10 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 ## 6. 当前清理主线状态（摘要）
 
 - Phase A（安全）: 已完成
-- Phase C（结构拆分）: 核心项已完成，C12 保持测试策略、C13 暂缓
-- Phase B（文档同构）: 正在落地
-- Phase D/E（治理与规范）: 部分待办
+- Phase B（文档同构）: 已完成
+- Phase C（结构拆分）: 已完成（C13 仍为暂缓项）
+- Phase D（目录治理）: 已完成
+- Phase E（治理与规范）: 已完成（E1/E2/E3）
 
 权威看板以 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 为准。
 
@@ -79,9 +81,9 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 ## 8. 当前已知风险
 
-1. `annotationHelpers` 仍为 test 100% 触发策略（按当前决策保持不动）。
-2. 调试日志清理（C13）暂缓，后续要有计划收敛。
-3. 包管理器已统一为 `npm`，主锁文件为 `package-lock.json`。
+1. 调试日志清理（C13）暂缓，后续要有计划收敛。
+2. 包管理器已统一为 `npm`，主锁文件为 `package-lock.json`。
+3. `max-lines` 已落地（400 告警 / 800 报错），超大文件仍需持续拆分。
 
 ## 9. 接手建议
 

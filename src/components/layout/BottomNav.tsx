@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Clock, CheckSquare, PieChart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 export const BottomNav = () => {
   const { t } = useTranslation();

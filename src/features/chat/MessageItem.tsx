@@ -5,7 +5,7 @@ import { formatDuration } from '../../lib/time';
 import { getMoodColor } from '../../lib/moodColor';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { StardustEmoji } from '../../components/StardustEmoji';
+import { StardustEmoji } from '../../components/feedback/StardustEmoji';
 import type { StardustCardData } from '../../types/stardust';
 
 interface MessageItemProps {

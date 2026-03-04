@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { BottomNav } from './components/BottomNav';
-import { Header } from './components/Header';
-import { AIAnnotationBubble } from './components/AIAnnotationBubble';
+import { BottomNav } from './components/layout/BottomNav';
+import { Header } from './components/layout/Header';
+import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { TodoPage } from './features/todo/TodoPage';
 import { ReportPage } from './features/report/ReportPage';
@@ -10,7 +10,7 @@ import { AuthPage } from './features/auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
-import { StardustAnimation } from './components/StardustAnimation';
+import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 
 const MainLayout = () => {

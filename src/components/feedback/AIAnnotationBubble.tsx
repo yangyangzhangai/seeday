@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAnnotationStore } from '../store/useAnnotationStore';
-import { useStardustStore } from '../store/useStardustStore';
-import type { Message } from '../store/useChatStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
+import { useStardustStore } from '../../store/useStardustStore';
+import type { Message } from '../../store/useChatStore';
 
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏

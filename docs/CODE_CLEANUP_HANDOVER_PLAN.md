@@ -365,8 +365,8 @@ docs/                 # 架构与交接文档
 
 ### Phase E: 规范化
 - [x] E1: 新建 `CONTRIBUTING.md`
-- [ ] E2: 组件目录按职责分组（`layout/feedback`）
-- [ ] E3: 配置文件行数约束（`max-lines`）
+- [x] E2: 组件目录按职责分组（`layout/feedback`）
+- [x] E3: 配置文件行数约束（`max-lines`）
 
 ## 5. 每阶段统一验证清单
 
@@ -1132,3 +1132,78 @@ docs/                 # 架构与交接文档
 
 1. 本批为文档/忽略规则调整，无运行时代码路径变更。
 2. 若后续 API 响应结构调整，需要同步更新 `api/README.md`，避免再次漂移。
+
+### 2026-03-04 (续) — E2 + E3 + C12 收口（Windows 执行）
+
+#### 变更来源
+
+- 来源: 今日执行计划（优先 E3 文件规模约束、E2 组件目录分组，时间允许推进 C12）。
+
+#### 决策结论
+
+1. 采纳 E3：落地可执行的 `max-lines` 约束（400 告警 / 800 报错）。
+2. 采纳 E2：将共享组件按职责分组到 `layout/feedback`，保持行为不变。
+3. 采纳 C12：恢复批注触发概率逻辑，移除测试阶段 100% 触发。
+4. 维持 C13 暂缓：调试日志暂不清理。
+
+#### 代码变更范围
+
+1. E3（文件规模约束）
+   - `package.json` 新增脚本：`lint:max-lines`。
+   - 新增 `scripts/check-max-lines.mjs`：扫描 `src/`、`api/` 下 `*.ts`/`*.tsx`，超过 400 行告警、超过 800 行报错并退出非零。
+2. E2（组件目录分组）
+   - 新目录：`src/components/layout/`、`src/components/feedback/`。
+   - 迁移并修正导入：
+     - `BottomNav.tsx`、`Header.tsx`、`LanguageSwitcher.tsx` -> `layout/`
+     - `ErrorBoundary.tsx`、`AIAnnotationBubble.tsx`、`StardustAnimation.tsx`、`StardustCard.tsx`、`StardustEmoji.tsx` -> `feedback/`
+   - 同步更新引用文件：`src/App.tsx`、`src/main.tsx`、`src/features/chat/ChatPage.tsx`、`src/features/chat/MessageItem.tsx`。
+3. C12（概率逻辑恢复）
+   - `src/store/annotationHelpers.ts`：恢复权重 + 随机触发逻辑。
+   - 增加全局冷却与同类事件冷却常量，移除测试模式 `return true`。
+
+#### 验证结果
+
+- `npm run lint:max-lines` 通过 ✓（当前仅告警，无 >800 行报错）
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] C12 完成（概率触发逻辑恢复）
+- [x] E2 完成（组件目录按职责分组）
+- [x] E3 完成（max-lines 约束可执行）
+
+#### 风险与回滚点
+
+1. C12 恢复后批注触发频率将低于测试阶段，若需要回放高频验证可临时下调冷却值或回退 `annotationHelpers.ts`。
+2. E2 属路径调整，若出现导入回归可独立回退 `src/components/*` 迁移与 `App/main/Chat` 引用变更。
+
+### 2026-03-04 (续) — C12 测试回切（按当前联调需求）
+
+#### 变更来源
+
+- 来源: 当前联调阶段用户要求批注维持 100% 触发，便于连续验证。
+
+#### 决策结论
+
+1. 暂不收口 C12 到生产概率策略。
+2. 维持测试模式 100% 触发，待联调结束后再切回概率+冷却逻辑。
+
+#### 代码变更范围
+
+1. `src/store/annotationHelpers.ts`
+   - 增加 `FORCE_ANNOTATION_TRIGGER = true`。
+   - 在 `shouldGenerateAnnotation` 开头强制返回 `true`，恢复测试阶段高频触发。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+
+#### 任务看板变化
+
+- [ ] C12 保持未完成（测试阶段临时回切 100% 触发）
+
+#### 风险与回滚点
+
+1. 当前批注触发频率高于生产预期，可能放大通知密度与噪声。
+2. 联调结束后将 `FORCE_ANNOTATION_TRIGGER` 关闭即可恢复概率策略。

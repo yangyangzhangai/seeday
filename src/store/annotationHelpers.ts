@@ -1,8 +1,6 @@
 import type { 
   AnnotationEvent, 
-  AnnotationEventType,
-  EventWeight,
-  BonusCondition 
+  EventWeight
 } from '../types/annotation';
 
 interface TodayStats {
@@ -16,6 +14,10 @@ interface Config {
   dailyLimit: number;
   enabled: boolean;
 }
+
+const GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
+const SAME_EVENT_COOLDOWN_MS = 2 * 60 * 1000;
+const FORCE_ANNOTATION_TRIGGER = true;
 
 /**
  * 事件权重配置
@@ -130,74 +132,62 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
 
 /**
  * 检查是否应该生成批注
- * 
- * 测试模式：触发概率 100%
  */
 export function shouldGenerateAnnotation(
   event: AnnotationEvent,
   todayStats: TodayStats,
   config: Config
 ): boolean {
-  // 测试模式：始终触发（100% 概率）
-  console.log(`[AI Annotator] 测试模式：${event.type} 触发概率 100%`);
-  return true;
+  if (FORCE_ANNOTATION_TRIGGER) {
+    console.log(`[AI Annotator] 测试模式：${event.type} 触发概率 100%`);
+    return true;
+  }
 
-  /*
-  // 生产环境代码（恢复时使用）：
   const now = Date.now();
-  
-  // 1. 检查全局冷却
-  if (now - todayStats.lastSpeakTime < config.cooldownMs) {
+
+  if (now - todayStats.lastSpeakTime < GLOBAL_COOLDOWN_MS) {
     console.log('[AI Annotator] 全局冷却中');
     return false;
   }
-  
-  // 2. 检查每日限额
+
   if (todayStats.speakCount >= config.dailyLimit) {
     console.log('[AI Annotator] 已达到每日限额');
     return false;
   }
-  
-  // 3. 获取事件权重
+
   const weight = EVENT_WEIGHTS[event.type];
   if (!weight) {
     console.log('[AI Annotator] 未知事件类型:', event.type);
     return false;
   }
-  
-  // 4. 检查同类事件冷却
+
   const sameTypeEvents = todayStats.events.filter(e => e.type === event.type);
   const lastSameTypeEvent = sameTypeEvents[sameTypeEvents.length - 1];
-  if (lastSameTypeEvent && weight.cooldownMs > 0) {
+  if (lastSameTypeEvent) {
     const timeSinceLast = now - lastSameTypeEvent.timestamp;
-    if (timeSinceLast < weight.cooldownMs) {
+    if (timeSinceLast < SAME_EVENT_COOLDOWN_MS) {
       console.log(`[AI Annotator] ${event.type} 冷却中`);
       return false;
     }
   }
-  
-  // 5. 计算概率
+
   let probability = weight.base;
-  
-  // 应用加成
+
   weight.bonuses.forEach(bonus => {
     if (bonus.check(event, todayStats.events)) {
       probability += bonus.bonus;
       console.log(`[AI Annotator] 加成: ${bonus.description} (+${bonus.bonus}%)`);
     }
   });
-  
-  // 限制最大概率
+
   probability = Math.min(probability, weight.max);
-  
-  // 6. 随机决策
+
   const random = Math.random() * 100;
   const shouldTrigger = random < probability;
-  
+
   console.log(`[AI Annotator] 概率计算: ${probability.toFixed(1)}% (随机值: ${random.toFixed(1)}) - ${shouldTrigger ? '触发' : '未触发'}`);
-  
+
   return shouldTrigger;
-  */
 }
 
 /**
