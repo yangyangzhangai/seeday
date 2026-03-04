@@ -93,10 +93,11 @@ src/
 ## 已知事项
 
 - 当前构建会有 Vite 的大 chunk 警告（不影响构建成功）。
-- 仓库存在 `package-lock.json` 与 `pnpm-lock.yaml`，包管理器策略待在 cleanup 任务 D6 统一。
+- 项目已锁定使用 `npm`（主锁文件为 `package-lock.json`）。
 
 ## 文档入口
 
 - 主交接计划: `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
 - 目录地图: `docs/PROJECT_MAP.md`
 - 架构说明: `docs/ARCHITECTURE.md`
+- 贡献规范: `CONTRIBUTING.md`

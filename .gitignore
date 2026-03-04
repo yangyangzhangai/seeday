@@ -47,10 +47,12 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
-.env
-.env
+
+# Vercel local artifacts
+.vercel/
 
 # Local generated artifacts / debug leftovers
+chat/
 .sisyphus/
 session-ses_*.md
 output-utf8.txt

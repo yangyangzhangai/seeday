@@ -81,7 +81,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 1. `annotationHelpers` 仍为 test 100% 触发策略（按当前决策保持不动）。
 2. 调试日志清理（C13）暂缓，后续要有计划收敛。
-3. 仓库同时存在 `package-lock.json` 与 `pnpm-lock.yaml`，包管理器策略待统一（D6）。
+3. 包管理器已统一为 `npm`，主锁文件为 `package-lock.json`。
 
 ## 9. 接手建议
 

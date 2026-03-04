@@ -355,16 +355,16 @@ docs/                 # 架构与交接文档
 ### Phase D: 目录治理
 - [x] D1: 新建 `docs/PROJECT_MAP.md`（目录职责/入口/边界/状态）
 - [x] D2: 统一页面入口策略（`pages` 向 `features` 收敛）
-- [ ] D3: 统一前后端 API 分层边界（`src/*` 调用、`api/*` 服务端）
+- [x] D3: 统一前后端 API 分层边界（`src/*` 调用、`api/*` 服务端）
 - [x] D4: 清理或迁移遗留直连实现（含 `src/api/qwen.ts`）
 - [x] D5: 清理占位目录 README，合并为单一地图文档
-- [ ] D6: 锁定单一包管理器并确认主锁文件策略
+- [x] D6: 锁定单一包管理器并确认主锁文件策略（已统一为 `npm` + `package-lock.json`）
 - [x] D7: 清理 `src/i18n/locales/en.ts.temp`
 - [x] D8: 清理空目录与占位目录（`src/assets`, `src/styles`, `src/layouts`）
-- [ ] D9: 根目录残留文件评估处置（`TO-DO.json`, `YOUWARE.md`, `SECURITY_FIX.md`, `scripts/test-minmax.ts`）
+- [x] D9: 根目录残留文件评估处置（`TO-DO.json`, `YOUWARE.md`, `SECURITY_FIX.md`, `scripts/test-minmax.ts`）
 
 ### Phase E: 规范化
-- [ ] E1: 新建 `CONTRIBUTING.md`
+- [x] E1: 新建 `CONTRIBUTING.md`
 - [ ] E2: 组件目录按职责分组（`layout/feedback`）
 - [ ] E3: 配置文件行数约束（`max-lines`）
 
@@ -1053,3 +1053,82 @@ docs/                 # 架构与交接文档
 
 1. 风险主要为文档与实现漂移；后续每次 PR 合并后应持续按协议回填本文件与 changelog。
 2. 回滚可按文档文件逐个回退，不影响运行时功能。
+
+### 2026-03-04 — D3 + D6 + D9 + E1 收口（Windows 环境）
+
+#### 变更来源
+
+- 来源: cleanup 主线剩余任务（Phase D: D3/D6/D9，Phase E: E1）。
+
+#### 决策结论
+
+1. 采纳 D6：锁定单一包管理器为 `npm`，主锁文件为 `package-lock.json`。
+2. 采纳 D9：处置根目录残留文件，删除过时文件并保留处置说明归档。
+3. 采纳 D3：对前后端 API 分层边界做审计收口，确认前端通过 `src/api/client.ts` 调用 `api/*`。
+4. 采纳 E1：补齐 `CONTRIBUTING.md` 作为贡献与回滚规范入口。
+
+#### 代码/文档变更范围
+
+1. D6（包管理器统一）
+   - 删除 `pnpm-lock.yaml`。
+   - 更新 `README.md`、`PROJECT_CONTEXT.md`、`DEPLOY.md` 为 npm 单一路径。
+2. D9（根目录残留评估处置）
+   - 删除 `TO-DO.json`、`YOUWARE.md`、`SECURITY_FIX.md`。
+   - 新增归档说明：`docs/archive/2026-03-04-root-residual-disposition.md`。
+   - `scripts/test-minmax.ts` 保持“此前已删除”状态。
+3. D3（API 分层边界审计）
+   - 审计 `src/api/client.ts` 与 `src/api/supabase.ts` 调用路径，确认前端未引入第三方 AI Key 直连模式。
+4. E1（贡献规范）
+   - 新增 `CONTRIBUTING.md`，包含提交流程、目录边界、验证与回滚约定。
+   - `README.md` 增加贡献规范入口。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+- API 分层抽查：`src/api/client.ts` 仅请求 `/api/*`，未发现 `src/**` 直连第三方 AI Key 路径。
+
+#### 任务看板变化
+
+- [x] D3 完成（前后端 API 分层边界审计通过）
+- [x] D6 完成（npm 单包管理器策略落地）
+- [x] D9 完成（根目录残留文件处置完成）
+- [x] E1 完成（`CONTRIBUTING.md` 落地）
+
+#### 风险与回滚点
+
+1. 删除根目录历史文件后，若需追溯可从 git 历史恢复。
+2. 若团队后续改用其他包管理器，需同步恢复锁文件策略与文档命令，避免二次漂移。
+
+### 2026-03-04 (续) — 文档质量审校（`.gitignore` / `api/README.md` / `src/store/README.md`）
+
+#### 变更来源
+
+- 来源: 当日执行中发现仓库存在新增但未审校文件（`.gitignore`、`api/README.md`、`src/store/README.md`），按用户要求做质量复核并同步 cleanup。
+
+#### 决策结论
+
+1. 采纳：清理 `.gitignore` 重复规则并补齐 Vercel 本地产物忽略项。
+2. 采纳：重写 `api/README.md`，以“与代码实现一致的响应结构”为准，移除过时示例。
+3. 采纳：重写 `src/store/README.md`，保留稳定约束与最小自检项，降低文档漂移风险。
+
+#### 代码/文档变更范围
+
+1. `.gitignore`
+   - 删除重复 `.env` 条目。
+   - 新增 `.vercel/` 忽略规则。
+2. `api/README.md`
+   - 更新为当前 `api/*.ts` 实际端点和成功响应结构。
+   - 明确前端必须通过 `src/api/client.ts` 调用。
+3. `src/store/README.md`
+   - 收敛为 store 列表、组织约定、代码约束、变更自检四部分。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 风险与回滚点
+
+1. 本批为文档/忽略规则调整，无运行时代码路径变更。
+2. 若后续 API 响应结构调整，需要同步更新 `api/README.md`，避免再次漂移。

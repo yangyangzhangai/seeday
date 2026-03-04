@@ -2,6 +2,25 @@
 
 All notable changes to this repository are documented here.
 
+## 2026-03-04
+
+### Added
+
+- Added `CONTRIBUTING.md` with contribution flow, directory boundaries, validation, and rollback expectations.
+- Added `docs/archive/2026-03-04-root-residual-disposition.md` to record root residual file disposition.
+
+### Changed
+
+- Locked package manager strategy to `npm` and removed `pnpm-lock.yaml`.
+- Updated package-management wording in `README.md`, `PROJECT_CONTEXT.md`, and install steps in `DEPLOY.md`.
+- Synced cleanup board and handover log for D3, D6, D9, and E1 in `docs/CODE_CLEANUP_HANDOVER_PLAN.md`.
+- Reviewed and improved `.gitignore` by removing duplicate `.env` rules and adding `.vercel/` ignore.
+- Rewrote `api/README.md` and `src/store/README.md` to align with current implementation boundaries and reduce drift.
+
+### Removed
+
+- Removed stale root files: `TO-DO.json`, `YOUWARE.md`, and `SECURITY_FIX.md`.
+
 ## 2026-03-03
 
 ### Added

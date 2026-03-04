@@ -31,8 +31,6 @@ AI 服务 (Chutes)
 
 ```bash
 npm install
-# 或
-pnpm install
 ```
 
 ### 2. 配置环境变量
