@@ -252,6 +252,7 @@ export const useChatStore = create<ChatState>()(
             type: 'activity_recorded',
             timestamp: Date.now(),
             data: {
+              messageId: newMessage.id,
               content: newMessage.content,
             },
           };
@@ -453,6 +454,16 @@ export const useChatStore = create<ChatState>()(
         const now = Date.now();
         const state = get();
 
+        const todayStr = getLocalDateString(new Date(now));
+        const latestActivity = [...state.messages]
+          .reverse()
+          .find(
+            (message) =>
+              message.mode === 'record' &&
+              !message.isMood &&
+              getLocalDateString(new Date(message.timestamp)) === todayStr
+          );
+
         const newMessage: Message = {
           id: uuidv4(),
           content,
@@ -467,12 +478,19 @@ export const useChatStore = create<ChatState>()(
           messages: [...state.messages, newMessage]
         }));
 
+        if (latestActivity) {
+          const moodStore = useMoodStore.getState();
+          moodStore.setMoodNote(latestActivity.id, content);
+          void triggerMoodDetection(latestActivity.id, content);
+        }
+
         // 触发心情记录批注
         const annotationStore = useAnnotationStore.getState();
         const moodEvent: AnnotationEvent = {
           type: 'mood_recorded',
           timestamp: Date.now(),
           data: {
+            messageId: newMessage.id,
             mood: content,
           },
         };

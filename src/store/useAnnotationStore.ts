@@ -10,6 +10,7 @@ import type {
 } from '../types/annotation';
 import { callAnnotationAPI } from '../api/client';
 import { shouldGenerateAnnotation, recordEvent } from './annotationHelpers';
+import { useMoodStore } from './useMoodStore';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import i18n from '../i18n';
@@ -132,11 +133,48 @@ export const useAnnotationStore = create<AnnotationStore>()(
             .slice(-3)
             .map(e => e.data?.content || '');
 
+          // 仅在连续心情输入时，传最多3条连续心情原文
+          const recentMoodMessages: string[] = [];
+          if (event.type === 'mood_recorded') {
+            const eventsWithoutAnnotations = todayEvents.filter(e => e.type !== 'annotation_generated');
+            for (let i = eventsWithoutAnnotations.length - 1; i >= 0 && recentMoodMessages.length < 3; i--) {
+              const currentEvent = eventsWithoutAnnotations[i];
+              if (currentEvent.type !== 'mood_recorded') {
+                break;
+              }
+              const moodText = String(currentEvent.data?.mood || '').trim();
+              if (moodText) {
+                recentMoodMessages.push(moodText);
+              }
+            }
+            recentMoodMessages.reverse();
+          }
+
+          const moodStore = useMoodStore.getState();
+          const customLabelDefault = i18n.t('chat_custom_label_default');
+          const getMoodLabelByMessageId = (messageId?: string): string | undefined => {
+            if (!messageId) return undefined;
+
+            const customLabel = moodStore.customMoodLabel[messageId];
+            const isCustomApplied = moodStore.customMoodApplied[messageId] === true;
+            if (
+              isCustomApplied &&
+              customLabel &&
+              customLabel !== customLabelDefault &&
+              customLabel !== '自定义'
+            ) {
+              return customLabel;
+            }
+
+            return moodStore.activityMood[messageId];
+          };
+
           // 构建今日活动详细列表
           const todayActivitiesList = activities.map(e => ({
             content: e.data?.content || '未命名活动',
             duration: e.data?.duration || 0,
             activityType: e.data?.activityType || '未分类',
+            moodLabel: getMoodLabelByMessageId(e.data?.messageId),
             timestamp: e.timestamp,
             completed: e.type === 'activity_completed'
           }));
@@ -150,6 +188,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayDuration: totalDuration,
               currentHour: new Date().getHours(),
               recentAnnotations,
+              recentMoodMessages,
               todayActivitiesList,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en',

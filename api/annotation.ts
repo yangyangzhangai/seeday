@@ -307,7 +307,17 @@ function buildTodayActivitiesText(activities: any[], lang: string): string {
     return '今日暂无活动记录';
   }
   return activities
-    .map((activity: any, index: number) => `${index + 1}. ${activity.content}${activity.completed ? ' ✓' : ''}`)
+    .map((activity: any, index: number) => {
+      const moodLabel = String(activity?.moodLabel || '').trim();
+      const moodText = moodLabel
+        ? (lang === 'en'
+          ? ` [Mood: ${moodLabel}]`
+          : lang === 'it'
+            ? ` [Umore: ${moodLabel}]`
+            : ` [心情: ${moodLabel}]`)
+        : '';
+      return `${index + 1}. ${activity.content}${moodText}${activity.completed ? ' ✓' : ''}`;
+    })
     .join(' → ');
 }
 
@@ -316,6 +326,7 @@ function buildUserPrompt(
   eventType: string,
   eventSummary: string,
   todayActivitiesText: string,
+  recentMoodText: string,
   recentAnnotationsList: string,
   recentEmojisText = '',
 ): string {
@@ -323,6 +334,7 @@ function buildUserPrompt(
     return (
       `【Just Happened】${eventType}: ${eventSummary}\n\n` +
       `【Today's Timeline】${todayActivitiesText}\n\n` +
+      `【Recent Mood】${recentMoodText}\n\n` +
       `【Recent Annotations】${recentAnnotationsList}\n\n` +
       (recentEmojisText ? `【Recent Emojis】${recentEmojisText}\n\n` : '') +
       `Output a direct 10-35 word comment in your style without prefixes. ` +
@@ -337,6 +349,7 @@ function buildUserPrompt(
     return (
       `【Appena Successo】${eventType}: ${eventSummary}\n\n` +
       `【Timeline di Oggi】${todayActivitiesText}\n\n` +
+      `【Umore Recente】${recentMoodText}\n\n` +
       `【Annotazioni Recenti】${recentAnnotationsList}\n\n` +
       (recentEmojisText ? `【Emoji Recenti】${recentEmojisText}\n\n` : '') +
       `Stampa direttamente un commento di 10-35 parole nel tuo stile, senza prefissi. ` +
@@ -351,6 +364,7 @@ function buildUserPrompt(
   return (
     `【刚刚发生】${eventType}：${eventSummary}\n\n` +
     `【今日时间线】${todayActivitiesText}\n\n` +
+    `【最近心情】${recentMoodText}\n\n` +
     `【最近批注】${recentAnnotationsList}\n\n` +
     `直接以你的风格输出15-60字批注，无前缀。` +
     `重要：上面的【最近批注】是你刚刚说过的话。` +
@@ -414,12 +428,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .trim();
 
     // 构建今日时间线（最近6个活动）
-    const recentActivities = userContext?.todayActivitiesList?.slice(-6) || [];
+    const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
     const todayActivitiesText = buildTodayActivitiesText(recentActivities, lang);
 
     // 最近批注：清洗掉可能导致 prompt 自我污染的内容（标签、指令关键词）
     const sanitizeAnnotation = (s: string) =>
       s.replace(/【[^】]*】/g, '').replace(/\b(IMPORTANT|OUTPUT|JSON|comment|system)\b/gi, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    const sanitizeMoodText = (s: string) =>
+      s.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+    const rawRecentMoodMessages = userContext?.recentMoodMessages?.slice(-3) || [];
+    const recentMoodText =
+      rawRecentMoodMessages.map(sanitizeMoodText).filter(Boolean).join(' / ') ||
+      (lang === 'en' ? 'None' : lang === 'it' ? 'Nessuno' : '无');
+
     const rawRecentAnnotations = userContext?.recentAnnotations?.slice(-3) || [];
     const recentAnnotationsList =
       rawRecentAnnotations.map(sanitizeAnnotation).filter(Boolean).join(' / ') ||
@@ -433,6 +455,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       eventType,
       eventSummary,
       todayActivitiesText,
+      recentMoodText,
       recentAnnotationsList,
       recentEmojisText
     );

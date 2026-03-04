@@ -77,6 +77,7 @@ export interface TodayActivity {
   content: string;           // 活动名称/内容
   duration: number;          // 活动时长（分钟）
   activityType?: string;     // 活动类型（AI分类）
+  moodLabel?: string;        // 活动旁显示的心情标签（八类或自定义）
   timestamp: number;         // 开始时间
   completed: boolean;        // 是否已完成
 }
@@ -90,6 +91,7 @@ export interface AnnotationRequest {
     todayDuration: number;             // 今日总时长
     currentHour: number;               // 当前时间
     recentAnnotations: string[];       // 最近批注
+    recentMoodMessages?: string[];     // 连续心情原文（最多3条）
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据
   };
 }

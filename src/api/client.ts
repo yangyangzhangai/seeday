@@ -65,6 +65,7 @@ interface AnnotationRequest {
     todayDuration?: number;
     currentHour?: number;
     recentAnnotations?: string[];
+    recentMoodMessages?: string[]; // 连续心情原文（最多3条）
     todayActivitiesList?: any[];
   };
   lang?: 'zh' | 'en' | 'it';
