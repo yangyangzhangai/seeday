@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { removeThinkingTags } from '../src/lib/aiParser';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 /**
  * Vercel Serverless Function - Report Analysis API
@@ -166,27 +168,15 @@ const MONTHLY_PROMPT = `
 `;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 设置 CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res, ['POST']);
 
-  // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // 只允许 POST
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
 
   const { data, type = 'daily' } = req.body;
 
   if (!data) {
-    res.status(400).json({ error: 'Missing data' });
+    jsonError(res, 400, 'Missing data');
     return;
   }
 
@@ -215,7 +205,7 @@ ${data.activities?.map((a: any) => `- ${a.time}: ${a.content} (耗时: ${a.durat
 
   const apiKey = process.env.CHUTES_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server configuration error: Missing API key' });
+    jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
 
@@ -238,25 +228,17 @@ ${data.activities?.map((a: any) => `- ${a.time}: ${a.content} (耗时: ${a.durat
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Report API error:', response.status, errorText);
-      res.status(response.status).json({ 
-        error: `AI service error: ${response.statusText}`,
-        details: errorText
-      });
+      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }
 
     const result = await response.json();
     let content = result.choices?.[0]?.message?.content || '无法生成分析报告';
-
-    // 移除 thinking 标签
-    content = content.replace(/<think>[\s\S]*?<\/think>/g, '');
+    content = removeThinkingTags(content);
 
     res.status(200).json({ content });
   } catch (error) {
     console.error('Report API error:', error);
-    res.status(500).json({ 
-      error: '生成分析报告时出错，请稍后再试。',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    jsonError(res, 500, '生成分析报告时出错，请稍后再试。', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

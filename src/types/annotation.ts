@@ -38,6 +38,7 @@ export interface AIAnnotation {
   timestamp: number;         // 生成时间
   relatedEvent: AnnotationEvent;  // 关联的触发事件
   displayDuration: number;   // 建议显示时长（毫秒）
+  syncedToCloud: boolean;    // 是否已同步到云端
 }
 
 export interface AnnotationState {

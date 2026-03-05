@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 /**
  * Vercel Serverless Function - Chat API
@@ -8,33 +9,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * Body: { messages: [{ role: string, content: string }], temperature?: number, max_tokens?: number }
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 设置 CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res, ['POST']);
 
-  // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // 只允许 POST
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
 
   const { messages, temperature = 0.9, max_tokens = 512 } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: 'Missing or invalid messages' });
+    jsonError(res, 400, 'Missing or invalid messages');
     return;
   }
 
   const apiKey = process.env.CHUTES_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server configuration error: Missing API key' });
+    jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
 
@@ -57,23 +46,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Chutes API error:', response.status, errorText);
-      res.status(response.status).json({ 
-        error: `AI service error: ${response.statusText}`,
-        details: errorText
-      });
+      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }
 
     const data = await response.json();
     
     if (!data.choices || data.choices.length === 0) {
-      res.status(502).json({ error: 'Empty response from AI service' });
+      jsonError(res, 502, 'Empty response from AI service');
       return;
     }
 
     const content = data.choices[0]?.message?.content;
     if (!content) {
-      res.status(502).json({ error: 'Empty content from AI service' });
+      jsonError(res, 502, 'Empty content from AI service');
       return;
     }
 
@@ -84,9 +70,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Chat API error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    jsonError(res, 500, 'Internal server error', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

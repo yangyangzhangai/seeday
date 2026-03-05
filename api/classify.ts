@@ -1,4 +1,5 @@
-﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 const CLASSIFIER_PROMPT = `你是一个时间记录分类器。
 将用户输入的时间记录按类别分类，输出严格的JSON格式。
@@ -284,24 +285,15 @@ function parseClassifierResponse(raw: string): any {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res, ['POST']);
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
 
   const { rawInput, lang = 'zh' } = req.body;
 
   if (!rawInput || typeof rawInput !== 'string') {
-    res.status(400).json({ error: 'Missing or invalid rawInput' });
+    jsonError(res, 400, 'Missing or invalid rawInput');
     return;
   }
 
@@ -310,7 +302,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const zhipuApiKey = process.env.ZHIPU_API_KEY;
 
   if (!zhipuApiKey) {
-    res.status(500).json({ error: 'Server configuration error: Missing API_KEY' });
+    jsonError(res, 500, 'Server configuration error: Missing API_KEY');
     return;
   }
 
@@ -336,10 +328,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Classifier API error:', response.status, errorText);
-      res.status(response.status).json({
-        error: `AI service error: ${response.statusText}`,
-        details: errorText
-      });
+      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }
 
@@ -354,9 +343,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Classifier API error:', error);
-    res.status(500).json({
-      error: 'API请求出错，请稍后重试',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    jsonError(res, 500, 'API请求出错，请稍后重试', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

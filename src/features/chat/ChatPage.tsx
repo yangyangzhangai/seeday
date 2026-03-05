@@ -161,23 +161,32 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  const activeRecord = useMemo(
-    () => [...messages].reverse().find(m => m.mode === 'record' && !m.isMood && m.duration === undefined),
-    [messages]
-  );
+  const activeRecord = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.mode === 'record' && !message.isMood && message.duration === undefined) {
+        return message;
+      }
+    }
+    return undefined;
+  }, [messages]);
 
   // ── 当前活动计时器 ──────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (activeRecord) {
-        const duration = Math.floor((Date.now() - activeRecord.timestamp) / (1000 * 60));
-        setCurrentDuration(duration);
-      } else {
-        setCurrentDuration(0);
-      }
-    }, 1000);
+    if (!activeRecord) {
+      setCurrentDuration(0);
+      return;
+    }
+
+    const updateDuration = () => {
+      const duration = Math.floor((Date.now() - activeRecord.timestamp) / (1000 * 60));
+      setCurrentDuration(duration);
+    };
+
+    updateDuration();
+    const interval = setInterval(updateDuration, 1000);
     return () => clearInterval(interval);
-  }, [activeRecord]);
+  }, [activeRecord?.id, activeRecord?.timestamp]);
 
   // ── 编辑 / 插入 handlers ────────────────────────────────────
   const handleEditClick = (msg: any) => {

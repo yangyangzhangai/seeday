@@ -14,6 +14,7 @@ import type {
 interface StardustStore {
   // State
   memories: StardustMemory[];
+  memoryIdByMessageId: Record<string, string>;
   isGenerating: boolean;
   generationError: string | null;
 
@@ -39,71 +40,11 @@ interface StardustStore {
  */
 const DEFAULT_EMOJI = '✨';
 
-/**
- * 生成AI Prompt用于选择Emoji
- */
-export function generateEmojiPrompt(message: string, userRawContent?: string): string {
-  return `Based on the following user activity and AI annotation, choose a single Unicode Emoji character that best represents this emotional moment.
-
-User Activity/Mood: ${userRawContent || 'None'}
-AI Annotation: ${message}
-
-Rules:
-1. Choose an emoji with clear, specific imagery (e.g. 🌙🌟🫧🕊️) and avoid generic basic symbols (e.g. ❤️😊).
-2. ONLY output ONE single Emoji character. No markdown, no explanations, no other text.
-3. Choose a symbol that evokes a poetic and visual feeling.
-
-Output: exactly one string character.`;
-}
-
-/**
- * 从AI响应中提取Emoji字符
- * 处理各种可能的格式：带解释、带引号、多空格等
- */
-function extractEmojiFromResponse(content: string | null | undefined): string | null {
-  // 处理 null/undefined/空字符串
-  if (!content || typeof content !== 'string') {
-    console.warn('[Stardust] extractEmojiFromResponse: 内容为空或非字符串');
-    return null;
-  }
-
-  // 去除空白字符
-  const trimmed = content.trim();
-
-  if (!trimmed) {
-    console.warn('[Stardust] extractEmojiFromResponse: trim后内容为空');
-    return null;
-  }
-
-  // Emoji Unicode 范围正则 (常用Emoji范围)
-  // 匹配单个Emoji或Emoji组合
-  const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{231A}-\u{231B}]|[\u{23E9}-\u{23F3}]|[\u{23F8}-\u{23FA}]|[\u{25AA}-\u{25AB}]|[\u{25B6}]|[\u{25C0}]|[\u{25FB}-\u{25FE}]|[\u{2614}-\u{2615}]|[\u{2648}-\u{2653}]|[\u{267F}]|[\u{2693}]|[\u{26A1}]|[\u{26AA}-\u{26AB}]|[\u{26BD}-\u{26BE}]|[\u{26C4}-\u{26C5}]|[\u{26D4}]|[\u{26EA}]|[\u{26F2}-\u{26F3}]|[\u{26F5}]|[\u{26FA}]|[\u{26FD}]|[\u{2702}]|[\u{2705}]|[\u{2708}-\u{270D}]|[\u{270F}]|[\u{2712}]|[\u{2714}]|[\u{2716}]|[\u{271D}]|[\u{2721}]|[\u{2728}]|[\u{2733}-\u{2734}]|[\u{2744}]|[\u{2747}]|[\u{274C}]|[\u{274E}]|[\u{2753}-\u{2755}]|[\u{2757}]|[\u{2763}-\u{2764}]|[\u{2795}-\u{2797}]|[\u{27A1}]|[\u{27B0}]|[\u{27BF}]|[\u{2934}-\u{2935}]|[\u{2B05}-\u{2B07}]|[\u{2B1B}-\u{2B1C}]|[\u{2B50}]|[\u{2B55}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]/gu;
-
-  // 尝试提取第一个Emoji
-  const matches = trimmed.match(emojiRegex);
-  if (matches && matches.length > 0) {
-    return matches[0];
-  }
-
-  // 如果没有匹配到标准Emoji范围，检查是否整个内容就是一个字符
-  // 去除引号、括号等常见包装字符
-  const cleaned = trimmed.replace(/^["'`（(「【『]+|["'`）)」】』]+$/g, '');
-
-  // 如果清理后是一个或两个字符（考虑组合Emoji），尝试返回
-  if (cleaned.length > 0 && cleaned.length <= 8) {
-    // 进一步检查是否包含可见字符（非控制字符）
-    const hasVisibleChar = [...cleaned].some(char => {
-      const code = char.codePointAt(0);
-      return code && code > 0x1F && code !== 0x20 && code !== 0xA0;
-    });
-
-    if (hasVisibleChar) {
-      return cleaned;
-    }
-  }
-
-  console.warn('[Stardust] extractEmojiFromResponse: 无法从内容中提取Emoji:', trimmed.substring(0, 50));
-  return null;
+function buildMemoryIdByMessageId(memories: StardustMemory[]): Record<string, string> {
+  return memories.reduce<Record<string, string>>((acc, memory) => {
+    acc[memory.messageId] = memory.id;
+    return acc;
+  }, {});
 }
 
 /**
@@ -125,6 +66,7 @@ export const useStardustStore = create<StardustStore>()(
   persist(
     (set, get) => ({
       memories: [],
+      memoryIdByMessageId: {},
       isGenerating: false,
       generationError: null,
 
@@ -169,18 +111,17 @@ export const useStardustStore = create<StardustStore>()(
           // 1. 先写入本地状态（立即响应UI）
           set((state) => ({
             memories: [...state.memories, stardust],
+            memoryIdByMessageId: {
+              ...state.memoryIdByMessageId,
+              [stardust.messageId]: stardust.id,
+            },
             isGenerating: false,
           }));
 
           // 1.5 更新ChatStore中的消息，添加stardust关联
           try {
             const chatStore = useChatStore.getState();
-            const updatedMessages = chatStore.messages.map((msg) =>
-              msg.id === messageId
-                ? { ...msg, stardustId: stardust.id, stardustEmoji: stardust.emojiChar }
-                : msg
-            );
-            useChatStore.setState({ messages: updatedMessages });
+            chatStore.attachStardustToMessage(messageId, stardust.id, stardust.emojiChar);
           } catch (e) {
             console.error('[Stardust] 更新ChatStore失败:', e);
           }
@@ -263,6 +204,9 @@ export const useStardustStore = create<StardustStore>()(
       deleteStardust: async (id: string) => {
         set((state) => ({
           memories: state.memories.filter((m) => m.id !== id),
+          memoryIdByMessageId: buildMemoryIdByMessageId(
+            state.memories.filter((m) => m.id !== id)
+          ),
         }));
 
         // 同步删除到服务器
@@ -284,14 +228,17 @@ export const useStardustStore = create<StardustStore>()(
        * 根据消息ID获取珍藏
        */
       getStardustByMessageId: (messageId: string) => {
-        return get().memories.find((m) => m.messageId === messageId);
+        const state = get();
+        const memoryId = state.memoryIdByMessageId[messageId];
+        if (!memoryId) return undefined;
+        return state.memories.find((memory) => memory.id === memoryId);
       },
 
       /**
        * 检查消息是否已有珍藏
        */
       hasStardust: (messageId: string) => {
-        return get().memories.some((m) => m.messageId === messageId);
+        return !!get().memoryIdByMessageId[messageId];
       },
 
       /**
@@ -323,6 +270,10 @@ export const useStardustStore = create<StardustStore>()(
                 memories: state.memories.map((m) =>
                   m.id === stardust.id ? { ...m, syncStatus: 'synced' as SyncStatus } : m
                 ),
+                memoryIdByMessageId: {
+                  ...state.memoryIdByMessageId,
+                  [stardust.messageId]: stardust.id,
+                },
               }));
             }
           } catch (error) {
@@ -370,7 +321,10 @@ export const useStardustStore = create<StardustStore>()(
             syncStatus: 'synced' as SyncStatus,
           }));
 
-          set({ memories });
+          set({
+            memories,
+            memoryIdByMessageId: buildMemoryIdByMessageId(memories),
+          });
           console.log(`[Stardust] 已拉取 ${memories.length} 条珍藏`);
         }
       },

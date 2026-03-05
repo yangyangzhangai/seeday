@@ -9,12 +9,22 @@ import type {
   TodayActivity
 } from '../types/annotation';
 import { callAnnotationAPI } from '../api/client';
-import { shouldGenerateAnnotation, recordEvent } from './annotationHelpers';
+import { shouldGenerateAnnotation } from './annotationHelpers';
 import { useMoodStore } from './useMoodStore';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
+
+const MAX_TODAY_EVENTS = 400;
+
+function appendCappedEvent(events: AnnotationEvent[], event: AnnotationEvent): AnnotationEvent[] {
+  const next = [...events, event];
+  if (next.length <= MAX_TODAY_EVENTS) {
+    return next;
+  }
+  return next.slice(next.length - MAX_TODAY_EVENTS);
+}
 
 interface AnnotationStore extends AnnotationState {
   // 内部状态（不持久化）
@@ -90,7 +100,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               date: getTodayString(),
               speakCount: 0,
               lastSpeakTime: 0,
-              events: [event],
+              events: appendCappedEvent([], event),
             },
           });
         } else {
@@ -98,7 +108,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           set({
             todayStats: {
               ...todayStats,
-              events: [...todayStats.events, event],
+              events: appendCappedEvent(todayStats.events, event),
             },
           });
         }
@@ -205,6 +215,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
             timestamp: Date.now(),
             relatedEvent: event,
             displayDuration: response.displayDuration,
+            syncedToCloud: false,
+          };
+
+          const generatedEvent: AnnotationEvent = {
+            type: 'annotation_generated' as AnnotationEventType,
+            timestamp: Date.now(),
+            data: { content: response.content, id: annotationId, tone: response.tone },
           };
 
           // 更新状态
@@ -215,14 +232,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               ...get().todayStats,
               speakCount: get().todayStats.speakCount + 1,
               lastSpeakTime: Date.now(),
-              events: [
-                ...get().todayStats.events,
-                {
-                  type: 'annotation_generated' as AnnotationEventType,
-                  timestamp: Date.now(),
-                  data: { content: response.content, id: annotationId, tone: response.tone },
-                },
-              ],
+              events: appendCappedEvent(get().todayStats.events, generatedEvent),
             },
           });
 
@@ -240,6 +250,12 @@ export const useAnnotationStore = create<AnnotationStore>()(
             }]);
             if (insertError) {
               console.error('[Annotation] 云端同步失败:', insertError);
+            } else {
+              set({
+                annotations: get().annotations.map((item) =>
+                  item.id === annotationId ? { ...item, syncedToCloud: true } : item
+                ),
+              });
             }
           }
 
@@ -331,6 +347,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             timestamp: row.event_timestamp,
             relatedEvent: row.related_event,
             displayDuration: 8000,
+            syncedToCloud: true,
           }));
           set({ annotations });
         }
@@ -340,28 +357,30 @@ export const useAnnotationStore = create<AnnotationStore>()(
        * 同步本地批注到云端
        */
       syncLocalAnnotations: async (userId: string) => {
-        const { todayStats } = get();
+        const pendingAnnotations = get().annotations.filter((a) => !a.syncedToCloud);
+        if (pendingAnnotations.length === 0) return;
 
-        // 从今日事件里提取批注，用已有的 id
-        const localAnnotations = todayStats.events
-          .filter(e => e.type === 'annotation_generated' && e.data?.id)
-          .map(e => ({
-            id: e.data.id,
-            user_id: userId,
-            content: e.data?.content || '',
-            tone: e.data?.tone || 'playful',
-            event_timestamp: e.timestamp,
-            related_event: e,
-            created_at: new Date(e.timestamp).toISOString(),
-          }));
-
-        if (localAnnotations.length === 0) return;
+        const localAnnotations = pendingAnnotations.map((annotation) => ({
+          id: annotation.id,
+          user_id: userId,
+          content: annotation.content,
+          tone: annotation.tone,
+          event_timestamp: annotation.timestamp,
+          related_event: annotation.relatedEvent,
+          created_at: new Date(annotation.timestamp).toISOString(),
+        }));
 
         const { error } = await supabase
           .from('annotations')
           .upsert(localAnnotations, { onConflict: 'id' });
 
         if (!error) {
+          const syncedIds = new Set(pendingAnnotations.map((a) => a.id));
+          set({
+            annotations: get().annotations.map((annotation) =>
+              syncedIds.has(annotation.id) ? { ...annotation, syncedToCloud: true } : annotation
+            ),
+          });
           await get().fetchAnnotations();
         } else {
           console.error('[Annotation] syncLocalAnnotations 失败:', error);
@@ -381,4 +400,4 @@ export const useAnnotationStore = create<AnnotationStore>()(
 );
 
 // 导出辅助函数供外部使用
-export { shouldGenerateAnnotation, recordEvent };
+export { shouldGenerateAnnotation };

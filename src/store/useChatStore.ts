@@ -57,6 +57,7 @@ interface ChatState {
   setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
+  attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -508,7 +509,17 @@ export const useChatStore = create<ChatState>()(
 
       clearHistory: async () => {
         set({ messages: [], lastActivityTime: null });
-      }
+      },
+
+      attachStardustToMessage: (messageId, stardustId, stardustEmoji) => {
+        set((state) => ({
+          messages: state.messages.map((message) =>
+            message.id === messageId
+              ? { ...message, stardustId, stardustEmoji }
+              : message
+          ),
+        }));
+      },
     }),
     {
       name: 'chat-storage',

@@ -1,4 +1,6 @@
-﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { removeThinkingTags } from '../src/lib/aiParser';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 /**
  * Vercel Serverless Function - Shadow Diary (观察手记) API
@@ -268,33 +270,21 @@ A short closing sentence, under 15 words. Example: "Everything running as usual.
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 设置 CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res, ['POST']);
 
-  // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // 只允许 POST
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
 
   const { structuredData, rawInput, date, historyContext, lang = 'zh', userName } = req.body;
 
   if (!structuredData || typeof structuredData !== 'string') {
-    res.status(400).json({ error: 'Missing or invalid structuredData' });
+    jsonError(res, 400, 'Missing or invalid structuredData');
     return;
   }
 
   const apiKey = process.env.CHUTES_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server configuration error: Missing API key' });
+    jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
 
@@ -345,10 +335,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Diary API error:', response.status, errorText);
-      res.status(response.status).json({
-        error: `AI service error: ${response.statusText}`,
-        details: errorText
-      });
+      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }
 
@@ -359,16 +346,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!content || content.startsWith('ERROR:') || content.includes('Cannot read')) {
       const errorMsg = content || 'AI 返回内容为空';
       console.error('Diary API returned error content:', errorMsg);
-      res.status(500).json({
-        error: 'AI 服务返回异常',
-        details: errorMsg
-      });
+      jsonError(res, 500, 'AI 服务返回异常', errorMsg);
       return;
     }
 
-    // 清理可能的 think 标签
-    content = content.replace(/<think>[\s\S]*?<\/think>/g, '');
-    content = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
+    content = removeThinkingTags(content);
 
     res.status(200).json({
       success: true,
@@ -376,9 +358,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Diary API error:', error);
-    res.status(500).json({
-      error: '生成观察手记时出错，请稍后再试。',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    jsonError(res, 500, '生成观察手记时出错，请稍后再试。', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

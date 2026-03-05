@@ -1,5 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { extractComment, removeThinkingTags } from '../src/lib/aiParser';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 /**
  * Vercel Serverless Function - Annotation API
@@ -8,133 +10,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * POST /api/annotation
  * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it' }
  */
-
-// ==================== 批注提取工具函数 ====================
-
-/**
- * 校验提取出的内容是否像一条正常批注
- * lang 用于按语言收紧长度阈值
- */
-function isValidComment(text: string, lang = 'zh'): boolean {
-  if (!text) return false;
-
-  // 按语言收紧长度校验
-  if (lang === 'zh') {
-    // 中文：15-80 字符（prompt 要求 15-60，留少量余量）
-    if (text.length < 15 || text.length > 80) return false;
-  } else {
-    // en / it：7-45 词（prompt 要求 10-35，下限放宽避免误杀短而好的句子）
-    const wordCount = text.trim().split(/\s+/).length;
-    if (wordCount < 7 || wordCount > 45) return false;
-  }
-
-  const leakKeywords = [
-    'activity_recorded',
-    'activity_completed',
-    'mood_recorded',
-    '【刚刚发生】',
-    '【今日时间线】',
-    '【最近批注】',
-    '直接以你的风格输出',
-    '无前缀',
-    '"comment"',
-    'JSON',
-    '15-60字',
-    '批注文本',
-    '输出格式',
-    '系统提示词',
-    '【批注】',
-    '【Appena Successo】',
-    '【Timeline di Oggi】',
-    '【Annotazioni Recenti】',
-    '【Just Happened】',
-    "【Today's Timeline】",
-    '【Recent Annotations】',
-  ];
-  for (const kw of leakKeywords) {
-    if (text.includes(kw)) return false;
-  }
-  return true;
-}
-
-/**
- * 从 AI 原始返回中提取有效批注
- * 策略：全文直接放行 -> JSON解析 -> anchor定位 -> 长度过滤兜底
- */
-function extractComment(rawText: string, lang = 'zh'): string | null {
-  if (!rawText || typeof rawText !== 'string') {
-    return null;
-  }
-
-  const text = rawText.trim();
-
-  // 策略零：直接校验完整文本。如果 AI 表现完美，直接放行！
-  if (isValidComment(text, lang)) {
-    console.log('[提取成功] 策略：全文直接放行');
-    return text;
-  }
-
-  // 策略一：找最后一个包含 "comment" 键的 JSON 块，避免首尾花括号跨越多段内容
-  try {
-    const jsonBlocks = [...text.matchAll(/\{[^{}]*"comment"\s*:\s*"(?:[^"\\]|\\.)*"[^{}]*\}/g)];
-    if (jsonBlocks.length > 0) {
-      const lastBlock = jsonBlocks[jsonBlocks.length - 1][0];
-      const parsed = JSON.parse(lastBlock);
-      if (parsed.comment && typeof parsed.comment === 'string' && isValidComment(parsed.comment, lang)) {
-        console.log('[提取成功] 策略：JSON解析');
-        return parsed.comment.trim();
-      }
-    }
-  } catch (e) {
-    console.warn('[JSON解析失败] 降级到策略二');
-  }
-
-  // 策略二：定位最后一句指令，截取后面的内容
-  const anchors = [
-    '无前缀。',
-    '不要复述上面的任何内容',
-    '你的批注内容"}',
-    '直接以你的风格输出',
-    '【最近批注】',
-    'senza prefissi.',
-    'without prefixes.',
-    'IMPORTANTE:',
-    'IMPORTANT:',
-  ];
-  for (const anchor of anchors) {
-    const idx = text.lastIndexOf(anchor);
-    if (idx !== -1) {
-      const after = text.slice(idx + anchor.length).trim();
-      const cleaned = after
-        // 只精确去掉 JSON 风格的前缀，不用字符集（避免误删正文开头字母）
-        .replace(/^\s*\{?\s*"?comment"?\s*:\s*"?/, '')
-        .replace(/"?\s*\}?\s*$/, '')
-        .replace(/^["']/, '')
-        .replace(/["']$/, '')
-        .trim();
-      if (isValidComment(cleaned, lang)) {
-        console.log('[提取成功] 策略：anchor定位，anchor:', anchor);
-        return cleaned;
-      }
-    }
-  }
-
-  // 策略三：长度过滤（取最后一个符合长度的句子）
-  const sentences = text
-    .split(/[。！!？?\n]/)
-    .map(s => s.trim())
-    .filter(s => s.length >= 10 && s.length <= 100);
-  if (sentences.length > 0) {
-    const lastSentence = sentences[sentences.length - 1];
-    if (isValidComment(lastSentence, lang)) {
-      console.log('[提取成功] 策略：长度过滤');
-      return lastSentence;
-    }
-  }
-
-  console.error('[提取失败] 原始内容:', rawText);
-  return null;
-}
 
 // ==================== Emoji 保障函数 ====================
 
@@ -391,24 +266,15 @@ function extractRecentEmojisFromAnnotations(list: string[]): string[] {
 // ==================== 主 Handler ====================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res, ['POST']);
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
 
   const { eventType, eventData, userContext, lang = 'zh' } = req.body;
 
   if (!eventType || !eventData) {
-    res.status(400).json({ error: 'Missing eventType or eventData' });
+    jsonError(res, 400, 'Missing eventType or eventData');
     return;
   }
 
@@ -541,10 +407,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 移除 thinking 标签（支持被截断的没有闭合标签的情况）
-    content = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '').trim();
+    content = removeThinkingTags(content);
 
     // 提取有效批注（处理 prompt 泄漏等 bad case），传入 lang 以使用正确的长度校验
-    const extractedContent = extractComment(content, lang);
+    const extractedContent = extractComment(content, lang === 'en' || lang === 'it' ? lang : 'zh');
     if (!extractedContent) {
       console.warn('[Annotation API] 提取失败，使用默认批注');
       const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;

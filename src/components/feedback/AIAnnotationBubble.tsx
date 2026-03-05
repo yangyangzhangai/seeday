@@ -231,19 +231,3 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 };
 
 export default AIAnnotationBubble;
-
-// 呼吸动画样式（添加到全局CSS或组件内）
-const pulseSlowStyle = `
-  @keyframes pulse-slow {
-    0%, 100% {
-      box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4);
-    }
-    50% {
-      box-shadow: 0 0 0 8px rgba(147, 51, 234, 0);
-    }
-  }
-  
-  .animate-pulse-slow {
-    animation: pulse-slow 2s ease-in-out infinite;
-  }
-`;

@@ -390,14 +390,14 @@ docs/                 # 架构与交接文档
 - [x] F6: **[P1]** 统一 `reportActions` 同日判断为 `isSameDay`，提取单次 `isToday` 复用
 - [x] F7: **[P1]** 抽取 `src/api/client.ts` 通用 `postJson<TReq,TRes>`，收口 6 个重复 `fetch` 模式
 - [x] F8: **[P1]** 收敛 `ChatPage` 中 MoodStore 分散 selector（单 selector/`useShallow`）
-- [ ] F9: **[P2]** 处理 `supabase-utils.ts` 未使用封装（`withSession` / `getSessionUserId`）
-- [ ] F10: **[P2]** 清理死代码：`pulseSlowStyle`、`generateEmojiPrompt`、`extractEmojiFromResponse`（若确认无引用）
+- [x] F9: **[P2]** 处理 `supabase-utils.ts` 未使用封装（`withSession` / `getSessionUserId`）
+- [x] F10: **[P2]** 清理死代码：`pulseSlowStyle`、`generateEmojiPrompt`、`extractEmojiFromResponse`（若确认无引用）
 - [x] F11: **[P2]** 移除 `ReportPage` 中 `setTimeout(50)` 竞态，改为可预测返回（`reportId`/report 对象）
-- [ ] F12: **[P2]** 抽取 `api/*` 公共包装（CORS/Method Guard/Error JSON）以消除重复
-- [ ] F13: **[P2]** 统一 AI 批注提取逻辑（`api/annotation.ts` 与 `src/lib/aiParser.ts` 合并策略）
-- [ ] F14: **[P2]** `Stardust` 查询与写回优化（`messageId -> memory` 映射；跨 store 写回改 action 化）
-- [ ] F15: **[P2]** 优化 `ChatPage` 每秒遍历消息的计时器路径（减少 O(n) 高频扫描）
-- [ ] F16: **[P2]** 限制 `useAnnotationStore.todayStats.events` 增长（上限/裁剪或去持久化）
+- [x] F12: **[P2]** 抽取 `api/*` 公共包装（CORS/Method Guard/Error JSON）以消除重复
+- [x] F13: **[P2]** 统一 AI 批注提取逻辑（`api/annotation.ts` 与 `src/lib/aiParser.ts` 合并策略）
+- [x] F14: **[P2]** `Stardust` 查询与写回优化（`messageId -> memory` 映射；跨 store 写回改 action 化）
+- [x] F15: **[P2]** 优化 `ChatPage` 每秒遍历消息的计时器路径（减少 O(n) 高频扫描）
+- [x] F16: **[P2]** 限制 `useAnnotationStore.todayStats.events` 增长（上限/裁剪或去持久化）
 - [ ] F17: **[P3]** 统一 DB Row 映射函数（Todo/Report/Stardust/Annotation/Auth 同构）
 - [ ] F18: **[P3]** 心情领域 i18n 深改（`MoodOption` 中文字面量去耦）
 - [ ] F19: **[停止执行/AB1]** 审计项 AB1/C12（`FORCE_ANNOTATION_TRIGGER`）本轮不改，后续由用户自行执行
@@ -1382,3 +1382,124 @@ docs/                 # 架构与交接文档
 1. `generateReport` 签名从 `void` 改为 `Promise<string>`，若后续调用方有严格类型依赖需同步签名。
 2. API 请求统一封装后，若需差异化 header/timeout，应在 `postJson` 增加可选参数而非回到复制实现。
 3. 回滚建议按文件分组回滚：`client.ts`、`chatActions/useChatStore`、`reportActions/useReportStore/ReportPage`、`ChatPage`。
+
+### 2026-03-05 — Phase F F16 落地（events 控增长 + 同步解耦）
+
+#### 变更来源
+
+- 来源: 用户指令“执行 F16 并同步到 cleanup 文档”，采用方案 A（`annotations[]` 作为同步权威，`todayStats.events` 仅实时日志）。
+
+#### 决策结论
+
+1. 采纳方案 A：同步逻辑从 `todayStats.events` 解耦，改为以 `annotations[]` 为唯一补同步来源。
+2. `todayStats.events` 保留运行时语义并增加上限裁剪，防止本地持久化体积持续增长。
+3. 新增批注同步状态字段 `syncedToCloud`，将“是否已上云”从事件日志中显式建模。
+
+#### 代码变更范围
+
+1. `src/types/annotation.ts`
+   - `AIAnnotation` 新增 `syncedToCloud: boolean`。
+2. `src/store/useAnnotationStore.ts`
+   - 新增 `MAX_TODAY_EVENTS = 400` 与 `appendCappedEvent()`，统一对 `todayStats.events` 追加路径做上限裁剪。
+   - 生成批注时写入 `annotations[]` 默认 `syncedToCloud: false`。
+   - 生成后云端 `insert` 成功时，回写对应 annotation 为 `syncedToCloud: true`。
+   - `fetchAnnotations()` 拉取云端后映射为 `syncedToCloud: true`。
+   - `syncLocalAnnotations()` 改为 `annotations.filter(a => !a.syncedToCloud)` 补同步，不再依赖 `todayStats.events`。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] F16 完成（`todayStats.events` 控增长 + 同步语义解耦）
+
+#### 风险与回滚点
+
+1. `todayStats.events` 裁剪后仅保留最近 400 条，极早事件日志不再长期保留（预期行为）。
+2. 同步语义已迁移到 `annotations[]`，可避免因 `events` 裁剪导致补同步漏传。
+3. 若需回滚，可独立回退 `src/types/annotation.ts` 与 `src/store/useAnnotationStore.ts` 对应提交。
+
+### 2026-03-05 (续) — Phase F F9 + F10 落地（未使用封装与死代码清理）
+
+#### 变更来源
+
+- 来源: 用户指令“先完成 F9+F10”。
+
+#### 决策结论
+
+1. F9 采用“删除未使用封装”策略：保留已全仓使用的 `getSupabaseSession()`，移除未被引用的 `withSession()` 与 `getSessionUserId()`。
+2. F10 采用“引用扫描后删除”策略：确认无引用后，删除 `pulseSlowStyle`、`generateEmojiPrompt`、`extractEmojiFromResponse`。
+
+#### 代码变更范围
+
+1. `src/lib/supabase-utils.ts`
+   - 删除未使用导出：`getSessionUserId()`、`withSession()`。
+2. `src/store/useStardustStore.ts`
+   - 删除未使用函数：`generateEmojiPrompt()`、`extractEmojiFromResponse()`。
+3. `src/components/feedback/AIAnnotationBubble.tsx`
+   - 删除未使用常量：`pulseSlowStyle`。
+
+#### 验证结果
+
+- 引用扫描：`generateEmojiPrompt`、`extractEmojiFromResponse`、`pulseSlowStyle`、`withSession`、`getSessionUserId` 全仓无残留引用 ✓
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] F9 完成（`supabase-utils.ts` 未使用封装已清理）
+- [x] F10 完成（目标死代码已清理）
+
+#### 风险与回滚点
+
+1. 本批为低风险清理，未改动业务流程与 API 行为。
+2. 若需回滚，可独立回退 `src/lib/supabase-utils.ts`、`src/store/useStardustStore.ts`、`src/components/feedback/AIAnnotationBubble.tsx` 对应提交。
+
+### 2026-03-05 (续) — Phase F F12 + F13 + F14 + F15 落地（API 收口 + 批注解析同构 + Stardust/Chat 性能收敛）
+
+#### 变更来源
+
+- 来源: 用户指令“执行”，按当日计划优先完成 Phase F 剩余 P2 的 F12-F15。
+
+#### 决策结论
+
+1. 采纳 F12：新增 `api/http.ts` 作为 serverless 通用包装，统一 CORS、预检、Method Guard 与错误 JSON 输出。
+2. 采纳 F13：将批注提取核心逻辑收敛到 `src/lib/aiParser.ts`，`api/annotation.ts` 改为复用共享提取器与 `removeThinkingTags()`。
+3. 采纳 F14：`useStardustStore` 增加 `messageId -> memoryId` 索引，`hasStardust/getStardustByMessageId` 由线性查找改为索引查询；跨 store 写回改为调用 `useChatStore.attachStardustToMessage()` action。
+4. 采纳 F15：`ChatPage` 计时器路径收敛为“仅在存在 activeRecord 时启动 interval”，并将 activeRecord 查询改为逆序单次遍历，避免每秒 O(n) 路径。
+
+#### 代码变更范围
+
+1. API 公共包装（F12）
+   - 新增：`api/http.ts`
+   - 接入：`api/chat.ts`、`api/report.ts`、`api/classify.ts`、`api/diary.ts`、`api/stardust.ts`、`api/annotation.ts`
+2. 批注解析同构（F13）
+   - `src/lib/aiParser.ts`：补齐多语言 `extractComment/isValidComment/removeThinkingTags`
+   - `api/annotation.ts`：删除本地重复提取实现，改为复用 `../src/lib/aiParser`
+   - `api/report.ts`、`api/diary.ts`：统一复用 `removeThinkingTags`
+3. Stardust 查询与写回优化（F14）
+   - `src/store/useStardustStore.ts`：新增 `memoryIdByMessageId` 索引 + `buildMemoryIdByMessageId()`
+   - `src/store/useChatStore.ts`：新增 `attachStardustToMessage()` action
+4. Chat 计时器优化（F15）
+   - `src/features/chat/ChatPage.tsx`：activeRecord 计算和 interval 生命周期优化
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] F12 完成（API 公共包装已落地）
+- [x] F13 完成（批注提取逻辑同构完成）
+- [x] F14 完成（Stardust 索引查询 + action 化写回完成）
+- [x] F15 完成（Chat 计时器路径优化完成）
+
+#### 风险与回滚点
+
+1. F12 属 API 路径基建改造，若单个端点行为异常可按文件粒度回退对应 handler，不影响其他端点。
+2. F13 共享提取器后，`api/annotation.ts` 与前端工具复用同一策略；若需快速回退可独立回退 `src/lib/aiParser.ts` + `api/annotation.ts`。
+3. F14 的 `memoryIdByMessageId` 为运行时索引，持久化仍以 `memories[]` 为权威；异常时可回退 `useStardustStore.ts` 与 `useChatStore.ts` 的相关变更。
+4. F15 仅收敛计时器生命周期，不改业务语义；回退点为 `ChatPage.tsx` 单文件。

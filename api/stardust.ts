@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
 
 /**
  * Vercel Serverless Function - Stardust Emoji API
@@ -42,24 +43,15 @@ function extractEmoji(content: string | null | undefined): string | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    applyCors(res, ['POST']);
 
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-    }
+    if (handlePreflight(req, res)) return;
+    if (!requireMethod(req, res, 'POST')) return;
 
     const { userRawContent, message } = req.body || {};
 
     if (!userRawContent && !message) {
-        res.status(400).json({ error: 'Missing userRawContent or message' });
+        jsonError(res, 400, 'Missing userRawContent or message');
         return;
     }
 
