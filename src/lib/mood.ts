@@ -16,7 +16,7 @@ const dict: Array<{ k: RegExp; m: MoodOption }> = [
 
 export function autoDetectMood(content: string, durationMin: number): MoodOption {
   for (const r of dict) if (r.k.test(content)) return r.m;
-  if (durationMin >= 120) return 'tired';
+  if (durationMin >= 240) return 'tired';
   if (durationMin >= 60) return 'focused';
   return 'calm';
 }
