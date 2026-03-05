@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 
 /**
  * Vercel Serverless Function - Stardust Emoji API

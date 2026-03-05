@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 
 const CLASSIFIER_PROMPT = `你是一个时间记录分类器。
 将用户输入的时间记录按类别分类，输出严格的JSON格式。

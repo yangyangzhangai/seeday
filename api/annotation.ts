@@ -1,7 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { extractComment, removeThinkingTags } from '../src/lib/aiParser';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http';
+import { extractComment, removeThinkingTags } from '../src/lib/aiParser.js';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 
 /**
  * Vercel Serverless Function - Annotation API
