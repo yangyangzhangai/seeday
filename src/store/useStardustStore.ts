@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { fromDbStardust, toDbStardust } from '../lib/dbMappers';
 import { useChatStore } from './useChatStore';
 import { callStardustAPI } from '../api/client';
 import type {
@@ -130,14 +131,7 @@ export const useStardustStore = create<StardustStore>()(
           if (session) {
             try {
               const { error } = await supabase.from('stardust_memories').insert([{
-                id: stardust.id,
-                message_id: stardust.messageId,
-                user_id: stardust.userId,
-                message: stardust.message,
-                emoji_char: stardust.emojiChar,
-                user_raw_content: stardust.userRawContent,
-                created_at: new Date(stardust.createdAt).toISOString(),
-                alien_name: stardust.alienName,
+                ...toDbStardust(stardust),
               }]);
 
               if (error) {
@@ -260,14 +254,7 @@ export const useStardustStore = create<StardustStore>()(
         for (const stardust of pending) {
           try {
             const { error } = await supabase.from('stardust_memories').upsert([{
-              id: stardust.id,
-              message_id: stardust.messageId,
-              user_id: stardust.userId,
-              message: stardust.message,
-              emoji_char: stardust.emojiChar,
-              user_raw_content: stardust.userRawContent,
-              created_at: new Date(stardust.createdAt).toISOString(),
-              alien_name: stardust.alienName,
+              ...toDbStardust(stardust),
             }]);
 
             if (!error) {
@@ -314,17 +301,7 @@ export const useStardustStore = create<StardustStore>()(
         }
 
         if (data) {
-          const memories: StardustMemory[] = data.map((row: any) => ({
-            id: row.id,
-            messageId: row.message_id,
-            userId: row.user_id,
-            message: row.message,
-            emojiChar: row.emoji_char,
-            userRawContent: row.user_raw_content,
-            createdAt: new Date(row.created_at).getTime(),
-            alienName: row.alien_name,
-            syncStatus: 'synced' as SyncStatus,
-          }));
+          const memories: StardustMemory[] = data.map(fromDbStardust);
 
           set({
             memories,

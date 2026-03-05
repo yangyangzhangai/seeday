@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { X, Umbrella, Pencil } from 'lucide-react';
 import { allMoodOptions } from '../../lib/mood';
+import { getMoodDisplayLabel } from '../../lib/moodOptions';
 import type { MoodOption } from '../../store/useMoodStore';
 
 interface MoodPickerModalProps {
@@ -85,7 +86,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                         style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
                         disabled={moodPickerReadonly}
                     >
-                        {opt}
+                        {getMoodDisplayLabel(opt, t)}
                     </button>
                 ))}
                 <button

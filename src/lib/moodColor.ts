@@ -1,11 +1,13 @@
+import { moodKeyToLegacyLabel, normalizeMoodKey } from './moodOptions';
+
 export const MOOD_COLORS: Record<string, string> = {
-  开心: '#F9A8D4',
-  平静: '#93C5FD',
-  专注: '#86EFAC',
-  满足: '#FDE68A',
-  疲惫: '#9CA3AF',
-  无聊: '#C7D2FE',
-  低落: '#60A5FA',
+  happy: '#F9A8D4',
+  calm: '#93C5FD',
+  focused: '#86EFAC',
+  satisfied: '#FDE68A',
+  tired: '#9CA3AF',
+  bored: '#C7D2FE',
+  down: '#60A5FA',
 };
 
 function hashStringToInt(str: string): number {
@@ -64,7 +66,13 @@ function softenHexColor(hex: string): string {
 
 export function getMoodColor(label: string | undefined): string | undefined {
   if (!label) return undefined;
-  if (MOOD_COLORS[label]) return softenHexColor(MOOD_COLORS[label]);
+  const normalizedKey = normalizeMoodKey(label);
+  const paletteKey = normalizedKey || label;
+  if (MOOD_COLORS[paletteKey]) return softenHexColor(MOOD_COLORS[paletteKey]);
+  if (normalizedKey) {
+    const legacyLabel = moodKeyToLegacyLabel(normalizedKey);
+    if (MOOD_COLORS[legacyLabel]) return softenHexColor(MOOD_COLORS[legacyLabel]);
+  }
   let hue = hashStringToInt(label) % 360;
   // 更低饱和、更高亮度的粉彩色
   let color = hslToHex(hue, 0.42, 0.84);

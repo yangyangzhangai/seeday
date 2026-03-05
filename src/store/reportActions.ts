@@ -5,6 +5,7 @@ import { supabase } from '../api/supabase';
 import { callClassifierAPI, callDiaryAPI, callReportAPI } from '../api/client';
 import { computeAll, formatForDiaryAI, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { toDbReport } from '../lib/dbMappers';
 import i18n from '../i18n';
 import { useAuthStore } from './useAuthStore';
 import {
@@ -24,7 +25,9 @@ type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 interface MoodStoreSnapshot {
   moodNote: Record<string, string>;
-  activityMood: Record<string, string>;
+  activityMood: Record<string, string | undefined>;
+  customMoodLabel: Record<string, string | undefined>;
+  customMoodApplied?: Record<string, boolean | undefined>;
 }
 
 interface GenerateReportInput {
@@ -148,19 +151,7 @@ export async function syncReportToSupabase(report: Report): Promise<void> {
 
   if (!session) return;
 
-  const { error } = await supabase.from('reports').insert([
-    {
-      id: report.id,
-      user_id: session.user.id,
-      title: report.title,
-      date: report.date,
-      start_date: report.startDate,
-      end_date: report.endDate,
-      type: report.type,
-      content: report.content,
-      stats: report.stats,
-    },
-  ]);
+  const { error } = await supabase.from('reports').insert([toDbReport(report, session.user.id)]);
 
   if (error) {
     console.error('Error syncing new report to Supabase:', error);

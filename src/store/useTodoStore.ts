@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import type { AnnotationEvent } from '../types/annotation';
 
@@ -45,26 +46,6 @@ interface TodoState {
   setActiveTodoId: (id: string | null) => void; // 设置当前活动待办
 }
 
-type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
-
-const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
-  dueDate: 'due_date',
-  completedAt: 'completed_at',
-  isPinned: 'is_pinned',
-  startedAt: 'started_at',
-};
-
-function toDbTodoUpdates(updates: TodoUpdates): Record<string, unknown> {
-  const dbUpdates: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(updates) as [keyof TodoUpdates, TodoUpdates[keyof TodoUpdates]][]) {
-    const mappedKey = TODO_DB_FIELD_MAP[key] || key;
-    dbUpdates[mappedKey] = value === undefined ? null : value;
-  }
-
-  return dbUpdates;
-}
-
 export const useTodoStore = create<TodoState>()(
   persist(
     (set, get) => ({
@@ -88,22 +69,7 @@ export const useTodoStore = create<TodoState>()(
           return;
         }
 
-        const todos = data.map((t: any) => ({
-          id: t.id,
-          content: t.content,
-          completed: t.completed,
-          priority: t.priority,
-          category: t.category,
-          dueDate: t.due_date,
-          scope: t.scope,
-          createdAt: t.created_at,
-          recurrence: t.recurrence,
-          recurrenceId: t.recurrence_id,
-          completedAt: t.completed_at,
-          isPinned: t.is_pinned || false,
-          startedAt: t.started_at,
-          duration: t.duration
-        }));
+        const todos = data.map(fromDbTodo);
         set({ todos, isLoading: false });
       },
 
@@ -125,18 +91,7 @@ export const useTodoStore = create<TodoState>()(
 
         const session = await getSupabaseSession();
         if (session) {
-          const { error } = await supabase.from('todos').insert([{
-            id: newTodo.id,
-            content: newTodo.content,
-            completed: newTodo.completed,
-            priority: newTodo.priority,
-            category: newTodo.category,
-            due_date: newTodo.dueDate,
-            scope: newTodo.scope,
-            created_at: newTodo.createdAt,
-            recurrence: newTodo.recurrence,
-            user_id: session.user.id
-          }]);
+          const { error } = await supabase.from('todos').insert([toDbTodo(newTodo, session.user.id)]);
           if (error) console.error('Error adding todo:', error);
         }
       },

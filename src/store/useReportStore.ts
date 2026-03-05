@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { fromDbReport } from '../lib/dbMappers';
 import i18n from '../i18n';
 import { useTodoStore } from './useTodoStore';
 import { useChatStore } from './useChatStore';
@@ -96,19 +97,7 @@ export const useReportStore = create<ReportState>()(
           if (error) throw error;
 
           if (data && data.length > 0) {
-            const mappedReports: Report[] = data.map((r: any) => ({
-              id: r.id,
-              title: r.title,
-              date: Number(r.date),
-              startDate: r.start_date ? Number(r.start_date) : undefined,
-              endDate: r.end_date ? Number(r.end_date) : undefined,
-              type: r.type,
-              content: r.content,
-              aiAnalysis: r.ai_analysis,
-              stats: r.stats,
-              analysisStatus: r.ai_analysis ? 'success' : 'idle',
-              errorMessage: null,
-            }));
+            const mappedReports: Report[] = data.map(fromDbReport);
             set({ reports: mappedReports });
           }
         } catch (error) {

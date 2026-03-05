@@ -398,8 +398,8 @@ docs/                 # 架构与交接文档
 - [x] F14: **[P2]** `Stardust` 查询与写回优化（`messageId -> memory` 映射；跨 store 写回改 action 化）
 - [x] F15: **[P2]** 优化 `ChatPage` 每秒遍历消息的计时器路径（减少 O(n) 高频扫描）
 - [x] F16: **[P2]** 限制 `useAnnotationStore.todayStats.events` 增长（上限/裁剪或去持久化）
-- [ ] F17: **[P3]** 统一 DB Row 映射函数（Todo/Report/Stardust/Annotation/Auth 同构）
-- [ ] F18: **[P3]** 心情领域 i18n 深改（`MoodOption` 中文字面量去耦）
+- [x] F17: **[P3]** 统一 DB Row 映射函数（Todo/Report/Stardust/Annotation/Auth 同构）
+- [x] F18: **[P3]** 心情领域 i18n 深改（`MoodOption` 中文字面量去耦）
 - [ ] F19: **[停止执行/AB1]** 审计项 AB1/C12（`FORCE_ANNOTATION_TRIGGER`）本轮不改，后续由用户自行执行
 - [ ] F20: **[停止执行]** 审计项 C13（DEBUG `console.log` 批量清理）本轮不改，后续由用户自行执行
 
@@ -1503,3 +1503,54 @@ docs/                 # 架构与交接文档
 2. F13 共享提取器后，`api/annotation.ts` 与前端工具复用同一策略；若需快速回退可独立回退 `src/lib/aiParser.ts` + `api/annotation.ts`。
 3. F14 的 `memoryIdByMessageId` 为运行时索引，持久化仍以 `memories[]` 为权威；异常时可回退 `useStardustStore.ts` 与 `useChatStore.ts` 的相关变更。
 4. F15 仅收敛计时器生命周期，不改业务语义；回退点为 `ChatPage.tsx` 单文件。
+
+### 2026-03-05 (续) — Phase F F17 + F18 落地（DB 映射同构 + MoodKey 去中文耦合）
+
+#### 变更来源
+
+- 来源: 用户指令“执行”，按今日计划收口 Phase F 剩余可执行项 F17/F18。
+
+#### 决策结论
+
+1. F17 采用“单文件映射层”方案：新增 `src/lib/dbMappers.ts`，统一 Todo/Report/Stardust/Annotation/Auth/Message 的 DB Row 映射与入库映射。
+2. F18 采用“英文 key 内核”方案：Mood 领域内部值统一为 `happy/calm/focused/...`，展示层通过 i18n 翻译 key 输出。
+3. 对历史本地持久化数据增加兼容迁移：在 MoodStore 持久化 `merge` 阶段把旧中文 mood 值映射为英文 key。
+
+#### 代码变更范围
+
+1. F17（DB 映射同构）
+   - 新增 `src/lib/dbMappers.ts`：`fromDb*/toDb*` 映射函数集中管理。
+   - 接入文件：
+     - `src/store/chatHelpers.ts`
+     - `src/store/useTodoStore.ts`
+     - `src/store/useReportStore.ts`
+     - `src/store/reportActions.ts`
+     - `src/store/useStardustStore.ts`
+     - `src/store/useAnnotationStore.ts`
+     - `src/store/useAuthStore.ts`
+     - `src/store/useChatStore.ts`
+2. F18（Mood i18n 深改）
+   - 新增 `src/lib/moodOptions.ts`（MoodKey 规范、兼容映射、i18n key 映射）。
+   - `src/store/useMoodStore.ts`：`MoodOption` 改为英文 key，落地持久化迁移。
+   - `src/lib/mood.ts`：自动识别结果切换到 MoodKey。
+   - `src/store/chatActions.ts`：能量等级映射切换到 MoodKey。
+   - `src/features/chat/MoodPickerModal.tsx`、`src/features/chat/MessageItem.tsx`、`src/features/report/MoodPieChart.tsx`、`src/lib/moodColor.ts`：展示层统一通过 i18n + key 兼容渲染。
+   - `src/store/reportHelpers.ts`：情绪总结文案兼容 MoodKey，输出保持用户可读标签。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+
+#### 任务看板变化
+
+- [x] F17 完成（DB 映射函数同构完成）
+- [x] F18 完成（MoodOption 去中文耦合完成）
+
+#### 风险与回滚点
+
+1. F18 主要风险为“旧本地数据中中文 mood 值”兼容；已在 `useMoodStore` 持久化 `merge` 中做迁移映射。
+2. F17 主要风险为字段映射遗漏；已将读写路径收口到 `dbMappers.ts` 便于审计与回滚。
+3. 若需回退，可按主题独立回退：
+   - F17：`src/lib/dbMappers.ts` + 各 store 接入提交
+   - F18：`src/lib/moodOptions.ts` + Mood 相关组件/store 提交

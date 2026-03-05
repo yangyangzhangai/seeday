@@ -13,6 +13,7 @@ import { shouldGenerateAnnotation } from './annotationHelpers';
 import { useMoodStore } from './useMoodStore';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { fromDbAnnotation, toDbAnnotation } from '../lib/dbMappers';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 
@@ -239,15 +240,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
           // 异步同步到云端
           const session = await getSupabaseSession();
           if (session) {
-            const { error: insertError } = await supabase.from('annotations').insert([{
-              id: annotationId,
-              user_id: session.user.id,
-              content: annotation.content,
-              tone: annotation.tone,
-              event_timestamp: annotation.timestamp,
-              related_event: annotation.relatedEvent,
-              created_at: new Date(annotation.timestamp).toISOString(),
-            }]);
+            const { error: insertError } = await supabase
+              .from('annotations')
+              .insert([toDbAnnotation(annotation, session.user.id)]);
             if (insertError) {
               console.error('[Annotation] 云端同步失败:', insertError);
             } else {
@@ -340,15 +335,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          const annotations: AIAnnotation[] = data.map((row: any) => ({
-            id: row.id,
-            content: row.content,
-            tone: row.tone,
-            timestamp: row.event_timestamp,
-            relatedEvent: row.related_event,
-            displayDuration: 8000,
-            syncedToCloud: true,
-          }));
+          const annotations: AIAnnotation[] = data.map(fromDbAnnotation);
           set({ annotations });
         }
       },
@@ -360,15 +347,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
         const pendingAnnotations = get().annotations.filter((a) => !a.syncedToCloud);
         if (pendingAnnotations.length === 0) return;
 
-        const localAnnotations = pendingAnnotations.map((annotation) => ({
-          id: annotation.id,
-          user_id: userId,
-          content: annotation.content,
-          tone: annotation.tone,
-          event_timestamp: annotation.timestamp,
-          related_event: annotation.relatedEvent,
-          created_at: new Date(annotation.timestamp).toISOString(),
-        }));
+        const localAnnotations = pendingAnnotations.map((annotation) => toDbAnnotation(annotation, userId));
 
         const { error } = await supabase
           .from('annotations')

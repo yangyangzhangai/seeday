@@ -1,5 +1,6 @@
-import type { Message, MessageType } from './useChatStore';
+import type { Message } from './useChatStore';
 import i18n from '../i18n';
+import { fromDbMessage } from '../lib/dbMappers';
 
 /**
  * 安全地获取本地日期的 YYYY-MM-DD 字符串，不经过 UTC 转换
@@ -15,16 +16,7 @@ export function getLocalDateString(date: Date): string {
  * 将 Supabase 消息行映射为前端 Message 对象
  */
 export function mapDbRowToMessage(m: any): Message {
-    return {
-        id: m.id,
-        content: m.content,
-        timestamp: Number(m.timestamp),
-        type: m.type as MessageType,
-        duration: m.duration,
-        activityType: m.activity_type,
-        mode: (m.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
-        isMood: m.is_mood || false,
-    };
+    return fromDbMessage(m);
 }
 
 /**

@@ -1,15 +1,16 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MoodDistributionItem } from './reportPageHelpers';
+import { getMoodI18nKey, normalizeMoodKey } from '../../lib/moodOptions';
 
 const moodColors: Record<string, string> = {
-  开心: '#F9A8D4',
-  平静: '#93C5FD',
-  专注: '#86EFAC',
-  满足: '#FDE68A',
-  疲惫: '#9CA3AF',
-  无聊: '#C7D2FE',
-  低落: '#60A5FA',
+  happy: '#F9A8D4',
+  calm: '#93C5FD',
+  focused: '#86EFAC',
+  satisfied: '#FDE68A',
+  tired: '#9CA3AF',
+  bored: '#C7D2FE',
+  down: '#60A5FA',
 };
 
 interface MoodPieChartProps {
@@ -22,17 +23,7 @@ export const MoodPieChart: React.FC<MoodPieChartProps> = ({ distribution }) => {
   if (totalMinutes === 0) return null;
 
   const getTranslatedMood = (mood: string) => {
-    const keyMap: Record<string, string> = {
-      开心: 'mood_happy',
-      平静: 'mood_calm',
-      专注: 'mood_focused',
-      满足: 'mood_satisfied',
-      疲惫: 'mood_tired',
-      焦虑: 'mood_anxious',
-      无聊: 'mood_bored',
-      低落: 'mood_down',
-    };
-    const key = keyMap[mood];
+    const key = getMoodI18nKey(mood);
     return key ? t(key) : mood;
   };
 
@@ -89,9 +80,9 @@ export const MoodPieChart: React.FC<MoodPieChartProps> = ({ distribution }) => {
           const fill =
             s.mood === '__other'
               ? '#F3F4F6'
-              : s.mood === '焦虑'
+              : normalizeMoodKey(s.mood) === 'anxious'
                 ? 'url(#anxiousPattern)'
-                : moodColors[s.mood] || '#93C5FD';
+                : moodColors[normalizeMoodKey(s.mood) || s.mood] || '#93C5FD';
 
           return <path key={`${s.mood}-${s.start}`} d={pathData} fill={fill} />;
         })}
@@ -103,9 +94,9 @@ export const MoodPieChart: React.FC<MoodPieChartProps> = ({ distribution }) => {
               className="inline-block w-2 h-2 rounded-full"
               style={{
                 background:
-                  d.mood === '焦虑'
+                  normalizeMoodKey(d.mood) === 'anxious'
                     ? 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)'
-                    : moodColors[d.mood] || '#93C5FD',
+                    : moodColors[normalizeMoodKey(d.mood) || d.mood] || '#93C5FD',
               }}
             />
             <span>{getTranslatedMood(d.mood)}</span>

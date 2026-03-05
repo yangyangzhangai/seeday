@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { callChatAPI, callClassifierAPI } from '../api/client';
 import { autoDetectMood } from '../lib/mood';
+import { toDbMessage } from '../lib/dbMappers';
+import { type MoodKey } from '../lib/moodOptions';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
@@ -43,17 +45,9 @@ export async function closePreviousActivity(messages: Message[], now: number): P
 }
 
 export async function persistMessageToSupabase(message: Message, userId: string, isMood = false): Promise<void> {
-  const { error } = await supabase.from('messages').insert([
-    {
-      id: message.id,
-      content: message.content,
-      timestamp: message.timestamp,
-      type: message.type,
-      activity_type: message.activityType,
-      is_mood: isMood,
-      user_id: userId,
-    },
-  ]);
+  const { error } = await supabase
+    .from('messages')
+    .insert([{ ...toDbMessage(message, userId), is_mood: isMood }]);
 
   if (error) {
     console.error('Error sending message:', error);
@@ -69,10 +63,13 @@ export async function triggerMoodDetection(messageId: string, content: string): 
     const response = await callClassifierAPI({ rawInput: content, lang: currentLang });
     const energyLog = response?.data?.energy_log?.[0];
 
-    if (mood === '平静' && energyLog?.energy_level) {
-      if (energyLog.energy_level === 'high') mood = '开心';
-      else if (energyLog.energy_level === 'medium') mood = '平静';
-      else if (energyLog.energy_level === 'low') mood = '疲惫';
+    if (mood === 'calm' && energyLog?.energy_level) {
+      const levelToMood: Record<string, MoodKey> = {
+        high: 'happy',
+        medium: 'calm',
+        low: 'tired',
+      };
+      mood = levelToMood[energyLog.energy_level] || mood;
     }
 
     moodStore.setMood(messageId, mood);

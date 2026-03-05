@@ -9,6 +9,7 @@ import {
 } from 'date-fns';
 import type { Message } from './useChatStore';
 import type { Todo } from './useTodoStore';
+import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
 type ActionCategory = '生存' | '连接与交互' | '成长与创造' | '修复与娱乐' | '巅峰体验' | '其他';
@@ -209,8 +210,13 @@ export function generateMoodSummary(moodDistribution: { mood: string; minutes: n
   const second = moodDistribution[1];
 
   const parts: string[] = [];
-  parts.push(`今天你的情绪主色调是「${top.mood}」，约${Math.round((top.minutes / totalMinutes) * 100)}%。`);
-  if (second) parts.push(`同时也有「${second.mood}」穿插其间，节奏自然。`);
+  const topMoodKey = normalizeMoodKey(top.mood);
+  const secondMoodKey = second ? normalizeMoodKey(second.mood) : undefined;
+  const topMoodLabel = topMoodKey ? moodKeyToLegacyLabel(topMoodKey) : top.mood;
+  const secondMoodLabel = second ? (secondMoodKey ? moodKeyToLegacyLabel(secondMoodKey) : second.mood) : undefined;
+
+  parts.push(`今天你的情绪主色调是「${topMoodLabel}」，约${Math.round((top.minutes / totalMinutes) * 100)}%。`);
+  if (secondMoodLabel) parts.push(`同时也有「${secondMoodLabel}」穿插其间，节奏自然。`);
   parts.push('谢谢你真诚地记录心情，每一步都不白费。愿你在照顾感受的同时，继续把自己放在第一位。');
 
   return clampText50(parts.join(''));

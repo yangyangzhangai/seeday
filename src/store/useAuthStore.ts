@@ -6,6 +6,7 @@ import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useStardustStore } from './useStardustStore';
+import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 
 interface AuthState {
   user: any | null;
@@ -100,15 +101,7 @@ async function syncLocalDataToSupabase(userId: string) {
 
   // 1. Sync Messages
   if (messages.length > 0) {
-    const messagesToUpload = messages.map(m => ({
-      id: m.id,
-      content: m.content,
-      timestamp: m.timestamp,
-      type: m.type,
-      duration: m.duration,
-      activity_type: m.activityType,
-      user_id: userId
-    }));
+    const messagesToUpload = messages.map((m) => toDbMessage(m, userId));
 
     // We use upsert to avoid conflicts if IDs somehow match, 
     // but typically local IDs (UUIDs) won't conflict with others.
@@ -122,21 +115,7 @@ async function syncLocalDataToSupabase(userId: string) {
 
   // 2. Sync Todos
   if (todos.length > 0) {
-    const todosToUpload = todos.map(t => ({
-      id: t.id,
-      content: t.content,
-      completed: t.completed,
-      priority: t.priority,
-      category: t.category,
-      due_date: t.dueDate,
-      scope: t.scope,
-      created_at: t.createdAt,
-      recurrence: t.recurrence,
-      recurrence_id: t.recurrenceId,
-      completed_at: t.completedAt,
-      // Note: is_pinned is local-only for now as per previous context
-      user_id: userId
-    }));
+    const todosToUpload = todos.map((t) => toDbTodo(t, userId));
 
     const { error } = await supabase.from('todos').upsert(todosToUpload);
     if (error) {
@@ -149,18 +128,7 @@ async function syncLocalDataToSupabase(userId: string) {
   // 3. Sync Reports
   const reports = useReportStore.getState().reports;
   if (reports.length > 0) {
-    const reportsToUpload = reports.map(r => ({
-      id: r.id,
-      title: r.title,
-      date: r.date,
-      start_date: r.startDate,
-      end_date: r.endDate,
-      type: r.type,
-      content: r.content,
-      ai_analysis: r.aiAnalysis,
-      stats: r.stats,
-      user_id: userId
-    }));
+    const reportsToUpload = reports.map((r) => toDbReport(r, userId));
 
     const { error } = await supabase.from('reports').upsert(reportsToUpload);
     if (error) {

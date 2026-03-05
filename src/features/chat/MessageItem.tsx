@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { formatDuration } from '../../lib/time';
 import { getMoodColor } from '../../lib/moodColor';
+import { getMoodI18nKey, normalizeMoodKey } from '../../lib/moodOptions';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { StardustEmoji } from '../../components/feedback/StardustEmoji';
@@ -46,17 +47,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
     const getTranslatedMoodLabel = (label?: string) => {
         if (!label) return t('chat_unknown_mood_label');
-        const keyMap: Record<string, string> = {
-            开心: 'mood_happy',
-            平静: 'mood_calm',
-            专注: 'mood_focused',
-            满足: 'mood_satisfied',
-            疲惫: 'mood_tired',
-            焦虑: 'mood_anxious',
-            无聊: 'mood_bored',
-            低落: 'mood_down',
-        };
-        const key = keyMap[label];
+        const key = getMoodI18nKey(label);
         return key ? t(key) : label;
     };
 
@@ -105,13 +96,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
     // Activity Record
     const label = getMoodLabelForMsg();
+    const moodKey = normalizeMoodKey(label);
     return (
         <div data-message-id={msg.id} className="group relative flex items-start justify-between bg-white p-2 rounded-lg border border-gray-200 hover:border-blue-200 transition-colors">
             <div className="flex items-start space-x-2 flex-1 min-w-0">
                 <div
                     className="w-1.5 h-1.5 rounded-full"
                     style={
-                        label === '焦虑'
+                        moodKey === 'anxious'
                             ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' } as React.CSSProperties
                             : { backgroundColor: getMoodColor(label) || '#10B981' } as React.CSSProperties
                     }
@@ -135,7 +127,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             )}
                             style={
                                 (() => {
-                                    if (label === '焦虑') {
+                                    if (moodKey === 'anxious') {
                                         return { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)', border: 'none' } as React.CSSProperties;
                                     }
                                     const bg = label ? getMoodColor(label) : undefined;

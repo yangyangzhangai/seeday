@@ -1,17 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type MoodKey, normalizeMoodKey } from '../lib/moodOptions';
 
 const MAX_MOOD_ENTRIES = 500;
 
 export type MoodOption =
-  | '开心'
-  | '平静'
-  | '专注'
-  | '满足'
-  | '疲惫'
-  | '焦虑'
-  | '无聊'
-  | '低落';
+  | MoodKey;
 
 interface MoodState {
   activityMood: Record<string, MoodOption | undefined>;
@@ -81,7 +75,7 @@ export const useMoodStore = create<MoodState>()(
       setMood: (activityId, mood) =>
         set(state =>
           pruneMoodRecordMaps({
-            activityMood: { ...state.activityMood, [activityId]: mood },
+            activityMood: { ...state.activityMood, [activityId]: normalizeMoodKey(mood) },
             customMoodLabel: state.customMoodLabel,
             customMoodApplied: state.customMoodApplied,
             moodNote: state.moodNote,
@@ -134,6 +128,20 @@ export const useMoodStore = create<MoodState>()(
         customMoodOptions: state.customMoodOptions,
         moodNote: state.moodNote,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<MoodState>) || {};
+        const current = currentState as MoodState;
+        const persistedActivityMood = persisted.activityMood || {};
+        const migratedActivityMood = Object.fromEntries(
+          Object.entries(persistedActivityMood).map(([id, mood]) => [id, normalizeMoodKey(mood as string)])
+        ) as Record<string, MoodOption | undefined>;
+
+        return {
+          ...current,
+          ...persisted,
+          activityMood: migratedActivityMood,
+        };
+      },
     }
   )
 );

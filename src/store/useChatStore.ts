@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { toDbMessage } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
@@ -338,15 +339,7 @@ export const useChatStore = create<ChatState>()(
 
         const session = await getSupabaseSession();
         if (session) {
-          const insertPayload = messagesToInsert.map(msg => ({
-            id: msg.id,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            type: msg.type,
-            duration: msg.duration,
-            activity_type: msg.activityType,
-            user_id: session.user.id
-          }));
+          const insertPayload = messagesToInsert.map((msg) => toDbMessage(msg, session.user.id));
 
           if (insertPayload.length > 0) {
             await supabase.from('messages').insert(insertPayload);
