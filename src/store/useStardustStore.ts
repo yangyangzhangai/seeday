@@ -230,15 +230,20 @@ export const useStardustStore = create<StardustStore>()(
       getStardustByMessageId: (messageId: string) => {
         const state = get();
         const memoryId = state.memoryIdByMessageId[messageId];
-        if (!memoryId) return undefined;
-        return state.memories.find((memory) => memory.id === memoryId);
+        if (memoryId) {
+          return state.memories.find((memory) => memory.id === memoryId);
+        }
+
+        // 兼容旧版持久化数据（仅有 memories，没有 memoryIdByMessageId）
+        return state.memories.find((memory) => memory.messageId === messageId);
       },
 
       /**
        * 检查消息是否已有珍藏
        */
       hasStardust: (messageId: string) => {
-        return !!get().memoryIdByMessageId[messageId];
+        const state = get();
+        return !!state.memoryIdByMessageId[messageId] || state.memories.some((memory) => memory.messageId === messageId);
       },
 
       /**
@@ -347,7 +352,19 @@ export const useStardustStore = create<StardustStore>()(
       name: 'stardust-storage',
       partialize: (state) => ({
         memories: state.memories,
+        memoryIdByMessageId: state.memoryIdByMessageId,
       }),
+      merge: (persistedState, currentState) => {
+        const merged = {
+          ...currentState,
+          ...(persistedState as Partial<StardustStore>),
+        };
+
+        return {
+          ...merged,
+          memoryIdByMessageId: buildMemoryIdByMessageId(merged.memories || []),
+        } as StardustStore;
+      },
     }
   )
 );
