@@ -436,6 +436,34 @@ docs/                 # 架构与交接文档
 4. `npm run lint:docs-sync` 通过。
 5. 冒烟验证通过（`/chat`、`/todo`、`/report` 关键路径可用）。
 
+### Phase H: 2026-03-06 审计后续（Hook + 代码瘦身 + 依赖清理）
+
+> 来源：2026-03-06 全项目审计报告（文件规模热力图 + 依赖检查 + Hook 方案设计）
+
+- [x] H1: **[P0]** 新建 `scripts/check-secrets.mjs` 密钥泄露扫描脚本
+- [x] H2: **[P0]** 新建 `scripts/pre-commit.mjs` pre-commit hook 入口（串联 4 项检查）
+- [x] H3: **[P0]** 新建 `scripts/install-hooks.mjs` + `npm run prepare` 自动安装 hook
+- [x] H4: **[P0]** `LLM.md` 升级为完整 AI Session SOP（启动步骤、编码规范、回环检查、文档同步矩阵）
+- [ ] H5: **[P1]** 给 `api/annotation.ts`（当前 700 行，接近 800 上限）瘦身 → 提取 `annotation-prompts.ts`(prompt 模板) 
+- [ ] H6: **[P1]** `useChatStore.ts` 继续瘦身（当前 552 行）→ 提取 `insertActivity`（含碰撞处理 ~90 行）到 `chatActions.ts`，目标降至 ~460 行
+- [ ] H7: **[P2]** 检查并清理未使用的重型依赖（`cannon-es`、`matter-js`、`three`），确认实际使用后决定保留或移除以减小 bundle
+- [ ] H8: **[P3]** 新建 commit-msg hook 脚本，规范提交消息格式（可选）
+
+### Phase H 验收标准
+
+1. 全部 hook 脚本安装并可通过 `node ./scripts/pre-commit.mjs` 验证。
+2. H5 完成后 `api/annotation.ts` ≤ 300 行。
+3. H6 完成后 `useChatStore.ts` ≤ 470 行。
+4. `npx tsc --noEmit`、`npm run build`、`npm run lint:all` 通过。
+
+### Phase H DoD（完成定义）
+
+1. H1-H8 全部勾选完成或标记为不执行。
+2. `npx tsc --noEmit` 通过。
+3. `npm run build` 通过。
+4. `npm run lint:all` 通过。
+5. 冒烟验证通过（`/chat`、`/todo`、`/report` 关键路径可用）。
+
 ## 5. 每阶段统一验证清单
 
 1. `npx tsc --noEmit`
@@ -603,6 +631,18 @@ docs/                 # 架构与交接文档
    - PR-11E（P3）：DB 映射同构 + MoodOption i18n 深改（F17/F18）
 3. 验收：`npx tsc --noEmit`、`npm run build`、`/chat /todo /report` 冒烟测试通过。
 4. 回滚点：按子 PR 独立回退，避免跨主题连带回滚。
+
+### PR-12 审计后续（2026-03-06 报告对齐）
+
+1. 范围：按 Phase H 执行审计后续（H1-H8）。
+2. 推荐拆分：
+   - PR-12A（已完成）：Hook 基础设施（H1/H2/H3/H4）— `check-secrets.mjs`, `pre-commit.mjs`, `install-hooks.mjs`, `LLM.md` 升级
+   - PR-12B（P1）：拆分 `api/annotation.ts`（H5）
+   - PR-12C（P1）：`useChatStore.ts` 瘦身（H6）
+   - PR-12D（P2）：依赖清理 `cannon-es`/`matter-js`/`three`（H7）
+   - PR-12E（P3，可选）：commit-msg hook（H8）
+3. 验收：`npm run lint:all`、`npm run build`、冒烟测试通过。
+4. 回滚点：按子 PR 独立回退。
 
 ## 8. 交接日志（持续追加）
 
@@ -1688,3 +1728,15 @@ docs/                 # 架构与交接文档
 
 1. `lint:docs-sync` 当前为最小校验，后续新增关键模块时需同步扩充脚本清单。
 2. `DOC-DEPS` 头声明是可读性约束，不改变运行行为；如需回退可按文档与脚本提交独立回退。
+
+### 2026-03-06 (续) — Phase H: Hook 自动拦截 + 审计后续任务落地
+
+- 变更来源: 2026-03-06 全项目审计报告
+- 执行人: AI (Antigravity)
+- 已完成:
+  1. 新建 `scripts/check-secrets.mjs`、`scripts/pre-commit.mjs`、`scripts/install-hooks.mjs`
+  2. `package.json` 新增 `lint:secrets`、`lint:all`、`prepare`
+  3. `LLM.md` 升级为完整 AI 会话 SOP
+  4. Hook 安装并验证通过
+- 待执行: H5（拆分 annotation.ts）、H6（useChatStore 瘦身）、H7（依赖清理）、H8（commit-msg hook）
+- 验证结果: `pre-commit.mjs` ✅、`lint:all` ✅、`git commit` 自动触发 ✅
