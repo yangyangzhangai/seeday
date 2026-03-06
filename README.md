@@ -64,8 +64,7 @@ npm run preview
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `CHUTES_API_KEY`
-- `QWEN_API_KEY`
-- `GEMINI_API_KEY`（可选）
+- `ZHIPU_API_KEY`
 
 说明：AI 相关 Key 仅在服务端函数 `api/*` 使用，不应暴露到前端。
 

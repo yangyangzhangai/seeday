@@ -1,6 +1,6 @@
 ﻿# Tshine 代码整理交接计划
 
-- 文档版本: v1.4
+- 文档版本: v1.5
 - 创建日期: 2026-03-03
 - 适用范围: `Tshine2-13-mainc` 全仓
 - 目标: 在不重写项目的前提下，完成安全清理、文档同构、结构拆分与可维护性提升
@@ -402,6 +402,39 @@ docs/                 # 架构与交接文档
 - [x] F18: **[P3]** 心情领域 i18n 深改（`MoodOption` 中文字面量去耦）
 - [ ] F19: **[停止执行/AB1]** 审计项 AB1/C12（`FORCE_ANNOTATION_TRIGGER`）本轮不改，后续由用户自行执行
 - [ ] F20: **[停止执行]** 审计项 C13（DEBUG `console.log` 批量清理）本轮不改，后续由用户自行执行
+
+### Phase G: 分形文档 + 强制同构（待执行）
+- [ ] G1: 新建根目录 `CLAUDE.md` 作为强制加载入口（Single Entry），明确文档权威顺序、三层读取顺序、禁止事项与回环检查规则。
+- [ ] G2: 固化三层分形结构（L1/L2/L3）并写入规范：
+  - L1 全局层：`docs/PROJECT_MAP.md`（全局唯一地图，持续维护 as-is）
+  - L2 模块层：为核心模块补齐 README（`src/features/auth|chat|todo|report/README.md`、`src/api/README.md`）
+  - L3 文件层：关键文件头部增加依赖声明模板（先覆盖 `src/api/client.ts`、`src/store/use*Store.ts`、`api/*.ts`、`src/App.tsx`）
+- [ ] G3: 建立“文档-代码同构清单”并落地到模块 README：每个模块必须包含入口、对外接口、上游依赖、下游影响、关联文档。
+- [ ] G4: 新增 `scripts/check-doc-sync.mjs`，实现最小同构校验：
+  - 核心模块 README 存在性检查
+  - 关键文件依赖头声明存在性检查
+  - `docs/PROJECT_MAP.md` 核心目录覆盖检查
+- [ ] G5: 在 `package.json` 新增 `lint:docs-sync` 并纳入标准验收命令；`CONTRIBUTING.md` 增加“代码变更 -> 必改文档”矩阵与执行要求。
+- [ ] G6: 在 `docs/CHANGELOG.md` 增加“文档同构变更记录规范”，要求每次结构/接口改动同步登记。
+- [ ] G7: 首轮基线对齐专项（一次性收敛）：
+  - 清理重复定义（同一事实只保留一个主文档）
+  - 统一术语（模块名、接口名、状态名）
+  - 抽查 5 条核心路径（`/chat`、`/todo`、`/report`、`/api/*`、`i18n`）验证“代码与文档双向可追溯”
+
+### Phase G 验收标准
+
+1. AI 仅通过三次读取可拿到完整上下文：`CLAUDE.md` -> `docs/PROJECT_MAP.md` -> 模块 README/关键文件头。
+2. 任意核心改动可从代码反查文档、从文档定位代码（双向可追溯）。
+3. `npm run lint:docs-sync` 可稳定执行，并能拦截“改代码不改文档”的常见漂移。
+4. `CONTRIBUTING.md` 中存在清晰的文档回环规则，且与实际脚本一致。
+
+### Phase G DoD（完成定义）
+
+1. G1-G7 全部勾选完成。
+2. `npx tsc --noEmit` 通过。
+3. `npm run build` 通过。
+4. `npm run lint:docs-sync` 通过。
+5. 冒烟验证通过（`/chat`、`/todo`、`/report` 关键路径可用）。
 
 ## 5. 每阶段统一验证清单
 
@@ -1554,3 +1587,24 @@ docs/                 # 架构与交接文档
 3. 若需回退，可按主题独立回退：
    - F17：`src/lib/dbMappers.ts` + 各 store 接入提交
    - F18：`src/lib/moodOptions.ts` + Mood 相关组件/store 提交
+
+### 2026-03-05 (续) — Phase G 计划入板（待明日执行）
+
+#### 变更来源
+
+- 来源: 用户要求将“分形文档 + 强制同构”完整计划写入 cleanup 主文档，作为待完成任务。
+
+#### 决策结论
+
+1. 新增 Phase G（G1-G7）到任务看板，状态统一为未完成。
+2. Phase G 作为下一执行批次，目标是建立 AI 可稳定读取的三层文档结构与强制同构回环。
+3. 本次仅入板与规则固化，不执行代码/脚本实现。
+
+#### 任务看板变化
+
+- [ ] G1, G2, G3, G4, G5, G6, G7（全部新增，待执行）
+
+#### 风险与回滚点
+
+1. 若后续只补文档不加校验脚本，Phase G 将退化为“软约束”，无法长期防漂移。
+2. 本次为文档变更，回滚点为本文件对应提交。

@@ -76,8 +76,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `CHUTES_API_KEY`
-- `QWEN_API_KEY`
-- `GEMINI_API_KEY`（可选）
+- `ZHIPU_API_KEY`
 
 ## 8. 当前已知风险
 

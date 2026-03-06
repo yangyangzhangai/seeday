@@ -7,7 +7,7 @@
 1. 仅处理服务端逻辑，不依赖 `window`、`localStorage` 等浏览器对象。
 2. 前端统一通过 `src/api/client.ts` 调用，不在 `src/**` 直连第三方 AI。
 3. 所有函数统一设置 CORS，并只接受 `POST`（含 `OPTIONS` 预检）。
-4. 密钥统一从 `process.env` 读取（如 `CHUTES_API_KEY`）。
+4. 密钥统一从 `process.env` 读取（如 `CHUTES_API_KEY`、`ZHIPU_API_KEY`）。
 
 ## 端点清单（与当前实现一致）
 
