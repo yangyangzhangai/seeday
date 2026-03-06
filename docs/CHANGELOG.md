@@ -15,12 +15,17 @@ All notable changes to this repository are documented here.
 - Added `LLM.md` as the single L1 AI/LLM entry document and removed `CLAUDE.md` from active plan scope.
 - Added module-level docs: `src/features/auth/README.md`, `src/features/todo/README.md`, `src/features/report/README.md`, and `src/api/README.md`.
 - Added `scripts/check-doc-sync.mjs` and new command `npm run lint:docs-sync`.
+- Added `docs/CURRENT_TASK.md` as the session-resume anchor file for checkpointed restart.
+- Added `scripts/check-state-consistency.mjs` and new command `npm run lint:state-consistency` to block code/doc state drift.
 
 ### Changed
 
 - Standardized `src/features/chat/README.md` to the module-template format (entry/interface/upstream/downstream/docs).
 - Added `DOC-DEPS` headers to key files (`src/App.tsx`, `src/api/client.ts`, all `src/store/use*Store.ts`, all `api/*.ts`) for L3 file-level dependency tracing.
 - Updated `CONTRIBUTING.md` with a required "code change -> doc update" matrix and doc-sync execution rules.
+- Updated `LLM.md` global read order to require `docs/CURRENT_TASK.md` before project-map/module reads.
+- Updated `scripts/check-doc-sync.mjs` required-doc list to include `docs/CURRENT_TASK.md`.
+- Updated `CONTRIBUTING.md` with a session resume SOP and mandatory `lint:state-consistency` pre-submit check.
 
 ## 2026-03-05
 

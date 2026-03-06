@@ -61,6 +61,18 @@ npm run dev
 2. `lint:docs-sync` 未通过，不应提交或合并。
 3. 新增关键文件时，需在文件头 20 行内包含 `DOC-DEPS:` 声明。
 
+### 5.3 会话断点恢复 SOP（新会话必读）
+
+1. 新会话开工前，按顺序读取：`LLM.md` -> `docs/CURRENT_TASK.md` -> `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（第 4 节看板 + 第 8 节最新日志）。
+2. 任何 `src/**` 或 `api/**` 代码改动，必须同步更新：
+   - `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+   - `docs/CHANGELOG.md`
+   - `docs/CURRENT_TASK.md`
+   - 受影响模块 README（如 `src/features/*/README.md`、`src/api/README.md`）
+3. 提交前执行 `npm run lint:state-consistency`；未通过则先补齐状态文件再提交。
+4. `docs/CURRENT_TASK.md` 只保留一个当前焦点和一个下一步动作，避免并行待办失真。
+5. 若任务中断，必须先写完 `docs/CURRENT_TASK.md` 的 Validation/Next Step，再结束当前会话。
+
 ## 6. 回滚约定
 
 1. 每个 PR 应可独立回退。

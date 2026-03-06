@@ -5,6 +5,7 @@ const root = process.cwd();
 
 const requiredDocs = [
   'LLM.md',
+  'docs/CURRENT_TASK.md',
   'docs/PROJECT_MAP.md',
   'src/features/auth/README.md',
   'src/features/chat/README.md',

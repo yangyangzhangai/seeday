@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint:max-lines": "node ./scripts/check-max-lines.mjs",
-    "lint:docs-sync": "node ./scripts/check-doc-sync.mjs"
+    "lint:docs-sync": "node ./scripts/check-doc-sync.mjs",
+    "lint:state-consistency": "node ./scripts/check-state-consistency.mjs"
   },
   "dependencies": {
     "@chinese-fonts/lxgwwenkai": "^3.0.0",

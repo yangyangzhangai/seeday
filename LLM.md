@@ -5,21 +5,22 @@ This is the single entry document for AI/LLM context loading in this repository.
 ## Authority Order
 
 1. `LLM.md` (this file): global read order, hard constraints, and sync rules.
-2. `docs/PROJECT_MAP.md`: repository structure and boundary truth source.
-3. Module README files:
+2. `docs/CURRENT_TASK.md`: active session checkpoint and restart anchor.
+3. `docs/PROJECT_MAP.md`: repository structure and boundary truth source.
+4. Module README files:
    - `src/features/auth/README.md`
    - `src/features/chat/README.md`
    - `src/features/todo/README.md`
    - `src/features/report/README.md`
    - `src/api/README.md`
-4. Key file dependency headers (`DOC-DEPS` in key files) for file-level context.
-5. `docs/CODE_CLEANUP_HANDOVER_PLAN.md`: execution board and handover history.
+5. Key file dependency headers (`DOC-DEPS` in key files) for file-level context.
+6. `docs/CODE_CLEANUP_HANDOVER_PLAN.md`: execution board and handover history.
 
 If two documents conflict, follow the order above.
 
 ## Three-Layer Read Order
 
-1. L1 Global: `LLM.md` -> `docs/PROJECT_MAP.md`
+1. L1 Global: `LLM.md` -> `docs/CURRENT_TASK.md` -> `docs/PROJECT_MAP.md`
 2. L2 Module: read the target module README in `src/features/*/README.md` or `src/api/README.md`
 3. L3 File: read key file `DOC-DEPS` headers and then the file body
 
