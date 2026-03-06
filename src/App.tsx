@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';

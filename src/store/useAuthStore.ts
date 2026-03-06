@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/auth/README.md
 import { create } from 'zustand';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';

@@ -2,6 +2,26 @@
 
 All notable changes to this repository are documented here.
 
+## Documentation Isomorphism Logging Rules
+
+1. Any structural/interface/code-path change must include one changelog line in the same PR.
+2. Changelog entries must reference both code path and doc path updates.
+3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
+
+## 2026-03-06
+
+### Added
+
+- Added `LLM.md` as the single L1 AI/LLM entry document and removed `CLAUDE.md` from active plan scope.
+- Added module-level docs: `src/features/auth/README.md`, `src/features/todo/README.md`, `src/features/report/README.md`, and `src/api/README.md`.
+- Added `scripts/check-doc-sync.mjs` and new command `npm run lint:docs-sync`.
+
+### Changed
+
+- Standardized `src/features/chat/README.md` to the module-template format (entry/interface/upstream/downstream/docs).
+- Added `DOC-DEPS` headers to key files (`src/App.tsx`, `src/api/client.ts`, all `src/store/use*Store.ts`, all `api/*.ts`) for L3 file-level dependency tracing.
+- Updated `CONTRIBUTING.md` with a required "code change -> doc update" matrix and doc-sync execution rules.
+
 ## 2026-03-05
 
 ### Changed

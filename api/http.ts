@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

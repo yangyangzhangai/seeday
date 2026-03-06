@@ -48,6 +48,19 @@ npm run dev
    - `docs/CHANGELOG.md`
 2. 若有历史文档过时，优先迁移到 `docs/archive/`，不要直接覆盖事实记录。
 
+### 5.1 代码变更 -> 必改文档矩阵
+
+1. 路由/页面入口变更：更新 `docs/PROJECT_MAP.md` + 对应 `src/features/*/README.md`。
+2. API 请求/响应契约变更：更新 `src/api/README.md` + `api/README.md`。
+3. Store 对外状态或 action 变更：更新对应模块 README（auth/chat/todo/report）。
+4. 目录结构或边界变更：更新 `LLM.md` + `docs/PROJECT_MAP.md`。
+
+### 5.2 文档同构执行要求
+
+1. 涉及结构或接口变更时，必须执行 `npm run lint:docs-sync`。
+2. `lint:docs-sync` 未通过，不应提交或合并。
+3. 新增关键文件时，需在文件头 20 行内包含 `DOC-DEPS:` 声明。
+
 ## 6. 回滚约定
 
 1. 每个 PR 应可独立回退。

@@ -65,3 +65,14 @@ src/
 
 - 当前主线状态与任务进度以 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 看板为准。
 - C12/C13 在本轮为停止执行项（由用户后续自行推进）。
+
+## 6) Core Path Index (for doc-sync)
+
+- `src/features/auth`
+- `src/features/chat`
+- `src/features/todo`
+- `src/features/report`
+- `src/store/`
+- `src/i18n/`
+- `src/api/`
+- `api/`

@@ -1,4 +1,4 @@
-
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { extractComment, removeThinkingTags } from '../src/lib/aiParser.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';

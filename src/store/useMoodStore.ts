@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type MoodKey, normalizeMoodKey } from '../lib/moodOptions';

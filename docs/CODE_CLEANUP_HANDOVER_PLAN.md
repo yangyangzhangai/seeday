@@ -403,20 +403,20 @@ docs/                 # 架构与交接文档
 - [ ] F19: **[停止执行/AB1]** 审计项 AB1/C12（`FORCE_ANNOTATION_TRIGGER`）本轮不改，后续由用户自行执行
 - [ ] F20: **[停止执行]** 审计项 C13（DEBUG `console.log` 批量清理）本轮不改，后续由用户自行执行
 
-### Phase G: 分形文档 + 强制同构（待执行）
-- [ ] G1: 新建根目录 `LLM.md` 作为强制加载入口（Single Entry），明确文档权威顺序、三层读取顺序、禁止事项与回环检查规则。
-- [ ] G2: 固化三层分形结构（L1/L2/L3）并写入规范：
+### Phase G: 分形文档 + 强制同构
+- [x] G1: 新建根目录 `LLM.md` 作为强制加载入口（Single Entry），明确文档权威顺序、三层读取顺序、禁止事项与回环检查规则。
+- [x] G2: 固化三层分形结构（L1/L2/L3）并写入规范：
   - L1 全局层：`docs/PROJECT_MAP.md`（全局唯一地图，持续维护 as-is）
   - L2 模块层：为核心模块补齐 README（`src/features/auth|chat|todo|report/README.md`、`src/api/README.md`）
   - L3 文件层：关键文件头部增加依赖声明模板（先覆盖 `src/api/client.ts`、`src/store/use*Store.ts`、`api/*.ts`、`src/App.tsx`）
-- [ ] G3: 建立“文档-代码同构清单”并落地到模块 README：每个模块必须包含入口、对外接口、上游依赖、下游影响、关联文档。
-- [ ] G4: 新增 `scripts/check-doc-sync.mjs`，实现最小同构校验：
+- [x] G3: 建立“文档-代码同构清单”并落地到模块 README：每个模块必须包含入口、对外接口、上游依赖、下游影响、关联文档。
+- [x] G4: 新增 `scripts/check-doc-sync.mjs`，实现最小同构校验：
   - 核心模块 README 存在性检查
   - 关键文件依赖头声明存在性检查
   - `docs/PROJECT_MAP.md` 核心目录覆盖检查
-- [ ] G5: 在 `package.json` 新增 `lint:docs-sync` 并纳入标准验收命令；`CONTRIBUTING.md` 增加“代码变更 -> 必改文档”矩阵与执行要求。
-- [ ] G6: 在 `docs/CHANGELOG.md` 增加“文档同构变更记录规范”，要求每次结构/接口改动同步登记。
-- [ ] G7: 首轮基线对齐专项（一次性收敛）：
+- [x] G5: 在 `package.json` 新增 `lint:docs-sync` 并纳入标准验收命令；`CONTRIBUTING.md` 增加“代码变更 -> 必改文档”矩阵与执行要求。
+- [x] G6: 在 `docs/CHANGELOG.md` 增加“文档同构变更记录规范”，要求每次结构/接口改动同步登记。
+- [x] G7: 首轮基线对齐专项（一次性收敛）：
   - 清理重复定义（同一事实只保留一个主文档）
   - 统一术语（模块名、接口名、状态名）
   - 抽查 5 条核心路径（`/chat`、`/todo`、`/report`、`/api/*`、`i18n`）验证“代码与文档双向可追溯”
@@ -1633,3 +1633,58 @@ docs/                 # 架构与交接文档
 
 1. 风险主要为历史口径混用；后续新增文档与脚本统一按 `LLM.md` 执行。
 2. 回滚点为本文件对应提交，不影响运行时功能。
+
+### 2026-03-06 (续) — Phase G 全量落地（G1-G7）
+
+#### 变更来源
+
+- 来源: 用户指令“执行”，按 Phase G 完整落地分形文档与同构校验。
+
+#### 决策结论
+
+1. 采纳 `LLM.md` 单入口策略，不再引入 `CLAUDE.md`。
+2. 采用“三层分形 + 脚本硬校验”方案，避免仅靠约定导致长期漂移。
+3. 一次性完成 G1-G7，并将规则接入项目标准验证命令。
+
+#### 代码/文档变更范围
+
+1. G1/G2/G3（入口与分形结构）
+   - 新增 `LLM.md`（权威顺序、三层读取、禁止事项、回环检查）。
+   - 新增模块 README：
+     - `src/features/auth/README.md`
+     - `src/features/todo/README.md`
+     - `src/features/report/README.md`
+     - `src/api/README.md`
+   - 重写 `src/features/chat/README.md` 为同构模板（入口/接口/上游/下游/关联文档）。
+2. G2/L3（关键文件依赖头）
+   - 在以下关键文件新增 `DOC-DEPS` 头声明：
+     - `src/App.tsx`
+     - `src/api/client.ts`
+     - `src/store/use*Store.ts`（全部 7 个）
+     - `api/*.ts`（全部 7 个）
+3. G4/G5（脚本与命令）
+   - 新增 `scripts/check-doc-sync.mjs`，校验：
+     - 核心模块 README 存在性
+     - 关键文件 `DOC-DEPS` 声明存在性
+     - `docs/PROJECT_MAP.md` 核心路径覆盖
+   - `package.json` 新增 `lint:docs-sync`。
+   - `CONTRIBUTING.md` 新增“代码变更 -> 必改文档矩阵”与 `lint:docs-sync` 执行要求。
+4. G6/G7（规范与基线）
+   - `docs/CHANGELOG.md` 新增“Documentation Isomorphism Logging Rules”。
+   - `docs/PROJECT_MAP.md` 新增 Core Path Index，收敛核心路径术语。
+   - 对 `/chat`、`/todo`、`/report`、`/api/*`、`i18n` 完成文档路径抽查，确认可双向追溯。
+
+#### 验证结果
+
+- `npx tsc --noEmit` 通过 ✓
+- `npm run build` 通过 ✓
+- `npm run lint:docs-sync` 通过 ✓
+
+#### 任务看板变化
+
+- [x] G1, G2, G3, G4, G5, G6, G7 完成
+
+#### 风险与回滚点
+
+1. `lint:docs-sync` 当前为最小校验，后续新增关键模块时需同步扩充脚本清单。
+2. `DOC-DEPS` 头声明是可读性约束，不改变运行行为；如需回退可按文档与脚本提交独立回退。

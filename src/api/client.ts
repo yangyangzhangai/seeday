@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/api/README.md
 /**
  * 前端 API Client - 调用 Vercel Serverless Functions
  * 
