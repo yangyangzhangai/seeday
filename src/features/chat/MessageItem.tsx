@@ -22,6 +22,8 @@ interface MessageItemProps {
     onMoodPickerOpen: (msgId: string) => void;
     onStardustSelect: (data: StardustCardData, position: { x: number; y: number }) => void;
     onEndActivity: (id: string) => void;
+    isActionsExpanded: boolean;
+    onToggleActions: (id: string) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -36,6 +38,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     onMoodPickerOpen,
     onStardustSelect,
     onEndActivity,
+    isActionsExpanded,
+    onToggleActions,
 }) => {
     const { t } = useTranslation();
 
@@ -52,6 +56,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     };
 
     const stardust = getStardustByMessageId(msg.id);
+    const handleRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, input, textarea, select, [data-no-row-toggle="true"]')) {
+            return;
+        }
+        onToggleActions(msg.id);
+    };
+
     const renderStardust = () => stardust ? (
         <div className="mt-1">
             <StardustEmoji
@@ -76,7 +88,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
     if (msg.isMood) {
         return (
-            <div data-message-id={msg.id} className="group relative flex items-center justify-between bg-sky-200/70 p-2 rounded-lg transition-colors">
+            <div
+                data-message-id={msg.id}
+                className="group relative flex items-center justify-between bg-sky-200/70 p-2 rounded-lg transition-colors"
+                onClick={handleRowClick}
+            >
                 <div className="flex items-center space-x-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                     <div className="flex flex-col">
@@ -87,7 +103,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 <div className="text-right">
                     <div className="text-[10px] text-gray-500">{format(msg.timestamp, 'HH:mm')}</div>
                 </div>
-                <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1 bg-white/80 backdrop-blur-sm rounded p-1 shadow-sm border border-gray-100">
+                <div className={cn(
+                    'absolute right-2 top-2 space-x-1 bg-white/80 backdrop-blur-sm rounded p-1 shadow-sm border border-gray-100',
+                    isActionsExpanded ? 'flex' : 'hidden group-hover:flex'
+                )}>
                     <button onClick={() => onDelete(msg.id)} className="p-1 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={14} /></button>
                 </div>
             </div>
@@ -98,7 +117,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     const label = getMoodLabelForMsg();
     const moodKey = normalizeMoodKey(label);
     return (
-        <div data-message-id={msg.id} className="group relative flex items-start justify-between bg-white p-2 rounded-lg border border-gray-200 hover:border-blue-200 transition-colors">
+        <div
+            data-message-id={msg.id}
+            className="group relative flex items-start justify-between bg-white p-2 rounded-lg border border-gray-200 hover:border-blue-200 transition-colors"
+            onClick={handleRowClick}
+        >
             <div className="flex items-start space-x-2 flex-1 min-w-0">
                 <div
                     className="w-1.5 h-1.5 rounded-full"
@@ -170,7 +193,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                                 </div>
                             </div>
                         )}
-                        <div className="absolute -top-4 right-0 hidden group-hover/time:flex space-x-0.5 bg-white/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-gray-200">
+                        <div className={cn(
+                            'absolute -top-4 right-0 space-x-0.5 bg-white/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-gray-200',
+                            isActionsExpanded ? 'flex' : 'hidden group-hover:flex'
+                        )}>
                             <button onClick={() => onEditClick(msg)} className="p-0.5 text-gray-500 hover:text-blue-600" title={t('chat_title_edit')}><Edit2 size={12} /></button>
                             <button onClick={() => onInsertClick(msg)} className="p-0.5 text-gray-500 hover:text-green-600" title={t('chat_title_insert')}><Plus size={12} /></button>
                             <button onClick={() => onDelete(msg.id)} className="p-0.5 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={12} /></button>

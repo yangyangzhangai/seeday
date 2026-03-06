@@ -41,6 +41,7 @@ export const ChatPage = () => {
   const [moodPickerReadonly, setMoodPickerReadonly] = useState(false);
   const { t, i18n } = useTranslation();
   const [isMoodMode, setIsMoodMode] = useState(false);
+  const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
 
   const customLabelDefault = t('chat_custom_label_default');
   const isDefaultCustomLabel = (label: string) => !label || label === customLabelDefault || label === '自定义';
@@ -358,6 +359,10 @@ export const ChatPage = () => {
                   }}
                   onStardustSelect={(data, position) => setSelectedStardust({ data, position })}
                   onEndActivity={endActivity}
+                  isActionsExpanded={expandedActionsId === msg.id}
+                  onToggleActions={(id) => {
+                    setExpandedActionsId(prev => (prev === id ? null : id));
+                  }}
                 />
               </div>
             </Fragment>
