@@ -8,6 +8,22 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-06 (续) — Git Hook 自动拦截
+
+### Added
+
+- Added `scripts/check-secrets.mjs`: scans staged files for hardcoded keys/tokens (patterns: `sk-`, `cpk_`, Bearer, Supabase service role). Registered as `npm run lint:secrets`.
+- Added `scripts/pre-commit.mjs`: pre-commit hook entry point, runs 4 checks in fast-fail order (secrets → max-lines → doc-sync → tsc).
+- Added `scripts/install-hooks.mjs`: installs hook scripts into `.git/hooks/`, auto-runs via `npm run prepare`.
+- Added `npm run lint:all`: shortcut running all 4 quality checks.
+- Added `npm run prepare`: auto-installs git hooks on `npm install`.
+- `LLM.md` expanded into full AI onboarding guide: session SOP (3-step), coding rules, loop checks, doc-sync matrix, prohibited items, and related-doc table.
+
+### Doc-sync impact
+
+- `scripts/` directory: 3 new files, no existing paths changed → `check-doc-sync` scope unaffected.
+- `package.json` scripts block changed → no README update required (no API/store/route changes).
+
 ## 2026-03-06
 
 ### Added
