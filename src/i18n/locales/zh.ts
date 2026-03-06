@@ -186,8 +186,9 @@ const zh: TranslationKeys = {
 
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',
+    previous_day_summary: '{{date}} 你记录了 {{count}} 件事',
     yesterday_last_activity: '最后在做：{{content}}',
-    yesterday_tap_to_view: '点击或上滑查看昨天的记录',
+    yesterday_tap_to_view: '点击查看该日记录',
     new_day_start: '新的一天，从一条记录开始',
     record_what_you_do: '记录你正在做的事情',
 };

@@ -184,8 +184,9 @@ const en = {
 
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',
+    previous_day_summary: 'On {{date}}, you logged {{count}} entries',
     yesterday_last_activity: 'Last activity: {{content}}',
-    yesterday_tap_to_view: "Tap or swipe up to see yesterday's entries",
+    yesterday_tap_to_view: 'Tap to view that day\'s entries',
     new_day_start: 'Start your day with a new record',
     record_what_you_do: "Record what you're doing",
 } as const;

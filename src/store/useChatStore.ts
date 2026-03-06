@@ -30,6 +30,10 @@ export interface Message {
 interface YesterdaySummary {
   count: number;
   lastContent: string;
+  dateStr: string;
+  dateStartMs: number;
+  dateEndMs: number;
+  isYesterday: boolean;
 }
 
 interface ChatState {
@@ -95,7 +99,7 @@ export const useChatStore = create<ChatState>()(
           // Calculate yesterday's 00:00
           const yesterdayStart = new Date(todayStart);
           yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-          const yesterdayStartMs = yesterdayStart.getTime();
+          const yesterdayStr = getLocalDateString(yesterdayStart);
 
           // Fetch today's messages
           const { data: todayData, error: todayError } = await supabase
@@ -107,33 +111,58 @@ export const useChatStore = create<ChatState>()(
 
           if (todayError) throw todayError;
 
-          // Fetch yesterday's messages (for summary)
-          const { data: yesterdayData, error: yesterdayError } = await supabase
+          // Find the latest message before today, then summarize that whole day
+          const { data: latestBeforeToday, error: latestBeforeTodayError } = await supabase
             .from('messages')
             .select('*')
             .eq('user_id', session.user.id)
-            .gte('timestamp', yesterdayStartMs)
             .lt('timestamp', todayStartMs)
-            .order('timestamp', { ascending: true });
+            .order('timestamp', { ascending: false })
+            .limit(1);
 
-          if (yesterdayError) throw yesterdayError;
+          if (latestBeforeTodayError) throw latestBeforeTodayError;
 
           const messages = (todayData || []).map(mapDbRowToMessage);
 
-          // Build yesterday summary
+          // Build previous-day summary (the latest day before today that has records)
           let yesterdaySummary: YesterdaySummary | null = null;
-          if (yesterdayData && yesterdayData.length > 0) {
-            const lastYesterday = yesterdayData[yesterdayData.length - 1];
+          if (latestBeforeToday && latestBeforeToday.length > 0) {
+            const latest = latestBeforeToday[0];
+            const targetDate = new Date(latest.timestamp);
+            targetDate.setHours(0, 0, 0, 0);
+            const targetDateStartMs = targetDate.getTime();
+            const targetDateEnd = new Date(targetDate);
+            targetDateEnd.setDate(targetDateEnd.getDate() + 1);
+            const targetDateEndMs = targetDateEnd.getTime();
+            const targetDateStr = getLocalDateString(targetDate);
+
+            const { data: previousDayData, error: previousDayError } = await supabase
+              .from('messages')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .gte('timestamp', targetDateStartMs)
+              .lt('timestamp', targetDateEndMs)
+              .order('timestamp', { ascending: true });
+
+            if (previousDayError) throw previousDayError;
+
+            const safePreviousDayData = previousDayData || [];
+            const lastPreviousDay = safePreviousDayData[safePreviousDayData.length - 1] || latest;
+
             yesterdaySummary = {
-              count: yesterdayData.length,
-              lastContent: lastYesterday.content,
+              count: safePreviousDayData.length,
+              lastContent: lastPreviousDay.content,
+              dateStr: targetDateStr,
+              dateStartMs: targetDateStartMs,
+              dateEndMs: targetDateEndMs,
+              isYesterday: targetDateStr === yesterdayStr,
             };
           }
 
           set({
             messages,
             oldestLoadedDate: todayStr,
-            hasMoreHistory: true,
+            hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
           });
@@ -146,28 +175,21 @@ export const useChatStore = create<ChatState>()(
 
       fetchOlderMessages: async () => {
         const state = get();
-        if (state.isLoadingMore || !state.hasMoreHistory || !state.oldestLoadedDate) return;
+        if (state.isLoadingMore || !state.hasMoreHistory || !state.yesterdaySummary) return;
 
         const session = await getSupabaseSession();
         if (!session) return;
 
         set({ isLoadingMore: true });
         try {
-          // Calculate the day before oldestLoadedDate
-          const oldestDate = new Date(state.oldestLoadedDate + 'T00:00:00');
-          const prevDayStart = new Date(oldestDate);
-          prevDayStart.setDate(prevDayStart.getDate() - 1);
-          prevDayStart.setHours(0, 0, 0, 0);
-          const prevDayStartMs = prevDayStart.getTime();
-          const oldestDateMs = oldestDate.getTime();
-          const prevDayStr = getLocalDateString(prevDayStart);
+          const { dateStartMs, dateEndMs, dateStr } = state.yesterdaySummary;
 
           const { data, error } = await supabase
             .from('messages')
             .select('*')
             .eq('user_id', session.user.id)
-            .gte('timestamp', prevDayStartMs)
-            .lt('timestamp', oldestDateMs)
+            .gte('timestamp', dateStartMs)
+            .lt('timestamp', dateEndMs)
             .order('timestamp', { ascending: true });
 
           if (error) throw error;
@@ -176,8 +198,9 @@ export const useChatStore = create<ChatState>()(
 
           set(state => ({
             messages: [...olderMessages, ...state.messages],
-            oldestLoadedDate: prevDayStr,
-            hasMoreHistory: olderMessages.length > 0,
+            oldestLoadedDate: dateStr,
+            hasMoreHistory: false,
+            yesterdaySummary: null,
           }));
         } catch (error) {
           console.error('Error fetching older messages:', error);

@@ -32,7 +32,6 @@ export const ChatPage = () => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const topSentinelRef = useRef<HTMLDivElement>(null);
   const [currentDuration, setCurrentDuration] = useState(0);
   const [moodPickerFor, setMoodPickerFor] = useState<string | null>(null);
   const [customMoodInput, setCustomMoodInput] = useState('');
@@ -126,7 +125,7 @@ export const ChatPage = () => {
     };
   }, [checkAndRefreshForNewDay]);
 
-  // ── 上滑加载更多 (IntersectionObserver) ─────────────────────
+  // ── 点击卡片加载上一天记录（仅一次） ───────────────────────
   const handleLoadMore = useCallback(async () => {
     const container = scrollContainerRef.current;
     if (!container || !hasMoreHistory || isLoadingMore) return;
@@ -139,22 +138,6 @@ export const ChatPage = () => {
       container.scrollTop += newScrollHeight - prevScrollHeight;
     });
   }, [hasMoreHistory, isLoadingMore, fetchOlderMessages]);
-
-  useEffect(() => {
-    const sentinel = topSentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreHistory && !isLoadingMore) {
-          handleLoadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [handleLoadMore, hasMoreHistory, isLoadingMore]);
 
   // ── 新消息滚动到底部 ────────────────────────────────────────
   useEffect(() => {
@@ -290,8 +273,6 @@ export const ChatPage = () => {
 
       {/* Messages Area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div ref={topSentinelRef} className="h-1" />
-
         {isLoadingMore && (
           <div className="flex items-center justify-center py-3 gap-2 text-gray-400 text-sm">
             <Loader2 size={16} className="animate-spin" />
@@ -313,7 +294,12 @@ export const ChatPage = () => {
             <div className="text-2xl mt-0.5">🌙</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-indigo-800">
-                {t('yesterday_summary', { count: yesterdaySummary.count })}
+                {yesterdaySummary.isYesterday
+                  ? t('yesterday_summary', { count: yesterdaySummary.count })
+                  : t('previous_day_summary', {
+                      date: getDateLabel(yesterdaySummary.dateStartMs),
+                      count: yesterdaySummary.count,
+                    })}
               </p>
               <p className="text-xs text-indigo-500 mt-0.5 truncate">
                 {t('yesterday_last_activity', { content: yesterdaySummary.lastContent })}

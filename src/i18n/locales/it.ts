@@ -186,8 +186,9 @@ const it: TranslationKeys = {
 
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',
+    previous_day_summary: 'Il {{date}} hai registrato {{count}} attività',
     yesterday_last_activity: 'Ultima attività: {{content}}',
-    yesterday_tap_to_view: 'Tocca o scorri verso l\'alto per vedere i record di ieri',
+    yesterday_tap_to_view: 'Tocca per vedere i record di quel giorno',
     new_day_start: 'Inizia la tua giornata con un nuovo record',
     record_what_you_do: 'Registra ciò che stai facendo',
 };
