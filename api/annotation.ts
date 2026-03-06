@@ -463,7 +463,7 @@ function getDefaultAnnotations(lang: string): Record<string, { content: string; 
 }
 
 function getModel(lang: string): string {
-  if (lang === 'zh') return 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE';
+  if (lang === 'zh') return 'deepseek-ai/DeepSeek-V3';
   return 'openai/gpt-oss-120b-TEE';
 }
 
@@ -626,7 +626,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: lang === 'zh' ? 0.9 : 0.8,
+      temperature: lang === 'zh' ? 0.75 : 0.8,
       // gpt-oss 推理 token 占比高，给 EN/IT 更高 completion 上限，避免只产出 reasoning 不产出最终正文
       max_tokens: lang === 'zh' ? 180 : 480,
       stream: false,
