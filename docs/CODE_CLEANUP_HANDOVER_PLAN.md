@@ -444,10 +444,10 @@ docs/                 # 架构与交接文档
 - [x] H2: **[P0]** 新建 `scripts/pre-commit.mjs` pre-commit hook 入口（串联 4 项检查）
 - [x] H3: **[P0]** 新建 `scripts/install-hooks.mjs` + `npm run prepare` 自动安装 hook
 - [x] H4: **[P0]** `LLM.md` 升级为完整 AI Session SOP（启动步骤、编码规范、回环检查、文档同步矩阵）
-- [ ] H5: **[P1]** 给 `api/annotation.ts`（当前 700 行，接近 800 上限）瘦身 → 提取 `annotation-prompts.ts`(prompt 模板) 
-- [ ] H6: **[P1]** `useChatStore.ts` 继续瘦身（当前 552 行）→ 提取 `insertActivity`（含碰撞处理 ~90 行）到 `chatActions.ts`，目标降至 ~460 行
-- [ ] H7: **[P2]** 检查并清理未使用的重型依赖（`cannon-es`、`matter-js`、`three`），确认实际使用后决定保留或移除以减小 bundle
-- [ ] H8: **[P3]** 新建 commit-msg hook 脚本，规范提交消息格式（可选）
+- [x] H5: **[P1]** 给 `api/annotation.ts`（当前 700 行，接近 800 上限）瘦身 → 提取 `annotation-prompts.ts`(prompt 模板)
+- [x] H6: **[P1]** `useChatStore.ts` 继续瘦身（当前 552 行）→ 提取 `insertActivity`（含碰撞处理 ~90 行）到 `chatActions.ts`，目标降至 ~460 行
+- [x] H7: **[P2]** 检查并清理未使用的重型依赖（`cannon-es`、`matter-js`、`three`），确认实际使用后决定保留或移除以减小 bundle
+- [ ] H8: **[停止执行/用户决定不启用]** commit-msg hook（提交消息格式校验）
 
 ### Phase H 验收标准
 
@@ -1740,3 +1740,23 @@ docs/                 # 架构与交接文档
   4. Hook 安装并验证通过
 - 待执行: H5（拆分 annotation.ts）、H6（useChatStore 瘦身）、H7（依赖清理）、H8（commit-msg hook）
 - 验证结果: `pre-commit.mjs` ✅、`lint:all` ✅、`git commit` 自动触发 ✅
+
+### 2026-03-07 — Phase H H5/H6/H7 落地（annotation 拆分 + chat store 瘦身 + 依赖清理）
+
+- 变更来源: 用户指令“C12/C13 不纳入今日范围，开始执行”
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. H5: 拆分 `api/annotation.ts`：新增 `api/annotation-prompts.ts` 承载 prompt 模板与默认批注；新增 `api/annotation-handler.ts` 承载 handler 逻辑；`api/annotation.ts` 收敛为路由入口转发（2 行）
+  2. H6: `useChatStore.ts` 提取 `insertActivity` 碰撞处理与持久化逻辑到 `src/store/chatActions.ts`（`buildInsertedActivityResult`、`persistInsertedActivityResult`），并进一步提取 `updateMessageDuration` 相关逻辑（`buildMessageDurationUpdate`、`persistMessageDurationUpdate`）
+  3. H7: 清理未使用重依赖：移除 `cannon-es`、`matter-js`、`three` 与 `@types/matter-js`，同步更新 `package-lock.json`
+- 产出状态:
+  - `api/annotation.ts`: 700+ 行 -> 2 行入口（目标达成）
+  - `src/store/useChatStore.ts`: 552 行 -> 464 行（达成验收阈值 ≤470）
+  - `src/store/chatActions.ts`: 115 行 -> 250 行（承接 store 下沉逻辑）
+- 验证结果:
+  - `npm run lint:max-lines` ✅（告警可接受）
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+- 状态调整: H8 停止执行（用户决定不启用 commit-msg hook）

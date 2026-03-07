@@ -4,13 +4,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
-import { toDbMessage } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
-import { closePreviousActivity, persistMessageToSupabase, triggerMoodDetection, handleAIChatResponse } from './chatActions';
+import {
+  buildInsertedActivityResult,
+  buildMessageDurationUpdate,
+  closePreviousActivity,
+  handleAIChatResponse,
+  persistInsertedActivityResult,
+  persistMessageDurationUpdate,
+  persistMessageToSupabase,
+  triggerMoodDetection,
+} from './chatActions';
 
 export type MessageType = 'text' | 'system' | 'ai';
 
@@ -19,13 +27,12 @@ export interface Message {
   content: string;
   timestamp: number;
   type: MessageType;
-  duration?: number; // Duration in minutes since THIS activity started until the next one
-  activityType?: string; // AI classified type
-  mode?: 'chat' | 'record'; // Distinguish between chat and record modes
-  isMood?: boolean; // Whether this is a mood record
-  // 星尘珍藏关联字段
-  stardustId?: string; // 关联的珍藏ID
-  stardustEmoji?: string; // 珍藏的Emoji字符（本地展示用，避免频繁查询store）
+  duration?: number;
+  activityType?: string;
+  mode?: 'chat' | 'record';
+  isMood?: boolean;
+  stardustId?: string;
+  stardustEmoji?: string;
 }
 
 interface YesterdaySummary {
@@ -44,12 +51,11 @@ interface ChatState {
   isMoodMode: boolean;
   isLoading: boolean;
   hasInitialized: boolean;
-  // Day-based loading state
-  oldestLoadedDate: string | null; // YYYY-MM-DD of the earliest loaded day
+  oldestLoadedDate: string | null;
   hasMoreHistory: boolean;
   isLoadingMore: boolean;
   yesterdaySummary: YesterdaySummary | null;
-  currentDateStr: string | null; // YYYY-MM-DD of "today" when messages were loaded
+  currentDateStr: string | null;
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: () => Promise<void>;
   checkAndRefreshForNewDay: () => void;
@@ -75,7 +81,6 @@ export const useChatStore = create<ChatState>()(
       isMoodMode: false,
       isLoading: false,
       hasInitialized: false,
-      // Day-based loading state
       oldestLoadedDate: null,
       hasMoreHistory: true,
       isLoadingMore: false,
@@ -91,18 +96,15 @@ export const useChatStore = create<ChatState>()(
 
         set({ isLoading: true });
         try {
-          // Calculate today's 00:00 in local timezone
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const todayStartMs = todayStart.getTime();
           const todayStr = getLocalDateString(todayStart);
 
-          // Calculate yesterday's 00:00
           const yesterdayStart = new Date(todayStart);
           yesterdayStart.setDate(yesterdayStart.getDate() - 1);
           const yesterdayStr = getLocalDateString(yesterdayStart);
 
-          // Fetch today's messages
           const { data: todayData, error: todayError } = await supabase
             .from('messages')
             .select('*')
@@ -112,7 +114,6 @@ export const useChatStore = create<ChatState>()(
 
           if (todayError) throw todayError;
 
-          // Find the latest message before today, then summarize that whole day
           const { data: latestBeforeToday, error: latestBeforeTodayError } = await supabase
             .from('messages')
             .select('*')
@@ -125,7 +126,6 @@ export const useChatStore = create<ChatState>()(
 
           const messages = (todayData || []).map(mapDbRowToMessage);
 
-          // Build previous-day summary (the latest day before today that has records)
           let yesterdaySummary: YesterdaySummary | null = null;
           if (latestBeforeToday && latestBeforeToday.length > 0) {
             const latest = latestBeforeToday[0];
@@ -213,7 +213,6 @@ export const useChatStore = create<ChatState>()(
       checkAndRefreshForNewDay: () => {
         const state = get();
         const todayStr = getLocalDateString(new Date());
-        // If the stored date differs from actual today, we crossed midnight
         if (state.currentDateStr && state.currentDateStr !== todayStr) {
           console.log('[DayRefresh] Midnight crossed, refreshing messages...');
           state.fetchMessages();
@@ -223,11 +222,9 @@ export const useChatStore = create<ChatState>()(
       sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record') => {
         const now = customTimestamp ?? Date.now();
         const state = get();
-        // 使用强制指定的 mode，如果没有则使用当前 state 的 mode
         const effectiveMode = forcedMode ?? state.mode;
         let updatedMessages = [...state.messages];
 
-        // If in record mode, find the last activity to update its duration
         if (effectiveMode === 'record') {
           updatedMessages = await closePreviousActivity(updatedMessages, now);
         }
@@ -243,7 +240,6 @@ export const useChatStore = create<ChatState>()(
 
         updatedMessages.push(newMessage);
 
-        // Update state immediately (Optimistic)
         set({
           messages: updatedMessages,
           lastActivityTime: effectiveMode === 'record' ? now : state.lastActivityTime
@@ -253,7 +249,6 @@ export const useChatStore = create<ChatState>()(
           void triggerMoodDetection(newMessage.id, content);
         }
 
-        // Persist to Supabase if logged in
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
@@ -263,7 +258,6 @@ export const useChatStore = create<ChatState>()(
         if (effectiveMode === 'record') {
           const annotationStore = useAnnotationStore.getState();
 
-          // 检查上一个活动是否完成（有 duration）
           let lastRecordIndex = -1;
           for (let i = updatedMessages.length - 1; i >= 0; i--) {
             const m = updatedMessages[i];
@@ -273,7 +267,6 @@ export const useChatStore = create<ChatState>()(
             }
           }
 
-          // 触发新活动记录批注
           const recordEvent: AnnotationEvent = {
             type: 'activity_recorded',
             timestamp: Date.now(),
@@ -285,7 +278,6 @@ export const useChatStore = create<ChatState>()(
           annotationStore.triggerAnnotation(recordEvent).catch(console.error);
         }
 
-        // AI Response Logic
         if (effectiveMode === 'chat') {
           const aiMessage = await handleAIChatResponse(updatedMessages, session?.user.id);
           set((currentState) => ({ messages: [...currentState.messages, aiMessage] }));
@@ -293,88 +285,19 @@ export const useChatStore = create<ChatState>()(
       },
 
       insertActivity: async (prevId, nextId, content, startTime, endTime) => {
-        const newMessage: Message = {
-          id: uuidv4(),
-          content,
-          timestamp: startTime,
-          type: 'text',
-          duration: Math.round((endTime - startTime) / (1000 * 60)),
-          activityType: '待分类',
-          mode: 'record'
-        };
-
         const state = get();
-
-        const messagesToInsert: Message[] = [newMessage];
-        const messagesToUpdate: Message[] = [];
-
-        let currentMessages = state.messages.map(m => {
-          if (m.mode !== 'record') return m;
-
-          const mStart = m.timestamp;
-          const mDuration = m.duration || 0;
-          const mEnd = mStart + mDuration * 60 * 1000;
-
-          if (mStart < endTime && mEnd > startTime) {
-
-            // Case 1: Split (New inside Old)
-            if (mStart < startTime && mEnd > endTime) {
-              const tailDuration = Math.round((mEnd - endTime) / (1000 * 60));
-              const tailMessage: Message = {
-                ...m,
-                id: uuidv4(),
-                timestamp: endTime,
-                duration: tailDuration
-              };
-              messagesToInsert.push(tailMessage);
-
-              const headDuration = Math.round((startTime - mStart) / (1000 * 60));
-              const updatedHead = { ...m, duration: headDuration };
-
-              messagesToUpdate.push(updatedHead);
-              return updatedHead;
-            }
-
-            // Case 2: Start Collision (Push Back)
-            if (Math.abs(mStart - startTime) < 1000) {
-              const updatedStart = endTime;
-              const updatedDuration = Math.max(0, Math.round((mEnd - updatedStart) / (1000 * 60)));
-              const updatedMsg = { ...m, timestamp: updatedStart, duration: updatedDuration };
-              messagesToUpdate.push(updatedMsg);
-              return updatedMsg;
-            }
-
-            // Case 3: End Collision (Truncate)
-            if (mStart < startTime) {
-              const updatedDuration = Math.max(0, Math.round((startTime - mStart) / (1000 * 60)));
-              if (updatedDuration !== mDuration) {
-                const updatedMsg = { ...m, duration: updatedDuration };
-                messagesToUpdate.push(updatedMsg);
-                return updatedMsg;
-              }
-            }
-          }
-          return m;
-        });
-
-        const finalMessages = [...currentMessages, ...messagesToInsert].sort((a, b) => a.timestamp - b.timestamp);
+        const { finalMessages, messagesToInsert, messagesToUpdate } = buildInsertedActivityResult(
+          state.messages,
+          content,
+          startTime,
+          endTime,
+        );
 
         set({ messages: finalMessages });
 
         const session = await getSupabaseSession();
         if (session) {
-          const insertPayload = messagesToInsert.map((msg) => toDbMessage(msg, session.user.id));
-
-          if (insertPayload.length > 0) {
-            await supabase.from('messages').insert(insertPayload);
-          }
-
-          for (const msg of messagesToUpdate) {
-            await supabase.from('messages').update({
-              timestamp: msg.timestamp,
-              duration: msg.duration
-            }).eq('id', msg.id).eq('user_id', session.user.id);
-          }
+          await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
         }
       },
 
@@ -434,35 +357,26 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      // 更新特定消息的 duration（用于待办完成后同步耗时）
       updateMessageDuration: async (content: string, timestamp: number, duration: number) => {
         const state = get();
 
-        // 查找匹配的消息（相同内容、相同时间戳、记录模式）
-        const messageIndex = state.messages.findIndex(m =>
-          m.mode === 'record' &&
-          m.content === content &&
-          Math.abs(m.timestamp - timestamp) < 1000 // 时间戳相差小于1秒视为同一条
+        const { updatedMessages, targetMessage } = buildMessageDurationUpdate(
+          state.messages,
+          content,
+          timestamp,
+          duration,
         );
 
-        if (messageIndex === -1) {
+        if (!targetMessage) {
           console.log('[DEBUG] 未找到匹配的消息:', content, timestamp);
           return;
         }
 
-        const targetMessage = state.messages[messageIndex];
+        set({ messages: updatedMessages });
 
-        // 更新本地状态
-        set(state => ({
-          messages: state.messages.map((m, idx) =>
-            idx === messageIndex ? { ...m, duration } : m
-          )
-        }));
-
-        // 同步到 Supabase
         const session = await getSupabaseSession();
         if (session) {
-          await supabase.from('messages').update({ duration }).eq('id', targetMessage.id).eq('user_id', session.user.id);
+          await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
 
         console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
@@ -502,7 +416,6 @@ export const useChatStore = create<ChatState>()(
           void triggerMoodDetection(latestActivity.id, content);
         }
 
-        // 触发心情记录批注
         const annotationStore = useAnnotationStore.getState();
         const moodEvent: AnnotationEvent = {
           type: 'mood_recorded',
@@ -514,7 +427,6 @@ export const useChatStore = create<ChatState>()(
         };
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
 
-        // Persist to Supabase if logged in
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id, true);

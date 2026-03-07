@@ -27,6 +27,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Changes in request/response contracts affect all feature modules
 - Error-shape changes can break store fallback handling
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
+- `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `api/annotation-handler.ts`, `api/annotation-prompts.ts`)
 
 ## Related Docs
 

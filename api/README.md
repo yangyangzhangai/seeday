@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | `/api/chat` | `chat.ts` | `{ content, model, usage? }` |
 | `/api/report` | `report.ts` | `{ content }` |
-| `/api/annotation` | `annotation.ts` | `{ content, tone, displayDuration, source, reason? }` |
+| `/api/annotation` | `annotation.ts` (entry) + `annotation-handler.ts` + `annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
 | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
