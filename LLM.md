@@ -8,11 +8,12 @@
 
 ### Step 1 — 全局层（L1，必读，每次都要读）
 
-依次读取以下 3 个文件，建立全局上下文：
+依次读取以下 4 个文件，建立全局上下文：
 
 1. **本文件 `LLM.md`**：权威顺序、硬性约束、禁止事项（正在读）
 2. **`docs/CURRENT_TASK.md`**：当前任务焦点与断点恢复锚点
 3. **`docs/PROJECT_MAP.md`**：目录结构、边界、核心路径
+4. **`docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范（技术栈、分层架构、移动端 UI、App Store 审核规避）
 
 ### Step 2 — 模块层（L2，按任务选读）
 
@@ -117,6 +118,7 @@ npm run build                   # 构建验证（关键改动后执行）
 |------|------|
 | `docs/CURRENT_TASK.md` | 当前任务焦点，新会话从这里恢复断点 |
 | `docs/PROJECT_MAP.md` | 目录职责、核心边界、核心路径索引 |
+| `docs/TSHINE_DEV_SPEC.md` | **iOS 开发规范**（技术栈、分层架构、移动端 UI、App Store 审核规避）|
 | `docs/CODE_CLEANUP_HANDOVER_PLAN.md` | 执行主线看板（Phase A-G）+ 交接历史日志 |
 | `docs/CHANGELOG.md` | 变更记录，每 PR 更新一次 |
 | `docs/ARCHITECTURE.md` | 架构说明（真实实现，非愿景） |

@@ -1,6 +1,6 @@
 ﻿# Tshine 代码整理交接计划
 
-- 文档版本: v1.5
+- 文档版本: v1.6
 - 创建日期: 2026-03-03
 - 适用范围: `Tshine2-13-mainc` 全仓
 - 目标: 在不重写项目的前提下，完成安全清理、文档同构、结构拆分与可维护性提升
@@ -464,6 +464,54 @@ docs/                 # 架构与交接文档
 4. `npm run lint:all` 通过。
 5. 冒烟验证通过（`/chat`、`/todo`、`/report` 关键路径可用）。
 
+### Phase I: iOS 上架合规审计（2026-03-07 TSHINE_DEV_SPEC 对照审计）
+
+> 来源：2026-03-07 代码审计报告 `docs/CODE_AUDIT_VS_DEV_SPEC.md`，对照 `docs/TSHINE_DEV_SPEC.md` v1.2
+
+#### 分层架构（P0，功能大改时同步重构）
+- [ ] I1: **[P0]** 创建 `src/api/repositories/`（`messageRepo.ts`, `todoRepo.ts`, `reportRepo.ts`, `stardustRepo.ts`, `annotationRepo.ts`），将 Store 中 50+ 处直接 Supabase 调用封装其中
+- [ ] I2: **[P0]** 创建 `src/services/` 业务逻辑层（`chatService.ts`, `todoService.ts`, `reportService.ts`），从 Store 提取业务逻辑
+- [ ] I3: **[P1]** 瘦身 `useChatStore.ts`（15.5KB ~430 行）— 借助 I1/I2 自然减少
+
+#### 移动端 UI（P0-P1，可与 UI 美化同步）
+- [ ] I4: **[P0]** 46 处 `hover:` 添加配套 `active:` 触控反馈（优先：`TodoItem` 7处、`AuthPage` 6处、`Header` 5处）
+- [ ] I5: **[P1]** `Header.tsx` 添加 `safe-area-inset-top`
+- [ ] I6: **[P1]** `BottomNav.tsx` 添加 `safe-area-inset-bottom`
+- [ ] I7: **[P1]** `index.css` 全局添加 `user-select: none`（输入框/textarea 例外）
+- [ ] I8: **[P2]** `ReportStatsView.tsx` `group-hover:` tooltip 改为 touch/click 触发
+
+#### Capacitor 就绪（P0-P1）
+- [ ] I9: **[P0]** `App.tsx` `BrowserRouter` -> `MemoryRouter`
+- [ ] I10: **[P0]** 创建 `src/services/native/storageService.ts`（Zustand persist 用 `@capacitor/preferences` 适配器替代 localStorage）
+- [ ] I11: **[P1]** `App.tsx` `document.visibilitychange` -> `@capacitor/app` 的 `appStateChange`
+- [ ] I12: **[P1]** `App.tsx` `window.dispatchEvent(CustomEvent)` -> Zustand 事件或直接 store 调用
+- [ ] I13: **[P2]** `TodoItem.tsx` `window.addEventListener('resize')` -> ResizeObserver 或响应式 CSS
+
+#### App Store 审核合规（P1-P2）
+- [ ] I14: **[P1]** 添加离线检测 + 离线提示 UI（断网不白屏）
+- [ ] I15: **[P1]** 实现 App 内账号删除功能（设置页"删除账号"按钮 + Supabase Auth deleteUser）
+- [ ] I16: **[P1]** 创建隐私政策页面（App 内可访问 + URL 供 App Store Connect）
+- [ ] I17: **[P2]** 添加骨架屏加载状态（替代无反馈加载）
+
+#### 代码质量（P1，已有部分在 C13/F20 但未执行）
+- [ ] I18: **[P1]** 清理 50+ 处裸露 `console.log/error`（含 11 处 `[DEBUG]` 日志），用 `import.meta.env.DEV &&` 保护
+- [ ] I19: **[P2]** 跨 Store 调用（`useTodoStore` -> `useAnnotationStore.triggerAnnotation()`）改为通过 services 层协调
+
+### Phase I 验收标准
+
+1. Store 文件中不再直接 import `supabase`（I1 完成后）。
+2. 所有 `hover:` 均有配套 `active:`（I4 完成后）。
+3. `BrowserRouter` 已替换（I9 完成后）。
+4. Zustand persist 不使用 localStorage（I10 完成后）。
+5. `npx tsc --noEmit`、`npm run build` 通过。
+
+### Phase I DoD（完成定义）
+
+1. I1-I19 全部勾选完成或标记为不执行。
+2. `npx tsc --noEmit` 通过。
+3. `npm run build` 通过。
+4. 冒烟验证通过（`/chat`、`/todo`、`/report` 关键路径可用）。
+
 ## 5. 每阶段统一验证清单
 
 1. `npx tsc --noEmit`
@@ -642,6 +690,19 @@ docs/                 # 架构与交接文档
    - PR-12D（P2）：依赖清理 `cannon-es`/`matter-js`/`three`（H7）
    - PR-12E（P3，可选）：commit-msg hook（H8）
 3. 验收：`npm run lint:all`、`npm run build`、冒烟测试通过。
+4. 回滚点：按子 PR 独立回退。
+
+### PR-13 iOS 上架合规改造（2026-03-07 TSHINE_DEV_SPEC 审计对齐）
+
+1. 范围：按 Phase I 执行上架合规改造（I1-I19）。
+2. 推荐拆分（建议与功能大改同步执行）：
+   - PR-13A（P0）：分层架构 -- 创建 `api/repositories/` + `services/`，将 Supabase 调用从 Store 移出（I1/I2/I3）
+   - PR-13B（P0）：Capacitor 核心 -- `BrowserRouter` -> `MemoryRouter` + `storageService.ts`（I9/I10）
+   - PR-13C（P0/P1）：移动端 UI -- 46 处 `hover:` + `active:` + 安全区域 + `user-select: none`（I4/I5/I6/I7/I8）
+   - PR-13D（P1）：App Store 合规 -- 离线检测 + 账号删除 + 隐私政策（I14/I15/I16）
+   - PR-13E（P1）：Web->Capacitor API -- `visibilitychange` + `CustomEvent` + `resize`（I11/I12/I13）
+   - PR-13F（P1/P2）：代码质量 -- console.log 清理 + 骨架屏 + 跨 Store 解耦（I17/I18/I19）
+3. 验收：`npx tsc --noEmit`、`npm run build`、冒烟测试通过、Store 中不直接 import supabase。
 4. 回滚点：按子 PR 独立回退。
 
 ## 8. 交接日志（持续追加）
@@ -1760,3 +1821,17 @@ docs/                 # 架构与交接文档
   - `npx tsc --noEmit` ✅
   - `npm run build` ✅
 - 状态调整: H8 停止执行（用户决定不启用 commit-msg hook）
+
+### 2026-03-07 (续) — TSHINE_DEV_SPEC 对照审计 + Dev Spec v1.2 更新
+
+- 变更来源: 用户指令"审计现有代码是否符合 TSHINE_DEV_SPEC.md 规范"
+- 执行人: AI (Antigravity)
+- 已完成:
+  1. 对照 `TSHINE_DEV_SPEC.md` 审计全部 `src/` 代码，产出审计报告 `docs/CODE_AUDIT_VS_DEV_SPEC.md`
+  2. 发现 19 个问题（5 严重 / 10 中等 / 4 低），分 6 大类：分层架构违规、移动端 UI 违规、App Store 审核风险、Capacitor 就绪度、代码质量、Web-only API 使用
+  3. `TSHINE_DEV_SPEC.md` 升级到 v1.2：补充 WKWebView localStorage 风险、capacitorStorage 适配器、平台检测工具、capacitor.config.ts 配置、Vercel->Edge Functions 迁移清单、Apple 官方审核指南 8 条关键条款（2.5.1/2.5.2/2.3.1(a)/Privacy Manifests 等）、红线从 8 条扩充至 17 条
+  4. 审计问题纳入本交接计划 Phase I（I1-I19）+ PR-13 执行计划
+- 新增文件: `docs/CODE_AUDIT_VS_DEV_SPEC.md`
+- 修改文件: `docs/TSHINE_DEV_SPEC.md`(v1.0->v1.2), `docs/CODE_CLEANUP_HANDOVER_PLAN.md`(v1.5->v1.6), `LLM.md`, `PROJECT_CONTEXT.md`
+- 待执行: Phase I 全部任务（I1-I19），建议与功能大改同步进行
+

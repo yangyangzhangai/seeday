@@ -86,6 +86,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 ## 9. 接手建议
 
-1. 先读 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 任务看板与交接日志。
-2. 再看 `README.md` 与 `docs/ARCHITECTURE.md` 建立运行/分层认知。
-3. 开发时遵守单主题提交，改动后至少执行 `npx tsc --noEmit` 与 `npm run build`。
+1. **先读 `docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范，包含技术栈、分层架构、移动端 UI 规则、App Store 审核风险规避。
+2. 再读 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 任务看板与交接日志。
+3. 再看 `README.md` 与 `docs/ARCHITECTURE.md` 建立运行/分层认知。
+4. 开发时遵守单主题提交，改动后至少执行 `npx tsc --noEmit` 与 `npm run build`。
