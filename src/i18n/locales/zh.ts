@@ -34,6 +34,7 @@ const zh: TranslationKeys = {
     chat_current_activity: '正在进行: ',
     chat_placeholder_mood: '记录当前心情（如激动）... 点击爱心切换成活动记录',
     chat_placeholder_activity: '记录当前活动 (如: 吃饭)... 点击爱心切换成心情记录',
+    chat_placeholder_neutral: '写下你现在的状态，或你正在做的事',
     chat_switch_to_activity: '切换到活动模式',
     chat_switch_to_mood: '切换到心情模式',
     chat_confirm_delete: '确定要删除这条记录吗？',

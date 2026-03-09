@@ -32,6 +32,7 @@ const en = {
     chat_current_activity: 'Tracking: ',
     chat_placeholder_mood: 'Log your mood (e.g., excited)… Tap ❤️ to switch to activities',
     chat_placeholder_activity: 'Log your activity (e.g., lunch)… Tap ❤️ to switch to mood',
+    chat_placeholder_neutral: "Write how you feel or what you're doing now…",
     chat_switch_to_activity: 'Track activities',
     chat_switch_to_mood: 'Log mood',
     chat_confirm_delete: 'Are you sure you want to delete this entry?',

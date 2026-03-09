@@ -1835,3 +1835,36 @@ docs/                 # 架构与交接文档
 - 修改文件: `docs/TSHINE_DEV_SPEC.md`(v1.0->v1.2), `docs/CODE_CLEANUP_HANDOVER_PLAN.md`(v1.5->v1.6), `LLM.md`, `PROJECT_CONTEXT.md`
 - 待执行: Phase I 全部任务（I1-I19），建议与功能大改同步进行
 
+### 2026-03-09 — Moodauto Phase 1 最小切片落地（自动识别主链路）
+
+- 变更来源: `docs/CURRENT_TASK.md` 当前主线 `moodauto` + `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 新增 `src/services/input/` 规则分类层：`types.ts`、`liveInputRules.zh.ts`、`liveInputContext.ts`、`liveInputClassifier.ts`
+  2. `useChatStore` 新增 `sendAutoRecognizedInput()` 并接入主输入发送路径，页面层不再手动二选一 `sendMessage` / `sendMood`
+  3. 主路径移除无条件 AI 分类依赖：`triggerMoodDetection()` 改为本地规则心情检测（不再调用 `callClassifierAPI`）
+  4. 命中 `activity_with_mood` 时写回 `useMoodStore.activityMood[messageId]` 与 `useMoodStore.moodNote[messageId]`
+  5. `ChatInputBar`/`ChatPage` 切到单输入中性心智模型，移除主输入爱心模式切换依赖
+- 文档同步:
+  - 更新 `docs/CURRENT_TASK.md`（Phase 1 勾选与下一步）
+  - 更新 `docs/CHANGELOG.md`（结构与链路变更记录）
+- 待执行:
+  1. Phase 2 纠错动作 `reclassifyRecentInput()` 与最小时间线修复
+
+### 2026-03-09 (续) — Moodauto Phase 1 回归测试落地（Vitest）
+
+- 变更来源: `docs/CURRENT_TASK.md` Phase 1 / P1
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 引入 `Vitest` 单测入口：`package.json` 新增 `test:unit` 与 `test:unit:watch`，并加入 `vitest` dev 依赖
+  2. 新增 `src/services/input/liveInputClassifier.test.ts`，覆盖中文种子样例 `standalone_mood` / `new_activity` / `activity_with_mood` / `mood_about_last_activity`
+  3. 新增 recent-activity context bias 回归：覆盖“应纠偏为上一条活动心情”与“存在强新动作时不得纠偏”两组边界
+  4. 新增 `src/services/input/liveInputContext.test.ts`，覆盖最近活动读取窗口（ongoing 优先、30 分钟窗口、mood/chat 排除）
+- 验证结果:
+  - `npm run test:unit` ✅
+  - `npm run lint:max-lines` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+

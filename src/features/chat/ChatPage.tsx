@@ -21,7 +21,7 @@ import { ChatInputBar } from './ChatInputBar';
 
 export const ChatPage = () => {
   const {
-    messages, sendMessage, sendMood, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
+    messages, sendAutoRecognizedInput, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
     updateActivity, insertActivity, deleteActivity, endActivity, isLoading, isLoadingMore,
     hasMoreHistory, yesterdaySummary,
     hasInitialized, setHasInitialized, updateMessageDuration,
@@ -40,7 +40,6 @@ export const ChatPage = () => {
   const [selectedMoodOpt, setSelectedMoodOpt] = useState<string | null>(null);
   const [moodPickerReadonly, setMoodPickerReadonly] = useState(false);
   const { t, i18n } = useTranslation();
-  const [isMoodMode, setIsMoodMode] = useState(false);
   const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
 
   const customLabelDefault = t('chat_custom_label_default');
@@ -229,7 +228,9 @@ export const ChatPage = () => {
     if (!input.trim()) return;
     const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
 
-    if (!isMoodMode && activeTodoId) {
+    const classification = await sendAutoRecognizedInput(input);
+
+    if (classification?.kind === 'activity' && activeTodoId) {
       await completeActiveTodo();
       if (todoToComplete && todoToComplete.startedAt) {
         const duration = Math.round((Date.now() - todoToComplete.startedAt) / (1000 * 60));
@@ -237,11 +238,6 @@ export const ChatPage = () => {
       }
     }
 
-    if (isMoodMode) {
-      await sendMood(input);
-    } else {
-      await sendMessage(input);
-    }
     setInput('');
   };
 
@@ -456,12 +452,10 @@ export const ChatPage = () => {
       {/* Input Area */}
       <ChatInputBar
         input={input}
-        isMoodMode={isMoodMode}
         isLoading={isLoading}
         onInputChange={setInput}
         onSend={handleSend}
         onKeyDown={handleKeyDown}
-        onToggleMoodMode={() => setIsMoodMode(!isMoodMode)}
       />
 
       {/* 星尘珍藏查看卡片 */}

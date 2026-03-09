@@ -7,7 +7,10 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
+import { classifyLiveInput } from '../services/input/liveInputClassifier';
+import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { AnnotationEvent } from '../types/annotation';
+import type { LiveInputClassification } from '../services/input/types';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import {
   buildInsertedActivityResult,
@@ -59,8 +62,14 @@ interface ChatState {
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: () => Promise<void>;
   checkAndRefreshForNewDay: () => void;
-  sendMessage: (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record') => Promise<void>;
-  sendMood: (content: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    customTimestamp?: number,
+    forcedMode?: 'chat' | 'record',
+    options?: { skipMoodDetection?: boolean }
+  ) => Promise<string | null>;
+  sendMood: (content: string) => Promise<string | null>;
+  sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
   endActivity: (id: string) => Promise<void>;
@@ -219,7 +228,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record') => {
+      sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record', options?: { skipMoodDetection?: boolean }) => {
         const now = customTimestamp ?? Date.now();
         const state = get();
         const effectiveMode = forcedMode ?? state.mode;
@@ -246,7 +255,9 @@ export const useChatStore = create<ChatState>()(
         });
 
         if (effectiveMode === 'record') {
-          void triggerMoodDetection(newMessage.id, content);
+          if (!options?.skipMoodDetection) {
+            void triggerMoodDetection(newMessage.id, content);
+          }
         }
 
         const session = await getSupabaseSession();
@@ -282,6 +293,41 @@ export const useChatStore = create<ChatState>()(
           const aiMessage = await handleAIChatResponse(updatedMessages, session?.user.id);
           set((currentState) => ({ messages: [...currentState.messages, aiMessage] }));
         }
+
+        return newMessage.id;
+      },
+
+      sendAutoRecognizedInput: async (content: string) => {
+        const trimmed = content.trim();
+        if (!trimmed) {
+          return null;
+        }
+
+        const state = get();
+        const context = getLiveInputContext(state.messages, Date.now());
+        const classification = classifyLiveInput(trimmed, context);
+
+        if (classification.kind === 'mood') {
+          await get().sendMood(trimmed);
+          return classification;
+        }
+
+        const shouldAttachMood = classification.internalKind === 'activity_with_mood';
+        const messageId = await get().sendMessage(trimmed, undefined, 'record', {
+          skipMoodDetection: shouldAttachMood,
+        });
+
+        if (shouldAttachMood && messageId) {
+          const moodStore = useMoodStore.getState();
+          if (classification.extractedMood) {
+            moodStore.setMood(messageId, classification.extractedMood);
+          }
+          if (classification.moodNote) {
+            moodStore.setMoodNote(messageId, classification.moodNote);
+          }
+        }
+
+        return classification;
       },
 
       insertActivity: async (prevId, nextId, content, startTime, endTime) => {
@@ -431,6 +477,8 @@ export const useChatStore = create<ChatState>()(
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id, true);
         }
+
+        return newMessage.id;
       },
 
       setMode: (mode) => set({ mode }),
