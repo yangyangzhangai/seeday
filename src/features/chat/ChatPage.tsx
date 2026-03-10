@@ -18,6 +18,7 @@ import { MessageItem } from './MessageItem';
 import { MoodPickerModal } from './MoodPickerModal';
 import { EditInsertModal } from './EditInsertModal';
 import { ChatInputBar } from './ChatInputBar';
+import { handleLatestMessageReclassify } from './chatPageActions';
 
 export const ChatPage = () => {
   const {
@@ -225,8 +226,7 @@ export const ChatPage = () => {
   };
 
   const handleReclassify = async (messageId: string, nextKind: 'activity' | 'mood') => {
-    await reclassifyRecentInput(messageId, nextKind);
-    setExpandedActionsId(null);
+    await handleLatestMessageReclassify(messageId, nextKind, reclassifyRecentInput, setExpandedActionsId);
   };
 
   const handleSend = async () => {
@@ -421,7 +421,7 @@ export const ChatPage = () => {
           customMoodApplied={customMoodApplied}
           onClose={() => setMoodPickerFor(null)}
           onSelectMood={(msgId, opt) => {
-            setMood(msgId, opt);
+            setMood(msgId, opt, 'manual');
             setCustomMoodApplied(msgId, false);
             setShowCustomLabelInput(false);
             setSelectedMoodOpt(opt);
@@ -450,7 +450,7 @@ export const ChatPage = () => {
           onMoodNoteChange={(value) => {
             setCustomMoodInput(value);
             if (moodPickerFor) {
-              setMoodNote(moodPickerFor, value);
+              setMoodNote(moodPickerFor, value, 'manual');
             }
           }}
         />

@@ -9,6 +9,7 @@ import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
+import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import {
   applyReclassifyMoodSideEffects,
@@ -70,7 +71,7 @@ interface ChatState {
     forcedMode?: 'chat' | 'record',
     options?: { skipMoodDetection?: boolean }
   ) => Promise<string | null>;
-  sendMood: (content: string) => Promise<string | null>;
+  sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
   sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
@@ -313,11 +314,12 @@ export const useChatStore = create<ChatState>()(
 
       reclassifyRecentInput: async (messageId, nextKind) => {
         const state = get();
+        const originalMessage = state.messages.find((message) => message.id === messageId);
         const result = buildRecentReclassifyResult(
           state.messages,
           messageId,
           nextKind,
-          useMoodStore.getState().moodNote,
+          useMoodStore.getState().moodNoteMeta,
         );
 
         if (!result) {
@@ -331,12 +333,16 @@ export const useChatStore = create<ChatState>()(
 
         set({ messages: result.updatedMessages });
 
+        if (originalMessage) {
+          recordLiveInputCorrection(originalMessage.isMood ? 'mood' : 'activity', nextKind);
+        }
+
         applyReclassifyMoodSideEffects(
           messageId,
           nextKind,
           target.content,
           result.previousActivityId,
-          result.previousActivityMoodNoteToClear,
+          result.previousActivityMoodAttachmentToClear,
         );
 
         const session = await getSupabaseSession();
@@ -380,6 +386,13 @@ export const useChatStore = create<ChatState>()(
             timestamp: startTime,
             duration
           }).eq('id', id).eq('user_id', session.user.id);
+        }
+
+        const moodStore = useMoodStore.getState();
+        const moodMeta = moodStore.activityMoodMeta[id];
+        const isCustomApplied = moodStore.customMoodApplied[id] === true;
+        if (moodMeta?.source === 'auto' && !isCustomApplied) {
+          moodStore.setMood(id, autoDetectMood(content, duration), 'auto');
         }
       },
 
@@ -443,19 +456,10 @@ export const useChatStore = create<ChatState>()(
         console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
       },
 
-      sendMood: async (content: string) => {
+      sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const state = get();
-
-        const todayStr = getLocalDateString(new Date(now));
-        const latestActivity = [...state.messages]
-          .reverse()
-          .find(
-            (message) =>
-              message.mode === 'record' &&
-              !message.isMood &&
-              getLocalDateString(new Date(message.timestamp)) === todayStr
-          );
+        const relatedActivityId = options?.relatedActivityId;
 
         const newMessage: Message = {
           id: uuidv4(),
@@ -471,10 +475,16 @@ export const useChatStore = create<ChatState>()(
           messages: [...state.messages, newMessage]
         }));
 
-        if (latestActivity) {
+        if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
-          moodStore.setMoodNote(latestActivity.id, content);
-          void triggerMoodDetection(latestActivity.id, content);
+          moodStore.setMoodNote(relatedActivityId, content, {
+            source: 'auto',
+            linkedMoodMessageId: newMessage.id,
+          });
+          void triggerMoodDetection(relatedActivityId, content, {
+            source: 'auto',
+            linkedMoodMessageId: newMessage.id,
+          });
         }
 
         const annotationStore = useAnnotationStore.getState();

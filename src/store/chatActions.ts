@@ -10,6 +10,7 @@ import type { Message } from './useChatStore';
 import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';
+import { recordLiveInputClassification } from '../services/input/liveInputTelemetry';
 
 type SendMessageFn = (
   content: string,
@@ -18,7 +19,7 @@ type SendMessageFn = (
   options?: { skipMoodDetection?: boolean },
 ) => Promise<string | null>;
 
-type SendMoodFn = (content: string) => Promise<string | null>;
+type SendMoodFn = (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
 type ReclassifyKind = 'activity' | 'mood';
 
 interface MessagePatch {
@@ -32,7 +33,7 @@ interface ReclassifyResult {
   updatedMessages: Message[];
   patches: MessagePatch[];
   previousActivityId?: string;
-  previousActivityMoodNoteToClear?: string;
+  previousActivityMoodAttachmentToClear?: string;
 }
 
 export interface AutoRecognizedInputResult {
@@ -72,7 +73,7 @@ function toRoundedMinutes(from: number, to: number): number {
 function buildMoodToActivityReclassify(
   messages: Message[],
   targetIndex: number,
-  moodNoteMap: Record<string, string | undefined>,
+  moodNoteMetaMap: Record<string, { source: 'auto' | 'manual'; linkedMoodMessageId?: string } | undefined>,
 ): ReclassifyResult {
   const updatedMessages = [...messages];
   const target = updatedMessages[targetIndex];
@@ -109,7 +110,11 @@ function buildMoodToActivityReclassify(
       updatedMessages,
       patches,
       previousActivityId: previous.id,
-      previousActivityMoodNoteToClear: moodNoteMap[previous.id] === target.content ? previous.id : undefined,
+      previousActivityMoodAttachmentToClear:
+        moodNoteMetaMap[previous.id]?.source === 'auto' &&
+        moodNoteMetaMap[previous.id]?.linkedMoodMessageId === target.id
+          ? previous.id
+          : undefined,
     };
   }
 
@@ -172,7 +177,7 @@ export function buildRecentReclassifyResult(
   messages: Message[],
   messageId: string,
   nextKind: ReclassifyKind,
-  moodNoteMap: Record<string, string | undefined>,
+  moodNoteMetaMap: Record<string, { source: 'auto' | 'manual'; linkedMoodMessageId?: string } | undefined>,
 ): ReclassifyResult | null {
   if (messages.length === 0) {
     return null;
@@ -199,7 +204,7 @@ export function buildRecentReclassifyResult(
   }
 
   if (nextKind === 'activity') {
-    return buildMoodToActivityReclassify(messages, targetIndex, moodNoteMap);
+    return buildMoodToActivityReclassify(messages, targetIndex, moodNoteMetaMap);
   }
 
   return buildActivityToMoodReclassify(messages, targetIndex);
@@ -224,32 +229,35 @@ export function applyReclassifyMoodSideEffects(
   nextKind: ReclassifyKind,
   targetContent: string,
   previousActivityId?: string,
-  previousActivityMoodNoteToClear?: string,
+  previousActivityMoodAttachmentToClear?: string,
 ): void {
   const moodStore = useMoodStore.getState();
 
   if (nextKind === 'mood') {
     if (previousActivityId) {
-      moodStore.setMoodNote(previousActivityId, targetContent);
-      void triggerMoodDetection(previousActivityId, targetContent);
+      moodStore.setMoodNote(previousActivityId, targetContent, {
+        source: 'auto',
+        linkedMoodMessageId: targetMessageId,
+      });
+      void triggerMoodDetection(previousActivityId, targetContent, {
+        source: 'auto',
+        linkedMoodMessageId: targetMessageId,
+      });
     }
 
     useMoodStore.setState((state) => ({
       activityMood: { ...state.activityMood, [targetMessageId]: undefined },
+      activityMoodMeta: { ...state.activityMoodMeta, [targetMessageId]: undefined },
       customMoodLabel: { ...state.customMoodLabel, [targetMessageId]: undefined },
       customMoodApplied: { ...state.customMoodApplied, [targetMessageId]: false },
       moodNote: { ...state.moodNote, [targetMessageId]: undefined },
+      moodNoteMeta: { ...state.moodNoteMeta, [targetMessageId]: undefined },
     }));
     return;
   }
 
-  if (previousActivityMoodNoteToClear) {
-    useMoodStore.setState((state) => ({
-      moodNote: {
-        ...state.moodNote,
-        [previousActivityMoodNoteToClear]: undefined,
-      },
-    }));
+  if (previousActivityMoodAttachmentToClear) {
+    moodStore.clearAutoMoodAttachmentsByMessage(previousActivityMoodAttachmentToClear, targetMessageId);
   }
 }
 
@@ -272,7 +280,8 @@ export async function dispatchAutoRecognizedInput(
   const trimmed = content.trim();
 
   if (classification.kind === 'mood') {
-    return sendMood(trimmed);
+    const relatedActivityId = classification.relatedActivityId;
+    return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
   }
 
   const shouldAttachMood = classification.internalKind === 'activity_with_mood';
@@ -295,10 +304,10 @@ export function applyAutoRecognizedInputEffects(
 
   const moodStore = useMoodStore.getState();
   if (classification.extractedMood) {
-    moodStore.setMood(messageId, classification.extractedMood);
+    moodStore.setMood(messageId, classification.extractedMood, 'auto');
   }
   if (classification.moodNote) {
-    moodStore.setMoodNote(messageId, classification.moodNote);
+    moodStore.setMoodNote(messageId, classification.moodNote, 'auto');
   }
 }
 
@@ -312,6 +321,8 @@ export async function sendAutoRecognizedInputFlow(
   if (!classification) {
     return null;
   }
+
+  recordLiveInputClassification(classification);
 
   const messageId = await dispatchAutoRecognizedInput(content, classification, sendMessage, sendMood);
   applyAutoRecognizedInputEffects(messageId, classification);
@@ -501,9 +512,13 @@ export async function persistMessageToSupabase(message: Message, userId: string,
   }
 }
 
-export async function triggerMoodDetection(messageId: string, content: string): Promise<void> {
+export async function triggerMoodDetection(
+  messageId: string,
+  content: string,
+  source: 'auto' | 'manual' | { source: 'auto' | 'manual'; linkedMoodMessageId?: string } = 'auto',
+): Promise<void> {
   const moodStore = useMoodStore.getState();
-  moodStore.setMood(messageId, autoDetectMood(content, 0));
+  moodStore.setMood(messageId, autoDetectMood(content, 0), source);
 }
 
 export async function handleAIChatResponse(messages: Message[], userId?: string): Promise<Message> {

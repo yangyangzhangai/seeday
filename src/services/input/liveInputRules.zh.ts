@@ -23,6 +23,13 @@ export const ZH_ACTIVITY_STRONG_PHRASES = [
   '背单词',
   '刷题',
   '跑完步',
+  '午休',
+  '打球',
+  '看电影',
+  '通电话',
+  '到公司',
+  '出门',
+  '买东西',
 ];
 
 export const ZH_ACTIVITY_VERBS = [
@@ -46,6 +53,13 @@ export const ZH_ACTIVITY_VERBS = [
   '工作',
   '刷题',
   '背单词',
+  '写',
+  '做',
+  '改',
+  '打球',
+  '通电话',
+  '买',
+  '交',
 ];
 
 export const ZH_ACTIVITY_SINGLE_VERB_PATTERNS = [
@@ -57,10 +71,35 @@ export const ZH_ACTIVITY_SINGLE_VERB_PATTERNS = [
   /背(单词|课文)/,
   /刷(题|视频)/,
   /跑(步|完步)/,
+  /改(代码|文档|方案|报告)/,
+  /打(球|电话)/,
+  /通(电话|话)/,
+  /看(电影|剧)/,
+  /午休睡(了|得)/,
+  /去洗个澡/,
+  /到公司/,
+  /出门了?/,
+  /买到.+/,
+  /刚把(作业|报告|文档|方案).*(交了|提交了)/,
+  /做了(决定|选择|计划)/,
+  /和(客户|朋友|家人).*(会开|开会|沟通|通话)/,
   /(在|刚在|正在)搞/,
   /搞定了?$/,
   /去健身房/,
 ];
+
+export const ZH_ACTIVITY_ONGOING_PATTERNS = [/(在|正在|刚在).*(开会|学习|复习|工作|上课|写|做|改|背单词|刷题)/, /(开会|学习|工作|上课|通话|会议|视频通话)中/];
+
+export const ZH_STRONG_COMPLETION_PATTERNS = [
+  /(刚|刚刚).*(开完|写完|做完|吃完|忙完|通完|打完).*/,
+  /已经.*(开完|写完|做完|吃完|结束|搞定|完成|打完).*/,
+  /(开完了|写完了|做完了|吃完了|结束了|搞定了|完成了|下课了|打完了)$/,
+  /(刚|刚刚).*(交了|提交了).*/,
+  /(done with|finished)/i,
+  /finito!?$/i,
+];
+
+export const ZH_WEAK_COMPLETION_WORDS = ['终于', '总算', '松口气', '撑过去'];
 
 export const ZH_ACTIVITY_OBJECTS = [
   '周报',
@@ -100,6 +139,11 @@ export const ZH_MOOD_WORDS = [
   '爽',
   '难',
   '状态差',
+  '顺利',
+  '轻松',
+  '不满意',
+  '失望',
+  '挫败',
 ];
 
 export const ZH_MOOD_PATTERNS = [
@@ -109,11 +153,51 @@ export const ZH_MOOD_PATTERNS = [
   /^今天状态.+/,
   /真.+/,
   /心情.+/,
+  /感觉(不错|很好|轻松|糟糕)/,
+  /[得地]很(好|顺利)/,
 ];
 
-export const ZH_EVALUATION_WORDS = ['终于', '总算', '可算', '太难了', '好爽', '好充实', '后悔'];
+export const ZH_EVALUATION_WORDS = [
+  '终于',
+  '总算',
+  '可算',
+  '太难了',
+  '好爽',
+  '好充实',
+  '后悔',
+  '不太对',
+  '有成就感',
+  '很有收获',
+  '白忙了',
+  '太值了',
+  '太亏了',
+  '好久没有',
+  '上头',
+  '踏实',
+  '很崩',
+];
 
-export const ZH_LAST_ACTIVITY_REFERENCES = ['这件事', '这件事情', '这个', '刚才那个', '那个会', '刚才', '这种感觉'];
+export const ZH_LAST_ACTIVITY_REFERENCES = [
+  '这件事',
+  '这件事情',
+  '这个',
+  '刚才那个',
+  '那个会',
+  '那个电话',
+  '那通电话',
+  '那节课',
+  '那次训练',
+  '那个任务',
+  '那份作业',
+  '那次沟通',
+  '那次会',
+  '那通会',
+  '那件活',
+  '这波训练',
+  '刚那节课',
+  '刚才',
+  '这种感觉',
+];
 
 export const ZH_FINISHING_PHRASES = ['做完了', '写完了', '结束了', '搞定了', '完成了'];
 
@@ -126,6 +210,11 @@ export const ZH_NON_ACTIVITY_PATTERNS = [
   /想去.+但没去/,
   /明天要.+/,
   /待会(儿)?(去|要)?/,
+  /等下(去|要)?/,
+  /一会(儿)?(去|要)?/,
+  /晚点(去|要)?/,
+  /准备去.+/,
+  /要去.+/,
 ];
 
 export const ZH_TRAILING_PARTICLES = /[啊呀呢吧嘛哦哈]$/g;
@@ -142,3 +231,23 @@ export const ZH_MOOD_KEYWORDS: Array<{ pattern: RegExp; mood: MoodKey }> = [
   { pattern: /(无聊|没劲)/, mood: 'bored' },
   { pattern: /(低落|难受|崩溃|糟糕|烦)/, mood: 'down' },
 ];
+
+export const ZH_CONTEXT_ACTIVITY_KEYWORDS = [
+  ...ZH_ACTIVITY_STRONG_PHRASES,
+  ...ZH_ACTIVITY_VERBS,
+  ...ZH_ACTIVITY_OBJECTS,
+  '开完',
+  '写完',
+  '做完',
+  '吃完',
+  '下课',
+  '通话',
+  '视频通话',
+  '聚餐',
+  '健身',
+  '跑步',
+  '周报',
+  '报告',
+  '作业',
+  '会议',
+].filter((token) => token.length >= 2);

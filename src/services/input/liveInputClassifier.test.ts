@@ -107,11 +107,67 @@ describe('classifyLiveInput context bias', () => {
     expect(result.relatedActivityId).toBe('a-meet');
   });
 
+  it('biases by expanded zh reference variants: 那个电话打完后整个人都放松了', () => {
+    const result = classify('那个电话打完后整个人都放松了', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-call',
+        content: '给客户打电话',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-call');
+  });
+
+  it('biases by expanded zh reference variants: 刚才那节课让我有点挫败', () => {
+    const result = classify('刚才那节课让我有点挫败', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-class',
+        content: '上课',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-class');
+  });
+
   it('biases to mood_about_last_activity: 终于做完了这件事情，好开心啊', () => {
     const result = classify('终于做完了这件事情，好开心啊', contextWithWriting);
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('mood_about_last_activity');
     expect(result.relatedActivityId).toBe('a-write');
+  });
+
+  it('uses context-gated strong completion: 刚写完报告了好累', () => {
+    const result = classify('刚写完报告了好累', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-report',
+        content: '写报告',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-report');
+  });
+
+  it('keeps strong completion as activity when no related context', () => {
+    const result = classify('刚写完报告了', contextWithMeeting);
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('treats weak completion as mood signal without context linking', () => {
+    const result = classify('终于松口气了', contextWithWriting);
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
   });
 
   it('keeps new activity when strong new-action switch exists: 写完周报后去洗澡了', () => {
@@ -204,6 +260,165 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
         isOngoing: false,
       },
     });
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('blocks planned activity before activity detection: 明天要去开会', () => {
+    const result = classify('明天要去开会');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not use raw substring context matching: 刚写完报告了 vs 开会', () => {
+    const result = classify('刚写完报告了，有点累', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-meet-2',
+        content: '开会',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood in social-work phrasing: 和客户会开得很顺利', () => {
+    const result = classify('和客户会开得很顺利');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood in completion + joy phrasing: 刚打完球，好爽', () => {
+    const result = classify('刚打完球，好爽');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood in completion + weak mood phrasing: 写完报告了，终于松口气', () => {
+    const result = classify('写完报告了，终于松口气');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood in result-eval phrasing: 午休睡得很好', () => {
+    const result = classify('午休睡得很好');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood in purchase + mood phrasing: 买到想要的东西，开心', () => {
+    const result = classify('买到想要的东西，开心');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+});
+
+describe('classifyLiveInput en/it baseline regressions', () => {
+  it('classifies English standalone mood: I feel tired', () => {
+    const result = classify('I feel tired');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English activity: I am working', () => {
+    const result = classify('I am working');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English mood about last activity with context', () => {
+    const result = classify('the meeting was stressful', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-meeting-en',
+        content: 'meeting',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-meeting-en');
+  });
+
+  it('classifies English mood_about_last_activity with causal evaluation phrasing', () => {
+    const result = classify('that phone call made me anxious', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-call-en',
+        content: 'phone call with client',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-call-en');
+  });
+
+  it('classifies English activity_with_mood: just finished report, relieved', () => {
+    const result = classify('Just finished the report, relieved');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('keeps English future plan sentence out of activity: later I will go to the gym', () => {
+    const result = classify('Later I will go to the gym');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not link to unrelated recent context by raw substring in English', () => {
+    const result = classify('I just wrapped up the report, exhausted', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-meeting-only',
+        content: 'team meeting',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('classifies Italian standalone mood: sono stanco', () => {
+    const result = classify('sono stanco');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies Italian activity: sto studiando', () => {
+    const result = classify('sto studiando');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('keeps planned Italian sentence out of activity: domani voglio correre', () => {
+    const result = classify('domani voglio correre');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies Italian activity_with_mood: ho appena finito la riunione, sono sollevato', () => {
+    const result = classify('Ho appena finito la riunione, sono sollevato');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('classifies Italian mood_about_last_activity with causal mood phrasing', () => {
+    const result = classify('quella lezione mi ha confuso', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-lesson-it',
+        content: 'lezione',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-lesson-it');
+  });
+
+  it('keeps Italian future plan sentence out of activity: stasera ho intenzione di andare in palestra', () => {
+    const result = classify('Stasera ho intenzione di andare in palestra');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
   });
 });

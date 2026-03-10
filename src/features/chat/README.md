@@ -24,6 +24,7 @@
 - Services:
   - `src/services/input/liveInputClassifier.ts`
   - `src/services/input/liveInputContext.ts`
+  - `src/features/chat/chatPageActions.ts` (message-row reclassify UI handler wiring)
 - Chat action flow:
   - `src/store/chatActions.ts` (`classify -> dispatch -> post-effects` pipeline + latest-message reclassify timeline repair helpers)
 - API client: `src/api/client.ts`
@@ -42,3 +43,7 @@
 - `FEATURE_STATUS.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+
+## Test Coverage Anchor
+
+- Chat row correction wiring regression: `src/features/chat/chatPageActions.test.ts`

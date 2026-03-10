@@ -4,21 +4,25 @@ import {
   sendAutoRecognizedInputFlow,
 } from './chatActions';
 import { useMoodStore } from './useMoodStore';
+import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
 import type { Message } from './useChatStore';
 
 function resetMoodStore() {
   useMoodStore.setState({
     activityMood: {},
+    activityMoodMeta: {},
     customMoodLabel: {},
     customMoodApplied: {},
     customMoodOptions: [],
     moodNote: {},
+    moodNoteMeta: {},
   });
 }
 
 describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
   beforeEach(() => {
     resetMoodStore();
+    resetLiveInputTelemetry();
   });
 
   it('classifies standalone mood and dispatches to sendMood', async () => {
@@ -29,7 +33,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
 
     expect(result?.classification.kind).toBe('mood');
     expect(result?.classification.internalKind).toBe('standalone_mood');
-    expect(sendMood).toHaveBeenCalledWith('好累');
+    expect(sendMood).toHaveBeenCalledWith('好累', undefined);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -80,8 +84,20 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     expect(result?.classification.kind).toBe('mood');
     expect(result?.classification.internalKind).toBe('mood_about_last_activity');
     expect(result?.classification.relatedActivityId).toBe('a-eat');
-    expect(sendMood).toHaveBeenCalledWith('吃饭好开心');
+    expect(sendMood).toHaveBeenCalledWith('吃饭好开心', { relatedActivityId: 'a-eat' });
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('records telemetry for auto-recognized classification reasons', async () => {
+    const sendMessage = vi.fn(async () => 'activity-1');
+    const sendMood = vi.fn(async () => 'mood-1');
+
+    await sendAutoRecognizedInputFlow('写周报写得很烦', [], sendMessage, sendMood);
+
+    const snapshot = getLiveInputTelemetrySnapshot();
+    expect(snapshot.autoRecognizedTotal).toBe(1);
+    expect(snapshot.classificationByInternalKind.activity_with_mood).toBe(1);
+    expect(snapshot.topReasons.some((item) => item.reason === 'activity_with_mood_detected')).toBe(true);
   });
 });
 
@@ -110,7 +126,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     ];
 
     const result = buildRecentReclassifyResult(messages, 'mood-1', 'activity', {
-      'activity-1': '好烦',
+      'activity-1': { source: 'auto', linkedMoodMessageId: 'mood-1' },
     });
 
     expect(result).not.toBeNull();
@@ -118,7 +134,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     const previous = result!.updatedMessages.find((m) => m.id === 'activity-1');
     expect(latest?.isMood).toBe(false);
     expect(previous?.duration).toBe(10);
-    expect(result?.previousActivityMoodNoteToClear).toBe('activity-1');
+    expect(result?.previousActivityMoodAttachmentToClear).toBe('activity-1');
   });
 
   it('activity -> mood reopens adjacent previous activity when duration matches', () => {

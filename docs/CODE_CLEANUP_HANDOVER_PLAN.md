@@ -1913,3 +1913,19 @@ docs/                 # 架构与交接文档
   - `npx tsc --noEmit` ✅
   - `npm run build` ✅
 
+### 2026-03-10 — Moodauto Phase 2.3 ChatPage 纠错触发回归补齐（P1++）
+
+- 变更来源: `docs/CURRENT_TASK.md`（Phase 2 / P1++）+ `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 执行落地
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 新增 `src/features/chat/chatPageActions.ts`，提取消息行纠错触发编排 `handleLatestMessageReclassify()`（`reclassifyRecentInput` + 折叠 actions）
+  2. `src/features/chat/ChatPage.tsx` 改为调用该 helper，减少页面内联行为并使触发链路可独立回归
+  3. 新增 `src/features/chat/chatPageActions.test.ts`，覆盖触发参数透传、异步完成后再折叠、失败不折叠三类回归边界
+- 文档同步:
+  - 更新 `docs/CURRENT_TASK.md`：P1++ 勾选完成，并补齐讨论稿导向的后续执行项（derived data 清理、ongoing/ended attach 边界、mood source 重算）
+  - 更新 `src/features/chat/README.md`：补充 ChatPage action helper 依赖与测试锚点
+  - 更新 `docs/CHANGELOG.md`：记录本次代码/文档同构变更
+- 待执行:
+  1. Phase 2 / P2: latest `mood -> activity` 回转时对自动附着的 `activityMood` / `moodNote` 派生数据做 source/origin 定向清理
+  2. Phase 2 / P2: 补齐“进行中 activity 可吸收 standalone mood、已结束 activity 不可无证据吸收”的写入层回归
+

@@ -1,7 +1,7 @@
 # DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 # 活动 / 心情自动识别重构讨论稿
 
-- 文档版本: v0.2
+- 文档版本: v0.3
 - 状态: Discussion Draft
 - 最后更新: 2026-03-10
 - 适用范围: `src/services/input`、`src/store/chatActions.ts`、`src/store/useChatStore.ts`
@@ -28,6 +28,25 @@
 - 如果链路层还会把 `standalone_mood` 错挂到最近活动上，那么前面的分类再准，最后也会写错
 - 当前 gold 评估里，主要错配是 `new_activity -> standalone_mood` 和 `activity_with_mood -> standalone_mood`
 - 这说明现在首要任务是“避免错误写入”和“补强活动识别”，不是继续往词典里堆词
+
+## 1.1 本轮新增决议（完成态与上文依赖）
+
+已确认以下三条作为后续实现硬约束：
+
+1. **弱完成态单独处理，不触发上文依赖链**
+   - 强完成态（如 `刚...完`、`做完`、`写完`、`结束`、`搞定`）才进入“依赖上文”的决策链。
+   - 弱完成态（如 `终于`、`总算`、`松口气`、`撑过去`）作为情绪证据处理，不直接触发“完成态 -> 上文关联”。
+   - 目的：避免 `撑过去了，太累了` 在无上文时被错误推为活动。
+
+2. **上文相关性禁止原始子串匹配，改用 token 级关键词重合**
+   - 相关性判断应基于“分词/切词后的活动动词与对象关键词集合交集 + 显式指代词证据”。
+   - 不允许用 `last_activity_context in text` 这类原始子串包含作为主要依据。
+   - 目的：避免 `开会` 与 `开始锻炼` 因共享字面片段而误判为相关。
+
+3. **未来/计划/未发生拦截上移到决策链最前**
+   - `待会/等下/明天/想去但没去/准备去` 等负向或未发生信号，必须早于进行态和活动检测执行。
+   - 一旦命中，直接阻断“真实活动发生”路径。
+   - 目的：避免 `明天要去开会`、`待会去吃饭` 被错记为已发生活动。
 
 ## 2. 当前实现的问题
 
@@ -323,6 +342,23 @@ if (isFutureOrPlannedActivity(text)) {
   return standalone_mood_like_result
 }
 
+if (hasWeakCompletionMoodSignal(text)) {
+  // e.g. 终于 / 松口气 / 撑过去 / 总算
+  // mood-biased branch; do not trigger completion-context linking
+  return mood_biased_result
+}
+
+if (isOngoingActivity(text)) {
+  return new_activity
+}
+
+if (isStrongCompletionActivity(text)) {
+  if (hasRelatedRecentActivityByTokenOverlap(text, context)) {
+    return mood_about_last_activity
+  }
+  return new_activity
+}
+
 if (isMoodAboutLastActivity(text, context)) {
   return mood_about_last_activity
 }
@@ -341,6 +377,7 @@ return standalone_mood
 注意：
 
 - “未来 / 计划 / 未发生”在运行时应该先拦
+- “弱完成态”属于 mood 证据层，不应直接驱动上文关联
 - 但在工程实施优先级上，链路修复仍然先做
 
 ## 7. 活动识别应改为结构化检测
@@ -598,6 +635,8 @@ hasEvidenceReferencingLastActivity =
   || hasCompletionReference
   || hasExplicitDeicticReference
 ```
+
+其中 `mentionsRecentActivityKeyword` 必须来自 token 化后的活动关键词重合，不允许直接使用原始字符串包含。
 
 ### 10.3 应移除的捷径
 

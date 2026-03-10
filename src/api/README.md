@@ -29,6 +29,11 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
 - `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `api/annotation-handler.ts`, `api/annotation-prompts.ts`)
 
+## Current Notes
+
+- The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
+- Existing frontend API facade contracts in `src/api/client.ts` remain unchanged in this round.
+
 ## Related Docs
 
 - `LLM.md`

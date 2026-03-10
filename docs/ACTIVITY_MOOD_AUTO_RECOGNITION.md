@@ -634,6 +634,12 @@ src/
 - 心情 -> 活动 的纠错率
 - 活动 -> 心情 的纠错率
 
+监控主线重开阈值（Monitor -> Active Dev）：
+
+1. 连续两次运行 `python scripts/evaluate_natural_probe.py`，`internal_accuracy < 75%`
+2. 连续两次运行 `python scripts/evaluate_natural_probe.py`，`mood_about_last_activity` recall < `70%`
+3. 未触发以上阈值时，保持规则优先与 AI fallback 关闭策略
+
 ## 11. 开发阶段拆分
 
 ### Phase 1: 去掉手动模式依赖

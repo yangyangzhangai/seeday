@@ -414,15 +414,10 @@ const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
   day_complete: { content: '🌙 I frammenti di oggi hanno formato una vetrata. Vai a vederla.', tone: 'celebrating', fallbackEmoji: '🌙' },
 };
 
-function pickVariantPrompt(aPrompt: string, bPrompt: string): string {
-  const n = Math.floor(Math.random() * 10) + 1;
-  return n <= 7 ? aPrompt : bPrompt;
-}
-
 export function getSystemPrompt(lang: string): string {
-  if (lang === 'en') return pickVariantPrompt(SYSTEM_PROMPT_EN_A, SYSTEM_PROMPT_EN_B);
-  if (lang === 'it') return pickVariantPrompt(SYSTEM_PROMPT_IT_A, SYSTEM_PROMPT_IT_B);
-  return pickVariantPrompt(SYSTEM_PROMPT_ZH_A, SYSTEM_PROMPT_ZH_B);
+  if (lang === 'en') return SYSTEM_PROMPT_EN_B;
+  if (lang === 'it') return SYSTEM_PROMPT_IT_B;
+  return SYSTEM_PROMPT_ZH_B;
 }
 
 export function getDefaultAnnotations(lang: string): AnnotationMap {

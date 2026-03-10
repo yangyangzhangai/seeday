@@ -15,14 +15,17 @@ vi.mock('./useAnnotationStore', () => ({
 import { useMoodStore } from './useMoodStore';
 import { useChatStore } from './useChatStore';
 import type { Message } from './useChatStore';
+import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
 
 function resetMoodStore() {
   useMoodStore.setState({
     activityMood: {},
+    activityMoodMeta: {},
     customMoodLabel: {},
     customMoodApplied: {},
     customMoodOptions: [],
     moodNote: {},
+    moodNoteMeta: {},
   });
 }
 
@@ -46,6 +49,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
   beforeEach(() => {
     resetMoodStore();
     resetChatStore();
+    resetLiveInputTelemetry();
   });
 
   it('routes activity_with_mood sentence through send path and mood writeback', async () => {
@@ -89,6 +93,47 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(useMoodStore.getState().moodNote['activity-eat']).toBe('吃饭好开心');
   });
 
+  it('attaches standalone mood to ongoing activity only', async () => {
+    const base = Date.now() - 5 * 60 * 1000;
+    resetChatStore([
+      {
+        id: 'activity-ongoing',
+        content: '写周报',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: undefined,
+      },
+    ]);
+
+    await useChatStore.getState().sendAutoRecognizedInput('好累');
+
+    let moodState = useMoodStore.getState();
+    expect(moodState.moodNote['activity-ongoing']).toBe('好累');
+    expect(moodState.moodNoteMeta['activity-ongoing']?.source).toBe('auto');
+    expect(moodState.moodNoteMeta['activity-ongoing']?.linkedMoodMessageId).toBeDefined();
+
+    resetMoodStore();
+    resetChatStore([
+      {
+        id: 'activity-ended',
+        content: '吃饭',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: 20,
+      },
+    ]);
+
+    await useChatStore.getState().sendAutoRecognizedInput('好累');
+
+    moodState = useMoodStore.getState();
+    expect(moodState.moodNote['activity-ended']).toBeUndefined();
+    expect(moodState.moodNoteMeta['activity-ended']).toBeUndefined();
+  });
+
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([
@@ -115,6 +160,9 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     useMoodStore.setState({
       ...useMoodStore.getState(),
       moodNote: { 'activity-1': '好烦' },
+      moodNoteMeta: {
+        'activity-1': { source: 'auto', linkedMoodMessageId: 'mood-1' },
+      },
     });
 
     await useChatStore.getState().reclassifyRecentInput('mood-1', 'activity');
@@ -123,6 +171,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(messages.find((m) => m.id === 'mood-1')?.isMood).toBe(false);
     expect(messages.find((m) => m.id === 'activity-1')?.duration).toBe(10);
     expect(useMoodStore.getState().moodNote['activity-1']).toBeUndefined();
+    expect(useMoodStore.getState().moodNoteMeta['activity-1']).toBeUndefined();
 
     await useChatStore.getState().reclassifyRecentInput('mood-1', 'mood');
 
@@ -130,5 +179,59 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(messages.find((m) => m.id === 'mood-1')?.isMood).toBe(true);
     expect(messages.find((m) => m.id === 'activity-1')?.duration).toBeUndefined();
     expect(useMoodStore.getState().moodNote['activity-1']).toBe('好烦');
+
+    const telemetry = getLiveInputTelemetrySnapshot();
+    expect(telemetry.correctionByPath['mood->activity']).toBe(1);
+    expect(telemetry.correctionByPath['activity->mood']).toBe(1);
+  });
+
+  it('recomputes edited activity mood only when source is auto', async () => {
+    const base = 1_700_000_000_000;
+    resetChatStore([
+      {
+        id: 'activity-auto',
+        content: '开会',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: 10,
+      },
+      {
+        id: 'activity-manual',
+        content: '学习',
+        timestamp: base + 20 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: 10,
+      },
+    ]);
+
+    useMoodStore.setState({
+      ...useMoodStore.getState(),
+      activityMood: {
+        'activity-auto': 'down',
+        'activity-manual': 'up',
+      },
+      activityMoodMeta: {
+        'activity-auto': { source: 'auto' },
+        'activity-manual': { source: 'manual' },
+      },
+    });
+
+    await useChatStore.getState().updateActivity('activity-auto', '跑步', base, base + 10 * 60 * 1000);
+    await useChatStore.getState().updateActivity(
+      'activity-manual',
+      '跑步',
+      base + 20 * 60 * 1000,
+      base + 30 * 60 * 1000,
+    );
+
+    const moodState = useMoodStore.getState();
+    expect(moodState.activityMood['activity-auto']).toBe('happy');
+    expect(moodState.activityMoodMeta['activity-auto']?.source).toBe('auto');
+    expect(moodState.activityMood['activity-manual']).toBe('up');
+    expect(moodState.activityMoodMeta['activity-manual']?.source).toBe('manual');
   });
 });
