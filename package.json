@@ -13,6 +13,7 @@
     "lint:state-consistency": "node ./scripts/check-state-consistency.mjs",
     "lint:secrets": "node ./scripts/check-secrets.mjs",
     "lint:all": "npm run lint:secrets && npm run lint:max-lines && npm run lint:docs-sync && npx tsc --noEmit",
+    "eval:live-input:gold": "python ./scripts/evaluate_live_input_gold.py --lang zh",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "prepare": "node ./scripts/install-hooks.mjs"

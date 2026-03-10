@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 import {
   ZH_ACTIVITY_OBJECTS,
+  ZH_ACTIVITY_SINGLE_VERB_PATTERNS,
   ZH_ACTIVITY_STRONG_PHRASES,
   ZH_ACTIVITY_VERBS,
   ZH_EVALUATION_WORDS,
@@ -10,6 +11,7 @@ import {
   ZH_MOOD_PATTERNS,
   ZH_MOOD_WORDS,
   ZH_NEW_ACTIVITY_SWITCHES,
+  ZH_NON_ACTIVITY_PATTERNS,
   ZH_PUNCT_ONLY,
   ZH_TRAILING_PARTICLES,
 } from './liveInputRules.zh';
@@ -49,6 +51,7 @@ function includesAny(input: string, words: string[]): boolean {
 function hasActivitySignal(input: string): boolean {
   if (includesAny(input, ZH_ACTIVITY_STRONG_PHRASES)) return true;
   if (includesAny(input, ZH_ACTIVITY_OBJECTS) && includesAny(input, ZH_ACTIVITY_VERBS)) return true;
+  if (ZH_ACTIVITY_SINGLE_VERB_PATTERNS.some((pattern) => pattern.test(input))) return true;
   return includesAny(input, ZH_ACTIVITY_VERBS);
 }
 
@@ -67,7 +70,7 @@ function getMoodKey(input: string): LiveInputClassification['extractedMood'] {
 }
 
 function containsNewActivitySignal(input: string): boolean {
-  if (includesAny(input, ['去洗澡', '去吃饭', '开始学习', '去运动', '去散步'])) {
+  if (includesAny(input, ['去洗澡', '去吃饭', '开始学习', '去运动', '去散步', '去健身房'])) {
     return true;
   }
 
@@ -76,6 +79,10 @@ function containsNewActivitySignal(input: string): boolean {
   }
 
   return false;
+}
+
+function hasNonActivitySignal(input: string): boolean {
+  return ZH_NON_ACTIVITY_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 function getConfidence(diff: number): LiveInputConfidence {
@@ -105,6 +112,7 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
   const text = normalized.normalizedContent;
   const hasActivity = hasActivitySignal(text);
   const hasMood = hasMoodSignal(text);
+  const hasNonActivity = hasNonActivitySignal(text);
 
   if (hasActivity) {
     scores.activity += 3;
@@ -114,6 +122,12 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
   if (hasMood) {
     scores.mood += 2;
     reasons.push('matched_mood_signal');
+  }
+
+  if (hasNonActivity) {
+    scores.activity = Math.max(0, scores.activity - 3);
+    scores.mood += 2;
+    reasons.push('matched_non_activity_signal');
   }
 
   if (text.length <= 3 && !hasActivity) {
@@ -130,7 +144,7 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
     const hasEvaluation = includesAny(text, ZH_EVALUATION_WORDS) || hasMood;
     const hasStrongNewActivity = containsNewActivitySignal(text);
 
-    if (referencesLastActivity && hasEvaluation && !hasStrongNewActivity) {
+    if ((referencesLastActivity && hasEvaluation && !hasStrongNewActivity) || (!hasActivity && hasEvaluation && text.length <= 5)) {
       scores.mood += 3;
       reasons.push('context_bias_to_last_activity');
       return {

@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-09 (PM)
+- Last Updated: 2026-03-10 (PM)
 - Owner: current working session
 - Purpose: this file is the quick resume anchor for any new session.
 
@@ -29,10 +29,11 @@
 - [x] Phase 2 / P1+: add store-integration regression for `useChatStore -> chatActions` latest-message correction interaction.
 - [ ] Phase 2 / P1++: add UI interaction regression for `ChatPage` message-row correction trigger wiring.
 - [ ] Phase 3 / Backlog: expand English/Italian dictionaries, add telemetry, and decide whether AI fallback is necessary based on misclassification data.
+- [x] Phase 3 / P0 (zh-only baseline): run `timeshine_gold_samples.xlsx` offline evaluation and land first-pass zh rule tuning for major false positives/false negatives (`new_activity`, `activity_with_mood`, and `mood_about_last_activity` context bias).
 
 ## Next Step (Single)
 
-- Start Phase 2 / P1++ UI interaction regression for `ChatPage` message-row correction trigger wiring, then proceed to Phase 3 telemetry.
+- Continue Phase 3 zh rule calibration on gold errors (focus on `new_activity` and `activity_with_mood` recall), then resume Phase 2 / P1++ ChatPage correction-trigger UI regression.
 
 ## Blockers
 
@@ -48,6 +49,10 @@
 - Next validation gap: end-to-end regression is not yet automated for the full send/reclassify chain; Phase 2 / P1 will add this test coverage.
 - Added store-action regression tests in `src/store/chatActions.test.ts` covering representative sentence routing (`mood`, `activity`, `activity_with_mood`, `mood_about_last_activity`) and latest-message reclassify timeline repair boundaries.
 - Added store-integration regression tests in `src/store/useChatStore.integration.test.ts` to verify sentence routing and latest-message reclassify behavior through real store actions (`sendAutoRecognizedInput`, `reclassifyRecentInput`).
+- Added reproducible gold evaluation script `scripts/evaluate_live_input_gold.py` (default source: parent-level `timeshine_gold_samples.xlsx`) and npm command `npm run eval:live-input:gold` for zh baseline reruns.
+- Tuned zh rules in `src/services/input/liveInputRules.zh.ts` and `src/services/input/liveInputClassifier.ts`: reduced single-character verb false positives, added colloquial activity patterns, expanded mood/evaluation signals, and added non-activity intent guards.
+- Added gold-driven zh regression cases in `src/services/input/liveInputClassifier.test.ts` and reran `npm run test:unit -- src/services/input/liveInputClassifier.test.ts`.
+- Current offline snapshot (`scripts/evaluate_live_input_gold.py`): full-set `internalKind` moved from 66.00% to 71.00%; zh subset moved from 70.24% to 76.19%.
 
 ## Resume Order
 

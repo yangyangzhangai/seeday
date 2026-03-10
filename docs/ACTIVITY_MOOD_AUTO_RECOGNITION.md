@@ -1,9 +1,9 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> src/features/chat/README.md
 # 活动 / 心情自动识别需求与开发规划
 
-- 文档版本: v1.2
+- 文档版本: v1.3
 - 状态: Draft
-- 最后更新: 2026-03-09
+- 最后更新: 2026-03-10
 - 适用范围: `src\features\chat` 实时输入主链路
 - 目标读者: 产品、前端、状态层、API 层开发
 
@@ -252,6 +252,15 @@ V1 保守要求：
 3. 命中指代上一件事或复用上一条活动关键词
 4. 不存在强新活动信号
 
+#### 进行中 activity 的隐式挂载规则
+
+这里要明确区分“消息分类”与“活动挂载”：
+
+1. 当最近一条活动仍在进行中时，当前输入如果被判为 mood（包括 `standalone_mood`），允许把这条输入作为独立 mood 消息落库，同时把 mood tag / mood note 显式写回这条进行中的 activity。
+2. 当最近一条活动已经结束时，`standalone_mood` 不允许仅凭“最近有 activity”就自动挂到历史 activity；这时只有命中 `mood_about_last_activity` 的证据性关联规则，才允许挂载。
+3. 这条规则不改变消息语义：消息本身仍然是 `message.isMood = true`。
+4. 这条规则也不等于恢复旧的 `isMoodMode` 输入模式；输入框不再负责分类，挂载决策只能由 store / service 层根据上下文显式决定。
+
 #### 示例
 
 ##### 判为 `mood_about_last_activity`
@@ -339,6 +348,7 @@ V1 限制：
 1. `isMoodMode` 是旧输入模式状态，可以逐步退出主流程
 2. `message.isMood` 是消息语义字段，不能删
 3. `moodNote` 是活动附属心情文案，继续沿用
+4. 不能把 `isMoodMode` 和 `message.isMood` 混为一谈；前者是旧 UI 模式状态，后者是记录本身的语义字段
 
 ### 5.10 情绪标签自动变化规则
 
@@ -372,19 +382,26 @@ V1 建议在以下时机自动写入或更新 `activityMood[messageId]`：
 
 ```ts
 type MoodSource = 'auto' | 'manual';
+
+interface MoodAttachmentMeta {
+  source: MoodSource;
+  linkedMoodMessageId?: string;
+}
 ```
 
 说明：
 
-1. 这个来源标记优先放在本地 store 层
-2. V1 不强制要求新增数据库字段
-3. 如果当前仓库已能通过 `customMoodApplied` 或用户操作路径间接判断，也可以先复用现有状态
+1. 只加一个 `source` 字段还不够；还需要能追溯“是哪一条 mood 消息把当前 activity 的 mood tag / mood note 写进去的”。
+2. 对 `activityMood` 和 `moodNote` 至少要有本地 source / origin 元信息，用于区分自动写入、手动修改，以及纠错时的定向清理。
+3. 这个来源与 origin 标记优先放在本地 store 层，V1 不强制要求新增数据库字段。
+4. 如果当前仓库已能通过 `customMoodApplied` 或用户操作路径间接判断，也可以先复用现有状态，但“纠错时可定向清理”这一点仍然必须满足。
 
 #### 验收要求
 
 1. 自动生成的活动情绪标签在规则重算后允许变化
 2. 用户手动改过的标签不能被后续自动识别覆盖
 3. 活动编辑后，标签变化行为必须可预测、可复现
+4. 若最新一条 mood 消息被改回 activity，且它曾自动写入某条 activity 的 `activityMood` / `moodNote`，这些派生数据必须同步清理，避免报表继续读取脏数据
 
 ## 6. 交互设计
 
@@ -579,6 +596,7 @@ src/
 3. 若该消息是最新一条实时记录，允许其成为当前进行中的活动。
 4. 若前面存在打开中的活动，需要把上一条活动在该时间点关闭；该关闭动作属于 Phase 2 的 P0 时间线修复能力，不要求在 Phase 1 提前实现。
 5. 若原消息属于 `mood_about_last_activity`，可参考 `relatedActivityId` 这个运行时 hint 进行纠错，但 V1 不要求建立新的持久化关联。
+6. 若原消息在发送时曾自动挂到上一条或进行中的 activity，上述回转时必须同步清理该 activity 上由这条 mood 消息写入的 `activityMood`、`moodNote` 以及对应的 source / origin 元信息，避免纠错后时间线和报表仍残留脏数据。
 
 ### 9.2 活动改成心情
 
@@ -650,6 +668,10 @@ src/
 6. 当一句话明显是在评价上一条活动时，系统优先记为心情而不是新活动
 7. 如果魔法笔是会员功能，主输入不会默认强跳会员入口
 
+8. 如果上一条 activity 仍在进行中，输入 `好累` 这类纯 mood 短句时，应生成 mood 消息，并同步挂到这条进行中的 activity
+9. 如果上一条 activity 已结束，且输入里没有明确引用证据，则 `standalone_mood` 不得自动挂到历史 activity
+10. 最新消息从 mood 改回 activity 后，之前自动写回 activity 的 mood tag / mood note 必须同步清理
+
 ### 测试样例池
 
 至少应覆盖以下样例；其中意大利文样例可先作为 Phase 3 的占位测试锚点，V1 即使暂未启用对应词典，也应保留预期结果用于后续回归校验。
@@ -675,6 +697,9 @@ src/
 4. 不破坏现有报告页对 `isMood` 的统计过滤逻辑
 5. 研发需补充 `src\services\input\liveInputRules.test.ts`，至少覆盖 20~50 条真实样例，防止规则调整后回归
 6. 研发需补充“活动编辑后 mood 重算 / 手动标签不被覆盖”的测试用例
+
+7. 研发需补充“进行中 activity 吸收 standalone mood、已结束 activity 不吸收 standalone mood”的写入层测试用例
+8. 研发需补充“最新消息 mood -> activity 纠错会同步清理 `activityMood` / `moodNote` / source 元信息，不污染 report 统计”的测试用例
 
 ## 13. 风险与注意事项
 

@@ -14,14 +14,20 @@ export const ZH_ACTIVITY_STRONG_PHRASES = [
   '去洗澡',
   '去吃饭',
   '开始学习',
+  '摸鱼',
+  '健身',
+  '健身房',
+  '上课',
+  '上班',
+  '工作',
+  '背单词',
+  '刷题',
+  '跑完步',
 ];
 
 export const ZH_ACTIVITY_VERBS = [
-  '吃',
-  '写',
-  '做',
-  '开',
-  '学',
+  '开会',
+  '学习',
   '复习',
   '运动',
   '散步',
@@ -33,6 +39,27 @@ export const ZH_ACTIVITY_VERBS = [
   '看书',
   '复盘',
   '沟通',
+  '摸鱼',
+  '健身',
+  '上课',
+  '上班',
+  '工作',
+  '刷题',
+  '背单词',
+];
+
+export const ZH_ACTIVITY_SINGLE_VERB_PATTERNS = [
+  /吃[了过]?(饭|早餐|午饭|晚饭)/,
+  /写(代码|周报|作业|方案|文档|报告|论文)/,
+  /做(作业|饭|题|计划|决定|项目)/,
+  /开(会|晨会|例会)/,
+  /学(习|英语|数学|单词)/,
+  /背(单词|课文)/,
+  /刷(题|视频)/,
+  /跑(步|完步)/,
+  /(在|刚在|正在)搞/,
+  /搞定了?$/,
+  /去健身房/,
 ];
 
 export const ZH_ACTIVITY_OBJECTS = [
@@ -67,6 +94,12 @@ export const ZH_MOOD_WORDS = [
   '舒服',
   '放松',
   '没精神',
+  '头疼',
+  '后悔',
+  '充实',
+  '爽',
+  '难',
+  '状态差',
 ];
 
 export const ZH_MOOD_PATTERNS = [
@@ -75,15 +108,25 @@ export const ZH_MOOD_PATTERNS = [
   /^有点.+/,
   /^今天状态.+/,
   /真.+/,
+  /心情.+/,
 ];
 
-export const ZH_EVALUATION_WORDS = ['终于', '总算', '可算', '太难了', '好爽'];
+export const ZH_EVALUATION_WORDS = ['终于', '总算', '可算', '太难了', '好爽', '好充实', '后悔'];
 
-export const ZH_LAST_ACTIVITY_REFERENCES = ['这件事', '这个', '刚才那个', '那个会', '刚才'];
+export const ZH_LAST_ACTIVITY_REFERENCES = ['这件事', '这件事情', '这个', '刚才那个', '那个会', '刚才', '这种感觉'];
 
 export const ZH_FINISHING_PHRASES = ['做完了', '写完了', '结束了', '搞定了', '完成了'];
 
 export const ZH_NEW_ACTIVITY_SWITCHES = ['然后', '接着', '后来去', '再去', '去'];
+
+export const ZH_NON_ACTIVITY_PATTERNS = [
+  /什么都不想做/,
+  /什么都没做/,
+  /不想(开会|学习|上课|上班|运动|跑步|做|写)/,
+  /想去.+但没去/,
+  /明天要.+/,
+  /待会(儿)?(去|要)?/,
+];
 
 export const ZH_TRAILING_PARTICLES = /[啊呀呢吧嘛哦哈]$/g;
 

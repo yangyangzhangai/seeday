@@ -8,6 +8,29 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-10 — Moodauto Phase 3 (zh Gold Calibration Round 1)
+
+### Added
+
+- Added `scripts/evaluate_live_input_gold.py` to run offline classifier evaluation against parent-level `timeshine_gold_samples.xlsx`, including accuracy, mismatch pairs, and per-label recall breakdown.
+- Added `npm run eval:live-input:gold` in `package.json` to rerun zh baseline checks quickly.
+- Added gold-driven zh regression cases in `src/services/input/liveInputClassifier.test.ts` for colloquial activity terms, non-activity intent guards, and short context-evaluation mood cases.
+
+### Changed
+
+- Tuned zh rule dictionary in `src/services/input/liveInputRules.zh.ts`: expanded colloquial activity phrases, added single-verb activity patterns, expanded mood/evaluation lexicon, and introduced non-activity intent patterns.
+- Updated classifier logic in `src/services/input/liveInputClassifier.ts` to reduce single-character verb false positives, apply non-activity score correction, and strengthen short evaluative context bias to `mood_about_last_activity`.
+
+### Validation
+
+- `npm run test:unit -- src/services/input/liveInputClassifier.test.ts`
+- `python scripts/evaluate_live_input_gold.py --lang zh`
+- `python scripts/evaluate_live_input_gold.py`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` validation snapshot and next-step focus to include gold-based zh calibration status and follow-up direction.
+
 ## 2026-03-09 — Moodauto Phase 2.2 (Store Integration Regression)
 
 ### Added

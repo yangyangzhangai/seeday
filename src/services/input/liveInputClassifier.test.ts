@@ -152,3 +152,58 @@ describe('classifyLiveInput additional regression set', () => {
     });
   }
 });
+
+describe('classifyLiveInput gold-driven zh regressions', () => {
+  it('recognizes colloquial activity: 摸鱼', () => {
+    const result = classify('摸鱼');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('recognizes place-based activity: 去健身房', () => {
+    const result = classify('去健身房');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('handles completion-style short activity: 搞定了', () => {
+    const result = classify('搞定了');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('keeps pure mood phrase as standalone mood: 很开心', () => {
+    const result = classify('很开心');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('captures activity_with_mood with bodily feeling: 写代码写到头疼', () => {
+    const result = classify('写代码写到头疼');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('captures activity_with_mood with mixed clause: 上课上得有点烦', () => {
+    const result = classify('上课上得有点烦');
+    expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('does not classify negative intention as new activity: 不想开会', () => {
+    const result = classify('不想开会');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not classify plan statement as new activity: 明天要开会', () => {
+    const result = classify('明天要开会');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('biases short evaluative phrase to last activity when context exists: 爽', () => {
+    const result = classify('爽', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-gym',
+        content: '健身',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.internalKind).toBe('mood_about_last_activity');
+  });
+});
