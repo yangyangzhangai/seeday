@@ -54,6 +54,8 @@ const en = {
     chat_mood_note_placeholder: 'Write how you felt during this activity…',
     chat_adjust_mood_label: 'Adjust mood label',
     chat_end_activity: 'End',
+    chat_convert_to_activity: 'Convert to activity',
+    chat_convert_to_mood: 'Convert to mood',
 
     // ── Todo Page ──
     todo_title: 'Tasks',

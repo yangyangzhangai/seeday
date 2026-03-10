@@ -22,7 +22,7 @@ import { ChatInputBar } from './ChatInputBar';
 export const ChatPage = () => {
   const {
     messages, sendAutoRecognizedInput, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
-    updateActivity, insertActivity, deleteActivity, endActivity, isLoading, isLoadingMore,
+    updateActivity, insertActivity, deleteActivity, endActivity, reclassifyRecentInput, isLoading, isLoadingMore,
     hasMoreHistory, yesterdaySummary,
     hasInitialized, setHasInitialized, updateMessageDuration,
   } = useChatStore();
@@ -224,6 +224,11 @@ export const ChatPage = () => {
     }
   };
 
+  const handleReclassify = async (messageId: string, nextKind: 'activity' | 'mood') => {
+    await reclassifyRecentInput(messageId, nextKind);
+    setExpandedActionsId(null);
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
     const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
@@ -355,6 +360,8 @@ export const ChatPage = () => {
                   }}
                   onStardustSelect={(data, position) => setSelectedStardust({ data, position })}
                   onEndActivity={endActivity}
+                  onReclassify={handleReclassify}
+                  isLatest={index === messages.length - 1}
                   isActionsExpanded={expandedActionsId === msg.id}
                   onToggleActions={(id) => {
                     setExpandedActionsId(prev => (prev === id ? null : id));

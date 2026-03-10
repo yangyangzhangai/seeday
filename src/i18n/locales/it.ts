@@ -56,6 +56,8 @@ const it: TranslationKeys = {
     chat_mood_note_placeholder: 'Scrivi come ti sentivi durante questa attivita…',
     chat_adjust_mood_label: 'Modifica etichetta umore',
     chat_end_activity: 'Fine',
+    chat_convert_to_activity: 'Converti in attività',
+    chat_convert_to_mood: 'Converti in umore',
 
     // ── Pagina Attività ──
     todo_title: 'Attività',

@@ -56,6 +56,8 @@ const zh: TranslationKeys = {
     chat_mood_note_placeholder: '写下你做这件事时的心情...',
     chat_adjust_mood_label: '调整心情标签',
     chat_end_activity: '结束',
+    chat_convert_to_activity: '改成活动',
+    chat_convert_to_mood: '改成心情',
 
     // ── 待办页面 ──
     todo_title: '待办管理',

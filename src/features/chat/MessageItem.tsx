@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils';
 import { formatDuration } from '../../lib/time';
 import { getMoodColor } from '../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../lib/moodOptions';
-import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Edit2, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { StardustEmoji } from '../../components/feedback/StardustEmoji';
 import type { StardustCardData } from '../../types/stardust';
@@ -22,6 +22,8 @@ interface MessageItemProps {
     onMoodPickerOpen: (msgId: string) => void;
     onStardustSelect: (data: StardustCardData, position: { x: number; y: number }) => void;
     onEndActivity: (id: string) => void;
+    onReclassify: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
+    isLatest: boolean;
     isActionsExpanded: boolean;
     onToggleActions: (id: string) => void;
 }
@@ -38,6 +40,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     onMoodPickerOpen,
     onStardustSelect,
     onEndActivity,
+    onReclassify,
+    isLatest,
     isActionsExpanded,
     onToggleActions,
 }) => {
@@ -107,6 +111,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     'absolute right-2 top-2 space-x-1 bg-white/80 backdrop-blur-sm rounded p-1 shadow-sm border border-gray-100',
                     isActionsExpanded ? 'flex' : 'hidden group-hover:flex'
                 )}>
+                    {isLatest && (
+                        <button
+                            onClick={() => void onReclassify(msg.id, 'activity')}
+                            className="p-1 text-gray-500 hover:text-blue-600"
+                            title={t('chat_convert_to_activity')}
+                        >
+                            <ArrowRightLeft size={14} />
+                        </button>
+                    )}
                     <button onClick={() => onDelete(msg.id)} className="p-1 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={14} /></button>
                 </div>
             </div>
@@ -197,6 +210,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             'absolute -top-4 right-0 space-x-0.5 bg-white/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-gray-200',
                             isActionsExpanded ? 'flex' : 'hidden group-hover:flex'
                         )}>
+                            {isLatest && (
+                                <button
+                                    onClick={() => void onReclassify(msg.id, 'mood')}
+                                    className="p-0.5 text-gray-500 hover:text-blue-600"
+                                    title={t('chat_convert_to_mood')}
+                                >
+                                    <ArrowRightLeft size={12} />
+                                </button>
+                            )}
                             <button onClick={() => onEditClick(msg)} className="p-0.5 text-gray-500 hover:text-blue-600" title={t('chat_title_edit')}><Edit2 size={12} /></button>
                             <button onClick={() => onInsertClick(msg)} className="p-0.5 text-gray-500 hover:text-green-600" title={t('chat_title_insert')}><Plus size={12} /></button>
                             <button onClick={() => onDelete(msg.id)} className="p-0.5 text-gray-500 hover:text-red-600" title={t('chat_title_delete')}><Trash2 size={12} /></button>

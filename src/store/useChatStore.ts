@@ -7,16 +7,18 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
-import { classifyLiveInput } from '../services/input/liveInputClassifier';
-import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { AnnotationEvent } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import {
+  applyReclassifyMoodSideEffects,
+  buildRecentReclassifyResult,
+  sendAutoRecognizedInputFlow,
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
   closePreviousActivity,
   handleAIChatResponse,
+  persistReclassifiedMessages,
   persistInsertedActivityResult,
   persistMessageDurationUpdate,
   persistMessageToSupabase,
@@ -70,6 +72,7 @@ interface ChatState {
   ) => Promise<string | null>;
   sendMood: (content: string) => Promise<string | null>;
   sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
+  reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
   endActivity: (id: string) => Promise<void>;
@@ -298,36 +301,48 @@ export const useChatStore = create<ChatState>()(
       },
 
       sendAutoRecognizedInput: async (content: string) => {
-        const trimmed = content.trim();
-        if (!trimmed) {
-          return null;
-        }
-
         const state = get();
-        const context = getLiveInputContext(state.messages, Date.now());
-        const classification = classifyLiveInput(trimmed, context);
+        const result = await sendAutoRecognizedInputFlow(
+          content,
+          state.messages,
+          get().sendMessage,
+          get().sendMood,
+        );
+        return result?.classification ?? null;
+      },
 
-        if (classification.kind === 'mood') {
-          await get().sendMood(trimmed);
-          return classification;
+      reclassifyRecentInput: async (messageId, nextKind) => {
+        const state = get();
+        const result = buildRecentReclassifyResult(
+          state.messages,
+          messageId,
+          nextKind,
+          useMoodStore.getState().moodNote,
+        );
+
+        if (!result) {
+          return;
         }
 
-        const shouldAttachMood = classification.internalKind === 'activity_with_mood';
-        const messageId = await get().sendMessage(trimmed, undefined, 'record', {
-          skipMoodDetection: shouldAttachMood,
-        });
-
-        if (shouldAttachMood && messageId) {
-          const moodStore = useMoodStore.getState();
-          if (classification.extractedMood) {
-            moodStore.setMood(messageId, classification.extractedMood);
-          }
-          if (classification.moodNote) {
-            moodStore.setMoodNote(messageId, classification.moodNote);
-          }
+        const target = result.updatedMessages.find((message) => message.id === messageId);
+        if (!target) {
+          return;
         }
 
-        return classification;
+        set({ messages: result.updatedMessages });
+
+        applyReclassifyMoodSideEffects(
+          messageId,
+          nextKind,
+          target.content,
+          result.previousActivityId,
+          result.previousActivityMoodNoteToClear,
+        );
+
+        const session = await getSupabaseSession();
+        if (session) {
+          await persistReclassifiedMessages(session.user.id, result.patches);
+        }
       },
 
       insertActivity: async (prevId, nextId, content, startTime, endTime) => {

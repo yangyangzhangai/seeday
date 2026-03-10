@@ -1868,3 +1868,48 @@ docs/                 # 架构与交接文档
   - `npx tsc --noEmit` ✅
   - `npm run build` ✅
 
+### 2026-03-09 (续) — Moodauto Phase 1.5 输入链路解耦（classify -> dispatch -> effects）
+
+- 变更来源: 用户要求确认并落地“分类与发送解耦”风险治理
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 在 `src/store/chatActions.ts` 新增输入链路分层函数：
+     - `classifyAutoRecognizedInput()`（只负责分类）
+     - `dispatchAutoRecognizedInput()`（只负责选择发送路径）
+     - `applyAutoRecognizedInputEffects()`（只负责发送后附加处理）
+     - `sendAutoRecognizedInputFlow()`（统一编排）
+  2. `src/store/useChatStore.ts` 中 `sendAutoRecognizedInput()` 改为编排调用，不再内联“判断即发送”分支逻辑
+  3. 保持 `activity_with_mood` 语义不变：发送后仍写回 `useMoodStore.activityMood` / `useMoodStore.moodNote`
+- 验证结果:
+  - `npm run test:unit` ✅
+  - `npm run lint:max-lines` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+- 待执行:
+  1. Phase 2 / P0: `reclassifyRecentInput(messageId, nextKind)` + 最小时间线修复
+
+### 2026-03-09 (续) — Moodauto Phase 2 最近消息纠错（最小时间线修复）
+
+- 变更来源: `docs/CURRENT_TASK.md` Phase 2 / P0
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `useChatStore` 新增 `reclassifyRecentInput(messageId, nextKind)`，当前限定“最近一条 record 消息”纠错
+  2. `chatActions` 新增最小时间线修复：
+     - `mood -> activity` 时关闭上一条打开中的活动（截断到该消息时间点）
+     - `activity -> mood` 时对被该条消息关闭的上一条活动执行重开（`duration` 回到进行中）
+  3. `ChatPage` + `MessageItem` 新增消息行纠错入口（仅最近消息显示）
+  4. i18n 补齐：新增 `chat_convert_to_activity` / `chat_convert_to_mood`（en/zh/it）
+- 文档同步:
+  - 更新 `src/features/chat/README.md`（模块对外行为与 ownership）
+  - 更新 `docs/CURRENT_TASK.md`（Phase 2 勾选与 Next Step）
+  - 更新 `docs/CHANGELOG.md`（本次链路变更记录）
+- 验证结果:
+  - `npm run test:unit` ✅
+  - `npm run lint:max-lines` ✅（仅 warning，无 error）
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+

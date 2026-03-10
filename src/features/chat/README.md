@@ -10,6 +10,7 @@
 - Main user flows:
   - Chat conversation (`chat` mode)
   - Auto-recognized record input (`record` mode): single input routes through `sendAutoRecognizedInput()` and classifies `activity` vs `mood`
+  - Latest-message correction (`record` mode): message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)
   - Mood quick record (`isMood` message path) remains as the message semantic output, not an input mode toggle
 
@@ -23,6 +24,8 @@
 - Services:
   - `src/services/input/liveInputClassifier.ts`
   - `src/services/input/liveInputContext.ts`
+- Chat action flow:
+  - `src/store/chatActions.ts` (`classify -> dispatch -> post-effects` pipeline + latest-message reclassify timeline repair helpers)
 - API client: `src/api/client.ts`
 - UI feedback components: `src/components/feedback/*`
 

@@ -7,6 +7,320 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
 import type { Message } from './useChatStore';
+import { classifyLiveInput } from '../services/input/liveInputClassifier';
+import { getLiveInputContext } from '../services/input/liveInputContext';
+import type { LiveInputClassification } from '../services/input/types';
+
+type SendMessageFn = (
+  content: string,
+  customTimestamp?: number,
+  forcedMode?: 'chat' | 'record',
+  options?: { skipMoodDetection?: boolean },
+) => Promise<string | null>;
+
+type SendMoodFn = (content: string) => Promise<string | null>;
+type ReclassifyKind = 'activity' | 'mood';
+
+interface MessagePatch {
+  id: string;
+  isMood: boolean;
+  activityType: string;
+  duration?: number;
+}
+
+interface ReclassifyResult {
+  updatedMessages: Message[];
+  patches: MessagePatch[];
+  previousActivityId?: string;
+  previousActivityMoodNoteToClear?: string;
+}
+
+export interface AutoRecognizedInputResult {
+  classification: LiveInputClassification;
+  messageId: string | null;
+}
+
+function findLatestMessageIndex(messages: Message[]): number {
+  let latestIndex = -1;
+  let latestTimestamp = -Infinity;
+
+  for (let i = 0; i < messages.length; i++) {
+    const timestamp = messages[i].timestamp;
+    if (timestamp >= latestTimestamp) {
+      latestTimestamp = timestamp;
+      latestIndex = i;
+    }
+  }
+
+  return latestIndex;
+}
+
+function findPreviousActivityIndex(messages: Message[], fromIndex: number): number {
+  for (let i = fromIndex - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.mode === 'record' && !message.isMood) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function toRoundedMinutes(from: number, to: number): number {
+  return Math.max(0, Math.round((to - from) / (1000 * 60)));
+}
+
+function buildMoodToActivityReclassify(
+  messages: Message[],
+  targetIndex: number,
+  moodNoteMap: Record<string, string | undefined>,
+): ReclassifyResult {
+  const updatedMessages = [...messages];
+  const target = updatedMessages[targetIndex];
+  const patches: MessagePatch[] = [];
+
+  updatedMessages[targetIndex] = {
+    ...target,
+    isMood: false,
+    activityType: '待分类',
+    duration: undefined,
+  };
+  patches.push({
+    id: target.id,
+    isMood: false,
+    activityType: '待分类',
+    duration: undefined,
+  });
+
+  const previousActivityIndex = findPreviousActivityIndex(updatedMessages, targetIndex);
+  if (previousActivityIndex >= 0) {
+    const previous = updatedMessages[previousActivityIndex];
+    if (previous.duration === undefined) {
+      const duration = toRoundedMinutes(previous.timestamp, target.timestamp);
+      updatedMessages[previousActivityIndex] = { ...previous, duration };
+      patches.push({
+        id: previous.id,
+        isMood: false,
+        activityType: previous.activityType || '待分类',
+        duration,
+      });
+    }
+
+    return {
+      updatedMessages,
+      patches,
+      previousActivityId: previous.id,
+      previousActivityMoodNoteToClear: moodNoteMap[previous.id] === target.content ? previous.id : undefined,
+    };
+  }
+
+  return {
+    updatedMessages,
+    patches,
+  };
+}
+
+function buildActivityToMoodReclassify(messages: Message[], targetIndex: number): ReclassifyResult {
+  const updatedMessages = [...messages];
+  const target = updatedMessages[targetIndex];
+  const patches: MessagePatch[] = [];
+
+  updatedMessages[targetIndex] = {
+    ...target,
+    isMood: true,
+    activityType: 'mood',
+    duration: undefined,
+  };
+  patches.push({
+    id: target.id,
+    isMood: true,
+    activityType: 'mood',
+    duration: undefined,
+  });
+
+  const previousActivityIndex = findPreviousActivityIndex(messages, targetIndex);
+  if (previousActivityIndex >= 0) {
+    const previous = updatedMessages[previousActivityIndex];
+    const expectedDuration = toRoundedMinutes(previous.timestamp, target.timestamp);
+
+    if (previous.duration !== undefined && Math.abs(previous.duration - expectedDuration) <= 1) {
+      updatedMessages[previousActivityIndex] = {
+        ...previous,
+        duration: undefined,
+      };
+      patches.push({
+        id: previous.id,
+        isMood: false,
+        activityType: previous.activityType || '待分类',
+        duration: undefined,
+      });
+    }
+
+    return {
+      updatedMessages,
+      patches,
+      previousActivityId: previous.id,
+    };
+  }
+
+  return {
+    updatedMessages,
+    patches,
+  };
+}
+
+export function buildRecentReclassifyResult(
+  messages: Message[],
+  messageId: string,
+  nextKind: ReclassifyKind,
+  moodNoteMap: Record<string, string | undefined>,
+): ReclassifyResult | null {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  const targetIndex = messages.findIndex((message) => message.id === messageId);
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const target = messages[targetIndex];
+  if (target.mode !== 'record') {
+    return null;
+  }
+
+  const latestIndex = findLatestMessageIndex(messages);
+  if (targetIndex !== latestIndex) {
+    return null;
+  }
+
+  const isAlreadyKind = (nextKind === 'mood' && target.isMood) || (nextKind === 'activity' && !target.isMood);
+  if (isAlreadyKind) {
+    return null;
+  }
+
+  if (nextKind === 'activity') {
+    return buildMoodToActivityReclassify(messages, targetIndex, moodNoteMap);
+  }
+
+  return buildActivityToMoodReclassify(messages, targetIndex);
+}
+
+export async function persistReclassifiedMessages(userId: string, patches: MessagePatch[]): Promise<void> {
+  for (const patch of patches) {
+    await supabase
+      .from('messages')
+      .update({
+        is_mood: patch.isMood,
+        activity_type: patch.activityType,
+        duration: patch.duration ?? null,
+      })
+      .eq('id', patch.id)
+      .eq('user_id', userId);
+  }
+}
+
+export function applyReclassifyMoodSideEffects(
+  targetMessageId: string,
+  nextKind: ReclassifyKind,
+  targetContent: string,
+  previousActivityId?: string,
+  previousActivityMoodNoteToClear?: string,
+): void {
+  const moodStore = useMoodStore.getState();
+
+  if (nextKind === 'mood') {
+    if (previousActivityId) {
+      moodStore.setMoodNote(previousActivityId, targetContent);
+      void triggerMoodDetection(previousActivityId, targetContent);
+    }
+
+    useMoodStore.setState((state) => ({
+      activityMood: { ...state.activityMood, [targetMessageId]: undefined },
+      customMoodLabel: { ...state.customMoodLabel, [targetMessageId]: undefined },
+      customMoodApplied: { ...state.customMoodApplied, [targetMessageId]: false },
+      moodNote: { ...state.moodNote, [targetMessageId]: undefined },
+    }));
+    return;
+  }
+
+  if (previousActivityMoodNoteToClear) {
+    useMoodStore.setState((state) => ({
+      moodNote: {
+        ...state.moodNote,
+        [previousActivityMoodNoteToClear]: undefined,
+      },
+    }));
+  }
+}
+
+export function classifyAutoRecognizedInput(content: string, messages: Message[]): LiveInputClassification | null {
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const context = getLiveInputContext(messages, Date.now());
+  return classifyLiveInput(trimmed, context);
+}
+
+export async function dispatchAutoRecognizedInput(
+  content: string,
+  classification: LiveInputClassification,
+  sendMessage: SendMessageFn,
+  sendMood: SendMoodFn,
+): Promise<string | null> {
+  const trimmed = content.trim();
+
+  if (classification.kind === 'mood') {
+    return sendMood(trimmed);
+  }
+
+  const shouldAttachMood = classification.internalKind === 'activity_with_mood';
+  return sendMessage(trimmed, undefined, 'record', {
+    skipMoodDetection: shouldAttachMood,
+  });
+}
+
+export function applyAutoRecognizedInputEffects(
+  messageId: string | null,
+  classification: LiveInputClassification,
+): void {
+  if (!messageId || classification.kind !== 'activity') {
+    return;
+  }
+
+  if (classification.internalKind !== 'activity_with_mood') {
+    return;
+  }
+
+  const moodStore = useMoodStore.getState();
+  if (classification.extractedMood) {
+    moodStore.setMood(messageId, classification.extractedMood);
+  }
+  if (classification.moodNote) {
+    moodStore.setMoodNote(messageId, classification.moodNote);
+  }
+}
+
+export async function sendAutoRecognizedInputFlow(
+  content: string,
+  messages: Message[],
+  sendMessage: SendMessageFn,
+  sendMood: SendMoodFn,
+): Promise<AutoRecognizedInputResult | null> {
+  const classification = classifyAutoRecognizedInput(content, messages);
+  if (!classification) {
+    return null;
+  }
+
+  const messageId = await dispatchAutoRecognizedInput(content, classification, sendMessage, sendMood);
+  applyAutoRecognizedInputEffects(messageId, classification);
+
+  return {
+    classification,
+    messageId,
+  };
+}
 
 export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
   const updatedMessages = [...messages];
