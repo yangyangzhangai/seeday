@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ZH_ACTIVITY_ONGOING_PATTERNS,
-  ZH_NON_ACTIVITY_PATTERNS,
+  ZH_FUTURE_OR_PLAN_PATTERNS,
+  ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS,
+  ZH_PLACE_NOUNS,
   ZH_STRONG_COMPLETION_PATTERNS,
   ZH_MOOD_PATTERNS,
 } from './liveInputRules.zh';
@@ -30,8 +32,12 @@ describe('liveInputRules pattern smoke regression', () => {
     { input: '已经做完了', shouldMatch: true, rules: ZH_STRONG_COMPLETION_PATTERNS },
     { input: '好累', shouldMatch: true, rules: ZH_MOOD_PATTERNS },
     { input: '真烦', shouldMatch: true, rules: ZH_MOOD_PATTERNS },
-    { input: '明天要去开会', shouldMatch: true, rules: ZH_NON_ACTIVITY_PATTERNS },
-    { input: '不想运动', shouldMatch: true, rules: ZH_NON_ACTIVITY_PATTERNS },
+    { input: '明天要去开会', shouldMatch: true, rules: ZH_FUTURE_OR_PLAN_PATTERNS },
+    { input: '待会去公园', shouldMatch: true, rules: ZH_FUTURE_OR_PLAN_PATTERNS },
+    { input: '不想运动', shouldMatch: true, rules: ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS },
+    { input: '想去公园但没去', shouldMatch: true, rules: ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS },
+    { input: '今天没有产出', shouldMatch: true, rules: ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS },
+    { input: '没产出', shouldMatch: true, rules: ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS },
   ];
 
   const enCases: Array<{ input: string; shouldMatch: boolean; rules: RegExp[] }> = [
@@ -61,4 +67,10 @@ describe('liveInputRules pattern smoke regression', () => {
       expect(matchesAny(testCase.input, testCase.rules)).toBe(testCase.shouldMatch);
     });
   }
+
+  it('contains high-frequency place nouns for go+place detector', () => {
+    expect(ZH_PLACE_NOUNS).toEqual(
+      expect.arrayContaining(['公园', '博物馆', '超市', '图书馆', '医院']),
+    );
+  });
 });

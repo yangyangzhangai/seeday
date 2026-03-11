@@ -11,6 +11,27 @@ export type InternalLiveInputKind =
 
 export type LiveInputConfidence = 'high' | 'medium' | 'low';
 
+export type LiveEvidenceSource =
+  | 'future'
+  | 'negation'
+  | 'ongoing'
+  | 'completion'
+  | 'goto_place'
+  | 'lexicon'
+  | 'mood';
+
+export type LiveEvidenceStrength = 'weak' | 'medium' | 'strong';
+
+export type LiveEvidencePolarity = 'positive' | 'negative' | 'planned';
+
+export interface LiveEvidence {
+  source: LiveEvidenceSource;
+  strength: LiveEvidenceStrength;
+  polarity?: LiveEvidencePolarity;
+  tokens: string[];
+  reasonCode: string;
+}
+
 export interface NormalizedLiveInput {
   rawContent: string;
   normalizedContent: string;
@@ -53,4 +74,5 @@ export interface LiveInputClassification {
   containsMoodSignal?: boolean;
   extractedMood?: MoodKey;
   moodNote?: string;
+  evidence?: LiveEvidence[];
 }

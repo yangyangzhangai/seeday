@@ -1,9 +1,9 @@
 # DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 # 活动 / 心情自动识别重构讨论稿
 
-- 文档版本: v0.3
+- 文档版本: v0.4
 - 状态: Discussion Draft
-- 最后更新: 2026-03-10
+- 最后更新: 2026-03-11
 - 适用范围: `src/services/input`、`src/store/chatActions.ts`、`src/store/useChatStore.ts`
 - 目标读者: 产品、前端、状态层开发
 
@@ -163,6 +163,8 @@ if (classification.kind === 'mood') {
 
 ## 3. 当前基线
 
+### 3.0.1 2026-03-10 本地 gold 评估基线（200 条）
+
 2026-03-10 本地 gold 评估基线：
 
 - `kind_accuracy = 77.98%`
@@ -177,7 +179,162 @@ if (classification.kind === 'mood') {
 1. `new_activity -> standalone_mood`
 2. `activity_with_mood -> standalone_mood`
 
-这说明系统当前不是“心情判得不准”，而是“活动漏得太多”。
+这说明系统当前不是"心情判得不准"，而是"活动漏得太多"。
+
+### 3.0.2 2026-03-11 新增 1000 条样本基线（修改前原始代码）
+
+使用 `timeshine_3000_samples.xlsx`（解析出 1000 条有效样本）：
+
+- `kind_accuracy = 674/1000 = 67.40%`
+- `internal_accuracy = 599/1000 = 59.90%`
+- `new_activity recall = 234/429 = 54.55%`
+- `activity_with_mood recall = 30/155 = 19.35%`
+- `standalone_mood recall = 323/356 = 90.73%`
+- `mood_about_last_activity recall = 12/60 = 20.00%`
+
+主要错配方向：
+
+| 错配方向 | 数量 | 说明 |
+|----------|------|------|
+| `new_activity -> standalone_mood` | 189 | **最大问题：活动被漏判为心情** |
+| `activity_with_mood -> standalone_mood` | 83 | 带情绪的活动也被漏判 |
+| `activity_with_mood -> new_activity` | 42 | 情绪未被识别 |
+| `mood_about_last_activity -> standalone_mood` | 27 | 上下文关联漏判 |
+| `standalone_mood -> new_activity` | 18 | 心情被误判为活动 |
+| `standalone_mood -> activity_with_mood` | 15 | 心情被误判为带情绪活动 |
+
+**结论：错误的主方向是「活动被漏判为心情」（189+83=272 条），而非「心情被误判为活动」（18+15=33 条）**。修复方向必须以增强活动识别为主，而不是增强心情识别。
+
+## 3.1 准确率异常分析与修复优先级（修正版）
+
+### A. 关键误差来源（按影响排序——修正）
+
+1. **活动词典覆盖严重不足（主因，影响约 189 条）**
+   - 大量日常活动词未被覆盖：`发邮件`、`做PPT`、`接电话`、`做竞品分析`、`准备汇报`、`预习`、`做错题本`、`浇花`、`修东西`、`换床单`、`收快递`、`睡醒了`、`去超市`、`考完试`、`刚下课`、`在review代码` 等
+   - 活动对象词也缺失：`PPT`、`文章`、`需求`、`邮件`、`消息`、`笔记`、`课`、`资料`、`bug`、`测试`、`论文`、`汇报` 等
+   - 完成态词汇不足：`开完会了`、`考完了`、`看完了`、`读完了`、`弄完了`、`上完线` 等
+   - 结论：**优先补活动词典才是最高 ROI 的操作**
+
+2. **`activity_with_mood` 识别率极低（19.35%），影响约 83 条**
+   - 需要同时命中 `hasActivityEvidence` 和 `hasMoodSignal` 才能进入该分支
+   - 但由于活动词典覆盖不足，很多带情绪的活动句连 `hasActivityEvidence` 都没命中
+   - 结论：先补活动词典，`activity_with_mood` recall 会自然提升
+
+3. **单字动词误触发 activity**
+   - `object + verb` 联合规则未过滤单字动词
+   - 结论：`ZH_ACTIVITY_VERBS` 参与联合检查时必须过滤 `verb.length < 2`
+
+4. **`ZH_ACTIVITY_SINGLE_VERB_PATTERNS` 过宽**
+   - `/出门了?/`、`/搞定了?$/` 等覆盖面过大
+   - 结论：收紧为"活动主体 + 时态壳子"的组合规则
+
+5. **上下文纠偏触发条件过严**
+   - 仅依赖 `referencesLastActivity && hasEvaluation && !hasStrongNewActivity`
+   - 结论：需要谨慎放宽，但方向要对——不能在活动漏判严重时再增强 mood 分支
+
+6. **未发生/计划句拦截不完整**
+   - `应该去...`、`打算...`、`怎么办` 等仍会落入活动链
+   - 结论：未来/计划拦截继续前置并扩样式
+
+7. **标准化阶段丢失情绪标点信息**
+   - `!/?` 统一替换后，丢失句子强度信号
+
+### B. 优先级修复方案（修正版）
+
+> [!IMPORTANT]
+> 之前的 P0 方案优先级排序有误。在「活动被漏判为心情」是主方向错误的前提下，应先补活动识别，再调权重和收紧 mood。以下为修正后的优先级。
+
+#### P0（最高 ROI，预计 +10% ~ +20%）— 补活动词典与结构
+
+1. 扩充 `ZH_ACTIVITY_STRONG_PHRASES`、`ZH_ACTIVITY_VERBS`、`ZH_ACTIVITY_OBJECTS`
+2. 扩充 `ZH_ACTIVITY_SINGLE_VERB_PATTERNS`：补齐完成态、进行态正则
+3. 扩充 `ZH_FINISHING_PHRASES` 和 `ZH_STRONG_COMPLETION_PATTERNS`
+4. 新增结构化检测函数：`detectActivityCompletion`、`detectActivityOngoing`（见第 7 节）
+
+#### P1（高收益，预计 +5% ~ +10%）— 扩充 mood 词典让 `activity_with_mood` 命中
+
+1. 扩充 `ZH_MOOD_WORDS`：身体感受、网络口语、状态描述词
+2. 目的**不是让更多句子判为 mood**，而是让同时包含活动词和情绪词的句子能正确进入 `activity_with_mood` 分支
+
+#### P2（稳态修复，预计 +3% ~ +8%）— 修复误匹配
+
+1. 修复 activity 联合检查的单字动词误匹配
+2. 收紧 `ZH_ACTIVITY_SINGLE_VERB_PATTERNS`
+3. 扩充 `ZH_NON_ACTIVITY_PATTERNS` 拦截未来/计划句
+
+#### P3（谨慎调整，预计 +2% ~ +5%）— 打分权重微调
+
+1. 在补齐活动词典后重新评估 `hasWeakCompletion` 权重
+2. `hasStrongCompletion` 在 mood 共现时的权重调整
+3. 句末主语义判断作为 tie-breaker
+
+## 3.2 验证闭环与阶段目标
+
+建议固定使用 `evaluate_live_input_gold.py` 形成小步循环：
+
+1. 每轮先跑 1000 样本，输出 `top_mismatch_pairs`
+2. 导出 Top 50 错例并标注错误原因
+3. 按错配主方向选择改动包：
+   - `activity -> mood` 漏判多（当前主问题）：优先 P0 活动词典补齐
+   - `mood -> activity` 误判多：优先 P2 误匹配修复
+   - `mood_about_last_activity` 与 `activity_with_mood` 互混：优先 P3 + 上下文规则调整
+4. 阶段目标：
+   - Phase 1: `internal_accuracy >= 75%`
+   - Phase 2: `internal_accuracy >= 82%`
+   - 长期纯规则上限: `~88%`
+
+## 3.3 2026-03-11 已实施的代码修改记录
+
+### 修改后测试结果
+
+- `kind_accuracy`: `67.40%` -> `75.50%`（+8.1%）
+- `internal_accuracy`: `59.90%` -> `69.20%`（+9.3%）
+- `new_activity recall`: `54.55%` -> `70.63%`（+16.1%）
+- `activity_with_mood recall`: `19.35%` -> `34.84%`（+15.5%）
+- `standalone_mood recall`: `90.73%` -> `89.89%`（-0.8%）
+- `mood_about_last_activity recall`: `20.00%` -> `25.00%`（+5.0%）
+
+### A. 活动词典扩充（`liveInputRules.zh.ts`）— 正确方向
+
+1. `ZH_ACTIVITY_STRONG_PHRASES` 新增：`发邮件`、`回消息`、`开站会`、`做PPT`、`做汇报`、`浇花`、`修东西`、`换床单`、`做题`、`接电话` 等
+2. `ZH_ACTIVITY_VERBS` 新增：`review`、`接`、`产出`、`发`、`查`、`修`、`换`、`浇`、`收`、`撕`
+3. `ZH_ACTIVITY_SINGLE_VERB_PATTERNS` 新增：`做/写PPT`、`发邮件`、`接电话`、`产出文章`、`被老板骂`、`汇报通过`、`论文改到崩溃` 等
+4. `ZH_ACTIVITY_OBJECTS` 新增：`PPT`、`文章`、`需求`、`邮件`、`消息`、`笔记`、`课`、`资料`、`代码`、`bug`、`测试`、`论文`、`汇报`
+5. `ZH_FINISHING_PHRASES` 新增：`弄完了`、`看完了`、`读完了`、`上完线`、`开完会了`、`下课`
+6. `ZH_STRONG_COMPLETION_PATTERNS` 新增：`开完会了`、`考完了`
+
+这部分是本轮改善 `new_activity recall`（+16.1%）的主要来源，方向正确。
+
+### B. 心情词典扩充（`liveInputRules.zh.ts`）— 方向存疑
+
+`ZH_MOOD_WORDS` 新增约 50 个词：`困`、`饿`、`头晕`、`人麻了`、`emo`、`摆烂`、`躺平`、`成就感`、`解脱`、`如释重负`、`头秃`、`崩溃`、`想睡觉` 等。
+
+> [!WARNING]
+> 在「活动被漏判为心情」是主方向错误的前提下，扩充 mood 词典效果双面：正面是让更多包含活动词+情绪词的句子能进入 `activity_with_mood` 分支（解释了 recall 从 19.35% 升到 34.84%）；负面是也可能让不该被判为有情绪的活动句被拉入 mood 方向。
+
+### C. 打分权重调整（`liveInputClassifier.ts`）— 反方向
+
+1. `hasWeakCompletion`: `mood +1` -> `mood +2`
+2. 新增 `endsWithMoodSignal()` 函数（调用已回退）
+3. 放宽上下文纠偏条件，新增 `recent.isOngoing && hasStrongMoodEvidence` 分支
+
+> [!CAUTION]
+> `hasWeakCompletion` 从 +1 提到 +2 是**反方向**操作。在「活动被漏判为心情」是主要问题的前提下，提高 mood 分数只会让更多活动句被心情吸走。应该回退。
+
+### 待回退项
+
+1. `hasWeakCompletion` 应回退到 `mood +1`
+2. 放宽上下文纠偏的 `recent.isOngoing && hasStrongMoodEvidence` 条件需重新评估
+
+## 3.4 AI 引入门槛（更新）
+
+在以下条件满足前，不建议把 AI 作为默认修复手段：
+
+1. 已完成第 11 节 Phase 1 的写入链路修复
+2. 已完成本节 P0/P1/P2 核心规则修复
+3. `internal_accuracy` 稳定达到 `>= 75%` 后，再评估 AI fallback
+
+原因：当前主因是活动词典覆盖不足，不是语义建模上限。
 
 ## 4. 重构原则
 
@@ -835,3 +992,115 @@ hasEvidenceReferencingLastActivity =
 5. `mood_about_last_activity` 删除“短句推测性挂载”，改成“证据性关联”，同时保留“进行中 activity 可吸收 standalone mood”的写入层规则
 
 这五点确定后，后续实现顺序和测试拆分会比较清晰，不容易再陷入“继续堆词典”的局部修补。
+
+## 15. 2026-03-11 新增执行计划（结构优先，供明日开发）
+
+### 15.1 本轮确认的实现口径
+
+1. 分类主线改为“结构优先”，词典改为候选证据源，不再作为唯一入口。
+2. `去 + 地点/场所` 采用结构化检测，不再依赖把 `去公园`、`去博物馆` 逐条堆进强短语表。
+3. `future / planned / negation` 继续前置为硬拦截，优先级高于活动识别。
+4. `standalone_mood` 在 ongoing 场景允许写入层显式挂载；该行为不改变分类结果。
+5. `hasWeakCompletion` 本轮按产品决议保持 `mood +2`，**不回退**。
+
+### 15.2 明日开发任务拆分（工程可执行）
+
+#### A. 分类流水线重排（P0）
+
+目标：把 runtime 决策顺序收敛为固定链路，减少分支散落。
+
+建议顺序：
+
+1. `normalize`
+2. `detectFutureOrPlanned`
+3. `detectNegatedOrNotOccurred`
+4. `detectActivityOngoing`
+5. `detectActivityCompletion`
+6. `detectGoToPlaceActivity`
+7. `detectLexiconActivity`
+8. `detectMoodSignal`
+9. `contextLinking`
+10. `final dispatch by internalKind`
+
+落点文件：
+
+- `src/services/input/liveInputClassifier.ts`
+
+#### B. 新增 `go + place` 结构检测（P0）
+
+目标：覆盖“去公园/去博物馆/去超市”这类高频活动表达，降低对强短语词典依赖。
+
+最小实现：
+
+1. 新增 `ZH_PLACE_NOUNS`（地点/场所词域，先覆盖 Top 高频）
+2. 新增 `detectGoToPlaceActivity(input)`：识别 `去 + PLACE_NOUN`
+3. 与时态/极性联动：
+   - 命中 `future/planned` -> 阻断活动
+   - 命中 `negated/not happened` -> 阻断活动
+   - 命中 `刚/已经/了` -> 增强活动证据
+
+落点文件：
+
+- `src/services/input/liveInputRules.zh.ts`
+- `src/services/input/liveInputClassifier.ts`
+
+#### C. 证据对象化（P1）
+
+目标：避免后续继续堆 if/else，提升可解释性与埋点质量。
+
+新增结构建议：
+
+```ts
+type LiveEvidence = {
+  source: 'future' | 'negation' | 'ongoing' | 'completion' | 'goto_place' | 'lexicon' | 'mood'
+  strength: 'weak' | 'medium' | 'strong'
+  polarity?: 'positive' | 'negative' | 'planned'
+  tokens: string[]
+  reasonCode: string
+}
+```
+
+落点文件：
+
+- `src/services/input/types.ts`
+- `src/services/input/liveInputClassifier.ts`
+- `src/services/input/liveInputTelemetry.ts`
+
+#### D. 上下文关联继续收紧（P1）
+
+目标：`mood_about_last_activity` 保持“证据性关联”，禁止“推测性关联”回流。
+
+规则要求：
+
+1. 仅在 `referencesLastActivity` 等显式证据成立时允许落入 `mood_about_last_activity`
+2. ongoing 仅影响写入层 `relatedActivityId`，不作为分类捷径
+
+落点文件：
+
+- `src/services/input/liveInputClassifier.ts`
+- `src/store/chatActions.ts`
+
+#### E. 回归测试扩展（P0）
+
+目标：锁住“结构优先”后的核心行为，避免下轮回退。
+
+必须新增样例：
+
+1. `去公园` / `去博物馆` / `去超市`
+2. `待会去公园` / `明天去博物馆`
+3. `想去公园但没去` / `今天没有产出`
+4. `刚去超市回来` / `已经去公园了`
+5. `去公园好开心`（activity_with_mood）
+
+落点文件：
+
+- `src/services/input/liveInputClassifier.test.ts`
+- `src/services/input/liveInputRules.test.ts`
+
+### 15.3 明日验收口径（Done 定义）
+
+1. `去+地点` 已发生句可稳定识别为活动。
+2. `去+地点` 未来/计划句不会误落活动。
+3. 否定未发生句（含“没产出”）不会误落活动。
+4. `mood_about_last_activity` 均可由证据解释，不再依赖猜测。
+5. 目标测试集通过，且新增样例覆盖上述 5 类场景。

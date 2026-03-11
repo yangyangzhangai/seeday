@@ -44,7 +44,11 @@ let state: LiveInputTelemetryState = {
 export function recordLiveInputClassification(classification: LiveInputClassification): void {
   state.autoRecognizedTotal += 1;
   state.classificationByInternalKind[classification.internalKind] += 1;
-  for (const reason of classification.reasons) {
+  const reasonCodes = Array.from(new Set([
+    ...classification.reasons,
+    ...(classification.evidence?.map((item) => item.reasonCode) ?? []),
+  ]));
+  for (const reason of reasonCodes) {
     state.reasonCounts[reason] = (state.reasonCounts[reason] ?? 0) + 1;
   }
 }

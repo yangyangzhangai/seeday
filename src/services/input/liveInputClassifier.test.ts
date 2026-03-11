@@ -164,10 +164,17 @@ describe('classifyLiveInput context bias', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
-  it('treats weak completion as mood signal without context linking', () => {
+  it('treats weak completion as mood signal without context linking when no recent context', () => {
+    const result = classify('终于松口气了');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('keeps weak completion as standalone mood with ongoing context', () => {
     const result = classify('终于松口气了', contextWithWriting);
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('standalone_mood');
+    expect(result.relatedActivityId).toBe('a-write');
   });
 
   it('keeps new activity when strong new-action switch exists: 写完周报后去洗澡了', () => {
@@ -278,6 +285,48 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 
+  it('intercepts no-output sentence as standalone mood: 今天没有产出', () => {
+    const result = classify('今天没有产出');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('intercepts no-output sentence as standalone mood: 没产出', () => {
+    const result = classify('没产出');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('treats inability phrasing as mood: 学不下去了', () => {
+    const result = classify('学不下去了');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('treats inability phrasing as mood: 看不进去', () => {
+    const result = classify('看不进去');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('treats inability phrasing as mood: 写不动了', () => {
+    const result = classify('写不动了');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('treats inability phrasing as mood: 干不下去', () => {
+    const result = classify('干不下去');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('treats low-motivation phrasing as mood: 学习提不起劲', () => {
+    const result = classify('学习提不起劲');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
   it('does not over-trigger activity for 学期 in mood sentence', () => {
     const result = classify('这学期压力好大');
     expect(result.kind).toBe('mood');
@@ -313,6 +362,74 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
     const result = classify('明天要去开会');
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies go+place as new activity: 去公园', () => {
+    const result = classify('去公园');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies go+place as new activity: 去博物馆', () => {
+    const result = classify('去博物馆');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies go+place as new activity: 去超市', () => {
+    const result = classify('去超市');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('blocks planned go+place: 待会去公园', () => {
+    const result = classify('待会去公园');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('blocks planned go+place: 明天去博物馆', () => {
+    const result = classify('明天去博物馆');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('blocks negated not-occurred go+place: 想去公园但没去', () => {
+    const result = classify('想去公园但没去');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('keeps happened shell go+place as activity: 刚去超市回来', () => {
+    const result = classify('刚去超市回来');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('keeps happened shell go+place as activity: 已经去公园了', () => {
+    const result = classify('已经去公园了');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies go+place with mood as activity_with_mood: 去公园好开心', () => {
+    const result = classify('去公园好开心');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.extractedMood).toBe('happy');
+  });
+
+  it('emits evidence entries for planned interception', () => {
+    const result = classify('明天去博物馆');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.evidence?.some((item) => item.reasonCode === 'matched_future_or_planned_signal')).toBe(true);
+  });
+
+  it('emits go+place happened-shell evidence details', () => {
+    const result = classify('刚去超市回来');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.evidence?.some((item) => item.reasonCode === 'matched_go_to_place_signal')).toBe(true);
+    expect(result.evidence?.some((item) => item.reasonCode === 'matched_go_to_place_happened_shell')).toBe(true);
   });
 
   it('does not use raw substring context matching: 刚写完报告了 vs 开会', () => {

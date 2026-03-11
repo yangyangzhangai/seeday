@@ -18,7 +18,12 @@ import { MessageItem } from './MessageItem';
 import { MoodPickerModal } from './MoodPickerModal';
 import { EditInsertModal } from './EditInsertModal';
 import { ChatInputBar } from './ChatInputBar';
-import { handleLatestMessageReclassify } from './chatPageActions';
+import { MagicPenSheet } from './MagicPenSheet';
+import { parseMagicPenInput } from '../../services/input/magicPenParser';
+import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import {
+  handleLatestMessageReclassify,
+} from './chatPageActions';
 
 export const ChatPage = () => {
   const {
@@ -42,6 +47,11 @@ export const ChatPage = () => {
   const [moodPickerReadonly, setMoodPickerReadonly] = useState(false);
   const { t, i18n } = useTranslation();
   const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
+  const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
+  const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
+  const [magicPenSeedText, setMagicPenSeedText] = useState('');
+  const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
+  const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
 
   const customLabelDefault = t('chat_custom_label_default');
   const isDefaultCustomLabel = (label: string) => !label || label === customLabelDefault || label === '自定义';
@@ -231,6 +241,17 @@ export const ChatPage = () => {
 
   const handleSend = async () => {
     if (!input.trim()) return;
+
+    if (isMagicPenModeOn) {
+      const parsed = await parseMagicPenInput(input, { lang: (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it' });
+      setMagicPenSeedText(input);
+      setMagicPenSeedDrafts(parsed.drafts);
+      setMagicPenSeedUnparsed(parsed.unparsedSegments);
+      setIsMagicPenOpen(true);
+      setInput('');
+      return;
+    }
+
     const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
 
     const classification = await sendAutoRecognizedInput(input);
@@ -251,6 +272,17 @@ export const ChatPage = () => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleOpenMagicPen = () => {
+    setIsMagicPenModeOn((prev) => !prev);
+  };
+
+  const handleCloseMagicPen = () => {
+    setIsMagicPenOpen(false);
+    setMagicPenSeedText('');
+    setMagicPenSeedDrafts([]);
+    setMagicPenSeedUnparsed([]);
   };
 
   // ── 辅助：计算日期分隔线 ─────────────────────────────────────
@@ -460,9 +492,20 @@ export const ChatPage = () => {
       <ChatInputBar
         input={input}
         isLoading={isLoading}
+        isMagicPenModeOn={isMagicPenModeOn}
         onInputChange={setInput}
         onSend={handleSend}
         onKeyDown={handleKeyDown}
+        onToggleMagicPenMode={handleOpenMagicPen}
+      />
+
+      <MagicPenSheet
+        isOpen={isMagicPenOpen}
+        initialText={magicPenSeedText}
+        initialDrafts={magicPenSeedDrafts}
+        initialUnparsedSegments={magicPenSeedUnparsed}
+        messages={messages}
+        onClose={handleCloseMagicPen}
       />
 
       {/* 星尘珍藏查看卡片 */}

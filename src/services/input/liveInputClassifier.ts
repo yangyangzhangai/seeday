@@ -9,11 +9,13 @@ import {
   ZH_EVALUATION_WORDS,
   ZH_FINISHING_PHRASES,
   ZH_LAST_ACTIVITY_REFERENCES,
+  ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   ZH_MOOD_KEYWORDS,
   ZH_MOOD_PATTERNS,
   ZH_MOOD_WORDS,
   ZH_NEW_ACTIVITY_SWITCHES,
-  ZH_NON_ACTIVITY_PATTERNS,
+  ZH_PLACE_NOUNS,
+  ZH_FUTURE_OR_PLAN_PATTERNS,
   ZH_PUNCT_ONLY,
   ZH_STRONG_COMPLETION_PATTERNS,
   ZH_TRAILING_PARTICLES,
@@ -38,9 +40,11 @@ import {
   IT_STRONG_COMPLETION_PATTERNS,
 } from './liveInputRules.it';
 import type {
+  LiveEvidence,
   LiveInputClassification,
   LiveInputConfidence,
   LiveInputContext,
+  LiveInputScore,
   NormalizedLiveInput,
 } from './types';
 
@@ -68,6 +72,10 @@ function normalizeLiveInput(rawContent: string): NormalizedLiveInput {
 
 function includesAny(input: string, words: string[]): boolean {
   return words.some((word) => input.includes(word));
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function hasCjk(input: string): boolean {
@@ -167,18 +175,80 @@ function getRelatedOngoingActivityId(context: LiveInputContext): string | undefi
     : undefined;
 }
 
+function makeEvidence(
+  source: LiveEvidence['source'],
+  reasonCode: string,
+  tokens: string[],
+  strength: LiveEvidence['strength'],
+  polarity?: LiveEvidence['polarity'],
+): LiveEvidence {
+  return {
+    source,
+    strength,
+    polarity,
+    tokens,
+    reasonCode,
+  };
+}
+
+function scoreEvidence(evidence: LiveEvidence): LiveInputScore {
+  switch (evidence.source) {
+    case 'future':
+    case 'negation':
+      return { activity: 0, mood: 3 };
+    case 'ongoing':
+      return { activity: 2, mood: 0 };
+    case 'completion':
+      return { activity: 2, mood: 0 };
+    case 'goto_place':
+      return evidence.reasonCode === 'matched_go_to_place_happened_shell'
+        ? { activity: 1, mood: 0 }
+        : { activity: 3, mood: 0 };
+    case 'lexicon':
+      return { activity: 3, mood: 0 };
+    case 'mood':
+      if (evidence.reasonCode === 'context_bias_to_last_activity') {
+        return { activity: 0, mood: 3 };
+      }
+      if (evidence.reasonCode === 'matched_weak_completion_signal') {
+        return { activity: 0, mood: 2 };
+      }
+      return { activity: 0, mood: 2 };
+    default:
+      return { activity: 0, mood: 0 };
+  }
+}
+
+function buildScoresFromEvidence(evidence: LiveEvidence[]): LiveInputScore {
+  return evidence.reduce(
+    (acc, item) => {
+      const delta = scoreEvidence(item);
+      return {
+        activity: acc.activity + delta.activity,
+        mood: acc.mood + delta.mood,
+      };
+    },
+    { activity: 0, mood: 0 },
+  );
+}
+
+function buildReasonsFromEvidence(evidence: LiveEvidence[]): string[] {
+  return evidence.map((item) => item.reasonCode);
+}
+
 function classifyLatinInput(content: string, context: LiveInputContext): LiveInputClassification {
   const normalized = normalizeLiveInput(content);
-  const reasons: string[] = [];
-  const scores = { activity: 0, mood: 0 };
+  const evidence: LiveEvidence[] = [];
+  const baseScores = { activity: 0, mood: 0 };
 
   if (!normalized.isMeaningful) {
     return {
       kind: 'mood',
       internalKind: 'standalone_mood',
       confidence: 'low',
-      scores,
+      scores: baseScores,
       reasons: ['empty_or_punct_only_default_to_mood'],
+      evidence,
     };
   }
 
@@ -194,14 +264,15 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
 
   const hasFuturePlan = futurePatterns.some((pattern) => pattern.test(text));
   if (hasFuturePlan) {
-    scores.mood += 3;
-    reasons.push('matched_non_activity_signal');
+    evidence.push(makeEvidence('future', 'matched_non_activity_signal', [text], 'strong', 'planned'));
+    const scores = buildScoresFromEvidence(evidence);
     return {
       kind: 'mood',
       internalKind: 'standalone_mood',
       confidence: 'high',
       scores,
-      reasons,
+      reasons: buildReasonsFromEvidence(evidence),
+      evidence,
       containsMoodSignal: true,
       relatedActivityId: getRelatedOngoingActivityId(context),
     };
@@ -212,17 +283,17 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
   const hasStrongCompletion = completionPatterns.some((pattern) => pattern.test(text));
 
   if (hasActivity) {
-    scores.activity += 3;
-    reasons.push('matched_activity_signal');
+    evidence.push(makeEvidence('lexicon', 'matched_activity_signal', [text], 'strong', 'positive'));
   }
   if (hasStrongCompletion) {
-    scores.activity += 2;
-    reasons.push('matched_strong_completion_signal');
+    evidence.push(makeEvidence('completion', 'matched_strong_completion_signal', [text], 'medium', 'positive'));
   }
   if (hasMood) {
-    scores.mood += 2;
-    reasons.push('matched_mood_signal');
+    evidence.push(makeEvidence('mood', 'matched_mood_signal', [text], 'medium', 'positive'));
   }
+
+  const scores = buildScoresFromEvidence(evidence);
+  const reasons = buildReasonsFromEvidence(evidence);
 
   if (context.recentActivity) {
     const referencesLast =
@@ -230,12 +301,18 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
       || includesAny(text, references)
       || hasLatinContextKeywordOverlap(text, context.recentActivity.content);
     if (referencesLast && hasMood && scores.activity <= scores.mood + 1) {
+      const contextEvidence = [
+        ...evidence,
+        makeEvidence('mood', 'context_bias_to_last_activity', [context.recentActivity.id], 'strong', 'positive'),
+      ];
+      const contextScores = buildScoresFromEvidence(contextEvidence);
       return {
         kind: 'mood',
         internalKind: 'mood_about_last_activity',
         confidence: 'high',
-        scores,
-        reasons: [...reasons, 'context_bias_to_last_activity'],
+        scores: contextScores,
+        reasons: buildReasonsFromEvidence(contextEvidence),
+        evidence: contextEvidence,
         containsMoodSignal: true,
         relatedActivityId: context.recentActivity.id,
       };
@@ -249,6 +326,7 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
       confidence: 'high',
       scores,
       reasons: [...reasons, 'activity_with_mood_detected'],
+      evidence,
       containsMoodSignal: true,
       moodNote: content,
     };
@@ -261,6 +339,7 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
       confidence: getConfidence(scores.activity - scores.mood),
       scores,
       reasons,
+      evidence,
       containsMoodSignal: false,
     };
   }
@@ -271,24 +350,103 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
     confidence: getConfidence(scores.mood - scores.activity),
     scores,
     reasons: reasons.length > 0 ? reasons : ['ambiguous_default_to_mood'],
+    evidence,
     containsMoodSignal: hasMood,
     relatedActivityId: getRelatedOngoingActivityId(context),
   };
 }
 
 function hasActivitySignal(input: string): boolean {
+  const objectPattern = ZH_ACTIVITY_OBJECTS.map(escapeRegExp).join('|');
+  const singleCharVerbPattern = ZH_ACTIVITY_VERBS
+    .filter((verb) => verb.length === 1)
+    .map(escapeRegExp)
+    .join('|');
+
+  const hasObjectVerbPair = includesAny(input, ZH_ACTIVITY_OBJECTS)
+    && (
+      ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb))
+      || new RegExp(`(${singleCharVerbPattern}).{0,2}(${objectPattern})`).test(input)
+    );
+
   if (includesAny(input, ZH_ACTIVITY_STRONG_PHRASES)) return true;
-  if (includesAny(input, ZH_ACTIVITY_OBJECTS) && includesAny(input, ZH_ACTIVITY_VERBS)) return true;
+  if (hasObjectVerbPair) return true;
   if (ZH_ACTIVITY_SINGLE_VERB_PATTERNS.some((pattern) => pattern.test(input))) return true;
   return ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb));
 }
 
+function detectActivityCompletion(input: string): boolean {
+  return hasStrongCompletionSignal(input);
+}
+
+function detectActivityOngoing(input: string): boolean {
+  return hasOngoingSignal(input);
+}
+
+function detectLexiconActivity(input: string): boolean {
+  return hasActivitySignal(input);
+}
+
+function detectFutureOrPlanned(input: string): boolean {
+  return ZH_FUTURE_OR_PLAN_PATTERNS.some((pattern) => pattern.test(input));
+}
+
+function detectNegatedOrNotOccurred(input: string): boolean {
+  return ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS.some((pattern) => pattern.test(input));
+}
+
+function detectGoToPlaceActivity(input: string): { matched: boolean; strengthened: boolean } {
+  const hasPlace = includesAny(input, ZH_PLACE_NOUNS);
+  if (!hasPlace) {
+    return { matched: false, strengthened: false };
+  }
+
+  const hasGoVerb = /(去|到|回|来|逛逛|逛|跑去|赶去|直奔)/.test(input);
+  if (!hasGoVerb) {
+    return { matched: false, strengthened: false };
+  }
+
+  const hasPlaceGoStructure = new RegExp(
+    `(去|到|回|来|逛逛|逛|跑去|赶去|直奔).{0,3}(${ZH_PLACE_NOUNS.map(escapeRegExp).join('|')})`,
+  ).test(input);
+
+  if (!hasPlaceGoStructure) {
+    return { matched: false, strengthened: false };
+  }
+
+  return {
+    matched: true,
+    strengthened: /(刚|已经|了|回来)/.test(input),
+  };
+}
+
 function hasOngoingSignal(input: string): boolean {
-  return ZH_ACTIVITY_ONGOING_PATTERNS.some((pattern) => pattern.test(input));
+  const hasOngoingShell = ZH_ACTIVITY_ONGOING_PATTERNS.some((pattern) => pattern.test(input));
+  if (!hasOngoingShell) return false;
+  return includesAny(input, ZH_ACTIVITY_OBJECTS)
+    || ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb));
 }
 
 function hasStrongCompletionSignal(input: string): boolean {
-  return includesAny(input, ZH_FINISHING_PHRASES) || ZH_STRONG_COMPLETION_PATTERNS.some((pattern) => pattern.test(input));
+  const hasCompletionShell =
+    includesAny(input, ZH_FINISHING_PHRASES)
+    || ZH_STRONG_COMPLETION_PATTERNS.some((pattern) => pattern.test(input));
+
+  if (!hasCompletionShell) {
+    return false;
+  }
+
+  if (/^(搞定了?|完成了?|结束了?)$/.test(input)) {
+    return true;
+  }
+
+  if (/(开完|写完|做完|吃完|忙完|通完|打完|改完).*/.test(input)) {
+    return true;
+  }
+
+  return includesAny(input, ZH_ACTIVITY_OBJECTS)
+    || ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb))
+    || ZH_ACTIVITY_SINGLE_VERB_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 function hasWeakCompletionSignal(input: string): boolean {
@@ -298,6 +456,12 @@ function hasWeakCompletionSignal(input: string): boolean {
 function hasMoodSignal(input: string): boolean {
   if (includesAny(input, ZH_MOOD_WORDS)) return true;
   return ZH_MOOD_PATTERNS.some((pattern) => pattern.test(input));
+}
+
+function endsWithMoodSignal(input: string): boolean {
+  const trimmed = input.replace(/[啊呀呢吧嘛哦哈了的]+$/, '');
+  const tail = trimmed.slice(-4);
+  return hasMoodSignal(tail);
 }
 
 function getMoodKey(input: string): LiveInputClassification['extractedMood'] {
@@ -319,10 +483,6 @@ function containsNewActivitySignal(input: string): boolean {
   }
 
   return false;
-}
-
-function hasNonActivitySignal(input: string): boolean {
-  return ZH_NON_ACTIVITY_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 function extractActivityKeywords(input: string): string[] {
@@ -356,28 +516,25 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
   }
 
   const normalized = normalizeLiveInput(content);
-  const reasons: string[] = [];
-  const scores = {
-    activity: 0,
-    mood: 0,
-  };
+  const evidence: LiveEvidence[] = [];
+  const baseScores = { activity: 0, mood: 0 };
 
   if (!normalized.isMeaningful) {
     return {
       kind: 'mood',
       internalKind: 'standalone_mood',
       confidence: 'low',
-      scores,
+      scores: baseScores,
       reasons: ['empty_or_punct_only_default_to_mood'],
+      evidence,
     };
   }
 
   const text = normalized.normalizedContent;
-  const hasNonActivity = hasNonActivitySignal(text);
-
-  if (hasNonActivity) {
-    scores.mood += 3;
-    reasons.push('matched_non_activity_signal');
+  const hasFutureOrPlanned = detectFutureOrPlanned(text);
+  if (hasFutureOrPlanned) {
+    evidence.push(makeEvidence('future', 'matched_future_or_planned_signal', [text], 'strong', 'planned'));
+    const scores = buildScoresFromEvidence(evidence);
     const relatedActivityId =
       context.recentActivity && context.recentActivity.isOngoing
         ? context.recentActivity.id
@@ -387,43 +544,71 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
       internalKind: 'standalone_mood',
       confidence: 'high',
       scores,
-      reasons,
+      reasons: buildReasonsFromEvidence(evidence),
+      evidence,
       containsMoodSignal: true,
       relatedActivityId,
     };
   }
 
-  const hasActivity = hasActivitySignal(text);
+  const hasNegatedOrNotOccurred = detectNegatedOrNotOccurred(text);
+  if (hasNegatedOrNotOccurred) {
+    evidence.push(makeEvidence('negation', 'matched_negated_or_not_occurred_signal', [text], 'strong', 'negative'));
+    const scores = buildScoresFromEvidence(evidence);
+    const relatedActivityId =
+      context.recentActivity && context.recentActivity.isOngoing
+        ? context.recentActivity.id
+        : undefined;
+    return {
+      kind: 'mood',
+      internalKind: 'standalone_mood',
+      confidence: 'high',
+      scores,
+      reasons: buildReasonsFromEvidence(evidence),
+      evidence,
+      containsMoodSignal: true,
+      relatedActivityId,
+    };
+  }
+
+  const hasOngoing = detectActivityOngoing(text);
+  const hasStrongCompletion = detectActivityCompletion(text);
+  const goToPlaceDetection = detectGoToPlaceActivity(text);
+  const hasGoToPlace = goToPlaceDetection.matched;
+  const hasActivity = detectLexiconActivity(text);
   const hasDirectMood = hasMoodSignal(text);
-  const hasOngoing = hasOngoingSignal(text);
-  const hasStrongCompletion = hasStrongCompletionSignal(text);
   const hasWeakCompletion = hasWeakCompletionSignal(text);
-  const hasActivityEvidence = hasActivity || hasOngoing || hasStrongCompletion;
+  const hasActivityEvidence = hasOngoing || hasStrongCompletion || hasGoToPlace || hasActivity;
 
   if (hasOngoing) {
-    scores.activity += 2;
-    reasons.push('matched_ongoing_signal');
+    evidence.push(makeEvidence('ongoing', 'matched_ongoing_signal', [text], 'medium', 'positive'));
   }
 
   if (hasStrongCompletion) {
-    scores.activity += 2;
-    reasons.push('matched_strong_completion_signal');
+    evidence.push(makeEvidence('completion', 'matched_strong_completion_signal', [text], 'medium', 'positive'));
+  }
+
+  if (hasGoToPlace) {
+    evidence.push(makeEvidence('goto_place', 'matched_go_to_place_signal', [text], 'strong', 'positive'));
+    if (goToPlaceDetection.strengthened) {
+      evidence.push(makeEvidence('goto_place', 'matched_go_to_place_happened_shell', [text], 'weak', 'positive'));
+    }
   }
 
   if (hasWeakCompletion) {
-    scores.mood += 1;
-    reasons.push('matched_weak_completion_signal');
+    evidence.push(makeEvidence('mood', 'matched_weak_completion_signal', [text], 'medium', 'positive'));
   }
 
   if (hasActivity) {
-    scores.activity += 3;
-    reasons.push('matched_activity_signal');
+    evidence.push(makeEvidence('lexicon', 'matched_activity_signal', [text], 'strong', 'positive'));
   }
 
   if (hasDirectMood) {
-    scores.mood += 2;
-    reasons.push('matched_mood_signal');
+    evidence.push(makeEvidence('mood', 'matched_mood_signal', [text], 'medium', 'positive'));
   }
+
+  const scores = buildScoresFromEvidence(evidence);
+  const reasons = buildReasonsFromEvidence(evidence);
 
   const hasMood = hasDirectMood || hasWeakCompletion;
 
@@ -434,14 +619,18 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
     const hasStrongNewActivity = containsNewActivitySignal(text);
 
     if (referencesLastActivity && hasEvaluation && !hasStrongNewActivity) {
-      scores.mood += 3;
-      reasons.push('context_bias_to_last_activity');
+      const contextEvidence = [
+        ...evidence,
+        makeEvidence('mood', 'context_bias_to_last_activity', [recent.id], 'strong', 'positive'),
+      ];
+      const contextScores = buildScoresFromEvidence(contextEvidence);
       return {
         kind: 'mood',
         internalKind: 'mood_about_last_activity',
         confidence: 'high',
-        scores,
-        reasons,
+        scores: contextScores,
+        reasons: buildReasonsFromEvidence(contextEvidence),
+        evidence: contextEvidence,
         containsMoodSignal: hasMood,
         relatedActivityId: recent.id,
       };
@@ -449,14 +638,14 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
   }
 
   if (hasActivityEvidence && hasMood) {
-    reasons.push('activity_with_mood_detected');
     const extractedMood = getMoodKey(text);
     return {
       kind: 'activity',
       internalKind: 'activity_with_mood',
       confidence: 'high',
       scores,
-      reasons,
+      reasons: [...reasons, 'activity_with_mood_detected'],
+      evidence,
       containsMoodSignal: true,
       extractedMood,
       moodNote: content,
@@ -470,18 +659,19 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
       confidence: getConfidence(scores.activity - scores.mood),
       scores,
       reasons,
+      evidence,
       containsMoodSignal: false,
     };
   }
 
-  reasons.push('ambiguous_default_to_mood');
   const relatedActivityId = getRelatedOngoingActivityId(context);
   return {
     kind: 'mood',
     internalKind: 'standalone_mood',
     confidence: getConfidence(scores.mood - scores.activity),
     scores,
-    reasons,
+    reasons: reasons.length > 0 ? reasons : ['ambiguous_default_to_mood'],
+    evidence,
     containsMoodSignal: hasMood,
     relatedActivityId,
   };

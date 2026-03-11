@@ -279,15 +279,28 @@ export async function dispatchAutoRecognizedInput(
 ): Promise<string | null> {
   const trimmed = content.trim();
 
-  if (classification.kind === 'mood') {
-    const relatedActivityId = classification.relatedActivityId;
-    return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
+  switch (classification.internalKind) {
+    case 'standalone_mood': {
+      const relatedActivityId = classification.relatedActivityId;
+      return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
+    }
+    case 'mood_about_last_activity': {
+      const relatedActivityId = classification.relatedActivityId;
+      return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
+    }
+    case 'activity_with_mood':
+      return sendMessage(trimmed, undefined, 'record', {
+        skipMoodDetection: true,
+      });
+    case 'new_activity':
+      return sendMessage(trimmed, undefined, 'record', {
+        skipMoodDetection: false,
+      });
+    default:
+      return classification.kind === 'mood'
+        ? sendMood(trimmed)
+        : sendMessage(trimmed, undefined, 'record');
   }
-
-  const shouldAttachMood = classification.internalKind === 'activity_with_mood';
-  return sendMessage(trimmed, undefined, 'record', {
-    skipMoodDetection: shouldAttachMood,
-  });
 }
 
 export function applyAutoRecognizedInputEffects(

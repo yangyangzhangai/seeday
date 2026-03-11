@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleLatestMessageReclassify } from './chatPageActions';
+import {
+  handleLatestMessageReclassify,
+} from './chatPageActions';
 
 describe('handleLatestMessageReclassify', () => {
   it('forwards message id and kind to store reclassify action', async () => {

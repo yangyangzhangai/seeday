@@ -13,6 +13,7 @@
 - `callClassifierAPI()`
 - `callDiaryAPI()`
 - `callStardustAPI()`
+- `callMagicPenParseAPI()`
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -32,7 +33,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 ## Current Notes
 
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
-- Existing frontend API facade contracts in `src/api/client.ts` remain unchanged in this round.
+- Added Magic Pen parse contract for `/api/magic-pen-parse` to support AI-first draft extraction.
 
 ## Related Docs
 

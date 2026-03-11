@@ -1,0 +1,46 @@
+samples=1000
+kind_accuracy=755/1000=75.50%
+internal_accuracy=692/1000=69.20%
+
+top_mismatch_pairs:
+  new_activity -> standalone_mood: 120
+  activity_with_mood -> standalone_mood: 68
+  activity_with_mood -> new_activity: 33
+  mood_about_last_activity -> standalone_mood: 24
+  standalone_mood -> new_activity: 21
+  standalone_mood -> activity_with_mood: 15
+  mood_about_last_activity -> activity_with_mood: 15
+  mood_about_last_activity -> new_activity: 6
+
+recall_by_expected_internal:
+  activity_with_mood: 54/155=34.84%
+  mood_about_last_activity: 15/60=25.00%
+  new_activity: 303/429=70.63%
+  standalone_mood: 320/356=89.89%
+
+accuracy_by_difficulty:
+  easy: 384/495=77.58%
+  hard: 114/156=73.08%
+  medium: 194/349=55.59%
+
+first_20_errors:
+  id=26 input=这个会开得很有效率 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=medium
+  id=27 input=工作好烦 ctx=null expected=standalone_mood predicted=activity_with_mood difficulty=easy
+  id=29 input=今天工作效率很低 ctx=null expected=standalone_mood predicted=new_activity difficulty=medium
+  id=30 input=上班好累 ctx=null expected=standalone_mood predicted=activity_with_mood difficulty=easy
+  id=32 input=开完会终于解脱了 ctx=开会 expected=mood_about_last_activity predicted=standalone_mood difficulty=medium
+  id=35 input=写完了有点如释重负 ctx=写方案 expected=mood_about_last_activity predicted=activity_with_mood difficulty=hard
+  id=36 input=工作压力好大 ctx=null expected=standalone_mood predicted=new_activity difficulty=easy
+  id=38 input=好想摸鱼 ctx=null expected=standalone_mood predicted=activity_with_mood difficulty=medium
+  id=40 input=被老板骂了 ctx=null expected=activity_with_mood predicted=new_activity difficulty=medium
+  id=48 input=今天没有产出 ctx=null expected=standalone_mood predicted=new_activity difficulty=hard
+  id=50 input=和同事撕了一下 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=hard
+  id=64 input=上了一天课累死了 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=medium
+  id=67 input=做了道很难的题解出来了好开心 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=medium
+  id=68 input=考完试了 ctx=null expected=new_activity predicted=standalone_mood difficulty=easy
+  id=69 input=考试考砸了 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=medium
+  id=70 input=学习效率好低 ctx=null expected=standalone_mood predicted=new_activity difficulty=medium
+  id=73 input=感觉学了但什么都没记住 ctx=null expected=standalone_mood predicted=new_activity difficulty=hard
+  id=75 input=这道题真难 ctx=做题 expected=mood_about_last_activity predicted=standalone_mood difficulty=medium
+  id=76 input=背完了好满足 ctx=背单词 expected=mood_about_last_activity predicted=activity_with_mood difficulty=medium
+  id=77 input=读完这本书感觉收获很大 ctx=null expected=activity_with_mood predicted=standalone_mood difficulty=medium

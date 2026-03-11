@@ -1929,3 +1929,200 @@ docs/                 # 架构与交接文档
   1. Phase 2 / P2: latest `mood -> activity` 回转时对自动附着的 `activityMood` / `moodNote` 派生数据做 source/origin 定向清理
   2. Phase 2 / P2: 补齐“进行中 activity 可吸收 standalone mood、已结束 activity 不可无证据吸收”的写入层回归
 
+### 2026-03-11 — Magic Pen Phase 1 功能落地（Chat 入口 + 解析 + 提交）
+
+- 变更来源: `docs/CURRENT_TASK.md` Phase 1 执行清单 + `docs/MAGIC_PEN_CAPTURE_SPEC.md` v3.2
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/ChatInputBar.tsx` 新增魔法笔入口按钮与 `onOpenMagicPen` props 接线。
+  2. `src/features/chat/ChatPage.tsx` 新增 wiring-only 页面状态：`isMagicPenOpen` + `restoreInputRef`，并挂载 `MagicPenSheet`。
+  3. 新增 Magic Pen 核心实现文件：
+     - `src/features/chat/MagicPenSheet.tsx`
+     - `src/services/input/magicPenTypes.ts`
+     - `src/services/input/magicPenRules.zh.ts`
+     - `src/services/input/magicPenParser.ts`
+     - `src/services/input/magicPenDraftBuilder.ts`
+     - `src/store/magicPenActions.ts`
+  4. 新增自动化测试：
+     - `src/services/input/magicPenParser.test.ts`（解析与时段词精度回归）
+     - `src/store/magicPenActions.test.ts`（提交顺序/失败返回/ongoing 冲突拦截）
+  5. 新增魔法笔 i18n 文案键（en/zh/it）：`src/i18n/locales/en.ts`、`src/i18n/locales/zh.ts`、`src/i18n/locales/it.ts`。
+- 文档同步:
+  1. 更新 `src/features/chat/README.md`（新增 Magic Pen 用户流、依赖、测试锚点）。
+  2. 更新 `docs/CHANGELOG.md`（新增 Magic Pen Phase 1 变更记录）。
+  3. 更新 `docs/CURRENT_TASK.md`（Phase 1 清单状态与验证快照）。
+- 验证结果:
+  - `npm run test:unit` ✅
+  - `npm run lint:max-lines` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+- 风险与回滚点:
+  1. 当前 UI 回归以单元测试和静态校验为主，`MagicPenSheet` 交互细节仍需按验收样例做手工验证。
+  2. 回滚点可按模块独立回退：`ChatInputBar/ChatPage` wiring、`MagicPenSheet` UI、`services/input` 解析链、`magicPenActions` 提交链。
+
+### 2026-03-11 — Magic Pen Phase 2 小步推进（显式时间区间解析）
+
+- 变更来源: `docs/CURRENT_TASK.md` Next Step / `docs/MAGIC_PEN_CAPTURE_SPEC.md` Phase 2
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/services/input/magicPenParser.ts` 新增显式时间区间解析（`从...到...`、`-`、`至`、`~`），并在单点时间解析前优先命中。
+  2. 新增区间结束时间的时段语义推断：当仅起点带有时段词（如 `下午3点到4:30`）时，终点按同一时段归一化。
+  3. 调整区间时间文本剥离逻辑，避免 `从/到/-` 等残留到草稿 `content`。
+  4. `src/services/input/magicPenParser.test.ts` 新增显式区间回归用例（含无效区间 `invalid_time_range`）。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（勾选 Phase 2 时间区间解析完成，并保持手工验收为下一步）。
+  2. 更新 `docs/CHANGELOG.md`（记录本次 Phase 2 小步变更与验证结果）。
+- 验证结果:
+  - `npm run test:unit -- magicPenParser.test.ts magicPenActions.test.ts` ✅
+  - `npm run lint:max-lines` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+- 待执行:
+  1. 按 `docs/CURRENT_TASK.md` 执行 `MagicPenSheet` 手工验收（输入迁移恢复、混合解析展示、部分失败重试路径）。
+
+### 2026-03-11 — Magic Pen Phase 2 小步推进（输入迁移恢复回归固化）
+
+- 变更来源: `docs/CURRENT_TASK.md` Next Step（手工验收前的回归收口）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/chatPageActions.ts` 新增 `buildOpenMagicPenState` / `buildCloseMagicPenState`，固化主输入迁移与恢复规则。
+  2. `src/features/chat/ChatPage.tsx` 改为调用 helper 进行 Magic Pen 打开/关闭状态编排，减少页面内联分支。
+  3. `src/features/chat/chatPageActions.test.ts` 新增 3 条用例覆盖：打开时迁移并清空输入、取消关闭恢复输入、提交关闭不恢复输入。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（标记输入迁移恢复回归固化完成，保持手工验收为下一步）。
+  2. 更新 `docs/CHANGELOG.md`（记录 helper 抽取与回归覆盖）。
+- 验证结果:
+  - `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts` ✅
+- 待执行:
+  1. 继续执行 `MagicPenSheet` 手工验收：混合解析展示与部分失败重试路径。
+
+### 2026-03-11 — Magic Pen Phase 2 小步推进（部分失败重试体验）
+
+- 变更来源: `docs/CURRENT_TASK.md` Phase 2 / P1
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/MagicPenSheet.tsx` 新增失败重试态收口：失败 draft 在编辑/删除后会从 `error` 状态回到 `idle`，避免出现“已修正但仍显示失败”的误导状态。
+  2. 当待提交条目全部来自失败重试时，确认按钮文案切换为 `chat_magic_pen_retry_failed`，强化“重试失败项”语义。
+  3. 补齐 i18n key：`src/i18n/locales/en.ts`、`src/i18n/locales/zh.ts`、`src/i18n/locales/it.ts`。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（勾选 Phase 2 / P1 部分失败重试体验收口）。
+  2. 更新 `docs/CHANGELOG.md`（记录重试体验和 i18n 变更）。
+- 验证结果:
+  - `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+- 待执行:
+  1. 继续执行 `MagicPenSheet` 手工验收：混合解析展示与部分失败重试路径。
+
+### 2026-03-11 — Magic Pen Session-15 小步推进（Todo 多任务 + 日期提取/编辑）
+
+- 变更来源: `docs/CURRENT_TASK.md` Session-14 Handoff Package（用户反馈：多任务提取、时间词污染、日期可编辑）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/services/input/magicPenParser.ts` 增强 todo 分段策略：在标点/连接词之后增加日期锚点拆分，支持一段紧凑输入产出多条 todo draft。
+  2. 增加 todo 日期解析与写入：支持 `明天/后天/下周X/3.18/3-18/3月18(号)`，并将结果落到 `draft.todo.dueDate`。
+  3. 锁定无年份日期规则：优先本年；若该日期相对当前已过去，则顺延到下一年。
+  4. 优化 todo 内容清洗：剥离日期词与义务词前缀，避免 `明天考试` 这类时间词污染内容。
+  5. `src/features/chat/MagicPenSheet.tsx` 新增 todo 日期输入框（`type=date`）并支持用户编辑；提取时间/日期转换与错误文案映射到 `src/features/chat/magicPenSheetHelpers.ts`。
+  6. `src/services/input/magicPenParser.test.ts` 新增回归覆盖：多任务拆分、日期表达矩阵、内容清洗、无年份日期跨年回滚。
+  7. 补齐 i18n：`src/i18n/locales/en.ts`、`zh.ts`、`it.ts` 新增 `chat_magic_pen_due_date`。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（记录 session-15 落地快照与下一步手工验收焦点）。
+  2. 更新 `docs/CHANGELOG.md`（新增本次 Todo 解析/日期编辑切片记录）。
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenParser.test.ts` ✅
+  - `npm run test:unit -- src/store/magicPenActions.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+- 待执行:
+  1. 执行 `MagicPenSheet` 手工验收：todo 日期编辑、混合输入拆分、提交前可见日期校验体验。
+
+### 2026-03-11 — Moodauto Session-17 小步推进（结构优先链路 + go/place）
+
+- 变更来源: `docs/CURRENT_TASK.md`（Phase A + B + D）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/services/input/liveInputClassifier.ts` 运行时链路改为结构优先：future/planned -> negated/not occurred -> ongoing -> completion -> go/place -> lexicon -> mood -> context linking -> final dispatch。
+  2. 新增 `detectGoToPlaceActivity(input)`，覆盖 `去/到/回/来/逛/跑去/赶去/直奔 + 地点`，并在 `刚/已经/了/回来` 壳子命中时增强活动证据。
+  3. `src/services/input/liveInputRules.zh.ts` 新增 `ZH_PLACE_NOUNS`，并拆分 `ZH_FUTURE_OR_PLAN_PATTERNS`、`ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS`；`ZH_NON_ACTIVITY_PATTERNS` 保持组合导出兼容旧路径。
+  4. 回归补齐：`src/services/input/liveInputClassifier.test.ts` 新增 `去公园/去博物馆/去超市`、planned/negated/happened-shell、`去公园好开心`。
+  5. 规则 guard 补齐：`src/services/input/liveInputRules.test.ts` 增加 future/negated 分层匹配与地点词表存在性断言。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-17 执行快照与勾选进度）。
+  2. 更新 `docs/CHANGELOG.md`（新增本次结构优先重排记录）。
+- 验证结果:
+  - `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputRules.test.ts src/store/useChatStore.integration.test.ts` ✅
+- 待执行:
+  1. 进入 P1：证据对象化（`types.ts` + classifier telemetry reason code 对齐）。
+  2. 输出 mismatch summary 并确定下一轮扩词边界。
+
+### 2026-03-11 — Moodauto Session-18 小步推进（Evidence 对象化落地）
+
+- 变更来源: `docs/CURRENT_TASK.md`（Phase C / P1）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/services/input/types.ts` 新增 `LiveEvidence` 模型（`source/strength/polarity/tokens/reasonCode`）并在 `LiveInputClassification` 挂载 `evidence`。
+  2. `src/services/input/liveInputClassifier.ts` 改为 evidence-first 计算：先累积证据，再统一映射分数，并保留现有 internalKind 路由语义。
+  3. `src/services/input/liveInputTelemetry.ts` 同步 reason 聚合：统计 `classification.reasons` 与 evidence reasonCode 并集，兼容既有指标口径。
+  4. `src/services/input/liveInputClassifier.test.ts` 补充 evidence 断言（planned 拦截、go/place happened shell）。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-18 执行快照与 Phase C 勾选完成）。
+  2. 更新 `docs/CHANGELOG.md`（新增 evidence 对象化变更记录）。
+- 验证结果:
+  - `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputRules.test.ts src/store/chatActions.test.ts src/store/useChatStore.integration.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+- 待执行:
+  1. 进入 Phase E：写路径核验（`chatActions.ts` / `useChatStore.ts`）并输出 mismatch summary。
+
+### 2026-03-11 — Moodauto Session-19 小步推进（Phase E 写路径核验 + mismatch 快照）
+
+- 变更来源: `docs/CURRENT_TASK.md`（Phase E / P1）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 写路径核验完成：`src/store/chatActions.ts` 按 `internalKind` 分发逻辑保持稳定，`standalone_mood` 仅在存在 `relatedActivityId` 时显式附着。
+  2. `src/store/chatActions.test.ts` 新增两条写路径回归：ongoing 场景显式附着；ended 场景禁止 fallback 附着。
+  3. `src/store/useChatStore.integration.test.ts` 已复核 ongoing/ended 场景行为未回退。
+  4. 执行 zh gold 评估并输出 mismatch 快照，用于下一轮规则修复排序。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（Phase E 勾选完成 + mismatch 快照）。
+  2. 更新 `docs/CHANGELOG.md`（新增本次写路径核验记录）。
+- 验证结果:
+  - `npm run test:unit -- src/store/chatActions.test.ts src/store/useChatStore.integration.test.ts src/services/input/liveInputClassifier.test.ts` ✅
+  - `npm run eval:live-input:gold` ✅
+    - `kind_accuracy=88.69%`
+    - `internal_accuracy=82.74%`
+    - top mismatches: `new_activity -> standalone_mood (9)`, `activity_with_mood -> standalone_mood (7)`, `mood_about_last_activity -> standalone_mood (6)`
+- 待执行:
+  1. 进入 mismatch 驱动补丁轮：优先处理 top-3 错配桶，并回放 gold hard cases。
+
+### 2026-03-11 — Magic Pen Session-21 小步推进（Mode-B + AI-first parser 切换）
+
+- 变更来源: `docs/CURRENT_TASK.md`（MP0 / MP1 / MP2 / MP4 / MP5）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/ChatInputBar.tsx` 增加 `isMagicPenModeOn` / `onToggleMagicPenMode`，wand 按钮改为模式开关态。
+  2. `src/features/chat/ChatPage.tsx` 新增 mode-on 发送分支：mode-off 保持 `sendAutoRecognizedInput`，mode-on 触发 Magic Pen parse 并打开 `MagicPenSheet` 预填结果，保持 no-direct-write。
+  3. 新增 `api/magic-pen-parse.ts`，复用 `api/http.ts` CORS/method/error helper，使用 `glm-4.7-flash` + `ZHIPU_API_KEY`，落地三层 JSON 解析兜底。
+  4. `src/api/client.ts` 新增 `callMagicPenParseAPI()` 合同；`api/README.md` 与 `src/api/README.md` 已同步端点文档。
+  5. `src/services/input/magicPenParser.ts` 切换为 async AI-first；原 regex-heavy 本地逻辑外提到 `src/services/input/magicPenParserLocalFallback.ts`。
+  6. `src/features/chat/MagicPenSheet.tsx` 解析动作改为 `await parseMagicPenInput`，并支持 seed draft 注入与 parsing/error UI 状态。
+  7. 回归补齐：`magicPenParser.test.ts` 改为 async；新增 `magicPenDraftBuilder.test.ts`；`chatPageActions.test.ts` 清理旧 helper 用例。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-21 快照 + MP0/1/2/4/5 勾选）。
+  2. 更新 `docs/CHANGELOG.md`（新增本次 Mode-B + AI-first 切换记录）。
+  3. 更新 `src/features/chat/README.md`、`src/api/README.md`、`api/README.md`（流程/端点合同同步）。
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenParser.test.ts src/services/input/magicPenDraftBuilder.test.ts src/store/magicPenActions.test.ts src/features/chat/chatPageActions.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npm run build` ✅
+- 待执行:
+  1. MP3 删除面收口：评估 `magicPenRules.zh.ts` 与 `magicPenDateParser.ts` 是否可进一步裁剪（当前 fallback 路径仍引用）。
+  2. 增加 `api/magic-pen-parse.ts` 端点级 schema/鲁棒性测试（若接入 API 层测试 harness）。

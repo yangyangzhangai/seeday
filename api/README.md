@@ -19,6 +19,7 @@
 | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
+| `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw }` |
 
 ## 本地调试（Windows）
 

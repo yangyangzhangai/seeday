@@ -1,0 +1,9 @@
+classifies activity_with_mood case: 写周报写得很烦
+maps happy mood keyword in activity_with_mood
+maps anxious mood keyword in activity_with_mood
+treats weak completion as mood signal without context linking
+captures activity_with_mood with bodily feeling: 写代码写到头疼
+captures activity_with_mood with mixed clause: 上课上得有点烦
+captures activity_with_mood in social-work phrasing: 和客户会开得很顺利
+captures activity_with_mood in result-eval phrasing: 午休睡得很好
+captures activity_with_mood in purchase + mood phrasing: 买到想要的东西，开心

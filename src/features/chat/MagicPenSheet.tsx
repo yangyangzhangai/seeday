@@ -1,0 +1,414 @@
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Wand2, X } from 'lucide-react';
+import {
+  errorToI18nKey,
+  fromDateInputValue,
+  fromDateTimeLocal,
+  toDateInputValue,
+  toDateTimeLocal,
+} from './magicPenSheetHelpers';
+import { parseMagicPenInput } from '../../services/input/magicPenParser';
+import { validateDrafts } from '../../services/input/magicPenDraftBuilder';
+import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import type { Message } from '../../store/useChatStore';
+import { commitMagicPenDrafts } from '../../store/magicPenActions';
+
+type CommitState = 'idle' | 'submitting' | 'success' | 'error';
+
+interface MagicPenSheetProps {
+  isOpen: boolean;
+  initialText: string;
+  initialDrafts: MagicPenDraftItem[];
+  initialUnparsedSegments: string[];
+  messages: Message[];
+  onClose: () => void;
+}
+
+export function MagicPenSheet({
+  isOpen,
+  initialText,
+  initialDrafts,
+  initialUnparsedSegments,
+  messages,
+  onClose,
+}: MagicPenSheetProps) {
+  const { t, i18n } = useTranslation();
+  const [rawText, setRawText] = useState('');
+  const [drafts, setDrafts] = useState<MagicPenDraftItem[]>([]);
+  const [unparsedSegments, setUnparsedSegments] = useState<string[]>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commitStates, setCommitStates] = useState<Map<string, CommitState>>(new Map());
+  const [statusText, setStatusText] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setRawText(initialText || '');
+    setDrafts(validateDrafts(initialDrafts, messages));
+    setUnparsedSegments(initialUnparsedSegments);
+    setCommitStates(new Map());
+    setStatusText('');
+    setParseError('');
+  }, [isOpen, initialText, initialDrafts, initialUnparsedSegments, messages]);
+
+  const grouped = useMemo(() => {
+    const activities = drafts.filter((draft) => draft.kind === 'activity_backfill');
+    const todos = drafts.filter((draft) => draft.kind === 'todo_add');
+    return { activities, todos };
+  }, [drafts]);
+
+  const pendingDrafts = useMemo(
+    () => drafts.filter((draft) => commitStates.get(draft.id) !== 'success'),
+    [commitStates, drafts],
+  );
+  const failedDraftCount = pendingDrafts.filter((draft) => commitStates.get(draft.id) === 'error').length;
+  const idleDraftCount = pendingDrafts.filter((draft) => (commitStates.get(draft.id) || 'idle') === 'idle').length;
+
+  const hasErrorInPending = pendingDrafts.some((draft) => draft.errors.length > 0 || !draft.content.trim());
+  const isConfirmDisabled = pendingDrafts.length === 0 || hasErrorInPending || isSubmitting;
+
+  const resetErroredDraftState = (draftId: string) => {
+    setCommitStates((prev) => {
+      if (prev.get(draftId) !== 'error') return prev;
+      const next = new Map(prev);
+      next.set(draftId, 'idle');
+      return next;
+    });
+  };
+
+  const upsertDraft = (next: MagicPenDraftItem) => {
+    setDrafts((prev) => prev.map((item) => (item.id === next.id ? next : item)));
+    resetErroredDraftState(next.id);
+  };
+
+  const revalidateAll = (nextDrafts: MagicPenDraftItem[], editedDraftId?: string) => {
+    setDrafts(validateDrafts(nextDrafts, messages));
+    if (editedDraftId) {
+      resetErroredDraftState(editedDraftId);
+    }
+  };
+
+  const handleParse = async () => {
+    if (!rawText.trim()) return;
+    setIsParsing(true);
+    setParseError('');
+    try {
+      const lang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+      const parsed = await parseMagicPenInput(rawText, { lang });
+      setDrafts(validateDrafts(parsed.drafts, messages));
+      setUnparsedSegments(parsed.unparsedSegments);
+      setCommitStates(new Map());
+      setStatusText('');
+    } catch {
+      setParseError(t('chat_magic_pen_ai_error'));
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleDraftDelete = (id: string) => {
+    const next = drafts.filter((draft) => draft.id !== id);
+    revalidateAll(next);
+    setCommitStates((prev) => {
+      if (!prev.has(id)) return prev;
+      const updated = new Map(prev);
+      updated.delete(id);
+      return updated;
+    });
+  };
+
+  const handleToggleKind = (draft: MagicPenDraftItem) => {
+    if (draft.kind === 'activity_backfill') {
+      upsertDraft({
+        ...draft,
+        kind: 'todo_add',
+        activity: undefined,
+        todo: { priority: 'important-not-urgent', category: 'life', scope: 'daily' },
+        needsUserConfirmation: false,
+        errors: [],
+      });
+      return;
+    }
+    upsertDraft({
+      ...draft,
+      kind: 'activity_backfill',
+      todo: undefined,
+      activity: { timeResolution: 'missing' },
+      needsUserConfirmation: true,
+      errors: ['missing_time'],
+    });
+  };
+
+  const handleConfirm = async () => {
+    const toCommit = pendingDrafts.filter((draft) => draft.content.trim());
+    const validated = validateDrafts(toCommit, messages);
+    const hasErrors = validated.some((draft) => draft.errors.length > 0);
+    setDrafts((prev) => prev.map((item) => validated.find((draft) => draft.id === item.id) ?? item));
+    if (hasErrors || validated.length === 0) return;
+
+    const nextStates = new Map(commitStates);
+    for (const draft of validated) nextStates.set(draft.id, 'submitting');
+    setCommitStates(nextStates);
+    setIsSubmitting(true);
+
+    const result = await commitMagicPenDrafts(validated);
+    const failed = new Set(result.failedDraftIds);
+    setCommitStates((prev) => {
+      const updated = new Map(prev);
+      for (const draft of validated) {
+        updated.set(draft.id, failed.has(draft.id) ? 'error' : 'success');
+      }
+      return updated;
+    });
+    setIsSubmitting(false);
+
+    if (result.failedDraftIds.length === 0) {
+      setStatusText(
+        t('chat_magic_pen_success_summary', {
+          activityCount: result.successActivityCount,
+          todoCount: result.successTodoCount,
+        }),
+      );
+      onClose();
+      return;
+    }
+    setStatusText(t('chat_magic_pen_partial_success'));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 animate-in slide-in-from-bottom-10 fade-in max-h-[85vh] overflow-y-auto"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Wand2 size={18} className="text-blue-600" />
+              {t('chat_magic_pen_title')}
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">{t('chat_magic_pen_subtitle')}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <textarea
+            value={rawText}
+            onChange={(event) => setRawText(event.target.value)}
+            placeholder={t('chat_magic_pen_placeholder')}
+            className="w-full min-h-24 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleParse}
+            disabled={isParsing || !rawText.trim()}
+            className="w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50"
+          >
+            {isParsing ? t('chat_magic_pen_parsing') : t('chat_magic_pen_parse')}
+          </button>
+          {parseError && <p className="text-xs text-red-500">{parseError}</p>}
+        </div>
+
+        {grouped.activities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">{t('chat_magic_pen_group_activity')}</p>
+            {grouped.activities.map((draft) => {
+              const commitState = commitStates.get(draft.id) || 'idle';
+              const editable = commitState !== 'success';
+              const highlightTime = draft.needsUserConfirmation;
+              return (
+                <div key={draft.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={draft.content}
+                      disabled={!editable}
+                      onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
+                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={!editable}
+                      onClick={() => handleToggleKind(draft)}
+                      className="text-xs px-2 py-1 rounded-md border border-gray-300"
+                    >
+                      {t('chat_magic_pen_switch_kind')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!editable}
+                      onClick={() => handleDraftDelete(draft.id)}
+                      className="text-xs px-2 py-1 rounded-md border border-red-200 text-red-500"
+                    >
+                      {t('delete')}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <input
+                      type="datetime-local"
+                      disabled={!editable}
+                      value={toDateTimeLocal(draft.activity?.startAt)}
+                      onChange={(event) => {
+                        const startAt = fromDateTimeLocal(event.target.value);
+                        const next = {
+                          ...draft,
+                          needsUserConfirmation: false,
+                          activity: { ...draft.activity!, startAt },
+                        };
+                        const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
+                        revalidateAll(nextDrafts, draft.id);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                        highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
+                      }`}
+                    />
+                    <input
+                      type="datetime-local"
+                      disabled={!editable}
+                      value={toDateTimeLocal(draft.activity?.endAt)}
+                      onChange={(event) => {
+                        const endAt = fromDateTimeLocal(event.target.value);
+                        const next = {
+                          ...draft,
+                          needsUserConfirmation: false,
+                          activity: { ...draft.activity!, endAt },
+                        };
+                        const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
+                        revalidateAll(nextDrafts, draft.id);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                        highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                  {highlightTime && <p className="text-xs text-orange-600">{t('chat_magic_pen_estimated_time')}</p>}
+                  <p className="text-[11px] text-gray-500">{t('chat_magic_pen_confidence')}: {draft.confidence}</p>
+                  {draft.errors.map((error) => (
+                    <p key={error} className="text-xs text-red-500">
+                      {t(errorToI18nKey(error))}
+                    </p>
+                  ))}
+                  {commitState === 'success' && <p className="text-xs text-emerald-600">{t('chat_magic_pen_item_success')}</p>}
+                  {commitState === 'error' && <p className="text-xs text-red-500">{t('chat_magic_pen_item_error')}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {grouped.todos.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">{t('chat_magic_pen_group_todo')}</p>
+            {grouped.todos.map((draft) => {
+              const commitState = commitStates.get(draft.id) || 'idle';
+              const editable = commitState !== 'success';
+              return (
+                <div key={draft.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={draft.content}
+                      disabled={!editable}
+                      onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
+                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={!editable}
+                      onClick={() => handleToggleKind(draft)}
+                      className="text-xs px-2 py-1 rounded-md border border-gray-300"
+                    >
+                      {t('chat_magic_pen_switch_kind')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!editable}
+                      onClick={() => handleDraftDelete(draft.id)}
+                      className="text-xs px-2 py-1 rounded-md border border-red-200 text-red-500"
+                    >
+                      {t('delete')}
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
+                    <span>{t('chat_magic_pen_scope')}: daily</span>
+                    <span>{t('chat_magic_pen_priority')}: important-not-urgent</span>
+                    <span className="col-span-2">{t('chat_magic_pen_category')}: life</span>
+                    <label className="col-span-2 flex items-center gap-2">
+                      <span>{t('chat_magic_pen_due_date')}:</span>
+                      <input
+                        type="date"
+                        disabled={!editable}
+                        value={toDateInputValue(draft.todo?.dueDate)}
+                        onChange={(event) => {
+                          const dueDate = fromDateInputValue(event.target.value);
+                          upsertDraft({
+                            ...draft,
+                            todo: {
+                              ...draft.todo!,
+                              dueDate,
+                            },
+                          });
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded-md text-xs"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-gray-500">{t('chat_magic_pen_confidence')}: {draft.confidence}</p>
+                  {commitState === 'success' && <p className="text-xs text-emerald-600">{t('chat_magic_pen_item_success')}</p>}
+                  {commitState === 'error' && <p className="text-xs text-red-500">{t('chat_magic_pen_item_error')}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {unparsedSegments.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">{t('chat_magic_pen_group_unparsed')}</p>
+            <div className="rounded-xl bg-gray-100 p-3 text-xs text-gray-600 space-y-1">
+              <p>{t('chat_magic_pen_unparsed_hint')}</p>
+              {unparsedSegments.map((segment) => (
+                <p key={segment}>- {segment}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {statusText && <p className="text-xs text-blue-600">{statusText}</p>}
+
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700"
+          >
+            {t('chat_magic_pen_cancel')}
+          </button>
+          <button
+            type="button"
+            disabled={isConfirmDisabled}
+            onClick={handleConfirm}
+            className="flex-1 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+          >
+            {isSubmitting
+              ? t('loading')
+              : failedDraftCount > 0 && idleDraftCount === 0
+                ? t('chat_magic_pen_retry_failed')
+                : t('chat_magic_pen_confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

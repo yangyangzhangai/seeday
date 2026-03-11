@@ -88,6 +88,54 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it('routes standalone_mood to ongoing activity via explicit relatedActivityId only', async () => {
+    const now = Date.now();
+    const messages: Message[] = [
+      {
+        id: 'a-ongoing',
+        content: '写周报',
+        timestamp: now - 5 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: undefined,
+      },
+    ];
+    const sendMessage = vi.fn(async () => 'activity-1');
+    const sendMood = vi.fn(async () => 'mood-1');
+
+    const result = await sendAutoRecognizedInputFlow('好累', messages, sendMessage, sendMood);
+
+    expect(result?.classification.internalKind).toBe('standalone_mood');
+    expect(result?.classification.relatedActivityId).toBe('a-ongoing');
+    expect(sendMood).toHaveBeenCalledWith('好累', { relatedActivityId: 'a-ongoing' });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not fallback standalone_mood attach to ended activity', async () => {
+    const now = Date.now();
+    const messages: Message[] = [
+      {
+        id: 'a-ended',
+        content: '吃饭',
+        timestamp: now - 20 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: '待分类',
+        duration: 10,
+      },
+    ];
+    const sendMessage = vi.fn(async () => 'activity-1');
+    const sendMood = vi.fn(async () => 'mood-1');
+
+    const result = await sendAutoRecognizedInputFlow('好累', messages, sendMessage, sendMood);
+
+    expect(result?.classification.internalKind).toBe('standalone_mood');
+    expect(result?.classification.relatedActivityId).toBeUndefined();
+    expect(sendMood).toHaveBeenCalledWith('好累', undefined);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
   it('records telemetry for auto-recognized classification reasons', async () => {
     const sendMessage = vi.fn(async () => 'activity-1');
     const sendMood = vi.fn(async () => 'mood-1');

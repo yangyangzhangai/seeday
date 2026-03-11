@@ -11,6 +11,8 @@ interface ApiErrorShape {
   error?: string;
 }
 
+type ApiLang = 'zh' | 'en' | 'it';
+
 async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -172,10 +174,42 @@ interface StardustResponse {
   emojiChar: string;
 }
 
+interface MagicPenParseRequest {
+  rawText: string;
+  lang?: ApiLang;
+  todayDateStr: string;
+  currentHour: number;
+}
+
+interface MagicPenParseSegment {
+  text: string;
+  sourceText: string;
+  kind: 'activity_backfill' | 'todo_add';
+  confidence: 'high' | 'medium' | 'low';
+  startTime?: string;
+  endTime?: string;
+  timeSource?: 'exact' | 'period' | 'missing';
+  periodLabel?: string;
+}
+
+interface MagicPenParseResponse {
+  success: boolean;
+  data: {
+    segments: MagicPenParseSegment[];
+    unparsed: string[];
+  };
+}
+
 /**
  * 调用 Stardust API - 为珍藏记忆生成 Emoji 字符
  * 替代 useStardustStore 中的前端直连 Chutes API 行为
  */
 export async function callStardustAPI(request: StardustRequest): Promise<StardustResponse> {
   return postJson<StardustRequest, StardustResponse>('/stardust', request);
+}
+
+export async function callMagicPenParseAPI(
+  request: MagicPenParseRequest,
+): Promise<MagicPenParseResponse> {
+  return postJson<MagicPenParseRequest, MagicPenParseResponse>('/magic-pen-parse', request);
 }

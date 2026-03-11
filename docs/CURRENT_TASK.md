@@ -1,95 +1,290 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-10 (PM, session-8)
+- Last Updated: 2026-03-11 (PM, session-21)
 - Owner: current working session
 - Purpose: this file is the quick resume anchor for any new session.
 
 ## Current Focus
 
-- Mainline task status: `moodauto` development track is closed; this area now runs in monitor-only mode unless regression triggers fire.
-- `cleanup` is now a past task track and historical reference only; it is no longer the active execution board.
-- V1 target: the chat main input auto-classifies `activity` vs `mood`, defaults ambiguous input to `mood`, keeps `activity_with_mood` attached mood info, and keeps the primary path AI-free.
-- Doc planning anchor for this execution: `LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md`.
+- Mainline task status: `magicpen-v2` is now the active implementation track.
+- Scope anchor for next execution: adopt Mode-B interaction (`wand mode toggle` + `send-triggered parse`) and migrate parser path from regex-first to AI-first.
+- Doc planning anchor for this execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md`.
+- `moodauto` remains available as follow-up branch and is no longer the immediate execution target.
 
 ## Past Focus
 
-- `cleanup` work is treated as historical context for this session, including completed H/F/C board items already recorded in `docs/CODE_CLEANUP_HANDOVER_PLAN.md` and `docs/CHANGELOG.md`.
-- User-owned leftovers `C12` and `C13` stay outside the current mainline unless they are explicitly reactivated later.
+- `magicpen` implementation track is paused as a non-blocking branch; remaining manual acceptance can be resumed later.
+- `cleanup` remains historical reference only in `docs/CODE_CLEANUP_HANDOVER_PLAN.md` and `docs/CHANGELOG.md`.
 
-## Active Checklist
+## Execution Snapshot (2026-03-11 PM / session-21)
 
-- [x] Phase 1 / P0: audit the current input path (`src/features/chat/ChatInputBar.tsx` -> `src/features/chat/ChatPage.tsx` -> `src/store/useChatStore.ts` -> `src/store/chatActions.ts`) and define the minimal insertion point for `sendAutoRecognizedInput()`.
-- [x] Phase 1 / P0: add the rule-based input classification entry under `src/services/input/` with `types.ts`, `liveInputClassifier.ts`, `liveInputContext.ts`, and `liveInputRules.zh.ts`.
-- [x] Phase 1 / P0: route the main record send path through rule-based auto recognition and remove unconditional AI classification from the primary input flow.
-- [x] Phase 1 / P1: support `activity_with_mood` writeback through `useMoodStore.activityMood` and `useMoodStore.moodNote`, while preserving the existing `message.isMood` semantics.
-- [x] Phase 1 / P1: remove persistent `isMoodMode` dependence from the main input UX and switch to a neutral single-input mental model.
-- [x] Phase 1 / P1: add regression tests for rule matching and recent-activity context bias, starting with the Chinese seed cases in `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`.
-- [x] Phase 1 / P1: refactor `sendAutoRecognizedInput()` into explicit classify -> dispatch -> effects stages via `src/store/chatActions.ts`, so classification result and send behavior are decoupled.
-- [x] Phase 2 / P0: implement `reclassifyRecentInput(messageId, nextKind)` and the minimal timeline-repair logic needed for post-send correction (latest message path).
-- [x] Phase 2 / P1: add sentence-level store-action regression tests for auto recognition and latest-message reclassify flow (`sendAutoRecognizedInputFlow` + `buildRecentReclassifyResult`).
-- [x] Phase 2 / P1+: add store-integration regression for `useChatStore -> chatActions` latest-message correction interaction.
-- [x] Phase 2 / P1++: add UI interaction regression for `ChatPage` message-row correction trigger wiring.
-- [x] Phase 2 / P2: add source/origin-aware cleanup for derived `activityMood`/`moodNote` when latest `mood -> activity` correction happens, so report reads cannot keep stale attachment data.
-- [x] Phase 2 / P2: add write-layer regression for the runtime boundary from discussion doc: ongoing activity may absorb standalone mood, ended activity must not absorb standalone mood without evidence.
-- [x] Phase 3 / Backlog: expand English/Italian dictionaries, add telemetry, and decide whether AI fallback is necessary based on misclassification data.
-- [x] Phase 3 / P0 (zh-only baseline): run `timeshine_gold_samples.xlsx` offline evaluation and land first-pass zh rule tuning for major false positives/false negatives (`new_activity`, `activity_with_mood`, and `mood_about_last_activity` context bias).
-- [x] Phase 3 / P1: align activity edit mood-recompute behavior with discussion doc (`auto` recalculable, `manual` immutable) and back it with tests.
-- [x] Phase 3 / P0+: implement context-gated completion handling in zh classifier: strong completion follows context relevance chain, weak completion stays mood-biased, and future/plan negatives are intercepted before ongoing/activity checks.
+- Mode-B 交互已落地：`ChatInputBar` 改为 wand 模式开关态；`ChatPage.handleSend` 在 mode-on 时触发 Magic Pen 解析并打开 `MagicPenSheet` 预填结果。
+- 新增 serverless 端点 `api/magic-pen-parse.ts`，复用 `api/http.ts`，使用 `glm-4.7-flash` + `ZHIPU_API_KEY`，并实现三层解析兜底（直接 parse / 外层 JSON 提取 / 空 segments fallback）。
+- 前端 API 合同已补齐：`src/api/client.ts` 新增 `callMagicPenParseAPI()`，`api/README.md` 与 `src/api/README.md` 已同步端点与 facade 描述。
+- `src/services/input/magicPenParser.ts` 已切换为 async AI-first；本地 regex 解析已外提到 `src/services/input/magicPenParserLocalFallback.ts` 作为降级路径。
+- `src/features/chat/MagicPenSheet.tsx` 解析动作已改为 `await parseMagicPenInput`，并补充解析中态与错误态文案。
+- 回归补齐：`magicPenParser.test.ts` 改为 async；新增 `magicPenDraftBuilder.test.ts`；现有 `magicPenActions.test.ts` 与 `chatPageActions.test.ts` 已通过。
+
+## Active Checklist (Tomorrow Dev Execution Plan)
+
+### Phase MP0 / P0 - Mode-B interaction switch (locked)
+
+- [x] Keep Magic Pen as **mode toggle** on wand button (not direct sheet-open).
+- [x] `ChatInputBar.tsx`: add `isMagicPenModeOn` prop and `onToggleMagicPenMode` callback with clear active visual state.
+- [x] `ChatPage.tsx`: add `isMagicPenModeOn` state and wire to `ChatInputBar`.
+- [x] `ChatPage.tsx`: branch `handleSend`:
+  1) mode off -> keep `sendAutoRecognizedInput(input)`
+  2) mode on -> run Magic Pen parse flow and open `MagicPenSheet` with parsed result
+- [x] Keep no-direct-write rule: parse result must still require `MagicPenSheet` confirmation before commit.
+
+### Phase MP1 / P0 - AI parse endpoint + client contract
+
+- [x] Add endpoint: `api/magic-pen-parse.ts` (reuse `api/http.ts` CORS/method/error helpers).
+- [x] Use `glm-4.7-flash` with `ZHIPU_API_KEY`; enforce strict JSON response schema.
+- [x] Implement server parse fallback strategy:
+  1) direct `JSON.parse`
+  2) outer `{...}` extraction parse
+  3) safe fallback `{ segments: [], unparsed: [...] }`
+- [x] Add client method in `src/api/client.ts`: `callMagicPenParseAPI(request)`.
+- [x] Sync `api/README.md` endpoint table for `/api/magic-pen-parse`.
+
+### Phase MP2 / P0 - Frontend parser refactor (AI-first)
+
+- [x] Refactor `src/services/input/magicPenParser.ts` to async pipeline:
+  1) lightweight preprocess
+  2) call `callMagicPenParseAPI`
+  3) map AI result via `magicPenDraftBuilder`
+- [x] Remove regex-heavy classification logic from `magicPenParser.ts`.
+- [x] Update `MagicPenSheet.tsx` parse action to `await parseMagicPenInput` with loading/error/retry states.
+- [x] Keep deterministic local validation in `validateDrafts()` (time range, future, cross-day, overlap, ongoing conflict).
+
+### Phase MP3 / P1 - Deletion/cleanup pass (obsolete code)
+
+- [ ] Remove `src/services/input/magicPenRules.zh.ts` if no longer referenced.
+- [x] Re-evaluate `src/services/input/magicPenDateParser.ts`:
+  - keep only if still needed as deterministic post-process helper
+  - otherwise delete and remove imports/tests accordingly
+- [x] Ensure no stale references to old sync parser signatures remain.
+
+### Phase MP4 / P0 - Test and regression baseline
+
+- [x] Update `src/services/input/magicPenParser.test.ts` for async API-based parser behavior.
+- [x] Add/refresh `magicPenDraftBuilder` tests for AI-result-to-draft mapping and validation rules.
+- [x] Keep/adjust `src/store/magicPenActions.test.ts` for commit ordering + partial failure behavior.
+- [ ] Add endpoint-level parse schema/robustness tests for `api/magic-pen-parse.ts` (if test harness available).
+
+### Phase MP5 / P0 - Final verification gates
+
+- [x] `npx tsc --noEmit`
+- [x] `npm run test:unit -- src/services/input/magicPenParser.test.ts src/services/input/magicPenDraftBuilder.test.ts src/store/magicPenActions.test.ts`
+- [x] `npm run lint:docs-sync`
+- [x] `npm run lint:state-consistency`
+- [x] `npm run build`
+
+### Phase A / P0 - Runtime pipeline reorder
+
+- [x] Reorder classifier runtime path in `src/services/input/liveInputClassifier.ts` to:
+  1) normalize
+  2) future/planned intercept
+  3) negation/not-happened intercept
+  4) ongoing detector
+  5) completion detector
+  6) `go + place` detector
+  7) lexicon detector
+  8) mood detector
+  9) context linking
+  10) final `internalKind` decision
+- [x] Keep `hasWeakCompletion` as `mood +2` per product decision; no rollback in this round.
+- [x] Keep context linking evidence-based only; no speculative shortcut path.
+
+### Phase B / P0 - `go + place` structure detector
+
+- [x] Add `ZH_PLACE_NOUNS` in `src/services/input/liveInputRules.zh.ts` (high-frequency place nouns first).
+- [x] Add `detectGoToPlaceActivity(input)` in `src/services/input/liveInputClassifier.ts`.
+- [x] Apply hard gating:
+  - planned/future hit -> block activity landing
+  - negated/not-happened hit -> block activity landing
+  - explicit happened shell (`刚/已经/了`) -> strengthen activity evidence
+
+### Phase C / P1 - Evidence objectization
+
+- [x] Add internal evidence type in `src/services/input/types.ts`:
+  - `source`
+  - `strength`
+  - `polarity`
+  - `tokens`
+  - `reasonCode`
+- [x] Refactor classifier internals to output evidence list, then map to scores/kind.
+- [x] Sync reason codes with `src/services/input/liveInputTelemetry.ts`.
+
+### Phase D / P0 - Regression test expansion
+
+- [x] Add required cases to `src/services/input/liveInputClassifier.test.ts`:
+  - `去公园` / `去博物馆` / `去超市`
+  - `待会去公园` / `明天去博物馆`
+  - `想去公园但没去` / `今天没有产出`
+  - `刚去超市回来` / `已经去公园了`
+  - `去公园好开心`
+- [x] Add rule-level guards to `src/services/input/liveInputRules.test.ts`.
+- [x] Re-run integration safety check for ongoing attach behavior in `src/store/useChatStore.integration.test.ts`.
+
+### Phase E / P1 - Write path verification
+
+- [x] Verify dispatch still routes by `internalKind` in `src/store/chatActions.ts`.
+- [x] Verify ongoing mood attach remains explicit via `relatedActivityId` in `src/store/useChatStore.ts`.
+- [x] Verify no fallback mood attach to ended activity is reintroduced.
 
 ## Next Step (Single)
 
-- Keep `moodauto` in monitor mode: continue sample collection and only reopen development when regression triggers are hit.
+- Next: implement MP0 + MP1 first (mode toggle send-branch and `/api/magic-pen-parse` contract), then wire MP2 parser refactor.
 
-## Regression Reopen Triggers
+## Execution Snapshot (2026-03-11 PM / session-20)
 
-- Reopen `moodauto` as active development if `python scripts/evaluate_natural_probe.py` reports `internal_accuracy < 75%` in two consecutive reruns.
-- Reopen `moodauto` as active development if `mood_about_last_activity` recall in natural probe drops below `70%` in two consecutive reruns.
-- If triggers are not hit, keep AI fallback disabled and continue rules-only maintenance.
+- User confirmed **Mode-B** as the canonical Magic Pen interaction:
+  - wand button = mode toggle
+  - parse is triggered on send
+  - no auto-commit; sheet confirmation remains mandatory
+- Execution plan has been promoted into Active Checklist as MP0-MP5 for direct engineering handoff.
+- `moodauto` checklist remains as historical context and can resume after `magicpen-v2` milestone.
+
+## Execution Snapshot (2026-03-11 PM / session-19)
+
+- 写路径验证已完成：`src/store/chatActions.ts` 按 `internalKind` 分发保持正确，`standalone_mood` 仅在 `relatedActivityId` 存在时显式挂载。
+- 回归补充：`src/store/chatActions.test.ts` 新增两条关键用例：
+  - ongoing activity 下 `standalone_mood` 必须携带 `relatedActivityId`
+  - ended activity 下 `standalone_mood` 不得 fallback 挂载（`sendMood(content, undefined)`）
+- integration 结果确认：`src/store/useChatStore.integration.test.ts` 现有“ongoing attach / ended no attach”行为保持稳定。
+- gold 评估快照（zh）：`npm run eval:live-input:gold`
+  - `kind_accuracy = 88.69%`
+  - `internal_accuracy = 82.74%`
+  - Top mismatch pairs:
+    1. `new_activity -> standalone_mood: 9`
+    2. `activity_with_mood -> standalone_mood: 7`
+    3. `mood_about_last_activity -> standalone_mood: 6`
+
+## Execution Snapshot (2026-03-11 PM / session-18)
+
+- `src/services/input/types.ts` 已新增内部证据模型：`LiveEvidence`（`source/strength/polarity/tokens/reasonCode`）并挂载到 `LiveInputClassification.evidence`。
+- `src/services/input/liveInputClassifier.ts` 已完成 evidence-first 重构：先产出证据列表，再统一映射到 `scores`，并保持原 `internalKind` 决策语义不变。
+- `src/services/input/liveInputTelemetry.ts` 已改为优先聚合 evidence reasonCode，同时与 `classification.reasons` 做并集，保证历史 reason 统计兼容。
+- 回归补充：`src/services/input/liveInputClassifier.test.ts` 新增 evidence 断言（planned 拦截、go+place happened shell）。
+- 已完成目标验证：
+  - `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputRules.test.ts src/store/chatActions.test.ts src/store/useChatStore.integration.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+
+## Execution Snapshot (2026-03-11 PM / session-17)
+
+- `src/services/input/liveInputClassifier.ts` 已按结构优先重排运行时链路：`future/planned` 拦截 -> `negated/not occurred` 拦截 -> ongoing/completion -> `go + place` -> lexicon -> mood -> context linking -> final dispatch。
+- `src/services/input/liveInputRules.zh.ts` 新增 `ZH_PLACE_NOUNS`，并拆分 `ZH_FUTURE_OR_PLAN_PATTERNS`、`ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS`；`ZH_NON_ACTIVITY_PATTERNS` 保持为组合导出兼容旧调用。
+- 已新增 `go + place` 关键回归：`去公园/去博物馆/去超市`、`待会去公园/明天去博物馆`、`想去公园但没去`、`刚去超市回来/已经去公园了`、`去公园好开心`。
+- 已新增规则层 guard：future 与 negated 分层命中、地点词表存在性断言。
+- 已完成目标验证：
+  - `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputRules.test.ts src/store/useChatStore.integration.test.ts` ✅
+
+## Today Discussion Addendum (2026-03-11)
+
+### Execution Notes (1-4)
+
+1. Reorder classifier runtime to structure-first before lexicon-first, and keep interceptors (`future/planned`, `negation/not-happened`) ahead of activity landing.
+2. Implement `go + place` as a dedicated structure detector first, then generalize to motion verbs with the same place noun domain.
+3. Expand regression set in lockstep with detector rollout: happened/planned/negated/mood-mixed variants must all have explicit tests.
+4. Start with conservative high-frequency place nouns and high-precision patterns, then widen coverage based on mismatch report instead of bulk phrase stuffing.
+
+### Gap Clarification (Current Main Weakness)
+
+- Main gap remains: activity recognition is still lexicon-first in several paths, while structure detectors are incomplete.
+- Priority remains to finish runtime pipeline reorder + structure detectors before adding more phrase entries.
+
+### Structure-Detection Expansion Direction
+
+- Keep `go + place` as P0 baseline and extend to `逛 + place` in the same detector family.
+- Recommended motion verb set (first pass): `去/到/回/来/逛/逛逛/跑去/赶去/直奔`.
+- Recommended high-frequency place nouns (first pass): `公园/博物馆/超市/商场/菜市场/图书馆/公司/学校/医院`.
+- Hard gates stay unchanged: future/planned hit -> block activity; negated/not-happened hit -> block activity; explicit happened shell (`刚/已经/了/回来`) -> strengthen activity evidence.
+
+## Magic Pen V2 Addendum (Session-16, user-confirmed)
+
+### Locked decisions
+
+1. Entry interaction:
+   - Tapping Magic Pen should toggle an active/highlight state on the wand button.
+   - User continues typing in the existing main input.
+2. Parse trigger:
+   - Use choice-2: parsing is triggered on send.
+   - No typing-time auto parse in this phase.
+3. Parsing strategy:
+   - Move from regex-heavy extraction to LLM-led extraction/classification for better speech-to-text robustness.
+   - Keep deterministic post-validation and local parser fallback.
+
+### Execution plan (handoff-ready)
+
+#### Phase MP-A / P0 - UI mode and send branch wiring
+
+- `src/features/chat/ChatInputBar.tsx`
+  1) Add `isMagicPenModeOn` prop and `onToggleMagicPenMode` callback.
+  2) Wand button toggles mode and shows clear active style.
+- `src/features/chat/ChatPage.tsx`
+  1) Add `isMagicPenModeOn` state.
+  2) Branch `handleSend`:
+     - mode off -> keep current `sendAutoRecognizedInput` path.
+     - mode on -> call Magic Pen parse flow, then open `MagicPenSheet` with parsed drafts.
+  3) Keep no-direct-write rule (sheet confirmation remains mandatory).
+
+#### Phase MP-B / P0 - API contract and server parser
+
+- Add endpoint: `api/magic-pen-parse.ts`.
+- Add client method: `callMagicPenParseAPI()` in `src/api/client.ts`.
+- Response contract (strict JSON):
+  - `drafts: MagicPenDraftItem[]`
+  - `unparsedSegments: string[]`
+  - optional `meta` (`model`, `latencyMs`, `fallbackUsed`).
+- Server responsibilities:
+  1) Prompt LLM for extraction/classification.
+  2) Parse and validate JSON schema.
+  3) Normalize fields to existing Magic Pen type contracts.
+
+#### Phase MP-C / P0 - Reliability and fallback
+
+- If API fails/timeout/invalid JSON:
+  1) fallback to local `parseMagicPenInput`.
+  2) still open sheet with fallback result.
+- Preserve existing validators (`validateDrafts`) for activity/timeline safety.
+
+#### Phase MP-D / P1 - Regression coverage
+
+- Add/extend tests for:
+  1) mode on/off send branching in chat page actions.
+  2) server payload parse and schema guard.
+  3) fallback behavior (API fail -> local parser).
+  4) noisy speech-like Chinese inputs with weak punctuation.
+
+### Acceptance criteria
+
+1. Wand button clearly indicates active mode.
+2. With mode on, user types in main input and taps send -> parsed result appears in `MagicPenSheet`.
+3. Non-magic normal send path is unchanged when mode is off.
+4. Parse API failure does not block flow; fallback path still works.
+5. No automatic commit without sheet confirmation.
 
 ## Blockers
 
 - No external blocker at the moment.
-- Main engineering risk: activity <-> mood reclassification can affect timeline duration and "current activity" state, so that repair work should stay isolated to the Phase 2 correction flow.
+- Risk: overly broad place-noun list may increase false positives; start with conservative Top set.
+- Constraint: this round should stay in service/store classification path, avoid page-layer scope creep.
 
 ## Validation Snapshot
 
-- Added `Vitest` unit regression coverage for live input classification and context lookup under `src/services/input/liveInputClassifier.test.ts` and `src/services/input/liveInputContext.test.ts`.
-- Validation rerun in this session: `npm run test:unit`, `npm run lint:max-lines`, `npm run lint:docs-sync`, `npm run lint:state-consistency`, `npx tsc --noEmit`, and `npm run build`.
-- Store-path refactor landed in this session: `sendAutoRecognizedInputFlow()` now orchestrates classify/dispatch/post-effects in `src/store/chatActions.ts`, and `useChatStore.sendAutoRecognizedInput()` is reduced to orchestration-only wiring.
-- Phase 2 latest-message correction landed in this session: message-row quick reclassify UI + `reclassifyRecentInput()` store action with minimal timeline repair (`mood -> activity` closes previous open activity; `activity -> mood` reopens previous adjacent activity when applicable).
-- Next validation gap: end-to-end regression is not yet automated for the full send/reclassify chain; Phase 2 / P1 will add this test coverage.
-- Added store-action regression tests in `src/store/chatActions.test.ts` covering representative sentence routing (`mood`, `activity`, `activity_with_mood`, `mood_about_last_activity`) and latest-message reclassify timeline repair boundaries.
-- Added store-integration regression tests in `src/store/useChatStore.integration.test.ts` to verify sentence routing and latest-message reclassify behavior through real store actions (`sendAutoRecognizedInput`, `reclassifyRecentInput`).
-- Added reproducible gold evaluation script `scripts/evaluate_live_input_gold.py` (default source: parent-level `timeshine_gold_samples.xlsx`) and npm command `npm run eval:live-input:gold` for zh baseline reruns.
-- Tuned zh rules in `src/services/input/liveInputRules.zh.ts` and `src/services/input/liveInputClassifier.ts`: reduced single-character verb false positives, added colloquial activity patterns, expanded mood/evaluation signals, and added non-activity intent guards.
-- Added gold-driven zh regression cases in `src/services/input/liveInputClassifier.test.ts` and reran `npm run test:unit -- src/services/input/liveInputClassifier.test.ts`.
-- Current offline snapshot (`scripts/evaluate_live_input_gold.py`): full-set `internalKind` moved from 66.00% to 71.00%; zh subset moved from 70.24% to 76.19%.
-- Added ChatPage wiring regression coverage by extracting `handleLatestMessageReclassify()` into `src/features/chat/chatPageActions.ts` and adding `src/features/chat/chatPageActions.test.ts` (forward args, await ordering, and failure behavior).
-- Product decision confirmed for completion semantics: completion utterances are context-gated (`no related context => activity`, `related context => mood_about_last_activity`), with weak completion markers (`终于/总算/松口气/撑过去`) treated as mood signals instead of completion triggers.
-- Classifier refactor constraints confirmed: (1) non-activity/future intent interception must run before ongoing/activity detection; (2) context relevance must use tokenized activity keyword overlap and explicit deictic references, not raw substring contains.
-- Implemented classifier decision-chain update in `src/services/input/liveInputClassifier.ts` and `src/services/input/liveInputRules.zh.ts`: non-activity intent precheck, strong/weak completion split, ongoing signal detector, and token-overlap context relevance (raw substring contains removed).
-- Extended classifier regressions in `src/services/input/liveInputClassifier.test.ts` for context-gated completion and negative-intent priority; reran `npm run test:unit -- src/services/input/liveInputClassifier.test.ts` (40/40 passed).
-- Implemented mood attachment source/origin tracking in `src/store/useMoodStore.ts` (`activityMoodMeta`/`moodNoteMeta`, linked mood message id) and added deterministic `clearAutoMoodAttachmentsByMessage()` cleanup entry for correction flow.
-- Updated send/write path in `src/store/useChatStore.ts` + `src/store/chatActions.ts`: `sendMood(content, { relatedActivityId })` no longer falls back to latest activity; `standalone_mood` now only attaches via explicit ongoing-context id.
-- Upgraded latest-message reclassify cleanup to linked-id semantics (instead of content string equality) and covered ongoing-vs-ended attach boundary + source-aware cleanup + edit recompute behavior in `src/store/useChatStore.integration.test.ts` and `src/store/chatActions.test.ts`.
-- Validation rerun in this session: `npm run test:unit -- src/store/chatActions.test.ts src/store/useChatStore.integration.test.ts`, `npm run test:unit -- src/services/input/liveInputClassifier.test.ts`, `npx tsc --noEmit`, and `npm run lint:state-consistency`.
-- Added first-pass multilingual rule seeds in `src/services/input/liveInputRules.en.ts` and `src/services/input/liveInputRules.it.ts`, then wired latin-path fallback classification in `src/services/input/liveInputClassifier.ts`.
-- Extended `src/services/input/liveInputClassifier.test.ts` with en/it baseline regressions (`standalone_mood`, `new_activity`, `mood_about_last_activity`, planned/future interception) and reran classifier tests (46/46 passed).
-- Offline evaluation rerun snapshot in this session: `npm run eval:live-input:gold` (zh subset `internal_accuracy=98.81%`), `python scripts/evaluate_natural_probe.py` (`internal_accuracy=80.00%`, still showing `activity_with_mood -> standalone_mood` as top gap).
-- Landed zh rule tuning round-2 focused on `activity_with_mood` misses: expanded completion/activity patterns (`打完/改代码/交作业/会开得`), added mood-eval patterns (`得很顺利/得很好/感觉轻松`), and treated weak completion as mood evidence for mixed activity+mood routing.
-- Added targeted zh regressions in `src/services/input/liveInputClassifier.test.ts` for natural probe failure phrases (`和客户会开得很顺利`, `刚打完球，好爽`, `写完报告了，终于松口气`, `午休睡得很好`, `买到想要的东西，开心`) and reran tests (51/51 passed).
-- Evaluation rerun after round-2: `python scripts/evaluate_natural_probe.py` improved `internal_accuracy` from `80.00%` to `89.23%` (`activity_with_mood` recall `46.67% -> 66.67%`); zh gold slightly regressed `98.81% -> 98.21%` due one `new_activity -> activity_with_mood` over-trigger sample.
-- Expanded en/it baseline dictionaries in `src/services/input/liveInputRules.en.ts` and `src/services/input/liveInputRules.it.ts` with stronger completion, activity, mood-evaluation, and future-plan patterns; updated latin context relevance in `src/services/input/liveInputClassifier.ts` from raw substring match to token-overlap matching.
-- Added `src/services/input/liveInputRules.test.ts` (24 smoke regressions across zh/en/it rule packs) and expanded en/it classifier regressions in `src/services/input/liveInputClassifier.test.ts`; reran targeted tests (`93/93` passed).
-- Added lightweight local telemetry in `src/services/input/liveInputTelemetry.ts` and wired it into `src/store/chatActions.ts` + `src/store/useChatStore.ts` to track auto-recognition distribution, top reasons, and reclassify path counts.
-- AI fallback decision refreshed from latest rerun (`npm run eval:live-input:gold`, `python scripts/evaluate_natural_probe.py`): keep fallback disabled for now; current errors are still explainable by rule tuning and correction path remains available.
-- Session-8 decision: stop `moodauto` as active implementation mainline and treat it as monitor-only mainline with explicit reopen thresholds (`internal_accuracy < 75%` twice, or `mood_about_last_activity` recall < `70%` twice).
+- Docs now include explicit structure-first plan and tomorrow-ready task list.
+- Refactor proposal has a dedicated execution section with locked decision: keep `hasWeakCompletion` at `+2` in this round.
+- Existing code already has non-activity interception for `什么都没做` and `没/没有产出`, but still needs full structure-first completion for `go + place` generalization.
 
 ## Resume Order
 
 1. Read `LLM.md`.
 2. Read this file (`docs/CURRENT_TASK.md`).
-3. Read `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`.
-4. Read `src/features/chat/README.md`.
-5. Inspect the current send path in `src/features/chat/ChatInputBar.tsx`, `src/features/chat/ChatPage.tsx`, `src/store/useChatStore.ts`, and `src/store/chatActions.ts`.
-6. Use `docs/CODE_CLEANUP_HANDOVER_PLAN.md` only as historical reference when a past cleanup decision needs to be checked.
+3. Read `docs/ACTIVITY_MOOD_AUTO_RECOGNITION_REFACTOR_PROPOSAL.md` Section 15.
+4. Read `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` for product constraints and acceptance.
+5. Inspect `src/services/input/liveInputClassifier.ts`, `src/services/input/liveInputRules.zh.ts`, `src/services/input/liveInputClassifier.test.ts`, `src/services/input/liveInputRules.test.ts`, `src/store/chatActions.ts`, and `src/store/useChatStore.ts`.
+6. Run targeted verification before merge: `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputRules.test.ts src/store/useChatStore.integration.test.ts`.

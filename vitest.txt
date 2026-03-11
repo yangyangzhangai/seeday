@@ -1,0 +1,177 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc[39m
+
+ [32m✓[39m src/services/input/liveInputContext.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 2[2mms[22m[39m
+ [32m✓[39m src/services/input/liveInputRules.test.ts [2m([22m[2m24 tests[22m[2m)[22m[90m 14[2mms[22m[39m
+ [32m✓[39m src/services/input/magicPenParser.test.ts [2m([22m[2m26 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [31m❯[39m src/services/input/liveInputClassifier.test.ts [2m([22m[2m104 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[90m 52[2mms[22m[39m
+[31m   [31m×[31m classifyLiveInput zh seed and regression cases[2m > [22mclassifies activity_with_mood case: 写周报写得很烦[90m 11[2mms[22m[31m[39m
+[31m     → expected 'mood' to be 'activity' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput zh seed and regression cases[2m > [22mmaps happy mood keyword in activity_with_mood[90m 1[2mms[22m[31m[39m
+[31m     → expected 'mood' to be 'activity' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput zh seed and regression cases[2m > [22mmaps anxious mood keyword in activity_with_mood[90m 1[2mms[22m[31m[39m
+[31m     → expected 'mood' to be 'activity' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput context bias[2m > [22mtreats weak completion as mood signal without context linking[90m 1[2mms[22m[31m[39m
+[31m     → expected 'mood_about_last_activity' to be 'standalone_mood' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with bodily feeling: 写代码写到头疼[90m 1[2mms[22m[31m[39m
+[31m     → expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with mixed clause: 上课上得有点烦[90m 1[2mms[22m[31m[39m
+[31m     → expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in social-work phrasing: 和客户会开得很顺利[90m 1[2mms[22m[31m[39m
+[31m     → expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in result-eval phrasing: 午休睡得很好[90m 0[2mms[22m[31m[39m
+[31m     → expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+[31m   [31m×[31m classifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in purchase + mood phrasing: 买到想要的东西，开心[90m 0[2mms[22m[31m[39m
+[31m     → expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 9 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies activity_with_mood case: 写周报写得很烦
+[31m[1mAssertionError[22m: expected 'mood' to be 'activity' // Object.is equality[39m
+
+Expected: [32m"activity"[39m
+Received: [31m"mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m32:25[22m[39m
+    [90m 30| [39m  [34mit[39m([32m'classifies activity_with_mood case: 写周报写得很烦'[39m[33m,[39m () [33m=>[39m {
+    [90m 31| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'写周报写得很烦'[39m)[33m;[39m
+    [90m 32| [39m    [34mexpect[39m(result[33m.[39mkind)[33m.[39m[34mtoBe[39m([32m'activity'[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m 33| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m 34| [39m    [34mexpect[39m(result[33m.[39mextractedMood)[33m.[39m[34mtoBe[39m([32m'down'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mmaps happy mood keyword in activity_with_mood
+[31m[1mAssertionError[22m: expected 'mood' to be 'activity' // Object.is equality[39m
+
+Expected: [32m"activity"[39m
+Received: [31m"mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m46:25[22m[39m
+    [90m 44| [39m  [34mit[39m([32m'maps happy mood keyword in activity_with_mood'[39m[33m,[39m () [33m=>[39m {
+    [90m 45| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'跑完步好开心'[39m)[33m;[39m
+    [90m 46| [39m    [34mexpect[39m(result[33m.[39mkind)[33m.[39m[34mtoBe[39m([32m'activity'[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m 47| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m 48| [39m    [34mexpect[39m(result[33m.[39mextractedMood)[33m.[39m[34mtoBe[39m([32m'happy'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mmaps anxious mood keyword in activity_with_mood
+[31m[1mAssertionError[22m: expected 'mood' to be 'activity' // Object.is equality[39m
+
+Expected: [32m"activity"[39m
+Received: [31m"mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m53:25[22m[39m
+    [90m 51| [39m  [34mit[39m([32m'maps anxious mood keyword in activity_with_mood'[39m[33m,[39m () [33m=>[39m {
+    [90m 52| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'写方案很焦虑'[39m)[33m;[39m
+    [90m 53| [39m    [34mexpect[39m(result[33m.[39mkind)[33m.[39m[34mtoBe[39m([32m'activity'[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m 54| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m 55| [39m    [34mexpect[39m(result[33m.[39mextractedMood)[33m.[39m[34mtoBe[39m([32m'anxious'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mtreats weak completion as mood signal without context linking
+[31m[1mAssertionError[22m: expected 'mood_about_last_activity' to be 'standalone_mood' // Object.is equality[39m
+
+Expected: [32m"standalone_mood"[39m
+Received: [31m"mood_about_last_activity"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m170:33[22m[39m
+    [90m168| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'终于松口气了'[39m[33m,[39m contextWithWriting)[33m;[39m
+    [90m169| [39m    [34mexpect[39m(result[33m.[39mkind)[33m.[39m[34mtoBe[39m([32m'mood'[39m)[33m;[39m
+    [90m170| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'standalone_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m171| [39m  })[33m;[39m
+    [90m172| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with bodily feeling: 写代码写到头疼
+[31m[1mAssertionError[22m: expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+Expected: [32m"[7mactivity_with[27m_mood"[39m
+Received: [31m"[7mstandalone[27m_mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m263:33[22m[39m
+    [90m261| [39m  [34mit[39m([32m'captures activity_with_mood with bodily feeling: 写代码写到头疼'[39m…
+    [90m262| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'写代码写到头疼'[39m)[33m;[39m
+    [90m263| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m264| [39m  })[33m;[39m
+    [90m265| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with mixed clause: 上课上得有点烦
+[31m[1mAssertionError[22m: expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+Expected: [32m"[7mactivity_with[27m_mood"[39m
+Received: [31m"[7mstandalone[27m_mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m268:33[22m[39m
+    [90m266| [39m  [34mit[39m([32m'captures activity_with_mood with mixed clause: 上课上得有点烦'[39m[33m,[39m …
+    [90m267| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'上课上得有点烦'[39m)[33m;[39m
+    [90m268| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m269| [39m  })[33m;[39m
+    [90m270| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in social-work phrasing: 和客户会开得很顺利
+[31m[1mAssertionError[22m: expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+Expected: [32m"[7mactivity_with[27m_mood"[39m
+Received: [31m"[7mstandalone[27m_mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m363:33[22m[39m
+    [90m361| [39m  [34mit[39m([32m'captures activity_with_mood in social-work phrasing: 和客户会开[39m…
+    [90m362| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'和客户会开得很顺利'[39m)[33m;[39m
+    [90m363| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m364| [39m  })[33m;[39m
+    [90m365| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in result-eval phrasing: 午休睡得很好
+[31m[1mAssertionError[22m: expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+Expected: [32m"[7mactivity_with[27m_mood"[39m
+Received: [31m"[7mstandalone[27m_mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m378:33[22m[39m
+    [90m376| [39m  [34mit[39m([32m'captures activity_with_mood in result-eval phrasing: 午休睡得很[39m…
+    [90m377| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'午休睡得很好'[39m)[33m;[39m
+    [90m378| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m379| [39m  })[33m;[39m
+    [90m380| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in purchase + mood phrasing: 买到想要的东西，开心
+[31m[1mAssertionError[22m: expected 'standalone_mood' to be 'activity_with_mood' // Object.is equality[39m
+
+Expected: [32m"[7mactivity_with[27m_mood"[39m
+Received: [31m"[7mstandalone[27m_mood"[39m
+
+[36m [2m❯[22m src/services/input/liveInputClassifier.test.ts:[2m383:33[22m[39m
+    [90m381| [39m  [34mit[39m([32m'captures activity_with_mood in purchase + mood phrasing: 买到想[39m…
+    [90m382| [39m    [35mconst[39m result [33m=[39m [34mclassify[39m([32m'买到想要的东西，开心'[39m)[33m;[39m
+    [90m383| [39m    [34mexpect[39m(result[33m.[39minternalKind)[33m.[39m[34mtoBe[39m([32m'activity_with_mood'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m384| [39m  })[33m;[39m
+    [90m385| [39m})[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m149 passed[39m[22m[90m (158)[39m
+[2m   Start at [22m 11:58:18
+[2m   Duration [22m 1.28s[2m (transform 358ms, setup 0ms, collect 643ms, tests 78ms, environment 1ms, prepare 1.86s)[22m
+

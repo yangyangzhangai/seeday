@@ -1,12 +1,14 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md
 # 魔法笔实施规格
 
-- 文档版本: v3.1
-- 状态: Ready for implementation
+- 文档版本: v4.0
+- 状态: Ready for implementation (audited against repo baseline)
 - 最后更新: 2026-03-11
 - 适用范围: `/chat` 页面内显式进入的魔法笔整理入口
 - 目标读者: 前端开发、状态层开发、测试、产品
 - 变更记录:
+  - v4.0 -- 解析层从纯前端正则重写为 AI 结构化提取 + 前端校验二层架构；新增 `/api/magic-pen-parse` serverless endpoint；删除 `magicPenRules.zh.ts`
+  - v3.2 -- 结合真实仓库补充执行约束（ChatPage wiring 行数口径、连接词拆段保留、无全局 toast / 动画插件基线）
   - v3.1 -- 根据产品 review 修正 6 项实施细节（restoreInput 用 useRef、重叠校验标记规则、时段词 UI 提示、未识别片段引导、scope 锁定 daily、时段词解析测试）
   - v3.0 -- 基于代码审计结果修正技术细节、补充真实签名与约束
 
@@ -25,7 +27,6 @@ V1 明确不做：
 2. 主输入框后台静默调用魔法笔。
 3. 跨天补录。
 4. 新增"日程 / 计划"数据模型。
-5. 默认 AI 解析。
 
 ## 2. 必须对齐的项目现状
 
@@ -40,7 +41,7 @@ V1 明确不做：
 
 ### 2.2 ChatPage（`src/features/chat/ChatPage.tsx`，478 行）
 
-- **已超过 400 行警告线**。魔法笔新增代码必须控制在 15 行以内，仅做状态声明和 props 透传。
+- **已超过 400 行警告线**。魔法笔新增代码必须只保留状态声明、open/close wiring 和组件挂载；业务逻辑目标 ≤ 15 行，`ChatPage.tsx` 总增量建议控制在约 30 行内，超出时抽到 `chatPageActions.ts` 或独立 helper。
 - 已管理 4 个弹层状态（`editingId`, `insertingAfterId`, `moodPickerFor`, `selectedStardust`），魔法笔加入只需新增 `isMagicPenOpen` 布尔值。
 - 主发送入口通过 `handleSend()` → `sendAutoRecognizedInput(input)` 完成，魔法笔**不得走这条链路**。
 
@@ -132,14 +133,30 @@ const activeRecord = useMemo(() => {
 
 ### 2.10 当前仓库无 Magic Pen 代码
 
-不存在任何 Magic Pen 代码，不存在 `/api/magic-pen-parse` 接口。V1 纯前端实现。
+不存在任何 Magic Pen 代码。V1 需新增 `/api/magic-pen-parse` serverless endpoint 做 AI 结构化提取。
 
-### 2.11 结论
+### 2.11 现有 AI 基础设施（魔法笔必须复用）
+
+项目已有完整的 serverless AI 调用链路：
+
+| 层级 | 文件 | 说明 |
+|------|------|------|
+| Serverless | `api/classify.ts` | 用智谱 GLM-4.7-flash，OpenAI 兼容协议 |
+| Serverless | `api/annotation-handler.ts` | 用 Chutes AI，OpenAI 兼容协议 |
+| 前端 Client | `src/api/client.ts` | 统一 `postJson` 封装 |
+| 共用基础 | `api/http.ts` | CORS、method 校验、`jsonError` 工具 |
+
+**关键约束（`PROJECT_CONTEXT.md` §4）**：前端 `src/**` 不得直连带密钥的第三方 AI 服务，必须通过 `api/*` serverless 中转。
+
+魔法笔 AI 调用必须遵守此约束，复用 `api/http.ts` 的 `applyCors / handlePreflight / requireMethod / jsonError`。
+
+### 2.12 结论
 
 1. 活动补录必须绕过 `sendAutoRecognizedInput()` 和 `sendMessage()`。
 2. 活动补录直接调用 `insertActivity(null, null, content, startTime, endTime)`。
 3. Todo 提取必须沿用现有 Todo 模型，不发明新字段。
-4. V1 全部在前端完成，不需要新增 serverless endpoint，不需要新增 Supabase 字段。
+4. 不新增 Supabase 字段。
+5. 新增 `/api/magic-pen-parse` serverless endpoint 做 AI 结构化提取（复用现有 `api/http.ts` 基础设施和 `ZHIPU_API_KEY`）。
 
 ## 3. 最终产品定义
 
@@ -210,7 +227,7 @@ V1 不允许输出：
 - 动画类名对齐已有组件。
 
 > [!WARNING]
-> `animate-in`、`slide-in-from-bottom-10`、`fade-in` 来自 `tailwindcss-animate` 插件，不是 Tailwind 核心类。开发前必须确认 `tailwind.config` 中已有 `require('tailwindcss-animate')`。若未安装，降级为手写 CSS transition（如 `@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`）。
+> 当前仓库的 `tailwind.config.js` 的 `plugins` 为空，`package.json` 里也没有 `tailwindcss-animate` 依赖；现有 modal 虽然复用了这些类名，但不能把“动画存在”当成既成事实。Magic Pen V1 不应为此单独引入新依赖。若实测无动画，允许静态展示；若必须补动画，只能在 `src/index.css` 中补最小本地 keyframes，不扩大全局 UI 改造范围。
 
 ### 4.3 Sheet 内部结构
 
@@ -287,7 +304,7 @@ V1 中：
 
 1. 关闭弹层
 2. 刷新聊天页时间线（`insertActivity` 会直接更新 `useChatStore.messages`）和 Todo 列表（`addTodo` 会直接更新 `useTodoStore.todos`）
-3. 给出简短成功提示：`t('chat_magic_pen_success_summary', { activityCount, todoCount })`
+3. 如需提示，优先在 Sheet 局部区域展示简短成功摘要：`t('chat_magic_pen_success_summary', { activityCount, todoCount })`
 
 #### 部分失败
 
@@ -297,6 +314,9 @@ V1 中：
 
 > [!WARNING]
 > 不能要求跨 store 事务回滚，当前项目没有跨 store 事务能力。
+
+> [!NOTE]
+> 当前仓库没有全局 toast / snackbar 基础设施。V1 不新增全局通知系统，也不把“关闭后立即全局浮层提示”作为阻塞验收项。成功或失败反馈默认放在 `MagicPenSheet` 内部的局部状态区完成。
 
 ## 5. 数据结构
 
@@ -365,130 +385,296 @@ const [commitStates, setCommitStates] = useState<Map<string, MagicPenCommitState
 
 该状态只存在于前端组件本地，不进 store，不落库。
 
-## 6. 解析规则
+## 6. 解析方案：AI 结构化提取 + 前端校验
 
-### 6.1 语言范围
+### 6.1 架构概览
 
-V1 解析规则只要求覆盖中文输入。
+V1 采用 **AI 提取 + 前端校验** 二层架构，取代纯前端正则方案：
 
-说明：
+```
+用户输入 → 前端文本预处理 → /api/magic-pen-parse（AI 结构化提取）→ 前端 magicPenDraftBuilder（校验 + 组装 draft）→ 用户编辑 → 提交
+```
 
-1. UI 文案仍然要补齐 `zh/en/it` 三套翻译（参照现有 `src/i18n/locales/` 的 `en.ts` / `zh.ts` / `it.ts`）。
-2. 解析规则先落中文，与当前项目"规则优先、逐语言扩展"的做法一致（参考 `liveInputRules.zh.ts` / `en.ts` / `it.ts` 的拆分模式）。
-3. 英文和意大利文解析不在本期验收范围内。
+| 层 | 负责内容 | 不负责内容 |
+|------|------|------|
+| AI（serverless） | 拆段、分类、时间提取、内容提取 | 时间合法性校验、batch 重叠、ongoing 冲突 |
+| 前端（draftBuilder） | 时间合法性校验、batch 重叠、ongoing 冲突、组装标准 draft、默认值 | 自然语言理解、多语言解析 |
 
-### 6.2 解析步骤
+### 6.2 为什么用 AI 而非正则
 
-解析流程固定为 5 步：
+1. **复杂度不对等**：魔法笔面对的是多段混合文本（拆段 + 每段分类 + 时间提取），比主输入二分类复杂得多；纯正则预计 600+ 行且长尾覆盖差。
+2. **频率极低**：用户一天最多 10 次，单次 AI 成本 < ¥0.003（智谱 GLM-4.7-flash），每月 < ¥1。
+3. **天然多语言**：AI 无需为 en/it 单独写规则，V2 自动获得多语言支持。
+4. **主输入不变**：主输入仍用现有 `classifyLiveInput()` 正则，高频（每天几十上百次）、简单二分类，正则是正确选择。
 
-1. 标准化文本
-2. 拆段
-3. 逐段分类
-4. 组装 draft
-5. 统一校验
+### 6.3 语言范围
 
-文件拆分（对齐现有 `services/input/` 的命名风格）：
+V1 AI 提取支持中文输入（system prompt 用中文写）。
 
-| 文件 | 职责 |
-|------|------|
-| `src/services/input/magicPenRules.zh.ts` | 中文关键词、正则、信号词列表（类比 `liveInputRules.zh.ts`）|
-| `src/services/input/magicPenParser.ts` | 标准化 + 拆段 + 分类主流程（类比 `liveInputClassifier.ts`）|
-| `src/services/input/magicPenDraftBuilder.ts` | 从分类结果组装标准 draft + 默认值 + 校验 |
+> [!NOTE]
+> 因为 AI 天然具有多语言能力，V1 的 system prompt 虽以中文为主，但用户输入英文/意大利文时 AI 大概率也能正确处理。V2 可按需补充多语言 prompt。
 
-### 6.3 文本标准化
+UI 文案仍然要补齐 `zh/en/it` 三套翻译。
 
-规则（对齐现有 `normalizeLiveInput` 行为）：
+### 6.4 前端文本预处理
+
+在调用 AI 之前，前端只做最小的文本清洗（在 `magicPenParser.ts` 中实现）：
 
 1. `trim()` 去首尾空白
 2. `replace(/\s+/g, ' ')` 合并连续空格
-3. 中文标点参与拆段（见 6.4）
-4. 空段直接丢弃
+3. 空文本直接返回空 result，不调用 AI
+4. 长度限制：超过 500 字符截断并提示用户
 
-### 6.4 拆段规则
+### 6.5 AI Serverless Endpoint
 
-先按以下分隔符切段：
+#### 端点
 
-1. `，`
-2. `。`
-3. `；`
-4. `、`
-5. 换行符（`\n`）
+`POST /api/magic-pen-parse`
 
-再按连接词拆子句：
+#### 文件
 
-1. `然后`
-2. `后来`
-3. `顺便`
-4. `以及`
-5. `还要`
-6. `记得`
+`api/magic-pen-parse.ts`
+
+#### 请求体
+
+```ts
+interface MagicPenParseRequest {
+  rawText: string;         // 用户原始输入（已预处理）
+  lang?: 'zh' | 'en' | 'it';  // 界面语言，默认 'zh'
+  todayDateStr: string;    // 当天日期字符串，如 "2026-03-11"
+  currentHour: number;     // 当前小时（0-23），辅助 AI 判断时间
+}
+```
+
+#### 响应体
+
+```ts
+interface MagicPenParseResponse {
+  success: boolean;
+  data: MagicPenAIResult;
+  raw?: string;            // debug 用，AI 原始输出
+}
+
+interface MagicPenAIResult {
+  segments: MagicPenAISegment[];
+  unparsed: string[];      // AI 无法分类的片段原文
+}
+
+interface MagicPenAISegment {
+  text: string;            // 提取的活动/待办内容（干净文本，去掉时间词后的核心内容）
+  sourceText: string;      // 原始片段文本（保留时间词，用于 UI 展示来源）
+  kind: 'activity_backfill' | 'todo_add';
+  confidence: 'high' | 'medium' | 'low';
+
+  // 仅 activity_backfill 时存在
+  startTime?: string;      // "HH:mm" 格式，如 "09:00"
+  endTime?: string;        // "HH:mm" 格式，如 "11:00"
+  timeSource?: 'exact' | 'period' | 'missing';
+  periodLabel?: string;    // 原始时段词，如 "上午"、"下午3点"
+}
+```
+
+#### System Prompt
+
+```
+你是一个时间记录助手的文本解析器。用户会输入一段混合文本，你需要拆分并识别其中的内容。
+
+【你的任务】
+1. 将用户输入拆分成独立的语义片段
+2. 判断每个片段属于哪种类型
+3. 提取时间信息
+
+【类型定义】
+activity_backfill（活动补录）：今天已经发生过的活动。
+  判断依据：有"已发生"证据（时段词如上午/下午/晚上/刚刚、完成态如"了"）+ 有具体动作
+  例子：上午改方案、下午去超市买菜、刚刚开完会
+
+todo_add（待办新增）：将来需要做的事情。
+  判断依据：有未来/义务表达（记得、要、待会、明天、别忘了）
+  例子：记得整理发票、明天交报告、晚点给妈妈回电话
+
+unparsed（无法分类）：以下情况归入此类：
+  - 纯情绪/心情表达（如"今天有点烦"）
+  - 纯评价（如"做得还不错"）
+  - 太模糊无法行动（如"今天做了很多事"）
+  - 跨天回顾（如"昨天开会"）
+  - 超出简单待办的长期计划（如"下个月12号记得..."）
+
+【时间提取规则】
+对 activity_backfill 类型，必须尝试提取时间：
+  - exact：用户给出了精确时间 → 解析为 startTime，endTime 默认 +30分钟
+    例: "10点开会" → startTime:"10:00", endTime:"10:30", timeSource:"exact"
+    例: "下午3点改方案" → startTime:"15:00", endTime:"15:30", timeSource:"exact"
+    例: "从10点到12点开会" → startTime:"10:00", endTime:"12:00", timeSource:"exact"
+  - period：用户只给出时段词 → 使用默认时间窗口
+    上午/早上/今早 → startTime:"09:00", endTime:"11:00"
+    中午 → startTime:"12:00", endTime:"13:00"
+    下午 → startTime:"15:00", endTime:"17:00"
+    晚上 → startTime:"20:00", endTime:"21:00"
+  - missing：用户没有给出任何时间信息
+    例: "今天开会" → timeSource:"missing"（不填 startTime/endTime）
+
+【输出格式】
+严格输出 JSON，不要输出任何解释、前缀、后缀或 Markdown 代码块。
+
+{
+  "segments": [
+    {
+      "text": "活动或待办的核心内容",
+      "sourceText": "用户原始片段文本",
+      "kind": "activity_backfill 或 todo_add",
+      "confidence": "high 或 medium 或 low",
+      "startTime": "HH:mm 或 不填",
+      "endTime": "HH:mm 或 不填",
+      "timeSource": "exact 或 period 或 missing 或 不填",
+      "periodLabel": "原始时段词 或 不填"
+    }
+  ],
+  "unparsed": ["无法分类的片段原文"]
+}
+
+【重要约束】
+1. text 字段应是干净的活动/待办描述，去掉时间词。如"上午改方案" → text:"改方案"
+2. sourceText 字段保留原始片段文本，如"上午改方案" → sourceText:"上午改方案"
+3. 一个输入可能包含多个片段，你需要全部拆出来
+4. 如果无法确定类型，宁可放入 unparsed 也不要强行分类
+5. confidence 规则：强证据匹配 → high，单一弱证据 → medium，模糊 → low
+6. 今天日期是 {{todayDateStr}}，当前是 {{currentHour}} 点
+```
+
+> [!IMPORTANT]
+> prompt 中的 `{{todayDateStr}}` 和 `{{currentHour}}` 在 serverless 函数中动态替换，从请求体中读取。这两个变量帮助 AI 判断"下午"是已发生还是未发生。
+
+#### AI 模型选择
+
+使用智谱 `glm-4.7-flash`（复用已有 `ZHIPU_API_KEY`），参数：
+
+```ts
+{
+  model: 'glm-4.7-flash',
+  temperature: 0.3,    // 低温度保证结构化输出稳定
+  max_tokens: 1024,
+  stream: false,
+}
+```
 
 > [!NOTE]
-> `记得` 既是连接词也是 Todo 强信号。拆段后保留原始片段文本用于 `sourceText` 和未识别展示。
+> 选择 `glm-4.7-flash` 而非 Chutes AI 的原因：① 智谱 flash 模型延迟更低（~1-2s），② 价格更低，③ 结构化 JSON 输出更稳定，④ 项目 `api/classify.ts` 已验证该模型的 JSON 输出质量。
 
-### 6.5 活动补录信号
+#### AI 响应解析与容错
 
-一个片段判为 `activity_backfill`，至少同时满足：
+`api/magic-pen-parse.ts` 内必须实现 `parseMagicPenAIResponse(raw: string): MagicPenAIResult`，复用 `api/classify.ts` 已验证的解析策略：
 
-1. 有"今天已发生"的证据
-2. 有活动动作词
-3. 没有明显未来义务表达
+```ts
+function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
+  // 策略1：直接 JSON.parse
+  try { return validateAndReturn(JSON.parse(raw.trim())); } catch {}
 
-#### 已发生证据词
+  // 策略2：提取最外层 {} 块
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return validateAndReturn(JSON.parse(match[0])); } catch {}
+  }
 
-| 序号 | 关键词 |
-|------|--------|
-| 1 | `今天` |
-| 2 | `今早` |
-| 3 | `早上` |
-| 4 | `上午` |
-| 5 | `中午` |
-| 6 | `下午` |
-| 7 | `晚上` |
-| 8 | `刚刚` |
-| 9 | `刚才` |
+  // 策略3：兜底，全部归入 unparsed
+  console.warn('[magic-pen-parse] AI 响应解析失败，全部归入 unparsed');
+  return { segments: [], unparsed: ['（AI 解析失败，请手动录入）'] };
+}
+```
 
-#### 动作词
+`validateAndReturn` 必须校验：
+1. `segments` 是数组
+2. 每个 segment 的 `kind` 必须是 `'activity_backfill'` 或 `'todo_add'`
+3. `startTime` / `endTime` 如果存在，必须匹配 `HH:mm` 格式
+4. 不合法的 segment 静默过滤（不阻断整个请求）
 
-| 序号 | 关键词 |
-|------|--------|
-| 1 | `开会` |
-| 2 | `吃饭` |
-| 3 | `买菜` |
-| 4 | `学习` |
-| 5 | `写方案` |
-| 6 | `改方案` |
-| 7 | `散步` |
-| 8 | `健身` |
-| 9 | `通勤` |
-| 10 | `做家务` |
+### 6.6 前端调用与 Draft 组装
 
-> [!TIP]
-> 可复用现有 `liveInputRules.zh.ts` 中已定义的 `ZH_ACTIVITY_VERBS` 和 `ZH_ACTIVITY_STRONG_PHRASES` 等词表，避免重复维护。新增魔法笔专用词放在 `magicPenRules.zh.ts` 中。
+#### 前端 API Client 新增
 
-### 6.6 Todo 信号
+在 `src/api/client.ts` 新增：
 
-一个片段判为 `todo_add`，满足任一强信号即可。
+```ts
+interface MagicPenParseRequest {
+  rawText: string;
+  lang?: 'zh' | 'en' | 'it';
+  todayDateStr: string;
+  currentHour: number;
+}
 
-#### 未来词
+interface MagicPenParseResponse {
+  success: boolean;
+  data: MagicPenAIResult;
+}
 
-`待会` / `一会` / `稍后` / `晚点` / `之后` / `明天` / `这周` / `本周` / `本月`
+export async function callMagicPenParseAPI(
+  request: MagicPenParseRequest
+): Promise<MagicPenParseResponse> {
+  return postJson<MagicPenParseRequest, MagicPenParseResponse>(
+    '/magic-pen-parse',
+    request,
+  );
+}
+```
 
-#### 义务词
+#### 前端解析主入口
 
-`记得` / `提醒我` / `要` / `得` / `需要` / `别忘了`
+`src/services/input/magicPenParser.ts`（精简版，不再包含正则逻辑）：
 
-### 6.7 明确不生成 draft 的片段
+```ts
+import { callMagicPenParseAPI } from '../../api/client';
+import type { MagicPenParseResult } from './magicPenTypes';
 
-以下内容直接进入 `unparsedSegments`：
+export async function parseMagicPenInput(rawText: string): Promise<MagicPenParseResult> {
+  // 1. 预处理
+  const cleaned = rawText.trim().replace(/\s+/g, ' ');
+  if (!cleaned) return { drafts: [], unparsedSegments: [] };
 
-1. 纯心情句，例如 `今天有点烦`
-2. 纯评价句，例如 `做得还不错`
-3. 纯模糊句，例如 `今天做了很多事`
-4. 跨天补录句，例如 `昨天开会`
-5. 未来计划但超出当前 Todo 粗粒度模型的句子，例如 `下个月12号记得...`
+  // 2. 调用 AI
+  const now = new Date();
+  const response = await callMagicPenParseAPI({
+    rawText: cleaned,
+    todayDateStr: now.toISOString().slice(0, 10),
+    currentHour: now.getHours(),
+  });
 
-#### `unparsedSegments` 的 UI 展示规则
+  // 3. 将 AI 结果转换为标准 draft（由 magicPenDraftBuilder 完成）
+  return buildDraftsFromAIResult(response.data, now);
+}
+```
+
+> [!IMPORTANT]
+> `parseMagicPenInput` 现在是 **async 函数**（v3.x 是同步的）。`MagicPenSheet.tsx` 调用时必须 `await`，并展示 loading 状态。
+
+#### `magicPenDraftBuilder.ts` 从 AI 结果组装 draft
+
+```ts
+export function buildDraftsFromAIResult(
+  aiResult: MagicPenAIResult,
+  today: Date,
+): MagicPenParseResult {
+  const drafts: MagicPenDraftItem[] = [];
+  const unparsedSegments: string[] = [...aiResult.unparsed];
+
+  for (const seg of aiResult.segments) {
+    if (seg.kind === 'activity_backfill') {
+      drafts.push(buildActivityDraft(seg, today));
+    } else if (seg.kind === 'todo_add') {
+      drafts.push(buildTodoDraft(seg));
+    } else {
+      unparsedSegments.push(seg.sourceText || seg.text);
+    }
+  }
+
+  return { drafts, unparsedSegments };
+}
+```
+
+各 `buildXxxDraft` 函数的职责：
+- `buildActivityDraft`：将 AI 的 `HH:mm` 时间转为 epoch ms、设置 `timeResolution`、生成 uuid、设置 `needsUserConfirmation`
+- `buildTodoDraft`：设置固定的 `priority/category/scope/recurrence` 默认值
+
+### 6.7 `unparsedSegments` 的 UI 展示规则
 
 未识别片段分组是**只读区域**，用户不能从这里拖拽或一键转换为 draft。
 
@@ -496,14 +682,17 @@ V1 解析规则只要求覆盖中文输入。
 
 样式建议：灰色背景 + 较小字体，视觉权重低于活动和 Todo 分组。
 
-### 6.8 冲突优先级
+### 6.8 AI 调用错误处理
 
-固定优先级如下：
+| 错误场景 | 前端行为 |
+|------|------|
+| 网络错误 / 超时 | 在 Sheet 内展示错误提示 + 重试按钮，不关闭弹层 |
+| AI 返回空 segments | 全部原文进入 `unparsedSegments`，提示用户"无法识别，请手动录入" |
+| AI 返回格式异常 | `parseMagicPenAIResponse` 兜底处理，全部归入 `unparsedSegments` |
+| API Key 缺失 | serverless 返回 500，前端提示"服务暂不可用" |
 
-1. 明显未来 + 义务表达 → `todo_add`
-2. 明显今天已发生 + 动作表达 → `activity_backfill`
-3. 两类证据同时都强且无法拆开 → 生成低置信度 draft，`confidence: 'low'` + `needsUserConfirmation: true`
-4. 没有足够证据 → `unparsedSegments`
+> [!WARNING]
+> 必须在 `MagicPenSheet.tsx` 的解析按钮点击后展示 loading 状态（禁用按钮 + spinner），AI 调用通常需要 1-3 秒。没有 loading 用户会以为卡死了。
 
 ## 7. 时间规则
 
@@ -521,45 +710,37 @@ V1 解析规则只要求覆盖中文输入。
 2. `endAt`（epoch ms）
 3. `startAt < endAt`
 
-### 7.2 时间解析策略
+### 7.2 时间解析策略（AI 提取 → 前端转换）
 
-#### 精确时间
+AI 在 serverless 返回 `startTime` / `endTime`（`HH:mm` 字符串）和 `timeSource`。前端 `magicPenDraftBuilder.ts` 负责将其转为 epoch ms 并设置 draft 字段。
 
-例如：`10点开会`、`10:30 买菜`、`下午3点改方案`
+#### 精确时间（`timeSource: 'exact'`）
 
-处理：
+AI 返回示例：`{ startTime: "10:00", endTime: "10:30", timeSource: "exact" }`
 
-1. 解析出 `startAt`
-2. 默认 `endAt = startAt + 30 * 60 * 1000`（30 分钟，只是可编辑起点）
-3. `timeResolution: 'exact'`
-4. `errors: []`
-5. `needsUserConfirmation: true`
+前端处理：
 
-#### 时段词
+1. 将 `HH:mm` + 当天日期转为 epoch ms → `startAt` / `endAt`
+2. `timeResolution: 'exact'`
+3. `errors: []`
+4. `needsUserConfirmation: true`（endTime 可能是 AI 默认的 +30 分钟）
 
-例如：`上午改方案`、`下午买菜`、`晚上散步`
+#### 时段词（`timeSource: 'period'`）
 
-建议时间窗口：
+AI 返回示例：`{ startTime: "09:00", endTime: "11:00", timeSource: "period", periodLabel: "上午" }`
 
-| 时段词 | 默认 startAt | 默认 endAt |
-|--------|-------------|------------|
-| `今早` / `早上` / `上午` | 09:00 | 11:00 |
-| `中午` | 12:00 | 13:00 |
-| `下午` | 15:00 | 17:00 |
-| `晚上` | 20:00 | 21:00 |
+前端处理：
 
-处理：
-
-1. 填入当天对应时间的 epoch ms
+1. 将 `HH:mm` + 当天日期转为 epoch ms → `startAt` / `endAt`
 2. `timeResolution: 'period'`
-3. `suggestedTimeLabel` 保留原始时段词
+3. `suggestedTimeLabel` = AI 返回的 `periodLabel`
 4. `needsUserConfirmation: true`
 
-#### 缺少时间
+#### 缺少时间（`timeSource: 'missing'`）
 
-例如：`今天开会`、`刚刚去买菜`
+AI 返回示例：`{ timeSource: "missing" }`（无 startTime / endTime）
 
-处理：
+前端处理：
 
 1. 允许生成活动 draft
 2. `startAt` 和 `endAt` 为 `undefined`
@@ -633,12 +814,13 @@ V1 规则：
 
 ### 9.1 新增与修改文件清单
 
-#### 必改（5 个文件）
+#### 必改（6 个文件）
 
 | 文件 | 改动说明 |
 |------|----------|
 | `src/features/chat/ChatInputBar.tsx` | 新增 `onOpenMagicPen` prop + 左侧按钮 |
 | `src/features/chat/ChatPage.tsx` | 新增 `isMagicPenOpen` + `restoreInputRef` 状态，渲染 `MagicPenSheet`（≤15 行新增） |
+| `src/api/client.ts` | 新增 `callMagicPenParseAPI()` 函数 |
 | `src/i18n/locales/en.ts` | 新增魔法笔 i18n key（见第 11 节） |
 | `src/i18n/locales/zh.ts` | 同步新增中文翻译 |
 | `src/i18n/locales/it.ts` | 同步新增意大利文翻译 |
@@ -647,13 +829,13 @@ V1 规则：
 
 | 文件 | 职责 |
 |------|------|
-| `src/features/chat/MagicPenSheet.tsx` | Sheet 组件：输入、解析、编辑、提交 |
-| `src/services/input/magicPenTypes.ts` | 类型定义 |
-| `src/services/input/magicPenRules.zh.ts` | 中文规则词表 |
-| `src/services/input/magicPenParser.ts` | 解析主流程 |
-| `src/services/input/magicPenDraftBuilder.ts` | draft 组装 + 校验纯函数 |
+| `api/magic-pen-parse.ts` | Serverless endpoint：接收原始文本 → 调用智谱 AI → 返回结构化 JSON |
+| `src/features/chat/MagicPenSheet.tsx` | Sheet 组件：输入、解析（含 loading）、编辑、提交 |
+| `src/services/input/magicPenTypes.ts` | 类型定义（前端 draft 类型 + AI 响应类型） |
+| `src/services/input/magicPenParser.ts` | 前端解析入口：预处理 → 调用 API → 调用 draftBuilder |
+| `src/services/input/magicPenDraftBuilder.ts` | 从 AI 结果组装标准 draft + HH:mm→epoch 转换 + 校验纯函数 |
 | `src/store/magicPenActions.ts` | 跨 store 提交编排 |
-| `src/services/input/magicPenParser.test.ts` | 解析单元测试 |
+| `src/services/input/magicPenDraftBuilder.test.ts` | draft 组装 + 校验单元测试 |
 
 #### 可选新增
 
@@ -661,6 +843,7 @@ V1 规则：
 |------|------|
 | `src/features/chat/magicPenSheetHelpers.ts` | 当 `MagicPenSheet.tsx` 行数接近 400 时，抽出 UI helper |
 | `src/store/magicPenActions.test.ts` | 提交流程单元测试 |
+| `api/magic-pen-parse.test.ts` | AI 响应解析 + 校验单元测试 |
 
 ### 9.2 页面层职责
 
@@ -720,46 +903,86 @@ const handleCloseMagicPen = (submitted: boolean) => {
 负责：
 
 1. 收集原始文本
-2. 调用 `parseMagicPenInput()`
-3. 展示并编辑 drafts
-4. 调用 `commitMagicPenDrafts()`
-5. 处理部分成功 / 失败态
-6. 回调 `onClose(submitted)`
+2. 调用 `await parseMagicPenInput()`（**注意是 async**）
+3. 在 AI 调用期间展示 loading 状态（禁用解析按钮 + spinner）
+4. AI 调用失败时展示错误提示 + 重试按钮
+5. 展示并编辑 drafts
+6. 调用 `commitMagicPenDrafts()`
+7. 处理部分成功 / 失败态
+8. 回调 `onClose(submitted)`
 
-### 9.3 服务层职责
+### 9.3 Serverless 层职责
+
+#### `api/magic-pen-parse.ts`
+
+新增 Vercel Serverless Function，复用现有 `api/http.ts` 基础设施：
+
+```ts
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applyCors(res, ['POST']);
+  if (handlePreflight(req, res)) return;
+  if (!requireMethod(req, res, 'POST')) return;
+
+  const { rawText, lang = 'zh', todayDateStr, currentHour } = req.body;
+
+  // 参数校验...
+  // 构建 prompt（替换 {{todayDateStr}} 和 {{currentHour}}）...
+  // 调用智谱 AI（复用 ZHIPU_API_KEY）...
+  // 解析响应 + 校验...
+  // 返回 { success: true, data: MagicPenAIResult }
+}
+```
+
+必须同步更新 `api/README.md` 的端点清单，新增一行：
+
+```
+| `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed } }` |
+```
+
+### 9.4 前端服务层职责
 
 #### `magicPenParser.ts`
 
 ```ts
 import type { MagicPenParseResult } from './magicPenTypes';
 
-export function parseMagicPenInput(rawText: string): MagicPenParseResult;
+export async function parseMagicPenInput(rawText: string): Promise<MagicPenParseResult>;
 ```
 
-负责：标准化 → 拆段 → 分类 → 返回 `MagicPenParseResult`。
+负责：预处理 → 调用 `callMagicPenParseAPI()` → 调用 `buildDraftsFromAIResult()` → 返回 `MagicPenParseResult`。
+
+> [!IMPORTANT]
+> 这是 **async 函数**，与 v3.x 的同步版本不同。所有调用方必须 `await`。
 
 #### `magicPenDraftBuilder.ts`
 
 ```ts
 import type { MagicPenDraftItem, MagicPenDraftErrorCode } from './magicPenTypes';
+import type { MagicPenAIResult } from './magicPenTypes';
 import type { Message } from '../../store/useChatStore';
+
+/** 将 AI 结果转换为标准 draft 列表 */
+export function buildDraftsFromAIResult(
+  aiResult: MagicPenAIResult,
+  today: Date,
+): MagicPenParseResult;
+
+/** 将 HH:mm 字符串 + 日期转为 epoch ms */
+export function timeStringToEpoch(timeStr: string, date: Date): number;
 
 /** 基于当前 messages 和 ongoing activity 对 drafts 执行校验 */
 export function validateDrafts(
   drafts: MagicPenDraftItem[],
   messages: Message[],
 ): MagicPenDraftItem[];
-
-/** 生成活动的默认建议时间窗口 */
-export function buildSuggestedTimeWindow(
-  periodKeyword: string,
-  today: Date,
-): { startAt: number; endAt: number };
 ```
 
-负责：组装标准 draft、生成默认 Todo 字段、生成建议时间窗口、执行纯函数校验。
+负责：从 AI 结构化结果组装标准 draft、HH:mm→epoch 时间转换、生成默认 Todo 字段、执行纯函数校验。
 
-### 9.4 Store 编排职责
+### 9.5 Store 编排职责
 
 新增 `src/store/magicPenActions.ts`，只做跨 store 编排，不新增独立 Zustand store。
 
@@ -869,7 +1092,7 @@ await useTodoStore.getState().addTodo(
 
 新增魔法笔 UI 时，所有新文案必须走 i18n。以 `src/i18n/locales/en.ts` 为 key 基线。
 
-建议新增 key（15 个）：
+建议新增 key（18 个）：
 
 ```ts
 // en.ts 中示例
@@ -878,35 +1101,56 @@ chat_magic_pen_title: 'Magic Pen',
 chat_magic_pen_subtitle: 'Backfill missed activities or extract to-dos',
 chat_magic_pen_placeholder: 'Backfill today\'s missed activities, or organize to-dos from a note',
 chat_magic_pen_parse: 'Parse',
+chat_magic_pen_parsing: 'Analyzing...',
 chat_magic_pen_confirm: 'Write All',
 chat_magic_pen_cancel: 'Cancel',
 chat_magic_pen_group_activity: 'Activity Backfill',
 chat_magic_pen_group_todo: 'New To-dos',
 chat_magic_pen_group_unparsed: 'Unrecognized',
+chat_magic_pen_unparsed_hint: 'These could not be auto-recognized. You can add them manually via the main input.',
 chat_magic_pen_missing_time: 'Start & end time required',
+chat_magic_pen_estimated_time: 'Estimated time - please confirm',
 chat_magic_pen_invalid_time: 'Invalid time range',
 chat_magic_pen_overlap: 'Time overlaps with another item',
+chat_magic_pen_overlap_hint: 'Conflicts with "{{activity}}" - please adjust',
 chat_magic_pen_partial_success: 'Some items failed, you can retry',
 chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added {{todoCount}} to-dos',
+chat_magic_pen_ai_error: 'Analysis failed, please try again',
+chat_magic_pen_ai_retry: 'Retry',
+chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 ```
 
 同步补齐 `zh.ts` 和 `it.ts`。
 
 ## 12. 测试要求
 
-### 12.1 单元测试
+> [!NOTE]
+> 当前仓库已有 `Vitest` 的纯函数 / store 测试基线，但没有 `@testing-library/react` 这类组件测试依赖。V1 自动化测试以 draftBuilder（纯函数）/ store-orchestration 为主。AI 解析质量通过手工验收覆盖，不需要 mock AI 调用做端到端自动化。
 
-`src/services/input/magicPenParser.test.ts` 至少覆盖：
+### 12.1 draftBuilder 单元测试
+
+`src/services/input/magicPenDraftBuilder.test.ts` 至少覆盖：
 
 | 序号 | 用例分类 | 最少数量 |
 |------|----------|----------|
-| 1 | 纯活动补录 | 5 条 |
-| 2 | 纯 Todo 提取 | 5 条 |
-| 3 | 混合输入（活动 + 待办） | 4 条 |
-| 4 | 模糊句进入 `unparsedSegments` | 3 条 |
-| 5 | 跨天输入被拒绝 | 2 条 |
-| 6 | 时间缺失生成 `missing_time` | 2 条 |
-| **合计** | | **≥ 21 条** |
+| 1 | AI 返回活动 segment → 正确组装 activity draft | 5 条 |
+| 2 | AI 返回 todo segment → 正确组装 todo draft | 3 条 |
+| 3 | AI 返回混合 segments → 正确拆分 | 3 条 |
+| 4 | AI 返回空 / unparsed → 正确处理 | 2 条 |
+| 5 | HH:mm → epoch 转换精度 | 4 条 |
+| 6 | timeSource: missing → 生成 missing_time error | 2 条 |
+| 7 | batch 内重叠检测 | 3 条 |
+| 8 | ongoing activity 冲突检测 | 2 条 |
+| **合计** | | **≥ 24 条** |
+
+#### HH:mm → epoch 转换精度专项（第 5 类）
+
+| 序号 | AI 返回 | 预期 startAt | 预期 endAt | timeResolution |
+|------|------|-------------|------------|----------------|
+| 5.1 | `startTime:"09:00", endTime:"11:00", timeSource:"period"` | 当天 09:00 | 当天 11:00 | `period` |
+| 5.2 | `startTime:"15:00", endTime:"17:00", timeSource:"period"` | 当天 15:00 | 当天 17:00 | `period` |
+| 5.3 | `startTime:"20:00", endTime:"21:00", timeSource:"period"` | 当天 20:00 | 当天 21:00 | `period` |
+| 5.4 | `startTime:"10:00", endTime:"10:30", timeSource:"exact"` | 当天 10:00 | 当天 10:30 | `exact` |
 
 ### 12.2 提交流程测试
 
@@ -930,6 +1174,8 @@ chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added 
 | 4 | `昨天开会` | 进入 unparsedSegments（跨天拒绝） |
 | 5 | `上午改方案，上午又去买菜` | 2 个活动 draft（需用户手动调整时间避免重叠） |
 | 6 | 主输入已有文本 → 点击魔法笔 → 取消关闭 | 主输入文本恢复 |
+| 7 | 解析按钮点击后 | 出现 loading spinner，按钮禁用 |
+| 8 | 断网状态点击解析 | 显示错误提示 + 重试按钮 |
 
 ## 13. 验收标准
 
@@ -947,46 +1193,48 @@ chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added 
 ### 13.2 工程验收
 
 1. 不新增数据库字段。
-2. 不新增 API endpoint。
+2. 新增 `/api/magic-pen-parse` endpoint（复用现有 serverless 基础设施和 `ZHIPU_API_KEY`）。
 3. 不把解析逻辑写进 `ChatPage.tsx`。
 4. 不把历史补录走到 `sendMessage()`。
 5. 不破坏报告页对活动时长的统计逻辑。
 6. 所有新文案接入 i18n。
-7. `ChatPage.tsx` 新增代码 ≤ 15 行。
+7. `ChatPage.tsx` 不承载解析或提交业务逻辑；页面层改动保持在 wiring 级别，目标增量约 ≤ 30 行。
 8. 所有新文件 ≤ 400 行。
+9. 同步更新 `api/README.md` 端点清单。
 
 ## 14. Phase 划分
 
 ### Phase 1（本期）
 
 1. 聊天页入口（`ChatInputBar` 按钮 + `ChatPage` 状态）
-2. `MagicPenSheet` 完整交互
-3. 中文规则解析（`magicPenParser.ts` + `magicPenRules.zh.ts`）
-4. 活动草稿编辑与时间补全
-5. Todo 草稿提交
-6. 活动草稿提交（通过 `insertActivity`）
-7. 单元测试（≥ 21 条解析测试 + 提交流程测试）
+2. `MagicPenSheet` 完整交互（含 AI loading 状态和错误处理）
+3. `/api/magic-pen-parse` serverless endpoint（智谱 GLM-4.7-flash）
+4. `src/api/client.ts` 新增 `callMagicPenParseAPI()`
+5. `magicPenDraftBuilder.ts`：AI 结果 → 标准 draft + 校验
+6. 活动草稿编辑与时间补全
+7. 活动草稿提交（通过 `insertActivity`）
+8. Todo 草稿提交
+9. 单元测试（≥ 24 条 draftBuilder 测试 + 提交流程测试）
 
 ### Phase 2
 
-1. 更丰富的时间表达（如 `从10点到12点`）
-2. 更细的冲突提示（如提示具体哪条活动被切分）
-3. 更完整的部分失败重试体验
+1. 更细的冲突提示（如提示具体哪条活动被切分）
+2. 更完整的部分失败重试体验
+3. AI prompt 优化（基于实际使用反馈调整）
 
 ### Phase 3
 
-1. en / it 规则
-2. 可选 telemetry
-3. 必要时评估 AI fallback
+1. 多语言 prompt 增强（en / it 专用 prompt，提升非中文输入准确率）
+2. 可选 telemetry（AI 解析质量监控）
+3. 离线降级方案（可选：简单正则兜底）
 
 ## 15. 明确不在本期处理的事项
 
 1. 会员 gating 逻辑
 2. 主输入建议跳转魔法笔
-3. 英文 / 意大利文解析完整覆盖
-4. `/api/magic-pen-parse`
-5. 新的日历 / 日程数据模型
-6. 跨天补录
+3. 新的日历 / 日程数据模型
+4. 跨天补录
+5. 离线正则降级
 
 ## 16. 实施结论
 
@@ -994,9 +1242,11 @@ chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added 
 
 1. 在聊天页输入栏新增一个显式魔法笔按钮。
 2. 用独立 `MagicPenSheet` 承接输入、解析、编辑和提交。
-3. 活动补录直接调用 `insertActivity(null, null, content, startAt, endAt)`，绝不复用主输入发送链路。
-4. Todo 提取复用 `useTodoStore.addTodo()`。
-5. V1 全部以前端规则完成，不加新接口，不改数据库。
-6. `ChatPage.tsx` 改动控制在 15 行以内，遵守 400 行编码规范。
+3. 解析层采用 AI 结构化提取（`/api/magic-pen-parse` → 智谱 GLM-4.7-flash），复用现有 serverless 基础设施和 `ZHIPU_API_KEY`。
+4. 前端 `magicPenDraftBuilder.ts` 负责将 AI 结果转为标准 draft、做时间合法性校验和 batch 冲突检测——所有确定性逻辑不依赖 AI。
+5. 活动补录直接调用 `insertActivity(null, null, content, startAt, endAt)`，绝不复用主输入发送链路。
+6. Todo 提取复用 `useTodoStore.addTodo()`。
+7. 主输入保持现有 `classifyLiveInput()` 正则方案不变（高频、简单二分类，正则是正确选择）。
+8. `ChatPage.tsx` 改动保持在 wiring 级别；若页面层增量失控，必须继续外提 helper / action 文件，遵守 400 行编码规范。
 
 只要按本文档执行，开发可以直接开始拆任务和编码，不需要再反复补产品口径。
