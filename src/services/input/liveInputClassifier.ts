@@ -95,6 +95,49 @@ function detectLatinLanguage(input: string): 'en' | 'it' {
     'mi sento',
     'quella',
     'sollievo',
+    'ripasso',
+    'finanza',
+    'aziendale',
+    'pranzo',
+    'cena',
+    'colazione',
+    'chatto',
+    'chiacchiero',
+    'guardo',
+    'romanzo',
+    'revisionando',
+    'rispondendo',
+    'preparando',
+    'aggiornando',
+    'rilasciato',
+    'pubblicato',
+    'inviato',
+    'slide',
+    'presentazione',
+    'mail',
+    'email',
+    'guidando',
+    'metro',
+    'autobus',
+    'treno',
+    'spesa',
+    'pulizie',
+    'piatti',
+    'nuotando',
+    'pedalando',
+    'calcio',
+    'basket',
+    'pallavolo',
+    'film',
+    'serie',
+    'concerto',
+    'mostra',
+    'museo',
+    'podcast',
+    'uscendo',
+    'incontrando',
+    'famiglia',
+    'amici',
   ])) {
     return 'it';
   }
@@ -237,7 +280,7 @@ function hasActivitySignal(input: string): boolean {
   if (includesAny(input, ZH_ACTIVITY_STRONG_PHRASES)) return true;
   if (includesAny(input, ZH_ACTIVITY_OBJECTS) && includesAny(input, ZH_ACTIVITY_VERBS)) return true;
   if (ZH_ACTIVITY_SINGLE_VERB_PATTERNS.some((pattern) => pattern.test(input))) return true;
-  return includesAny(input, ZH_ACTIVITY_VERBS);
+  return ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb));
 }
 
 function hasOngoingSignal(input: string): boolean {
@@ -383,11 +426,6 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
   }
 
   const hasMood = hasDirectMood || hasWeakCompletion;
-
-  if (text.length <= 3 && !hasActivityEvidence) {
-    scores.mood += 1;
-    reasons.push('short_ambiguous_bias_to_mood');
-  }
 
   const recent = context.recentActivity;
   if (recent) {

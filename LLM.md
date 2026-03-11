@@ -122,5 +122,6 @@ npm run build                   # 构建验证（关键改动后执行）
 | `docs/CODE_CLEANUP_HANDOVER_PLAN.md` | 执行主线看板（Phase A-G）+ 交接历史日志 |
 | `docs/CHANGELOG.md` | 变更记录，每 PR 更新一次 |
 | `docs/ARCHITECTURE.md` | 架构说明（真实实现，非愿景） |
+| `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（活动补录 + Todo 提取，V1 纯前端实现） |
 | `CONTRIBUTING.md` | 贡献规范、包管理、回滚约定 |
 

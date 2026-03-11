@@ -185,6 +185,34 @@ describe('classifyLiveInput context bias', () => {
 
 describe('classifyLiveInput additional regression set', () => {
   const cases: Array<{ input: string; kind: 'activity' | 'mood'; internalKind: string }> = [
+    { input: '起床', kind: 'activity', internalKind: 'new_activity' },
+    { input: '吃早饭', kind: 'activity', internalKind: 'new_activity' },
+    { input: '看小说', kind: 'activity', internalKind: 'new_activity' },
+    { input: '看动漫', kind: 'activity', internalKind: 'new_activity' },
+    { input: '洗头', kind: 'activity', internalKind: 'new_activity' },
+    { input: '收拾房间', kind: 'activity', internalKind: 'new_activity' },
+    { input: '遛狗', kind: 'activity', internalKind: 'new_activity' },
+    { input: '取快递', kind: 'activity', internalKind: 'new_activity' },
+    { input: '点外卖', kind: 'activity', internalKind: 'new_activity' },
+    { input: '打游戏', kind: 'activity', internalKind: 'new_activity' },
+    { input: '听歌', kind: 'activity', internalKind: 'new_activity' },
+    { input: '喝水', kind: 'activity', internalKind: 'new_activity' },
+    { input: '聊天', kind: 'activity', internalKind: 'new_activity' },
+    { input: '约饭', kind: 'activity', internalKind: 'new_activity' },
+    { input: '开黑', kind: 'activity', internalKind: 'new_activity' },
+    { input: '连麦', kind: 'activity', internalKind: 'new_activity' },
+    { input: '逛街', kind: 'activity', internalKind: 'new_activity' },
+    { input: '探店', kind: 'activity', internalKind: 'new_activity' },
+    { input: '撸铁', kind: 'activity', internalKind: 'new_activity' },
+    { input: '复习英语', kind: 'activity', internalKind: 'new_activity' },
+    { input: '复习语文', kind: 'activity', internalKind: 'new_activity' },
+    { input: '复习公司金融', kind: 'activity', internalKind: 'new_activity' },
+    { input: '复习概率统计', kind: 'activity', internalKind: 'new_activity' },
+    { input: '学公司金融', kind: 'activity', internalKind: 'new_activity' },
+    { input: '学医学英语', kind: 'activity', internalKind: 'new_activity' },
+    { input: '看公司金融', kind: 'activity', internalKind: 'new_activity' },
+    { input: '练概率统计', kind: 'activity', internalKind: 'new_activity' },
+    { input: '背医学英语', kind: 'activity', internalKind: 'new_activity' },
     { input: '学习', kind: 'activity', internalKind: 'new_activity' },
     { input: '复习数学', kind: 'activity', internalKind: 'new_activity' },
     { input: '做作业', kind: 'activity', internalKind: 'new_activity' },
@@ -247,6 +275,24 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
 
   it('does not classify plan statement as new activity: 明天要开会', () => {
     const result = classify('明天要开会');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not over-trigger activity for 学期 in mood sentence', () => {
+    const result = classify('这学期压力好大');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not over-trigger activity for 看起来 in mood sentence', () => {
+    const result = classify('今天看起来状态很差');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not over-trigger activity for 练习惯 in neutral sentence', () => {
+    const result = classify('我想先练习惯再说');
+    expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('standalone_mood');
   });
 
@@ -317,6 +363,30 @@ describe('classifyLiveInput en/it baseline regressions', () => {
 
   it('classifies English activity: I am working', () => {
     const result = classify('I am working');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English generic study object: studying corporate finance', () => {
+    const result = classify('Studying corporate finance');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English generic review object: reviewing probability statistics', () => {
+    const result = classify('Reviewing probability statistics');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English social slang activity: grabbing lunch with friends', () => {
+    const result = classify('Grabbing lunch with friends');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English entertainment activity: watching anime', () => {
+    const result = classify('Watching anime');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
   });
@@ -393,6 +463,30 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     const result = classify('domani voglio correre');
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies Italian generic study object: sto studiando finanza aziendale', () => {
+    const result = classify('Sto studiando finanza aziendale');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian generic review object: ripasso statistica', () => {
+    const result = classify('Ripasso statistica');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian social activity: prendo pranzo con un amico', () => {
+    const result = classify('Prendo pranzo con un amico');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian entertainment activity: guardo anime', () => {
+    const result = classify('Guardo anime');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
   });
 
   it('classifies Italian activity_with_mood: ho appena finito la riunione, sono sollevato', () => {

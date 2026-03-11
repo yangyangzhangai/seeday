@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Evaluate classifier on newly written natural-speech probe samples."""
+"""Evaluate natural probe samples using real TypeScript classifier logic."""
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
-
-from evaluate_live_input_gold import classify
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
 
 SAMPLES = [
@@ -252,110 +254,56 @@ SAMPLES = [
 ]
 
 
-ITALIAN_HINTS = {
-    " sto ",
-    " ho ",
-    " appena ",
-    " riunione",
-    "domani",
-    "vado",
-    "correre",
-    "quella",
-    " stressato",
-    " inviato ",
-}
-
-
-def detect_lang_bucket(text: str) -> str:
-    if any("\u4e00" <= ch <= "\u9fff" for ch in text):
-        return "zh"
-
-    lowered = f" {text.lower()} "
-    if any(token in lowered for token in ITALIAN_HINTS):
-        return "it"
-
-    return "en"
-
-
 def main() -> None:
-    total = len(SAMPLES)
-    correct_kind = 0
-    correct_internal = 0
-    mismatch_pairs: Counter[tuple[str, str]] = Counter()
-    per_expected = defaultdict(lambda: [0, 0])
-    per_lang = defaultdict(lambda: [0, 0])
-    per_lang_internal = defaultdict(lambda: [0, 0])
-
-    error_rows = []
-    for i, sample in enumerate(SAMPLES, start=1):
-        expected_internal = sample["expected"]
-        expected_kind = "activity" if expected_internal != "standalone_mood" else "mood"
-        predicted_kind, predicted_internal = classify(sample["input"], sample["ctx"])
-        lang = detect_lang_bucket(sample["input"])
-
-        if predicted_kind == expected_kind:
-            correct_kind += 1
-        if predicted_internal == expected_internal:
-            correct_internal += 1
-
-        per_lang[lang][1] += 1
-        per_lang[lang][0] += int(predicted_internal == expected_internal)
-
-        lang_internal_key = f"{lang}:{expected_internal}"
-        per_lang_internal[lang_internal_key][1] += 1
-        per_lang_internal[lang_internal_key][0] += int(
-            predicted_internal == expected_internal
+    transformed = []
+    for idx, sample in enumerate(SAMPLES, start=1):
+        expected_internal = str(sample["expected"])
+        transformed.append(
+            {
+                "id": idx,
+                "input": sample["input"],
+                "last_activity_context": sample["ctx"],
+                "expected_kind": "activity"
+                if expected_internal != "standalone_mood"
+                else "mood",
+                "expected_internal_kind": expected_internal,
+                "difficulty": "probe",
+            }
         )
 
-        per_expected[expected_internal][1] += 1
-        per_expected[expected_internal][0] += int(
-            predicted_internal == expected_internal
+    repo_root = Path(__file__).resolve().parent.parent
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", encoding="utf-8", delete=False
+    ) as temp_file:
+        json.dump(transformed, temp_file, ensure_ascii=False)
+        temp_file_path = Path(temp_file.name)
+
+    try:
+        npx_cmd = "npx.cmd" if sys.platform.startswith("win") else "npx"
+        completed = subprocess.run(
+            [
+                npx_cmd,
+                "vite-node",
+                "scripts/live_input_eval_runner.ts",
+                "--samples-json",
+                str(temp_file_path),
+                "--top-errors",
+                "999",
+            ],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
-
-        if predicted_internal != expected_internal:
-            mismatch_pairs[(expected_internal, predicted_internal)] += 1
-            error_rows.append(
-                {
-                    "id": i,
-                    "input": sample["input"],
-                    "ctx": sample["ctx"],
-                    "expected": expected_internal,
-                    "predicted": predicted_internal,
-                }
-            )
-
-    print(f"samples={total}")
-    print(f"kind_accuracy={correct_kind}/{total}={correct_kind / total:.2%}")
-    print(
-        f"internal_accuracy={correct_internal}/{total}={correct_internal / total:.2%}"
-    )
-    print("")
-    print("mismatch_pairs:")
-    for (expected, predicted), count in mismatch_pairs.most_common():
-        print(f"  {expected} -> {predicted}: {count}")
-    print("")
-    print("recall_by_expected_internal:")
-    for key, (hit, count) in sorted(per_expected.items()):
-        print(f"  {key}: {hit}/{count}={hit / count:.2%}")
-
-    print("")
-    print("accuracy_by_lang:")
-    for key, (hit, count) in sorted(per_lang.items()):
-        print(f"  {key}: {hit}/{count}={hit / count:.2%}")
-
-    print("")
-    print("recall_by_lang_expected_internal:")
-    for key, (hit, count) in sorted(per_lang_internal.items()):
-        print(f"  {key}: {hit}/{count}={hit / count:.2%}")
-
-    if error_rows:
-        print("")
-        print("errors:")
-        for row in error_rows:
-            print(
-                f"  id={row['id']} input={row['input']} ctx={row['ctx']} "
-                f"expected={row['expected']} predicted={row['predicted']}"
-            )
+        if completed.stdout:
+            print(completed.stdout, end="")
+        if completed.returncode != 0 and completed.stderr:
+            print(completed.stderr, end="")
+            raise SystemExit(completed.returncode)
+    finally:
+        temp_file_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
