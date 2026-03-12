@@ -9,7 +9,6 @@ import {
   toDateInputValue,
   toDateTimeLocal,
 } from './magicPenSheetHelpers';
-import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import { validateDrafts } from '../../services/input/magicPenDraftBuilder';
 import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import type { Message } from '../../store/useChatStore';
@@ -19,7 +18,6 @@ type CommitState = 'idle' | 'submitting' | 'success' | 'error';
 
 interface MagicPenSheetProps {
   isOpen: boolean;
-  initialText: string;
   initialDrafts: MagicPenDraftItem[];
   initialUnparsedSegments: string[];
   messages: Message[];
@@ -28,31 +26,25 @@ interface MagicPenSheetProps {
 
 export function MagicPenSheet({
   isOpen,
-  initialText,
   initialDrafts,
   initialUnparsedSegments,
   messages,
   onClose,
 }: MagicPenSheetProps) {
-  const { t, i18n } = useTranslation();
-  const [rawText, setRawText] = useState('');
+  const { t } = useTranslation();
   const [drafts, setDrafts] = useState<MagicPenDraftItem[]>([]);
   const [unparsedSegments, setUnparsedSegments] = useState<string[]>([]);
-  const [isParsing, setIsParsing] = useState(false);
-  const [parseError, setParseError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commitStates, setCommitStates] = useState<Map<string, CommitState>>(new Map());
   const [statusText, setStatusText] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setRawText(initialText || '');
     setDrafts(validateDrafts(initialDrafts, messages));
     setUnparsedSegments(initialUnparsedSegments);
     setCommitStates(new Map());
     setStatusText('');
-    setParseError('');
-  }, [isOpen, initialText, initialDrafts, initialUnparsedSegments, messages]);
+  }, [isOpen, initialDrafts, initialUnparsedSegments, messages]);
 
   const grouped = useMemo(() => {
     const activities = drafts.filter((draft) => draft.kind === 'activity_backfill');
@@ -88,24 +80,6 @@ export function MagicPenSheet({
     setDrafts(validateDrafts(nextDrafts, messages));
     if (editedDraftId) {
       resetErroredDraftState(editedDraftId);
-    }
-  };
-
-  const handleParse = async () => {
-    if (!rawText.trim()) return;
-    setIsParsing(true);
-    setParseError('');
-    try {
-      const lang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
-      const parsed = await parseMagicPenInput(rawText, { lang });
-      setDrafts(validateDrafts(parsed.drafts, messages));
-      setUnparsedSegments(parsed.unparsedSegments);
-      setCommitStates(new Map());
-      setStatusText('');
-    } catch {
-      setParseError(t('chat_magic_pen_ai_error'));
-    } finally {
-      setIsParsing(false);
     }
   };
 
@@ -200,24 +174,6 @@ export function MagicPenSheet({
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
             <X size={20} />
           </button>
-        </div>
-
-        <div className="space-y-2">
-          <textarea
-            value={rawText}
-            onChange={(event) => setRawText(event.target.value)}
-            placeholder={t('chat_magic_pen_placeholder')}
-            className="w-full min-h-24 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          />
-          <button
-            type="button"
-            onClick={handleParse}
-            disabled={isParsing || !rawText.trim()}
-            className="w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50"
-          >
-            {isParsing ? t('chat_magic_pen_parsing') : t('chat_magic_pen_parse')}
-          </button>
-          {parseError && <p className="text-xs text-red-500">{parseError}</p>}
         </div>
 
         {grouped.activities.length > 0 && (

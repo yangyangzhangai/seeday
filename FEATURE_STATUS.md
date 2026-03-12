@@ -1,6 +1,6 @@
 # Tshine 功能状态（Feature Status）
 
-- 更新时间: 2026-03-05
+- 更新时间: 2026-03-12
 - 状态等级:
   - `stable`: 主流程可用，已纳入当前架构主线
   - `beta`: 可用但仍有已知限制
@@ -28,6 +28,7 @@
   - 支持消息插入、编辑、删除、时长计算、历史加载。
   - 已完成 sendMessage 拆分（C7），可维护性较审计初期明显改善。
   - 已完成 F17 映射收口，消息 DB 映射由 `src/lib/dbMappers.ts` 统一维护。
+  - Magic Pen Mode-B 已落地：wand 模式开关 + 发送触发解析 + `MagicPenSheet` 草稿确认写入（不自动提交）。
 
 ## 3. Todo（`/todo`）
 
@@ -95,3 +96,14 @@
 
 1. C12: 批注概率策略恢复（已停止执行，后续由用户自行执行）。
 2. C13: 调试日志清理（已停止执行，后续由用户自行执行）。
+
+## 10. Magic Pen（聊天侧流）
+
+- 状态: `stable`
+- 入口: `src/features/chat/ChatInputBar.tsx`（wand mode toggle）+ `src/features/chat/MagicPenSheet.tsx`
+- 解析链:
+  - `src/services/input/magicPenParser.ts`（AI-first + local fallback）
+  - `api/magic-pen-parse.ts`
+- 说明:
+  - 仅在 mode-on 时由发送触发解析，sheet 直接展示已解析草稿。
+  - 草稿确认前不写库，提交经 `src/store/magicPenActions.ts` 执行。

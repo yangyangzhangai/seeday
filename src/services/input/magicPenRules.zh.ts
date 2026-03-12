@@ -43,6 +43,8 @@ export const ZH_MAGIC_PEN_TODO_FUTURE_WORDS = [
 
 export const ZH_MAGIC_PEN_TODO_RELATIVE_DATE_WORDS = ['今天', '明天', '后天'];
 
+export const ZH_MAGIC_PEN_TODO_SAME_DAY_WORDS = ['待会', '等会', '一会', '稍后', '晚点', '马上'];
+
 export const ZH_MAGIC_PEN_TODO_WEEKDAY_MAP: Record<string, number> = {
   一: 1,
   二: 2,

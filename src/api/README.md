@@ -34,6 +34,8 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
 - Added Magic Pen parse contract for `/api/magic-pen-parse` to support AI-first draft extraction.
+- `callMagicPenParseAPI()` supports `lang` (`zh`/`en`/`it`), and server prompt routing now follows this field.
+- Endpoint robustness baseline now includes `api/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 
 ## Related Docs
 

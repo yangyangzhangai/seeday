@@ -2,6 +2,52 @@
 
 All notable changes to this repository are documented here.
 
+## 2026-03-12 — Magic Pen Multilingual Prompt Routing + Same-Day Todo Date (Session-23)
+
+### Changed
+
+- Updated `api/magic-pen-parse.ts` to switch among dedicated zh/en/it prompts using request `lang`, while keeping the same strict JSON output schema.
+- Updated `src/services/input/magicPenParser.ts` to pass parser language into `buildDraftsFromAIResult(...)`.
+- Updated `src/services/input/magicPenDraftBuilder.ts` to infer todo `dueDate` when AI returns immediate-time phrasing (for example `待会跑步` -> today).
+- Updated `src/services/input/magicPenDateParser.ts` + `src/services/input/magicPenRules.zh.ts` so local fallback also maps same-day relative wording (`待会/一会/稍后/晚点/...`) to today's date.
+- Added regressions for both changes: `api/magic-pen-parse.test.ts`, `src/services/input/magicPenDraftBuilder.test.ts`, and `src/services/input/magicPenParser.test.ts`.
+
+### Validation
+
+- `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenDraftBuilder.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts`
+- `npx tsc --noEmit`
+- `npm run lint:docs-sync`
+- `npm run lint:state-consistency`
+- `npm run build`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` and `docs/CODE_CLEANUP_HANDOVER_PLAN.md` with session-23 handoff and completion snapshot.
+- Updated `src/api/README.md` and `api/README.md` to reflect language-routed prompt behavior and request contract.
+
+## 2026-03-12 — Magic Pen Sheet Simplification + Endpoint Test Closure (Session-22)
+
+### Changed
+
+- Removed the extra parse entry UI from `src/features/chat/MagicPenSheet.tsx` (top textarea + parse button + parse error state) so the sheet now opens directly with already-parsed drafts from send-triggered flow.
+- Updated `src/features/chat/ChatPage.tsx` to stop passing `initialText` seed into `MagicPenSheet`; mode-on send now only seeds parsed drafts/unparsed segments.
+- Added endpoint-level robustness tests in `api/magic-pen-parse.test.ts` for body validation (`400`), wrapped-JSON extraction, and invalid-output safe fallback.
+- Closed MP3 cleanup evaluation outcome: `src/services/input/magicPenRules.zh.ts` remains required by local fallback/date parsing/draft building paths and is intentionally retained.
+
+### Validation
+
+- `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts`
+- `npx tsc --noEmit`
+- `npm run lint:docs-sync`
+- `npm run lint:state-consistency`
+- `npm run build`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` to record session-22 snapshot and mark MP3/MP4 checklist closure.
+- Updated `src/features/chat/README.md`, `src/api/README.md`, and `api/README.md` with the simplified Magic Pen flow and endpoint test coverage note.
+- Updated `docs/CODE_CLEANUP_HANDOVER_PLAN.md` with this handover entry.
+
 ## Documentation Isomorphism Logging Rules
 
 1. Any structural/interface/code-path change must include one changelog line in the same PR.

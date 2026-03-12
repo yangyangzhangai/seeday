@@ -4,6 +4,7 @@ import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js'
 
 type MagicPenKind = 'activity_backfill' | 'todo_add';
 type MagicPenConfidence = 'high' | 'medium' | 'low';
+type MagicPenLang = 'zh' | 'en' | 'it';
 
 interface MagicPenAISegment {
   text: string;
@@ -23,7 +24,7 @@ interface MagicPenAIResult {
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-const MAGIC_PEN_PROMPT = `你是一个时间记录助手的文本解析器。
+const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
 你需要拆分输入文本，并输出严格 JSON，不要输出任何解释。
 
 输出结构:
@@ -52,6 +53,77 @@ const MAGIC_PEN_PROMPT = `你是一个时间记录助手的文本解析器。
 3) text 要去掉时间词，保留可读动作内容。
 4) 不确定就放 unparsed，不要强行归类。
 5) 今天日期 {{todayDateStr}}，当前小时 {{currentHour}}。`;
+
+const MAGIC_PEN_PROMPT_EN = `You are a text parser for a time-tracking assistant.
+Split the input into segments and output strict JSON only. Do not output explanations.
+
+Output schema:
+{
+  "segments": [
+    {
+      "text": "core content",
+      "sourceText": "original segment",
+      "kind": "activity_backfill or todo_add",
+      "confidence": "high or medium or low",
+      "startTime": "HH:mm, optional",
+      "endTime": "HH:mm, optional",
+      "timeSource": "exact or period or missing, optional",
+      "periodLabel": "period token, optional"
+    }
+  ],
+  "unparsed": ["segments that cannot be classified"]
+}
+
+Rules:
+1) activity_backfill means an activity already happened today; todo_add means a future task.
+2) For activity_backfill, extract time when possible:
+   - exact: exact time or range
+   - period: morning 09:00-11:00, noon 12:00-13:00, afternoon 15:00-17:00, evening 20:00-21:00
+   - missing: no reliable time
+3) text should remove time words and keep readable action content.
+4) If uncertain, put it in unparsed instead of forced classification.
+5) Today is {{todayDateStr}}, current hour is {{currentHour}}.`;
+
+const MAGIC_PEN_PROMPT_IT = `Sei un parser di testo per un assistente di tracciamento del tempo.
+Dividi l'input in segmenti e restituisci solo JSON rigoroso. Non aggiungere spiegazioni.
+
+Schema di output:
+{
+  "segments": [
+    {
+      "text": "contenuto principale",
+      "sourceText": "segmento originale",
+      "kind": "activity_backfill o todo_add",
+      "confidence": "high o medium o low",
+      "startTime": "HH:mm, opzionale",
+      "endTime": "HH:mm, opzionale",
+      "timeSource": "exact o period o missing, opzionale",
+      "periodLabel": "etichetta fascia oraria, opzionale"
+    }
+  ],
+  "unparsed": ["segmenti non classificabili"]
+}
+
+Regole:
+1) activity_backfill indica un'attivita gia svolta oggi; todo_add indica un'attivita futura.
+2) Per activity_backfill estrai il tempo quando possibile:
+   - exact: orario preciso o intervallo
+   - period: mattina 09:00-11:00, mezzogiorno 12:00-13:00, pomeriggio 15:00-17:00, sera 20:00-21:00
+   - missing: tempo non affidabile
+3) text deve rimuovere parole di tempo e mantenere contenuto azione leggibile.
+4) Se incerto, inserisci in unparsed senza forzare la classificazione.
+5) Oggi e {{todayDateStr}}, ora corrente {{currentHour}}.`;
+
+function toSupportedLang(value: unknown): MagicPenLang {
+  if (value === 'en' || value === 'it' || value === 'zh') return value;
+  return 'zh';
+}
+
+function getMagicPenPrompt(lang: MagicPenLang): string {
+  if (lang === 'en') return MAGIC_PEN_PROMPT_EN;
+  if (lang === 'it') return MAGIC_PEN_PROMPT_IT;
+  return MAGIC_PEN_PROMPT_ZH;
+}
 
 function isKind(value: unknown): value is MagicPenKind {
   return value === 'activity_backfill' || value === 'todo_add';
@@ -136,6 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const {
     rawText,
+    lang,
     todayDateStr,
     currentHour,
   } = req.body ?? {};
@@ -159,7 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const prompt = MAGIC_PEN_PROMPT
+  const prompt = getMagicPenPrompt(toSupportedLang(lang))
     .replace('{{todayDateStr}}', todayDateStr)
     .replace('{{currentHour}}', String(currentHour));
 

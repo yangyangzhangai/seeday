@@ -7,6 +7,7 @@ import type {
   MagicPenDraftItem,
   MagicPenParseResult,
 } from './magicPenTypes';
+import { extractTodoDueDate } from './magicPenDateParser';
 import { ZH_MAGIC_PEN_PERIOD_WINDOWS } from './magicPenRules.zh';
 
 function isSameLocalDay(a: number, b: number): boolean {
@@ -98,7 +99,39 @@ export function timeStringToEpoch(timeStr: string, date: Date): number {
   return local.getTime();
 }
 
-export function buildDraftsFromAIResult(aiResult: MagicPenAIResult, today: Date): MagicPenParseResult {
+function toLocalDateEpoch(baseDate: Date): number {
+  const copy = new Date(baseDate);
+  copy.setHours(9, 0, 0, 0);
+  return copy.getTime();
+}
+
+function inferSameDayDueDate(text: string, today: Date, lang: 'zh' | 'en' | 'it'): number | undefined {
+  if (!text) return undefined;
+  if (lang === 'zh' && /(待会|等会|一会|稍后|晚点|马上|今天)/.test(text)) {
+    return toLocalDateEpoch(today);
+  }
+  if (lang === 'en' && /\b(today|later|soon|in a while)\b/i.test(text)) {
+    return toLocalDateEpoch(today);
+  }
+  if (lang === 'it' && /\b(oggi|tra poco|piu tardi|subito dopo)\b/i.test(text)) {
+    return toLocalDateEpoch(today);
+  }
+  return undefined;
+}
+
+function inferTodoDueDate(segmentText: string, today: Date, lang: 'zh' | 'en' | 'it'): number | undefined {
+  if (lang === 'zh') {
+    const extracted = extractTodoDueDate(segmentText, today);
+    if (extracted !== undefined) return extracted;
+  }
+  return inferSameDayDueDate(segmentText, today, lang);
+}
+
+export function buildDraftsFromAIResult(
+  aiResult: MagicPenAIResult,
+  today: Date,
+  lang: 'zh' | 'en' | 'it' = 'zh',
+): MagicPenParseResult {
   const drafts: MagicPenDraftItem[] = [];
   const unparsedSegments = [...aiResult.unparsed];
 
@@ -111,6 +144,7 @@ export function buildDraftsFromAIResult(aiResult: MagicPenAIResult, today: Date)
     }
 
     if (segment.kind === 'todo_add') {
+      const dueDate = inferTodoDueDate(sourceText || content, today, lang);
       drafts.push({
         id: uuidv4(),
         kind: 'todo_add',
@@ -123,6 +157,7 @@ export function buildDraftsFromAIResult(aiResult: MagicPenAIResult, today: Date)
           priority: 'important-not-urgent',
           category: 'life',
           scope: 'daily',
+          dueDate,
         },
       });
       continue;

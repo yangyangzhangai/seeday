@@ -21,6 +21,8 @@
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw }` |
 
+`/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, and optional `lang` (`zh`/`en`/`it`) for prompt routing.
+
 ## 本地调试（Windows）
 
 ```powershell
@@ -36,3 +38,7 @@ npm run dev
 3. 下游 AI 请求失败时返回结构化 JSON，不透出敏感信息。
 4. 同步 `src/api/client.ts` 的请求/响应类型。
 5. 修改后至少执行 `npx tsc --noEmit` 与 `npm run build`。
+
+## Endpoint test anchor
+
+- `api/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。

@@ -231,19 +231,14 @@ V1 不允许输出：
 
 ### 4.3 Sheet 内部结构
 
-`MagicPenSheet.tsx` 固定包含 4 个区域：
+`MagicPenSheet.tsx` 固定包含 3 个区域：
 
 1. **顶部标题区**：标题 + 关闭按钮 + 简短说明文案
-2. **原始文本输入区**：多行 `textarea` + `解析` 按钮
-3. **解析结果区**：按 `活动补录` → `待办新增` → `未识别片段` 分组展示
-4. **底部操作区**：`取消` + `确认写入`
+2. **解析结果区**：按 `活动补录` → `待办新增` → `未识别片段` 分组展示（由发送触发解析后直接注入）
+3. **底部操作区**：`取消` + `确认写入`
 
-#### 原始文本输入区
-
-1. 使用多行 `<textarea>`，不是单行 `<input>`。
-2. 占位文案：`t('chat_magic_pen_placeholder')`
-3. 解析按钮文案：`t('chat_magic_pen_parse')`
-4. V1 不做输入时实时解析，只在点击 `解析` 后执行
+> [!NOTE]
+> 当前实现已取消 Sheet 内“原始文本输入 + 解析按钮”二次入口。解析触发点统一在聊天主输入 `mode-on + send`，Sheet 仅负责草稿编辑与确认写入。
 
 #### 底部操作区
 
@@ -644,7 +639,7 @@ export async function parseMagicPenInput(rawText: string): Promise<MagicPenParse
 ```
 
 > [!IMPORTANT]
-> `parseMagicPenInput` 现在是 **async 函数**（v3.x 是同步的）。`MagicPenSheet.tsx` 调用时必须 `await`，并展示 loading 状态。
+> `parseMagicPenInput` 现在是 **async 函数**（v3.x 是同步的）。调用发生在 `ChatPage.tsx` 的 send 分支（mode-on），而不是 `MagicPenSheet.tsx`。
 
 #### `magicPenDraftBuilder.ts` 从 AI 结果组装 draft
 
@@ -686,13 +681,10 @@ export function buildDraftsFromAIResult(
 
 | 错误场景 | 前端行为 |
 |------|------|
-| 网络错误 / 超时 | 在 Sheet 内展示错误提示 + 重试按钮，不关闭弹层 |
+| 网络错误 / 超时 | 发送触发解析失败时走本地 fallback，仍打开 Sheet |
 | AI 返回空 segments | 全部原文进入 `unparsedSegments`，提示用户"无法识别，请手动录入" |
 | AI 返回格式异常 | `parseMagicPenAIResponse` 兜底处理，全部归入 `unparsedSegments` |
 | API Key 缺失 | serverless 返回 500，前端提示"服务暂不可用" |
-
-> [!WARNING]
-> 必须在 `MagicPenSheet.tsx` 的解析按钮点击后展示 loading 状态（禁用按钮 + spinner），AI 调用通常需要 1-3 秒。没有 loading 用户会以为卡死了。
 
 ## 7. 时间规则
 
@@ -830,7 +822,7 @@ V1 规则：
 | 文件 | 职责 |
 |------|------|
 | `api/magic-pen-parse.ts` | Serverless endpoint：接收原始文本 → 调用智谱 AI → 返回结构化 JSON |
-| `src/features/chat/MagicPenSheet.tsx` | Sheet 组件：输入、解析（含 loading）、编辑、提交 |
+| `src/features/chat/MagicPenSheet.tsx` | Sheet 组件：草稿展示、编辑、提交 |
 | `src/services/input/magicPenTypes.ts` | 类型定义（前端 draft 类型 + AI 响应类型） |
 | `src/services/input/magicPenParser.ts` | 前端解析入口：预处理 → 调用 API → 调用 draftBuilder |
 | `src/services/input/magicPenDraftBuilder.ts` | 从 AI 结果组装标准 draft + HH:mm→epoch 转换 + 校验纯函数 |
@@ -902,14 +894,11 @@ const handleCloseMagicPen = (submitted: boolean) => {
 
 负责：
 
-1. 收集原始文本
-2. 调用 `await parseMagicPenInput()`（**注意是 async**）
-3. 在 AI 调用期间展示 loading 状态（禁用解析按钮 + spinner）
-4. AI 调用失败时展示错误提示 + 重试按钮
-5. 展示并编辑 drafts
-6. 调用 `commitMagicPenDrafts()`
-7. 处理部分成功 / 失败态
-8. 回调 `onClose(submitted)`
+1. 展示并编辑 drafts
+2. 展示 `unparsedSegments` 引导
+3. 调用 `commitMagicPenDrafts()`
+4. 处理部分成功 / 失败态
+5. 回调 `onClose(submitted)`
 
 ### 9.3 Serverless 层职责
 
@@ -1092,16 +1081,13 @@ await useTodoStore.getState().addTodo(
 
 新增魔法笔 UI 时，所有新文案必须走 i18n。以 `src/i18n/locales/en.ts` 为 key 基线。
 
-建议新增 key（18 个）：
+建议新增 key（当前版本不含 Sheet 内解析按钮相关 key）：
 
 ```ts
 // en.ts 中示例
 chat_magic_pen_open: 'Magic Pen',
 chat_magic_pen_title: 'Magic Pen',
 chat_magic_pen_subtitle: 'Backfill missed activities or extract to-dos',
-chat_magic_pen_placeholder: 'Backfill today\'s missed activities, or organize to-dos from a note',
-chat_magic_pen_parse: 'Parse',
-chat_magic_pen_parsing: 'Analyzing...',
 chat_magic_pen_confirm: 'Write All',
 chat_magic_pen_cancel: 'Cancel',
 chat_magic_pen_group_activity: 'Activity Backfill',
@@ -1174,8 +1160,8 @@ chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 | 4 | `昨天开会` | 进入 unparsedSegments（跨天拒绝） |
 | 5 | `上午改方案，上午又去买菜` | 2 个活动 draft（需用户手动调整时间避免重叠） |
 | 6 | 主输入已有文本 → 点击魔法笔 → 取消关闭 | 主输入文本恢复 |
-| 7 | 解析按钮点击后 | 出现 loading spinner，按钮禁用 |
-| 8 | 断网状态点击解析 | 显示错误提示 + 重试按钮 |
+| 7 | `待会跑步` | 生成 todo draft 且日期默认为今天 |
+| 8 | 断网状态发送（mode-on） | 走本地 fallback，仍打开 Sheet |
 
 ## 13. 验收标准
 
@@ -1207,7 +1193,7 @@ chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 ### Phase 1（本期）
 
 1. 聊天页入口（`ChatInputBar` 按钮 + `ChatPage` 状态）
-2. `MagicPenSheet` 完整交互（含 AI loading 状态和错误处理）
+2. `MagicPenSheet` 完整交互（草稿编辑、冲突提示、部分失败重试）
 3. `/api/magic-pen-parse` serverless endpoint（智谱 GLM-4.7-flash）
 4. `src/api/client.ts` 新增 `callMagicPenParseAPI()`
 5. `magicPenDraftBuilder.ts`：AI 结果 → 标准 draft + 校验
@@ -1224,7 +1210,7 @@ chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 
 ### Phase 3
 
-1. 多语言 prompt 增强（en / it 专用 prompt，提升非中文输入准确率）
+1. [已完成] 多语言 prompt 增强（en / it 专用 prompt 路由）
 2. 可选 telemetry（AI 解析质量监控）
 3. 离线降级方案（可选：简单正则兜底）
 

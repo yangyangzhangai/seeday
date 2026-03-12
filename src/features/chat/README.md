@@ -10,7 +10,7 @@
 - Main user flows:
   - Chat conversation (`chat` mode)
   - Auto-recognized record input (`record` mode): single input routes through `sendAutoRecognizedInput()` and classifies `activity` vs `mood`
-  - Magic Pen (`record` side flow): wand button toggles Magic Pen mode; when mode is on, tapping send triggers parse and opens `MagicPenSheet` with `activity_backfill` / `todo_add` drafts, then commit via `insertActivity(null, null, ...)` and `addTodo(...)`
+  - Magic Pen (`record` side flow): wand button toggles Magic Pen mode; when mode is on, tapping send triggers parse and opens `MagicPenSheet` directly with `activity_backfill` / `todo_add` drafts (no in-sheet raw-text parse box), then commit via `insertActivity(null, null, ...)` and `addTodo(...)`
   - Latest-message correction (`record` mode): message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)
   - Mood quick record (`isMood` message path) remains as the message semantic output, not an input mode toggle

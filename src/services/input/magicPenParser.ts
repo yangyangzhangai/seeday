@@ -30,7 +30,7 @@ export async function parseMagicPenInput(
       todayDateStr: now.toISOString().slice(0, 10),
       currentHour: now.getHours(),
     });
-    const built = buildDraftsFromAIResult(response.data, now);
+    const built = buildDraftsFromAIResult(response.data, now, options.lang ?? 'zh');
     return {
       drafts: validateDrafts(built.drafts, [], now.getTime()),
       unparsedSegments: built.unparsedSegments,

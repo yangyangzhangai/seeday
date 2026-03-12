@@ -162,6 +162,13 @@ describe('parseMagicPenInput todo-focused cases', () => {
     expect(extractYmd(draft.todo?.dueDate)).toBe('2026-03-12');
   });
 
+  it('fills today dueDate for immediate todo phrase', async () => {
+    const draft = await getOnlyDraft('待会跑步');
+    expect(draft.kind).toBe('todo_add');
+    expect(draft.content).toBe('跑步');
+    expect(extractYmd(draft.todo?.dueDate)).toBe('2026-03-11');
+  });
+
   it('extracts next weekday dueDate and strips signals from content', async () => {
     const draft = await getOnlyDraft('下周二记得交材料');
     expect(draft.kind).toBe('todo_add');

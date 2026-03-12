@@ -2126,3 +2126,50 @@ docs/                 # 架构与交接文档
 - 待执行:
   1. MP3 删除面收口：评估 `magicPenRules.zh.ts` 与 `magicPenDateParser.ts` 是否可进一步裁剪（当前 fallback 路径仍引用）。
   2. 增加 `api/magic-pen-parse.ts` 端点级 schema/鲁棒性测试（若接入 API 层测试 harness）。
+
+### 2026-03-12 — Magic Pen Session-22 收尾（Sheet 简化 + 端点测试补齐）
+
+- 变更来源: 用户反馈（去掉 sheet 顶部二次解析输入区）+ `docs/CURRENT_TASK.md` MP3/MP4 收尾项
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/MagicPenSheet.tsx` 移除顶部 `textarea + 解析按钮` 与解析态状态机，sheet 改为仅承载“已解析草稿编辑 + 确认写入”流程。
+  2. `src/features/chat/ChatPage.tsx` 移除 `initialText` seed 透传，mode-on 发送后直接以解析结果打开 `MagicPenSheet`。
+  3. 新增 `api/magic-pen-parse.test.ts`，补齐端点级鲁棒性回归：
+     - 入参缺失返回 `400`
+     - 包裹文本中的 JSON 抽取解析
+     - 非法模型输出安全降级为 `segments=[] + unparsed`。
+  4. MP3 评估收口：`magicPenRules.zh.ts` 仍被 fallback/date/draft-builder 路径引用，确认保留并将 MP3 勾选收尾。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-22 快照 + MP3/MP4 勾选）。
+  2. 更新 `docs/CHANGELOG.md`（记录本次收尾变更与验证）。
+  3. 更新 `src/features/chat/README.md`、`src/api/README.md`、`api/README.md`（流程与测试锚点同步）。
+- 验证结果:
+  - `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run lint:docs-sync`
+  - `npm run lint:state-consistency`
+  - `npm run build`
+
+### 2026-03-12 — Magic Pen Session-23 收尾（三语 Prompt + same-day Todo 日期）
+
+- 变更来源: 用户需求（en/it 可用性增强 + `待会跑步` 自动写入今天日期）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `api/magic-pen-parse.ts` 新增 zh/en/it 三套 prompt，并按请求 `lang` 路由。
+  2. `src/services/input/magicPenParser.ts` 透传 `lang` 至 `buildDraftsFromAIResult(...)`。
+  3. `src/services/input/magicPenDraftBuilder.ts` 新增 todo 截止日期推断：即时词（如 `待会`）在无显式日期时自动落到 today。
+  4. `src/services/input/magicPenDateParser.ts` + `magicPenRules.zh.ts` 同步补齐 same-day 词集，使 local fallback 路径也满足 today dueDate。
+  5. 回归补齐：
+     - `api/magic-pen-parse.test.ts` 新增 lang prompt 路由断言
+     - `magicPenDraftBuilder.test.ts` 新增 `待会跑步 -> 2026-03-11`
+     - `magicPenParser.test.ts` 新增端到端 same-day dueDate 用例
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-23 快照）。
+  2. 更新 `docs/CHANGELOG.md`（本次变更记录）。
+  3. 更新 `src/api/README.md`、`api/README.md`（多语言 prompt 路由说明）。
+- 验证结果:
+  - `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenDraftBuilder.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts`
+  - `npx tsc --noEmit`
+  - `npm run lint:docs-sync`
+  - `npm run lint:state-consistency`
+  - `npm run build`

@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-11 (PM, session-21)
+- Last Updated: 2026-03-12 (PM, session-23)
 - Owner: current working session
 - Purpose: this file is the quick resume anchor for any new session.
 
@@ -24,6 +24,20 @@
 - `src/services/input/magicPenParser.ts` 已切换为 async AI-first；本地 regex 解析已外提到 `src/services/input/magicPenParserLocalFallback.ts` 作为降级路径。
 - `src/features/chat/MagicPenSheet.tsx` 解析动作已改为 `await parseMagicPenInput`，并补充解析中态与错误态文案。
 - 回归补齐：`magicPenParser.test.ts` 改为 async；新增 `magicPenDraftBuilder.test.ts`；现有 `magicPenActions.test.ts` 与 `chatPageActions.test.ts` 已通过。
+
+## Execution Snapshot (2026-03-12 AM / session-22)
+
+- `src/features/chat/MagicPenSheet.tsx` 已移除顶部“文本框 + 解析按钮”二次入口，改为仅展示发送后已解析草稿，直接进入编辑/确认写入。
+- `src/features/chat/ChatPage.tsx` 移除 `initialText` seed 透传，mode-on 发送后直接打开预填草稿 sheet。
+- 新增端点级鲁棒性回归：`api/magic-pen-parse.test.ts` 覆盖入参 400、包裹 JSON 提取、非法输出安全兜底。
+- MP3 删除面结论收口：`magicPenRules.zh.ts` 仍被 `magicPenParserLocalFallback.ts`/`magicPenDraftBuilder.ts`/`magicPenDateParser.ts` 引用，当前保留为有效依赖并标记完成评估。
+
+## Execution Snapshot (2026-03-12 PM / session-23)
+
+- `api/magic-pen-parse.ts` 已切换为三套 prompt（zh/en/it）按 `lang` 路由，保持同一 JSON 契约输出。
+- `src/services/input/magicPenParser.ts` 已透传 `lang` 到 `buildDraftsFromAIResult`，使 AI 结果后处理与语言上下文一致。
+- 已补齐“待会跑步”同日截止逻辑：AI 构建链与本地 fallback 链都将 same-day 词映射为 today dueDate。
+- 新增回归：`api/magic-pen-parse.test.ts`（lang prompt 路由），`magicPenDraftBuilder.test.ts`（待会=今天），`magicPenParser.test.ts`（端到端待会用例）。
 
 ## Active Checklist (Tomorrow Dev Execution Plan)
 
@@ -55,12 +69,14 @@
   2) call `callMagicPenParseAPI`
   3) map AI result via `magicPenDraftBuilder`
 - [x] Remove regex-heavy classification logic from `magicPenParser.ts`.
-- [x] Update `MagicPenSheet.tsx` parse action to `await parseMagicPenInput` with loading/error/retry states.
+- [x] Keep `MagicPenSheet.tsx` as parsed-draft editor/commit surface only (no in-sheet parse action).
 - [x] Keep deterministic local validation in `validateDrafts()` (time range, future, cross-day, overlap, ongoing conflict).
 
 ### Phase MP3 / P1 - Deletion/cleanup pass (obsolete code)
 
-- [ ] Remove `src/services/input/magicPenRules.zh.ts` if no longer referenced.
+- [x] Re-evaluate `src/services/input/magicPenRules.zh.ts`:
+  - retained because it is still referenced by local fallback/date/draft builder chain
+  - no deletion in this round
 - [x] Re-evaluate `src/services/input/magicPenDateParser.ts`:
   - keep only if still needed as deterministic post-process helper
   - otherwise delete and remove imports/tests accordingly
@@ -71,7 +87,7 @@
 - [x] Update `src/services/input/magicPenParser.test.ts` for async API-based parser behavior.
 - [x] Add/refresh `magicPenDraftBuilder` tests for AI-result-to-draft mapping and validation rules.
 - [x] Keep/adjust `src/store/magicPenActions.test.ts` for commit ordering + partial failure behavior.
-- [ ] Add endpoint-level parse schema/robustness tests for `api/magic-pen-parse.ts` (if test harness available).
+- [x] Add endpoint-level parse schema/robustness tests for `api/magic-pen-parse.ts`.
 
 ### Phase MP5 / P0 - Final verification gates
 
@@ -136,7 +152,7 @@
 
 ## Next Step (Single)
 
-- Next: implement MP0 + MP1 first (mode toggle send-branch and `/api/magic-pen-parse` contract), then wire MP2 parser refactor.
+- Next: Magic Pen 主线已收尾；仅保留可选的手工体验回归（移动端弹层高度、长文本编辑体验、partial retry 文案微调）。
 
 ## Execution Snapshot (2026-03-11 PM / session-20)
 

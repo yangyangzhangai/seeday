@@ -49,7 +49,6 @@ export const ChatPage = () => {
   const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
   const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
-  const [magicPenSeedText, setMagicPenSeedText] = useState('');
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
 
@@ -244,7 +243,6 @@ export const ChatPage = () => {
 
     if (isMagicPenModeOn) {
       const parsed = await parseMagicPenInput(input, { lang: (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it' });
-      setMagicPenSeedText(input);
       setMagicPenSeedDrafts(parsed.drafts);
       setMagicPenSeedUnparsed(parsed.unparsedSegments);
       setIsMagicPenOpen(true);
@@ -280,7 +278,6 @@ export const ChatPage = () => {
 
   const handleCloseMagicPen = () => {
     setIsMagicPenOpen(false);
-    setMagicPenSeedText('');
     setMagicPenSeedDrafts([]);
     setMagicPenSeedUnparsed([]);
   };
@@ -501,7 +498,6 @@ export const ChatPage = () => {
 
       <MagicPenSheet
         isOpen={isMagicPenOpen}
-        initialText={magicPenSeedText}
         initialDrafts={magicPenSeedDrafts}
         initialUnparsedSegments={magicPenSeedUnparsed}
         messages={messages}
