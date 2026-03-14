@@ -20,7 +20,7 @@ import { EditInsertModal } from './EditInsertModal';
 import { ChatInputBar } from './ChatInputBar';
 import { MagicPenSheet } from './MagicPenSheet';
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
-import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import {
   handleMagicPenModeSend,
   handleLatestMessageReclassify,
@@ -53,6 +53,7 @@ export const ChatPage = () => {
   const [isMagicPenSending, setIsMagicPenSending] = useState(false);
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
+  const [magicPenSeedAutoWritten, setMagicPenSeedAutoWritten] = useState<MagicPenAutoWrittenItem[]>([]);
 
   const customLabelDefault = t('chat_custom_label_default');
   const isDefaultCustomLabel = (label: string) => !label || label === customLabelDefault || label === '自定义';
@@ -248,23 +249,27 @@ export const ChatPage = () => {
         input,
         lang: i18n.language?.split('-')[0] || 'zh',
         isMagicPenSending,
+        messages,
         activeTodoId,
         todos,
-        recentActivity: activeRecord
-          ? {
-              id: activeRecord.id,
-              content: activeRecord.content,
-              timestamp: activeRecord.timestamp,
-              isOngoing: activeRecord.duration === undefined,
-            }
-          : undefined,
-        sendAutoRecognizedInput,
+        sendAutoRecognizedInput: async (content) => {
+          const before = useChatStore.getState().messages;
+          const beforeIds = new Set(before.map((message) => message.id));
+          const classification = await sendAutoRecognizedInput(content);
+          const after = useChatStore.getState().messages;
+          const createdMessage = [...after].reverse().find((message) => !beforeIds.has(message.id));
+          return {
+            classification,
+            messageId: createdMessage?.id,
+          };
+        },
         completeActiveTodo,
         updateMessageDuration,
         parseMagicPenInput,
         setIsMagicPenSending,
         setMagicPenSeedDrafts,
         setMagicPenSeedUnparsed,
+        setMagicPenSeedAutoWritten,
         setIsMagicPenOpen,
         setInput,
       });
@@ -301,6 +306,7 @@ export const ChatPage = () => {
     setIsMagicPenOpen(false);
     setMagicPenSeedDrafts([]);
     setMagicPenSeedUnparsed([]);
+    setMagicPenSeedAutoWritten([]);
   };
 
   // ── 辅助：计算日期分隔线 ─────────────────────────────────────
@@ -521,7 +527,14 @@ export const ChatPage = () => {
         isOpen={isMagicPenOpen}
         initialDrafts={magicPenSeedDrafts}
         initialUnparsedSegments={magicPenSeedUnparsed}
+        initialAutoWrittenItems={magicPenSeedAutoWritten}
         messages={messages}
+        onUndoAutoWritten={async (item: MagicPenAutoWrittenItem) => {
+          if (!item.messageId) {
+            return;
+          }
+          await deleteActivity(item.messageId);
+        }}
         onClose={handleCloseMagicPen}
       />
 

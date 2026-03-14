@@ -707,6 +707,59 @@ docs/                 # 架构与交接文档
 
 ## 8. 交接日志（持续追加）
 
+### 2026-03-14 — Magic Pen MP7.6（Session-35）
+
+- 变更来源:
+  1. 实测反馈：活动补录卡片内容仍出现前置主语（如 `我学习`）。
+- 决策结论:
+  1. 采纳。将“去第一人称前缀”规则从 todo 扩展到 activity_backfill。
+- 代码与测试落地:
+  1. `src/services/input/magicPenDraftBuilder.ts`：activity/backfill 路径增加前置第一人称清洗。
+  2. `src/services/input/magicPenParserLocalFallback.ts`：活动本地兜底路径同步清洗逻辑。
+  3. 回归测试：`magicPenDraftBuilder.test.ts`、`magicPenParser.test.ts`。
+- 验收:
+  1. `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenDraftBuilder.test.ts src/services/input/magicPenParser.test.ts` 通过。
+  2. `npx tsc --noEmit` 通过。
+- 风险与回滚点:
+  1. 风险：极个别以“我”开头但不应清洗的表达可能被简化。
+  2. 回滚点：可单独回滚上述两处内容清洗变更，不影响时序和数据结构。
+
+### 2026-03-14 — Magic Pen MP7.5（Session-34）
+
+- 变更来源:
+  1. 线上实测反馈：`晚上要开会` 被误判为活动补录；`我待会开会` 待办内容残留主语“我”。
+- 决策结论:
+  1. 采纳。补充“精确本地时间上下文 + todo 文本清洗”，不改变既有提交分流主策略。
+- 代码与测试落地:
+  1. `src/services/input/magicPenParser.ts`：新增本地日期/时间字符串与时区偏移传参。
+  2. `src/api/client.ts`：扩展 Magic Pen parse 请求字段（`currentLocalDateTime`、`timezoneOffsetMinutes`）。
+  3. `api/magic-pen-parse.ts`：prompt 加强未来义务语义判定，要求结合本地精确时间避免 `晚上要...` 误判补录。
+  4. `src/services/input/magicPenDraftBuilder.ts` + `src/services/input/magicPenParserLocalFallback.ts`：待办内容去掉中文第一人称前缀（`我...`）。
+  5. 回归测试：`api/magic-pen-parse.test.ts`、`magicPenDraftBuilder.test.ts`、`magicPenParser.test.ts`。
+- 验收:
+  1. `npm run test:unit -- api/magic-pen-parse.test.ts src/services/input/magicPenDraftBuilder.test.ts src/services/input/magicPenParser.test.ts src/features/chat/chatPageActions.test.ts` 通过。
+  2. `npx tsc --noEmit` 通过。
+- 风险与回滚点:
+  1. 风险：AI 仍可能偶发误判，prompt 强化无法完全替代后处理规则。
+  2. 回滚点：可单独回滚 `api/magic-pen-parse.ts` prompt 与 content-cleanup 变更，不影响存储结构与 store 接口。
+
+### 2026-03-14 — Magic Pen MP7.4（Session-33）
+
+- 变更来源:
+  1. session-32 决策落地：复杂混合输入需要 AI 尽量按四类完整提取，避免可识别片段被过度打入 `unparsed`。
+- 决策结论:
+  1. 采纳。保持运行时提交分流不变（`high+realtime activity|mood` 自动写；`todo_add|activity_backfill` review；其余 `activity|mood` 进 `unparsed`）。
+- 代码与测试落地:
+  1. `api/magic-pen-parse.ts`：强化 `zh/en/it` prompt 的四类混合抽取约束与 confidence 指引。
+  2. `src/features/chat/chatPageActions.test.ts`：新增四类同句分流回归。
+  3. `src/services/input/magicPenDraftBuilder.test.ts`：新增 medium realtime mood -> `unparsed` 与四类分流回归。
+- 验收:
+  1. `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenDraftBuilder.test.ts api/magic-pen-parse.test.ts` 通过。
+  2. `npx tsc --noEmit` 通过。
+- 风险与回滚点:
+  1. 风险：prompt 提升依赖模型稳定性，线上分段质量仍可能随模型波动。
+  2. 回滚点：回滚 `api/magic-pen-parse.ts` prompt 变更即可恢复上一版行为，不影响 store/schema。
+
 ### 2026-03-03
 
 - 已完成:
@@ -2232,3 +2285,80 @@ docs/                 # 架构与交接文档
 - 验证结果:
   - `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts api/magic-pen-parse.test.ts` ✅
   - `npx tsc --noEmit` ✅
+
+### 2026-03-14 — Magic Pen Session-28 执行（MP7.1 低置信 unparsed-only 策略锁定）
+
+- 变更来源: `docs/CURRENT_TASK.md` Next Step（完成 docs-sync/state-consistency/build 回环并落地 low-confidence 分流决策）。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 锁定 MP7.1 策略：低置信 `activity/mood` 保持 `unparsed-only`，本轮不升级为显式 review 卡片。
+  2. 在 `src/services/input/magicPenDraftBuilder.test.ts` 新增回归：
+     - low-confidence `mood` 不进入 `autoWriteItems`、不生成 review draft，仅进入 `unparsedSegments`
+     - low-confidence `activity`（无时间锚点）不进入 `autoWriteItems`、不生成 review draft，仅进入 `unparsedSegments`
+  3. 更新 `docs/CURRENT_TASK.md`：新增 session-28 快照并把下一步改为“保守策略下观察真实样例再评估”。
+- 文档同步:
+  1. 更新 `docs/CHANGELOG.md`（新增 MP7.1 决策锁定条目）
+  2. 更新 `docs/CURRENT_TASK.md`（session-28 快照 + Next Step）
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenDraftBuilder.test.ts` ✅
+  - `npm run lint:max-lines` ✅
+  - `npm run lint:docs-sync` ✅
+  - `npm run lint:state-consistency` ✅
+  - `npx tsc --noEmit` ✅
+  - `npm run build` ✅
+
+### 2026-03-14 — Magic Pen Session-30 执行（MP7.3 parser-first 运行时切换）
+
+- 变更来源: `docs/CURRENT_TASK.md` session-29 handoff checklist（parser-first + strict single auto-write）。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. `src/features/chat/chatPageActions.ts`：mode-on 发送改为 parser-first whole-input（移除 todo-signal gate），并加运行时守卫：仅 `exactly one autoWriteItem` 且无 `drafts/unparsed` 才 direct-write。
+  2. `src/services/input/magicPenDraftBuilder.ts`：auto-write 收口为单条高置信 realtime `activity|mood`，其余 `activity/mood` 落入 `unparsedSegments`。
+  3. 契约扩展：`api/magic-pen-parse.ts`、`src/api/client.ts`、`src/services/input/magicPenTypes.ts` 新增 `timeRelation` 字段（`realtime/future/past/unknown`）。
+  4. 回归补齐：`src/features/chat/chatPageActions.test.ts`、`src/services/input/magicPenDraftBuilder.test.ts`、`api/magic-pen-parse.test.ts`。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-30 快照 + session-29 checklist 勾选）
+  2. 更新 `docs/MAGIC_PEN_CAPTURE_SPEC.md`（v4.2 + session-30 runtime status）
+  3. 更新 `src/features/chat/README.md`、`src/api/README.md`、`api/README.md`（parser-first 与 `timeRelation` 契约）
+  4. 更新 `docs/CHANGELOG.md`（MP7.3 变更记录）
+
+### 2026-03-14 — Magic Pen Session-36 执行（MP7.7 动态时段补录 + parser 优先守卫）
+
+- 变更来源: 用户反馈“时段补录固定窗口过死板 + mode-on 若干句子误落当前活动”，要求动态时间分配与 docs-sync 收尾。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 更新 `/api/magic-pen-parse` 提示词（zh/en/it）：弱化固定 period 时间窗、允许可选 `durationMinutes`。
+  2. 扩展契约字段：`api/magic-pen-parse.ts`、`src/api/client.ts`、`src/services/input/magicPenTypes.ts` 新增 `durationMinutes?: number`。
+  3. `src/services/input/magicPenDraftBuilder.ts` 实现动态 period 落地：
+     - `activity_backfill(period)` 的 `endAt` 不晚于当前时间
+     - 支持时长驱动（显式 `durationMinutes` 或中文文本如“半小时/1小时”推断）
+     - 新增 `alignPeriodDraftsToMessageGaps(...)`，优先补齐本地时间线空档（不向 AI 追加历史上下文）
+  4. `src/features/chat/MagicPenSheet.tsx` 接入 gap 对齐初始化流程（先对齐后校验）。
+  5. `src/features/chat/chatPageActions.ts` 增加 parser-priority 守卫：命中时段/时间/计划信号时禁止 local fast path，强制进入 parser 流程，避免“上午开会/要开会了”被直写为 ongoing activity。
+  6. `src/services/input/liveInputClassifier.ts` 增加短纯心情 override（<6 语义长度、无时态/活动/计划信号时强制 `standalone_mood + high`）。
+  7. 回归补齐：`chatPageActions.test.ts`、`liveInputClassifier.test.ts`、`magicPenDraftBuilder.test.ts`、`api/magic-pen-parse.test.ts`。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-36 快照、checklist、next step）
+  2. 更新 `docs/CHANGELOG.md`（新增 MP7.7 条目）
+  3. 更新 `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（本条执行快照）
+- 验证结果:
+  - `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/liveInputClassifier.test.ts src/services/input/magicPenDraftBuilder.test.ts api/magic-pen-parse.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+
+### 2026-03-14 — Magic Pen Session-37 执行（MP7.8 fallback 待办日期误判防护）
+
+- 变更来源: 用户反馈 `我8-9点吃早饭` 在 fallback 路径被误识别为 todo 日期（`8月9日`）并污染草稿内容。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 更新 `src/services/input/magicPenRules.zh.ts`：`\d{1,2}[.-]\d{1,2}` 日期锚点新增后缀防护，后接 `点/时/分` 时不再命中 todo 日期信号。
+  2. 更新 `src/services/input/magicPenDateParser.ts`：numeric dueDate 提取正则同步后缀防护，避免 `8-9点` 被解析为 `8月9日`。
+  3. 新增 `src/services/input/magicPenDateParser.test.ts`：
+     - 保持 `3.18` 仍可解析为 dueDate
+     - `我8-9点吃早饭` 不再生成 dueDate
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-37 快照 + next step）
+  2. 更新 `docs/CHANGELOG.md`（新增 MP7.8 条目）
+  3. 更新 `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（本条执行快照）
+- 验证结果:
+  - `npx vitest run src/services/input/magicPenDateParser.test.ts` ✅
+  - `npx vitest run src/services/input/magicPenParser.test.ts` ✅

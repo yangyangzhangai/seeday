@@ -1,12 +1,52 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md
+
+## Session-31 Discussion Override (2026-03-14)
+
+> If any older section conflicts with this override, this override wins for the next implementation slice.
+
+- Ordinary record mode keeps the existing local binary `activity/mood` auto-classification semantics. Magic Pen changes must not regress mode-off behavior.
+- Magic Pen mode should add a local fast path before the AI parser. A simple single-intent standalone `activity` or standalone `mood` with high local confidence can be classified and written locally.
+- Inputs with mixed intent or strong complexity signals should route the whole raw sentence to the Magic Pen parser. This includes examples such as `activity+mood`, `todo`, `activity_backfill`, explicit time expressions, or multi-clause input.
+- The parser remains the owner of mixed-input understanding and should produce segment-level structured output. If the repo keeps the current four parser kinds, the next contract must still express the equivalent target behavior for realtime activity, realtime mood, todo, backfill, and unparsed content.
+- The target commit policy is hybrid, not all-or-nothing: high-confidence realtime `activity` / `mood` may auto-write; `todo_add` and `activity_backfill` require user confirmation; low-confidence or ambiguous output should degrade to full confirmation instead of silent write.
+- For mixed results, the preferred UX is: auto-write eligible realtime items first, then open `MagicPenSheet` for the remaining `todo_add` / `activity_backfill` / `unparsed` review items, with clear status copy about what was already written and an undo path for those auto-written items.
+- When one sentence contains a semantically linked activity and mood, the preferred write behavior is `activity record + attached mood/note`, not two unrelated peer records.
+- Current repo runtime still reflects the stricter session-30 gate (`exactly one` high-confidence realtime `activity|mood` direct-write). This override defines the next implementation target, not the already-landed runtime.
+
+## Session-32 Decision Override (2026-03-14)
+
+> If any older section conflicts with this override, this override wins for the next implementation slice.
+
+- Mode-on routing remains `local fast path first, otherwise whole-input AI parse`:
+  - simple standalone single-intent `activity` / `mood` can still be handled locally
+  - mixed or complex input must route the whole raw sentence to `/api/magic-pen-parse`
+- AI parser output must keep four-way classification in one response when applicable: `activity`, `mood`, `todo_add`, `activity_backfill`.
+- Mixed input should be fully extracted whenever possible; do not collapse recognizable `activity` / `mood` content into `unparsed` because of sentence complexity alone.
+- Commit split after AI parse is locked as follows:
+  - `activity` / `mood`: auto-write only when `confidence=high` and `timeRelation=realtime`
+  - `todo_add` / `activity_backfill`: always go to `MagicPenSheet` review path
+  - `activity` / `mood` segments that are not `high+realtime`: fallback to `unparsed` (safety-first), not auto-write and not draft review
+- Preferred mixed-result UX remains unchanged: auto-write eligible realtime items first, then open `MagicPenSheet` for reviewable `todo_add` / `activity_backfill`, with visible written-status and undo path.
+
+## Session-29 Override (2026-03-14)
+
+> If any older section conflicts with this override, this override wins.
+
+- Ordinary record mode keeps the existing binary `activity/mood` auto-classification semantics for all users. Magic Pen changes must not regress that path.
+- Magic Pen is member-only and now targets parser-first whole-sentence extraction. Do not pre-split clauses on the client and do not keep the todo-signal gate as the final architecture.
+- The Magic Pen parser owns mixed-input understanding and should return multiple structured segments from the original whole sentence.
+- Future-triggered mood remains valid `mood` output. Pure future plans without explicit emotion should stay planned / non-realtime inside Magic Pen parsing instead of being forced into `mood`.
+- Auto-write is allowed only when the parser returns exactly one high-confidence realtime `activity` or `mood`. Any mixed / future / backfill / low-confidence result must open `MagicPenSheet`.
+- The old clause-router experiment was retired and removed from the codebase because it is no longer part of the target architecture.
 # 魔法笔实施规格
 
-- 文档版本: v4.1
+- 文档版本: v4.2
 - 状态: Ready for implementation (audited against repo baseline)
-- 最后更新: 2026-03-13
+- 最后更新: 2026-03-14
 - 适用范围: `/chat` 页面内显式进入的魔法笔整理入口
 - 目标读者: 前端开发、状态层开发、测试、产品
 - 变更记录:
+  - v4.2 -- session-30 落地：mode-on 发送切换为 parser-first whole-input；新增 `timeRelation` 契约；auto-write 收口为“exactly one high-confidence realtime activity|mood”。
   - v4.1 -- session-26 产品决策更新：由 clause-first 双通道改为两类入口（仅 activity/mood 走本地；命中 todo 信号整句走魔法笔）；魔法笔输出扩展为四类（activity/mood/todo_add/activity_backfill）并按置信度分流自动写入与 review。
   - v4.0 -- 解析层从纯前端正则重写为 AI 结构化提取 + 前端校验二层架构；新增 `/api/magic-pen-parse` serverless endpoint；删除 `magicPenRules.zh.ts`
   - v3.2 -- 结合真实仓库补充执行约束（ChatPage wiring 行数口径、连接词拆段保留、无全局 toast / 动画插件基线）
@@ -16,6 +56,16 @@
 ## 1. 文档目标
 
 本文档是直接给开发执行的实施规格，不是产品脑暴稿。
+
+## 1.0 Current Runtime Status (session-30)
+
+> [!IMPORTANT]
+> 当前代码实现以顶部 Session-29 Override + 本节状态为准。若后文历史段落仍描述 two-lane/todo-signal gate，视为历史背景，不作为当前执行口径。
+
+1. `handleMagicPenModeSend(...)` 已切换到 parser-first：mode-on 下整句进入 `parseMagicPenInput(...)`。
+2. 运行时 direct-write 已收口：仅允许 exactly one high-confidence realtime `activity|mood`。
+3. 混合/未来/补录/低置信输出统一进入 review 路径（`drafts` 与 `unparsedSegments` -> `MagicPenSheet`）。
+4. API/前端契约新增 `timeRelation`（`realtime|future|past|unknown`）用于 direct-write 判定。
 
 ## 1.1 Session-26 决策覆盖（高于旧段落）
 

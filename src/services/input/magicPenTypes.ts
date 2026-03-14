@@ -4,6 +4,7 @@ import type { Priority, TodoScope } from '../../store/useTodoStore';
 export type MagicPenDraftKind = 'activity_backfill' | 'todo_add';
 export type MagicPenParseKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 export type MagicPenDraftConfidence = 'high' | 'medium' | 'low';
+export type MagicPenTimeRelation = 'realtime' | 'future' | 'past' | 'unknown';
 export type MagicPenDraftErrorCode =
   | 'missing_time'
   | 'invalid_time_range'
@@ -50,6 +51,16 @@ export interface MagicPenAutoWriteItem {
   content: string;
   sourceText: string;
   confidence: MagicPenDraftConfidence;
+  linkedMoodContent?: string;
+}
+
+export interface MagicPenAutoWrittenItem {
+  id: string;
+  kind: 'activity' | 'mood';
+  content: string;
+  sourceText: string;
+  messageId?: string;
+  linkedMoodContent?: string;
 }
 
 export interface MagicPenAISegment {
@@ -57,6 +68,8 @@ export interface MagicPenAISegment {
   sourceText: string;
   kind: MagicPenParseKind;
   confidence: MagicPenDraftConfidence;
+  timeRelation?: MagicPenTimeRelation;
+  durationMinutes?: number;
   startTime?: string;
   endTime?: string;
   timeSource?: 'exact' | 'period' | 'missing';

@@ -57,7 +57,7 @@ export const ZH_MAGIC_PEN_TODO_WEEKDAY_MAP: Record<string, number> = {
 };
 
 export const ZH_MAGIC_PEN_TODO_DATE_ANCHOR_PATTERN =
-  '(?<![:：\\d])(明天|后天|今天|下周[一二三四五六日天]|\\d{1,2}[.-]\\d{1,2}|\\d{1,2}月\\d{1,2}(?:日|号)?)(?![:：\\d])';
+  '(?<![:：\\d])(明天|后天|今天|下周[一二三四五六日天]|\\d{1,2}[.-]\\d{1,2}(?!\\s*(?:点|时|分))|\\d{1,2}月\\d{1,2}(?:日|号)?)(?![:：\\d])';
 
 export const ZH_MAGIC_PEN_TODO_DUTY_WORDS = ['记得', '提醒我', '要', '得', '需要', '别忘了', '还要'];
 

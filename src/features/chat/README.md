@@ -10,7 +10,7 @@
 - Main user flows:
   - Chat conversation (`chat` mode)
   - Auto-recognized record input (`record` mode): single input routes through `sendAutoRecognizedInput()` and classifies `activity` vs `mood`
-  - Magic Pen (`record` side flow): wand button toggles Magic Pen mode; when mode is on, send uses a two-lane gate (no todo signal => local `activity/mood`; has todo signal => whole sentence magic parse) with auto-write for high-confidence `mood/activity` and review sheet for `todo_add/activity_backfill`
+- Magic Pen (`record` side flow): wand button toggles Magic Pen mode. Current runtime is parser-first whole-sentence extraction (`parseMagicPenInput(...)`) with a strict single-item direct-write gate. The next target architecture keeps parser-first handling for mixed input, adds a local fast path for simple single-intent `activity` / `mood`, and moves toward hybrid commit where realtime `activity|mood` can auto-write while `todo_add` / `activity_backfill` stay in `MagicPenSheet` review.
   - Latest-message correction (`record` mode): message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)
   - Mood quick record (`isMood` message path) remains as the message semantic output, not an input mode toggle
@@ -25,7 +25,6 @@
 - Services:
   - `src/services/input/liveInputClassifier.ts`
   - `src/services/input/liveInputContext.ts`
-  - `src/services/input/magicPenClauseRouter.ts`
   - `src/services/input/magicPenParser.ts`
   - `src/services/input/magicPenDraftBuilder.ts`
   - `src/features/chat/chatPageActions.ts` (message-row reclassify + mode-on send orchestration + pending guard)
@@ -52,6 +51,5 @@
 ## Test Coverage Anchor
 
 - Chat row correction wiring regression: `src/features/chat/chatPageActions.test.ts`
-- Magic Pen clause router regression: `src/services/input/magicPenClauseRouter.test.ts`
 - Magic Pen parser regression: `src/services/input/magicPenParser.test.ts`
 - Magic Pen commit orchestration regression: `src/store/magicPenActions.test.ts`

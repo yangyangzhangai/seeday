@@ -1,96 +1,141 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-13 (PM, session-27)
+- Last Updated: 2026-03-14 (session-37)
 - Owner: current working session
 - Purpose: this file is the quick resume anchor for any new session.
 
 ## Current Focus
 
 - Mainline task status: `magicpen-v2` remains the active track.
-- Scope anchor for next execution: route strategy pivot approved in session-26; replace clause-first dual routing with two-lane gate (`activity/mood local` vs `todo-signal -> magic pen whole-sentence parse`).
-- Doc planning anchor for this execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md`.
-- `moodauto` remains a follow-up branch and is not the immediate target.
+- Scope anchor for next execution: session-37 keeps parser-first mixed-input extraction and adds fallback todo-date anti-misclassification guard (`8-9点` time range must not be parsed as month-day dueDate).
+- Doc planning anchor for next execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md`.
+- Boundary lock: do not refactor the global ordinary-mode `activity/mood` auto-classifier as part of the next Magic Pen slice.
 
 ## Past Focus
 
-- `magicpen` implementation track is paused as a non-blocking branch; remaining optional manual UX polish can resume later.
+- `magicpen` implementation track remains active; session-26/session-27 two-lane gate work is now historical context, not the next target architecture.
 - `cleanup` remains historical reference in `docs/CODE_CLEANUP_HANDOVER_PLAN.md` and `docs/CHANGELOG.md`.
 
 ## Latest Execution Snapshots (Keep Last 3)
 
-### 2026-03-13 PM / session-27
+### 2026-03-14 / session-37
 
-- MP7 baseline landed:
-  - mode-on send no longer does clause-first dual routing
-  - two-lane gate in `handleMagicPenModeSend(...)`: no todo signal -> local `sendAutoRecognizedInput`; has todo signal -> whole sentence magic parse
-- Magic pen parse contract upgraded in code path to four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (+ `unparsed`).
-- Commit split landed:
-  - auto-write high-confidence `mood` + non-time-anchored high-confidence `activity`
-  - review sheet keeps `todo_add` + `activity_backfill`
-  - low-confidence `activity/mood` no direct-write; routed into `unparsedSegments`
-- Regressions updated and green:
-  - `src/features/chat/chatPageActions.test.ts`
-  - `src/services/input/magicPenParser.test.ts`
-  - `src/store/magicPenActions.test.ts`
-  - `api/magic-pen-parse.test.ts`
+- Landed Magic Pen fallback todo-date anti-misclassification guard:
+  - `8-9点` style time-range tokens are no longer treated as todo `month-day` date anchors in zh rules.
+  - `extractTodoDueDate(...)` now blocks numeric month-day capture when the token is immediately followed by time units (`点/时/分`).
+- Added regressions:
+  - `magicPenDateParser.test.ts`: keeps `3.18` date parsing valid while ensuring `我8-9点吃早饭` does not generate todo dueDate.
 
-### 2026-03-13 PM / session-26
+### 2026-03-14 / session-36
 
-- Product decision updated for tomorrow implementation:
-  - no longer clause-first as default
-  - two-lane gate only: pure `activity/mood` uses local auto-recognition; any todo-signal input goes to magic pen parse
-  - magic pen parse contract upgraded to four kinds: `activity` / `mood` / `todo_add` / `activity_backfill`
-- Commit policy under magic pen confirmed:
-  - auto-write: `mood` + high-confidence non-conflicting `activity`
-  - review sheet: `todo_add` + `activity_backfill`
-  - low-confidence `activity/mood` must not direct-write
-- Documentation sync done in `docs/MAGIC_PEN_CAPTURE_SPEC.md` with session-26 override section.
+- Landed Magic Pen dynamic period backfill allocation and reduced prompt rigidity:
+  - `/api/magic-pen-parse` prompt no longer enforces fixed period clock windows; parser contract accepts optional `durationMinutes`.
+  - `magicPenDraftBuilder` now resolves period backfill locally with `endAt <= now`; if duration is present (or inferred from zh text like `半小时`), it anchors near current time.
+  - Added local gap-priority alignment (`alignPeriodDraftsToMessageGaps`) so period drafts prefer filling existing timeline gaps without sending history context to AI.
+- Landed mode-on parser-priority guard in `chatPageActions`:
+  - period/time/planned signals now bypass local fast path and force parser route, preventing phrases like `上午开会` / `要开会了` from being direct-written as ongoing activity.
+- Landed short pure mood high-confidence override in local classifier:
+  - `<6` chars with pure mood signal and no time/activity/planned markers now force `standalone_mood + high`.
+- Added regressions:
+  - `chatPageActions.test.ts`: parser-priority guard cases (`上午开会`, `要开会了`)
+  - `magicPenDraftBuilder.test.ts`: period end capping, duration-driven period allocation, zh duration inference, local gap alignment
+  - `api/magic-pen-parse.test.ts`: `durationMinutes` passthrough
+  - `liveInputClassifier.test.ts`: short pure mood override behavior
 
-### 2026-03-13 PM / session-25
+### 2026-03-14 / session-35
 
-- MP6 stabilization fix landed for mixed `realtime + magic` sentences joined by `和`, so inputs like `我在吃饭和早上逃课去逛街` no longer collapse into a single review clause.
-- `src/services/input/magicPenClauseRouter.ts` now applies a narrow secondary split only when `和/还有` is followed by a strong clause-start signal; this keeps `我和朋友...` style noun phrases untouched.
-- Regression coverage added:
-  - `src/services/input/magicPenClauseRouter.test.ts` for `和`-joined realtime/backfill and multi-magic splits
-  - `src/services/input/magicPenParser.test.ts` for `早上逃课去逛街`
+- Landed activity-backfill content cleanup for first-person phrasing:
+  - AI draft mapping now normalizes leading first-person prefixes for backfill activity text (for example `我学习` -> `学习`)
+  - local fallback activity parsing applies the same leading-pronoun cleanup path
+- Added regressions:
+  - `magicPenDraftBuilder.test.ts`: activity_backfill normalization assertion
+  - `magicPenParser.test.ts`: activity backfill output no longer starts with `我`
 
-### 2026-03-13 PM / session-24
+### 2026-03-14 / session-34
 
-- MP6 landed: mode-on send now uses clause-level dual routing (`realtime` direct write + `magic/uncertain` review).
-- Safety rails landed: no uncertain direct-write, `lang`-aware router, mode-on send orchestration extracted to helper, local pending guard prevents duplicate sends.
-- Test coverage landed:
-  - `src/services/input/magicPenClauseRouter.test.ts` (13 cases)
-  - `src/features/chat/chatPageActions.test.ts` (12 cases)
+- Landed timezone-aware parser context for AI prompt:
+  - `parseMagicPenInput(...)` now sends local `todayDateStr` (no UTC slice drift), `currentLocalDateTime`, and `timezoneOffsetMinutes`
+  - `/api/magic-pen-parse` prompt now explicitly instructs future/obligation phrases (for example `晚上要...`) to prefer `todo_add` over `activity_backfill`
+- Landed todo content cleanup for immediate phrasing:
+  - normalized leading first-person pronouns in todo content (`我待会开会` -> `开会`) for both AI result path and local fallback path
+- Added regressions:
+  - `api/magic-pen-parse.test.ts`: verifies local datetime context token injection
+  - `magicPenDraftBuilder.test.ts`: verifies `我开会` normalization to `开会`
+  - `magicPenParser.test.ts`: verifies `我待会开会` outputs todo content `开会`
 
-## Locked Product Decisions (session-26)
+### 2026-03-14 / session-33
 
-1. Mode-off keeps existing local `sendAutoRecognizedInput()` behavior unchanged.
-2. Mode-on uses two-lane gate only:
-   - no todo signal -> local `activity/mood` flow
-   - has todo signal -> whole sentence goes to magic pen parse (no clause-first hard split)
-3. Magic pen parse contract is four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (+ `unparsed`).
-4. Under magic pen:
-   - auto-write `mood` + high-confidence non-conflicting `activity`
-   - `todo_add` and `activity_backfill` must enter review sheet
-   - low-confidence `activity/mood` must not direct-write
-5. This decision supersedes session-24 clause-first routing as the active implementation baseline.
+- Implemented parser-contract clarification in runtime/docs/tests:
+  - strengthened `/api/magic-pen-parse` zh/en/it prompt rules for mixed four-kind extraction
+  - kept post-parse split policy unchanged: only AI `high+realtime activity|mood` auto-write, `todo_add|activity_backfill` remain review, non-eligible `activity|mood` remain `unparsed`
+- Added regressions:
+  - `src/features/chat/chatPageActions.test.ts`: one-sentence four-kind flow auto-writes `activity+mood` then opens sheet with review drafts
+  - `src/services/input/magicPenDraftBuilder.test.ts`: medium realtime mood remains unparsed; four-kind result split stays deterministic
 
-## MP7 Preparation Checklist (for next implementation day)
+### 2026-03-14 / session-33
 
-- [x] Replace clause-first send orchestration with two-lane todo-signal gate in `chatPageActions.ts`
-- [x] Expand magic pen type/API contract to four kinds and update parser mapping
-- [x] Implement commit split: auto-write (`mood` + high-confidence `activity`) vs review (`todo_add` + `activity_backfill`)
-- [x] Add regression cases for mixed input (`我好累，明天开会`; `我在吃饭和早上逃课去逛街`)
-- [x] Re-run docs-sync + type-check + key unit tests
+- Locked clarification of session-31 mixed-input behavior:
+  - local fast path remains for simple single-intent mode-on input
+  - mixed/complex input routes whole sentence to AI parser
+- Locked AI parse contract intent:
+  - parser should distinguish and return all applicable kinds in one pass: `activity`, `mood`, `todo_add`, `activity_backfill`
+  - when one sentence contains all four, all four should be returned
+- Locked post-parse commit policy:
+  - `activity` / `mood` auto-write only when AI marks `high` confidence + `realtime`
+  - `todo_add` / `activity_backfill` always go to `MagicPenSheet` review
+  - non-`high+realtime` AI `activity` / `mood` fall back to `unparsed` (safety-first)
+
+## Locked Product Decisions (session-36)
+
+1. Mode-off keeps the existing local `sendAutoRecognizedInput()` behavior unchanged for all users.
+2. Ordinary binary `activity/mood` auto-classification semantics are out of scope for the next Magic Pen slice; do not refactor that system as part of this handoff.
+3. Mode-on target architecture is `local fast path + parser-first mixed handling`:
+   - simple single-intent standalone `activity` / `mood` can be classified and written locally
+   - mixed-intent or complex input routes the whole raw sentence to `parseMagicPenInput(...)`
+   - do not pre-split clauses on the client
+4. Magic Pen parser owns mixed-input understanding and should return structured multi-segment output from the original whole sentence.
+5. Future-triggered emotion remains valid `mood`; pure future plans without explicit emotion must not be forced into `mood` inside Magic Pen parsing.
+6. Commit policy target is split by parser kind:
+   - AI `activity` / `mood` only auto-write when `high` + `realtime`
+   - `todo_add` and `activity_backfill` require confirmation in `MagicPenSheet`
+   - AI `activity` / `mood` that are not `high+realtime` degrade to `unparsed` (not auto-write, not draft review)
+7. Mixed-result UX target:
+   - auto-write eligible realtime items first
+   - then open `MagicPenSheet` for remaining review items
+   - provide visible status copy and an undo/reversal path for auto-written items
+8. When one sentence contains linked `activity + mood`, the preferred write behavior is `activity record + attached mood/note`, not two unrelated peer records.
+9. This decision supersedes the stricter session-30 direct-write target as the next implementation goal. Current code may still partially reflect prior gating until follow-up implementation lands.
+
+10. AI prompt and response shaping must explicitly optimize for mixed extraction coverage so recognizable `activity` / `mood` in complex sentences are returned as typed segments instead of being dropped as `unparsed`.
+
+## Session-36 Handoff Checklist
+
+- [x] Relax parser prompt period-window rigidity and extend contract with optional `durationMinutes`
+- [x] Resolve period backfill locally with `<= now` cap and duration-aware allocation
+- [x] Add local gap-priority alignment for period backfill drafts without sending history context to AI
+- [x] Add mode-on parser-priority guards for time/planned signals to avoid local fast-path miswrites
+- [x] Add short pure mood high-confidence override for local classifier
+
+## Session-35 Handoff Checklist
+
+- [x] Normalize leading first-person pronouns in `activity_backfill` content for both AI parse mapping and local fallback
+- [x] Add regressions covering activity-backfill cleanup behavior
+
+## Session-34 Handoff Checklist
+
+- [x] Pass precise local datetime context to parser API (`todayDateStr` local date, `currentLocalDateTime`, `timezoneOffsetMinutes`)
+- [x] Update parser prompt to bias future/obligation period phrases to `todo_add` (avoid `晚上要...` misclassified as `activity_backfill`)
+- [x] Normalize todo content for first-person immediate phrasing (`我待会开会` -> `开会`) across AI/local paths
+- [x] Add regressions for datetime-context injection and todo-content normalization
 
 ## Next Step (Single)
 
-- Next: run docs-sync/state-consistency/build loop after session-27 changes, then decide whether low-confidence `activity/mood` should remain unparsed-only or move into explicit review cards in MP7.1.
+- Next: monitor one cycle of mode-on fallback samples to confirm `8-9点`-style expressions no longer leak into todo dueDate while keeping explicit `3.18` date parsing stable.
 
 ## Resume Order
 
 1. Read `LLM.md`.
 2. Read this file (`docs/CURRENT_TASK.md`).
 3. Read `docs/MAGIC_PEN_CAPTURE_SPEC.md`.
-4. Inspect `src/features/chat/chatPageActions.ts`, `src/services/input/magicPenParser.ts`, `api/magic-pen-parse.ts`.
-5. Verify key tests: `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts`.
+4. Inspect `src/features/chat/chatPageActions.ts`, `src/services/input/magicPenParser.ts`, `src/services/input/magicPenDraftBuilder.ts`, `api/magic-pen-parse.ts`.
+5. Verify key tests: `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/services/input/magicPenDraftBuilder.test.ts`.

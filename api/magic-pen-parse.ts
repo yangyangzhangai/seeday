@@ -11,6 +11,8 @@ interface MagicPenAISegment {
   sourceText: string;
   kind: MagicPenKind;
   confidence: MagicPenConfidence;
+  timeRelation?: 'realtime' | 'future' | 'past' | 'unknown';
+  durationMinutes?: number;
   startTime?: string;
   endTime?: string;
   timeSource?: 'exact' | 'period' | 'missing';
@@ -22,7 +24,23 @@ interface MagicPenAIResult {
   unparsed: string[];
 }
 
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const STRICT_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function normalizeModelTime(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const raw = value.trim();
+  if (!raw) return undefined;
+
+  if (STRICT_TIME_RE.test(raw)) {
+    return raw;
+  }
+
+  const relaxed = raw.match(/^([01]?\d|2[0-3])[:：]([0-5]\d)$/);
+  if (!relaxed) return undefined;
+  const hour = Number(relaxed[1]);
+  const minute = Number(relaxed[2]);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
 
 const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
 你需要拆分输入文本，并输出严格 JSON，不要输出任何解释。
@@ -35,6 +53,8 @@ const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
       "sourceText": "原始片段",
       "kind": "activity 或 mood 或 todo_add 或 activity_backfill",
       "confidence": "high 或 medium 或 low",
+      "timeRelation": "realtime 或 future 或 past 或 unknown，可选",
+      "durationMinutes": "时长分钟数，可选",
       "startTime": "HH:mm，可选",
       "endTime": "HH:mm，可选",
       "timeSource": "exact 或 period 或 missing，可选",
@@ -50,13 +70,33 @@ const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
    - mood: 心情表达
    - todo_add: 未来要做事项
    - activity_backfill: 今天已发生活动
-2) 对 activity_backfill 尽量提取时间:
-   - exact: 精确时间或区间
-   - period: 上午09:00-11:00，中午12:00-13:00，下午15:00-17:00，晚上20:00-21:00
-   - missing: 无法提取时间
-3) text 要去掉时间词，保留可读动作内容。
-4) 不确定就放 unparsed，不要强行归类。
-5) 今天日期 {{todayDateStr}}，当前小时 {{currentHour}}。`;
+2) 必须尽量完整拆分并覆盖所有可识别片段：
+   - 同一句可能同时包含 activity、mood、todo_add、activity_backfill
+   - 若能识别就输出到 segments，不要因为句子复杂而整体丢到 unparsed
+   - 只有确实无法判断的片段才放 unparsed
+3) 对 activity_backfill 尽量提取时间:
+    - exact: 精确时间或区间
+    - period: 仅标注时段语义（如上午/中午/下午/晚上），不要死板固定到唯一时间点
+    - 若句子出现"半小时/1小时/90分钟"等时长信息，请优先填 durationMinutes
+    - "8-9点"、"8点到9点"、"八九点"这类表达应按区间处理（startTime/endTime），不要把前半段留在 text
+    - missing: 无法提取时间
+4) text 必须是自然动作短语（可直接给人读）。
+5) 每个 segment 必须判断 timeRelation:
+   - realtime: 当前/刚发生/正在发生
+   - future: 未来计划、提醒、将要发生
+   - past: 明确过去且非今天实时（如昨天）
+   - unknown: 无法判断
+6) confidence 标注规则：
+   - high: 语义清晰且证据强（例如“我在吃饭”“感觉很开心”“明天要开会”“我上午学习了”）
+   - medium: 基本可判定但表达略模糊
+   - low: 证据弱或歧义明显
+7) 不确定就放 unparsed，不要强行归类。
+8) 结合当前本地时间进行判断：
+   - 当前本地时间：{{currentLocalDateTime}}（时区偏移分钟 {{timezoneOffsetMinutes}}）
+   - 今天日期 {{todayDateStr}}，当前小时 {{currentHour}}
+9) 未来义务表达优先判定为 todo_add：
+   - 包含“要/需要/记得/提醒/待会/稍后/今晚要/晚上要”等未来或义务语气时，即使出现“晚上/下午”时段词，也应优先判定为 todo_add。
+10) 活动补录(activity_backfill)只用于“今天已发生”的动作，不要把明显未来计划误判为补录。`;
 
 const MAGIC_PEN_PROMPT_EN = `You are a text parser for a time-tracking assistant.
 Split the input into segments and output strict JSON only. Do not output explanations.
@@ -69,6 +109,8 @@ Output schema:
       "sourceText": "original segment",
       "kind": "activity or mood or todo_add or activity_backfill",
       "confidence": "high or medium or low",
+      "timeRelation": "realtime or future or past or unknown, optional",
+      "durationMinutes": "duration in minutes, optional",
       "startTime": "HH:mm, optional",
       "endTime": "HH:mm, optional",
       "timeSource": "exact or period or missing, optional",
@@ -84,13 +126,33 @@ Rules:
    - mood: emotion state
    - todo_add: future task
    - activity_backfill: activity already happened today
-2) For activity_backfill, extract time when possible:
-   - exact: exact time or range
-   - period: morning 09:00-11:00, noon 12:00-13:00, afternoon 15:00-17:00, evening 20:00-21:00
-   - missing: no reliable time
-3) text should remove time words and keep readable action content.
-4) If uncertain, put it in unparsed instead of forced classification.
-5) Today is {{todayDateStr}}, current hour is {{currentHour}}.`;
+2) Split and classify as completely as possible:
+   - one sentence may contain all four kinds at once
+   - keep recognizable pieces in segments, do not dump them to unparsed only because the sentence is mixed/complex
+   - use unparsed only for truly unclassifiable parts
+3) For activity_backfill, extract time when possible:
+    - exact: exact time or range
+    - period: keep period intent (morning/noon/afternoon/evening) instead of forcing one fixed clock window
+    - if duration is explicit (e.g. half hour / 1 hour / 90 minutes), provide durationMinutes when possible
+    - expressions like "8-9" or "8 to 9" should become a range via startTime/endTime, not leftover text
+    - missing: no reliable time
+4) text must be a natural action phrase that can be read directly by users.
+5) Every segment should set timeRelation:
+   - realtime: current/just happened/ongoing
+   - future: plan/reminder/will happen
+   - past: explicit past and not current-day realtime
+   - unknown: cannot tell
+6) confidence guidance:
+   - high: clear intent with strong cues (for example "I am eating", "I feel happy", "I need to meet tomorrow", "I studied this morning")
+   - medium: mostly clear but partially ambiguous
+   - low: weak evidence or unclear intent
+7) If uncertain, put it in unparsed instead of forced classification.
+8) Use current local time for temporal judgement:
+   - current local datetime: {{currentLocalDateTime}} (timezone offset minutes {{timezoneOffsetMinutes}})
+   - today is {{todayDateStr}}, current hour is {{currentHour}}
+9) Future/obligation wording should prefer todo_add:
+   - if segment includes wording like need to / should / remember to / later / tonight I need to, classify as todo_add even when period words (e.g. evening) appear.
+10) activity_backfill is only for actions that have already happened today; do not map clear future plans to backfill.`;
 
 const MAGIC_PEN_PROMPT_IT = `Sei un parser di testo per un assistente di tracciamento del tempo.
 Dividi l'input in segmenti e restituisci solo JSON rigoroso. Non aggiungere spiegazioni.
@@ -103,6 +165,8 @@ Schema di output:
       "sourceText": "segmento originale",
       "kind": "activity o mood o todo_add o activity_backfill",
       "confidence": "high o medium o low",
+      "timeRelation": "realtime o future o past o unknown, opzionale",
+      "durationMinutes": "durata in minuti, opzionale",
       "startTime": "HH:mm, opzionale",
       "endTime": "HH:mm, opzionale",
       "timeSource": "exact o period o missing, opzionale",
@@ -118,13 +182,32 @@ Regole:
    - mood: stato emotivo
    - todo_add: attivita futura
    - activity_backfill: attivita gia svolta oggi
-2) Per activity_backfill estrai il tempo quando possibile:
+2) Suddividi e classifica in modo completo quando possibile:
+   - una frase puo contenere contemporaneamente tutti e quattro i tipi
+   - i segmenti riconoscibili devono andare in segments, non in unparsed solo perche la frase e mista/complessa
+   - usa unparsed solo per parti davvero non classificabili
+3) Per activity_backfill estrai il tempo quando possibile:
    - exact: orario preciso o intervallo
-   - period: mattina 09:00-11:00, mezzogiorno 12:00-13:00, pomeriggio 15:00-17:00, sera 20:00-21:00
+   - period: mantieni la semantica della fascia (mattina/mezzogiorno/pomeriggio/sera) senza forzare una finestra fissa
+   - se la durata e esplicita (es. mezz'ora / 1 ora / 90 minuti), valorizza durationMinutes quando possibile
    - missing: tempo non affidabile
-3) text deve rimuovere parole di tempo e mantenere contenuto azione leggibile.
-4) Se incerto, inserisci in unparsed senza forzare la classificazione.
-5) Oggi e {{todayDateStr}}, ora corrente {{currentHour}}.`;
+4) text deve essere una frase d'azione naturale, leggibile direttamente dall'utente.
+5) Ogni segmento dovrebbe impostare timeRelation:
+   - realtime: in corso/appena successo
+   - future: piano/promemoria/futuro
+   - past: passato esplicito non realtime
+   - unknown: non determinabile
+6) guida confidence:
+   - high: intenzione chiara con segnali forti (es. "sto mangiando", "mi sento felice", "domani devo fare una riunione", "ho studiato stamattina")
+   - medium: abbastanza chiaro ma con ambiguita parziale
+   - low: segnali deboli o intenzione non chiara
+7) Se incerto, inserisci in unparsed senza forzare la classificazione.
+8) Usa l'ora locale corrente per i giudizi temporali:
+   - data/ora locale corrente: {{currentLocalDateTime}} (offset fuso minuti {{timezoneOffsetMinutes}})
+   - oggi e {{todayDateStr}}, ora corrente {{currentHour}}
+9) Le espressioni future/di obbligo devono preferire todo_add:
+   - con forme come devo / bisogna / ricordati / tra poco / stasera devo, classifica come todo_add anche se compaiono parole di fascia oraria.
+10) activity_backfill va usato solo per azioni gia avvenute oggi; non mappare piani futuri evidenti come backfill.`;
 
 function toSupportedLang(value: unknown): MagicPenLang {
   if (value === 'en' || value === 'it' || value === 'zh') return value;
@@ -145,6 +228,10 @@ function isConfidence(value: unknown): value is MagicPenConfidence {
   return value === 'high' || value === 'medium' || value === 'low';
 }
 
+function isTimeRelation(value: unknown): value is NonNullable<MagicPenAISegment['timeRelation']> {
+  return value === 'realtime' || value === 'future' || value === 'past' || value === 'unknown';
+}
+
 function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
   if (!segment || typeof segment !== 'object') return null;
   const record = segment as Record<string, unknown>;
@@ -156,13 +243,13 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
   if (!text && !sourceText) return null;
 
   const confidence = isConfidence(record.confidence) ? record.confidence : 'low';
+  const timeRelation = isTimeRelation(record.timeRelation) ? record.timeRelation : undefined;
+  const durationMinutes = Number.isFinite(record.durationMinutes)
+    ? Math.max(1, Math.min(720, Math.round(Number(record.durationMinutes))))
+    : undefined;
 
-  const startTime = typeof record.startTime === 'string' && TIME_RE.test(record.startTime)
-    ? record.startTime
-    : undefined;
-  const endTime = typeof record.endTime === 'string' && TIME_RE.test(record.endTime)
-    ? record.endTime
-    : undefined;
+   const startTime = normalizeModelTime(record.startTime);
+   const endTime = normalizeModelTime(record.endTime);
   const timeSource = record.timeSource === 'exact' || record.timeSource === 'period' || record.timeSource === 'missing'
     ? record.timeSource
     : undefined;
@@ -173,6 +260,8 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
     sourceText: sourceText || text,
     kind,
     confidence,
+    timeRelation,
+    durationMinutes,
     startTime,
     endTime,
     timeSource,
@@ -223,6 +312,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     lang,
     todayDateStr,
     currentHour,
+    currentLocalDateTime,
+    timezoneOffsetMinutes,
   } = req.body ?? {};
 
   if (!rawText || typeof rawText !== 'string') {
@@ -238,6 +329,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  if (currentLocalDateTime !== undefined && typeof currentLocalDateTime !== 'string') {
+    jsonError(res, 400, 'Invalid currentLocalDateTime');
+    return;
+  }
+
+  if (timezoneOffsetMinutes !== undefined && !Number.isFinite(timezoneOffsetMinutes)) {
+    jsonError(res, 400, 'Invalid timezoneOffsetMinutes');
+    return;
+  }
+
   const apiKey = process.env.ZHIPU_API_KEY;
   if (!apiKey) {
     jsonError(res, 500, 'Server configuration error: Missing API key');
@@ -246,7 +347,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const prompt = getMagicPenPrompt(toSupportedLang(lang))
     .replace('{{todayDateStr}}', todayDateStr)
-    .replace('{{currentHour}}', String(currentHour));
+    .replace('{{currentHour}}', String(currentHour))
+    .replace('{{currentLocalDateTime}}', currentLocalDateTime || `${todayDateStr} ${String(currentHour).padStart(2, '0')}:00`)
+    .replace('{{timezoneOffsetMinutes}}', String(
+      typeof timezoneOffsetMinutes === 'number' && Number.isFinite(timezoneOffsetMinutes)
+        ? timezoneOffsetMinutes
+        : 0,
+    ));
 
   try {
     const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {

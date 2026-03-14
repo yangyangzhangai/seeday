@@ -55,7 +55,7 @@ export function extractTodoDueDate(segment: string, now: Date): number | undefin
   const weekdayMatch = segment.match(/下周([一二三四五六日天])/);
   const weekdayIndex = weekdayMatch?.index ?? -1;
 
-  const numericMatch = segment.match(/(\d{1,2})[.-](\d{1,2})/);
+  const numericMatch = segment.match(/(?<![:：\d])(\d{1,2})[.-](\d{1,2})(?!\s*(?:点|时|分))/);
   const numericIndex = numericMatch?.index ?? -1;
 
   const chineseDateMatch = segment.match(/(\d{1,2})月(\d{1,2})(?:日|号)?/);

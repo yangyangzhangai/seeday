@@ -2,6 +2,17 @@ import type { MoodOption } from '../store/useMoodStore';
 
 const options: MoodOption[] = ['happy', 'calm', 'focused', 'satisfied', 'tired', 'anxious', 'bored', 'down'];
 
+const explicitMoodDict: Array<{ k: RegExp; m: MoodOption }> = [
+  { k: /(开心|高兴|愉快|兴奋|快乐|爽)/i, m: 'happy' },
+  { k: /(满足|满意|踏实|有成就)/i, m: 'satisfied' },
+  { k: /(焦虑|紧张|担心|不安|害怕)/i, m: 'anxious' },
+  { k: /(低落|难过|伤心|沮丧|烦|崩溃|痛苦)/i, m: 'down' },
+  { k: /(累|疲惫|困|倦)/i, m: 'tired' },
+  { k: /(无聊|发呆|没意思)/i, m: 'bored' },
+  { k: /(平静|放松|舒缓|安心)/i, m: 'calm' },
+  { k: /(专注|投入|高效|在状态)/i, m: 'focused' },
+];
+
 const dict: Array<{ k: RegExp; m: MoodOption }> = [
   { k: /(跑步|运动|健身|瑜伽|舞)/i, m: 'happy' },
   { k: /(吃饭|用餐|午饭|午餐|晚饭|晚餐|早饭|早餐|宵夜|聚餐|外卖|点外卖|下馆子)/i, m: 'happy' },
@@ -15,6 +26,7 @@ const dict: Array<{ k: RegExp; m: MoodOption }> = [
 ];
 
 export function autoDetectMood(content: string, durationMin: number): MoodOption {
+  for (const r of explicitMoodDict) if (r.k.test(content)) return r.m;
   for (const r of dict) if (r.k.test(content)) return r.m;
   if (durationMin >= 240) return 'tired';
   if (durationMin >= 60) return 'focused';

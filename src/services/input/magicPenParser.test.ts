@@ -169,6 +169,12 @@ describe('parseMagicPenInput todo-focused cases', () => {
     expect(extractYmd(draft.todo?.dueDate)).toBe('2026-03-11');
   });
 
+  it('strips leading first-person token from immediate todo phrase', async () => {
+    const draft = await getOnlyDraft('我待会开会');
+    expect(draft.kind).toBe('todo_add');
+    expect(draft.content).toBe('开会');
+  });
+
   it('extracts next weekday dueDate and strips signals from content', async () => {
     const draft = await getOnlyDraft('下周二记得交材料');
     expect(draft.kind).toBe('todo_add');
@@ -223,4 +229,10 @@ describe('parseMagicPenInput activity-focused cases', () => {
       expect(draft.kind).toBe('activity_backfill');
     });
   }
+
+  it('strips leading first-person token from activity backfill content', async () => {
+    const draft = await getOnlyDraft('我上午学习了');
+    expect(draft.kind).toBe('activity_backfill');
+    expect(draft.content.startsWith('我')).toBe(false);
+  });
 });

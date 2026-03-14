@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildDraftsFromAIResult, timeStringToEpoch, validateDrafts } from './magicPenDraftBuilder';
+import {
+  alignPeriodDraftsToMessageGaps,
+  buildDraftsFromAIResult,
+  timeStringToEpoch,
+  validateDrafts,
+} from './magicPenDraftBuilder';
 import type { MagicPenAIResult, MagicPenDraftItem } from './magicPenTypes';
 
 const fixedNow = new Date(2026, 2, 11, 18, 0, 0, 0);
@@ -23,6 +28,168 @@ describe('magicPenDraftBuilder', () => {
     expect(parsed.drafts).toHaveLength(1);
     expect(parsed.drafts[0].kind).toBe('activity_backfill');
     expect(parsed.drafts[0].activity?.timeResolution).toBe('period');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(9);
+    expect(new Date(parsed.drafts[0].activity!.endAt!).getHours()).toBe(11);
+  });
+
+  it('caps period end time to now for same-day backfill', () => {
+    const now = new Date(2026, 2, 11, 10, 30, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开会',
+        sourceText: '上午开会了',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeRelation: 'past',
+        timeSource: 'period',
+        periodLabel: '上午',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, now, 'zh');
+    const draft = parsed.drafts[0];
+    expect(new Date(draft.activity!.startAt!).getHours()).toBe(9);
+    expect(new Date(draft.activity!.endAt!).getHours()).toBe(10);
+    expect(new Date(draft.activity!.endAt!).getMinutes()).toBe(30);
+  });
+
+  it('uses explicit duration in period segment to anchor near now', () => {
+    const now = new Date(2026, 2, 11, 10, 30, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开会',
+        sourceText: '上午开会半小时',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeRelation: 'past',
+        timeSource: 'period',
+        periodLabel: '上午',
+        durationMinutes: 30,
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, now, 'zh');
+    const draft = parsed.drafts[0];
+    expect(new Date(draft.activity!.startAt!).getHours()).toBe(10);
+    expect(new Date(draft.activity!.startAt!).getMinutes()).toBe(0);
+    expect(new Date(draft.activity!.endAt!).getHours()).toBe(10);
+    expect(new Date(draft.activity!.endAt!).getMinutes()).toBe(30);
+  });
+
+  it('infers zh duration when period segment omits durationMinutes', () => {
+    const now = new Date(2026, 2, 11, 10, 30, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开会',
+        sourceText: '上午开会半小时',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeRelation: 'past',
+        timeSource: 'period',
+        periodLabel: '上午',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, now, 'zh');
+    const draft = parsed.drafts[0];
+    expect(new Date(draft.activity!.startAt!).getHours()).toBe(10);
+    expect(new Date(draft.activity!.startAt!).getMinutes()).toBe(0);
+    expect(new Date(draft.activity!.endAt!).getHours()).toBe(10);
+    expect(new Date(draft.activity!.endAt!).getMinutes()).toBe(30);
+  });
+
+  it('normalizes leading first-person token in activity backfill content', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我学习',
+        sourceText: '我上午学习了',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        startTime: '09:00',
+        endTime: '11:00',
+        timeSource: 'period',
+        periodLabel: '上午',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('activity_backfill');
+    expect(parsed.drafts[0].content).toBe('学习');
+  });
+
+  it('infers exact range from zh hyphen shorthand when ai misses one side', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '8吃早饭',
+        sourceText: '8-9点吃早饭',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        endTime: '09:00',
+        timeSource: 'exact',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].content).toBe('吃早饭');
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(8);
+    expect(new Date(parsed.drafts[0].activity!.endAt!).getHours()).toBe(9);
+  });
+
+  it('recovers action phrase from source text when ai returns time residue prefix', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '点看书',
+        sourceText: '9-10点看书',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        startTime: '09:00',
+        endTime: '10:00',
+        timeSource: 'exact',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].content).toBe('看书');
+  });
+
+  it('does not strip normal text without explicit time anchor', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '点兵点将',
+        sourceText: '点兵点将',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        startTime: '09:00',
+        endTime: '10:00',
+        timeSource: 'exact',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].content).toBe('点兵点将');
+  });
+
+  it('infers exact range from adjacent zh numeral hour phrase', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '吃早饭',
+        sourceText: '八九点吃早饭',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeSource: 'missing',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(8);
+    expect(new Date(parsed.drafts[0].activity!.endAt!).getHours()).toBe(9);
   });
 
   it('maps todo segment from AI result with fixed defaults', () => {
@@ -39,6 +206,21 @@ describe('magicPenDraftBuilder', () => {
     expect(parsed.drafts[0].todo?.scope).toBe('daily');
     expect(parsed.drafts[0].todo?.priority).toBe('important-not-urgent');
     expect(parsed.drafts[0].todo?.category).toBe('life');
+  });
+
+  it('normalizes leading first-person token in todo content', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我开会',
+        sourceText: '我待会开会',
+        kind: 'todo_add',
+        confidence: 'high',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts[0].kind).toBe('todo_add');
+    expect(parsed.drafts[0].content).toBe('开会');
   });
 
   it('fills same-day dueDate for immediate todo phrasing', () => {
@@ -62,6 +244,237 @@ describe('magicPenDraftBuilder', () => {
     expect(parsed.unparsedSegments).toEqual(['今天做了很多事']);
   });
 
+  it('keeps low-confidence mood as unparsed only', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我有点烦',
+        sourceText: '我有点烦',
+        kind: 'mood',
+        confidence: 'low',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(0);
+    expect(parsed.drafts).toHaveLength(0);
+    expect(parsed.unparsedSegments).toEqual(['我有点烦']);
+  });
+
+  it('keeps low-confidence activity without time anchor as unparsed only', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我在整理东西',
+        sourceText: '我在整理东西',
+        kind: 'activity',
+        confidence: 'low',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(0);
+    expect(parsed.drafts).toHaveLength(0);
+    expect(parsed.unparsedSegments).toEqual(['我在整理东西']);
+  });
+
+  it('auto-writes exactly one high-confidence realtime mood', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我很开心',
+        sourceText: '我很开心',
+        kind: 'mood',
+        confidence: 'high',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].kind).toBe('mood');
+    expect(parsed.unparsedSegments).toHaveLength(0);
+    expect(parsed.drafts).toHaveLength(0);
+  });
+
+  it('auto-writes realtime mood while keeping future todo in review', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '我很开心',
+          sourceText: '我很开心',
+          kind: 'mood',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '明天开会',
+          sourceText: '明天开会',
+          kind: 'todo_add',
+          confidence: 'high',
+          timeRelation: 'future',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].kind).toBe('mood');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('todo_add');
+    expect(parsed.unparsedSegments).toHaveLength(0);
+  });
+
+  it('auto-writes medium-confidence realtime mood', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '感觉很开心',
+        sourceText: '感觉很开心',
+        kind: 'mood',
+        confidence: 'medium',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].kind).toBe('mood');
+    expect(parsed.drafts).toHaveLength(0);
+    expect(parsed.unparsedSegments).toHaveLength(0);
+  });
+
+  it('auto-writes medium-confidence realtime activity without time anchor', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '我在整理桌面',
+        sourceText: '我在整理桌面',
+        kind: 'activity',
+        confidence: 'medium',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].kind).toBe('activity');
+    expect(parsed.drafts).toHaveLength(0);
+    expect(parsed.unparsedSegments).toHaveLength(0);
+  });
+
+  it('splits four-kind parse result into auto-write and review groups', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '吃饭',
+          sourceText: '我在吃饭',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '很开心',
+          sourceText: '感觉很开心',
+          kind: 'mood',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '开会',
+          sourceText: '明天要开会',
+          kind: 'todo_add',
+          confidence: 'high',
+          timeRelation: 'future',
+        },
+        {
+          text: '学习',
+          sourceText: '我上午学习了',
+          kind: 'activity_backfill',
+          confidence: 'high',
+          timeRelation: 'past',
+          startTime: '09:00',
+          endTime: '11:00',
+          timeSource: 'period',
+          periodLabel: '上午',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(2);
+    expect(parsed.autoWriteItems.map((item) => item.kind)).toEqual(['activity', 'mood']);
+    expect(parsed.drafts).toHaveLength(2);
+    expect(parsed.drafts.map((item) => item.kind)).toEqual(['todo_add', 'activity_backfill']);
+    expect(parsed.unparsedSegments).toHaveLength(0);
+  });
+
+  it('auto-writes multiple high-confidence realtime moods', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '我有点累',
+          sourceText: '我有点累',
+          kind: 'mood',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '但还算满足',
+          sourceText: '但还算满足',
+          kind: 'mood',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(2);
+    expect(parsed.unparsedSegments).toHaveLength(0);
+  });
+
+  it('keeps future-triggered mood in review path', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '想到明天开会有点烦',
+        sourceText: '想到明天开会有点烦',
+        kind: 'mood',
+        confidence: 'high',
+        timeRelation: 'future',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(0);
+    expect(parsed.unparsedSegments).toEqual(['想到明天开会有点烦']);
+  });
+
+  it('merges linked realtime activity and mood into one auto-write activity', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '整理桌面',
+          sourceText: '刚刚整理桌面有点烦',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '有点烦',
+          sourceText: '刚刚整理桌面有点烦',
+          kind: 'mood',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow);
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].kind).toBe('activity');
+    expect(parsed.autoWriteItems[0].linkedMoodContent).toBe('有点烦');
+    expect(parsed.autoWriteItems[0].content).toContain('整理桌面');
+    expect(parsed.autoWriteItems[0].content).toContain('有点烦');
+  });
+
   it('converts HH:mm to local epoch', () => {
     const epoch = timeStringToEpoch('20:30', fixedNow);
     expect(new Date(epoch).getHours()).toBe(20);
@@ -81,5 +494,42 @@ describe('magicPenDraftBuilder', () => {
     }];
     const validated = validateDrafts(drafts, [], fixedNow.getTime());
     expect(validated[0].errors).toContain('missing_time');
+  });
+
+  it('aligns period drafts into largest local gap before now', () => {
+    const now = new Date(2026, 2, 11, 10, 30, 0, 0).getTime();
+    const drafts: MagicPenDraftItem[] = [{
+      id: 'period-1',
+      kind: 'activity_backfill',
+      content: '开会',
+      sourceText: '上午开会半小时',
+      confidence: 'high',
+      needsUserConfirmation: true,
+      errors: [],
+      activity: {
+        startAt: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+        endAt: new Date(2026, 2, 11, 10, 30, 0, 0).getTime(),
+        timeResolution: 'period',
+        suggestedTimeLabel: '上午',
+      },
+    }];
+
+    const messages = [
+      {
+        id: 'm1',
+        content: '深度工作',
+        timestamp: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+        duration: 60,
+        type: 'text' as const,
+        mode: 'record' as const,
+        isMood: false,
+      },
+    ];
+
+    const aligned = alignPeriodDraftsToMessageGaps(drafts, messages, now);
+    expect(new Date(aligned[0].activity!.startAt!).getHours()).toBe(10);
+    expect(new Date(aligned[0].activity!.startAt!).getMinutes()).toBe(0);
+    expect(new Date(aligned[0].activity!.endAt!).getHours()).toBe(10);
+    expect(new Date(aligned[0].activity!.endAt!).getMinutes()).toBe(30);
   });
 });

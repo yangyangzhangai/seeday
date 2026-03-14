@@ -80,7 +80,7 @@ describe('api/magic-pen-parse handler', () => {
           {
             message: {
               content:
-                '```json\n{"segments":[{"text":"写作业","sourceText":"下午写作业","kind":"activity_backfill","confidence":"high","startTime":"15:00","endTime":"17:00","timeSource":"exact"}],"unparsed":["??"]}\n```',
+                '```json\n{"segments":[{"text":"写作业","sourceText":"下午写作业","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"15:00","endTime":"17:00","timeSource":"exact"}],"unparsed":["??"]}\n```',
             },
           },
         ],
@@ -106,6 +106,7 @@ describe('api/magic-pen-parse handler', () => {
             sourceText: '下午写作业',
             kind: 'activity_backfill',
             confidence: 'high',
+            timeRelation: 'past',
             startTime: '15:00',
             endTime: '17:00',
             timeSource: 'exact',
@@ -114,6 +115,107 @@ describe('api/magic-pen-parse handler', () => {
         unparsed: ['??'],
       },
     });
+  });
+
+  it('filters invalid timeRelation value', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                '{"segments":[{"text":"我很开心","sourceText":"我很开心","kind":"mood","confidence":"high","timeRelation":"later"}],"unparsed":[]}',
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: { rawText: '我很开心', todayDateStr: '2026-03-12', currentHour: 15 },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toMatchObject({
+      success: true,
+      data: {
+        segments: [
+          {
+            text: '我很开心',
+            sourceText: '我很开心',
+            kind: 'mood',
+            confidence: 'high',
+          },
+        ],
+      },
+    });
+    const segment = (res.payload as any).data.segments[0];
+    expect(segment.timeRelation).toBeUndefined();
+  });
+
+  it('keeps durationMinutes when model returns it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                '{"segments":[{"text":"开会","sourceText":"上午开会半小时","kind":"activity_backfill","confidence":"high","timeRelation":"past","timeSource":"period","periodLabel":"上午","durationMinutes":30}],"unparsed":[]}',
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: { rawText: '上午开会半小时', todayDateStr: '2026-03-12', currentHour: 10 },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    const segment = (res.payload as any).data.segments[0];
+    expect(segment.durationMinutes).toBe(30);
+  });
+
+  it('normalizes 1-digit hour clock returned by model', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                '{"segments":[{"text":"吃早饭","sourceText":"8-9点吃早饭","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"8:00","endTime":"9:00","timeSource":"exact"}],"unparsed":[]}',
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: { rawText: '8-9点吃早饭', todayDateStr: '2026-03-12', currentHour: 10 },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    const segment = (res.payload as any).data.segments[0];
+    expect(segment.startTime).toBe('08:00');
+    expect(segment.endTime).toBe('09:00');
   });
 
   it('falls back to safe empty result when model output is invalid', async () => {
@@ -164,5 +266,36 @@ describe('api/magic-pen-parse handler', () => {
     expect(call).toBeDefined();
     const payload = JSON.parse(call[1].body as string);
     expect(payload.messages[0].content).toContain('You are a text parser for a time-tracking assistant.');
+  });
+
+  it('injects local datetime context into prompt when provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"segments":[],"unparsed":[]}' } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: {
+        rawText: '晚上要开会',
+        lang: 'zh',
+        todayDateStr: '2026-03-14',
+        currentHour: 15,
+        currentLocalDateTime: '2026-03-14 15:23',
+        timezoneOffsetMinutes: 480,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    const call = fetchMock.mock.calls[0];
+    expect(call).toBeDefined();
+    const payload = JSON.parse(call[1].body as string);
+    expect(payload.messages[0].content).toContain('2026-03-14 15:23');
+    expect(payload.messages[0].content).toContain('480');
   });
 });

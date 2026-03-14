@@ -109,10 +109,17 @@ function detectLatinLanguage(input: string): 'en' | 'it' {
     'pranzo',
     'cena',
     'colazione',
-    'chatto',
-    'chiacchiero',
-    'guardo',
-    'romanzo',
+     'chatto',
+     'chiacchiero',
+      'leggo',
+      'leggendo',
+      'giornale',
+      'notizie',
+      'articolo',
+      'diario',
+      'appunti',
+      'guardo',
+      'romanzo',
     'revisionando',
     'rispondendo',
     'preparando',
@@ -167,6 +174,34 @@ function hasLatinContextKeywordOverlap(text: string, contextText: string): boole
   }
   const contextTokens = new Set(extractLatinKeywords(contextText));
   return textTokens.some((token) => contextTokens.has(token));
+}
+
+const ZH_SHORT_MOOD_TIME_ANCHOR = /(今天|明天|后天|待会|等下|一会|晚点|上午|中午|下午|晚上|刚刚|刚才|昨天|前天|下周|本周|这周|下个月|本月|\d{1,2}(?:[:：]\d{1,2}|点(?:\d{1,2}分?)?))/;
+
+function getCompactSemanticLength(input: string): number {
+  return input
+    .replace(/\s+/g, '')
+    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
+    .length;
+}
+
+function shouldForceShortPureMood(input: string): boolean {
+  if (getCompactSemanticLength(input) >= 6) {
+    return false;
+  }
+  if (!hasMoodSignal(input)) {
+    return false;
+  }
+  if (hasActivitySignal(input)) {
+    return false;
+  }
+  if (detectFutureOrPlanned(input) || detectNegatedOrNotOccurred(input)) {
+    return false;
+  }
+  if (ZH_SHORT_MOOD_TIME_ANCHOR.test(input)) {
+    return false;
+  }
+  return true;
 }
 
 function getRelatedOngoingActivityId(context: LiveInputContext): string | undefined {
@@ -568,6 +603,21 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
       evidence,
       containsMoodSignal: true,
       relatedActivityId,
+    };
+  }
+
+  if (shouldForceShortPureMood(text)) {
+    evidence.push(makeEvidence('mood', 'short_pure_mood_override', [text], 'strong', 'positive'));
+    const scores = buildScoresFromEvidence(evidence);
+    return {
+      kind: 'mood',
+      internalKind: 'standalone_mood',
+      confidence: 'high',
+      scores,
+      reasons: buildReasonsFromEvidence(evidence),
+      evidence,
+      containsMoodSignal: true,
+      relatedActivityId: getRelatedOngoingActivityId(context),
     };
   }
 

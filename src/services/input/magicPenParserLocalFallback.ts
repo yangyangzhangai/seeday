@@ -206,6 +206,9 @@ function stripTimePrefix(content: string): string {
     .replace(/\d{1,2}[:：]\d{1,2}/g, '')
     .replace(/\d{1,2}点(\d{1,2}分?)?/g, '')
     .replace(/(到|至|从|~|～|-)/g, '')
+    .replace(/^我在(?=[\u4e00-\u9fa5])/u, '')
+    .replace(/^我(?!们)(?=[\u4e00-\u9fa5])/u, '')
+    .replace(/^自己(?=[\u4e00-\u9fa5])/u, '')
     .trim();
   return stripped || content.trim();
 }
@@ -217,6 +220,7 @@ function stripTodoDateAndDutyPrefix(content: string): string {
     .replace(/(明天|后天|今天|待会|一会|稍后|晚点|之后|下周[一二三四五六日天]|这周|本周|本月)/g, '')
     .replace(/\d{1,2}[.-]\d{1,2}/g, '')
     .replace(/\d{1,2}月\d{1,2}(?:日|号)?/g, '')
+    .replace(/^我(?=[\u4e00-\u9fa5])/u, '')
     .replace(/^\s*(记得|还要|要|得|需要|别忘了|提醒我)\s*/, '')
     .replace(/\s+/g, ' ')
     .trim();

@@ -21,7 +21,8 @@
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw }` |
 
-`/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, and optional `lang` (`zh`/`en`/`it`) for prompt routing.
+`/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
+`segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 
 ## 本地调试（Windows）
 

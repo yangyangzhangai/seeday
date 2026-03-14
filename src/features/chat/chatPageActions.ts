@@ -1,6 +1,9 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md
-import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
-import type { LiveInputClassification, RecentActivityContext } from '../../services/input/types';
+import { classifyLiveInput } from '../../services/input/liveInputClassifier';
+import { getLiveInputContext } from '../../services/input/liveInputContext';
+import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import type { LiveInputClassification } from '../../services/input/types';
+import type { Message } from '../../store/useChatStore';
 
 type ReclassifyKind = 'activity' | 'mood';
 
@@ -11,7 +14,12 @@ type ReclassifyRecentInputFn = (
 
 type SetExpandedActionsIdFn = (next: string | null) => void;
 
-type SendAutoRecognizedInputFn = (content: string) => Promise<LiveInputClassification | null>;
+interface AutoWriteExecutionResult {
+  classification: LiveInputClassification | null;
+  messageId?: string;
+}
+
+type SendAutoRecognizedInputFn = (content: string) => Promise<AutoWriteExecutionResult>;
 type CompleteActiveTodoFn = () => Promise<void>;
 type UpdateMessageDurationFn = (content: string, timestamp: number, durationMinutes: number) => Promise<void>;
 type ParseMagicPenFn = (rawText: string, options: { lang: 'zh' | 'en' | 'it' }) => Promise<{
@@ -23,6 +31,7 @@ type ParseMagicPenFn = (rawText: string, options: { lang: 'zh' | 'en' | 'it' }) 
     content: string;
     sourceText: string;
     confidence: 'high' | 'medium' | 'low';
+    linkedMoodContent?: string;
   }>;
 }>;
 
@@ -36,9 +45,9 @@ interface HandleMagicPenModeSendParams {
   input: string;
   lang: string;
   isMagicPenSending: boolean;
+  messages: Message[];
   activeTodoId: string | null;
   todos: ActiveTodoSnapshot[];
-  recentActivity?: RecentActivityContext;
   sendAutoRecognizedInput: SendAutoRecognizedInputFn;
   completeActiveTodo: CompleteActiveTodoFn;
   updateMessageDuration: UpdateMessageDurationFn;
@@ -46,25 +55,9 @@ interface HandleMagicPenModeSendParams {
   setIsMagicPenSending: (next: boolean) => void;
   setMagicPenSeedDrafts: (drafts: MagicPenDraftItem[]) => void;
   setMagicPenSeedUnparsed: (segments: string[]) => void;
+  setMagicPenSeedAutoWritten: (items: MagicPenAutoWrittenItem[]) => void;
   setIsMagicPenOpen: (next: boolean) => void;
   setInput: (next: string) => void;
-}
-
-const ZH_TODO_SIGNALS = ['明天', '后天', '下周', '待会', '记得', '提醒我', '别忘了'];
-const EN_TODO_SIGNALS = ['tomorrow', 'the day after tomorrow', 'next week', 'remember to', 'remind me', 'do not forget'];
-const IT_TODO_SIGNALS = ['domani', 'dopodomani', 'settimana prossima', 'ricordami', 'non dimenticare'];
-const ZH_DATE_PATTERN = /(\d{1,2}[.-]\d{1,2}|\d{1,2}月\d{1,2}(?:日|号)?)/;
-
-function hasTodoSignal(input: string, lang: 'zh' | 'en' | 'it'): boolean {
-  if (lang === 'zh') {
-    return ZH_TODO_SIGNALS.some((signal) => input.includes(signal)) || ZH_DATE_PATTERN.test(input);
-  }
-
-  const lowered = input.toLowerCase();
-  if (lang === 'en') {
-    return EN_TODO_SIGNALS.some((signal) => lowered.includes(signal));
-  }
-  return IT_TODO_SIGNALS.some((signal) => lowered.includes(signal));
 }
 
 function toSupportedLang(inputLang: string): 'zh' | 'en' | 'it' {
@@ -93,6 +86,52 @@ async function completeActiveTodoAfterRealtimeIfNeeded(
   await updateMessageDuration(todoToComplete.content, todoToComplete.startedAt, duration);
 }
 
+function shouldUseLocalFastPath(input: string, classification: LiveInputClassification): boolean {
+  const compactSemanticLength = input
+    .replace(/\s+/g, '')
+    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
+    .length;
+
+  const hasExplicitTimeSignal = /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|下周|本周|这周|本月|下个月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:\d{1,2}分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}(?:点)?)/.test(input);
+  if (hasExplicitTimeSignal) {
+    return false;
+  }
+
+  if (compactSemanticLength > 0 && compactSemanticLength <= 3) {
+    return true;
+  }
+
+  const isSimpleText = !/[\n，,。.!?！？；;、]/.test(input);
+  if (compactSemanticLength > 0 && compactSemanticLength <= 6 && isSimpleText) {
+    return true;
+  }
+
+  if (classification.confidence !== 'high') {
+    return false;
+  }
+
+  if (!isSimpleText) {
+    return false;
+  }
+
+  const hasFutureOrNegationReason = classification.reasons.some((reason) =>
+    reason.includes('future') || reason.includes('planned') || reason.includes('negated'),
+  );
+  if (hasFutureOrNegationReason) {
+    return false;
+  }
+
+  const hasParserPrioritySignals = /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(input);
+  if (hasParserPrioritySignals) {
+    return false;
+  }
+
+  return classification.internalKind === 'new_activity'
+    || classification.internalKind === 'standalone_mood'
+    || classification.internalKind === 'mood_about_last_activity'
+    || classification.internalKind === 'activity_with_mood';
+}
+
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {
   const trimmed = params.input.trim();
   if (!trimmed || params.isMagicPenSending) {
@@ -103,28 +142,39 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
   const supportedLang = toSupportedLang(params.lang);
 
   try {
-    if (!hasTodoSignal(trimmed, supportedLang)) {
-      const classification = await params.sendAutoRecognizedInput(trimmed);
+    const localClassification = classifyLiveInput(trimmed, getLiveInputContext(params.messages));
+    if (shouldUseLocalFastPath(trimmed, localClassification)) {
+      const localWriteResult = await params.sendAutoRecognizedInput(trimmed);
       await completeActiveTodoAfterRealtimeIfNeeded(
-        [classification],
+        [localWriteResult.classification],
         params.activeTodoId,
         params.todos,
         params.completeActiveTodo,
         params.updateMessageDuration,
       );
+      params.setMagicPenSeedAutoWritten([]);
       params.setInput('');
       return;
     }
 
     const parsed = await params.parseMagicPenInput(trimmed, { lang: supportedLang });
     const autoWriteResults: Array<LiveInputClassification | null> = [];
+    const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
 
-    for (const item of parsed.autoWriteItems) {
-      if (!item.content.trim()) {
+    for (const autoWriteItem of parsed.autoWriteItems) {
+      if (!autoWriteItem.content.trim()) {
         continue;
       }
-      const classification = await params.sendAutoRecognizedInput(item.content);
-      autoWriteResults.push(classification);
+      const writeResult = await params.sendAutoRecognizedInput(autoWriteItem.content);
+      autoWriteResults.push(writeResult.classification);
+      autoWrittenItems.push({
+        id: autoWriteItem.id,
+        kind: autoWriteItem.kind,
+        content: autoWriteItem.content,
+        sourceText: autoWriteItem.sourceText,
+        messageId: writeResult.messageId,
+        linkedMoodContent: autoWriteItem.linkedMoodContent,
+      });
     }
 
     await completeActiveTodoAfterRealtimeIfNeeded(
@@ -138,7 +188,10 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
     if (parsed.drafts.length > 0 || parsed.unparsedSegments.length > 0) {
       params.setMagicPenSeedDrafts(parsed.drafts);
       params.setMagicPenSeedUnparsed(parsed.unparsedSegments);
+      params.setMagicPenSeedAutoWritten(autoWrittenItems);
       params.setIsMagicPenOpen(true);
+    } else {
+      params.setMagicPenSeedAutoWritten([]);
     }
     params.setInput('');
   } finally {

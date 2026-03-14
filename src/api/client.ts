@@ -179,6 +179,8 @@ interface MagicPenParseRequest {
   lang?: ApiLang;
   todayDateStr: string;
   currentHour: number;
+  currentLocalDateTime?: string;
+  timezoneOffsetMinutes?: number;
 }
 
 interface MagicPenParseSegment {
@@ -186,6 +188,8 @@ interface MagicPenParseSegment {
   sourceText: string;
   kind: 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
   confidence: 'high' | 'medium' | 'low';
+  timeRelation?: 'realtime' | 'future' | 'past' | 'unknown';
+  durationMinutes?: number;
   startTime?: string;
   endTime?: string;
   timeSource?: 'exact' | 'period' | 'missing';

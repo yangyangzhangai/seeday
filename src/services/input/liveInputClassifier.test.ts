@@ -21,6 +21,12 @@ describe('classifyLiveInput zh seed and regression cases', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 
+  it('classifies standalone mood case: 难过了', () => {
+    const result = classify('难过了');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
   it('classifies new activity case: 开会', () => {
     const result = classify('开会');
     expect(result.kind).toBe('activity');
@@ -59,6 +65,35 @@ describe('classifyLiveInput zh seed and regression cases', () => {
     const result = classify('好累啊');
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('forces short pure mood phrase to high standalone mood: 我很紧张', () => {
+    const result = classify('我很紧张');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.confidence).toBe('high');
+    expect(result.reasons).toContain('short_pure_mood_override');
+  });
+
+  it('forces colloquial short mood phrase to high standalone mood: 心情好好', () => {
+    const result = classify('心情好好');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.confidence).toBe('high');
+    expect(result.reasons).toContain('short_pure_mood_override');
+  });
+
+  it('classifies colloquial status phrase as mood: 状态还行', () => {
+    const result = classify('状态还行');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('does not force short pure mood override when time anchor exists: 刚才好累', () => {
+    const result = classify('刚才好累');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).not.toContain('short_pure_mood_override');
   });
 });
 
@@ -105,6 +140,21 @@ describe('classifyLiveInput context bias', () => {
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('mood_about_last_activity');
     expect(result.relatedActivityId).toBe('a-meet');
+  });
+
+  it('biases repeated newspaper activity+emotion to mood_about_last_activity', () => {
+    const result = classify('我在看报纸好开心', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-news-zh',
+        content: '我在看报纸好开心',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-news-zh');
   });
 
   it('biases by expanded zh reference variants: 那个电话打完后整个人都放松了', () => {
@@ -508,6 +558,12 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
+  it('classifies English daily activity: reading the newspaper', () => {
+    const result = classify('Reading the newspaper');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
   it('classifies English mood about last activity with context', () => {
     const result = classify('the meeting was stressful', {
       now: Date.now(),
@@ -536,6 +592,21 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('mood_about_last_activity');
     expect(result.relatedActivityId).toBe('a-call-en');
+  });
+
+  it('classifies English repeated activity+mood as mood_about_last_activity with context overlap', () => {
+    const result = classify('reading the newspaper feels good', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-news-en',
+        content: 'reading the newspaper',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-news-en');
   });
 
   it('classifies English activity_with_mood: just finished report, relieved', () => {
@@ -606,6 +677,12 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
+  it('classifies Italian daily activity: leggo il giornale', () => {
+    const result = classify('Leggo il giornale');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
   it('classifies Italian activity_with_mood: ho appena finito la riunione, sono sollevato', () => {
     const result = classify('Ho appena finito la riunione, sono sollevato');
     expect(result.kind).toBe('activity');
@@ -625,6 +702,21 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.kind).toBe('mood');
     expect(result.internalKind).toBe('mood_about_last_activity');
     expect(result.relatedActivityId).toBe('a-lesson-it');
+  });
+
+  it('classifies Italian repeated activity+mood as mood_about_last_activity with context overlap', () => {
+    const result = classify('leggo il giornale e mi sento bene', {
+      now: Date.now(),
+      recentActivity: {
+        id: 'a-news-it',
+        content: 'leggo il giornale',
+        timestamp: Date.now() - 5 * 60 * 1000,
+        isOngoing: false,
+      },
+    });
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('mood_about_last_activity');
+    expect(result.relatedActivityId).toBe('a-news-it');
   });
 
   it('keeps Italian future plan sentence out of activity: stasera ho intenzione di andare in palestra', () => {

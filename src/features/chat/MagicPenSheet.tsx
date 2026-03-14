@@ -9,8 +9,8 @@ import {
   toDateInputValue,
   toDateTimeLocal,
 } from './magicPenSheetHelpers';
-import { validateDrafts } from '../../services/input/magicPenDraftBuilder';
-import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import { alignPeriodDraftsToMessageGaps, validateDrafts } from '../../services/input/magicPenDraftBuilder';
+import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import type { Message } from '../../store/useChatStore';
 import { commitMagicPenDrafts } from '../../store/magicPenActions';
 
@@ -20,7 +20,9 @@ interface MagicPenSheetProps {
   isOpen: boolean;
   initialDrafts: MagicPenDraftItem[];
   initialUnparsedSegments: string[];
+  initialAutoWrittenItems: MagicPenAutoWrittenItem[];
   messages: Message[];
+  onUndoAutoWritten: (item: MagicPenAutoWrittenItem) => Promise<void>;
   onClose: () => void;
 }
 
@@ -28,23 +30,30 @@ export function MagicPenSheet({
   isOpen,
   initialDrafts,
   initialUnparsedSegments,
+  initialAutoWrittenItems,
   messages,
+  onUndoAutoWritten,
   onClose,
 }: MagicPenSheetProps) {
   const { t } = useTranslation();
   const [drafts, setDrafts] = useState<MagicPenDraftItem[]>([]);
   const [unparsedSegments, setUnparsedSegments] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoWrittenItems, setAutoWrittenItems] = useState<MagicPenAutoWrittenItem[]>([]);
+  const [undoingAutoWriteIds, setUndoingAutoWriteIds] = useState<Set<string>>(new Set());
   const [commitStates, setCommitStates] = useState<Map<string, CommitState>>(new Map());
   const [statusText, setStatusText] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setDrafts(validateDrafts(initialDrafts, messages));
+    const alignedDrafts = alignPeriodDraftsToMessageGaps(initialDrafts, messages);
+    setDrafts(validateDrafts(alignedDrafts, messages));
     setUnparsedSegments(initialUnparsedSegments);
+    setAutoWrittenItems(initialAutoWrittenItems);
+    setUndoingAutoWriteIds(new Set());
     setCommitStates(new Map());
     setStatusText('');
-  }, [isOpen, initialDrafts, initialUnparsedSegments, messages]);
+  }, [isOpen, initialDrafts, initialUnparsedSegments, initialAutoWrittenItems, messages]);
 
   const grouped = useMemo(() => {
     const activities = drafts.filter((draft) => draft.kind === 'activity_backfill');
@@ -150,6 +159,23 @@ export function MagicPenSheet({
       return;
     }
     setStatusText(t('chat_magic_pen_partial_success'));
+  };
+
+  const handleUndoAutoWrite = async (item: MagicPenAutoWrittenItem) => {
+    if (!item.messageId) {
+      return;
+    }
+    setUndoingAutoWriteIds((prev) => new Set(prev).add(item.id));
+    try {
+      await onUndoAutoWritten(item);
+      setAutoWrittenItems((prev) => prev.filter((entry) => entry.id !== item.id));
+    } finally {
+      setUndoingAutoWriteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
   };
 
   if (!isOpen) return null;
@@ -260,6 +286,40 @@ export function MagicPenSheet({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {autoWrittenItems.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">{t('chat_magic_pen_group_auto_written')}</p>
+            <div className="space-y-2">
+              {autoWrittenItems.map((item) => {
+                const isUndoing = undoingAutoWriteIds.has(item.id);
+                return (
+                  <div key={item.id} className="border border-emerald-200 bg-emerald-50 rounded-xl p-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs text-emerald-700">{t('chat_magic_pen_auto_written_badge')}</p>
+                        <p className="text-sm text-emerald-900 break-words">{item.content}</p>
+                        {item.linkedMoodContent && (
+                          <p className="text-xs text-emerald-700 mt-1">
+                            {t('chat_magic_pen_linked_mood_label')}: {item.linkedMoodContent}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!item.messageId || isUndoing}
+                        onClick={() => handleUndoAutoWrite(item)}
+                        className="text-xs px-2 py-1 rounded-md border border-emerald-300 text-emerald-700 disabled:opacity-50"
+                      >
+                        {isUndoing ? t('loading') : t('chat_magic_pen_undo_auto_written')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
