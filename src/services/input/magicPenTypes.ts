@@ -2,6 +2,7 @@
 import type { Priority, TodoScope } from '../../store/useTodoStore';
 
 export type MagicPenDraftKind = 'activity_backfill' | 'todo_add';
+export type MagicPenParseKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 export type MagicPenDraftConfidence = 'high' | 'medium' | 'low';
 export type MagicPenDraftErrorCode =
   | 'missing_time'
@@ -40,12 +41,21 @@ export interface MagicPenDraftItem {
 export interface MagicPenParseResult {
   drafts: MagicPenDraftItem[];
   unparsedSegments: string[];
+  autoWriteItems: MagicPenAutoWriteItem[];
+}
+
+export interface MagicPenAutoWriteItem {
+  id: string;
+  kind: 'activity' | 'mood';
+  content: string;
+  sourceText: string;
+  confidence: MagicPenDraftConfidence;
 }
 
 export interface MagicPenAISegment {
   text: string;
   sourceText: string;
-  kind: MagicPenDraftKind;
+  kind: MagicPenParseKind;
   confidence: MagicPenDraftConfidence;
   startTime?: string;
   endTime?: string;

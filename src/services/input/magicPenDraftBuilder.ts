@@ -2,6 +2,7 @@
 import type { Message } from '../../store/useChatStore';
 import { v4 as uuidv4 } from 'uuid';
 import type {
+  MagicPenAISegment,
   MagicPenAIResult,
   MagicPenDraftErrorCode,
   MagicPenDraftItem,
@@ -127,6 +128,23 @@ function inferTodoDueDate(segmentText: string, today: Date, lang: 'zh' | 'en' | 
   return inferSameDayDueDate(segmentText, today, lang);
 }
 
+function hasTimeAnchor(segment: MagicPenAISegment): boolean {
+  return Boolean(segment.startTime || segment.endTime || segment.timeSource || segment.periodLabel);
+}
+
+function canAutoWrite(segment: MagicPenAISegment): boolean {
+  if (segment.confidence !== 'high') {
+    return false;
+  }
+  if (segment.kind === 'mood') {
+    return true;
+  }
+  if (segment.kind === 'activity') {
+    return !hasTimeAnchor(segment);
+  }
+  return false;
+}
+
 export function buildDraftsFromAIResult(
   aiResult: MagicPenAIResult,
   today: Date,
@@ -134,12 +152,49 @@ export function buildDraftsFromAIResult(
 ): MagicPenParseResult {
   const drafts: MagicPenDraftItem[] = [];
   const unparsedSegments = [...aiResult.unparsed];
+  const autoWriteItems: MagicPenParseResult['autoWriteItems'] = [];
 
   for (const segment of aiResult.segments) {
     const sourceText = segment.sourceText || segment.text || '';
     const content = (segment.text || sourceText).trim();
     if (!content) {
       if (sourceText.trim()) unparsedSegments.push(sourceText);
+      continue;
+    }
+
+    if (segment.kind === 'mood' || segment.kind === 'activity') {
+      if (canAutoWrite(segment)) {
+        autoWriteItems.push({
+          id: uuidv4(),
+          kind: segment.kind,
+          content,
+          sourceText,
+          confidence: segment.confidence || 'low',
+        });
+      } else if (segment.kind === 'activity' && hasTimeAnchor(segment)) {
+        const startAt = segment.startTime ? timeStringToEpoch(segment.startTime, today) : undefined;
+        const endAt = segment.endTime ? timeStringToEpoch(segment.endTime, today) : undefined;
+        const hasValidStart = startAt !== undefined && Number.isFinite(startAt);
+        const hasValidEnd = endAt !== undefined && Number.isFinite(endAt);
+        const timeResolution = toActivityTimeResolution(segment.timeSource);
+        drafts.push({
+          id: uuidv4(),
+          kind: 'activity_backfill',
+          content,
+          sourceText,
+          confidence: segment.confidence || 'low',
+          needsUserConfirmation: true,
+          errors: [],
+          activity: {
+            startAt: hasValidStart ? startAt : undefined,
+            endAt: hasValidEnd ? endAt : undefined,
+            timeResolution,
+            suggestedTimeLabel: segment.periodLabel,
+          },
+        });
+      } else if (sourceText.trim()) {
+        unparsedSegments.push(sourceText);
+      }
       continue;
     }
 
@@ -195,6 +250,7 @@ export function buildDraftsFromAIResult(
   return {
     drafts,
     unparsedSegments,
+    autoWriteItems,
   };
 }
 

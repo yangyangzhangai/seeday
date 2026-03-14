@@ -184,7 +184,7 @@ interface MagicPenParseRequest {
 interface MagicPenParseSegment {
   text: string;
   sourceText: string;
-  kind: 'activity_backfill' | 'todo_add';
+  kind: 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
   confidence: 'high' | 'medium' | 'low';
   startTime?: string;
   endTime?: string;

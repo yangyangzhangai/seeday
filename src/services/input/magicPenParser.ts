@@ -19,7 +19,7 @@ export async function parseMagicPenInput(
 ): Promise<MagicPenParseResult> {
   const cleaned = preprocessRawText(rawText);
   if (!cleaned) {
-    return { drafts: [], unparsedSegments: [] };
+    return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
   }
 
   const now = options.now ?? new Date();
@@ -34,6 +34,7 @@ export async function parseMagicPenInput(
     return {
       drafts: validateDrafts(built.drafts, [], now.getTime()),
       unparsedSegments: built.unparsedSegments,
+      autoWriteItems: built.autoWriteItems,
     };
   } catch {
     return parseMagicPenInputLocal(cleaned, now);

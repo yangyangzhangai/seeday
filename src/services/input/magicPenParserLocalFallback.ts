@@ -323,7 +323,7 @@ function buildDraftFromSegment(segment: string, now: Date): MagicPenDraftItem | 
 
 export function parseMagicPenInputLocal(rawText: string, now: Date = new Date()): MagicPenParseResult {
   const normalized = normalizeText(rawText);
-  if (!normalized) return { drafts: [], unparsedSegments: [] };
+  if (!normalized) return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
 
   const segments = splitSegments(normalized);
   const drafts: MagicPenDraftItem[] = [];
@@ -341,5 +341,6 @@ export function parseMagicPenInputLocal(rawText: string, now: Date = new Date())
   return {
     drafts: validateDrafts(drafts, [], now.getTime()),
     unparsedSegments,
+    autoWriteItems: [],
   };
 }

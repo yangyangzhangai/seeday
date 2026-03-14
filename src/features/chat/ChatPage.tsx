@@ -22,6 +22,7 @@ import { MagicPenSheet } from './MagicPenSheet';
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import type { MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import {
+  handleMagicPenModeSend,
   handleLatestMessageReclassify,
 } from './chatPageActions';
 
@@ -49,6 +50,7 @@ export const ChatPage = () => {
   const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
   const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
+  const [isMagicPenSending, setIsMagicPenSending] = useState(false);
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
 
@@ -242,11 +244,30 @@ export const ChatPage = () => {
     if (!input.trim()) return;
 
     if (isMagicPenModeOn) {
-      const parsed = await parseMagicPenInput(input, { lang: (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it' });
-      setMagicPenSeedDrafts(parsed.drafts);
-      setMagicPenSeedUnparsed(parsed.unparsedSegments);
-      setIsMagicPenOpen(true);
-      setInput('');
+      await handleMagicPenModeSend({
+        input,
+        lang: i18n.language?.split('-')[0] || 'zh',
+        isMagicPenSending,
+        activeTodoId,
+        todos,
+        recentActivity: activeRecord
+          ? {
+              id: activeRecord.id,
+              content: activeRecord.content,
+              timestamp: activeRecord.timestamp,
+              isOngoing: activeRecord.duration === undefined,
+            }
+          : undefined,
+        sendAutoRecognizedInput,
+        completeActiveTodo,
+        updateMessageDuration,
+        parseMagicPenInput,
+        setIsMagicPenSending,
+        setMagicPenSeedDrafts,
+        setMagicPenSeedUnparsed,
+        setIsMagicPenOpen,
+        setInput,
+      });
       return;
     }
 
@@ -488,7 +509,7 @@ export const ChatPage = () => {
       {/* Input Area */}
       <ChatInputBar
         input={input}
-        isLoading={isLoading}
+        isLoading={isLoading || isMagicPenSending}
         isMagicPenModeOn={isMagicPenModeOn}
         onInputChange={setInput}
         onSend={handleSend}

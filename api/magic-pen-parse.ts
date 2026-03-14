@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 
-type MagicPenKind = 'activity_backfill' | 'todo_add';
+type MagicPenKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 type MagicPenConfidence = 'high' | 'medium' | 'low';
 type MagicPenLang = 'zh' | 'en' | 'it';
 
@@ -33,7 +33,7 @@ const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
     {
       "text": "核心内容",
       "sourceText": "原始片段",
-      "kind": "activity_backfill 或 todo_add",
+      "kind": "activity 或 mood 或 todo_add 或 activity_backfill",
       "confidence": "high 或 medium 或 low",
       "startTime": "HH:mm，可选",
       "endTime": "HH:mm，可选",
@@ -45,7 +45,11 @@ const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
 }
 
 规则:
-1) activity_backfill 表示今天已发生活动；todo_add 表示未来要做事项。
+1) kind 允许 activity、mood、todo_add、activity_backfill：
+   - activity: 当前进行中的动作表达
+   - mood: 心情表达
+   - todo_add: 未来要做事项
+   - activity_backfill: 今天已发生活动
 2) 对 activity_backfill 尽量提取时间:
    - exact: 精确时间或区间
    - period: 上午09:00-11:00，中午12:00-13:00，下午15:00-17:00，晚上20:00-21:00
@@ -63,7 +67,7 @@ Output schema:
     {
       "text": "core content",
       "sourceText": "original segment",
-      "kind": "activity_backfill or todo_add",
+      "kind": "activity or mood or todo_add or activity_backfill",
       "confidence": "high or medium or low",
       "startTime": "HH:mm, optional",
       "endTime": "HH:mm, optional",
@@ -75,7 +79,11 @@ Output schema:
 }
 
 Rules:
-1) activity_backfill means an activity already happened today; todo_add means a future task.
+1) kind can be activity, mood, todo_add, activity_backfill:
+   - activity: ongoing/current action
+   - mood: emotion state
+   - todo_add: future task
+   - activity_backfill: activity already happened today
 2) For activity_backfill, extract time when possible:
    - exact: exact time or range
    - period: morning 09:00-11:00, noon 12:00-13:00, afternoon 15:00-17:00, evening 20:00-21:00
@@ -93,7 +101,7 @@ Schema di output:
     {
       "text": "contenuto principale",
       "sourceText": "segmento originale",
-      "kind": "activity_backfill o todo_add",
+      "kind": "activity o mood o todo_add o activity_backfill",
       "confidence": "high o medium o low",
       "startTime": "HH:mm, opzionale",
       "endTime": "HH:mm, opzionale",
@@ -105,7 +113,11 @@ Schema di output:
 }
 
 Regole:
-1) activity_backfill indica un'attivita gia svolta oggi; todo_add indica un'attivita futura.
+1) kind puo essere activity, mood, todo_add, activity_backfill:
+   - activity: azione in corso/adesso
+   - mood: stato emotivo
+   - todo_add: attivita futura
+   - activity_backfill: attivita gia svolta oggi
 2) Per activity_backfill estrai il tempo quando possibile:
    - exact: orario preciso o intervallo
    - period: mattina 09:00-11:00, mezzogiorno 12:00-13:00, pomeriggio 15:00-17:00, sera 20:00-21:00
@@ -126,7 +138,7 @@ function getMagicPenPrompt(lang: MagicPenLang): string {
 }
 
 function isKind(value: unknown): value is MagicPenKind {
-  return value === 'activity_backfill' || value === 'todo_add';
+  return value === 'activity' || value === 'mood' || value === 'todo_add' || value === 'activity_backfill';
 }
 
 function isConfidence(value: unknown): value is MagicPenConfidence {

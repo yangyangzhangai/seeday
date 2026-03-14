@@ -2,6 +2,64 @@
 
 All notable changes to this repository are documented here.
 
+## 2026-03-13 — Magic Pen MP7 Two-Lane Gate + Four-Kind Parse Contract
+
+### Changed
+
+- Updated `src/features/chat/chatPageActions.ts` mode-on send orchestration from clause-first routing to a two-lane gate: no todo signal keeps local `sendAutoRecognizedInput`, todo-signal input sends the whole sentence to magic pen parse.
+- Added todo-signal gate logic in `chatPageActions.ts` and removed hard dependency on `magicPenClauseRouter` from mode-on send path.
+- Expanded magic pen parse kind contract to four kinds (`activity` / `mood` / `todo_add` / `activity_backfill`) across `api/magic-pen-parse.ts`, `src/api/client.ts`, and `src/services/input/magicPenTypes.ts`.
+- Updated `src/services/input/magicPenDraftBuilder.ts` and parser pipeline to split parse outputs into `autoWriteItems` vs review drafts: high-confidence `mood` + non-time-anchored `activity` auto-write; `todo_add` + `activity_backfill` stay in review; low-confidence `activity/mood` fall into `unparsedSegments`.
+- Synced tests in `src/features/chat/chatPageActions.test.ts` for two-lane gate behavior and auto-write ordering while keeping parser/store/endpoint regressions green.
+
+### Validation
+
+- `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts api/magic-pen-parse.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` with session-27 snapshot and MP7 checklist progress.
+- Updated `src/features/chat/README.md` to reflect two-lane mode-on behavior and split write policy.
+- Updated `docs/CODE_CLEANUP_HANDOVER_PLAN.md` with session-27 execution handover.
+
+## 2026-03-13 — Magic Pen MP6 Clause-Level Dual Routing + Pending Guard
+
+### Changed
+
+- Added `src/services/input/magicPenClauseRouter.ts` to route mode-on send input into `realtimeClauses`, `magicClauses`, and `uncertainClauses` with language-aware safety bias.
+- Updated `src/features/chat/chatPageActions.ts` to extract mode-on send orchestration: realtime clauses commit first, magic/uncertain clauses parse into `MagicPenSheet`, and duplicate sends are blocked by local pending guard.
+- Updated `src/features/chat/ChatPage.tsx` to wire mode-on send through `handleMagicPenModeSend(...)` and pass `isMagicPenSending` into `ChatInputBar` loading/disable state.
+- Expanded regressions in `src/features/chat/chatPageActions.test.ts` and added `src/services/input/magicPenClauseRouter.test.ts` for realtime-only/magic-only/mixed/uncertain/pending/lang-safety paths.
+
+### Validation
+
+- `npm run test:unit -- src/services/input/magicPenClauseRouter.test.ts src/features/chat/chatPageActions.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Updated `docs/CODE_CLEANUP_HANDOVER_PLAN.md` with Session-24 MP6 execution snapshot.
+- Updated `src/features/chat/README.md` to document clause-level dual routing flow and test anchors.
+
+## 2026-03-13 — Magic Pen Mixed `和` Sentence Routing Fix (Session-25)
+
+### Changed
+
+- Updated `src/services/input/magicPenClauseRouter.ts` to add a narrow secondary split for Chinese mixed-lane sentences where `和/还有` is followed by a strong clause-start signal, so mode-on input can separate realtime activity from backfill/todo without requiring punctuation.
+- Added router regressions in `src/services/input/magicPenClauseRouter.test.ts` for `我在吃饭和早上逃课去逛街` and multi-magic `和`-joined time blocks.
+- Extended `src/services/input/magicPenParser.test.ts` with `早上逃课去逛街` to keep local fallback coverage aligned with the routing fix.
+
+### Validation
+
+- `npm run test:unit -- src/services/input/magicPenClauseRouter.test.ts src/services/input/magicPenParser.test.ts src/features/chat/chatPageActions.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` with Session-25 stabilization snapshot.
+- Updated `docs/CODE_CLEANUP_HANDOVER_PLAN.md` with Session-25 handover entry.
+
 ## 2026-03-12 — Magic Pen Multilingual Prompt Routing + Same-Day Todo Date (Session-23)
 
 ### Changed

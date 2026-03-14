@@ -214,6 +214,7 @@ describe('parseMagicPenInput activity-focused cases', () => {
     '今天晚上做家务',
     '今天10点学习',
     '上午写方案',
+    '早上逃课去逛街',
   ];
 
   for (const input of activityInputs) {

@@ -2173,3 +2173,62 @@ docs/                 # 架构与交接文档
   - `npm run lint:docs-sync`
   - `npm run lint:state-consistency`
   - `npm run build`
+
+### 2026-03-13 — Magic Pen Session-24 执行（MP6 句级双通道路由 + pending guard）
+
+- 变更来源: `docs/CURRENT_TASK.md` MP6 P0/P1（Clause Router + helper extraction + pending guard）
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 新增 `src/services/input/magicPenClauseRouter.ts`：mode-on 发送先分句，再输出 `realtimeClauses/magicClauses/uncertainClauses` 三通道结果。
+  2. 新增 `src/features/chat/chatPageActions.ts` 的 `handleMagicPenModeSend(...)`：
+     - 先顺序提交 realtime 子句（无弹窗）
+     - 再将 `magic + uncertain` 合并输入 `parseMagicPenInput(...)`
+     - 仅在存在 review 子句时打开 `MagicPenSheet`
+     - 增加 `isMagicPenSending` 本地 pending guard
+  3. `src/features/chat/ChatPage.tsx` 改为调用 `handleMagicPenModeSend(...)`，并将 `isMagicPenSending` 透传到输入栏 loading/disable。
+  4. 回归补齐：
+     - 新增 `src/services/input/magicPenClauseRouter.test.ts`（13 条，覆盖 zh/en/it、unsupported lang、安全偏置、互斥路由、混合长句）
+     - 扩展 `src/features/chat/chatPageActions.test.ts`（mode-on realtime-only/magic-only/mixed/uncertain-only/parser-fail/pending/lang-normalization/activeTodo side effects）
+- 文档同步:
+  1. 更新 `docs/CHANGELOG.md`（新增 Session-24 条目）
+  2. 更新 `src/features/chat/README.md`（双通道路由流程、依赖、测试锚点）
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenClauseRouter.test.ts src/features/chat/chatPageActions.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+
+### 2026-03-13 — Magic Pen Session-25 执行（混合 `和` 句路由修复）
+
+- 变更来源: 用户反馈 `我在吃饭和早上逃课去逛街` 未被拆成“当前活动 + 活动补录”，导致 mode-on 体验退化。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 更新 `src/services/input/magicPenClauseRouter.ts`：为中文增加窄范围 secondary split，仅在 `和/还有` 后面出现强 clause-start signal 时拆分，避免粗暴拆坏 `我和朋友...` 这类名词短语。
+  2. 修复 mixed-lane routing：`我在吃饭和早上逃课去逛街` 现在可拆成 realtime `我在吃饭` + magic `早上逃课去逛街`。
+  3. 扩展回归：
+     - `src/services/input/magicPenClauseRouter.test.ts` 新增 `和` 连接的 realtime+magic / magic+magic 用例
+     - `src/services/input/magicPenParser.test.ts` 新增 `早上逃课去逛街`
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（Session-25 快照）
+  2. 更新 `docs/CHANGELOG.md`（本次修复记录）
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenClauseRouter.test.ts src/services/input/magicPenParser.test.ts src/features/chat/chatPageActions.test.ts` ✅
+  - `npx tsc --noEmit` ✅
+
+### 2026-03-13 — Magic Pen Session-27 执行（MP7 双车道路由 + 四类契约）
+
+- 变更来源: `docs/CURRENT_TASK.md` session-26 locked decisions（two-lane gate + four-kind parse contract）。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 更新 `src/features/chat/chatPageActions.ts`：mode-on 发送改为 two-lane gate（无 todo 信号走本地 activity/mood，命中 todo 信号整句进入 magic parse），不再在该链路做 clause-first 编排。
+  2. 扩展 parse 契约到四类：`activity` / `mood` / `todo_add` / `activity_backfill`，并同步 `api/magic-pen-parse.ts`、`src/api/client.ts`、`src/services/input/magicPenTypes.ts`。
+  3. 更新 `src/services/input/magicPenDraftBuilder.ts` 与 parser 流程：
+     - 自动写入: 高置信 `mood` + 非时间锚点高置信 `activity`
+     - review: `todo_add` + `activity_backfill`
+     - 低置信 `activity/mood` 不直写，落入 `unparsedSegments`
+  4. 回归同步：`src/features/chat/chatPageActions.test.ts`（two-lane + auto-write 顺序）、`src/services/input/magicPenParser.test.ts`、`src/store/magicPenActions.test.ts`、`api/magic-pen-parse.test.ts`。
+- 文档同步:
+  1. 更新 `docs/CURRENT_TASK.md`（session-27 快照与 MP7 checklist 进度）
+  2. 更新 `docs/CHANGELOG.md`（新增 MP7 条目）
+  3. 更新 `src/features/chat/README.md`（mode-on 两类入口与分流规则）
+- 验证结果:
+  - `npm run test:unit -- src/features/chat/chatPageActions.test.ts src/services/input/magicPenParser.test.ts src/store/magicPenActions.test.ts api/magic-pen-parse.test.ts` ✅
+  - `npx tsc --noEmit` ✅
