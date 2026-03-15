@@ -13,7 +13,37 @@ interface ApiErrorShape {
 
 type ApiLang = 'zh' | 'en' | 'it';
 
+let apiRequestSeq = 0;
+
+function createApiRequestId(path: string): string {
+  apiRequestSeq += 1;
+  const normalized = path.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'api';
+  return `${normalized}-${Date.now().toString(36)}-${apiRequestSeq}`;
+}
+
+function previewApiText(value: unknown, maxLength: number = 160): string {
+  if (typeof value !== 'string') return '[non-string]';
+  const compact = value.replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLength) return compact;
+  const head = compact.slice(0, Math.floor(maxLength / 2));
+  const tail = compact.slice(-Math.floor(maxLength / 2));
+  return `${head} ... ${tail}`;
+}
+
+function logApiDebug(step: string, payload: Record<string, unknown>): void {
+  if (!import.meta.env.DEV) return;
+  console.log(`[api-client] ${step}`, payload);
+}
+
 async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
+  const requestId = createApiRequestId(path);
+  const startedAt = Date.now();
+  logApiDebug('request.start', {
+    requestId,
+    path,
+  });
+
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: {
@@ -22,12 +52,47 @@ async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
     body: JSON.stringify(body),
   });
 
+  const elapsedMs = Date.now() - startedAt;
+  const responseText = await response.text();
+  const traceId = response.headers.get('X-Magic-Pen-Trace-Id') || undefined;
+
+  let parsedBody: unknown = undefined;
+  if (responseText.trim()) {
+    try {
+      parsedBody = JSON.parse(responseText);
+    } catch {
+      parsedBody = undefined;
+    }
+  }
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' })) as ApiErrorShape;
+    const error = (parsedBody || { error: 'Unknown error' }) as ApiErrorShape;
+    logApiDebug('request.error', {
+      requestId,
+      path,
+      status: response.status,
+      elapsedMs,
+      traceId,
+      error: error.error || `HTTP ${response.status}`,
+      responsePreview: previewApiText(responseText),
+    });
     throw new Error(error.error || `HTTP ${response.status}`);
   }
 
-  return response.json() as Promise<TRes>;
+  logApiDebug('request.success', {
+    requestId,
+    path,
+    status: response.status,
+    elapsedMs,
+    traceId,
+    hasBody: parsedBody !== undefined,
+  });
+
+  if (parsedBody === undefined) {
+    throw new Error(`Invalid JSON response from ${path}`);
+  }
+
+  return parsedBody as TRes;
 }
 
 interface ChatRequest {
@@ -202,6 +267,8 @@ interface MagicPenParseResponse {
     segments: MagicPenParseSegment[];
     unparsed: string[];
   };
+  traceId?: string;
+  parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
 }
 
 /**

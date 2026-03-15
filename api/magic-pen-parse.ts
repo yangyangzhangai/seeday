@@ -25,6 +25,45 @@ interface MagicPenAIResult {
 }
 
 const STRICT_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const AI_PARSE_FAILURE_TEXT = '（AI 解析失败，请手动录入）';
+
+type MagicPenParseStrategy = 'direct_json' | 'wrapped_object' | 'fallback_failed';
+
+interface ParsedMagicPenAIResponse {
+  data: MagicPenAIResult;
+  strategy: MagicPenParseStrategy;
+}
+
+function shouldDebugMagicPen(): boolean {
+  return process.env.MAGIC_PEN_DEBUG === '1' || process.env.NODE_ENV !== 'production';
+}
+
+function createTraceId(): string {
+  const now = Date.now().toString(36);
+  const rnd = Math.random().toString(36).slice(2, 8);
+  return `mp-${now}-${rnd}`;
+}
+
+function previewText(input: unknown, maxLength: number = 120): string {
+  if (typeof input !== 'string') {
+    return '[non-string]';
+  }
+  const compact = input.replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLength) return compact;
+  const head = compact.slice(0, Math.floor(maxLength / 2));
+  const tail = compact.slice(-Math.floor(maxLength / 2));
+  return `${head} ... ${tail}`;
+}
+
+function logMagicPen(traceId: string, step: string, payload?: Record<string, unknown>): void {
+  if (!shouldDebugMagicPen()) return;
+  if (payload) {
+    console.log(`[magic-pen-parse][${traceId}] ${step}`, payload);
+    return;
+  }
+  console.log(`[magic-pen-parse][${traceId}] ${step}`);
+}
 
 function normalizeModelTime(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -248,8 +287,8 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
     ? Math.max(1, Math.min(720, Math.round(Number(record.durationMinutes))))
     : undefined;
 
-   const startTime = normalizeModelTime(record.startTime);
-   const endTime = normalizeModelTime(record.endTime);
+  const startTime = normalizeModelTime(record.startTime);
+  const endTime = normalizeModelTime(record.endTime);
   const timeSource = record.timeSource === 'exact' || record.timeSource === 'period' || record.timeSource === 'missing'
     ? record.timeSource
     : undefined;
@@ -271,7 +310,7 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
 
 function normalizeAIResult(input: unknown): MagicPenAIResult {
   if (!input || typeof input !== 'object') {
-    return { segments: [], unparsed: ['（AI 解析失败，请手动录入）'] };
+    return { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] };
   }
   const payload = input as Record<string, unknown>;
   const segments = Array.isArray(payload.segments)
@@ -283,9 +322,12 @@ function normalizeAIResult(input: unknown): MagicPenAIResult {
   return { segments, unparsed };
 }
 
-function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
+function parseMagicPenAIResponse(raw: string): ParsedMagicPenAIResponse {
   try {
-    return normalizeAIResult(JSON.parse(raw.trim()));
+    return {
+      data: normalizeAIResult(JSON.parse(raw.trim())),
+      strategy: 'direct_json',
+    };
   } catch {
     // noop
   }
@@ -293,19 +335,28 @@ function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
     try {
-      return normalizeAIResult(JSON.parse(match[0]));
+      return {
+        data: normalizeAIResult(JSON.parse(match[0])),
+        strategy: 'wrapped_object',
+      };
     } catch {
       // noop
     }
   }
 
-  return { segments: [], unparsed: ['（AI 解析失败，请手动录入）'] };
+  return {
+    data: { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] },
+    strategy: 'fallback_failed',
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
+
+  const traceId = createTraceId();
+  res.setHeader('X-Magic-Pen-Trace-Id', traceId);
 
   const {
     rawText,
@@ -317,30 +368,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } = req.body ?? {};
 
   if (!rawText || typeof rawText !== 'string') {
+    logMagicPen(traceId, 'request.invalid_raw_text', { rawTextType: typeof rawText });
     jsonError(res, 400, 'Missing or invalid rawText');
     return;
   }
   if (!todayDateStr || typeof todayDateStr !== 'string') {
+    logMagicPen(traceId, 'request.invalid_today_date', { todayDateStrType: typeof todayDateStr });
     jsonError(res, 400, 'Missing or invalid todayDateStr');
     return;
   }
   if (!Number.isInteger(currentHour) || currentHour < 0 || currentHour > 23) {
+    logMagicPen(traceId, 'request.invalid_current_hour', { currentHour });
     jsonError(res, 400, 'Missing or invalid currentHour');
     return;
   }
 
   if (currentLocalDateTime !== undefined && typeof currentLocalDateTime !== 'string') {
+    logMagicPen(traceId, 'request.invalid_local_datetime', { currentLocalDateTimeType: typeof currentLocalDateTime });
     jsonError(res, 400, 'Invalid currentLocalDateTime');
     return;
   }
 
   if (timezoneOffsetMinutes !== undefined && !Number.isFinite(timezoneOffsetMinutes)) {
+    logMagicPen(traceId, 'request.invalid_timezone_offset', { timezoneOffsetMinutes });
     jsonError(res, 400, 'Invalid timezoneOffsetMinutes');
     return;
   }
 
+  logMagicPen(traceId, 'request.received', {
+    lang: toSupportedLang(lang),
+    rawTextLength: rawText.length,
+    rawTextPreview: previewText(rawText),
+    todayDateStr,
+    currentHour,
+    hasCurrentLocalDateTime: Boolean(currentLocalDateTime),
+    timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0,
+  });
+
   const apiKey = process.env.ZHIPU_API_KEY;
   if (!apiKey) {
+    logMagicPen(traceId, 'request.missing_api_key');
     jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
@@ -356,6 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ));
 
   try {
+    const upstreamStartedAt = Date.now();
     const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST',
       headers: {
@@ -373,19 +441,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stream: false,
       }),
     });
+    const upstreamElapsedMs = Date.now() - upstreamStartedAt;
+    logMagicPen(traceId, 'upstream.response', {
+      status: response.status,
+      ok: response.ok,
+      elapsedMs: upstreamElapsedMs,
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
+      logMagicPen(traceId, 'upstream.error', {
+        status: response.status,
+        statusText: response.statusText,
+        errorPreview: previewText(errorText, 200),
+      });
       jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }
 
     const json = await response.json();
     const raw = json?.choices?.[0]?.message?.content || '';
-    const data = parseMagicPenAIResponse(raw);
+    const parsed = parseMagicPenAIResponse(raw);
 
-    res.status(200).json({ success: true, data, raw });
+    logMagicPen(traceId, 'upstream.parsed', {
+      parseStrategy: parsed.strategy,
+      rawLength: typeof raw === 'string' ? raw.length : 0,
+      rawPreview: previewText(raw, 220),
+      segmentCount: parsed.data.segments.length,
+      unparsedCount: parsed.data.unparsed.length,
+      fallbackTriggered: parsed.strategy === 'fallback_failed',
+    });
+
+    res.status(200).json({
+      success: true,
+      data: parsed.data,
+      raw,
+      traceId,
+      parseStrategy: parsed.strategy,
+    });
   } catch (error) {
+    logMagicPen(traceId, 'request.exception', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
     jsonError(res, 500, 'Internal server error', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

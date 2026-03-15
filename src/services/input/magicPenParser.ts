@@ -9,6 +9,20 @@ interface ParseMagicPenOptions {
   lang?: 'zh' | 'en' | 'it';
 }
 
+function previewInput(text: string, maxLength: number = 120): string {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLength) return compact;
+  const head = compact.slice(0, Math.floor(maxLength / 2));
+  const tail = compact.slice(-Math.floor(maxLength / 2));
+  return `${head} ... ${tail}`;
+}
+
+function logMagicPenParser(step: string, payload: Record<string, unknown>): void {
+  if (!import.meta.env.DEV) return;
+  console.log(`[magic-pen-parser] ${step}`, payload);
+}
+
 function preprocessRawText(rawText: string): string {
   return rawText.trim().replace(/[^\S\n]+/g, ' ').slice(0, 500);
 }
@@ -39,6 +53,14 @@ export async function parseMagicPenInput(
   }
 
   const now = options.now ?? new Date();
+  const startedAt = Date.now();
+  logMagicPenParser('parse.start', {
+    inputLength: cleaned.length,
+    inputPreview: previewInput(cleaned),
+    lang: options.lang ?? 'zh',
+    now: now.toISOString(),
+  });
+
   try {
     const response = await callMagicPenParseAPI({
       rawText: cleaned,
@@ -48,13 +70,35 @@ export async function parseMagicPenInput(
       currentLocalDateTime: toLocalDateTimeString(now),
       timezoneOffsetMinutes: -now.getTimezoneOffset(),
     });
+
+    logMagicPenParser('parse.api_response', {
+      elapsedMs: Date.now() - startedAt,
+      traceId: response.traceId,
+      parseStrategy: response.parseStrategy,
+      segmentCount: response.data.segments.length,
+      unparsedCount: response.data.unparsed.length,
+    });
+
     const built = buildDraftsFromAIResult(response.data, now, options.lang ?? 'zh');
+    logMagicPenParser('parse.built', {
+      draftCount: built.drafts.length,
+      unparsedCount: built.unparsedSegments.length,
+      autoWriteCount: built.autoWriteItems.length,
+    });
     return {
       drafts: validateDrafts(built.drafts, [], now.getTime()),
       unparsedSegments: built.unparsedSegments,
       autoWriteItems: built.autoWriteItems,
     };
-  } catch {
-    return parseMagicPenInputLocal(cleaned, now);
+  } catch (error) {
+    const fallback = parseMagicPenInputLocal(cleaned, now);
+    logMagicPenParser('parse.fallback_local', {
+      elapsedMs: Date.now() - startedAt,
+      reason: error instanceof Error ? error.message : 'unknown',
+      draftCount: fallback.drafts.length,
+      unparsedCount: fallback.unparsedSegments.length,
+      autoWriteCount: fallback.autoWriteItems.length,
+    });
+    return fallback;
   }
 }
