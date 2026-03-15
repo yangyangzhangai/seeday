@@ -169,6 +169,15 @@ describe('parseMagicPenInput todo-focused cases', () => {
     expect(extractYmd(draft.todo?.dueDate)).toBe('2026-03-11');
   });
 
+  it('treats evening plan entered in morning as todo', async () => {
+    const morning = new Date(2026, 2, 11, 9, 0, 0, 0);
+    const result = await parseMagicPenInput('晚上看电影', { now: morning });
+    expect(result.drafts).toHaveLength(1);
+    expect(result.drafts[0].kind).toBe('todo_add');
+    expect(result.drafts[0].content).toBe('看电影');
+    expect(extractYmd(result.drafts[0].todo?.dueDate)).toBe('2026-03-11');
+  });
+
   it('strips leading first-person token from immediate todo phrase', async () => {
     const draft = await getOnlyDraft('我待会开会');
     expect(draft.kind).toBe('todo_add');

@@ -255,6 +255,26 @@ describe('magicPenDraftBuilder', () => {
     expect(new Date(dueDate!).toISOString().slice(0, 10)).toBe('2026-03-11');
   });
 
+  it('reclassifies future-period backfill to todo when current time is earlier', () => {
+    const morning = new Date(2026, 2, 11, 9, 0, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '看电影',
+        sourceText: '晚上看电影',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeSource: 'period',
+        periodLabel: '晚上',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, morning, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('todo_add');
+    expect(parsed.drafts[0].content).toBe('看电影');
+    expect(parsed.drafts[0].todo?.dueDate).toBeDefined();
+  });
+
   it('keeps unparsed entries', () => {
     const parsed = buildDraftsFromAIResult({ segments: [], unparsed: ['今天做了很多事'] }, fixedNow);
     expect(parsed.unparsedSegments).toEqual(['今天做了很多事']);

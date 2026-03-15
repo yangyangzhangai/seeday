@@ -58,7 +58,7 @@ function splitByConnectors(segment: string): string[] {
 }
 
 function isTodoDateOnlyChunk(segment: string): boolean {
-  return /^(今天|明天|后天|下周[一二三四五六日天]|\d{1,2}[.-]\d{1,2}|\d{1,2}月\d{1,2}(?:日|号)?)$/.test(segment.trim());
+  return /^(今天|明天|后天|早上|上午|中午|下午|晚上|今晚|今夜|下周[一二三四五六日天]|\d{1,2}[.-]\d{1,2}|\d{1,2}月\d{1,2}(?:日|号)?)$/.test(segment.trim());
 }
 
 function splitByTodoDateAnchors(segment: string): string[] {
@@ -95,21 +95,37 @@ function isCrossDaySegment(segment: string): boolean {
   return includesAny(segment, ZH_MAGIC_PEN_CROSS_DAY_WORDS);
 }
 
-function classifySegment(segment: string): SegmentClassification {
+function isFuturePeriodSegment(segment: string, now: Date): boolean {
+  const currentHour = now.getHours();
+  if (currentHour >= 12) return false;
+  if (/(今晚|今夜)/.test(segment)) {
+    return currentHour < 20;
+  }
+  return Object.entries(ZH_MAGIC_PEN_PERIOD_WINDOWS).some(([label, window]) => (
+    segment.includes(label) && currentHour < window.startHour
+  ));
+}
+
+function classifySegment(segment: string, now: Date): SegmentClassification {
   if (segment.includes('很多事')) {
     return { kind: 'unparsed', confidence: 'low' };
   }
   const hasFutureSignal = includesAny(segment, ZH_MAGIC_PEN_TODO_FUTURE_WORDS);
+  const hasFuturePeriodSignal = isFuturePeriodSegment(segment, now);
+  const hasFutureLikeSignal = hasFutureSignal || hasFuturePeriodSignal;
   const hasDutySignal = includesAny(segment, ZH_MAGIC_PEN_TODO_DUTY_WORDS);
   const hasDateSignal = new RegExp(ZH_MAGIC_PEN_TODO_DATE_ANCHOR_PATTERN).test(segment);
-  const hasTodoSignal = hasFutureSignal || hasDutySignal || hasDateSignal;
+  const hasTodoSignal = hasFutureLikeSignal || hasDutySignal || hasDateSignal;
   const hasActivityEvidence = includesAny(segment, ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS);
   const hasActivityVerb = includesAny(segment, ZH_MAGIC_PEN_ACTIVITY_VERBS);
 
-  if (hasTodoSignal && hasFutureSignal && hasDutySignal) {
+  if (hasTodoSignal && hasFutureLikeSignal && hasDutySignal) {
     return { kind: 'todo_add', confidence: 'high' };
   }
-  if (hasActivityEvidence && hasActivityVerb && !hasFutureSignal) {
+  if (hasDutySignal) {
+    return { kind: 'todo_add', confidence: hasFutureLikeSignal ? 'high' : 'medium' };
+  }
+  if (hasActivityEvidence && hasActivityVerb && !hasFutureLikeSignal) {
     return { kind: 'activity_backfill', confidence: 'high' };
   }
   if (hasTodoSignal) {
@@ -217,7 +233,7 @@ function stripTodoDateAndDutyPrefix(content: string): string {
   return content
     .replace(/^(然后|后来|顺便|以及)/, '')
     .replace(/^(记得|还要|要|得|需要|别忘了|提醒我)\s*/, '')
-    .replace(/(明天|后天|今天|待会|一会|稍后|晚点|之后|下周[一二三四五六日天]|这周|本周|本月)/g, '')
+    .replace(/(明天|后天|今天|待会|一会|稍后|晚点|之后|晚上|今晚|今夜|下周[一二三四五六日天]|这周|本周|本月)/g, '')
     .replace(/\d{1,2}[.-]\d{1,2}/g, '')
     .replace(/\d{1,2}月\d{1,2}(?:日|号)?/g, '')
     .replace(/^我(?=[\u4e00-\u9fa5])/u, '')
@@ -319,7 +335,7 @@ function buildActivityDraft(segment: string, confidence: MagicPenDraftConfidence
 
 function buildDraftFromSegment(segment: string, now: Date): MagicPenDraftItem | null {
   if (isCrossDaySegment(segment)) return null;
-  const classified = classifySegment(segment);
+  const classified = classifySegment(segment, now);
   if (classified.kind === 'todo_add') return buildTodoDraft(segment, classified.confidence, now);
   if (classified.kind === 'activity_backfill') return buildActivityDraft(segment, classified.confidence, now);
   return null;

@@ -429,6 +429,62 @@ function inferTodoDueDate(segmentText: string, today: Date, lang: 'zh' | 'en' | 
   return inferSameDayDueDate(segmentText, today, lang);
 }
 
+function isZhFuturePeriodFromNow(text: string, now: Date): boolean {
+  const source = text.trim();
+  if (!source) return false;
+  const currentHour = now.getHours();
+  if (currentHour >= 12) return false;
+
+  if (/(今晚|今夜)/.test(source)) {
+    return currentHour < 20;
+  }
+
+  for (const [label, window] of Object.entries(ZH_MAGIC_PEN_PERIOD_WINDOWS)) {
+    if (!source.includes(label)) continue;
+    if (currentHour < window.startHour) return true;
+  }
+
+  return false;
+}
+
+function shouldConvertBackfillToTodo(
+  segment: MagicPenAISegment,
+  today: Date,
+  lang: 'zh' | 'en' | 'it',
+): boolean {
+  if (segment.timeRelation === 'future') return true;
+  if (lang !== 'zh') return false;
+  const source = (segment.sourceText || segment.text || '').trim();
+  if (!source) return false;
+  return isZhFuturePeriodFromNow(source, today);
+}
+
+function buildTodoDraftFromSegment(
+  segment: MagicPenAISegment,
+  content: string,
+  sourceText: string,
+  today: Date,
+  lang: 'zh' | 'en' | 'it',
+): MagicPenDraftItem {
+  const dueDate = inferTodoDueDate(sourceText || content, today, lang);
+  const normalizedTodoContent = normalizeTodoContent(content, sourceText, lang);
+  return {
+    id: uuidv4(),
+    kind: 'todo_add',
+    content: normalizedTodoContent,
+    sourceText,
+    confidence: segment.confidence || 'low',
+    needsUserConfirmation: false,
+    errors: [],
+    todo: {
+      priority: 'important-not-urgent',
+      category: 'life',
+      scope: 'daily',
+      dueDate,
+    },
+  };
+}
+
 function hasExplicitZhTimeAnchor(input: string): boolean {
   if (!input) return false;
   return /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|\d{1,2}\s*(?::|：)\s*\d{1,2}|\d{1,2}\s*(?:点(?:\d{1,2}\s*分?)?)|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}\s*(?:点)?)/.test(input);
@@ -587,6 +643,10 @@ export function buildDraftsFromAIResult(
           confidence: segment.confidence || 'low',
         });
       } else if (segment.kind === 'activity' && hasTimeAnchor(segment)) {
+        if (shouldConvertBackfillToTodo(segment, today, lang)) {
+          drafts.push(buildTodoDraftFromSegment(segment, content, sourceText, today, lang));
+          continue;
+        }
         const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
         const timeResolution = toActivityTimeResolutionFromSegment(segment);
         const dynamicPeriod = timeResolution === 'period'
@@ -636,27 +696,15 @@ export function buildDraftsFromAIResult(
     }
 
     if (segment.kind === 'todo_add') {
-      const dueDate = inferTodoDueDate(sourceText || content, today, lang);
-      const normalizedTodoContent = normalizeTodoContent(content, sourceText, lang);
-      drafts.push({
-        id: uuidv4(),
-        kind: 'todo_add',
-        content: normalizedTodoContent,
-        sourceText,
-        confidence: segment.confidence || 'low',
-        needsUserConfirmation: false,
-        errors: [],
-        todo: {
-          priority: 'important-not-urgent',
-          category: 'life',
-          scope: 'daily',
-          dueDate,
-        },
-      });
+      drafts.push(buildTodoDraftFromSegment(segment, content, sourceText, today, lang));
       continue;
     }
 
     if (segment.kind === 'activity_backfill') {
+      if (shouldConvertBackfillToTodo(segment, today, lang)) {
+        drafts.push(buildTodoDraftFromSegment(segment, content, sourceText, today, lang));
+        continue;
+      }
       const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
       const timeResolution = toActivityTimeResolutionFromSegment(segment);
       const dynamicPeriod = timeResolution === 'period'
