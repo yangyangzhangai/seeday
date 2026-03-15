@@ -2362,3 +2362,22 @@ docs/                 # 架构与交接文档
 - 验证结果:
   - `npx vitest run src/services/input/magicPenDateParser.test.ts` ✅
   - `npx vitest run src/services/input/magicPenParser.test.ts` ✅
+
+### 2026-03-15 — Magic Pen Session-38/39 执行（MP7.9 未来时段待办改判 + 线上区域固定）
+
+- 变更来源:
+  1. 用户反馈：早上输入“晚上看电影”被误判为 `activity_backfill`，期望进入 `todo_add`。
+  2. 线上日志反馈：`/api/magic-pen-parse` 出现 `iad1 -> open.bigmodel.cn` 长等待（10s~50s）波动，要求先做区域固定。
+- 执行人: AI (OpenCode)
+- 已完成:
+  1. 更新 `src/services/input/magicPenDraftBuilder.ts`：新增未来时段守卫与统一 todo 构建方法，遇到未来导向的 `activity_backfill` 自动改判为 `todo_add`。
+  2. 更新 `src/services/input/magicPenParserLocalFallback.ts`：本地 fallback 同步支持“早上输入晚间时段词”优先识别为待办，并清洗 `晚上/今晚/今夜` 前缀。
+  3. 新增/更新回归：`src/services/input/magicPenDraftBuilder.test.ts`、`src/services/input/magicPenParser.test.ts`，覆盖“早上输入 晚上看电影 -> todo_add”场景。
+  4. 更新 `vercel.json`：将 `api/magic-pen-parse.ts` 固定到 `fra1`，并设置 `maxDuration: 20`。
+- 文档同步:
+  1. 更新 `docs/CHANGELOG.md`（新增 MP7.9 与 region pin 条目）
+  2. 更新 `docs/CURRENT_TASK.md`（session-38/39 快照 + next step）
+  3. 更新 `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（本条执行快照）
+- 验证结果:
+  - `npm run test:unit -- src/services/input/magicPenParser.test.ts src/services/input/magicPenDraftBuilder.test.ts` ✅
+  - 线上区域验证待部署后在 Vercel logs 复核（`fra1`/p95）

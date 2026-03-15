@@ -1,13 +1,13 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-14 (session-37)
+- Last Updated: 2026-03-15 (session-40)
 - Owner: current working session
 - Purpose: this file is the quick resume anchor for any new session.
 
 ## Current Focus
 
 - Mainline task status: `magicpen-v2` remains the active track.
-- Scope anchor for next execution: session-37 keeps parser-first mixed-input extraction and adds fallback todo-date anti-misclassification guard (`8-9点` time range must not be parsed as month-day dueDate).
+- Scope anchor for next execution: session-40 keeps parser-first mixed-input extraction and lands server-side provider fallback for `/api/magic-pen-parse` (`zhipu -> qwen-flash`) on timeout/empty/parse failure.
 - Doc planning anchor for next execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md`.
 - Boundary lock: do not refactor the global ordinary-mode `activity/mood` auto-classifier as part of the next Magic Pen slice.
 
@@ -17,6 +17,36 @@
 - `cleanup` remains historical reference in `docs/CODE_CLEANUP_HANDOVER_PLAN.md` and `docs/CHANGELOG.md`.
 
 ## Latest Execution Snapshots (Keep Last 3)
+
+### 2026-03-15 / session-40
+
+- Landed Magic Pen provider fallback in `/api/magic-pen-parse`:
+  - primary provider: Zhipu `glm-4.7-flash`
+  - fallback provider: DashScope OpenAI-compatible `qwen-flash`
+  - fallback triggers: `timeout` / `http_error` / `empty_content` / `invalid_payload` / `parse_failed`
+- Extended response observability:
+  - response metadata now includes `providerUsed` and `fallbackFrom`
+  - server logs now expose provider failure reasons for deterministic production diagnosis
+- Added regressions and contract sync:
+  - `api/magic-pen-parse.test.ts` added empty-content fallback case
+  - `.env.example` / `api/README.md` synced with `QWEN_API_KEY`, `DASHSCOPE_BASE_URL`, `MAGIC_PEN_FALLBACK_MODEL`
+
+### 2026-03-15 / session-39
+
+- Landed Vercel function region pin for Magic Pen parse:
+  - `vercel.json` now pins `api/magic-pen-parse.ts` to `fra1`
+  - added `maxDuration: 20` to cap long-running upstream waits
+- Goal: reduce `iad1 -> open.bigmodel.cn` cross-region latency spikes observed in production logs.
+
+### 2026-03-15 / session-38
+
+- Landed future-period todo reclassification guard:
+  - AI result mapping now converts future-oriented `activity_backfill` to `todo_add` when context indicates pending intent (for example morning input `晚上看电影`).
+  - local fallback parser now applies aligned future-period todo detection to avoid AI/local divergence.
+  - fallback todo content cleanup now strips leading period tokens (`晚上/今晚/今夜`) so output is concise (`看电影`).
+- Added regressions:
+  - `magicPenDraftBuilder.test.ts`: future-period backfill -> todo case
+  - `magicPenParser.test.ts`: morning `晚上看电影` should parse as todo with same-day dueDate
 
 ### 2026-03-14 / session-37
 
@@ -130,7 +160,7 @@
 
 ## Next Step (Single)
 
-- Next: monitor one cycle of mode-on fallback samples to confirm `8-9点`-style expressions no longer leak into todo dueDate while keeping explicit `3.18` date parsing stable.
+- Next: monitor one production cycle of `/api/magic-pen-parse` fallback hit-rate (`providerUsed`, `fallbackFrom`) and validate that repeated sends no longer require manual refresh.
 
 ## Resume Order
 

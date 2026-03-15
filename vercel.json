@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "api/magic-pen-parse.ts": {
+      "regions": ["fra1"],
+      "maxDuration": 20
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

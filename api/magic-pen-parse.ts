@@ -28,11 +28,47 @@ const STRICT_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const AI_PARSE_FAILURE_TEXT = '（AI 解析失败，请手动录入）';
 
 type MagicPenParseStrategy = 'direct_json' | 'wrapped_object' | 'fallback_failed';
+type MagicPenProvider = 'zhipu' | 'qwen_flash_fallback';
+
+type ProviderFailureReason =
+  | 'timeout'
+  | 'http_error'
+  | 'empty_content'
+  | 'invalid_payload'
+  | 'parse_failed'
+  | 'exception';
 
 interface ParsedMagicPenAIResponse {
   data: MagicPenAIResult;
   strategy: MagicPenParseStrategy;
 }
+
+interface ProviderCallSuccess {
+  ok: true;
+  provider: MagicPenProvider;
+  elapsedMs: number;
+  status: number;
+  raw: string;
+  parsed: ParsedMagicPenAIResponse;
+}
+
+interface ProviderCallFailure {
+  ok: false;
+  provider: MagicPenProvider;
+  elapsedMs: number;
+  reason: ProviderFailureReason;
+  status?: number;
+  statusText?: string;
+  details?: string;
+}
+
+type ProviderCallResult = ProviderCallSuccess | ProviderCallFailure;
+
+const ZHIPU_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_FALLBACK_MODEL = 'qwen-flash';
+const PRIMARY_TIMEOUT_MS = 12000;
+const FALLBACK_TIMEOUT_MS = 12000;
 
 function shouldDebugMagicPen(): boolean {
   return process.env.MAGIC_PEN_DEBUG === '1' || process.env.NODE_ENV !== 'production';
@@ -63,6 +99,46 @@ function logMagicPen(traceId: string, step: string, payload?: Record<string, unk
     return;
   }
   console.log(`[magic-pen-parse][${traceId}] ${step}`);
+}
+
+function getTimeoutMs(value: string | undefined, fallbackMs: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallbackMs;
+  return Math.min(60000, Math.max(1000, Math.round(parsed)));
+}
+
+function normalizeBaseUrl(baseUrl: string | undefined): string {
+  const value = (baseUrl || DEFAULT_DASHSCOPE_BASE_URL).trim();
+  return value.replace(/\/+$/, '');
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || /abort/i.test(error.message));
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildProviderFailure(
+  provider: MagicPenProvider,
+  elapsedMs: number,
+  reason: ProviderFailureReason,
+  extras?: Omit<ProviderCallFailure, 'ok' | 'provider' | 'elapsedMs' | 'reason'>,
+): ProviderCallFailure {
+  return {
+    ok: false,
+    provider,
+    elapsedMs,
+    reason,
+    ...extras,
+  };
 }
 
 function normalizeModelTime(value: unknown): string | undefined {
@@ -350,6 +426,89 @@ function parseMagicPenAIResponse(raw: string): ParsedMagicPenAIResponse {
   };
 }
 
+async function callProvider(
+  provider: MagicPenProvider,
+  apiUrl: string,
+  apiKey: string,
+  model: string,
+  prompt: string,
+  rawText: string,
+  timeoutMs: number,
+): Promise<ProviderCallResult> {
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetchWithTimeout(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: rawText },
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+        stream: false,
+      }),
+    }, timeoutMs);
+
+    const elapsedMs = Date.now() - startedAt;
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => '');
+      return buildProviderFailure(provider, elapsedMs, 'http_error', {
+        status: response.status,
+        statusText: response.statusText,
+        details: previewText(details, 220),
+      });
+    }
+
+    const payload = await response.json().catch(() => null);
+    if (!payload || typeof payload !== 'object') {
+      return buildProviderFailure(provider, elapsedMs, 'invalid_payload');
+    }
+
+    const raw = typeof (payload as any)?.choices?.[0]?.message?.content === 'string'
+      ? (payload as any).choices[0].message.content
+      : '';
+
+    if (!raw.trim()) {
+      return buildProviderFailure(provider, elapsedMs, 'empty_content', {
+        status: response.status,
+      });
+    }
+
+    const parsed = parseMagicPenAIResponse(raw);
+    if (parsed.strategy === 'fallback_failed') {
+      return buildProviderFailure(provider, elapsedMs, 'parse_failed', {
+        status: response.status,
+        details: previewText(raw, 220),
+      });
+    }
+
+    return {
+      ok: true,
+      provider,
+      elapsedMs,
+      status: response.status,
+      raw,
+      parsed,
+    };
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    if (isAbortError(error)) {
+      return buildProviderFailure(provider, elapsedMs, 'timeout');
+    }
+    return buildProviderFailure(provider, elapsedMs, 'exception', {
+      details: error instanceof Error ? error.message : 'unknown error',
+    });
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
   if (handlePreflight(req, res)) return;
@@ -406,8 +565,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   const apiKey = process.env.ZHIPU_API_KEY;
-  if (!apiKey) {
-    logMagicPen(traceId, 'request.missing_api_key');
+  const fallbackApiKey = process.env.QWEN_API_KEY;
+  if (!apiKey && !fallbackApiKey) {
+    logMagicPen(traceId, 'request.missing_api_keys');
     jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
@@ -423,61 +583,126 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ));
 
   try {
-    const upstreamStartedAt = Date.now();
-    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'glm-4.7-flash',
-        messages: [
-          { role: 'system', content: prompt },
-          { role: 'user', content: rawText },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-        stream: false,
-      }),
-    });
-    const upstreamElapsedMs = Date.now() - upstreamStartedAt;
-    logMagicPen(traceId, 'upstream.response', {
-      status: response.status,
-      ok: response.ok,
-      elapsedMs: upstreamElapsedMs,
-    });
+    const providerAttempts: ProviderCallFailure[] = [];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logMagicPen(traceId, 'upstream.error', {
-        status: response.status,
-        statusText: response.statusText,
-        errorPreview: previewText(errorText, 200),
+    let primaryResult: ProviderCallResult | null = null;
+    if (apiKey) {
+      const primaryTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_PRIMARY_TIMEOUT_MS, PRIMARY_TIMEOUT_MS);
+      primaryResult = await callProvider(
+        'zhipu',
+        ZHIPU_API_URL,
+        apiKey,
+        'glm-4.7-flash',
+        prompt,
+        rawText,
+        primaryTimeoutMs,
+      );
+
+      if (primaryResult.ok) {
+        logMagicPen(traceId, 'provider.success', {
+          provider: primaryResult.provider,
+          status: primaryResult.status,
+          elapsedMs: primaryResult.elapsedMs,
+          parseStrategy: primaryResult.parsed.strategy,
+          rawLength: primaryResult.raw.length,
+          rawPreview: previewText(primaryResult.raw, 220),
+          segmentCount: primaryResult.parsed.data.segments.length,
+          unparsedCount: primaryResult.parsed.data.unparsed.length,
+        });
+
+        res.status(200).json({
+          success: true,
+          data: primaryResult.parsed.data,
+          raw: primaryResult.raw,
+          traceId,
+          parseStrategy: primaryResult.parsed.strategy,
+          providerUsed: primaryResult.provider,
+        });
+        return;
+      }
+
+      providerAttempts.push(primaryResult);
+      logMagicPen(traceId, 'provider.failure', {
+        provider: primaryResult.provider,
+        reason: primaryResult.reason,
+        status: primaryResult.status,
+        elapsedMs: primaryResult.elapsedMs,
+        details: primaryResult.details,
       });
-      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
-      return;
     }
 
-    const json = await response.json();
-    const raw = json?.choices?.[0]?.message?.content || '';
-    const parsed = parseMagicPenAIResponse(raw);
+    if (fallbackApiKey) {
+      const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
+      const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
+      const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
+      const fallbackResult = await callProvider(
+        'qwen_flash_fallback',
+        fallbackApiUrl,
+        fallbackApiKey,
+        fallbackModel,
+        prompt,
+        rawText,
+        fallbackTimeoutMs,
+      );
 
-    logMagicPen(traceId, 'upstream.parsed', {
-      parseStrategy: parsed.strategy,
-      rawLength: typeof raw === 'string' ? raw.length : 0,
-      rawPreview: previewText(raw, 220),
-      segmentCount: parsed.data.segments.length,
-      unparsedCount: parsed.data.unparsed.length,
-      fallbackTriggered: parsed.strategy === 'fallback_failed',
+      if (fallbackResult.ok) {
+        logMagicPen(traceId, 'provider.success', {
+          provider: fallbackResult.provider,
+          status: fallbackResult.status,
+          elapsedMs: fallbackResult.elapsedMs,
+          parseStrategy: fallbackResult.parsed.strategy,
+          rawLength: fallbackResult.raw.length,
+          rawPreview: previewText(fallbackResult.raw, 220),
+          segmentCount: fallbackResult.parsed.data.segments.length,
+          unparsedCount: fallbackResult.parsed.data.unparsed.length,
+          fallbackFrom: primaryResult && !primaryResult.ok ? primaryResult.reason : undefined,
+          fallbackModel,
+        });
+
+        res.status(200).json({
+          success: true,
+          data: fallbackResult.parsed.data,
+          raw: fallbackResult.raw,
+          traceId,
+          parseStrategy: fallbackResult.parsed.strategy,
+          providerUsed: fallbackResult.provider,
+          fallbackFrom: primaryResult && !primaryResult.ok ? primaryResult.reason : undefined,
+        });
+        return;
+      }
+
+      providerAttempts.push(fallbackResult);
+      logMagicPen(traceId, 'provider.failure', {
+        provider: fallbackResult.provider,
+        reason: fallbackResult.reason,
+        status: fallbackResult.status,
+        elapsedMs: fallbackResult.elapsedMs,
+        details: fallbackResult.details,
+      });
+    }
+
+    logMagicPen(traceId, 'provider.exhausted', {
+      attempts: providerAttempts.map((item) => ({
+        provider: item.provider,
+        reason: item.reason,
+        status: item.status,
+        elapsedMs: item.elapsedMs,
+      })),
     });
 
     res.status(200).json({
       success: true,
-      data: parsed.data,
-      raw,
+      data: { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] },
+      raw: '',
       traceId,
-      parseStrategy: parsed.strategy,
+      parseStrategy: 'fallback_failed',
+      providerUsed: 'none',
+      attempts: providerAttempts.map((item) => ({
+        provider: item.provider,
+        reason: item.reason,
+        status: item.status,
+        elapsedMs: item.elapsedMs,
+      })),
     });
   } catch (error) {
     logMagicPen(traceId, 'request.exception', {

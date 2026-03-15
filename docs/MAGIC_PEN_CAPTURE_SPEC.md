@@ -617,7 +617,9 @@ unparsed（无法分类）：以下情况归入此类：
 
 #### AI 模型选择
 
-使用智谱 `glm-4.7-flash`（复用已有 `ZHIPU_API_KEY`），参数：
+主 provider 使用智谱 `glm-4.7-flash`（`ZHIPU_API_KEY`），并在主路失败时自动回退到 DashScope OpenAI-compatible `qwen-flash`（`QWEN_API_KEY` + `DASHSCOPE_BASE_URL`）。
+
+主 provider 参数：
 
 ```ts
 {
@@ -629,11 +631,11 @@ unparsed（无法分类）：以下情况归入此类：
 ```
 
 > [!NOTE]
-> 选择 `glm-4.7-flash` 而非 Chutes AI 的原因：① 智谱 flash 模型延迟更低（~1-2s），② 价格更低，③ 结构化 JSON 输出更稳定，④ 项目 `api/classify.ts` 已验证该模型的 JSON 输出质量。
+> 当前线上实现采用双 provider 容错：优先走智谱；当主路超时、空响应、解析失败或 HTTP 错误时，自动降级到 `qwen-flash`，保证 mode-on 连续输入稳定性。
 
 #### AI 响应解析与容错
 
-`api/magic-pen-parse.ts` 内必须实现 `parseMagicPenAIResponse(raw: string): MagicPenAIResult`，复用 `api/classify.ts` 已验证的解析策略：
+`api/magic-pen-parse.ts` 内必须实现 `parseMagicPenAIResponse(raw: string): MagicPenAIResult`，并配合 provider fallback：
 
 ```ts
 function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
@@ -646,11 +648,19 @@ function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
     try { return validateAndReturn(JSON.parse(match[0])); } catch {}
   }
 
-  // 策略3：兜底，全部归入 unparsed
+  // 策略3：解析失败
   console.warn('[magic-pen-parse] AI 响应解析失败，全部归入 unparsed');
   return { segments: [], unparsed: ['（AI 解析失败，请手动录入）'] };
 }
 ```
+
+Provider fallback 触发条件（任一命中）：
+1. 主 provider 超时（默认 12s，可由 `MAGIC_PEN_PRIMARY_TIMEOUT_MS` 覆盖）
+2. 主 provider HTTP 非 2xx
+3. 主 provider 返回空 `choices[0].message.content`
+4. 主 provider 返回内容无法通过 `parseMagicPenAIResponse(...)`
+
+Fallback provider 使用 DashScope OpenAI-compatible `/chat/completions`，默认模型 `qwen-flash`（可由 `MAGIC_PEN_FALLBACK_MODEL` 覆盖）。
 
 `validateAndReturn` 必须校验：
 1. `segments` 是数组
@@ -675,6 +685,10 @@ interface MagicPenParseRequest {
 interface MagicPenParseResponse {
   success: boolean;
   data: MagicPenAIResult;
+  traceId?: string;
+  parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
+  providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
+  fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
 }
 
 export async function callMagicPenParseAPI(
@@ -1000,7 +1014,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 参数校验...
   // 构建 prompt（替换 {{todayDateStr}} 和 {{currentHour}}）...
-  // 调用智谱 AI（复用 ZHIPU_API_KEY）...
+  // 调用主 provider（Zhipu）并按策略回退到 qwen-flash ...
   // 解析响应 + 校验...
   // 返回 { success: true, data: MagicPenAIResult }
 }
@@ -1009,7 +1023,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 必须同步更新 `api/README.md` 的端点清单，新增一行：
 
 ```
-| `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed } }` |
+| `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed, fallbackFrom? }` |
 ```
 
 ### 9.4 前端服务层职责
@@ -1311,7 +1325,7 @@ chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 1. 在聊天页输入栏保留一个显式 wand mode toggle。
 2. 发送时先做 clause-level dual routing：强 realtime 直写，magic / uncertain 走 review。
 3. `uncertain` 子句默认进入 magic review / `unparsedSegments`，而不是直接写入 realtime。
-4. 解析层采用 AI 结构化提取（`/api/magic-pen-parse` → 智谱 GLM-4.7-flash），复用现有 serverless 基础设施和 `ZHIPU_API_KEY`，并按 `lang` 路由 prompt。
+4. 解析层采用 AI 结构化提取（`/api/magic-pen-parse`：主路智谱 GLM-4.7-flash，失败自动回退 qwen-flash），并按 `lang` 路由 prompt。
 5. 前端 `magicPenDraftBuilder.ts` 负责将 AI 结果转为标准 draft、做时间合法性校验和 batch 冲突检测——所有确定性逻辑不依赖 AI。
 6. 活动补录直接调用 `insertActivity(null, null, content, startAt, endAt)`，绝不复用主输入发送链路。
 7. Todo 提取复用 `useTodoStore.addTodo()`。

@@ -48,14 +48,23 @@ function createMockResponse(): MockResponse {
 
 describe('api/magic-pen-parse handler', () => {
   const originalApiKey = process.env.ZHIPU_API_KEY;
+  const originalQwenApiKey = process.env.QWEN_API_KEY;
+  const originalDashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL;
+  const originalFallbackModel = process.env.MAGIC_PEN_FALLBACK_MODEL;
 
   beforeEach(() => {
     process.env.ZHIPU_API_KEY = 'test-key';
+    delete process.env.QWEN_API_KEY;
+    delete process.env.DASHSCOPE_BASE_URL;
+    delete process.env.MAGIC_PEN_FALLBACK_MODEL;
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
     process.env.ZHIPU_API_KEY = originalApiKey;
+    process.env.QWEN_API_KEY = originalQwenApiKey;
+    process.env.DASHSCOPE_BASE_URL = originalDashscopeBaseUrl;
+    process.env.MAGIC_PEN_FALLBACK_MODEL = originalFallbackModel;
     vi.unstubAllGlobals();
   });
 
@@ -297,5 +306,58 @@ describe('api/magic-pen-parse handler', () => {
     const payload = JSON.parse(call[1].body as string);
     expect(payload.messages[0].content).toContain('2026-03-14 15:23');
     expect(payload.messages[0].content).toContain('480');
+  });
+
+  it('falls back to qwen-flash when zhipu returns empty content', async () => {
+    process.env.QWEN_API_KEY = 'test-qwen-key';
+    process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '' } }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"segments":[{"text":"跑步","sourceText":"今晚跑步","kind":"todo_add","confidence":"high","timeRelation":"future"}],"unparsed":[]}' } }],
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: {
+        rawText: '今晚跑步',
+        todayDateStr: '2026-03-12',
+        currentHour: 19,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toMatchObject({
+      success: true,
+      providerUsed: 'qwen_flash_fallback',
+      data: {
+        segments: [
+          {
+            text: '跑步',
+            kind: 'todo_add',
+            confidence: 'high',
+          },
+        ],
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const fallbackCall = fetchMock.mock.calls[1];
+    expect(String(fallbackCall[0])).toContain('/chat/completions');
+    const fallbackPayload = JSON.parse(fallbackCall[1].body as string);
+    expect(fallbackPayload.model).toBe('qwen-flash');
   });
 });

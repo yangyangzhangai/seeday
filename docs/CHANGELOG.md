@@ -2,6 +2,47 @@
 
 All notable changes to this repository are documented here.
 
+## 2026-03-15 - Magic Pen MP8.0 Provider Fallback (`zhipu -> qwen-flash`)
+
+### Changed
+
+- Updated `api/magic-pen-parse.ts` to run `glm-4.7-flash` as primary provider and automatically fallback to DashScope OpenAI-compatible `qwen-flash` when primary call fails by timeout / non-2xx / empty content / parse failure.
+- Added provider-level timeout and failure-reason observability (`timeout`, `empty_content`, `parse_failed`, etc.) plus fallback trace metadata (`providerUsed`, `fallbackFrom`) in API response.
+- Updated `src/api/client.ts` parse response contract typing to include fallback provider metadata.
+- Added fallback regression in `api/magic-pen-parse.test.ts` to ensure empty-content primary responses are recovered by `qwen-flash`.
+- Synced environment/documentation contracts in `.env.example` and `api/README.md` for `QWEN_API_KEY`, `DASHSCOPE_BASE_URL`, and `MAGIC_PEN_FALLBACK_MODEL`.
+
+### Validation
+
+- `npm run test:unit -- api/magic-pen-parse.test.ts`
+- `npm run build`
+
+## 2026-03-15 - Magic Pen MP7.9 Future-Period Todo Reclassification Guard (`早上输入 晚上看电影`)
+
+### Changed
+
+- Updated `src/services/input/magicPenDraftBuilder.ts` to add a post-parse guard that reclassifies `activity_backfill` to `todo_add` when segment intent is future-oriented (`timeRelation: future`) or when zh period wording is clearly future from current morning context.
+- Added shared todo draft construction in `buildTodoDraftFromSegment(...)` to keep dueDate/content normalization consistent for native todo and reclassified todo flows.
+- Updated `src/services/input/magicPenParserLocalFallback.ts` so local fallback classification also treats morning-entered evening-period phrases as todo intent, avoiding AI/local divergence.
+- Updated fallback todo content cleanup to strip period-leading todo phrasing (`晚上/今晚/今夜`) for concise todo text output.
+- Added regressions in:
+  - `src/services/input/magicPenDraftBuilder.test.ts`
+  - `src/services/input/magicPenParser.test.ts`
+
+### Validation
+
+- `npm run test:unit -- src/services/input/magicPenParser.test.ts src/services/input/magicPenDraftBuilder.test.ts`
+
+## 2026-03-15 - Vercel Region Pin for `/api/magic-pen-parse` (`fra1`)
+
+### Changed
+
+- Updated `vercel.json` function config to pin `api/magic-pen-parse.ts` to `fra1` and set `maxDuration: 20` to reduce cross-region routing latency and cap long-running upstream waits.
+
+### Validation
+
+- Manual deploy/log verification required: confirm runtime region is `fra1` (not `iad1`) and compare p95 latency for `/api/magic-pen-parse`.
+
 ## 2026-03-14 - Magic Pen MP7.8 Fallback Todo Date Guard (`8-9点`)
 
 ### Changed
