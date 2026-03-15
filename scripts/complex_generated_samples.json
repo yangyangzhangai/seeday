@@ -1,0 +1,290 @@
+[
+  {
+    "id": "cx-001",
+    "input": "我现在在吃饭，有点想哭，明天要考试了，晚上还要开会。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-002",
+    "input": "我早上8点起来洗漱，后来赶地铁，刚到公司就感觉特别焦虑。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-003",
+    "input": "刚开完复盘会，脑子很乱，但还得继续改方案。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-004",
+    "input": "今天一直在写文档，效率很低，越写越烦。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-005",
+    "input": "正在给客户回邮件，心里发慌，怕又被追问进度。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-006",
+    "input": "中午跑完步后去洗澡，现在整个人轻松了一点。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-007",
+    "input": "我在改 Bug，改到一半发现思路全乱了，特别崩溃。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-008",
+    "input": "下午连着开了三场会，嗓子都哑了，人也麻了。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-009",
+    "input": "刚把作业交了，终于松口气，但还是有点不安。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-010",
+    "input": "早上在图书馆复习到现在，头疼得想躺平。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-011",
+    "input": "那个会开完之后我一直很烦，感觉自己说错了话。",
+    "last_activity_context": "开会",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-012",
+    "input": "这次汇报结束后我松了口气，但又担心老板追问细节。",
+    "last_activity_context": "汇报项目",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-013",
+    "input": "刚才那通电话让我整个人都紧绷，心里很堵。",
+    "last_activity_context": "给客户打电话",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-014",
+    "input": "那节课上完以后我有点挫败，觉得自己跟不上。",
+    "last_activity_context": "上课",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-015",
+    "input": "昨天那次沟通之后我一直别扭，越想越难受。",
+    "last_activity_context": "和同事沟通",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-016",
+    "input": "the meeting earlier left me drained and a bit angry",
+    "last_activity_context": "meeting",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-017",
+    "input": "quella riunione di poco fa mi ha stressato parecchio",
+    "last_activity_context": "riunione",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-018",
+    "input": "那份报告写完后我没觉得轻松，反而更焦虑了。",
+    "last_activity_context": "写报告",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-019",
+    "input": "明天要早起考试，今晚还得开会准备材料，我现在就开始紧张了。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-020",
+    "input": "等会要去开组会，之后还要改 PPT，想到就累。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-021",
+    "input": "下周要答辩，这几天每天都得熬夜练讲稿，压力爆炸。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-022",
+    "input": "待会儿要给爸妈打电话解释成绩，我现在慌得不行。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-023",
+    "input": "明天一早要赶高铁，行李还没收，我有点想逃避。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-024",
+    "input": "later I have to present to the team and I already feel anxious",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-025",
+    "input": "domani devo sostenere l'esame e stasera ho ancora una riunione, mi sento male",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-026",
+    "input": "这两天安排太满了，虽然还没开始做，但我已经很疲惫。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-027",
+    "input": "我在吃饭，手机还在回消息，脑子里全是明天考试，越想越想哭。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-028",
+    "input": "早上刚起床就去洗漱赶公交，到学校后突然很想哭。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-029",
+    "input": "正在整理会议纪要，晚上还要再开一次会，心情糟透了。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-030",
+    "input": "中午吃完饭马上改作业，改到现在头都晕了。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-031",
+    "input": "刚做完实验记录，虽然流程走完了，但我整个人都很空。",
+    "last_activity_context": null,
+    "expected_kind": "activity",
+    "expected_internal_kind": "activity_with_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-032",
+    "input": "那个 PR 合完之后我不踏实，总觉得还有漏测。",
+    "last_activity_context": "合并 PR",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-033",
+    "input": "那场面试结束后我一直后悔，回答得太乱了。",
+    "last_activity_context": "面试",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-034",
+    "input": "刚才那趟通勤把我搞得很烦躁，坐下来都缓不过来。",
+    "last_activity_context": "通勤",
+    "expected_kind": "activity",
+    "expected_internal_kind": "mood_about_last_activity",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-035",
+    "input": "明早要交报告，今晚还得补数据，我感觉胸口发紧。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  },
+  {
+    "id": "cx-036",
+    "input": "这个周末要准备三门考试，我一想到安排就心慌。",
+    "last_activity_context": null,
+    "expected_kind": "mood",
+    "expected_internal_kind": "standalone_mood",
+    "difficulty": "complex_generated"
+  }
+]

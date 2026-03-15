@@ -409,13 +409,13 @@ function toLocalDateEpoch(baseDate: Date): number {
 
 function inferSameDayDueDate(text: string, today: Date, lang: 'zh' | 'en' | 'it'): number | undefined {
   if (!text) return undefined;
-  if (lang === 'zh' && /(待会|等会|一会|稍后|晚点|马上|今天)/.test(text)) {
+  if (lang === 'zh' && /(待会|等会|一会|稍后|晚点|马上|今天|今晚|今夜|晚上)/.test(text)) {
     return toLocalDateEpoch(today);
   }
-  if (lang === 'en' && /\b(today|later|soon|in a while)\b/i.test(text)) {
+  if (lang === 'en' && /\b(today|later|soon|in a while|tonight|this evening)\b/i.test(text)) {
     return toLocalDateEpoch(today);
   }
-  if (lang === 'it' && /\b(oggi|tra poco|piu tardi|subito dopo)\b/i.test(text)) {
+  if (lang === 'it' && /\b(oggi|tra poco|piu tardi|subito dopo|stasera)\b/i.test(text)) {
     return toLocalDateEpoch(today);
   }
   return undefined;

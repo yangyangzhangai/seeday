@@ -20,4 +20,8 @@ describe('extractTodoDueDate', () => {
   it('does not treat time range as month-day date', () => {
     expect(extractTodoDueDate('我8-9点吃早饭', fixedNow)).toBeUndefined();
   });
+
+  it('treats tonight period wording as same-day dueDate', () => {
+    expect(toYmd(extractTodoDueDate('晚上还要开会', fixedNow))).toBe('2026-03-11');
+  });
 });

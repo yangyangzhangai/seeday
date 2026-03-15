@@ -239,6 +239,22 @@ describe('magicPenDraftBuilder', () => {
     expect(new Date(dueDate!).toISOString().slice(0, 10)).toBe('2026-03-11');
   });
 
+  it('fills same-day dueDate for tonight todo phrasing', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开会',
+        sourceText: '晚上还要开会',
+        kind: 'todo_add',
+        confidence: 'medium',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    const dueDate = parsed.drafts[0].todo?.dueDate;
+    expect(dueDate).toBeDefined();
+    expect(new Date(dueDate!).toISOString().slice(0, 10)).toBe('2026-03-11');
+  });
+
   it('keeps unparsed entries', () => {
     const parsed = buildDraftsFromAIResult({ segments: [], unparsed: ['今天做了很多事'] }, fixedNow);
     expect(parsed.unparsedSegments).toEqual(['今天做了很多事']);

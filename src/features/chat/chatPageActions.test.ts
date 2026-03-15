@@ -425,6 +425,87 @@ describe('handleMagicPenModeSend', () => {
     expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
+  it('mode-on promotes unparsed realtime activity+mood into local auto-write', async () => {
+    const sendAutoRecognizedInput = vi
+      .fn()
+      .mockResolvedValueOnce({
+        classification: {
+          kind: 'activity' as const,
+          internalKind: 'new_activity' as const,
+          confidence: 'high' as const,
+          scores: { activity: 4, mood: 0 },
+          reasons: ['matched_ongoing_signal'],
+        },
+        messageId: 'activity-1',
+      })
+      .mockResolvedValueOnce({
+        classification: {
+          kind: 'mood' as const,
+          internalKind: 'standalone_mood' as const,
+          confidence: 'high' as const,
+          scores: { activity: 0, mood: 4 },
+          reasons: ['matched_mood_signal'],
+        },
+        messageId: 'mood-1',
+      });
+
+    const params = makeMagicSendParams({
+      input: '我现在在吃饭，有点想哭，明天要考试了，晚上还要开会',
+      sendAutoRecognizedInput,
+      parseMagicPenInput: vi.fn(async () => ({
+        drafts: [
+          {
+            id: 'todo-1',
+            kind: 'todo_add' as const,
+            content: '考试了',
+            sourceText: '明天要考试了',
+            confidence: 'high' as const,
+            needsUserConfirmation: false,
+            errors: [],
+            todo: { priority: 'important-not-urgent' as const, category: 'life', scope: 'daily' as const },
+          },
+          {
+            id: 'todo-2',
+            kind: 'todo_add' as const,
+            content: '开会',
+            sourceText: '晚上还要开会',
+            confidence: 'medium' as const,
+            needsUserConfirmation: false,
+            errors: [],
+            todo: { priority: 'important-not-urgent' as const, category: 'life', scope: 'daily' as const },
+          },
+        ],
+        unparsedSegments: ['我现在在吃饭', '有点想哭', '晚上'],
+        autoWriteItems: [],
+      })),
+    });
+
+    await handleMagicPenModeSend(params);
+
+    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(1, '我现在在吃饭');
+    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(2, '有点想哭');
+    expect(params.setMagicPenSeedUnparsed).toHaveBeenCalledWith(['晚上']);
+    expect(params.setMagicPenSeedAutoWritten).toHaveBeenCalledWith([
+      {
+        id: 'local-unparsed-0',
+        kind: 'activity',
+        content: '我现在在吃饭',
+        sourceText: '我现在在吃饭',
+        messageId: 'activity-1',
+        linkedMoodContent: undefined,
+      },
+      {
+        id: 'local-unparsed-1',
+        kind: 'mood',
+        content: '有点想哭',
+        sourceText: '有点想哭',
+        messageId: 'mood-1',
+        linkedMoodContent: undefined,
+      },
+    ]);
+    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
+  });
+
   it('mode-on parser fail: keeps realtime commit and closes pending guard', async () => {
     const params = makeMagicSendParams({
       input: '明天记得开会',

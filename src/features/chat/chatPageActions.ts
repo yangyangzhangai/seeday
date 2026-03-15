@@ -132,6 +132,22 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     || classification.internalKind === 'activity_with_mood';
 }
 
+function shouldPromoteUnparsedToAutoWrite(
+  input: string,
+  classification: LiveInputClassification,
+): boolean {
+  const semanticLength = input
+    .replace(/\s+/g, '')
+    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
+    .length;
+  const isTimeOnlySegment = /^(今天|明天|后天|昨[天日]|今早|早上|上午|中午|下午|晚上|今晚|今夜|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点)$/.test(input.trim());
+
+  if (classification.confidence === 'low') {
+    return classification.kind === 'mood' && semanticLength > 0 && semanticLength <= 6 && !isTimeOnlySegment;
+  }
+  return shouldUseLocalFastPath(input, classification);
+}
+
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {
   const trimmed = params.input.trim();
   if (!trimmed || params.isMagicPenSending) {
@@ -158,10 +174,30 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
     }
 
     const parsed = await params.parseMagicPenInput(trimmed, { lang: supportedLang });
+    const recoveredAutoWriteItems = [...parsed.autoWriteItems];
+    const remainingUnparsed: string[] = [];
+
+    for (let index = 0; index < parsed.unparsedSegments.length; index += 1) {
+      const segment = parsed.unparsedSegments[index].trim();
+      if (!segment) continue;
+      const segmentClassification = classifyLiveInput(segment, getLiveInputContext(params.messages));
+      if (shouldPromoteUnparsedToAutoWrite(segment, segmentClassification)) {
+        recoveredAutoWriteItems.push({
+          id: `local-unparsed-${index}`,
+          kind: segmentClassification.kind,
+          content: segment,
+          sourceText: segment,
+          confidence: segmentClassification.confidence,
+        });
+        continue;
+      }
+      remainingUnparsed.push(segment);
+    }
+
     const autoWriteResults: Array<LiveInputClassification | null> = [];
     const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
 
-    for (const autoWriteItem of parsed.autoWriteItems) {
+    for (const autoWriteItem of recoveredAutoWriteItems) {
       if (!autoWriteItem.content.trim()) {
         continue;
       }
@@ -185,9 +221,9 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       params.updateMessageDuration,
     );
 
-    if (parsed.drafts.length > 0 || parsed.unparsedSegments.length > 0) {
+    if (parsed.drafts.length > 0 || remainingUnparsed.length > 0) {
       params.setMagicPenSeedDrafts(parsed.drafts);
-      params.setMagicPenSeedUnparsed(parsed.unparsedSegments);
+      params.setMagicPenSeedUnparsed(remainingUnparsed);
       params.setMagicPenSeedAutoWritten(autoWrittenItems);
       params.setIsMagicPenOpen(true);
     } else {
