@@ -113,13 +113,14 @@ export function MagicPenSheet({
       });
       return;
     }
+    const nowMs = Date.now();
     upsertDraft({
       ...draft,
       kind: 'activity_backfill',
       todo: undefined,
-      activity: { timeResolution: 'missing' },
+      activity: { timeResolution: 'missing', startAt: nowMs - 30 * 60 * 1000, endAt: nowMs },
       needsUserConfirmation: true,
-      errors: ['missing_time'],
+      errors: [],
     });
   };
 

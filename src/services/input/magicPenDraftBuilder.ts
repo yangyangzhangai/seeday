@@ -638,6 +638,10 @@ export function buildDraftsFromAIResult(
         }
         const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
         const resolvedTiming = resolveActivityTimingFromSegment(segment, sourceText, content, today, lang);
+        const nowMs = today.getTime();
+        const startAt = resolvedTiming.startAt ?? (nowMs - 30 * 60 * 1000);
+        const endAt = resolvedTiming.endAt ?? nowMs;
+
         drafts.push({
           id: uuidv4(),
           kind: 'activity_backfill',
@@ -647,8 +651,8 @@ export function buildDraftsFromAIResult(
           needsUserConfirmation: true,
           errors: [],
           activity: {
-            startAt: resolvedTiming.startAt,
-            endAt: resolvedTiming.endAt,
+            startAt,
+            endAt,
             timeResolution: resolvedTiming.timeResolution,
             suggestedTimeLabel: segment.periodLabel,
           },
@@ -671,17 +675,22 @@ export function buildDraftsFromAIResult(
       }
       const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
       const resolvedTiming = resolveActivityTimingFromSegment(segment, sourceText, content, today, lang);
+      const nowMs = today.getTime();
+      const needsFallback = resolvedTiming.startAt === undefined || resolvedTiming.endAt === undefined;
+      const startAt = resolvedTiming.startAt ?? (nowMs - 30 * 60 * 1000);
+      const endAt = resolvedTiming.endAt ?? nowMs;
+
       drafts.push({
         id: uuidv4(),
         kind: 'activity_backfill',
         content: normalizedActivityContent,
         sourceText,
         confidence: segment.confidence || 'low',
-        needsUserConfirmation: resolvedTiming.timeResolution !== 'missing',
+        needsUserConfirmation: needsFallback || resolvedTiming.timeResolution !== 'missing',
         errors: [],
         activity: {
-          startAt: resolvedTiming.startAt,
-          endAt: resolvedTiming.endAt,
+          startAt,
+          endAt,
           timeResolution: resolvedTiming.timeResolution,
           suggestedTimeLabel: segment.periodLabel,
         },

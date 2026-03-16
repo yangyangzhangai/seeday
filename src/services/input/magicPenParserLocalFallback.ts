@@ -330,6 +330,8 @@ function buildActivityDraft(segment: string, confidence: MagicPenDraftConfidence
     errors: [],
     activity: {
       timeResolution: 'missing',
+      startAt: now.getTime() - 30 * 60 * 1000,
+      endAt: now.getTime(),
     },
   };
 }
