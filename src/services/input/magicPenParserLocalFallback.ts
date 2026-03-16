@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
 import { v4 as uuidv4 } from 'uuid';
-import { buildSuggestedTimeWindow, validateDrafts } from './magicPenDraftBuilder';
+import { validateDrafts } from './magicPenDraftBuilder';
+import { buildSuggestedTimeWindow } from './magicPenTimeUtils';
 import { extractTodoDueDate } from './magicPenDateParser';
 import {
   ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS,
