@@ -422,7 +422,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const providerAttempts: ProviderCallFailure[] = [];
 
-    const fallbackApiKey = process.env.DASHSCOPE_API_KEY;
+    const fallbackApiKey = process.env.QWEN_API_KEY;
     const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
     const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
     const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
