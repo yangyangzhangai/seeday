@@ -4,9 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Wand2, X } from 'lucide-react';
 import {
   errorToI18nKey,
-  fromDateInputValue,
   fromDateTimeLocal,
-  toDateInputValue,
   toDateTimeLocal,
 } from './magicPenSheetHelpers';
 import { alignPeriodDraftsToMessageGaps, validateDrafts } from '../../services/input/magicPenDraftBuilder';
@@ -363,11 +361,11 @@ export function MagicPenSheet({
                     <label className="col-span-2 flex items-center gap-2">
                       <span>{t('chat_magic_pen_due_date')}:</span>
                       <input
-                        type="date"
+                        type="datetime-local"
                         disabled={!editable}
-                        value={toDateInputValue(draft.todo?.dueDate)}
+                        value={toDateTimeLocal(draft.todo?.dueDate)}
                         onChange={(event) => {
-                          const dueDate = fromDateInputValue(event.target.value);
+                          const dueDate = fromDateTimeLocal(event.target.value);
                           upsertDraft({
                             ...draft,
                             todo: {

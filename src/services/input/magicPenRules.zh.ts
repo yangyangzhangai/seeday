@@ -1,5 +1,8 @@
-// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
-import { ZH_ACTIVITY_STRONG_PHRASES, ZH_ACTIVITY_VERBS } from './liveInputRules.zh';
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md -> src/features/todo/README.md
+import {
+  ZH_SHARED_ACTIVITY_STRONG_PHRASES,
+  ZH_SHARED_ACTIVITY_VERBS,
+} from './activityLexicon.zh';
 
 export const ZH_MAGIC_PEN_PUNCT_SPLITTER = /[，。；、\n]/;
 
@@ -19,8 +22,8 @@ export const ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS = [
 
 export const ZH_MAGIC_PEN_ACTIVITY_VERBS = Array.from(
   new Set([
-    ...ZH_ACTIVITY_VERBS,
-    ...ZH_ACTIVITY_STRONG_PHRASES,
+    ...ZH_SHARED_ACTIVITY_VERBS,
+    ...ZH_SHARED_ACTIVITY_STRONG_PHRASES,
     '写方案',
     '改方案',
     '买菜',

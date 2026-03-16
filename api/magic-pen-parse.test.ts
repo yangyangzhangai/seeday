@@ -197,6 +197,35 @@ describe('api/magic-pen-parse handler', () => {
     expect(segment.durationMinutes).toBe(30);
   });
 
+  it('keeps inferred timeSource when model returns it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                '{"segments":[{"text":"开会","sourceText":"刚开完会","kind":"activity_backfill","confidence":"high","timeRelation":"past","timeSource":"inferred"}],"unparsed":[]}',
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = {
+      method: 'POST',
+      body: { rawText: '刚开完会', todayDateStr: '2026-03-12', currentHour: 10 },
+    };
+    const res = createMockResponse();
+
+    await handler(req as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    const segment = (res.payload as any).data.segments[0];
+    expect(segment.timeSource).toBe('inferred');
+  });
+
   it('normalizes 1-digit hour clock returned by model', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

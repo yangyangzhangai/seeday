@@ -33,6 +33,12 @@ describe('classifyLiveInput zh seed and regression cases', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
+  it('classifies group-meeting phrase as activity: 开组会', () => {
+    const result = classify('开组会');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
   it('classifies activity_with_mood case: 写周报写得很烦', () => {
     const result = classify('写周报写得很烦');
     expect(result.kind).toBe('activity');

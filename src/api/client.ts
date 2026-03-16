@@ -257,7 +257,7 @@ interface MagicPenParseSegment {
   durationMinutes?: number;
   startTime?: string;
   endTime?: string;
-  timeSource?: 'exact' | 'period' | 'missing';
+  timeSource?: 'exact' | 'period' | 'inferred' | 'missing';
   periodLabel?: string;
 }
 
@@ -270,7 +270,7 @@ interface MagicPenParseResponse {
   traceId?: string;
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
   providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
-  fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
+  fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception' | 'qwen';
 }
 
 /**
