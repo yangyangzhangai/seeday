@@ -422,17 +422,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const providerAttempts: ProviderCallFailure[] = [];
 
+    const fallbackApiKey = process.env.DASHSCOPE_API_KEY;
+    const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
+    const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
+    const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
+
     let primaryResult: ProviderCallResult | null = null;
-    if (apiKey) {
-      const primaryTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_PRIMARY_TIMEOUT_MS, PRIMARY_TIMEOUT_MS);
+    if (fallbackApiKey) {
       primaryResult = await callProvider(
-        'zhipu',
-        ZHIPU_API_URL,
-        apiKey,
-        'glm-4.7-flash',
+        'qwen_flash_fallback',
+        fallbackApiUrl,
+        fallbackApiKey,
+        fallbackModel,
         prompt,
         rawText,
-        primaryTimeoutMs,
+        fallbackTimeoutMs,
       );
 
       if (primaryResult.ok) {
@@ -468,53 +472,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (fallbackApiKey) {
-      const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
-      const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
-      const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
-      const fallbackResult = await callProvider(
-        'qwen_flash_fallback',
-        fallbackApiUrl,
-        fallbackApiKey,
-        fallbackModel,
+    if (apiKey) {
+      const primaryTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_PRIMARY_TIMEOUT_MS, PRIMARY_TIMEOUT_MS);
+      primaryResult = await callProvider(
+        'zhipu',
+        ZHIPU_API_URL,
+        apiKey,
+        'glm-4.7-flash',
         prompt,
         rawText,
-        fallbackTimeoutMs,
+        primaryTimeoutMs,
       );
 
-      if (fallbackResult.ok) {
+      if (primaryResult.ok) {
         logMagicPen(traceId, 'provider.success', {
-          provider: fallbackResult.provider,
-          status: fallbackResult.status,
-          elapsedMs: fallbackResult.elapsedMs,
-          parseStrategy: fallbackResult.parsed.strategy,
-          rawLength: fallbackResult.raw.length,
-          rawPreview: previewText(fallbackResult.raw, 220),
-          segmentCount: fallbackResult.parsed.data.segments.length,
-          unparsedCount: fallbackResult.parsed.data.unparsed.length,
-          fallbackFrom: primaryResult && !primaryResult.ok ? primaryResult.reason : undefined,
-          fallbackModel,
+          provider: primaryResult.provider,
+          status: primaryResult.status,
+          elapsedMs: primaryResult.elapsedMs,
+          parseStrategy: primaryResult.parsed.strategy,
+          rawLength: primaryResult.raw.length,
+          rawPreview: previewText(primaryResult.raw, 220),
+          segmentCount: primaryResult.parsed.data.segments.length,
+          unparsedCount: primaryResult.parsed.data.unparsed.length,
+          fallbackFrom: 'qwen',
         });
 
         res.status(200).json({
           success: true,
-          data: fallbackResult.parsed.data,
-          raw: fallbackResult.raw,
+          data: primaryResult.parsed.data,
+          raw: primaryResult.raw,
           traceId,
-          parseStrategy: fallbackResult.parsed.strategy,
-          providerUsed: fallbackResult.provider,
-          fallbackFrom: primaryResult && !primaryResult.ok ? primaryResult.reason : undefined,
+          parseStrategy: primaryResult.parsed.strategy,
+          providerUsed: primaryResult.provider,
+          fallbackFrom: 'qwen',
         });
         return;
       }
 
-      providerAttempts.push(fallbackResult);
+      providerAttempts.push(primaryResult);
       logMagicPen(traceId, 'provider.failure', {
-        provider: fallbackResult.provider,
-        reason: fallbackResult.reason,
-        status: fallbackResult.status,
-        elapsedMs: fallbackResult.elapsedMs,
-        details: fallbackResult.details,
+        provider: primaryResult.provider,
+        reason: primaryResult.reason,
+        status: primaryResult.status,
+        elapsedMs: primaryResult.elapsedMs,
+        details: primaryResult.details,
       });
     }
 
