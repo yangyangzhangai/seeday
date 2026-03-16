@@ -464,7 +464,12 @@ function normalizeTodoContent(content: string, sourceText: string, lang: 'zh' | 
 }
 
 function hasTimeAnchor(segment: MagicPenAISegment): boolean {
-  return Boolean(segment.startTime || segment.endTime || segment.timeSource || segment.periodLabel);
+  return Boolean(
+    segment.startTime ||
+    segment.endTime ||
+    (segment.timeSource && segment.timeSource !== 'missing') ||
+    segment.periodLabel
+  );
 }
 
 function isRealtimeAutoWriteCandidate(segment: MagicPenAISegment, lang: 'zh' | 'en' | 'it'): boolean {
