@@ -197,7 +197,7 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('今天难过了');
     expect(params.parseMagicPenInput).toHaveBeenCalledWith('今天难过了', { lang: 'zh' });
   });
 
@@ -408,7 +408,7 @@ describe('handleMagicPenModeSend', () => {
     expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
   });
 
-  it('mode-on low-confidence activity/mood: does not direct-write', async () => {
+  it('mode-on low-confidence activity/mood: can write clear mood from unparsed', async () => {
     const params = makeMagicSendParams({
       input: '明天我有点烦但也不知道怎么说',
       parseMagicPenInput: vi.fn(async () => ({
@@ -420,9 +420,9 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('我有点烦但也不知道怎么说');
     expect(params.parseMagicPenInput).toHaveBeenCalledWith('明天我有点烦但也不知道怎么说', { lang: 'zh' });
-    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
+    expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
   });
 
   it('mode-on promotes unparsed realtime activity+mood into local auto-write', async () => {

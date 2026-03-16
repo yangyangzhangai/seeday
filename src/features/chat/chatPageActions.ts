@@ -67,6 +67,15 @@ function logMagicPenFlow(step: string, payload: Record<string, unknown>): void {
   console.log(`[magic-pen-flow] ${step}`, payload);
 }
 
+function previewMagicPenText(text: string, maxLength: number = 48): string {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLength) return compact;
+  const head = compact.slice(0, Math.floor(maxLength / 2));
+  const tail = compact.slice(-Math.floor(maxLength / 2));
+  return `${head} ... ${tail}`;
+}
+
 function toSupportedLang(inputLang: string): 'zh' | 'en' | 'it' {
   const resolved = inputLang.toLowerCase();
   if (resolved === 'en' || resolved === 'it') {
@@ -99,7 +108,7 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
     .length;
 
-  const hasExplicitTimeSignal = /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|下周|本周|这周|本月|下个月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:\d{1,2}分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}(?:点)?)/.test(input);
+  const hasExplicitTimeSignal = /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|下周|本周|这周|本月|下个月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}(?:点)?)/.test(input);
   if (hasExplicitTimeSignal) {
     return false;
   }
@@ -128,7 +137,7 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     return false;
   }
 
-  const hasParserPrioritySignals = /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(input);
+  const hasParserPrioritySignals = /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(input);
   if (hasParserPrioritySignals) {
     return false;
   }
@@ -147,10 +156,14 @@ function shouldPromoteUnparsedToAutoWrite(
     .replace(/\s+/g, '')
     .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
     .length;
-  const isTimeOnlySegment = /^(今天|明天|后天|昨[天日]|今早|早上|上午|中午|下午|晚上|今晚|今夜|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点)$/.test(input.trim());
+  const isTimeOnlySegment = /^(今天|明天|后天|昨[天日]|今早|早上|上午|中午|下午|晚上|今晚|今夜|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?)$/.test(input.trim());
+  const hasMoodSignal = /(累|疲惫|难过|伤心|烦|崩溃|焦虑|开心|高兴|沮丧|郁闷|委屈|想哭)/.test(input);
 
   if (classification.confidence === 'low') {
     return classification.kind === 'mood' && semanticLength > 0 && semanticLength <= 6 && !isTimeOnlySegment;
+  }
+  if (classification.kind === 'mood' && hasMoodSignal && !isTimeOnlySegment) {
+    return true;
   }
   return shouldUseLocalFastPath(input, classification);
 }
@@ -208,7 +221,9 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       logMagicPenFlow('send.done_fast_path', {
         sendSeq,
         elapsedMs: Date.now() - startedAt,
+        source: 'local_fast_path',
         wroteKind: localWriteResult.classification?.kind,
+        internalKind: localWriteResult.classification?.internalKind,
       });
       return;
     }
@@ -224,7 +239,10 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       unparsedCount: parsed.unparsedSegments.length,
       autoWriteCount: parsed.autoWriteItems.length,
     });
-    const recoveredAutoWriteItems = [...parsed.autoWriteItems];
+    const recoveredAutoWriteItems = parsed.autoWriteItems.map((item) => ({
+      ...item,
+      source: 'ai' as const,
+    }));
     const remainingUnparsed: string[] = [];
 
     for (let index = 0; index < parsed.unparsedSegments.length; index += 1) {
@@ -236,20 +254,41 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
         index,
         segment,
         kind: segmentClassification.kind,
+        internalKind: segmentClassification.internalKind,
         confidence: segmentClassification.confidence,
       });
-      if (shouldPromoteUnparsedToAutoWrite(segment, segmentClassification)) {
+      const shouldPromote = shouldPromoteUnparsedToAutoWrite(segment, segmentClassification);
+      logMagicPenFlow('send.unparsed_decision', {
+        sendSeq,
+        index,
+        promoted: shouldPromote,
+        targetKind: segmentClassification.kind,
+        confidence: segmentClassification.confidence,
+      });
+      if (shouldPromote) {
         recoveredAutoWriteItems.push({
           id: `local-unparsed-${index}`,
           kind: segmentClassification.kind,
           content: segment,
           sourceText: segment,
           confidence: segmentClassification.confidence,
+          source: 'unparsed_promoted',
         });
         continue;
       }
       remainingUnparsed.push(segment);
     }
+
+    logMagicPenFlow('send.autowrite_candidates', {
+      sendSeq,
+      candidates: recoveredAutoWriteItems.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        source: item.source,
+        confidence: item.confidence,
+        contentPreview: previewMagicPenText(item.content),
+      })),
+    });
 
     const autoWriteResults: Array<LiveInputClassification | null> = [];
     const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
@@ -267,6 +306,16 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
         sourceText: autoWriteItem.sourceText,
         messageId: writeResult.messageId,
         linkedMoodContent: autoWriteItem.linkedMoodContent,
+      });
+      logMagicPenFlow('send.autowrite_item_written', {
+        sendSeq,
+        id: autoWriteItem.id,
+        source: autoWriteItem.source,
+        expectedKind: autoWriteItem.kind,
+        actualKind: writeResult.classification?.kind,
+        actualInternalKind: writeResult.classification?.internalKind,
+        confidence: writeResult.classification?.confidence,
+        contentPreview: previewMagicPenText(autoWriteItem.content),
       });
     }
 

@@ -9,6 +9,15 @@ import type { MagicPenAIResult, MagicPenDraftItem } from './magicPenTypes';
 
 const fixedNow = new Date(2026, 2, 11, 18, 0, 0, 0);
 
+function toLocalYmd(epoch?: number): string {
+  if (!epoch) return '';
+  const date = new Date(epoch);
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, '0');
+  const d = `${date.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 describe('magicPenDraftBuilder', () => {
   it('maps activity segment from AI result', () => {
     const input: MagicPenAIResult = {
@@ -255,6 +264,48 @@ describe('magicPenDraftBuilder', () => {
     expect(new Date(dueDate!).toISOString().slice(0, 10)).toBe('2026-03-11');
   });
 
+  it('uses AI todo startTime to keep exact clock in dueDate', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开组会',
+        sourceText: '明天下午三点要开组会',
+        kind: 'todo_add',
+        confidence: 'high',
+        timeRelation: 'future',
+        startTime: '15:00',
+        timeSource: 'exact',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    const dueDate = parsed.drafts[0].todo?.dueDate;
+    expect(dueDate).toBeDefined();
+    expect(toLocalYmd(dueDate)).toBe('2026-03-12');
+    expect(new Date(dueDate!).getHours()).toBe(15);
+    expect(new Date(dueDate!).getMinutes()).toBe(0);
+  });
+
+  it('uses period start hour for todo when AI gives period label only', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '开会',
+        sourceText: '明天下午要开会',
+        kind: 'todo_add',
+        confidence: 'medium',
+        timeRelation: 'future',
+        timeSource: 'period',
+        periodLabel: '下午',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    const dueDate = parsed.drafts[0].todo?.dueDate;
+    expect(dueDate).toBeDefined();
+    expect(toLocalYmd(dueDate)).toBe('2026-03-12');
+    expect(new Date(dueDate!).getHours()).toBe(15);
+    expect(new Date(dueDate!).getMinutes()).toBe(0);
+  });
+
   it('reclassifies future-period backfill to todo when current time is earlier', () => {
     const morning = new Date(2026, 2, 11, 9, 0, 0, 0);
     const input: MagicPenAIResult = {
@@ -273,6 +324,164 @@ describe('magicPenDraftBuilder', () => {
     expect(parsed.drafts[0].kind).toBe('todo_add');
     expect(parsed.drafts[0].content).toBe('看电影');
     expect(parsed.drafts[0].todo?.dueDate).toBeDefined();
+  });
+
+  it('prioritizes explicit clock over period window when source has exact zh time', () => {
+    const now = new Date(2026, 2, 16, 10, 52, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '八点起床',
+        sourceText: '八点起床',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeRelation: 'past',
+        timeSource: 'period',
+        periodLabel: '早上',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, now, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('activity_backfill');
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(8);
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getMinutes()).toBe(0);
+  });
+
+  it('infers exact start for zh half-hour clock expression', () => {
+    const now = new Date(2026, 2, 16, 10, 52, 0, 0);
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '九点半起床',
+        sourceText: '九点半起床',
+        kind: 'activity_backfill',
+        confidence: 'high',
+        timeRelation: 'past',
+        timeSource: 'missing',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, now, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(9);
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getMinutes()).toBe(30);
+  });
+
+  it('keeps realtime activity with past cue out of auto-write', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '出门',
+        sourceText: '十点才出门',
+        kind: 'activity',
+        confidence: 'high',
+        timeRelation: 'realtime',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.autoWriteItems).toHaveLength(0);
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('activity_backfill');
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(10);
+  });
+
+  it('keeps todo core action for mixed mood + plan sentence', () => {
+    const input: MagicPenAIResult = {
+      segments: [{
+        text: '最近太累了有点难过但是决定从明天开始每天都跑步',
+        sourceText: '最近太累了有点难过但是决定从明天开始每天都跑步',
+        kind: 'todo_add',
+        confidence: 'medium',
+        timeRelation: 'future',
+      }],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('todo_add');
+    expect(parsed.drafts[0].content).toBe('每天都跑步');
+  });
+
+  it('downgrades timed activity to backfill when current activity exists in same message', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '上课',
+          sourceText: '我在上课',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '出门上学',
+          sourceText: '九点出门上学',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].content).toContain('上课');
+    expect(parsed.drafts).toHaveLength(1);
+    expect(parsed.drafts[0].kind).toBe('activity_backfill');
+    expect(parsed.drafts[0].content).toBe('出门上学');
+    expect(parsed.drafts[0].activity?.timeResolution).toBe('exact');
+    expect(new Date(parsed.drafts[0].activity!.startAt!).getHours()).toBe(9);
+  });
+
+  it('keeps only one realtime activity when model returns multiple non-parallel ones', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '上课',
+          sourceText: '我在上课',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '聊天',
+          sourceText: '我在聊天',
+          kind: 'activity',
+          confidence: 'medium',
+          timeRelation: 'realtime',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].content).toBe('上课');
+  });
+
+  it('merges explicit parallel realtime activities into one current activity', () => {
+    const input: MagicPenAIResult = {
+      segments: [
+        {
+          text: '吃饭',
+          sourceText: '我在吃饭和下棋',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+        {
+          text: '下棋',
+          sourceText: '我在吃饭和下棋',
+          kind: 'activity',
+          confidence: 'high',
+          timeRelation: 'realtime',
+        },
+      ],
+      unparsed: [],
+    };
+    const parsed = buildDraftsFromAIResult(input, fixedNow, 'zh');
+    expect(parsed.autoWriteItems).toHaveLength(1);
+    expect(parsed.autoWriteItems[0].content).toBe('吃饭+下棋');
   });
 
   it('keeps unparsed entries', () => {

@@ -15,7 +15,7 @@ interface MagicPenAISegment {
   durationMinutes?: number;
   startTime?: string;
   endTime?: string;
-  timeSource?: 'exact' | 'period' | 'missing';
+  timeSource?: 'exact' | 'period' | 'inferred' | 'missing';
   periodLabel?: string;
 }
 
@@ -157,61 +157,145 @@ function normalizeModelTime(value: unknown): string | undefined {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-const MAGIC_PEN_PROMPT_ZH = `你是一个时间记录助手的文本解析器。
-你需要拆分输入文本，并输出严格 JSON，不要输出任何解释。
+const MAGIC_PEN_PROMPT_ZH = `你是小时，一个非常了解中国人日常说话习惯的时间记录助手。
 
-输出结构:
+你的任务是：理解用户随口说的一句话，帮他们把"自己做了什么、现在在做什么、要做什么、心情怎么样"提取出来，整理成结构化 JSON 记录。
+
+用户说话很随意，经常省略主语、混用时态、一句话里夹好几件事。你要像聊天的朋友一样先"听懂"，再输出 JSON。不要因为信息不完整就放弃推断——有合理猜测就给，并标注置信度。
+
+当前上下文：
+- 本地时间：{{currentLocalDateTime}}（时区偏移 {{timezoneOffsetMinutes}} 分钟）
+- 今天日期：{{todayDateStr}}
+- 当前小时：{{currentHour}}
+
+---
+
+输出格式（只输出 JSON，不加任何解释）：
 {
   "segments": [
     {
-      "text": "核心内容",
-      "sourceText": "原始片段",
-      "kind": "activity 或 mood 或 todo_add 或 activity_backfill",
-      "confidence": "high 或 medium 或 low",
-      "timeRelation": "realtime 或 future 或 past 或 unknown，可选",
-      "durationMinutes": "时长分钟数，可选",
-      "startTime": "HH:mm，可选",
-      "endTime": "HH:mm，可选",
-      "timeSource": "exact 或 period 或 missing，可选",
-      "periodLabel": "时段词，可选"
+      "text": "核心内容（动词短语，不加主语）",
+      "sourceText": "对应原文片段，不改写",
+      "kind": "activity | mood | todo_add | activity_backfill",
+      "confidence": "high | medium | low",
+      "timeRelation": "realtime | future | past | unknown",
+      "startTime": "HH:mm（可选）",
+      "endTime": "HH:mm（可选）",
+      "durationMinutes": "整数（可选，只在用户明确说了时长时填）",
+      "timeSource": "exact | period | inferred | missing",
+      "periodLabel": "时段词原文，如‘早上’‘刚刚’（可选）"
     }
   ],
-  "unparsed": ["无法分类片段"]
+  "unparsed": ["实在无法稳定分类的片段"]
 }
 
-规则:
-1) kind 允许 activity、mood、todo_add、activity_backfill：
-   - activity: 当前进行中的动作表达
-   - mood: 心情表达
-   - todo_add: 未来要做事项
-   - activity_backfill: 今天已发生活动
-2) 必须尽量完整拆分并覆盖所有可识别片段：
-   - 同一句可能同时包含 activity、mood、todo_add、activity_backfill
-   - 若能识别就输出到 segments，不要因为句子复杂而整体丢到 unparsed
-   - 只有确实无法判断的片段才放 unparsed
-3) 对 activity_backfill 尽量提取时间:
-    - exact: 精确时间或区间
-    - period: 仅标注时段语义（如上午/中午/下午/晚上），不要死板固定到唯一时间点
-    - 若句子出现"半小时/1小时/90分钟"等时长信息，请优先填 durationMinutes
-    - "8-9点"、"8点到9点"、"八九点"这类表达应按区间处理（startTime/endTime），不要把前半段留在 text
-    - missing: 无法提取时间
-4) text 必须是自然动作短语（可直接给人读）。
-5) 每个 segment 必须判断 timeRelation:
-   - realtime: 当前/刚发生/正在发生
-   - future: 未来计划、提醒、将要发生
-   - past: 明确过去且非今天实时（如昨天）
-   - unknown: 无法判断
-6) confidence 标注规则：
-   - high: 语义清晰且证据强（例如“我在吃饭”“感觉很开心”“明天要开会”“我上午学习了”）
-   - medium: 基本可判定但表达略模糊
-   - low: 证据弱或歧义明显
-7) 不确定就放 unparsed，不要强行归类。
-8) 结合当前本地时间进行判断：
-   - 当前本地时间：{{currentLocalDateTime}}（时区偏移分钟 {{timezoneOffsetMinutes}}）
-   - 今天日期 {{todayDateStr}}，当前小时 {{currentHour}}
-9) 未来义务表达优先判定为 todo_add：
-   - 包含“要/需要/记得/提醒/待会/稍后/今晚要/晚上要”等未来或义务语气时，即使出现“晚上/下午”时段词，也应优先判定为 todo_add。
-10) 活动补录(activity_backfill)只用于“今天已发生”的动作，不要把明显未来计划误判为补录。`;
+---
+
+kind 含义：
+- activity：正在进行的事（"在做"、"正在"、无时间词时默认当下）
+- mood：情绪/感受表达（"好累"、"烦死了"、"开心"）
+- todo_add：未来要做的（"要去"、"打算"、"明天"、"待会"）
+- activity_backfill：今天已完成的（"刚刚"、"x点做了"、"早上"、"上午"）
+
+时间推断规则：
+- 明确时刻（“9点半”/ "九点半" / "10:00"）→ 转成 HH:mm，timeSource: "exact"
+- 只要片段里出现明确时刻（如“八点”“九点半”“10:00”），优先使用 exact，不要改成 period
+- 只有时段词（"早上" / "下午"）→ 保留 periodLabel，timeSource: "period"，不强行猜具体时刻
+- 说"刚" / "刚刚" → startTime 往当前时间前推 15~30 分钟，timeSource: "inferred"
+- endTime 没说的，根据活动类型合理估算（起床≈30min，吃饭≈30min，开会≈60min，通勤≈30min）
+- 没有任何时间信息 → 不填时间字段，timeSource: "missing"
+
+混合句处理：
+- 一条 segment 只放一种意图，不能把情绪和待办混在同一条里
+- 像“最近太累了有点难过但是决定从明天开始每天跑步”应拆成 mood + mood + todo_add，其中 todo text 只保留“每天跑步”
+- 同一条输入最多只保留一个 realtime activity；如果还有其他活动片段，默认判为 activity_backfill
+- 只有用户明确并行表达（如“我在吃饭和下棋”“一边吃饭一边看剧”）时，才允许并行活动
+- 若同句里已识别当前活动，且另一个活动带有比当前时刻更早的明确时间（如“九点出门”），该活动应判为 activity_backfill
+
+---
+
+学习案例：
+
+案例 1
+输入：我在上课，早上八点就起床了，但是十点才出门
+输出：
+{
+  "segments": [
+    {"text":"上课","sourceText":"我在上课","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"起床","sourceText":"早上八点就起床了","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"08:30","timeSource":"exact"},
+    {"text":"出门","sourceText":"十点才出门","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:20","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+案例 2
+输入：九点半起床
+输出：
+{
+  "segments": [
+    {"text":"起床","sourceText":"九点半起床","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+案例 3
+输入：我在上课然后十点半要出门
+输出：
+{
+  "segments": [
+    {"text":"上课","sourceText":"我在上课","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"出门","sourceText":"十点半要出门","kind":"todo_add","confidence":"high","timeRelation":"future","startTime":"10:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+案例 4
+输入：累死了刚开完会 下午还有两个
+输出：
+{
+  "segments": [
+    {"text":"累","sourceText":"累死了","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"开会","sourceText":"刚开完会","kind":"activity_backfill","confidence":"high","timeRelation":"past","timeSource":"inferred"},
+    {"text":"开会","sourceText":"下午还有两个","kind":"todo_add","confidence":"medium","timeRelation":"future","periodLabel":"下午","timeSource":"period"}
+  ],
+  "unparsed": []
+}
+
+案例 5
+输入：醒了但是还没起，困死了
+输出：
+{
+  "segments": [
+    {"text":"醒了","sourceText":"醒了","kind":"activity","confidence":"medium","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"困","sourceText":"困死了","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"}
+  ],
+  "unparsed": ["但是还没起"]
+}
+
+案例 6
+输入：最近太累了有点难过但是决定从明天开始每天跑步
+输出：
+{
+  "segments": [
+    {"text":"累","sourceText":"最近太累了","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"难过","sourceText":"有点难过","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"每天跑步","sourceText":"但是决定从明天开始每天跑步","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+案例 7
+输入：八点起床最近太累了有点难过但是决定开始每天都跑步
+输出：
+{
+  "segments": [
+    {"text":"起床","sourceText":"八点起床","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"08:30","timeSource":"exact"},
+    {"text":"太累","sourceText":"最近太累了","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"难过","sourceText":"有点难过","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"每天跑步","sourceText":"但是决定开始每天都跑步","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}`;
 
 const MAGIC_PEN_PROMPT_EN = `You are a text parser for a time-tracking assistant.
 Split the input into segments and output strict JSON only. Do not output explanations.
@@ -365,7 +449,10 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
 
   const startTime = normalizeModelTime(record.startTime);
   const endTime = normalizeModelTime(record.endTime);
-  const timeSource = record.timeSource === 'exact' || record.timeSource === 'period' || record.timeSource === 'missing'
+  const timeSource = record.timeSource === 'exact'
+    || record.timeSource === 'period'
+    || record.timeSource === 'inferred'
+    || record.timeSource === 'missing'
     ? record.timeSource
     : undefined;
   const periodLabel = typeof record.periodLabel === 'string' ? record.periodLabel : undefined;
@@ -450,7 +537,7 @@ async function callProvider(
           { role: 'system', content: prompt },
           { role: 'user', content: rawText },
         ],
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: 1024,
         stream: false,
       }),

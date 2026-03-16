@@ -72,7 +72,7 @@ export interface MagicPenAISegment {
   durationMinutes?: number;
   startTime?: string;
   endTime?: string;
-  timeSource?: 'exact' | 'period' | 'missing';
+  timeSource?: 'exact' | 'period' | 'inferred' | 'missing';
   periodLabel?: string;
 }
 

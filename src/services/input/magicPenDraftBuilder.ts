@@ -181,14 +181,33 @@ function parseZhHourToken(raw: string): number | undefined {
 }
 
 function parseZhClockToken(token: string): { hour: number; minute: number; label?: string } | undefined {
-  const match = token.match(/(今早|早上|上午|中午|下午|晚上)?\s*([零一二两俩三四五六七八九十\d]{1,3})(?:(?::|：|点)([0-5]?\d)分?)?/);
+  const match = token.match(/(今早|早上|上午|中午|下午|晚上)?\s*([零一二两俩三四五六七八九十\d]{1,3})(?:(?::|：)([0-5]?\d)|点(?:(半|一刻|三刻|[0-5]?\d分?)?)?)?/);
   if (!match) return undefined;
   const label = match[1];
   const hour = parseZhHourToken(match[2]);
   if (hour === undefined) return undefined;
-  const minute = match[3] ? Number(match[3]) : 0;
+  let minute = 0;
+  if (match[3]) {
+    minute = Number(match[3]);
+  } else if (match[4]) {
+    if (match[4] === '半') {
+      minute = 30;
+    } else if (match[4] === '一刻') {
+      minute = 15;
+    } else if (match[4] === '三刻') {
+      minute = 45;
+    } else {
+      minute = Number(match[4].replace(/分$/, ''));
+    }
+  }
   if (!Number.isInteger(minute) || minute < 0 || minute > 59) return undefined;
   return { hour: normalizeZhHour(hour, label), minute, label };
+}
+
+function inferZhActivityDurationMinutes(sourceText: string): number {
+  if (/开会|会议|上课|课程/.test(sourceText)) return 60;
+  if (/起床|吃饭|早餐|午饭|晚饭|通勤|出门/.test(sourceText)) return 30;
+  return 30;
 }
 
 function inferZhExactRangeFromText(
@@ -218,17 +237,31 @@ function inferZhExactRangeFromText(
   }
 
   const adjacentMatch = text.match(/(今早|早上|上午|中午|下午|晚上)?\s*([零一二两俩三四五六七八九])([零一二两俩三四五六七八九])点/);
-  if (!adjacentMatch) return undefined;
-  const label = adjacentMatch[1];
-  const startHourBase = parseZhHourToken(adjacentMatch[2]);
-  const endHourBase = parseZhHourToken(adjacentMatch[3]);
-  if (startHourBase === undefined || endHourBase === undefined) return undefined;
-  const startHour = normalizeZhHour(startHourBase, label);
-  const endHour = normalizeZhHour(endHourBase, label);
+  if (adjacentMatch) {
+    const label = adjacentMatch[1];
+    const startHourBase = parseZhHourToken(adjacentMatch[2]);
+    const endHourBase = parseZhHourToken(adjacentMatch[3]);
+    if (startHourBase !== undefined && endHourBase !== undefined) {
+      const startHour = normalizeZhHour(startHourBase, label);
+      const endHour = normalizeZhHour(endHourBase, label);
+      const startDate = new Date(today);
+      const endDate = new Date(today);
+      startDate.setHours(startHour, 0, 0, 0);
+      endDate.setHours(endHour, 0, 0, 0);
+      return { startAt: startDate.getTime(), endAt: endDate.getTime() };
+    }
+  }
+
+  const singleTokenMatch = text.match(/((?:今早|早上|上午|中午|下午|晚上)?\s*[零一二两俩三四五六七八九十\d]{1,3}(?:(?::|：)[0-5]?\d|点(?:半|一刻|三刻|[0-5]?\d分?)?)?)/);
+  if (!singleTokenMatch) return undefined;
+  const single = parseZhClockToken(singleTokenMatch[1]);
+  if (!single) return undefined;
+  const durationMinutes = inferZhActivityDurationMinutes(text);
   const startDate = new Date(today);
   const endDate = new Date(today);
-  startDate.setHours(startHour, 0, 0, 0);
-  endDate.setHours(endHour, 0, 0, 0);
+  startDate.setHours(single.hour, single.minute, 0, 0);
+  endDate.setHours(single.hour, single.minute, 0, 0);
+  endDate.setMinutes(endDate.getMinutes() + durationMinutes);
   return { startAt: startDate.getTime(), endAt: endDate.getTime() };
 }
 
@@ -407,6 +440,23 @@ function toLocalDateEpoch(baseDate: Date): number {
   return copy.getTime();
 }
 
+function withClockOnDate(baseEpoch: number, hour: number, minute: number = 0): number {
+  const date = new Date(baseEpoch);
+  date.setHours(hour, minute, 0, 0);
+  return date.getTime();
+}
+
+function parseHourMinute(timeStr?: string): { hour: number; minute: number } | undefined {
+  if (!timeStr) return undefined;
+  const match = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return undefined;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return undefined;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+  return { hour, minute };
+}
+
 function inferSameDayDueDate(text: string, today: Date, lang: 'zh' | 'en' | 'it'): number | undefined {
   if (!text) return undefined;
   if (lang === 'zh' && /(待会|等会|一会|稍后|晚点|马上|今天|今晚|今夜|晚上)/.test(text)) {
@@ -421,12 +471,38 @@ function inferSameDayDueDate(text: string, today: Date, lang: 'zh' | 'en' | 'it'
   return undefined;
 }
 
-function inferTodoDueDate(segmentText: string, today: Date, lang: 'zh' | 'en' | 'it'): number | undefined {
+function inferTodoDueDate(
+  segmentText: string,
+  today: Date,
+  lang: 'zh' | 'en' | 'it',
+  segment?: MagicPenAISegment,
+): number | undefined {
+  let dateAnchor: number | undefined;
   if (lang === 'zh') {
-    const extracted = extractTodoDueDate(segmentText, today);
-    if (extracted !== undefined) return extracted;
+    dateAnchor = extractTodoDueDate(segmentText, today);
   }
-  return inferSameDayDueDate(segmentText, today, lang);
+  if (dateAnchor === undefined) {
+    dateAnchor = inferSameDayDueDate(segmentText, today, lang);
+  }
+
+  const fallbackDate = dateAnchor ?? toLocalDateEpoch(today);
+  const explicitClock = parseHourMinute(segment?.startTime);
+  if (explicitClock) {
+    return withClockOnDate(fallbackDate, explicitClock.hour, explicitClock.minute);
+  }
+
+  if (
+    lang === 'zh'
+    && (segment?.timeSource === 'period' || segment?.timeSource === 'inferred' || segment?.periodLabel)
+    && segment?.periodLabel
+  ) {
+    const period = ZH_MAGIC_PEN_PERIOD_WINDOWS[segment.periodLabel];
+    if (period) {
+      return withClockOnDate(fallbackDate, period.startHour, 0);
+    }
+  }
+
+  return dateAnchor;
 }
 
 function isZhFuturePeriodFromNow(text: string, now: Date): boolean {
@@ -466,7 +542,7 @@ function buildTodoDraftFromSegment(
   today: Date,
   lang: 'zh' | 'en' | 'it',
 ): MagicPenDraftItem {
-  const dueDate = inferTodoDueDate(sourceText || content, today, lang);
+  const dueDate = inferTodoDueDate(sourceText || content, today, lang, segment);
   const normalizedTodoContent = normalizeTodoContent(content, sourceText, lang);
   return {
     id: uuidv4(),
@@ -487,7 +563,12 @@ function buildTodoDraftFromSegment(
 
 function hasExplicitZhTimeAnchor(input: string): boolean {
   if (!input) return false;
-  return /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|\d{1,2}\s*(?::|：)\s*\d{1,2}|\d{1,2}\s*(?:点(?:\d{1,2}\s*分?)?)|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}\s*(?:点)?)/.test(input);
+  return /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|\d{1,2}\s*(?::|：)\s*\d{1,2}|\d{1,2}\s*(?:点(?:半|一刻|三刻|\d{1,2}\s*分?)?)|[零一二两俩三四五六七八九十]{1,3}\s*点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}\s*分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}\s*(?:点)?)/.test(input);
+}
+
+function hasExplicitZhClockAnchor(input: string): boolean {
+  if (!input) return false;
+  return /(\d{1,2}\s*(?::|：)\s*\d{1,2}|\d{1,2}\s*(?:点(?:半|一刻|三刻|\d{1,2}\s*分?)?)|[零一二两俩三四五六七八九十]{1,3}\s*点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}\s*分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}\s*(?:点)?)/.test(input);
 }
 
 function looksLikeZhTimeResidualPrefix(input: string): boolean {
@@ -526,13 +607,19 @@ function normalizeActivityContent(content: string, sourceText: string, lang: 'zh
   if (!base) return '';
 
   if (lang === 'zh') {
+    const trimZhActivityClause = (input: string): string => {
+      const firstSentence = input.split(/[，,。.!?！？；;\n]/)[0]?.trim() || input;
+      const firstClause = firstSentence.split(/(?:但是|但|不过|然后|后来|所以|于是)/)[0]?.trim() || firstSentence;
+      return firstClause.replace(/^(就|才)+/, '').trim();
+    };
+
     const cleanedBase = base
       .replace(/^我在(?=[\u4e00-\u9fa5])/u, '')
       .replace(/^我(?!们)(?=[\u4e00-\u9fa5])/u, '')
       .replace(/^自己(?=[\u4e00-\u9fa5])/u, '')
       .trim();
     const recovered = recoverZhActivityFromSourceTimePrefix(cleanedBase, sourceText);
-    const cleaned = (recovered || cleanedBase).trim();
+    const cleaned = trimZhActivityClause((recovered || cleanedBase).trim());
     return cleaned || cleanedBase || base;
   }
 
@@ -554,7 +641,19 @@ function normalizeTodoContent(content: string, sourceText: string, lang: 'zh' | 
       .replace(/^我(?=[\u4e00-\u9fa5])/u, '')
       .replace(/^自己(?=[\u4e00-\u9fa5])/u, '')
       .trim();
-    return cleaned || base;
+    const clauses = cleaned.split(/(?:但是|但|不过|然后|后来|所以|于是)/).map((item) => item.trim()).filter(Boolean);
+    const conservativeTail = clauses.length >= 2 ? clauses[clauses.length - 1] : cleaned;
+    let refined = conservativeTail
+      .replace(/^.*?(决定|打算|准备|计划)(?:着|好)?/, '')
+      .replace(/^.*?从(?:今天|明天|现在)?开始/, '')
+      .replace(/^(要|想要|想|需要|得|去)\s*/, '')
+      .replace(/^都\s*/, '')
+      .trim();
+    if (refined.includes('每天')) {
+      refined = refined.slice(refined.indexOf('每天')).trim();
+    }
+    refined = refined.replace(/[（(]+$/, '').trim();
+    return refined || conservativeTail || cleaned || base;
   }
 
   if (lang === 'en') {
@@ -570,11 +669,19 @@ function hasTimeAnchor(segment: MagicPenAISegment): boolean {
   return Boolean(segment.startTime || segment.endTime || segment.timeSource || segment.periodLabel);
 }
 
-function isRealtimeAutoWriteCandidate(segment: MagicPenAISegment): boolean {
+function isRealtimeAutoWriteCandidate(segment: MagicPenAISegment, lang: 'zh' | 'en' | 'it'): boolean {
   if (segment.confidence !== 'high' && segment.confidence !== 'medium') return false;
   if (segment.timeRelation !== 'realtime') return false;
   if (segment.kind === 'mood') return true;
-  if (segment.kind === 'activity') return !hasTimeAnchor(segment);
+  if (segment.kind === 'activity') {
+    if (hasTimeAnchor(segment)) return false;
+    if (lang !== 'zh') return true;
+    const source = (segment.sourceText || segment.text || '').trim();
+    if (!source) return true;
+    if (hasExplicitZhTimeAnchor(source)) return false;
+    if (/(才|已经)/.test(source)) return false;
+    return true;
+  }
   return false;
 }
 
@@ -587,33 +694,111 @@ function pushUnparsed(unparsedSegments: string[], content: string): void {
 function mergeLinkedRealtimeCandidates(
   candidates: MagicPenParseResult['autoWriteItems'],
 ): MagicPenParseResult['autoWriteItems'] {
-  const activity = candidates.find((item) => item.kind === 'activity');
-  const mood = candidates.find((item) => item.kind === 'mood');
+  const activities = candidates.filter((item) => item.kind === 'activity');
+  const moods = candidates.filter((item) => item.kind === 'mood');
+  let next = [...candidates];
 
-  if (!activity || !mood) {
-    return candidates;
+  if (activities.length > 0 && moods.length > 0) {
+    const activity = activities[0];
+    const mood = moods.find((item) => item.sourceText.trim() && item.sourceText.trim() === activity.sourceText.trim());
+    if (mood) {
+      const mergedContent = [activity.content, mood.content]
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .join('，');
+
+      next = next
+        .filter((item) => item.id !== mood.id)
+        .map((item) => {
+          if (item.id !== activity.id) return item;
+          return {
+            ...item,
+            content: mergedContent || item.content,
+            linkedMoodContent: mood.content,
+          };
+        });
+    }
   }
 
-  const sameSource = activity.sourceText.trim() && activity.sourceText.trim() === mood.sourceText.trim();
-  if (!sameSource) {
-    return candidates;
+  const realtimeActivities = next.filter((item) => item.kind === 'activity');
+  if (realtimeActivities.length <= 1) return next;
+
+  const joinedSource = realtimeActivities.map((item) => item.sourceText).join(' ');
+  const allowsParallel = /(一边.+一边|同时|和)/.test(joinedSource);
+  if (allowsParallel) {
+    const keeper = realtimeActivities[0];
+    const mergedActivityContent = Array.from(new Set(realtimeActivities.map((item) => item.content.trim()).filter(Boolean))).join('+');
+    return next
+      .filter((item) => item.kind !== 'activity' || item.id === keeper.id)
+      .map((item) => {
+        if (item.id !== keeper.id) return item;
+        return {
+          ...item,
+          content: mergedActivityContent || item.content,
+        };
+      });
   }
 
-  const mergedContent = [activity.content, mood.content]
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .join('，');
+  const score = (item: MagicPenParseResult['autoWriteItems'][number]): number => {
+    const confidenceScore = item.confidence === 'high' ? 100 : item.confidence === 'medium' ? 60 : 20;
+    const realtimeMarkerScore = /(我在|正在|现在|此刻)/.test(item.sourceText) ? 20 : 0;
+    return confidenceScore + realtimeMarkerScore;
+  };
+  const keeper = [...realtimeActivities].sort((a, b) => score(b) - score(a))[0];
+  return next.filter((item) => item.kind !== 'activity' || item.id === keeper.id);
+}
 
-  return candidates
-    .filter((item) => item.id !== mood.id)
-    .map((item) => {
-      if (item.id !== activity.id) return item;
-      return {
-        ...item,
-        content: mergedContent || item.content,
-        linkedMoodContent: mood.content,
-      };
-    });
+function resolveActivityTimingFromSegment(
+  segment: MagicPenAISegment,
+  sourceText: string,
+  content: string,
+  today: Date,
+  lang: 'zh' | 'en' | 'it',
+): {
+  startAt?: number;
+  endAt?: number;
+  timeResolution: 'exact' | 'period' | 'missing';
+} {
+  const baseResolution = toActivityTimeResolutionFromSegment(segment);
+  const explicitStart = segment.startTime ? timeStringToEpoch(segment.startTime, today) : undefined;
+  const explicitEnd = segment.endTime ? timeStringToEpoch(segment.endTime, today) : undefined;
+  const hasExplicitStart = explicitStart !== undefined && Number.isFinite(explicitStart);
+  const hasExplicitEnd = explicitEnd !== undefined && Number.isFinite(explicitEnd);
+
+  const source = sourceText || content;
+  const hasSourceExactAnchor = lang === 'zh' && hasExplicitZhClockAnchor(source);
+  const shouldInferZhExact = lang === 'zh'
+    && (hasSourceExactAnchor || !hasExplicitStart || !hasExplicitEnd);
+  const inferredExact = shouldInferZhExact ? inferZhExactRangeFromText(source, today) : undefined;
+
+  const resolvedStart = hasExplicitStart ? explicitStart : inferredExact?.startAt;
+  const resolvedEnd = hasExplicitEnd ? explicitEnd : inferredExact?.endAt;
+  const hasResolvedStart = resolvedStart !== undefined && Number.isFinite(resolvedStart);
+  const hasResolvedEnd = resolvedEnd !== undefined && Number.isFinite(resolvedEnd);
+
+  const shouldForceExact = baseResolution !== 'period' || hasSourceExactAnchor;
+  if (hasResolvedStart && hasResolvedEnd && shouldForceExact) {
+    return {
+      startAt: resolvedStart,
+      endAt: resolvedEnd,
+      timeResolution: 'exact',
+    };
+  }
+
+  if (baseResolution === 'period') {
+    const dynamicPeriod = buildDynamicPeriodTime(segment, today, lang);
+    return {
+      startAt: dynamicPeriod.startAt,
+      endAt: dynamicPeriod.endAt,
+      timeResolution: 'period',
+    };
+  }
+
+  return {
+    startAt: hasResolvedStart ? resolvedStart : undefined,
+    endAt: hasResolvedEnd ? resolvedEnd : undefined,
+    timeResolution: hasResolvedStart || hasResolvedEnd ? 'exact' : 'missing',
+  };
 }
 
 export function buildDraftsFromAIResult(
@@ -628,13 +813,14 @@ export function buildDraftsFromAIResult(
   for (const segment of aiResult.segments) {
     const sourceText = segment.sourceText || segment.text || '';
     const content = (segment.text || sourceText).trim();
+    const hasSourceTimeAnchor = lang === 'zh' && hasExplicitZhClockAnchor(sourceText || content);
     if (!content) {
       pushUnparsed(unparsedSegments, sourceText);
       continue;
     }
 
     if (segment.kind === 'mood' || segment.kind === 'activity') {
-      if (isRealtimeAutoWriteCandidate(segment)) {
+      if (isRealtimeAutoWriteCandidate(segment, lang)) {
         realtimeCandidates.push({
           id: uuidv4(),
           kind: segment.kind,
@@ -642,38 +828,13 @@ export function buildDraftsFromAIResult(
           sourceText,
           confidence: segment.confidence || 'low',
         });
-      } else if (segment.kind === 'activity' && hasTimeAnchor(segment)) {
+      } else if (segment.kind === 'activity' && (hasTimeAnchor(segment) || hasSourceTimeAnchor || segment.timeRelation === 'past')) {
         if (shouldConvertBackfillToTodo(segment, today, lang)) {
           drafts.push(buildTodoDraftFromSegment(segment, content, sourceText, today, lang));
           continue;
         }
         const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
-        const timeResolution = toActivityTimeResolutionFromSegment(segment);
-        const dynamicPeriod = timeResolution === 'period'
-          ? buildDynamicPeriodTime(segment, today, lang)
-          : {};
-        const startAt = timeResolution === 'period'
-          ? dynamicPeriod.startAt
-          : segment.startTime
-            ? timeStringToEpoch(segment.startTime, today)
-            : undefined;
-        const endAt = timeResolution === 'period'
-          ? dynamicPeriod.endAt
-          : segment.endTime
-            ? timeStringToEpoch(segment.endTime, today)
-            : undefined;
-        const hasValidStart = startAt !== undefined && Number.isFinite(startAt);
-        const hasValidEnd = endAt !== undefined && Number.isFinite(endAt);
-        const inferredExact = lang === 'zh' && (!hasValidStart || !hasValidEnd)
-          ? inferZhExactRangeFromText(sourceText || content, today)
-          : undefined;
-        const resolvedStart = hasValidStart ? startAt : inferredExact?.startAt;
-        const resolvedEnd = hasValidEnd ? endAt : inferredExact?.endAt;
-        const resolvedHasStart = resolvedStart !== undefined && Number.isFinite(resolvedStart);
-        const resolvedHasEnd = resolvedEnd !== undefined && Number.isFinite(resolvedEnd);
-        const resolvedTimeResolution = (resolvedHasStart && resolvedHasEnd && timeResolution !== 'period')
-          ? 'exact'
-          : timeResolution;
+        const resolvedTiming = resolveActivityTimingFromSegment(segment, sourceText, content, today, lang);
         drafts.push({
           id: uuidv4(),
           kind: 'activity_backfill',
@@ -683,9 +844,9 @@ export function buildDraftsFromAIResult(
           needsUserConfirmation: true,
           errors: [],
           activity: {
-            startAt: resolvedHasStart ? resolvedStart : undefined,
-            endAt: resolvedHasEnd ? resolvedEnd : undefined,
-            timeResolution: resolvedTimeResolution,
+            startAt: resolvedTiming.startAt,
+            endAt: resolvedTiming.endAt,
+            timeResolution: resolvedTiming.timeResolution,
             suggestedTimeLabel: segment.periodLabel,
           },
         });
@@ -706,44 +867,19 @@ export function buildDraftsFromAIResult(
         continue;
       }
       const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
-      const timeResolution = toActivityTimeResolutionFromSegment(segment);
-      const dynamicPeriod = timeResolution === 'period'
-        ? buildDynamicPeriodTime(segment, today, lang)
-        : {};
-      const startAt = timeResolution === 'period'
-        ? dynamicPeriod.startAt
-        : segment.startTime
-          ? timeStringToEpoch(segment.startTime, today)
-          : undefined;
-      const endAt = timeResolution === 'period'
-        ? dynamicPeriod.endAt
-        : segment.endTime
-          ? timeStringToEpoch(segment.endTime, today)
-          : undefined;
-      const hasValidStart = startAt !== undefined && Number.isFinite(startAt);
-      const hasValidEnd = endAt !== undefined && Number.isFinite(endAt);
-      const inferredExact = lang === 'zh' && (!hasValidStart || !hasValidEnd)
-        ? inferZhExactRangeFromText(sourceText || content, today)
-        : undefined;
-      const resolvedStart = hasValidStart ? startAt : inferredExact?.startAt;
-      const resolvedEnd = hasValidEnd ? endAt : inferredExact?.endAt;
-      const resolvedHasStart = resolvedStart !== undefined && Number.isFinite(resolvedStart);
-      const resolvedHasEnd = resolvedEnd !== undefined && Number.isFinite(resolvedEnd);
-      const resolvedTimeResolution = (resolvedHasStart && resolvedHasEnd && timeResolution !== 'period')
-        ? 'exact'
-        : timeResolution;
+      const resolvedTiming = resolveActivityTimingFromSegment(segment, sourceText, content, today, lang);
       drafts.push({
         id: uuidv4(),
         kind: 'activity_backfill',
         content: normalizedActivityContent,
         sourceText,
         confidence: segment.confidence || 'low',
-        needsUserConfirmation: resolvedTimeResolution !== 'missing',
+        needsUserConfirmation: resolvedTiming.timeResolution !== 'missing',
         errors: [],
         activity: {
-          startAt: resolvedHasStart ? resolvedStart : undefined,
-          endAt: resolvedHasEnd ? resolvedEnd : undefined,
-          timeResolution: resolvedTimeResolution,
+          startAt: resolvedTiming.startAt,
+          endAt: resolvedTiming.endAt,
+          timeResolution: resolvedTiming.timeResolution,
           suggestedTimeLabel: segment.periodLabel,
         },
       });
