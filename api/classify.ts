@@ -260,6 +260,56 @@ Determina la fascia oraria in base alle informazioni temporali fornite dall'uten
   ]
 }`;
 
+// ── Keyword matching ──────────────────────────────────────────────────────────
+
+/**
+ * Extract searchable keywords from a bottle name.
+ * - Always includes the full name
+ * - For CJK text: includes every 2-character bigram
+ * - For Latin text: includes each space-separated word (length >= 2)
+ */
+function extractKeywords(name: string): string[] {
+  const keywords: string[] = [name.toLowerCase()];
+  const cleaned = name.replace(/\s+/g, '');
+
+  // CJK bigrams
+  for (let i = 0; i < cleaned.length - 1; i++) {
+    const bigram = cleaned.slice(i, i + 2);
+    if (/[\u4e00-\u9fff\u3040-\u30ff]/.test(bigram)) {
+      keywords.push(bigram.toLowerCase());
+    }
+  }
+
+  // Latin words
+  if (/[a-zA-Z]/.test(name)) {
+    for (const word of name.split(/\s+/)) {
+      if (word.length >= 2) keywords.push(word.toLowerCase());
+    }
+  }
+
+  return [...new Set(keywords)];
+}
+
+type BottleRef = { id: string; name: string; type: 'habit' | 'goal' };
+
+/**
+ * Try to keyword-match an item name against a list of bottles.
+ * Returns the first bottle whose keywords appear in the item text, or null.
+ */
+function keywordMatch(itemName: string, bottles: BottleRef[]): { type: 'habit' | 'goal'; id: string; stars: number } | null {
+  const text = itemName.toLowerCase();
+  for (const bottle of bottles) {
+    const kws = extractKeywords(bottle.name);
+    // Require at least one keyword of length >= 2 to match
+    if (kws.some((kw) => kw.length >= 2 && text.includes(kw))) {
+      return { type: bottle.type, id: bottle.id, stars: 1 };
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function parseClassifierResponse(raw: string): any {
   try {
     return JSON.parse(raw.trim());
@@ -371,21 +421,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-  const model = 'glm-4.7-flash';
-  const zhipuApiKey = process.env.ZHIPU_API_KEY;
+  const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
+  const apiUrl = `${dashscopeBase}/chat/completions`;
+  const model = (process.env.CLASSIFY_MODEL || 'qwen-plus').trim() || 'qwen-plus';
+  const qwenApiKey = process.env.QWEN_API_KEY;
 
-  if (!zhipuApiKey) {
-    jsonError(res, 500, 'Server configuration error: Missing API_KEY');
+  if (!qwenApiKey) {
+    jsonError(res, 500, 'Server configuration error: Missing QWEN_API_KEY');
     return;
   }
+
+  // Build a combined bottle list for keyword matching
+  const allBottles: BottleRef[] = [
+    ...(habits as Array<{ id: string; name: string }>).map((h) => ({ ...h, type: 'habit' as const })),
+    ...(goals as Array<{ id: string; name: string }>).map((g) => ({ ...g, type: 'goal' as const })),
+  ];
 
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${zhipuApiKey}`,
+        'Authorization': `Bearer ${qwenApiKey}`,
       },
       body: JSON.stringify({
         model,
@@ -413,6 +470,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await response.json();
     const rawContent = result.choices?.[0]?.message?.content || '';
     const parsed = parseClassifierResponse(rawContent);
+
+    // ── Merge keyword matching ───────────────────────────────────────────────
+    // Run keyword matching in parallel with AI semantic matching.
+    // If AI didn't match a bottle for an item, try keyword matching as fallback.
+    // If AI already matched, keep it (semantic takes precedence).
+    if (allBottles.length > 0 && Array.isArray(parsed.items)) {
+      for (const item of parsed.items) {
+        if (!item.matched_bottle) {
+          const kwHit = keywordMatch(item.name ?? '', allBottles);
+          if (kwHit) {
+            item.matched_bottle = kwHit;
+            item.matched_by = 'keyword';
+          }
+        } else {
+          item.matched_by = 'ai';
+        }
+      }
+    }
 
     res.status(200).json({
       success: true,
