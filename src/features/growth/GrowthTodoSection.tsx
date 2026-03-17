@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { useGrowthTodoStore, type GrowthTodo } from '../../store/useGrowthTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
-import { GrowthTodoCard, type GrowthTodo, type GrowthPriority } from './GrowthTodoCard';
+import { useChatStore } from '../../store/useChatStore';
+import { GrowthTodoCard } from './GrowthTodoCard';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
-import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
@@ -12,41 +14,54 @@ interface Props {
 
 export const GrowthTodoSection = ({ onFocus }: Props) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
-  const [todos, setTodos] = useState<GrowthTodo[]>([]);
+  const { todos, toggleTodo, deleteTodo, startTodo, addTodo, generateRecurringTodos, linkMessageToTodo } = useGrowthTodoStore();
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const endActivity = useChatStore((s) => s.endActivity);
+  const setMode = useChatStore((s) => s.setMode);
   const [showAdd, setShowAdd] = useState(false);
 
-  const handleAdd = (title: string, priority: GrowthPriority, bottleId?: string) => {
-    const todo: GrowthTodo = {
-      id: uuidv4(),
-      title,
-      priority,
-      bottleId,
-      completed: false,
-      createdAt: Date.now(),
-    };
-    setTodos((prev) => [todo, ...prev]);
+  // Generate recurring todos on mount / day change
+  useEffect(() => {
+    generateRecurringTodos();
+  }, [generateRecurringTodos]);
+
+  const handleToggle = async (id: string) => {
+    const todo = todos.find((t) => t.id === id);
+    if (todo && !todo.completed) {
+      // Increment bottle star if linked
+      if (todo.bottleId) incrementBottleStar(todo.bottleId);
+      // Create a completed record card:
+      // Start time = todo's due time (or createdAt as fallback), end time = now
+      const startTime = todo.dueAt ?? todo.createdAt;
+      const msgId = await sendMessage(todo.title, startTime, 'record');
+      if (msgId) {
+        // Immediately end the activity so it shows as a completed card with correct duration
+        await endActivity(msgId);
+      }
+    }
+    toggleTodo(id);
   };
 
-  const handleToggle = (id: string) => {
-    setTodos((prev) =>
-      prev.map((todo) => {
-        if (todo.id !== id) return todo;
-        const nowCompleted = !todo.completed;
-        // If completing and linked to a bottle, increment star
-        if (nowCompleted && todo.bottleId) {
-          incrementBottleStar(todo.bottleId);
-        }
-        return { ...todo, completed: nowCompleted };
-      })
-    );
+  const handleStart = async (todo: GrowthTodo) => {
+    startTodo(todo.id);
+    const now = Date.now();
+    const msgId = await sendMessage(todo.title, now, 'record');
+    if (msgId) {
+      linkMessageToTodo(msgId, todo.id);
+    }
+    setMode('record');
+    navigate('/chat');
   };
 
-  const priorityOrder: Record<GrowthPriority, number> = { high: 0, medium: 1, low: 2 };
-  const sorted = [...todos].sort((a, b) => {
-    if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return priorityOrder[a.priority] - priorityOrder[b.priority];
-  });
+  // Visible todos: non-templates, default sorted by dueAt (via sortOrder), completed items sink to bottom
+  const visible = todos
+    .filter((t) => !t.isTemplate)
+    .sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return a.sortOrder - b.sortOrder;
+    });
 
   return (
     <section className="mb-4 px-4">
@@ -60,16 +75,18 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
         </button>
       </div>
 
-      {sorted.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="text-center text-gray-400 py-6 text-sm">{t('growth_todo_empty')}</div>
       ) : (
         <div className="space-y-2">
-          {sorted.map((todo) => (
+          {visible.map((todo) => (
             <GrowthTodoCard
               key={todo.id}
               todo={todo}
               onToggle={handleToggle}
               onFocus={onFocus}
+              onStart={handleStart}
+              onDelete={deleteTodo}
             />
           ))}
         </div>
@@ -78,7 +95,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
       <AddGrowthTodoModal
         isOpen={showAdd}
         onClose={() => setShowAdd(false)}
-        onAdd={handleAdd}
+        onAdd={addTodo}
       />
     </section>
   );

@@ -49,6 +49,11 @@ export const useGrowthStore = create<GrowthState>()(
       addBottle: (name, type) => {
         const activeBottles = get().bottles.filter((b) => b.status === 'active');
         if (activeBottles.length >= MAX_BOTTLES) return null;
+        // Duplicate name check (case-insensitive)
+        const duplicate = activeBottles.some(
+          (b) => b.name.trim().toLowerCase() === name.trim().toLowerCase()
+        );
+        if (duplicate) return null;
 
         const bottle: Bottle = {
           id: uuidv4(),

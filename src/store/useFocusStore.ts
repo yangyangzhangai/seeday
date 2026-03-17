@@ -13,8 +13,10 @@ export interface FocusSession {
 
 interface FocusState {
   currentSession: FocusSession | null;
+  activeMessageId: string | null;    // linked record page message ID
   sessions: FocusSession[];
   startFocus: (todoId: string, duration: number) => void;
+  setActiveMessageId: (id: string | null) => void;
   endFocus: () => FocusSession | null;
   isActive: () => boolean;
 }
@@ -23,7 +25,10 @@ export const useFocusStore = create<FocusState>()(
   persist(
     (set, get) => ({
       currentSession: null,
+      activeMessageId: null,
       sessions: [],
+
+      setActiveMessageId: (id) => set({ activeMessageId: id }),
 
       startFocus: (todoId, duration) => {
         const session: FocusSession = {
@@ -49,6 +54,7 @@ export const useFocusStore = create<FocusState>()(
 
         set((s) => ({
           currentSession: null,
+          activeMessageId: null,
           sessions: [...s.sessions, completed],
         }));
         return completed;

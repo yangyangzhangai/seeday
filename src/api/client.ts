@@ -175,6 +175,14 @@ export async function callAnnotationAPI(request: AnnotationRequest): Promise<Ann
 interface ClassifyRequest {
   rawInput: string;
   lang?: 'zh' | 'en' | 'it';
+  habits?: Array<{ id: string; name: string }>;
+  goals?: Array<{ id: string; name: string }>;
+}
+
+interface ClassifyMatchedBottle {
+  type: 'habit' | 'goal';
+  id: string;
+  stars: number;
 }
 
 interface ClassifyResponse {
@@ -187,6 +195,7 @@ interface ClassifyResponse {
       time_slot: 'morning' | 'afternoon' | 'evening' | null;
       category: string;
       flag: 'ambiguous' | null;
+      matched_bottle?: ClassifyMatchedBottle | null;
     }>;
     todos: {
       completed: number;

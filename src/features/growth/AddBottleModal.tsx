@@ -8,9 +8,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (name: string, type: BottleType) => void;
+  error?: string;
 }
 
-export const AddBottleModal = ({ isOpen, onClose, onAdd }: Props) => {
+export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState<BottleType>('habit');
@@ -20,9 +21,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd }: Props) => {
   const handleSubmit = () => {
     if (!name.trim()) return;
     onAdd(name.trim(), type);
-    setName('');
-    setType('habit');
-    onClose();
+    // Note: onClose / reset are handled by the parent after checking for errors
   };
 
   return (
@@ -40,8 +39,12 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd }: Props) => {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('growth_bottle_name_placeholder')}
-          className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className={cn(
+            "w-full border rounded-xl p-3 text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400",
+            error ? "border-red-400" : "border-gray-200"
+          )}
         />
+        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {t('growth_bottle_type')}

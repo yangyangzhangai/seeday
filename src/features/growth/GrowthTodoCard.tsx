@@ -1,23 +1,17 @@
 import { useTranslation } from 'react-i18next';
-import { AlarmClock, Check } from 'lucide-react';
+import { AlarmClock, Check, Play, GripVertical, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { type GrowthTodo, type GrowthPriority } from '../../store/useGrowthTodoStore';
 
-export type GrowthPriority = 'high' | 'medium' | 'low';
-
-export interface GrowthTodo {
-  id: string;
-  title: string;
-  priority: GrowthPriority;
-  dueAt?: number;
-  bottleId?: string;
-  completed: boolean;
-  createdAt: number;
-}
+// Re-export for consumers
+export type { GrowthTodo, GrowthPriority };
 
 interface Props {
   todo: GrowthTodo;
   onToggle: (id: string) => void;
   onFocus: (todo: GrowthTodo) => void;
+  onStart?: (todo: GrowthTodo) => void;
+  onDelete?: (id: string) => void;
 }
 
 const priorityConfig: Record<GrowthPriority, { color: string; bg: string }> = {
@@ -26,15 +20,37 @@ const priorityConfig: Record<GrowthPriority, { color: string; bg: string }> = {
   low: { color: 'text-green-600', bg: 'bg-green-100' },
 };
 
-export const GrowthTodoCard = ({ todo, onToggle, onFocus }: Props) => {
+export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: Props) => {
   const { t } = useTranslation();
   const cfg = priorityConfig[todo.priority];
 
+  const dueStr = todo.dueAt
+    ? new Date(todo.dueAt).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : null;
+
+  const isOverdue = todo.dueAt && !todo.completed && todo.dueAt < Date.now();
+
   return (
     <div className={cn(
-      "flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm",
+      "group relative flex items-center gap-2 bg-white rounded-xl p-3 border border-gray-100 shadow-sm",
       todo.completed && "opacity-50"
     )}>
+      {/* Delete button — appears on hover */}
+      {onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }}
+          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 bg-gray-400 hover:bg-red-500 text-white rounded-full items-center justify-center transition-colors hidden group-hover:flex"
+          title={t('delete')}
+        >
+          <X size={10} />
+        </button>
+      )}
+
+      {/* Drag handle */}
+      <GripVertical size={14} className="text-gray-300 flex-shrink-0 cursor-grab" />
+
       {/* Checkbox */}
       <button
         onClick={() => onToggle(todo.id)}
@@ -46,24 +62,42 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus }: Props) => {
         {todo.completed && <Check size={12} className="text-white" />}
       </button>
 
-      {/* Title */}
-      <span className={cn("flex-1 text-sm", todo.completed && "line-through text-gray-400")}>
-        {todo.title}
-      </span>
+      {/* Title + due date */}
+      <div className="flex-1 min-w-0">
+        <span className={cn("text-sm block truncate", todo.completed && "line-through text-gray-400")}>
+          {todo.title}
+        </span>
+        {dueStr && (
+          <span className={cn("text-[10px]", isOverdue ? "text-red-500" : "text-gray-400")}>
+            {dueStr}
+          </span>
+        )}
+      </div>
 
       {/* Priority badge */}
-      <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", cfg.color, cfg.bg)}>
+      <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}>
         {t(`growth_todo_priority_${todo.priority}`)}
       </span>
 
-      {/* Focus button */}
+      {/* Action buttons */}
       {!todo.completed && (
-        <button
-          onClick={() => onFocus(todo)}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-        >
-          <AlarmClock size={18} />
-        </button>
+        <>
+          {onStart && (
+            <button
+              onClick={() => onStart(todo)}
+              className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+              title={t('growth_todo_start')}
+            >
+              <Play size={16} />
+            </button>
+          )}
+          <button
+            onClick={() => onFocus(todo)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+          >
+            <AlarmClock size={16} />
+          </button>
+        </>
       )}
     </div>
   );

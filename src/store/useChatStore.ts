@@ -11,6 +11,10 @@ import type { AnnotationEvent } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
+import { useGrowthTodoStore } from './useGrowthTodoStore';
+import { useGrowthStore } from './useGrowthStore';
+import { callClassifierAPI } from '../api/client';
+import i18n from '../i18n';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -417,6 +421,30 @@ export const useChatStore = create<ChatState>()(
         const moodStore = useMoodStore.getState();
         if (!moodStore.getMood(id)) {
           moodStore.setMood(id, autoDetectMood(target.content, duration));
+        }
+
+        // Auto-complete linked growth todo
+        useGrowthTodoStore.getState().completeTodoByMessage(id);
+
+        // AI semantic matching: if activity relates to a habit/goal bottle, add a star
+        const growthStore = useGrowthStore.getState();
+        const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
+        const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
+        const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
+
+        if (habits.length > 0 || goals.length > 0) {
+          const lang = (i18n.language?.slice(0, 2) as 'zh' | 'en' | 'it') || 'zh';
+          callClassifierAPI({ rawInput: target.content, lang, habits, goals })
+            .then((result) => {
+              if (!result.success || !result.data?.items) return;
+              for (const item of result.data.items) {
+                if (item.matched_bottle?.id) {
+                  growthStore.incrementBottleStar(item.matched_bottle.id);
+                  break; // max one star per activity
+                }
+              }
+            })
+            .catch(() => { /* silent — non-critical */ });
         }
       },
 
