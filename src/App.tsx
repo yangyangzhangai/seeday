@@ -7,6 +7,7 @@ import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { TodoPage } from './features/todo/TodoPage';
 import { ReportPage } from './features/report/ReportPage';
+import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
@@ -136,6 +137,7 @@ function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="todo" element={<TodoPage />} />
           <Route path="report" element={<ReportPage />} />
+          <Route path="growth" element={<GrowthPage />} />
         </Route>
         <Route path="/auth" element={<AuthPage />} />
       </Routes>

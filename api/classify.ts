@@ -285,13 +285,86 @@ function parseClassifierResponse(raw: string): any {
   };
 }
 
+// Bottle matching section appended to any prompt when habits/goals are provided
+function buildBottleMatchSection(
+  habits: Array<{ id: string; name: string }>,
+  goals: Array<{ id: string; name: string }>,
+  lang: string
+): string {
+  if (habits.length === 0 && goals.length === 0) return '';
+
+  const habitsStr = habits.length > 0
+    ? habits.map((h, i) => `${i + 1}. id="${h.id}" name="${h.name}"`).join('\n')
+    : '(none)';
+  const goalsStr = goals.length > 0
+    ? goals.map((g, i) => `${i + 1}. id="${g.id}" name="${g.name}"`).join('\n')
+    : '(none)';
+
+  if (lang === 'zh') {
+    return `
+
+【用户设置的习惯】
+${habitsStr}
+
+【用户设置的目标】
+${goalsStr}
+
+【匹配规则】
+- 对 items 中每一条事件，判断它与上述习惯/目标之间的语义关联程度（0%~100%）
+- 关联判断必须基于语义理解，不得仅依赖关键词匹配
+- 判断时思考：这个行为的目的、动机或效果，是否指向某个习惯/目标？
+  例如："化妆" → 目的是变美 → 匹配目标"美丽"
+  例如："看了一章经济学教材" → 学习行为 → 匹配习惯"每天读书30分钟"
+- 关联度 >= 60% 时在该事件添加 matched_bottle 字段，否则 matched_bottle 为 null
+- 每条事件最多匹配一个瓶子（取关联度最高的）
+- matched_bottle 格式：{ "type": "habit" | "goal", "id": "瓶子id", "stars": 1 }
+- 只要关联度 >= 60% 就输出 1 星；低于 60% 则 matched_bottle 为 null`;
+  }
+
+  if (lang === 'it') {
+    return `
+
+[Abitudini impostate dall'utente]
+${habitsStr}
+
+[Obiettivi impostati dall'utente]
+${goalsStr}
+
+[Regole di corrispondenza]
+- Per ogni evento in items, valuta la correlazione semantica con le abitudini/obiettivi (0%~100%)
+- La valutazione deve basarsi sulla comprensione semantica, non solo sulla corrispondenza di parole chiave
+- correlazione >= 60%: aggiungi matched_bottle; < 60%: matched_bottle è null
+- Al massimo un bottle per evento (prendi quello con correlazione più alta)
+- Formato matched_bottle: { "type": "habit" | "goal", "id": "id-bottle", "stars": 1 }`;
+  }
+
+  // English (default)
+  return `
+
+[User Habits]
+${habitsStr}
+
+[User Goals]
+${goalsStr}
+
+[Matching Rules]
+- For each item, assess its semantic relevance to the above habits/goals (0%~100%)
+- Matching must be based on semantic understanding, not just keyword matching
+- Consider: does the purpose, motivation, or effect of this activity point to a habit/goal?
+  e.g. "applied makeup" → purpose is to look beautiful → matches goal "Beauty"
+  e.g. "read an economics chapter" → learning behaviour → matches habit "Read 30min daily"
+- relevance >= 60%: add matched_bottle field; < 60%: matched_bottle is null
+- At most one bottle per item (take the highest relevance)
+- matched_bottle format: { "type": "habit" | "goal", "id": "bottle-id", "stars": 1 }`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
 
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { rawInput, lang = 'zh' } = req.body;
+  const { rawInput, lang = 'zh', habits = [], goals = [] } = req.body;
 
   if (!rawInput || typeof rawInput !== 'string') {
     jsonError(res, 400, 'Missing or invalid rawInput');
@@ -317,7 +390,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: lang === 'en' ? CLASSIFIER_PROMPT_EN : lang === 'it' ? CLASSIFIER_PROMPT_IT : CLASSIFIER_PROMPT },
+          {
+            role: 'system',
+            content: (lang === 'en' ? CLASSIFIER_PROMPT_EN : lang === 'it' ? CLASSIFIER_PROMPT_IT : CLASSIFIER_PROMPT)
+              + buildBottleMatchSection(habits, goals, lang)
+          },
           { role: 'user', content: rawInput }
         ],
         temperature: 0.6,
