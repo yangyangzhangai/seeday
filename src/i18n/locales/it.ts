@@ -26,6 +26,7 @@ const it: TranslationKeys = {
     // ── Navigazione inferiore ──
     nav_record: 'Registro',
     nav_report: 'Rapporto',
+    nav_profile: 'Profilo',
 
     // ── Chat / Pagina Registro ──
     chat_title: 'Registro',
@@ -279,6 +280,38 @@ const it: TranslationKeys = {
     growth_todo_weekly_days: 'Seleziona Giorni',
     growth_bottle_name_duplicate: 'Esiste già una bottiglia con questo nome',
     growth_bottle_todo_prompt: 'Creare un\'attività per "{{name}}"?',
+
+    // ── Pagina Profilo ──
+    profile_title: 'Profilo',
+    profile_streak: 'Serie',
+    profile_today_activities: 'Oggi',
+    profile_completed_goals: 'Obiettivi',
+    profile_ai_mode: 'Compagno AI',
+    profile_free: 'Gratuito',
+    profile_annotation_drop: 'Frequenza Annotazioni AI',
+    profile_drop_low: 'Bassa',
+    profile_drop_medium: 'Media',
+    profile_drop_high: 'Alta',
+    profile_daily_goal: 'Obiettivo Giornaliero',
+    profile_daily_goal_desc: 'Mostra il popup degli obiettivi entrando nella pagina Crescita',
+    profile_membership: 'Abbonamento',
+    profile_upgrade: 'Passa a Plus · Sblocca tutto',
+    profile_upgrade_coming: 'Prossimamente',
+    profile_help: 'Aiuto e Supporto',
+    profile_privacy: 'Privacy',
+    profile_about: 'Informazioni',
+    profile_logout: 'Esci',
+    profile_plus_only: 'Passa a Plus per sbloccare',
+
+    // ── Funzionalità abbonamento ──
+    membership_feat_basic_analysis: 'Analisi Base',
+    membership_feat_daily_plant: 'Pianta Giornaliera',
+    membership_feat_ai_chat: 'Chat AI',
+    membership_feat_advanced_analysis: 'Analisi Avanzata',
+    membership_feat_daily_report: 'Report Giornaliero',
+    membership_feat_weekly_report: 'Report Settimanale',
+    membership_feat_monthly_report: 'Report Mensile',
+    membership_feat_yearly_report: 'Report Annuale',
 
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',
