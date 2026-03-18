@@ -59,6 +59,52 @@ export function isNonRecurring(r?: Recurrence): boolean {
   return !r || r === 'none' || r === 'once';
 }
 
+// ── One-time migration from old 'todo-storage' ──────────────
+function migrateOldTodoStorage(currentIds: Set<string>): Todo[] {
+  try {
+    const raw = localStorage.getItem('todo-storage');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const oldTodos: Array<Record<string, unknown>> = parsed?.state?.todos ?? [];
+    if (!oldTodos.length) return [];
+
+    const priorityMap: Record<string, GrowthPriority> = {
+      'urgent-important': 'high',
+      'urgent-not-important': 'medium',
+      'important-not-urgent': 'medium',
+      'not-important-not-urgent': 'low',
+    };
+
+    const migrated: Todo[] = oldTodos
+      .filter((t) => t.id && typeof t.id === 'string' && !currentIds.has(t.id as string))
+      .map((t, i) => ({
+        id: t.id as string,
+        title: (t.content ?? t.title ?? '') as string,
+        completed: Boolean(t.completed),
+        createdAt: (t.createdAt as number) ?? Date.now(),
+        priority: priorityMap[t.priority as string] ?? 'medium',
+        dueAt: (t.dueDate ?? t.dueAt) as number | undefined,
+        completedAt: t.completedAt as number | undefined,
+        duration: t.duration as number | undefined,
+        startedAt: t.startedAt as number | undefined,
+        category: t.category as string | undefined,
+        scope: t.scope as TodoScope | undefined,
+        recurrence: 'once' as Recurrence,
+        isTemplate: false,
+        sortOrder: (t.dueDate ?? t.dueAt ?? (Date.now() + i)) as number,
+        isPinned: Boolean(t.isPinned),
+      }));
+
+    if (migrated.length > 0) {
+      // Clear old store after migration
+      localStorage.removeItem('todo-storage');
+    }
+    return migrated;
+  } catch {
+    return [];
+  }
+}
+
 // ── Background Supabase sync (fire-and-forget) ──────────────
 async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<void> {
   try {
@@ -162,11 +208,17 @@ export const useTodoStore = create<TodoState>()(
         const cloudTodos = data.map(fromDbTodo);
         const localTodos = get().todos;
         const cloudIds = new Set(cloudTodos.map((t) => t.id));
+        const allIds = new Set([...cloudIds, ...localTodos.map((t) => t.id)]);
+        // Migrate old todo-storage data (one-time, clears old key after)
+        const migrated = migrateOldTodoStorage(allIds);
         const merged = [
           ...cloudTodos,
           ...localTodos.filter((t) => !cloudIds.has(t.id)),
+          ...migrated,
         ];
         set({ todos: merged, isLoading: false });
+        // Sync migrated todos to Supabase
+        migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
       },
 
       // ── Add todo (unified: supports growth + legacy fields) ──
