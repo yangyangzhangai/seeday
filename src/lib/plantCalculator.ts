@@ -1,5 +1,11 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_PRD_v1_8.docx -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
-import type { FocusLevel, PlantCategoryKey, RootMetrics, RootType } from '../types/plant';
+import type {
+  DirectionBreakdownItem,
+  FocusLevel,
+  PlantCategoryKey,
+  RootMetrics,
+  RootType,
+} from '../types/plant.js';
 
 export interface PlantActivityInput {
   id: string;
@@ -64,7 +70,9 @@ const normalizedEntropy = (values: number[]): number => {
   return clamp01(normalized);
 };
 
-const initBreakdown = (): RootMetrics['directionBreakdown'] => ({
+type DirectionBreakdown = Record<PlantCategoryKey, DirectionBreakdownItem>;
+
+const initBreakdown = (): DirectionBreakdown => ({
   entertainment: { minutes: 0, weightedMinutes: 0, activities: 0, focus: 'medium' },
   social: { minutes: 0, weightedMinutes: 0, activities: 0, focus: 'medium' },
   work_study: { minutes: 0, weightedMinutes: 0, activities: 0, focus: 'medium' },

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import handler from './magic-pen-parse';
+import handler from '../../api/magic-pen-parse.js';
 
 type MockResponse = {
   statusCode: number;

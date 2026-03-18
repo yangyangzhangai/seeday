@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
-import type { DailyPlantRecord, RootMetrics, RootType } from '../src/types/plant.js';
+import type { DailyPlantRecord, RootMetrics, RootType } from '../types/plant.js';
 import { jsonError } from './http.js';
 
 const ROOT_TYPES: RootType[] = ['tap', 'fib', 'sha', 'bra', 'bul'];

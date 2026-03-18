@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
-import { removeThinkingTags } from '../src/lib/aiParser.js';
-import type { PlantCategoryKey, PlantDiaryRequest } from '../src/types/plant.js';
+import { removeThinkingTags } from '../lib/aiParser.js';
+import type { PlantCategoryKey, PlantDiaryRequest } from '../types/plant.js';
 
 export interface PlantDiaryServiceInput extends PlantDiaryRequest {
   userName?: string;

@@ -9,8 +9,8 @@ import {
 } from '../src/lib/plantCalculator.js';
 import { mapSourcesToPlantActivities } from '../src/lib/plantActivityMapper.js';
 import type { PlantGenerateRequest, PlantGenerateResponse, PlantStage, RootType } from '../src/types/plant.js';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
-import { generatePlantDiaryWithFallback } from './plant-diary-service.js';
+import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { generatePlantDiaryWithFallback } from '../src/server/plant-diary-service.js';
 import {
   getDateInTimezone,
   isTooEarlyToGenerate,
@@ -19,7 +19,7 @@ import {
   resolvePlantId,
   serializePlantRecord,
   toRootMetricsJson,
-} from './plant-shared.js';
+} from '../src/server/plant-shared.js';
 
 interface MessageRow {
   id: string;

@@ -1,8 +1,8 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
-import { requirePlantAuth } from './plant-shared.js';
-import { generatePlantDiaryWithFallback } from './plant-diary-service.js';
+import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { generatePlantDiaryWithFallback } from '../src/server/plant-diary-service.js';
+import { requirePlantAuth } from '../src/server/plant-shared.js';
 import type { PlantDiaryRequest } from '../src/types/plant.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

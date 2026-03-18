@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
+import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 
 const CLASSIFIER_PROMPT = `你是一个时间记录分类器。
 将用户输入的时间记录按类别分类，输出严格的JSON格式。
