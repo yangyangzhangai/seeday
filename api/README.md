@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | `/api/chat` | `chat.ts` | `{ content, model, usage? }` |
 | `/api/report` | `report.ts` | `{ content }` |
-| `/api/annotation` | `annotation.ts` (entry) + `annotation-handler.ts` + `annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
+| `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
 | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
@@ -47,4 +47,4 @@ npm run dev
 
 ## Endpoint test anchor
 
-- `api/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。
+- `src/server/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。

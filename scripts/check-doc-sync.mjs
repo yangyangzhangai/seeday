@@ -29,7 +29,7 @@ const dependencyHeaderFiles = [
   'api/classify.ts',
   'api/diary.ts',
   'api/stardust.ts',
-  'api/http.ts',
+  'src/server/http.ts',
   'src/App.tsx',
 ];
 

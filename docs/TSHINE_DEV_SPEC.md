@@ -536,7 +536,7 @@ export default config;
 | `api/diary.ts` | `diary` | ⬜ 待迁移 |
 | `api/report.ts` | `report` | ⬜ 待迁移 |
 | `api/stardust.ts` | `stardust` | ⬜ 待迁移 |
-| `api/http.ts` | 工具函数，合并到其他函数 | ⬜ 待迁移 |
+| `src/server/http.ts` | 工具函数，已从 `api/` 迁移到 `src/server/` | ✅ 已完成 |
 
 迁移步骤：
 ```bash
