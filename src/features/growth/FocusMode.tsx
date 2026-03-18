@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
 import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
-import { useGrowthTodoStore } from '../../store/useGrowthTodoStore';
+import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { FocusTimer } from './FocusTimer';
-import { type GrowthTodo } from './GrowthTodoCard';
+import { type Todo } from '../../store/useTodoStore';
 
 interface Props {
-  todo: GrowthTodo;
+  todo: Todo;
   onClose: () => void;
 }
 
@@ -18,7 +18,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const { currentSession, activeMessageId, startFocus, setActiveMessageId, endFocus } = useFocusStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
-  const toggleTodo = useGrowthTodoStore((s) => s.toggleTodo);
+  const toggleTodo = useTodoStore((s) => s.toggleTodo);
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);

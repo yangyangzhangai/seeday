@@ -5,7 +5,6 @@ import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
-import { TodoPage } from './features/todo/TodoPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
@@ -135,7 +134,7 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Navigate to="/chat" replace />} />
           <Route path="chat" element={<ChatPage />} />
-          <Route path="todo" element={<TodoPage />} />
+          <Route path="todo" element={<Navigate to="/growth" replace />} />
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
         </Route>

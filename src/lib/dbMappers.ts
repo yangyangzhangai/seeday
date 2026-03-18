@@ -7,7 +7,8 @@ import type { Todo } from '../store/useTodoStore';
 export type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
 
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
-  dueDate: 'due_date',
+  title: 'content',
+  dueAt: 'due_date',
   completedAt: 'completed_at',
   isPinned: 'is_pinned',
   startedAt: 'started_at',
@@ -42,34 +43,35 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
 export function fromDbTodo(row: any): Todo {
   return {
     id: row.id,
-    content: row.content,
+    title: row.content,              // DB 'content' → code 'title'
     completed: row.completed,
     priority: row.priority,
     category: row.category,
-    dueDate: row.due_date,
+    dueAt: row.due_date,             // DB 'due_date' → code 'dueAt'
     scope: row.scope,
     createdAt: row.created_at,
-    recurrence: row.recurrence,
+    recurrence: row.recurrence === 'none' ? 'once' : row.recurrence,
     recurrenceId: row.recurrence_id,
     completedAt: row.completed_at,
     isPinned: row.is_pinned || false,
     startedAt: row.started_at,
     duration: row.duration,
+    sortOrder: row.due_date || row.created_at || 0,
   };
 }
 
 export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
   return {
     id: todo.id,
-    content: todo.content,
+    content: todo.title,             // code 'title' → DB 'content'
     completed: todo.completed,
     priority: todo.priority,
-    category: todo.category,
-    due_date: todo.dueDate,
-    scope: todo.scope,
+    category: todo.category || '',
+    due_date: todo.dueAt,            // code 'dueAt' → DB 'due_date'
+    scope: todo.scope || 'daily',
     created_at: todo.createdAt,
-    recurrence: todo.recurrence,
-    recurrence_id: todo.recurrenceId,
+    recurrence: todo.recurrence === 'once' ? 'none' : (todo.recurrence || 'none'),
+    recurrence_id: todo.templateId || todo.recurrenceId,
     completed_at: todo.completedAt,
     is_pinned: todo.isPinned,
     started_at: todo.startedAt,

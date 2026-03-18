@@ -9,7 +9,7 @@ const requiredDocs = [
   'docs/PROJECT_MAP.md',
   'src/features/auth/README.md',
   'src/features/chat/README.md',
-  'src/features/todo/README.md',
+  'src/features/growth/README.md',
   'src/features/report/README.md',
   'src/api/README.md',
 ];
@@ -36,7 +36,7 @@ const dependencyHeaderFiles = [
 const projectMapCoverageTokens = [
   'src/features/auth',
   'src/features/chat',
-  'src/features/todo',
+  'src/features/growth',
   'src/features/report',
   'src/api/',
   'api/',

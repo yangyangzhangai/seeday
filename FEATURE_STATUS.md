@@ -30,14 +30,15 @@
   - 已完成 F17 映射收口，消息 DB 映射由 `src/lib/dbMappers.ts` 统一维护。
   - Magic Pen Mode-B 已落地：wand 模式开关 + 发送触发解析 + `MagicPenSheet` 草稿确认写入（不自动提交）。
 
-## 3. Todo（`/todo`）
+## 3. Growth（`/growth`）
 
 - 状态: `stable`
-- 入口: `src/features/todo/TodoPage.tsx`
-- 数据/状态: `src/store/useTodoStore.ts`
+- 入口: `src/features/growth/GrowthPage.tsx`
+- 数据/状态: `src/store/useTodoStore.ts`（统一 Store）, `src/store/useGrowthStore.ts`
 - 说明:
-  - 支持新增、编辑、删除、完成状态与优先级。
-  - 已完成页面拆分与工具函数提取（C5/C10/C15）。
+  - 习惯/目标瓶管理 + 待办事项 + 专注模式。
+  - 待办支持新增、编辑、删除、完成、周期重复、关联瓶子。
+  - 专注计时结束自动完成待办并生成记录卡片。
 
 ## 4. Report（`/report`）
 

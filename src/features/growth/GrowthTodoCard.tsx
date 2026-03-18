@@ -1,16 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { AlarmClock, Check, Play, GripVertical, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { type GrowthTodo, type GrowthPriority } from '../../store/useGrowthTodoStore';
+import { type Todo, type GrowthPriority } from '../../store/useTodoStore';
 
 // Re-export for consumers
-export type { GrowthTodo, GrowthPriority };
+export type { Todo as GrowthTodo, GrowthPriority };
 
 interface Props {
-  todo: GrowthTodo;
+  todo: Todo;
   onToggle: (id: string) => void;
-  onFocus: (todo: GrowthTodo) => void;
-  onStart?: (todo: GrowthTodo) => void;
+  onFocus: (todo: Todo) => void;
+  onStart?: (todo: Todo) => void;
   onDelete?: (id: string) => void;
 }
 

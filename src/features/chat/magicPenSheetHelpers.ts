@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 export function toDateTimeLocal(epoch?: number): string {
   if (!epoch) return '';
   const date = new Date(epoch);

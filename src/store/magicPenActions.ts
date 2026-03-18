@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import { validateDrafts } from '../services/input/magicPenDraftBuilder';
 import type { MagicPenDraftItem } from '../services/input/magicPenTypes';
 import { useChatStore } from './useChatStore';
@@ -49,14 +49,14 @@ export async function commitMagicPenDrafts(drafts: MagicPenDraftItem[]): Promise
 
   for (const draft of todoDrafts) {
     try {
-      await useTodoStore.getState().addTodo(
-        draft.content,
-        draft.todo!.priority,
-        draft.todo!.category,
-        draft.todo!.scope,
-        draft.todo!.dueDate,
-        'none',
-      );
+      useTodoStore.getState().addTodo({
+        title: draft.content,
+        priority: draft.todo!.priority,
+        category: draft.todo!.category,
+        scope: draft.todo!.scope,
+        dueAt: draft.todo!.dueDate,
+        recurrence: 'once',
+      });
       successTodoCount += 1;
     } catch {
       failedDraftIds.push(draft.id);

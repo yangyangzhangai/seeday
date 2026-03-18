@@ -8,7 +8,7 @@
 
 - Mainline task status: `magicpen-v2` remains the active track.
 - Scope anchor for next execution: session-40 keeps parser-first mixed-input extraction and lands server-side provider fallback for `/api/magic-pen-parse` (`zhipu -> qwen-flash`) on timeout/empty/parse failure.
-- Doc planning anchor for next execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md -> src/features/report/README.md`.
+- Doc planning anchor for next execution: `LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx -> src/features/report/README.md`.
 - Boundary lock: do not refactor the global ordinary-mode `activity/mood` auto-classifier as part of the next Magic Pen slice.
 
 ## Past Focus

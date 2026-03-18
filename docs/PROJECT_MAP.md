@@ -33,7 +33,7 @@ src/
 ├── features/
 │   ├── auth/
 │   ├── chat/
-│   ├── todo/
+│   ├── growth/
 │   └── report/
 ├── i18n/               # 国际化初始化与词条
 ├── lib/                # 纯函数与映射工具
@@ -70,7 +70,7 @@ src/
 
 - `src/features/auth`
 - `src/features/chat`
-- `src/features/todo`
+- `src/features/growth`
 - `src/features/report`
 - `src/store/`
 - `src/i18n/`

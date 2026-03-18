@@ -11,7 +11,7 @@ import type { AnnotationEvent } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
-import { useGrowthTodoStore } from './useGrowthTodoStore';
+import { useTodoStore as useUnifiedTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
@@ -424,7 +424,7 @@ export const useChatStore = create<ChatState>()(
         }
 
         // Auto-complete linked growth todo
-        useGrowthTodoStore.getState().completeTodoByMessage(id);
+        useUnifiedTodoStore.getState().completeTodoByMessage(id);
 
         // AI semantic matching: if activity relates to a habit/goal bottle, add a star
         const growthStore = useGrowthStore.getState();
@@ -433,18 +433,54 @@ export const useChatStore = create<ChatState>()(
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
 
         if (habits.length > 0 || goals.length > 0) {
+          // Keyword fallback: match activity content against bottle names
+          const keywordMatch = (content: string, bottles: Array<{ id: string; name: string }>) => {
+            const lower = content.toLowerCase();
+            for (const b of bottles) {
+              // Match if bottle name appears in activity content, or vice versa
+              const bName = b.name.toLowerCase();
+              if (lower.includes(bName) || bName.includes(lower.slice(0, 10))) {
+                return b.id;
+              }
+              // Also match individual keywords (split by common separators)
+              const keywords = bName.split(/[\s,，、/|]+/).filter(k => k.length >= 2);
+              for (const kw of keywords) {
+                if (lower.includes(kw)) return b.id;
+              }
+            }
+            return null;
+          };
+
+          const allBottles = [...habits, ...goals];
           const lang = (i18n.language?.slice(0, 2) as 'zh' | 'en' | 'it') || 'zh';
+
           callClassifierAPI({ rawInput: target.content, lang, habits, goals })
             .then((result) => {
-              if (!result.success || !result.data?.items) return;
+              if (!result.success || !result.data?.items) {
+                // AI failed → use keyword fallback
+                const matchedId = keywordMatch(target.content, allBottles);
+                if (matchedId) growthStore.incrementBottleStar(matchedId);
+                return;
+              }
+              let aiMatched = false;
               for (const item of result.data.items) {
                 if (item.matched_bottle?.id) {
                   growthStore.incrementBottleStar(item.matched_bottle.id);
+                  aiMatched = true;
                   break; // max one star per activity
                 }
               }
+              // AI returned but found no match → try keyword fallback
+              if (!aiMatched) {
+                const matchedId = keywordMatch(target.content, allBottles);
+                if (matchedId) growthStore.incrementBottleStar(matchedId);
+              }
             })
-            .catch(() => { /* silent — non-critical */ });
+            .catch(() => {
+              // API error → keyword fallback
+              const matchedId = keywordMatch(target.content, allBottles);
+              if (matchedId) growthStore.incrementBottleStar(matchedId);
+            });
         }
       },
 

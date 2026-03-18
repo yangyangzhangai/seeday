@@ -2,21 +2,21 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { useGrowthTodoStore, type GrowthTodo } from '../../store/useGrowthTodoStore';
+import { useTodoStore, type Todo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { GrowthTodoCard } from './GrowthTodoCard';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 
 interface Props {
-  onFocus: (todo: GrowthTodo) => void;
+  onFocus: (todo: Todo) => void;
 }
 
 export const GrowthTodoSection = ({ onFocus }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
-  const { todos, toggleTodo, deleteTodo, startTodo, addTodo, generateRecurringTodos, linkMessageToTodo } = useGrowthTodoStore();
+  const { todos, toggleTodo, deleteTodo, startTodo, addTodo, generateRecurringTodos, linkMessageToTodo } = useTodoStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const setMode = useChatStore((s) => s.setMode);
@@ -44,7 +44,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     toggleTodo(id);
   };
 
-  const handleStart = async (todo: GrowthTodo) => {
+  const handleStart = async (todo: Todo) => {
     startTodo(todo.id);
     const now = Date.now();
     const msgId = await sendMessage(todo.title, now, 'record');

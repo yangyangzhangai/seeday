@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useGrowthStore } from '../../store/useGrowthStore';
-import { type GrowthPriority, type Recurrence } from '../../store/useGrowthTodoStore';
+import { type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
 import { cn } from '../../lib/utils';
 
 interface DefaultValues {
