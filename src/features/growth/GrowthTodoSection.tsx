@@ -29,19 +29,18 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
+    // Optimistic UI: toggle immediately so the button feels responsive
+    toggleTodo(id);
     if (todo && !todo.completed) {
       // Increment bottle star if linked
       if (todo.bottleId) incrementBottleStar(todo.bottleId);
-      // Create a completed record card:
-      // Start time = todo's due time (or createdAt as fallback), end time = now
+      // Create a completed record card in the background
       const startTime = todo.dueAt ?? todo.createdAt;
       const msgId = await sendMessage(todo.title, startTime, 'record');
       if (msgId) {
-        // Immediately end the activity so it shows as a completed card with correct duration
         await endActivity(msgId);
       }
     }
-    toggleTodo(id);
   };
 
   const handleStart = async (todo: GrowthTodo) => {

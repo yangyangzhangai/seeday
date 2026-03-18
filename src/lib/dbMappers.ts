@@ -24,7 +24,7 @@ export function fromDbMessage(row: any): Message {
     content: row.content,
     timestamp: Number(row.timestamp),
     type: row.type as MessageType,
-    duration: row.duration,
+    duration: row.duration ?? undefined,
     activityType: row.activity_type,
     mode: (row.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
     isMood: row.is_mood || false,
