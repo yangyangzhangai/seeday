@@ -8,6 +8,7 @@ import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
+import { ProfilePage } from './features/profile/ProfilePage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
@@ -137,6 +138,7 @@ function App() {
           <Route path="todo" element={<Navigate to="/growth" replace />} />
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="/auth" element={<AuthPage />} />
       </Routes>

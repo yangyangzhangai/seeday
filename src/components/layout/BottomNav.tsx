@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Clock, PieChart, Sprout } from 'lucide-react';
+import { Clock, PieChart, Sprout, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 
@@ -23,7 +23,7 @@ export const BottomNav = () => {
           <span className="text-xs font-medium">{t('nav_record')}</span>
         </NavLink>
 
-<NavLink
+        <NavLink
           to="/growth"
           className={({ isActive }) =>
             cn(
@@ -47,6 +47,19 @@ export const BottomNav = () => {
         >
           <PieChart size={24} />
           <span className="text-xs font-medium">{t('nav_report')}</span>
+        </NavLink>
+
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            cn(
+              "flex flex-col items-center justify-center w-full h-full space-y-1",
+              isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-700"
+            )
+          }
+        >
+          <User size={24} />
+          <span className="text-xs font-medium">{t('nav_profile')}</span>
         </NavLink>
       </div>
     </nav>

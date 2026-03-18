@@ -9,24 +9,57 @@ import { useAnnotationStore } from './useAnnotationStore';
 import { useStardustStore } from './useStardustStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 
+export type AnnotationDropRate = 'low' | 'medium' | 'high';
+
+export interface UserPreferences {
+  aiMode: 'van' | 'agnes' | 'zep' | 'spring_thunder';
+  aiModeEnabled: boolean;
+  dailyGoalEnabled: boolean;
+  annotationDropRate: AnnotationDropRate;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  aiMode: 'van',
+  aiModeEnabled: true,
+  dailyGoalEnabled: true,
+  annotationDropRate: 'low',
+};
+
 interface AuthState {
   user: any | null;
   loading: boolean;
+  preferences: UserPreferences;
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
+  updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
+}
+
+function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
+  return {
+    aiMode: meta.ai_mode || 'van',
+    aiModeEnabled: meta.ai_mode_enabled ?? true,
+    dailyGoalEnabled: meta.daily_goal_enabled ?? true,
+    annotationDropRate: meta.annotation_drop_rate || 'low',
+  };
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
+  preferences: DEFAULT_PREFERENCES,
 
   initialize: async () => {
     // Get initial session
     const session = await getSupabaseSession();
-    set({ user: session?.user || null, loading: false });
+    const meta = session?.user?.user_metadata || {};
+    set({
+      user: session?.user || null,
+      loading: false,
+      preferences: session?.user ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
+    });
 
     // Listen for changes
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -34,6 +67,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const currentUser = session?.user || null;
 
       set({ user: currentUser, loading: false });
+
+      if (event === 'SIGNED_IN' && currentUser) {
+        const meta = currentUser.user_metadata || {};
+        set({ preferences: preferencesFromMeta(meta) });
+      }
 
       if (event === 'SIGNED_IN' && currentUser && !previousUser) {
         console.log('User signed in. Syncing local data...');
@@ -58,6 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
+        set({ preferences: DEFAULT_PREFERENCES });
       }
     });
   },
@@ -93,7 +132,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: data.user });
     }
     return { error };
-  }
+  },
+
+  updatePreferences: async (partial: Partial<UserPreferences>) => {
+    const merged = { ...get().preferences, ...partial };
+    set({ preferences: merged });
+    await supabase.auth.updateUser({
+      data: {
+        ai_mode: merged.aiMode,
+        ai_mode_enabled: merged.aiModeEnabled,
+        daily_goal_enabled: merged.dailyGoalEnabled,
+        annotation_drop_rate: merged.annotationDropRate,
+      },
+    });
+  },
 }));
 
 async function syncLocalDataToSupabase(userId: string) {
