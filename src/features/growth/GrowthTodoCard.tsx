@@ -20,9 +20,21 @@ const priorityConfig: Record<GrowthPriority, { color: string; bg: string }> = {
   low: { color: 'text-green-600', bg: 'bg-green-100' },
 };
 
+const legacyPriorityMap: Record<string, GrowthPriority> = {
+  'urgent-important': 'high',
+  'urgent-not-important': 'medium',
+  'important-not-urgent': 'medium',
+  'not-important-not-urgent': 'low',
+};
+
+function normalizeGrowthPriority(p: string): GrowthPriority {
+  return legacyPriorityMap[p] ?? (p as GrowthPriority) ?? 'medium';
+}
+
 export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: Props) => {
   const { t } = useTranslation();
-  const cfg = priorityConfig[todo.priority as GrowthPriority] ?? priorityConfig.medium;
+  const priority = normalizeGrowthPriority(todo.priority as string);
+  const cfg = priorityConfig[priority] ?? priorityConfig.medium;
 
   const dueStr = todo.dueAt
     ? new Date(todo.dueAt).toLocaleString(undefined, {
@@ -76,7 +88,7 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: P
 
       {/* Priority badge */}
       <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}>
-        {t(`growth_todo_priority_${todo.priority}`)}
+        {t(`growth_todo_priority_${priority}`)}
       </span>
 
       {/* Action buttons */}
