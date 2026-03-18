@@ -67,7 +67,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 - Phase D（目录治理）: 已完成
 - Phase E（治理与规范）: 已完成（E1/E2/E3）
 
-权威看板以 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 为准。
+当前任务锚点以 `docs/CURRENT_TASK.md` 为准。
 
 ## 7. 环境变量
 
@@ -87,6 +87,6 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 ## 9. 接手建议
 
 1. **先读 `docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范，包含技术栈、分层架构、移动端 UI 规则、App Store 审核风险规避。
-2. 再读 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 任务看板与交接日志。
+2. 再读 `docs/CURRENT_TASK.md` 的阶段清单与下一步断点。
 3. 再看 `README.md` 与 `docs/ARCHITECTURE.md` 建立运行/分层认知。
 4. 开发时遵守单主题提交，改动后至少执行 `npx tsc --noEmit` 与 `npm run build`。

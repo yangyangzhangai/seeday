@@ -1,4 +1,5 @@
 import type { AIAnnotation } from '../types/annotation';
+import type { DailyPlantRecord } from '../types/plant';
 import type { StardustMemory } from '../types/stardust';
 import type { Message, MessageType } from '../store/useChatStore';
 import type { Report } from '../store/useReportStore';
@@ -181,5 +182,59 @@ export function toDbAnnotation(annotation: AIAnnotation, userId: string): Record
     event_timestamp: annotation.timestamp,
     related_event: annotation.relatedEvent,
     created_at: new Date(annotation.timestamp).toISOString(),
+  };
+}
+
+export function fromDbPlantRecord(row: any): DailyPlantRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    date: row.date,
+    timezone: row.timezone,
+    rootMetrics: {
+      dominantRatio: Number(row.root_metrics?.dominant_ratio ?? 0),
+      top2Gap: Number(row.root_metrics?.top2_gap ?? 0),
+      depthScore: Number(row.root_metrics?.depth_score ?? 0),
+      evenness: Number(row.root_metrics?.evenness ?? 0),
+      branchiness: Number(row.root_metrics?.branchiness ?? 0),
+      totalMinutes: Number(row.root_metrics?.total_minutes ?? 0),
+      activeTargetDirections: Number(row.root_metrics?.active_target_directions ?? 0),
+      directionBreakdown: row.root_metrics?.direction_breakdown ?? {},
+    },
+    rootType: row.root_type,
+    plantId: row.plant_id,
+    plantStage: row.plant_stage,
+    isSpecial: Boolean(row.is_special),
+    isSupportVariant: Boolean(row.is_support_variant),
+    diaryText: row.diary_text ?? undefined,
+    generatedAt: row.generated_at ? new Date(row.generated_at).getTime() : Date.now(),
+    cycleId: row.cycle_id ?? null,
+  };
+}
+
+export function toDbPlantRecord(record: DailyPlantRecord, userId: string): Record<string, unknown> {
+  return {
+    id: record.id,
+    user_id: userId,
+    date: record.date,
+    timezone: record.timezone,
+    root_metrics: {
+      dominant_ratio: record.rootMetrics.dominantRatio,
+      top2_gap: record.rootMetrics.top2Gap,
+      depth_score: record.rootMetrics.depthScore,
+      evenness: record.rootMetrics.evenness,
+      branchiness: record.rootMetrics.branchiness,
+      total_minutes: record.rootMetrics.totalMinutes,
+      active_target_directions: record.rootMetrics.activeTargetDirections,
+      direction_breakdown: record.rootMetrics.directionBreakdown,
+    },
+    root_type: record.rootType,
+    plant_id: record.plantId,
+    plant_stage: record.plantStage,
+    is_special: record.isSpecial,
+    is_support_variant: record.isSupportVariant,
+    diary_text: record.diaryText ?? null,
+    generated_at: new Date(record.generatedAt).toISOString(),
+    cycle_id: record.cycleId ?? null,
   };
 }

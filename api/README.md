@@ -20,10 +20,14 @@
 | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
+| `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus? }` |
+| `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
+| `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
+Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 
 ## 本地调试（Windows）
 

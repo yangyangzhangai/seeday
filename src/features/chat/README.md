@@ -46,7 +46,7 @@
 - `docs/PROJECT_MAP.md`
 - `FEATURE_STATUS.md`
 - `docs/ARCHITECTURE.md`
-- `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+- `docs/CURRENT_TASK.md`
 
 ## Test Coverage Anchor
 

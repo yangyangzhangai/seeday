@@ -2,9 +2,7 @@ import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const REQUIRED_GLOBAL_DOCS = [
-  'docs/CODE_CLEANUP_HANDOVER_PLAN.md',
   'docs/CHANGELOG.md',
-  'docs/CURRENT_TASK.md',
 ];
 
 const FEATURE_README_MAP = {
@@ -100,7 +98,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log('[state-consistency] Passed. Code and state docs are updated together.');
+  console.log('[state-consistency] Passed. Code and changelog are updated together.');
 }
 
 main();

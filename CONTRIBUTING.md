@@ -5,7 +5,7 @@
 ## 1. 提交流程
 
 1. 每次提交只做一个主题（例如：安全清理 / 文档同构 / 单模块拆分）。
-2. 先阅读 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 当前看板状态，避免重复施工。
+2. 先阅读 `docs/CURRENT_TASK.md` 当前任务状态，避免重复施工。
 3. 改动完成后，至少执行：
    - `npx tsc --noEmit`
    - `npm run build`
@@ -43,8 +43,8 @@ npm run dev
 
 ## 5. 文档与看板同步
 
-1. 涉及 cleanup 主线任务时，必须同步更新：
-   - `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（任务状态 + 交接日志）
+1. 涉及主线任务时，必须同步更新：
+   - `docs/CURRENT_TASK.md`（任务状态 + 下一步）
    - `docs/CHANGELOG.md`
 2. 若有历史文档过时，优先迁移到 `docs/archive/`，不要直接覆盖事实记录。
 
@@ -63,9 +63,8 @@ npm run dev
 
 ### 5.3 会话断点恢复 SOP（新会话必读）
 
-1. 新会话开工前，按顺序读取：`LLM.md` -> `docs/CURRENT_TASK.md` -> `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（第 4 节看板 + 第 8 节最新日志）。
+1. 新会话开工前，按顺序读取：`LLM.md` -> `docs/CURRENT_TASK.md`。
 2. 任何 `src/**` 或 `api/**` 代码改动，必须同步更新：
-   - `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
    - `docs/CHANGELOG.md`
    - `docs/CURRENT_TASK.md`
    - 受影响模块 README（如 `src/features/*/README.md`、`src/api/README.md`）

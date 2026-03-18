@@ -63,7 +63,7 @@ src/
 
 ## 5) 与当前治理状态对齐
 
-- 当前主线状态与任务进度以 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 看板为准。
+- 当前主线状态与任务进度以 `docs/CURRENT_TASK.md` 为准。
 - C12/C13 在本轮为停止执行项（由用户后续自行推进）。
 
 ## 6) Core Path Index (for doc-sync)
