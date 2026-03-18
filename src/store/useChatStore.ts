@@ -11,7 +11,7 @@ import type { AnnotationEvent } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
-import { useGrowthTodoStore } from './useGrowthTodoStore';
+import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
@@ -424,7 +424,7 @@ export const useChatStore = create<ChatState>()(
         }
 
         // Auto-complete linked growth todo
-        useGrowthTodoStore.getState().completeTodoByMessage(id);
+        useTodoStore.getState().completeTodoByMessage(id);
 
         // AI semantic matching: if activity relates to a habit/goal bottle, add a star
         const growthStore = useGrowthStore.getState();
@@ -434,17 +434,44 @@ export const useChatStore = create<ChatState>()(
 
         if (habits.length > 0 || goals.length > 0) {
           const lang = (i18n.language?.slice(0, 2) as 'zh' | 'en' | 'it') || 'zh';
+
+          // Keyword fallback: match activity content against bottle names
+          const keywordMatch = (text: string, bottles: { id: string; name: string }[]): string | null => {
+            const lower = text.toLowerCase();
+            for (const b of bottles) {
+              const words = b.name.toLowerCase().split(/\s+/);
+              if (words.some(w => w.length >= 2 && lower.includes(w))) return b.id;
+            }
+            return null;
+          };
+
           callClassifierAPI({ rawInput: target.content, lang, habits, goals })
             .then((result) => {
-              if (!result.success || !result.data?.items) return;
+              if (!result.success || !result.data?.items) {
+                // API failed — use keyword fallback
+                const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) growthStore.incrementBottleStar(matched);
+                return;
+              }
+              let aiMatched = false;
               for (const item of result.data.items) {
                 if (item.matched_bottle?.id) {
                   growthStore.incrementBottleStar(item.matched_bottle.id);
+                  aiMatched = true;
                   break; // max one star per activity
                 }
               }
+              // AI returned no match — try keyword fallback
+              if (!aiMatched) {
+                const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) growthStore.incrementBottleStar(matched);
+              }
             })
-            .catch(() => { /* silent — non-critical */ });
+            .catch(() => {
+              // API error — use keyword fallback
+              const matched = keywordMatch(target.content, [...habits, ...goals]);
+              if (matched) growthStore.incrementBottleStar(matched);
+            });
         }
       },
 

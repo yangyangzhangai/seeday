@@ -34,7 +34,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 - 路由与主布局: `src/App.tsx`
 - 页面路由:
   - `/chat` -> `src/features/chat/ChatPage.tsx`
-  - `/todo` -> `src/features/todo/TodoPage.tsx`
+  - `/todo` -> `src/features/growth/GrowthPage.tsx`
   - `/report` -> `src/features/report/ReportPage.tsx`
   - `/auth` -> `src/features/auth/AuthPage.tsx`
 

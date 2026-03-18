@@ -33,7 +33,7 @@
 ## 3. Todo（`/todo`）
 
 - 状态: `stable`
-- 入口: `src/features/todo/TodoPage.tsx`
+- 入口: `src/features/growth/GrowthPage.tsx`
 - 数据/状态: `src/store/useTodoStore.ts`
 - 说明:
   - 支持新增、编辑、删除、完成状态与优先级。

@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/todo/README.md
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import {
   ZH_MAGIC_PEN_TODO_RELATIVE_DATE_WORDS,
   ZH_MAGIC_PEN_TODO_SAME_DAY_WORDS,

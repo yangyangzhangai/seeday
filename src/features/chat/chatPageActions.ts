@@ -99,7 +99,7 @@ async function completeActiveTodoAfterRealtimeIfNeeded(
   await completeActiveTodo();
   if (!todoToComplete?.startedAt) return;
   const duration = Math.round((Date.now() - todoToComplete.startedAt) / (1000 * 60));
-  await updateMessageDuration(todoToComplete.content, todoToComplete.startedAt, duration);
+  await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, duration);
 }
 
 function shouldUseLocalFastPath(input: string, classification: LiveInputClassification): boolean {

@@ -70,7 +70,7 @@ src/
 
 - `src/features/auth`
 - `src/features/chat`
-- `src/features/todo`
+- `src/features/growth`
 - `src/features/report`
 - `src/store/`
 - `src/i18n/`

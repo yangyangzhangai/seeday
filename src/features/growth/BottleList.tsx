@@ -5,12 +5,12 @@ import { useGrowthStore, MAX_BOTTLES, type Bottle } from '../../store/useGrowthS
 import { BottleCard } from './BottleCard';
 import { AddBottleModal } from './AddBottleModal';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
-import { useGrowthTodoStore, type Recurrence } from '../../store/useGrowthTodoStore';
+import { useTodoStore, type Recurrence } from '../../store/useTodoStore';
 
 export const BottleList = () => {
   const { t } = useTranslation();
   const { bottles, addBottle, removeBottle, markBottleIrrigated, continueBottle, markBottleAchieved } = useGrowthStore();
-  const addTodo = useGrowthTodoStore((s) => s.addTodo);
+  const addTodo = useTodoStore((s) => s.addTodo);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState('');
 

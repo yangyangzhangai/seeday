@@ -284,7 +284,7 @@ export const ChatPage = () => {
       await completeActiveTodo();
       if (todoToComplete && todoToComplete.startedAt) {
         const duration = Math.round((Date.now() - todoToComplete.startedAt) / (1000 * 60));
-        await updateMessageDuration(todoToComplete.content, todoToComplete.startedAt, duration);
+        await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, duration);
       }
     }
 
@@ -439,7 +439,7 @@ export const ChatPage = () => {
             <span className="text-sm font-medium">
               {t('chat_current_activity')}<span className="font-bold">
                 {activeTodoId
-                  ? todos.find(t => t.id === activeTodoId)?.content || activeRecord?.content
+                  ? todos.find(t => t.id === activeTodoId)?.title || activeRecord?.content
                   : activeRecord?.content}
               </span>
             </span>

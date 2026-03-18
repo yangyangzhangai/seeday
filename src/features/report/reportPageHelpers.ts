@@ -49,5 +49,8 @@ export function getDailyMoodDistribution(
 
 export function getReportTodosInRange(todos: Todo[], report: Report): Todo[] {
   const { start, end } = getReportRange(report);
-  return todos.filter((todo) => todo.dueDate >= start && todo.dueDate <= end);
+  return todos.filter((todo) => {
+    const due = todo.dueAt ?? todo.createdAt;
+    return due >= start && due <= end;
+  });
 }

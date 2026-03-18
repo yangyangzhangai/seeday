@@ -75,9 +75,9 @@ export function createGeneratedReport({
 
   if (type === 'daily') {
     stats.recurringStats = relevantTodos
-      .filter((todo) => todo.recurrence && todo.recurrence !== 'none')
+      .filter((todo) => todo.recurrence && todo.recurrence !== 'none' && todo.recurrence !== 'once')
       .map((todo) => ({
-        name: todo.content,
+        name: todo.title,
         completed: todo.completed,
       }));
 
@@ -90,9 +90,9 @@ export function createGeneratedReport({
   } else {
     const recurringGroups: Record<string, Todo[]> = {};
     relevantTodos
-      .filter((todo) => todo.recurrence && todo.recurrence !== 'none')
+      .filter((todo) => todo.recurrence && todo.recurrence !== 'none' && todo.recurrence !== 'once')
       .forEach((todo) => {
-        const key = todo.recurrenceId || todo.content;
+        const key = todo.recurrenceId || todo.title;
         if (!recurringGroups[key]) recurringGroups[key] = [];
         recurringGroups[key].push(todo);
       });
@@ -100,7 +100,7 @@ export function createGeneratedReport({
     stats.recurringStats = Object.values(recurringGroups).map((group) => {
       const completedCount = group.filter((todo) => todo.completed).length;
       return {
-        name: group[0].content,
+        name: group[0].title,
         completed: false,
         count: completedCount,
         total: group.length,
@@ -110,7 +110,7 @@ export function createGeneratedReport({
 
     const days = eachDayOfInterval({ start, end });
     stats.dailyCompletion = days.map((day) => {
-      const dayTodos = relevantTodos.filter((todo) => isSameDay(todo.dueDate, day));
+      const dayTodos = relevantTodos.filter((todo) => isSameDay(todo.dueAt ?? todo.createdAt, day));
       const dayCompleted = dayTodos.filter((todo) => todo.completed).length;
       return {
         date: format(day, 'MM-dd'),

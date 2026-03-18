@@ -22,7 +22,7 @@
 | 模块 | README 路径 |
 |------|-------------|
 | 聊天/记录 | `src/features/chat/README.md` |
-| 任务管理 | `src/features/todo/README.md` |
+| 任务管理 | `src/features/growth/GrowthPage.tsx` |
 | 报告/日报 | `src/features/report/README.md` |
 | 登录/注册 | `src/features/auth/README.md` |
 | 前端 API 层 | `src/api/README.md` |
