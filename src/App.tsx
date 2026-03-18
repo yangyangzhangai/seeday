@@ -5,7 +5,6 @@ import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
-// TodoPage removed — redirected to /growth
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';

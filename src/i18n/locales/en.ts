@@ -23,7 +23,6 @@ const en = {
 
     // ── Bottom Nav ──
     nav_record: 'Track',
-    nav_todo: 'Tasks',
     nav_report: 'Reports',
 
     // ── Chat / Record Page ──

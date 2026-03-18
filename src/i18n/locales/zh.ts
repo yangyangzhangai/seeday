@@ -25,7 +25,6 @@ const zh: TranslationKeys = {
 
     // ── 底部导航 ──
     nav_record: '记录',
-    nav_todo: '待办管理',
     nav_report: '时间报告',
 
     // ── 聊天 / 记录页面 ──
