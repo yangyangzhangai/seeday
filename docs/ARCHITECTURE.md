@@ -131,7 +131,6 @@ Browser (React)
 
 ## 9. 关联文档
 
-- 主计划: `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
 - 目录地图: `docs/PROJECT_MAP.md`
 - 项目上下文: `PROJECT_CONTEXT.md`
 - 功能状态: `FEATURE_STATUS.md`

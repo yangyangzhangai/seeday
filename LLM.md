@@ -119,7 +119,6 @@ npm run build                   # 构建验证（关键改动后执行）
 | `docs/CURRENT_TASK.md` | 当前任务焦点，新会话从这里恢复断点 |
 | `docs/PROJECT_MAP.md` | 目录职责、核心边界、核心路径索引 |
 | `docs/TSHINE_DEV_SPEC.md` | **iOS 开发规范**（技术栈、分层架构、移动端 UI、App Store 审核规避）|
-| `docs/CODE_CLEANUP_HANDOVER_PLAN.md` | 执行主线看板（Phase A-G）+ 交接历史日志 |
 | `docs/CHANGELOG.md` | 变更记录，每 PR 更新一次 |
 | `docs/ARCHITECTURE.md` | 架构说明（真实实现，非愿景） |
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（主输入受控整理模式：AI 提取 + 前端校验 + draft review） |
