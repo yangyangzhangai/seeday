@@ -23,7 +23,8 @@ export const ProfilePage: React.FC = () => {
     }
   }, [user, navigate]);
 
-  // Query membership status
+  // TODO: Re-enable membership gating once membership framework is ready.
+  // Query membership status (temporarily all users treated as plus)
   useEffect(() => {
     if (!user) return;
     supabase
@@ -31,8 +32,8 @@ export const ProfilePage: React.FC = () => {
       .select('plan')
       .eq('user_id', user.id)
       .single()
-      .then(({ data }) => {
-        setIsPlus(data?.plan === 'plus');
+      .then(() => {
+        setIsPlus(true); // temporarily unlocked — restore: setIsPlus(data?.plan === 'plus')
       });
   }, [user]);
 
