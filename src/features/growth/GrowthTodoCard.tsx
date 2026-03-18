@@ -22,7 +22,7 @@ const priorityConfig: Record<GrowthPriority, { color: string; bg: string }> = {
 
 export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: Props) => {
   const { t } = useTranslation();
-  const cfg = priorityConfig[todo.priority];
+  const cfg = priorityConfig[todo.priority as GrowthPriority] ?? priorityConfig.medium;
 
   const dueStr = todo.dueAt
     ? new Date(todo.dueAt).toLocaleString(undefined, {
