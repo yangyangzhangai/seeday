@@ -25,7 +25,6 @@ const it: TranslationKeys = {
 
     // ── Navigazione inferiore ──
     nav_record: 'Registro',
-    nav_todo: 'Attività',
     nav_report: 'Rapporto',
 
     // ── Chat / Pagina Registro ──
