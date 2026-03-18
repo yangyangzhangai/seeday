@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md -> src/features/todo/README.md
+// DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import {
   ZH_SHARED_ACTIVITY_STRONG_PHRASES,
   ZH_SHARED_ACTIVITY_VERBS,

@@ -37,7 +37,7 @@ Browser (React)
 
 - `src/features/auth`: 登录注册
 - `src/features/chat`: 聊天与活动记录
-- `src/features/todo`: 任务管理
+- `src/features/growth`: 任务管理
 - `src/features/report`: 报告视图、详情与统计
 
 ### 2.3 状态层（Zustand）

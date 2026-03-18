@@ -51,10 +51,10 @@ export const TaskListModal: React.FC<TaskListModalProps> = ({
                 </div>
                 <div className="flex-1">
                   <div className={cn('text-sm font-medium', todo.completed && 'line-through text-gray-400')}>
-                    {todo.content}
+                    {todo.title}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {format(todo.dueDate, 'MM-dd')} · {todo.category}
+                    {format(todo.dueAt ?? todo.createdAt, 'MM-dd')} · {todo.category ?? ''}
                   </div>
                 </div>
               </div>

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { X, Play } from 'lucide-react';
 import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
+import { useTodoStore } from '../../store/useTodoStore';
+import { useGrowthStore } from '../../store/useGrowthStore';
 import { FocusTimer } from './FocusTimer';
 import { type GrowthTodo } from './GrowthTodoCard';
 
@@ -16,6 +18,8 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const { currentSession, activeMessageId, startFocus, setActiveMessageId, endFocus } = useFocusStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
+  const toggleTodo = useTodoStore((s) => s.toggleTodo);
+  const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -73,11 +77,16 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   };
 
   const finishFocus = useCallback(async () => {
-    // End record page activity
+    // End record page activity (duration = focus session duration)
     if (activeMessageId) {
       await endActivity(activeMessageId);
     }
     const session = endFocus();
+    // Auto-complete the todo and award bottle star
+    if (!todo.completed) {
+      toggleTodo(todo.id);
+      if (todo.bottleId) incrementBottleStar(todo.bottleId);
+    }
     if (session?.actualDuration) {
       const mins = Math.floor(session.actualDuration / 60);
       const secs = session.actualDuration % 60;
@@ -85,7 +94,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
       setSummary(t('growth_focus_summary', { duration: durStr }));
     }
     setShowConfirmEnd(false);
-  }, [activeMessageId, endActivity, endFocus, t]);
+  }, [activeMessageId, endActivity, endFocus, todo, toggleTodo, incrementBottleStar, t]);
 
   const handleEnd = useCallback(() => {
     if (!showConfirmEnd && isRunning) {
@@ -131,6 +140,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
             setDuration={currentSession!.setDuration}
             startedAt={currentSession!.startedAt}
             onEnd={handleEnd}
+            onAutoComplete={finishFocus}
           />
           {/* Confirm end dialog */}
           {showConfirmEnd && (

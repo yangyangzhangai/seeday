@@ -7,10 +7,15 @@ import type { Todo } from '../store/useTodoStore';
 export type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
 
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
-  dueDate: 'due_date',
+  title: 'content',
+  dueAt: 'due_date',
   completedAt: 'completed_at',
   isPinned: 'is_pinned',
   startedAt: 'started_at',
+  bottleId: 'bottle_id',
+  sortOrder: 'sort_order',
+  isTemplate: 'is_template',
+  templateId: 'template_id',
 };
 
 export function fromDbMessage(row: any): Message {
@@ -42,11 +47,11 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
 export function fromDbTodo(row: any): Todo {
   return {
     id: row.id,
-    content: row.content,
+    title: row.content,              // DB 'content' → app 'title'
     completed: row.completed,
     priority: row.priority,
     category: row.category,
-    dueDate: row.due_date,
+    dueAt: row.due_date,             // DB 'due_date' → app 'dueAt'
     scope: row.scope,
     createdAt: row.created_at,
     recurrence: row.recurrence,
@@ -55,17 +60,21 @@ export function fromDbTodo(row: any): Todo {
     isPinned: row.is_pinned || false,
     startedAt: row.started_at,
     duration: row.duration,
+    bottleId: row.bottle_id,
+    sortOrder: row.sort_order ?? row.due_date ?? Date.now(),
+    isTemplate: row.is_template ?? false,
+    templateId: row.template_id,
   };
 }
 
 export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
   return {
     id: todo.id,
-    content: todo.content,
+    content: todo.title,             // app 'title' → DB 'content'
     completed: todo.completed,
     priority: todo.priority,
     category: todo.category,
-    due_date: todo.dueDate,
+    due_date: todo.dueAt,            // app 'dueAt' → DB 'due_date'
     scope: todo.scope,
     created_at: todo.createdAt,
     recurrence: todo.recurrence,
@@ -74,6 +83,10 @@ export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
     is_pinned: todo.isPinned,
     started_at: todo.startedAt,
     duration: todo.duration,
+    bottle_id: todo.bottleId,
+    sort_order: todo.sortOrder,
+    is_template: todo.isTemplate,
+    template_id: todo.templateId,
     user_id: userId,
   };
 }

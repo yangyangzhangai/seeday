@@ -103,7 +103,8 @@ export function filterActivities(
 
 export function filterRelevantTodos(todos: Todo[], start: Date, end: Date, type: ReportType): Todo[] {
   return todos.filter((t) => {
-    const inDateRange = t.dueDate >= start.getTime() && t.dueDate <= end.getTime();
+    const due = t.dueAt ?? t.createdAt;
+    const inDateRange = due >= start.getTime() && due <= end.getTime();
     if (!inDateRange) return false;
     if (type === 'weekly' && t.scope === 'monthly') return false;
     return true;

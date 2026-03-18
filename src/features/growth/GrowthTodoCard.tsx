@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { AlarmClock, Check, Play, GripVertical, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { type GrowthTodo, type GrowthPriority } from '../../store/useGrowthTodoStore';
+import { type GrowthTodo, type GrowthPriority } from '../../store/useTodoStore';
 
 // Re-export for consumers
 export type { GrowthTodo, GrowthPriority };

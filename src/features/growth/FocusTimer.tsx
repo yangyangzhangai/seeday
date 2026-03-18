@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   setDuration: number; // seconds, 0 = count-up
   startedAt: number;
-  onEnd: () => void;
+  onEnd: () => void;          // manual "End" button
+  onAutoComplete?: () => void; // auto-triggered when countdown reaches 0
 }
 
-export const FocusTimer = ({ setDuration, startedAt, onEnd }: Props) => {
+export const FocusTimer = ({ setDuration, startedAt, onEnd, onAutoComplete }: Props) => {
   const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(0);
   const rafRef = useRef<number>(0);
@@ -19,7 +20,8 @@ export const FocusTimer = ({ setDuration, startedAt, onEnd }: Props) => {
 
     // Auto-end for countdown mode
     if (setDuration > 0 && secs >= setDuration) {
-      onEnd();
+      if (onAutoComplete) onAutoComplete();
+      else onEnd();
       return;
     }
     rafRef.current = requestAnimationFrame(tick);
