@@ -360,6 +360,7 @@ const zh: TranslationKeys = {
     mood_return_event: '回归事件',
     mood_to_event: '转为事件',
     image_upload: '上传图片',
+    chat_input_error_need_text: '需要填写事件内容才可以记录哦',
     image_uploading: '上传中...',
     image_upload_fail: '上传失败，点击重试',
     image_delete: '删除图片',

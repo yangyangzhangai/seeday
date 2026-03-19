@@ -360,6 +360,7 @@ const it: TranslationKeys = {
     mood_return_event: "Torna all'Evento",
     mood_to_event: 'Converti in Evento',
     image_upload: 'Carica Immagine',
+    chat_input_error_need_text: 'Aggiungi una descrizione per registrare',
     image_uploading: 'Caricamento...',
     image_upload_fail: 'Caricamento fallito, tocca per riprovare',
     image_delete: 'Elimina Immagine',

@@ -62,39 +62,37 @@ export const ChatPage = () => {
     data: StardustCardData; position: { x: number; y: number };
   } | null>(null);
 
-  // ── Photo upload via input bar ─────────────────────────────
-  const [photoCropFile, setPhotoCropFile] = useState<File | null>(null);
-  const [photoCropTarget, setPhotoCropTarget] = useState<{ id: string; slot: 'imageUrl' | 'imageUrl2' } | null>(null);
+  // ── Pending images (staged in input bar before send) ───────
+  const [pendingBlobs, setPendingBlobs]       = useState<Blob[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const [inputBarCropFile, setInputBarCropFile] = useState<File | null>(null);
+  const [inputError, setInputError]           = useState<string | null>(null);
   const { upload: uploadImage } = useImageUpload();
-  const { updateMessageImage } = useChatStore.getState();
 
-  const handleInputBarPhotoSelect = useCallback((file: File) => {
-    // Find latest non-mood message with a free image slot
-    const msgs = useChatStore.getState().messages;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
-      if (m.isMood) continue;
-      if (!m.imageUrl) {
-        setPhotoCropTarget({ id: m.id, slot: 'imageUrl' });
-      } else if (!m.imageUrl2) {
-        setPhotoCropTarget({ id: m.id, slot: 'imageUrl2' });
-      } else {
-        continue; // both slots full, try previous card
-      }
-      setPhotoCropFile(file);
-      return;
-    }
-    // No eligible card found — still open crop, will upload to first available on confirm
-    setPhotoCropFile(file);
+  const handleInputBarPhotoFileSelected = useCallback((file: File) => {
+    if (pendingBlobs.length >= 2) return; // max 2 images
+    setInputBarCropFile(file);
+  }, [pendingBlobs.length]);
+
+  const handleInputBarCropConfirm = useCallback((blob: Blob) => {
+    const preview = URL.createObjectURL(blob);
+    setPendingBlobs(prev => [...prev, blob]);
+    setPendingPreviews(prev => [...prev, preview]);
+    setInputBarCropFile(null);
   }, []);
 
-  const handlePhotoCropConfirm = useCallback(async (blob: Blob) => {
-    if (!photoCropTarget) { setPhotoCropFile(null); return; }
-    const url = await uploadImage(blob, `${photoCropTarget.id}_${photoCropTarget.slot}`);
-    await updateMessageImage(photoCropTarget.id, photoCropTarget.slot, url);
-    setPhotoCropFile(null);
-    setPhotoCropTarget(null);
-  }, [photoCropTarget, uploadImage, updateMessageImage]);
+  const handleRemovePendingImage = useCallback((idx: number) => {
+    setPendingBlobs(prev => prev.filter((_, i) => i !== idx));
+    setPendingPreviews(prev => {
+      URL.revokeObjectURL(prev[idx]); // free memory
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
+  const clearPendingImages = useCallback(() => {
+    setPendingPreviews(prev => { prev.forEach(URL.revokeObjectURL); return []; });
+    setPendingBlobs([]);
+  }, []);
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
@@ -238,7 +236,15 @@ export const ChatPage = () => {
 
   // ── Send ──────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!input.trim()) return;
+    const hasText   = input.trim().length > 0;
+    const hasImages = pendingBlobs.length > 0;
+
+    // Must have text — images alone are not allowed
+    if (!hasText) {
+      if (hasImages) setInputError(t('chat_input_error_need_text'));
+      return;
+    }
+    setInputError(null);
 
     if (isMagicPenModeOn) {
       await handleMagicPenModeSend({
@@ -256,9 +262,12 @@ export const ChatPage = () => {
         setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
         setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
       });
+      clearPendingImages();
       return;
     }
 
+    // Track which message IDs exist before sending so we can find the new one
+    const beforeIds = new Set(useChatStore.getState().messages.map(m => m.id));
     const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
     const classification = await sendAutoRecognizedInput(input);
 
@@ -270,6 +279,24 @@ export const ChatPage = () => {
       }
     }
     setInput('');
+
+    // Attach pending images to the newly created activity message
+    if (hasImages && classification?.kind === 'activity') {
+      const newMsg = [...useChatStore.getState().messages]
+        .reverse()
+        .find(m => !beforeIds.has(m.id) && !m.isMood);
+      if (newMsg) {
+        const { updateMessageImage } = useChatStore.getState();
+        const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, pendingBlobs.length);
+        await Promise.all(
+          slots.map(async (slot, i) => {
+            const url = await uploadImage(pendingBlobs[i], `${newMsg.id}_${slot}`);
+            await updateMessageImage(newMsg.id, slot, url);
+          }),
+        );
+      }
+    }
+    clearPendingImages();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -306,19 +333,22 @@ export const ChatPage = () => {
         input={input}
         isLoading={isLoading || isMagicPenSending}
         isMagicPenModeOn={isMagicPenModeOn}
-        onInputChange={setInput}
-        onSend={handleSend}
+        onInputChange={v => { setInput(v); if (inputError) setInputError(null); }}
+        onSend={() => { void handleSend(); }}
         onKeyDown={handleKeyDown}
         onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
-        onPhotoSelect={handleInputBarPhotoSelect}
+        onPhotoFileSelected={handleInputBarPhotoFileSelected}
+        pendingImagePreviews={pendingPreviews}
+        onRemovePendingImage={handleRemovePendingImage}
+        inputError={inputError}
       />
 
-      {/* Photo crop modal — triggered from input bar ➕ */}
-      {photoCropFile && (
+      {/* Crop modal for input-bar staged photos */}
+      {inputBarCropFile && (
         <ImageCropModal
-          file={photoCropFile}
-          onConfirm={blob => { void handlePhotoCropConfirm(blob); }}
-          onCancel={() => { setPhotoCropFile(null); setPhotoCropTarget(null); }}
+          file={inputBarCropFile}
+          onConfirm={handleInputBarCropConfirm}
+          onCancel={() => setInputBarCropFile(null)}
         />
       )}
 
