@@ -95,18 +95,18 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
           {/* Tap-to-show overlay buttons */}
           {imageTapped && (
-            <div className="absolute inset-0 bg-black/20 flex items-start justify-end p-1 gap-1">
+            <div className="absolute inset-0 bg-black/20 flex items-start justify-end p-1.5 gap-1.5">
               <button
                 onClick={e => { e.stopPropagation(); setImageTapped(false); setLightbox(true); }}
-                className="p-1 bg-black/50 rounded-full text-white"
+                className="p-1.5 bg-black/50 rounded-full text-white"
               >
-                <ZoomIn size={11} />
+                <ZoomIn size={13} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); void handleRemove(); }}
-                className="p-1 bg-black/50 rounded-full text-white"
+                className="p-1.5 bg-black/50 rounded-full text-white"
               >
-                <X size={11} />
+                <X size={13} />
               </button>
             </div>
           )}
@@ -116,19 +116,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         {lightbox && (
           <div
             className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50"
+            style={{ paddingTop: 'env(safe-area-inset-top,0px)', paddingBottom: 'env(safe-area-inset-bottom,0px)', paddingLeft: 'env(safe-area-inset-left,0px)', paddingRight: 'env(safe-area-inset-right,0px)' }}
             onClick={() => setLightbox(false)}
           >
             <img
               src={imageUrl}
               alt=""
-              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              className="max-w-full max-h-[75vh] object-contain rounded-lg"
               onClick={e => e.stopPropagation()}
             />
             <button
               onClick={() => setLightbox(false)}
-              className="mt-5 flex items-center justify-center w-9 h-9 bg-white/15 hover:bg-white/25 rounded-full text-white transition-colors"
+              className="mt-5 flex items-center justify-center w-10 h-10 bg-white/15 hover:bg-white/25 rounded-full text-white transition-colors"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
         )}

@@ -98,9 +98,10 @@ interface ChatState {
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
-  endActivity: (id: string) => Promise<void>;
+  endActivity: (id: string, opts?: { skipBottleStar?: boolean }) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
+  updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
   setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
@@ -130,7 +131,14 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ hasInitialized: true });
+          // Guest mode: keep only today's messages; discard stale days.
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayStartMs = todayStart.getTime();
+          set(state => ({
+            messages: state.messages.filter(m => m.timestamp >= todayStartMs),
+            hasInitialized: true,
+          }));
           return;
         }
 
@@ -215,7 +223,6 @@ export const useChatStore = create<ChatState>()(
             yesterdaySummary,
             currentDateStr: todayStr,
             activeViewDateStr: todayStr,
-            // Cache today so switching back from other dates is instant
             dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
         } catch (error) {
@@ -476,7 +483,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      endActivity: async (id) => {
+      endActivity: async (id, opts) => {
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
@@ -499,10 +506,8 @@ export const useChatStore = create<ChatState>()(
           moodStore.setMood(id, autoDetectMood(target.content, duration));
         }
 
-        // Auto-complete linked growth todo
         useTodoStore.getState().completeTodoByMessage(id);
-
-        // AI semantic matching: if activity relates to a habit/goal bottle, add a star
+        if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
@@ -573,18 +578,30 @@ export const useChatStore = create<ChatState>()(
         );
 
         if (!targetMessage) {
-          console.log('[DEBUG] 未找到匹配的消息:', content, timestamp);
           return;
         }
-
         set({ messages: updatedMessages });
-
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
+      },
 
-        console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
+      updateMessageImage: async (id, slot, url) => {
+        const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
+        set(state => ({
+          messages: state.messages.map(m =>
+            m.id === id ? { ...m, [slot]: url } : m,
+          ),
+        }));
+        const session = await getSupabaseSession();
+        if (session) {
+          await supabase
+            .from('messages')
+            .update({ [dbCol]: url })
+            .eq('id', id)
+            .eq('user_id', session.user.id);
+        }
       },
 
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
@@ -775,6 +792,7 @@ export const useChatStore = create<ChatState>()(
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
         currentDateStr: state.currentDateStr,
+        hasInitialized: state.hasInitialized,
       }),
     }
   )

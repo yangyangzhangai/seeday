@@ -228,7 +228,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             )}
 
             {/* Full avatar */}
-            <div className="w-64 h-64 bg-gray-900 flex items-center justify-center">
+            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] bg-gray-900 flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}

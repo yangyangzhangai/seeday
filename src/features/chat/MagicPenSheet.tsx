@@ -216,7 +216,7 @@ export function MagicPenSheet({
                       value={draft.content}
                       disabled={!editable}
                       onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
-                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                      className="flex-1 text-base px-2 py-1 border border-gray-300 rounded-md outline-none"
                     />
                     <button
                       type="button"
@@ -250,7 +250,7 @@ export function MagicPenSheet({
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg text-base ${
                         highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
                       }`}
                     />
@@ -268,7 +268,7 @@ export function MagicPenSheet({
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg text-base ${
                         highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
                       }`}
                     />
@@ -336,7 +336,7 @@ export function MagicPenSheet({
                       value={draft.content}
                       disabled={!editable}
                       onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
-                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                      className="flex-1 text-base px-2 py-1 border border-gray-300 rounded-md outline-none"
                     />
                     <button
                       type="button"
