@@ -160,7 +160,7 @@ export const ChatPage = () => {
   const activeRecord = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
-      if (message.mode === 'record' && !message.isMood && message.duration === undefined) {
+      if (message.mode === 'record' && !message.isMood && message.duration == null) {
         return message;
       }
     }

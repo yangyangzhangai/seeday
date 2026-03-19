@@ -26,7 +26,6 @@ const zh: TranslationKeys = {
     // ── 底部导航 ──
     nav_record: '记录',
     nav_report: '时间报告',
-    nav_profile: '我的',
 
     // ── 聊天 / 记录页面 ──
     chat_title: '记录',
@@ -109,6 +108,10 @@ const zh: TranslationKeys = {
     todo_label_category: '分类',
     todo_placeholder_custom_category: '自定义...',
     todo_delete_confirm: '删除此待办',
+    todo_delete_recurring_title: '这是一个重复待办',
+    todo_delete_recurring_desc: '请选择删除范围',
+    todo_delete_today_only: '仅删除今天',
+    todo_delete_all_future: '以后都删除',
     todo_duration: '耗时 {{minutes}}分钟',
     todo_pin: '置顶',
     todo_unpin: '取消置顶',
@@ -280,38 +283,6 @@ const zh: TranslationKeys = {
     growth_todo_weekly_days: '选择星期',
     growth_bottle_name_duplicate: '同名瓶子已存在',
     growth_bottle_todo_prompt: '为「{{name}}」生成待办？',
-
-    // ── 我的页面 ──
-    profile_title: '个人中心',
-    profile_streak: '连续天数',
-    profile_today_activities: '今日活动',
-    profile_completed_goals: '完成目标',
-    profile_ai_mode: 'AI 陪伴模式',
-    profile_free: '免费',
-    profile_annotation_drop: 'AI 批注掉落概率',
-    profile_drop_low: '低',
-    profile_drop_medium: '中',
-    profile_drop_high: '高',
-    profile_daily_goal: '每日人生主要目标',
-    profile_daily_goal_desc: '每次进入成长页面时显示目标填写弹窗',
-    profile_membership: '会员计划',
-    profile_upgrade: '升级到 Plus · 解锁全部功能',
-    profile_upgrade_coming: '即将上线',
-    profile_help: '帮助与支持',
-    profile_privacy: '隐私政策',
-    profile_about: '关于应用',
-    profile_logout: '退出登录',
-    profile_plus_only: '升级 Plus 解锁',
-
-    // ── 会员权益 ──
-    membership_feat_basic_analysis: '基础活动分析',
-    membership_feat_daily_plant: '每日植物生成',
-    membership_feat_ai_chat: 'AI 陪伴对话',
-    membership_feat_advanced_analysis: '高级数据分析',
-    membership_feat_daily_report: '每日日报分析',
-    membership_feat_weekly_report: '每周分析报告',
-    membership_feat_monthly_report: '每月分析报告',
-    membership_feat_yearly_report: '每年分析报告',
 
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',

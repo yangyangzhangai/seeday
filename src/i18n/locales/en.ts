@@ -24,7 +24,6 @@ const en = {
     // ── Bottom Nav ──
     nav_record: 'Track',
     nav_report: 'Reports',
-    nav_profile: 'Profile',
 
     // ── Chat / Record Page ──
     chat_title: 'Track',
@@ -107,6 +106,10 @@ const en = {
     todo_label_category: 'Category',
     todo_placeholder_custom_category: 'New category…',
     todo_delete_confirm: 'Delete this task',
+    todo_delete_recurring_title: 'This is a recurring task',
+    todo_delete_recurring_desc: 'Choose how to delete',
+    todo_delete_today_only: 'Just today',
+    todo_delete_all_future: 'Delete all future',
     todo_duration: 'Duration {{minutes}} min',
     todo_pin: 'Pin',
     todo_unpin: 'Unpin',
@@ -278,38 +281,6 @@ const en = {
     growth_todo_weekly_days: 'Select Days',
     growth_bottle_name_duplicate: 'A bottle with this name already exists',
     growth_bottle_todo_prompt: 'Create a to-do for "{{name}}"?',
-
-    // ── Profile Page ──
-    profile_title: 'Profile',
-    profile_streak: 'Streak',
-    profile_today_activities: 'Today',
-    profile_completed_goals: 'Goals',
-    profile_ai_mode: 'AI Companion',
-    profile_free: 'Free',
-    profile_annotation_drop: 'AI Annotation Rate',
-    profile_drop_low: 'Low',
-    profile_drop_medium: 'Medium',
-    profile_drop_high: 'High',
-    profile_daily_goal: 'Daily Life Goal',
-    profile_daily_goal_desc: 'Show goal popup when entering Growth page',
-    profile_membership: 'Membership',
-    profile_upgrade: 'Upgrade to Plus · Unlock All Features',
-    profile_upgrade_coming: 'Coming Soon',
-    profile_help: 'Help & Support',
-    profile_privacy: 'Privacy Policy',
-    profile_about: 'About',
-    profile_logout: 'Log Out',
-    profile_plus_only: 'Upgrade to Plus to unlock',
-
-    // ── Membership features ──
-    membership_feat_basic_analysis: 'Basic Analysis',
-    membership_feat_daily_plant: 'Daily Plant',
-    membership_feat_ai_chat: 'AI Companion',
-    membership_feat_advanced_analysis: 'Advanced Analysis',
-    membership_feat_daily_report: 'Daily Report',
-    membership_feat_weekly_report: 'Weekly Report',
-    membership_feat_monthly_report: 'Monthly Report',
-    membership_feat_yearly_report: 'Yearly Report',
 
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',

@@ -182,7 +182,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             </div>
             <div className="text-right w-28 shrink-0 flex flex-col items-end -mt-0.5 relative">
                 <div className="flex items-center gap-1">
-                    {msg.duration === undefined && (
+                    {msg.duration == null && (
                         <button
                             onClick={() => onEndActivity(msg.id)}
                             className="text-[9px] text-gray-500 border border-gray-200 rounded-full px-2 py-0.5 hover:bg-gray-50"
@@ -192,11 +192,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     )}
                     <div className="text-[10px] text-gray-500 whitespace-nowrap relative group/time cursor-pointer flex flex-col items-end">
                         <div>
-                            {format(msg.timestamp, 'HH:mm')} - {msg.duration !== undefined
+                            {format(msg.timestamp, 'HH:mm')} - {msg.duration != null
                                 ? `${format(msg.timestamp + msg.duration * 60 * 1000, 'HH:mm')}`
                                 : t('chat_ongoing')}
                         </div>
-                        {msg.duration !== undefined && (
+                        {msg.duration != null && (
                             <div className="mt-1">
                                 <div
                                     className="inline-flex items-center justify-center rounded-full border border-sky-300 text-sky-700 bg-white/80 text-[9px] font-semibold shadow-sm px-2 py-0.5 text-center"
