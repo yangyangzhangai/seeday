@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { DailyGoalPopup } from './DailyGoalPopup';
 import { BottleList } from './BottleList';
 import { GrowthTodoSection } from './GrowthTodoSection';
@@ -10,14 +11,16 @@ import { type GrowthTodo } from './GrowthTodoCard';
 export const GrowthPage = () => {
   const { t } = useTranslation();
   const shouldShowDailyGoal = useGrowthStore((s) => s.shouldShowDailyGoal);
+  const dailyGoalEnabled = useAuthStore((s) => s.preferences.dailyGoalEnabled);
   const [showGoalPopup, setShowGoalPopup] = useState(false);
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
 
   useEffect(() => {
-    if (shouldShowDailyGoal()) {
+    // Only show if the user has enabled it in Profile settings AND hasn't seen it today
+    if (dailyGoalEnabled && shouldShowDailyGoal()) {
       setShowGoalPopup(true);
     }
-  }, [shouldShowDailyGoal]);
+  }, [dailyGoalEnabled, shouldShowDailyGoal]);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">

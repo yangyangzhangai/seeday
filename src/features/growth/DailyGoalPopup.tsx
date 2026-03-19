@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 export const DailyGoalPopup = ({ onClose }: Props) => {
   const { t } = useTranslation();
   const { dailyGoal, setDailyGoal, disablePopup } = useGrowthStore();
+  const updatePreferences = useAuthStore((s) => s.updatePreferences);
   const [text, setText] = useState(dailyGoal);
   const [showMenu, setShowMenu] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,6 +31,8 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
 
   const handleDisable = () => {
     disablePopup();
+    // Also turn off the Profile setting so the toggle stays in sync
+    void updatePreferences({ dailyGoalEnabled: false });
     onClose();
   };
 
