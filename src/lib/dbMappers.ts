@@ -41,6 +41,7 @@ export function fromDbMessage(row: any): Message {
     isMood: row.is_mood || false,
     // ★ v1.2 新增字段
     imageUrl: row.image_url ?? null,
+    imageUrl2: row.image_url_2 ?? null,
     moodDescriptions: safeParseMoodDescriptions(row.mood_descriptions),
     isActive: row.is_active ?? false,
     detached: row.detached ?? false,
@@ -59,6 +60,7 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
     user_id: userId,
     // ★ v1.2 新增字段
     image_url: message.imageUrl ?? null,
+    image_url_2: message.imageUrl2 ?? null,
     mood_descriptions: message.moodDescriptions ?? null,
     is_active: message.isActive ?? false,
     detached: message.detached ?? false,

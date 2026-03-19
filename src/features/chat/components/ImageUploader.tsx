@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
 import { useImageUpload } from '../../../hooks/useImageUpload';
@@ -10,19 +10,36 @@ export interface ImageUploaderProps {
   imageUrl?: string | null;
   onUploaded: (url: string) => void;
   onRemoved:  () => void;
+  /** Show image at half height (h-20) instead of max-h-48 */
+  compact?: boolean;
+  /** Hide the upload button (camera icon) — used when slot is occupied externally */
+  hideUploadWhen?: boolean;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
-  messageId, imageUrl, onUploaded, onRemoved,
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen,
 }) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
   const inputRef   = useRef<HTMLInputElement>(null);
+  const imageRef   = useRef<HTMLDivElement>(null);
   const [error, setError]         = useState(false);
   const [lightbox, setLightbox]   = useState(false);
   const [cropFile, setCropFile]   = useState<File | null>(null);
+  const [imageTapped, setImageTapped] = useState(false);
 
-  // Called after user confirms the crop
+  // Dismiss image overlay when tapping outside the image
+  useEffect(() => {
+    if (!imageTapped) return;
+    const handler = (e: MouseEvent) => {
+      if (imageRef.current && !imageRef.current.contains(e.target as Node)) {
+        setImageTapped(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [imageTapped]);
+
   const handleCropConfirm = async (blob: Blob) => {
     setCropFile(null);
     setError(false);
@@ -37,12 +54,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so the same file can be reselected after crop cancel
     e.target.value = '';
     setCropFile(file);
   };
 
   const handleRemove = async () => {
+    setImageTapped(false);
     await remove(messageId, imageUrl ?? undefined);
     onRemoved();
   };
@@ -51,27 +68,33 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   if (imageUrl) {
     return (
       <>
-        <div className="relative mt-2 rounded-lg overflow-hidden">
+        <div
+          ref={imageRef}
+          className="relative rounded-lg overflow-hidden cursor-pointer"
+          onClick={() => setImageTapped(v => !v)}
+        >
           <img
             src={imageUrl}
             alt=""
-            className="w-full max-h-48 object-cover cursor-pointer"
-            onClick={() => setLightbox(true)}
+            className={compact ? 'w-full h-20 object-cover' : 'w-full max-h-48 object-cover'}
           />
-          <div className="absolute top-1 right-1 flex gap-1">
-            <button
-              onClick={() => setLightbox(true)}
-              className="p-1 bg-black/40 rounded-full text-white"
-            >
-              <ZoomIn size={12} />
-            </button>
-            <button
-              onClick={handleRemove}
-              className="p-1 bg-black/40 rounded-full text-white"
-            >
-              <X size={12} />
-            </button>
-          </div>
+          {/* Overlay buttons — visible only when image is tapped */}
+          {imageTapped && (
+            <div className="absolute inset-0 bg-black/20 flex items-start justify-end p-1 gap-1">
+              <button
+                onClick={e => { e.stopPropagation(); setLightbox(true); }}
+                className="p-1 bg-black/50 rounded-full text-white"
+              >
+                <ZoomIn size={11} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); void handleRemove(); }}
+                className="p-1 bg-black/50 rounded-full text-white"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          )}
         </div>
 
         {lightbox && (
@@ -86,7 +109,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     );
   }
 
-  // ── Upload button (camera icon only) ───────────────────────
+  // ── No image: show upload button (unless hidden) ────────────
+  if (hideUploadWhen) return null;
+
   return (
     <>
       <input
@@ -97,7 +122,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         onChange={handleFileChange}
       />
 
-      <div className="mt-1">
+      <div className="mt-0">
         {uploading ? (
           <div className="flex items-center justify-center w-7 h-7">
             <Loader2 size={14} className="animate-spin text-gray-400" />
@@ -121,7 +146,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         )}
       </div>
 
-      {/* Crop modal */}
       {cropFile && (
         <ImageCropModal
           file={cropFile}

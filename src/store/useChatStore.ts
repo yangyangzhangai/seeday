@@ -52,6 +52,7 @@ export interface Message {
   stardustEmoji?: string;
   // ★ v1.2 新增字段
   imageUrl?: string | null;
+  imageUrl2?: string | null;
   moodDescriptions?: MoodDescription[] | null;
   isActive?: boolean;
   detached?: boolean;

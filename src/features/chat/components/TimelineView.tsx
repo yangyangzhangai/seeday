@@ -30,7 +30,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   messages, selectedDate, isLoading, onMoodClick,
 }) => {
   const { t } = useTranslation();
-  const { endActivity, reattachMoodToEvent, convertMoodToEvent } = useChatStore();
+  const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
 
   const { items, moodDescMap } = useMemo(() => {
     const eligible = messages
@@ -118,6 +118,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onEndActivity={id => void endActivity(id)}
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
+                    onDelete={id => void deleteActivity(id)}
                   />
                 )}
               </div>

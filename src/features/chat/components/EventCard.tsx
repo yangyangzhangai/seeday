@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRightLeft, StopCircle } from 'lucide-react';
+import { ArrowRightLeft, StopCircle, X } from 'lucide-react';
 import { getMoodColor } from '../../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
 import { formatDuration } from '../../../lib/time';
@@ -17,22 +17,38 @@ export interface EventCardProps {
   onEndActivity: (id: string) => void;
   onConvertMood: (moodId: string) => void;
   onMoodClick: (messageId: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
-  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick,
+  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete,
 }) => {
   const { t } = useTranslation();
-  const getMood       = useMoodStore(s => s.getMood);
-  const activityMood  = useMoodStore(s => s.activityMood);
+  const getMood           = useMoodStore(s => s.getMood);
+  const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
   const { detachMoodFromEvent } = useChatStore();
 
+  const [cardActive, setCardActive] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss delete button when clicking outside the card
+  useEffect(() => {
+    if (!cardActive) return;
+    const handler = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setCardActive(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [cardActive]);
+
   const rawLabel = (customMoodApplied[message.id] && customMoodLabel[message.id])
     ? customMoodLabel[message.id]
     : activityMood[message.id];
-  const moodKey  = normalizeMoodKey(rawLabel);
+  const moodKey   = normalizeMoodKey(rawLabel);
   const moodColor = getMoodColor(rawLabel) || '#10B981';
 
   const getTranslatedMood = (label?: string) => {
@@ -43,32 +59,46 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const mood      = getMood(message.id);
   const isOngoing = message.isActive && message.duration == null;
+  const hasImage1 = !!message.imageUrl;
+  const hasImage2 = !!message.imageUrl2;
 
-  const handleImageUploaded = (url: string) => {
+  const handleImageUploaded = (slot: 'imageUrl' | 'imageUrl2', url: string) => {
     useChatStore.setState(state => ({
       messages: state.messages.map(m =>
-        m.id === message.id ? { ...m, imageUrl: url } : m,
+        m.id === message.id ? { ...m, [slot]: url } : m,
       ),
     }));
   };
 
-  const handleImageRemoved = () => {
+  const handleImageRemoved = (slot: 'imageUrl' | 'imageUrl2') => {
     useChatStore.setState(state => ({
       messages: state.messages.map(m =>
-        m.id === message.id ? { ...m, imageUrl: null } : m,
+        m.id === message.id ? { ...m, [slot]: null } : m,
       ),
     }));
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-2">
+    <div
+      ref={cardRef}
+      className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative"
+      onClick={() => { if (!cardActive) setCardActive(true); }}
+    >
+      {/* Delete button — top-right, only when card is tapped */}
+      {cardActive && (
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(message.id); }}
+          className="absolute -top-2 -right-2 w-5 h-5 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
+        >
+          <X size={9} />
+        </button>
+      )}
 
-        {/* Left: colour dot + title */}
-        <div className="flex items-start gap-2 flex-1 min-w-0">
+      {/* ── Header: dot + title + mood chip ─────────────────── */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-1.5 flex-1 min-w-0">
           <div
-            className="w-2 h-2 rounded-full mt-1 shrink-0"
+            className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
             style={
               moodKey === 'anxious'
                 ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px)' }
@@ -76,59 +106,66 @@ export const EventCard: React.FC<EventCardProps> = ({
             }
           />
           <span
-            className="text-sm font-semibold text-gray-900 leading-snug"
+            className="text-xs font-semibold text-gray-900 leading-snug"
             style={{ fontFamily: '"Source Han Serif SC","Noto Serif SC","Songti SC","SimSun","STSong",serif' }}
           >
             {message.content}
           </span>
         </div>
 
-        {/* Right: mood chip (clickable) + duration / end button */}
-        <div className="flex flex-col items-end shrink-0 gap-1">
-          {/* Mood chip — opens picker on click */}
-          {mood ? (
-            <button
-              onClick={() => onMoodClick(message.id)}
-              className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700 active:opacity-80')}
-              style={
-                moodKey === 'anxious'
-                  ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
-                  : { backgroundColor: moodColor }
-              }
-            >
-              <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-                {getTranslatedMood(rawLabel)}
-              </span>
-            </button>
-          ) : (
-            /* Placeholder so layout stays stable even with no mood */
-            <button
-              onClick={() => onMoodClick(message.id)}
-              className="w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              title={t('chat_unknown_mood_label')}
-            />
-          )}
-
-          {/* Duration badge OR end-activity icon button */}
-          {message.duration != null ? (
-            <div className="text-[10px] text-sky-600 border border-sky-200 rounded-full px-2 py-0.5">
-              {formatDuration(message.duration)}
-            </div>
-          ) : isOngoing ? (
-            <button
-              onClick={() => onEndActivity(message.id)}
-              title={t('end_event_btn')}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <StopCircle size={16} />
-            </button>
-          ) : null}
-        </div>
+        {/* Mood chip (right) */}
+        {mood ? (
+          <button
+            onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
+            className={cn('shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700 active:opacity-80')}
+            style={
+              moodKey === 'anxious'
+                ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
+                : { backgroundColor: moodColor }
+            }
+          >
+            <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
+              {getTranslatedMood(rawLabel)}
+            </span>
+          </button>
+        ) : (
+          <button
+            onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
+            className="shrink-0 w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            title={t('chat_unknown_mood_label')}
+          />
+        )}
       </div>
 
-      {/* Mood descriptions (attached to this event) */}
+      {/* ── Images (up to 2, compact, side-by-side) ──────────── */}
+      <div className="flex gap-1.5 mt-1.5">
+        <div className="flex-1 min-w-0">
+          <ImageUploader
+            messageId={message.id}
+            imageUrl={message.imageUrl}
+            onUploaded={url => handleImageUploaded('imageUrl', url)}
+            onRemoved={() => handleImageRemoved('imageUrl')}
+            compact
+          />
+        </div>
+        {/* Second slot: only appears after first image is uploaded */}
+        {hasImage1 && (
+          <div className="flex-1 min-w-0">
+            <ImageUploader
+              messageId={`${message.id}_2`}
+              imageUrl={message.imageUrl2}
+              onUploaded={url => handleImageUploaded('imageUrl2', url)}
+              onRemoved={() => handleImageRemoved('imageUrl2')}
+              compact
+              hideUploadWhen={hasImage2}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Mood descriptions — below images ─────────────────── */}
       {moodDescriptions.length > 0 && (
-        <div className="mt-2 space-y-1 border-t border-gray-50 pt-1.5">
+        <div className="mt-1.5 space-y-1 border-t border-gray-50 pt-1.5">
           {moodDescriptions.map(desc => (
             <div key={desc.id} className="flex items-center justify-between gap-2">
               <span
@@ -138,7 +175,8 @@ export const EventCard: React.FC<EventCardProps> = ({
                 {desc.content}
               </span>
               <button
-                onClick={() => {
+                onClick={e => {
+                  e.stopPropagation();
                   detachMoodFromEvent(message.id, desc.id);
                   onConvertMood(desc.id);
                 }}
@@ -152,13 +190,24 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
       )}
 
-      {/* Image upload */}
-      <ImageUploader
-        messageId={message.id}
-        imageUrl={message.imageUrl}
-        onUploaded={handleImageUploaded}
-        onRemoved={handleImageRemoved}
-      />
+      {/* ── Bottom-left: end button / duration ───────────────── */}
+      {(isOngoing || message.duration != null) && (
+        <div className="flex items-center mt-1.5">
+          {message.duration != null ? (
+            <div className="text-[10px] text-sky-600 border border-sky-200 rounded-full px-2 py-0.5">
+              {formatDuration(message.duration)}
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
+              title={t('end_event_btn')}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <StopCircle size={14} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
