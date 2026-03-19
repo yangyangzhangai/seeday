@@ -14,10 +14,12 @@ export interface ImageUploaderProps {
   compact?: boolean;
   /** Hide the upload button when this slot has no image but shouldn't show camera */
   hideUploadWhen?: boolean;
+  /** View-only: tap shows zoom only, no delete button */
+  readonly?: boolean;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen,
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, readonly,
 }) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -102,12 +104,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               >
                 <ZoomIn size={13} />
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); void handleRemove(); }}
-                className="p-1.5 bg-black/50 rounded-full text-white"
-              >
-                <X size={13} />
-              </button>
+              {!readonly && (
+                <button
+                  onClick={e => { e.stopPropagation(); void handleRemove(); }}
+                  className="p-1.5 bg-black/50 rounded-full text-white"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           )}
         </div>
