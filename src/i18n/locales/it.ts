@@ -26,7 +26,6 @@ const it: TranslationKeys = {
     // ── Navigazione inferiore ──
     nav_record: 'Registro',
     nav_report: 'Rapporto',
-    nav_profile: 'Profilo',
 
     // ── Chat / Pagina Registro ──
     chat_title: 'Registro',
@@ -109,6 +108,10 @@ const it: TranslationKeys = {
     todo_label_category: 'Categoria',
     todo_placeholder_custom_category: 'Personalizzato…',
     todo_delete_confirm: 'Elimina questa attività',
+    todo_delete_recurring_title: 'Questo è un compito ricorrente',
+    todo_delete_recurring_desc: 'Scegli come eliminare',
+    todo_delete_today_only: 'Solo oggi',
+    todo_delete_all_future: 'Elimina tutti i futuri',
     todo_duration: 'Durata {{minutes}} min',
     todo_pin: 'Fissa in alto',
     todo_unpin: 'Rimuovi',

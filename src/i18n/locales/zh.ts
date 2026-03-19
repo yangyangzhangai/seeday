@@ -26,7 +26,6 @@ const zh: TranslationKeys = {
     // ── 底部导航 ──
     nav_record: '记录',
     nav_report: '时间报告',
-    nav_profile: '我的',
 
     // ── 聊天 / 记录页面 ──
     chat_title: '记录',
@@ -109,6 +108,10 @@ const zh: TranslationKeys = {
     todo_label_category: '分类',
     todo_placeholder_custom_category: '自定义...',
     todo_delete_confirm: '删除此待办',
+    todo_delete_recurring_title: '这是一个重复待办',
+    todo_delete_recurring_desc: '请选择删除范围',
+    todo_delete_today_only: '仅删除今天',
+    todo_delete_all_future: '以后都删除',
     todo_duration: '耗时 {{minutes}}分钟',
     todo_pin: '置顶',
     todo_unpin: '取消置顶',

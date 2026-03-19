@@ -21,6 +21,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const endActivity = useChatStore((s) => s.endActivity);
   const setMode = useChatStore((s) => s.setMode);
   const [showAdd, setShowAdd] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
 
   // Generate recurring todos on mount / day change
   useEffect(() => {
@@ -29,7 +30,10 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
-    if (todo && !todo.completed) {
+    const wasCompleted = todo?.completed ?? true;
+    // Optimistic update — toggle immediately so the UI responds without waiting for async ops
+    toggleTodo(id);
+    if (todo && !wasCompleted) {
       // Increment bottle star if linked
       if (todo.bottleId) incrementBottleStar(todo.bottleId);
       // Create a completed record card:
@@ -41,7 +45,17 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
         await endActivity(msgId);
       }
     }
-    toggleTodo(id);
+  };
+
+  const handleDelete = (id: string) => {
+    const todo = todos.find((t) => t.id === id);
+    if (!todo) return;
+    // If it's a recurring instance, show confirmation dialog
+    if (todo.templateId) {
+      setPendingDelete(todo);
+    } else {
+      deleteTodo(id);
+    }
   };
 
   const handleStart = async (todo: GrowthTodo) => {
@@ -55,9 +69,15 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     navigate('/chat');
   };
 
-  // Visible todos: non-templates, default sorted by dueAt (via sortOrder), completed items sink to bottom
+  // Visible todos: non-templates, sorted by dueAt (via sortOrder), completed items sink to bottom
+  // Completed once/weekly/daily todos from previous days are hidden (they reset or disappear at midnight)
+  const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const visible = todos
-    .filter((t) => !t.isTemplate)
+    .filter((t) => {
+      if (t.isTemplate) return false;
+      if (t.completed && t.completedAt && t.completedAt < todayStartMs) return false;
+      return true;
+    })
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return a.sortOrder - b.sortOrder;
@@ -86,7 +106,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
               onToggle={handleToggle}
               onFocus={onFocus}
               onStart={handleStart}
-              onDelete={deleteTodo}
+              onDelete={handleDelete}
             />
           ))}
         </div>
@@ -97,6 +117,48 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
         onClose={() => setShowAdd(false)}
         onAdd={addTodo}
       />
+
+      {/* Recurring delete confirmation dialog */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-2xl p-5 pb-8 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-semibold text-gray-800 text-center">
+              {t('todo_delete_recurring_title')}
+            </p>
+            <p className="text-xs text-gray-400 text-center">{t('todo_delete_recurring_desc')}</p>
+            <button
+              className="w-full py-3 rounded-xl bg-orange-50 text-orange-600 font-medium text-sm"
+              onClick={() => {
+                deleteTodo(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              {t('todo_delete_today_only')}
+            </button>
+            <button
+              className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm"
+              onClick={() => {
+                if (pendingDelete.templateId) deleteTodo(pendingDelete.templateId);
+                setPendingDelete(null);
+              }}
+            >
+              {t('todo_delete_all_future')}
+            </button>
+            <button
+              className="w-full py-3 rounded-xl bg-gray-50 text-gray-500 font-medium text-sm"
+              onClick={() => setPendingDelete(null)}
+            >
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

@@ -20,9 +20,17 @@ const priorityConfig: Record<GrowthPriority, { color: string; bg: string }> = {
   low: { color: 'text-green-600', bg: 'bg-green-100' },
 };
 
+function normalizePriority(p: string): GrowthPriority {
+  if (p === 'high' || p === 'medium' || p === 'low') return p as GrowthPriority;
+  if (p === 'urgent-important') return 'high';
+  if (p === 'urgent-not-important' || p === 'important-not-urgent') return 'medium';
+  return 'low';
+}
+
 export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: Props) => {
   const { t } = useTranslation();
-  const cfg = priorityConfig[todo.priority as GrowthPriority] ?? priorityConfig.medium;
+  const normalizedPriority = normalizePriority(todo.priority);
+  const cfg = priorityConfig[normalizedPriority];
 
   const dueStr = todo.dueAt
     ? new Date(todo.dueAt).toLocaleString(undefined, {
@@ -76,7 +84,7 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete }: P
 
       {/* Priority badge */}
       <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}>
-        {t(`growth_todo_priority_${todo.priority}`)}
+        {t(`growth_todo_priority_${normalizedPriority}`)}
       </span>
 
       {/* Action buttons */}

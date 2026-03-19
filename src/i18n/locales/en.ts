@@ -24,7 +24,6 @@ const en = {
     // ── Bottom Nav ──
     nav_record: 'Track',
     nav_report: 'Reports',
-    nav_profile: 'Profile',
 
     // ── Chat / Record Page ──
     chat_title: 'Track',
@@ -107,6 +106,10 @@ const en = {
     todo_label_category: 'Category',
     todo_placeholder_custom_category: 'New category…',
     todo_delete_confirm: 'Delete this task',
+    todo_delete_recurring_title: 'This is a recurring task',
+    todo_delete_recurring_desc: 'Choose how to delete',
+    todo_delete_today_only: 'Just today',
+    todo_delete_all_future: 'Delete all future',
     todo_duration: 'Duration {{minutes}} min',
     todo_pin: 'Pin',
     todo_unpin: 'Unpin',
