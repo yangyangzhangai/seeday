@@ -42,7 +42,8 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
       const msgId = await sendMessage(todo.title, startTime, 'record');
       if (msgId) {
         // Immediately end the activity so it shows as a completed card with correct duration
-        await endActivity(msgId);
+        // skipBottleStar: star was already awarded above via incrementBottleStar
+        await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
       }
     }
   };

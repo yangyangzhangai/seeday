@@ -113,7 +113,7 @@ function toDirectionMap(order: PlantCategoryKey[]): Record<PlantCategoryKey, 0 |
     [fullOrder[2]]: 2,
     [fullOrder[3]]: 3,
     [fullOrder[4]]: 4,
-  };
+  } as Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4>;
 }
 
 function isTodayPlantLocked(todayPlant: DailyPlantRecord | null): boolean {

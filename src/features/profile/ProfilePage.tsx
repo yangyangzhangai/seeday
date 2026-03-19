@@ -12,19 +12,22 @@ import { SettingsList } from './components/SettingsList';
 
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, loading } = useAuthStore();
   const navigate = useNavigate();
-  const [isPlus, setIsPlus] = useState(false);
+  // Start as true: currently all users are treated as plus (no flash on first render)
+  const [isPlus, setIsPlus] = useState(true);
 
-  // Redirect unauthenticated users
+  // Redirect unauthenticated users — wait for auth to finish loading first
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/auth');
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   // TODO: Re-enable membership gating once membership framework is ready.
-  // Query membership status (temporarily all users treated as plus)
+  // isPlus starts true so the UI renders correctly on first paint with no flash.
+  // When real gating is re-enabled: change useState(true) → useState(false)
+  // and restore setIsPlus(data?.plan === 'plus') inside the effect below.
   useEffect(() => {
     if (!user) return;
     supabase
@@ -37,7 +40,7 @@ export const ProfilePage: React.FC = () => {
       });
   }, [user]);
 
-  if (!user) return null;
+  if (loading || !user) return null;
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F8FA]">

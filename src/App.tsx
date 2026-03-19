@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
@@ -14,6 +14,20 @@ import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
+
+/** Thin wrapper around Outlet that fades in on route change */
+const PageOutlet: React.FC = () => {
+  const { pathname } = useLocation();
+  return (
+    <main
+      key={pathname}
+      className="flex-1 overflow-hidden pt-14 pb-16 relative animate-[pageIn_0.18s_ease-out]"
+    >
+      <Outlet />
+    </main>
+  );
+};
 
 const MainLayout = () => {
   const messages = useChatStore(state => state.messages);
@@ -101,9 +115,7 @@ const MainLayout = () => {
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden">
       <Header />
-      <main className="flex-1 overflow-hidden pt-14 pb-16 relative">
-        <Outlet />
-      </main>
+      <PageOutlet />
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}
       <AIAnnotationBubble
@@ -128,6 +140,9 @@ function App() {
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  // Multi-device realtime sync: subscribes when signed in, unsubscribes on sign-out
+  useRealtimeSync();
 
   return (
     <BrowserRouter>

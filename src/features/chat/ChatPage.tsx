@@ -266,7 +266,8 @@ export const ChatPage = () => {
         previewUrls.forEach(URL.revokeObjectURL);
         await handleMagicPenModeSend({
           input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
-          isMagicPenSending, messages, activeTodoId, todos,
+          isMagicPenSending, messages, activeTodoId,
+          todos: todos.map(t => ({ id: t.id, content: t.title, startedAt: t.startedAt })),
           sendAutoRecognizedInput: async (content) => {
             const before = useChatStore.getState().messages;
             const beforeIds = new Set(before.map(m => m.id));

@@ -16,6 +16,7 @@ export const GrowthPage = () => {
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
 
   useEffect(() => {
+    // Only show if the user has enabled it in Profile settings AND hasn't seen it today
     if (dailyGoalEnabled && shouldShowDailyGoal()) {
       setShowGoalPopup(true);
     }
