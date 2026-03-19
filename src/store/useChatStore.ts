@@ -8,13 +8,20 @@ import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
-import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
+import type { ActivityRecordType } from '../lib/activityType';
+import {
+  classifyRecordActivityType,
+  mapClassifierCategoryToActivityType,
+} from '../lib/activityType';
+import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
+import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
+export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -29,87 +36,6 @@ import {
   persistMessageToSupabase,
   triggerMoodDetection,
 } from './chatActions';
-
-export type MessageType = 'text' | 'system' | 'ai';
-
-/** 结构化心情描述条目，存储在 EventCard 内部 */
-export interface MoodDescription {
-  id: string;        // 心情消息的 messageId
-  content: string;   // 心情文字
-  timestamp: number; // 发送时间
-}
-
-export interface Message {
-  id: string;
-  content: string;
-  timestamp: number;
-  type: MessageType;
-  duration?: number;
-  activityType?: string;
-  mode?: 'chat' | 'record';
-  isMood?: boolean;
-  stardustId?: string;
-  stardustEmoji?: string;
-  // ★ v1.2 新增字段
-  imageUrl?: string | null;
-  imageUrl2?: string | null;
-  moodDescriptions?: MoodDescription[] | null;
-  isActive?: boolean;
-  detached?: boolean;
-}
-
-interface YesterdaySummary {
-  count: number;
-  lastContent: string;
-  dateStr: string;
-  dateStartMs: number;
-  dateEndMs: number;
-  isYesterday: boolean;
-}
-
-interface ChatState {
-  messages: Message[];
-  mode: 'chat' | 'record';
-  lastActivityTime: number | null;
-  isMoodMode: boolean;
-  isLoading: boolean;
-  hasInitialized: boolean;
-  oldestLoadedDate: string | null;
-  hasMoreHistory: boolean;
-  isLoadingMore: boolean;
-  yesterdaySummary: YesterdaySummary | null;
-  currentDateStr: string | null;
-  /** 当前 messages 所对应的日期字符串（每次 messages 被替换时更新，用于导航恢复判断） */
-  activeViewDateStr: string | null;
-  /** 日期 → 消息缓存，防止重复请求 */
-  dateCache: Map<string, Message[]>;
-  fetchMessages: () => Promise<void>;
-  fetchOlderMessages: () => Promise<void>;
-  fetchMessagesByDate: (dateStr: string) => Promise<void>;
-  checkAndRefreshForNewDay: () => void;
-  sendMessage: (
-    content: string,
-    customTimestamp?: number,
-    forcedMode?: 'chat' | 'record',
-    options?: { skipMoodDetection?: boolean }
-  ) => Promise<string | null>;
-  sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
-  sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
-  reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
-  insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
-  updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
-  endActivity: (id: string, opts?: { skipBottleStar?: boolean }) => Promise<void>;
-  deleteActivity: (id: string) => Promise<void>;
-  updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
-  updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
-  setMode: (mode: 'chat' | 'record') => void;
-  setHasInitialized: (value: boolean) => void;
-  clearHistory: () => Promise<void>;
-  attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;
-  detachMoodFromEvent: (eventId: string, moodMsgId: string) => void;
-  reattachMoodToEvent: (moodMsgId: string) => void;
-  convertMoodToEvent: (moodMsgId: string) => Promise<void>;
-}
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -172,6 +98,7 @@ export const useChatStore = create<ChatState>()(
 
           if (latestBeforeTodayError) throw latestBeforeTodayError;
 
+          queueBackfillLegacyActivityTypes(todayData || [], session.user.id);
           const messages = (todayData || []).map(mapDbRowToMessage);
 
           // Ensure all completed events have at least an auto-detected mood label
@@ -301,6 +228,7 @@ export const useChatStore = create<ChatState>()(
           import.meta.env.DEV && console.log('[fetchMessagesByDate] error', error);
           return;
         }
+        queueBackfillLegacyActivityTypes(data || [], session.user.id);
         const msgs = (data || []).map(mapDbRowToMessage);
 
         // Ensure all completed events have at least an auto-detected mood label
@@ -318,7 +246,12 @@ export const useChatStore = create<ChatState>()(
         }));
       },
 
-      sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record', options?: { skipMoodDetection?: boolean }) => {
+      sendMessage: async (
+        content: string,
+        customTimestamp?: number,
+        forcedMode?: 'chat' | 'record',
+        options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType },
+      ) => {
         const now = customTimestamp ?? Date.now();
         const state = get();
         const effectiveMode = forcedMode ?? state.mode;
@@ -328,13 +261,19 @@ export const useChatStore = create<ChatState>()(
           updatedMessages = await closePreviousActivity(updatedMessages, now);
         }
 
+        const classifiedByRule = effectiveMode === 'record' && !options?.activityTypeOverride
+          ? classifyRecordActivityType(content)
+          : null;
+
         const newMessage: Message = {
           id: uuidv4(),
           content,
           timestamp: now,
           type: 'text',
           mode: effectiveMode,
-          activityType: effectiveMode === 'record' ? '待分类' : 'chat',
+          activityType: effectiveMode === 'record'
+            ? (options?.activityTypeOverride ?? classifiedByRule?.activityType ?? 'life')
+            : 'chat',
           isActive: effectiveMode === 'record' ? true : undefined,
         };
 
@@ -354,6 +293,40 @@ export const useChatStore = create<ChatState>()(
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
+        }
+
+        if (
+          effectiveMode === 'record'
+          && !options?.activityTypeOverride
+          && classifiedByRule?.confidence === 'low'
+        ) {
+          void (async () => {
+            try {
+              const aiResult = await callClassifierAPI({
+                rawInput: `${content} 30分钟`,
+              });
+              const aiCategory = aiResult.data?.items?.[0]?.category;
+              if (!aiCategory) {
+                return;
+              }
+              const refinedType = mapClassifierCategoryToActivityType(aiCategory, content);
+              set((currentState) => ({
+                messages: currentState.messages.map((item) => (
+                  item.id === newMessage.id ? { ...item, activityType: refinedType } : item
+                )),
+              }));
+              const latestSession = await getSupabaseSession();
+              if (latestSession) {
+                await supabase
+                  .from('messages')
+                  .update({ activity_type: refinedType })
+                  .eq('id', newMessage.id)
+                  .eq('user_id', latestSession.user.id);
+              }
+            } catch {
+              return;
+            }
+          })();
         }
 
         // 触发 AI 批注（记录模式下）
@@ -461,7 +434,15 @@ export const useChatStore = create<ChatState>()(
         set(state => ({
           messages: state.messages.map(m =>
             m.id === id
-              ? { ...m, content, timestamp: startTime, duration }
+              ? {
+                ...m,
+                content,
+                timestamp: startTime,
+                duration,
+                activityType: m.mode === 'record' && !m.isMood
+                  ? classifyRecordActivityType(content).activityType
+                  : m.activityType,
+              }
               : m
           ).sort((a, b) => a.timestamp - b.timestamp)
         }));
@@ -471,7 +452,8 @@ export const useChatStore = create<ChatState>()(
           await supabase.from('messages').update({
             content,
             timestamp: startTime,
-            duration
+            duration,
+            activity_type: classifyRecordActivityType(content).activityType,
           }).eq('id', id).eq('user_id', session.user.id);
         }
 
@@ -737,9 +719,17 @@ export const useChatStore = create<ChatState>()(
       },
 
       convertMoodToEvent: async (moodMsgId) => {
+        const currentMessages = get().messages;
+        const latestRecordMessage = [...currentMessages]
+          .filter(m => m.mode === 'record' && m.type === 'text')
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (!latestRecordMessage || latestRecordMessage.id !== moodMsgId) {
+          return;
+        }
+
         const now = Date.now();
         // Capture the previously active event before mutation
-        const prevActive = get().messages.find(m => m.isActive && !m.isMood) ?? null;
+        const prevActive = currentMessages.find(m => m.isActive && !m.isMood) ?? null;
 
         set(state => ({
           messages: state.messages.map(m => {
@@ -747,7 +737,13 @@ export const useChatStore = create<ChatState>()(
               return { ...m, isActive: false, duration: Math.max(0, Math.round((now - m.timestamp) / 60000)) };
             }
             if (m.id === moodMsgId) {
-              return { ...m, isMood: false, detached: false, isActive: true, activityType: '待分类' };
+              return {
+                ...m,
+                isMood: false,
+                detached: false,
+                isActive: true,
+                activityType: classifyRecordActivityType(m.content).activityType,
+              };
             }
             return m;
           }),

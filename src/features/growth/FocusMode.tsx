@@ -5,6 +5,7 @@ import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { normalizeTodoCategory } from '../../lib/activityType';
 import { FocusTimer } from './FocusTimer';
 import { type GrowthTodo } from './GrowthTodoCard';
 
@@ -70,7 +71,9 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     startFocus(todo.id, countUp ? 0 : durationMinutes * 60);
     // Create record page activity
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record');
+    const msgId = await sendMessage(todo.title, now, 'record', {
+      activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+    });
     if (msgId) {
       setActiveMessageId(msgId);
     }

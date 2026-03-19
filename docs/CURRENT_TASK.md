@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-18
+- Last Updated: 2026-03-19
 - Owner: current working session
 - Purpose: this file is the single execution anchor for `植物系统一期（根系 + 晚间生成 + AI 日记）` 开发。
 
@@ -35,6 +35,9 @@
 - 已完成根段点选命中增强：`RootSegmentPath` 引入透明命中层（扩大触达笔画），降低高密度根段误触/漏触。
 - 已完成无根段空状态视觉优化：空状态由纯文本升级为结构化提示卡片，减少“空白区”观感。
 - 已新增性能采样模板：`docs/PLANT_P3_PERFORMANCE_SAMPLING_TEMPLATE.md`，用于 WebView FPS/长任务记录。
+- 已完成 chat 记录页卡片交互收口：拍照入口移至卡片激活态右上角功能区，并新增“活动转心情”功能按钮。
+- 已完成“仅最新消息可互转”双层约束：时间线按钮层和 store 层（`convertMoodToEvent`）均限制为最新 `record + text` 消息。
+- 已完成 `useChatStore` 结构拆分（类型与历史回填辅助下沉），store 主入口已降到 max-lines 硬限以内。
 - 下一步入口：继续 Phase 3 收敛（性能压测 + 视觉细节校准 + 移动端验收）。
 
 ## Reference Documents
@@ -147,7 +150,7 @@
 **目标**：补齐“看历史”和“调方向”的日常可用能力。
 
 - [ ] 新建 `PlantGardenPage`，按日期展示植物图片 + AI 日记。
-- [ ] 新建 `DirectionSettings`，支持 5 类方向拖拽调位并持久化到 `plant_direction_config`。
+- [ ] 新建 `DirectionSettings`，支持 5 类方向调位并持久化到 `plant_direction_config`。
 - [x] 将 `DirectionSettings` 入口前置到“我的”页（Profile）并与根系区联动，作为土壤区交互替代主入口。
 - [ ] 确保位置与根型解耦：换位置只改视觉角度，不改 category_key 判定。
 - [ ] 路由策略更新：不新增独立 `/plant` 主入口；植物根系主体验固定内嵌在 `/report`。如需历史/设置路由，优先挂在报告域下并保持“进入报告页即见根系”不变。
@@ -208,17 +211,17 @@
 
 **目标**：待办与活动在生成时即完成分类，后续链路只消费同一分类结果，不再二次分类。
 
-- [ ] 统一 `activityType` 枚举语义：`study/work/social/life/entertainment/health/chat/mood`，禁止再写入 `待分类/未分类` 等自由文本。
-- [ ] 待办创建即分类：`Todo.category` 统一落六分类（规则优先，低置信再 AI 补判）。
-- [ ] 待办触发活动时继承分类：从待办开始/完成生成活动时，直接把 `todo.category` 写入活动 `activityType`。
-- [ ] 自由文本活动即时分类：输入侧先本地规则判定，低置信时再调用 AI；AI 不阻塞“完成即生成根系”主链路。
-- [ ] 报告层去二次分类：`reportHelpers` 不再按关键词重分，改为直接按 `activityType` 聚合。
-- [ ] 植物链路改读统一分类：`plantActivityMapper` / `plant-generate` 优先消费六分类 `activityType`，仅对历史脏数据保留兼容回退。
-- [ ] 类型与映射收敛：收紧 `Message.activityType` 与 `TodayActivity.activityType` 类型，更新 `dbMappers`、store、API 读写映射。
-- [ ] 历史数据迁移与兼容：为旧记录提供一次性映射/回填策略，确保报告与植物结果连续可用。
+- [x] 统一 `activityType` 枚举语义：`study/work/social/life/entertainment/health/chat/mood`，禁止再写入 `待分类/未分类` 等自由文本。
+- [x] 待办创建即分类：`Todo.category` 统一落六分类（规则优先，低置信再 AI 补判）。
+- [x] 待办触发活动时继承分类：从待办开始/完成生成活动时，直接把 `todo.category` 写入活动 `activityType`。
+- [x] 自由文本活动即时分类：输入侧先本地规则判定，低置信时再调用 AI；AI 不阻塞“完成即生成根系”主链路。
+- [x] 报告层去二次分类：`reportHelpers` 不再按关键词重分，改为直接按 `activityType` 聚合。
+- [x] 植物链路改读统一分类：`plantActivityMapper` / `plant-generate` 优先消费六分类 `activityType`，仅对历史脏数据保留兼容回退。
+- [x] 类型与映射收敛：收紧 `Message.activityType` 与 `TodayActivity.activityType` 类型，更新 `dbMappers`、store、API 读写映射。
+- [x] 历史数据迁移与兼容：为旧记录提供一次性映射/回填策略，确保报告与植物结果连续可用。
 
 **验收**：
 
-- [ ] 新增活动在创建瞬间即有最终分类。
-- [ ] 待办生成活动不触发重复分类。
-- [ ] 报告统计与植物根系分类一致，且无需二次重算。
+- [x] 新增活动在创建瞬间即有最终分类。
+- [x] 待办生成活动不触发重复分类。
+- [x] 报告统计与植物根系分类一致，且无需二次重算。

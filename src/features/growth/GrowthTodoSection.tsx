@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
+import { normalizeTodoCategory } from '../../lib/activityType';
 import { GrowthTodoCard } from './GrowthTodoCard';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 
@@ -39,7 +40,9 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
       // Create a completed record card:
       // Start time = todo's due time (or createdAt as fallback), end time = now
       const startTime = todo.dueAt ?? todo.createdAt;
-      const msgId = await sendMessage(todo.title, startTime, 'record');
+      const msgId = await sendMessage(todo.title, startTime, 'record', {
+        activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+      });
       if (msgId) {
         // Immediately end the activity so it shows as a completed card with correct duration
         // skipBottleStar: star was already awarded above via incrementBottleStar
@@ -62,7 +65,9 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const handleStart = async (todo: GrowthTodo) => {
     startTodo(todo.id);
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record');
+    const msgId = await sendMessage(todo.title, now, 'record', {
+      activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+    });
     if (msgId) {
       linkMessageToTodo(msgId, todo.id);
     }

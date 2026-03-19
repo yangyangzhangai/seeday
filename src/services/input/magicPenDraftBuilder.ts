@@ -17,6 +17,7 @@ import {
   inferZhExactRangeFromText,
   buildDynamicPeriodTime,
 } from './magicPenTimeUtils';
+import { normalizeTodoCategory } from '../../lib/activityType';
 
 function isSameLocalDay(a: number, b: number): boolean {
   const dateA = new Date(a);
@@ -352,7 +353,7 @@ function buildTodoDraftFromSegment(
     errors: [],
     todo: {
       priority: 'important-not-urgent',
-      category: 'life',
+      category: normalizeTodoCategory(undefined, normalizedTodoContent),
       scope: 'daily',
       dueDate,
     },

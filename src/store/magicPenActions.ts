@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import { validateDrafts } from '../services/input/magicPenDraftBuilder';
 import type { MagicPenDraftItem } from '../services/input/magicPenTypes';
+import { normalizeTodoCategory } from '../lib/activityType';
 import { useChatStore } from './useChatStore';
 import { useTodoStore } from './useTodoStore';
 
@@ -52,7 +53,7 @@ export async function commitMagicPenDrafts(drafts: MagicPenDraftItem[]): Promise
       useTodoStore.getState().addTodo({
         title: draft.content,
         priority: draft.todo!.priority,
-        category: draft.todo!.category,
+        category: normalizeTodoCategory(draft.todo!.category, draft.content),
         scope: draft.todo!.scope,
         dueAt: draft.todo!.dueDate,
         recurrence: 'none',

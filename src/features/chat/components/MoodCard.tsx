@@ -9,6 +9,7 @@ export interface MoodCardProps {
   onReturnToEvent: (id: string) => void;
   onConvertToEvent: (id: string) => void;
   onDelete: (id: string) => void;
+  allowConvertToEvent: boolean;
 }
 
 export const MoodCard: React.FC<MoodCardProps> = ({
@@ -16,6 +17,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
   onReturnToEvent,
   onConvertToEvent,
   onDelete,
+  allowConvertToEvent,
 }) => {
   const { t } = useTranslation();
   const [cardActive, setCardActive] = useState(false);
@@ -65,13 +67,15 @@ export const MoodCard: React.FC<MoodCardProps> = ({
         >
           <ArrowLeft size={12} />
         </button>
-        <button
-          onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
-          title={t('mood_to_event')}
-          className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
-        >
-          <Zap size={12} />
-        </button>
+        {allowConvertToEvent && (
+          <button
+            onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
+            title={t('mood_to_event')}
+            className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
+          >
+            <Zap size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

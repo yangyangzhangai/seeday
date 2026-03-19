@@ -357,6 +357,7 @@ const en = {
     mood_convert_btn: 'Convert',
     mood_return_event: 'Return to Event',
     mood_to_event: 'Convert to Event',
+    event_to_mood: 'Convert to Mood',
     image_upload: 'Upload Image',
     image_uploading: 'Uploading...',
     image_upload_fail: 'Upload failed, tap to retry',

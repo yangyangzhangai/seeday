@@ -3,6 +3,7 @@ import { supabase } from '../api/supabase';
 import { callChatAPI } from '../api/client';
 import { autoDetectMood } from '../lib/mood';
 import { toDbMessage } from '../lib/dbMappers';
+import { classifyRecordActivityType } from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
@@ -16,7 +17,7 @@ type SendMessageFn = (
   content: string,
   customTimestamp?: number,
   forcedMode?: 'chat' | 'record',
-  options?: { skipMoodDetection?: boolean },
+  options?: { skipMoodDetection?: boolean; activityTypeOverride?: import('../lib/activityType').ActivityRecordType },
 ) => Promise<string | null>;
 
 type SendMoodFn = (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
@@ -82,13 +83,13 @@ function buildMoodToActivityReclassify(
   updatedMessages[targetIndex] = {
     ...target,
     isMood: false,
-    activityType: '待分类',
+    activityType: classifyRecordActivityType(target.content).activityType,
     duration: undefined,
   };
   patches.push({
     id: target.id,
     isMood: false,
-    activityType: '待分类',
+    activityType: classifyRecordActivityType(target.content).activityType,
     duration: undefined,
   });
 
@@ -101,7 +102,7 @@ function buildMoodToActivityReclassify(
       patches.push({
         id: previous.id,
         isMood: false,
-        activityType: previous.activityType || '待分类',
+        activityType: previous.activityType || classifyRecordActivityType(previous.content).activityType,
         duration,
       });
     }
@@ -134,6 +135,7 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
     isMood: true,
     activityType: 'mood',
     duration: undefined,
+    detached: true,
   };
   patches.push({
     id: target.id,
@@ -155,7 +157,7 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
       patches.push({
         id: previous.id,
         isMood: false,
-        activityType: previous.activityType || '待分类',
+        activityType: previous.activityType || classifyRecordActivityType(previous.content).activityType,
         duration: undefined,
       });
     }
@@ -396,7 +398,7 @@ export function buildInsertedActivityResult(
     timestamp: startTime,
     type: 'text',
     duration: Math.round((endTime - startTime) / (1000 * 60)),
-    activityType: '待分类',
+    activityType: classifyRecordActivityType(content).activityType,
     mode: 'record',
   };
 

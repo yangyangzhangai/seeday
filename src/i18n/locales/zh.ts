@@ -359,6 +359,7 @@ const zh: TranslationKeys = {
     mood_convert_btn: '转换',
     mood_return_event: '回归事件',
     mood_to_event: '转为事件',
+    event_to_mood: '转为心情',
     image_upload: '上传图片',
     image_uploading: '上传中...',
     image_upload_fail: '上传失败，点击重试',

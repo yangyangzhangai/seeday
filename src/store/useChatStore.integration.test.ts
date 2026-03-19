@@ -76,7 +76,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ]);
@@ -102,7 +102,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ]);
@@ -122,7 +122,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 20,
       },
     ]);
@@ -143,7 +143,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
       {
@@ -185,6 +185,38 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(telemetry.correctionByPath['activity->mood']).toBe(1);
   });
 
+  it('only allows mood -> activity conversion for latest record message', async () => {
+    const base = 1_700_000_000_000;
+    resetChatStore([
+      {
+        id: 'mood-old',
+        content: '有点烦',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'mood',
+        isMood: true,
+        detached: true,
+      },
+      {
+        id: 'activity-latest',
+        content: '写代码',
+        timestamp: base + 10 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+        duration: undefined,
+      },
+    ]);
+
+    await useChatStore.getState().convertMoodToEvent('mood-old');
+
+    const messages = useChatStore.getState().messages;
+    expect(messages.find((m) => m.id === 'mood-old')?.isMood).toBe(true);
+    expect(messages.find((m) => m.id === 'mood-old')?.activityType).toBe('mood');
+    expect(messages.find((m) => m.id === 'activity-latest')?.isMood).toBeUndefined();
+  });
+
   it('recomputes edited activity mood only when source is auto', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([
@@ -194,7 +226,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
       {
@@ -203,7 +235,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base + 20 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
     ]);
@@ -212,7 +244,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
       ...useMoodStore.getState(),
       activityMood: {
         'activity-auto': 'down',
-        'activity-manual': 'up',
+        'activity-manual': 'happy',
       },
       activityMoodMeta: {
         'activity-auto': { source: 'auto' },
@@ -231,7 +263,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     const moodState = useMoodStore.getState();
     expect(moodState.activityMood['activity-auto']).toBe('happy');
     expect(moodState.activityMoodMeta['activity-auto']?.source).toBe('auto');
-    expect(moodState.activityMood['activity-manual']).toBe('up');
+    expect(moodState.activityMood['activity-manual']).toBe('happy');
     expect(moodState.activityMoodMeta['activity-manual']?.source).toBe('manual');
   });
 });

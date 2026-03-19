@@ -72,7 +72,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 5 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -97,7 +97,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 5 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -121,7 +121,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 20 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
     ];
@@ -159,7 +159,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
       {
@@ -194,7 +194,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
       {
@@ -203,7 +203,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base + 10 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -215,6 +215,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     const previous = result!.updatedMessages.find((m) => m.id === 'activity-1');
     expect(latest?.isMood).toBe(true);
     expect(latest?.activityType).toBe('mood');
+    expect(latest?.detached).toBe(true);
     expect(previous?.duration).toBeUndefined();
   });
 
@@ -227,7 +228,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
       },
       {
         id: 'latest',

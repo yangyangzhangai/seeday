@@ -8,6 +8,65 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-19 — Chat Reclassify Guard + Timeline Action Area + ChatStore Split
+
+### Added
+
+- Added chat store type module `src/store/useChatStore.types.ts` and legacy activity-type backfill helper `src/store/chatStoreLegacy.ts` to split `useChatStore` structure from runtime actions.
+- Added integration regression `only allows mood -> activity conversion for latest record message` in `src/store/useChatStore.integration.test.ts`.
+
+### Changed
+
+- Updated `src/features/chat/components/EventCard.tsx`, `src/features/chat/components/ImageUploader.tsx`, and `src/features/chat/components/TimelineView.tsx` to move image upload trigger into card-active top-right action area and add event->mood quick conversion action.
+- Updated `src/features/chat/components/MoodCard.tsx`, `src/features/chat/components/TimelineView.tsx`, and `src/store/useChatStore.ts` so mood/activity mutual conversion is restricted to the latest `record + text` message at both UI and store guard levels.
+- Updated `src/store/chatActions.ts` activity->mood reclassify result to set `detached: true` so converted mood cards stay visible in timeline.
+- Updated `src/features/chat/chatPageActions.ts`, `src/store/magicPenActions.ts`, `src/store/reportHelpers.test.ts`, `src/store/useChatStore.integration.test.ts`, `src/store/usePlantStore.ts`, and `src/store/useTodoStore.ts` to fix strict typing regressions surfaced by diagnostics.
+- Split `src/store/useChatStore.ts` by extracting types/interfaces and legacy backfill helper, reducing the store entry file below the max-lines hard gate.
+- Updated `scripts/check-state-consistency.mjs` to remove forced doc-sync mapping for `src/features/growth/GrowthPage.tsx`.
+- Updated locale keys in `src/i18n/locales/zh.ts`, `src/i18n/locales/en.ts`, and `src/i18n/locales/it.ts` with `event_to_mood`.
+
+### Validation
+
+- `npm run test:unit -- src/store/useChatStore.integration.test.ts`
+- `npm run test:unit -- src/store/reportHelpers.test.ts src/features/chat/chatPageActions.test.ts src/store/magicPenActions.test.ts`
+- `npx tsc --noEmit`
+- `npm run lint:state-consistency`
+- `npm run lint:docs-sync`
+- `npm run build`
+- `npm run lint:all`
+
+### Doc-sync impact
+
+- Synced this round’s chat/store refactor + behavior corrections across code paths (`src/store/**`, `src/features/chat/**`, `scripts/check-state-consistency.mjs`, `src/i18n/locales/*.ts`) and anchor docs (`docs/CHANGELOG.md`, `src/features/chat/README.md`, `src/store/README.md`, `docs/CURRENT_TASK.md`).
+
+## 2026-03-19 — ActivityType Unified Classification Chain
+
+### Added
+
+- Added unified activity classification utility `src/lib/activityType.ts` and regression tests `src/lib/activityType.test.ts`.
+- Added chain-level regression tests `src/store/reportHelpers.test.ts` and `src/lib/plantActivityMapper.test.ts` to lock report/plant consumption of unified `activityType`.
+
+### Changed
+
+- Updated `src/store/useChatStore.ts` and `src/store/chatActions.ts` to stop writing `待分类/未分类`, classify record activities at write-time, and add low-confidence AI refinement without blocking write path.
+- Updated `src/store/useTodoStore.ts`, `src/features/growth/GrowthTodoSection.tsx`, `src/features/growth/FocusMode.tsx`, and `src/services/input/magicPenDraftBuilder.ts` so todos are classified on creation and todo-triggered activity records inherit todo category directly.
+- Updated `src/store/reportHelpers.ts` to aggregate activity distribution by stored `activityType` instead of keyword secondary classification.
+- Updated `src/lib/plantActivityMapper.ts` to prioritize normalized unified `activityType` mapping with legacy compatibility fallback.
+- Updated `src/lib/dbMappers.ts`, `src/store/useAnnotationStore.ts`, and `src/types/annotation.ts` to tighten activity type mapping/types and normalize legacy records.
+- Updated `docs/CURRENT_TASK.md` classification checklist/acceptance items to completed state.
+
+### Validation
+
+- `npx vitest run src/lib/activityType.test.ts src/lib/plantActivityMapper.test.ts src/store/reportHelpers.test.ts src/store/chatActions.test.ts src/store/useChatStore.integration.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+- `npm run lint:all` fails due existing max-lines gate on `src/store/useChatStore.ts` (>800 lines), unrelated to this change set.
+- `npm run test:unit` still has pre-existing unrelated failures in `src/server/magic-pen-parse.test.ts`, `src/features/chat/chatPageActions.test.ts`, and `src/services/input/magicPenParser.test.ts`.
+
+### Doc-sync impact
+
+- Synced unified classification implementation changes across code paths (`src/store/**`, `src/lib/**`, `src/features/growth/**`, `src/services/input/**`) with execution docs (`docs/CURRENT_TASK.md`, `docs/CHANGELOG.md`).
+
 ## 2026-03-18 — Plant System Phase 3 (Viewport Clamp + Hit-Target Regression Guard)
 
 ### Added

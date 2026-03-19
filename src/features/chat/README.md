@@ -53,3 +53,27 @@
 - Chat row correction wiring regression: `src/features/chat/chatPageActions.test.ts`
 - Magic Pen parser regression: `src/services/input/magicPenParser.test.ts`
 - Magic Pen commit orchestration regression: `src/store/magicPenActions.test.ts`
+
+## Latest Timeline Interaction Updates (2026-03-19)
+
+- EventCard top-right action area is unified under card-active state:
+  - camera upload trigger moved from in-card slot icon to action area
+  - event-to-mood conversion button added next to delete
+  - delete remains in the same action cluster
+- ImageUploader now supports external trigger mode:
+  - `hideUploadButton` to hide in-slot camera icon
+  - `openSignal` to programmatically open file picker from card action area
+- Reclassify visibility policy is now strict latest-record-only:
+  - Timeline computes `latestRecordMessageId` from all `record + text` messages
+  - EventCard `allowConvertToMood` and MoodCard `allowConvertToEvent` are both gated by latest id
+- Store-level hard guard added for mood-to-event conversion:
+  - `convertMoodToEvent(moodMsgId)` returns early unless `moodMsgId` is the latest `record + text` message
+- Timeline disappearance fix after event->mood conversion:
+  - converted message now sets `detached: true` so it remains visible as a mood card in timeline
+
+## Store Refactor Update (2026-03-19)
+
+- `src/store/useChatStore.ts` was split to keep the store entry under max-lines gate:
+  - shared types/interfaces moved to `src/store/useChatStore.types.ts`
+  - legacy `activity_type` backfill helper moved to `src/store/chatStoreLegacy.ts`
+- `src/store/useChatStore.ts` remains the single runtime state/action entry consumed by chat page components.

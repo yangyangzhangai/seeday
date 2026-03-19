@@ -359,6 +359,7 @@ const it: TranslationKeys = {
     mood_convert_btn: 'Converti',
     mood_return_event: "Torna all'Evento",
     mood_to_event: 'Converti in Evento',
+    event_to_mood: "Converti in Umore",
     image_upload: 'Carica Immagine',
     image_uploading: 'Caricamento...',
     image_upload_fail: 'Caricamento fallito, tocca per riprovare',

@@ -15,6 +15,7 @@ import { useMoodStore } from './useMoodStore';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbAnnotation, toDbAnnotation } from '../lib/dbMappers';
+import { normalizeActivityType } from '../lib/activityType';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 
@@ -185,7 +186,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const todayActivitiesList = activities.map(e => ({
             content: e.data?.content || '未命名活动',
             duration: e.data?.duration || 0,
-            activityType: e.data?.activityType || '未分类',
+            activityType: normalizeActivityType(e.data?.activityType, e.data?.content),
             moodLabel: getMoodLabelByMessageId(e.data?.messageId),
             timestamp: e.timestamp,
             completed: e.type === 'activity_completed'

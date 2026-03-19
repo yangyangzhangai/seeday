@@ -10,14 +10,14 @@ export interface ImageUploaderProps {
   imageUrl?: string | null;
   onUploaded: (url: string) => void;
   onRemoved:  () => void;
-  /** Show image at compact height (h-20) instead of full height */
   compact?: boolean;
-  /** Hide the upload button when this slot has no image but shouldn't show camera */
   hideUploadWhen?: boolean;
+  hideUploadButton?: boolean;
+  openSignal?: number;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen,
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal,
 }) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -39,6 +39,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [imageTapped]);
+
+  useEffect(() => {
+    if (!openSignal || imageUrl || uploading) return;
+    inputRef.current?.click();
+  }, [openSignal, imageUrl, uploading]);
 
   const handleCropConfirm = async (blob: Blob) => {
     setCropFile(null);
@@ -146,8 +151,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     );
   }
 
-  // ── No image: show upload button (unless hidden) ─────────────
-  if (hideUploadWhen) return <>{fileInput}</>;
+  if (hideUploadWhen || hideUploadButton) return <>{fileInput}</>;
 
   return (
     <>

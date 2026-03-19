@@ -1,6 +1,7 @@
 import type { AIAnnotation } from '../types/annotation';
 import type { DailyPlantRecord } from '../types/plant';
 import type { StardustMemory } from '../types/stardust';
+import { normalizeActivityType, normalizeTodoCategory } from './activityType';
 import type { Message, MessageType, MoodDescription } from '../store/useChatStore';
 import type { Report } from '../store/useReportStore';
 import type { Todo } from '../store/useTodoStore';
@@ -36,7 +37,7 @@ export function fromDbMessage(row: any): Message {
     timestamp: Number(row.timestamp),
     type: row.type as MessageType,
     duration: row.duration ?? undefined,
-    activityType: row.activity_type,
+    activityType: normalizeActivityType(row.activity_type, row.content),
     mode: (row.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
     isMood: row.is_mood || false,
     // ★ v1.2 新增字段
@@ -73,7 +74,7 @@ export function fromDbTodo(row: any): Todo {
     title: row.content,              // DB 'content' → app 'title'
     completed: row.completed,
     priority: row.priority,
-    category: row.category,
+    category: normalizeTodoCategory(row.category, row.content),
     dueAt: row.due_date,             // DB 'due_date' → app 'dueAt'
     scope: row.scope,
     createdAt: row.created_at,

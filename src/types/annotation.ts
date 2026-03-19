@@ -1,3 +1,4 @@
+import type { ActivityType } from '../lib/activityType';
 /**
  * AI 批注系统类型定义
  * 
@@ -77,7 +78,7 @@ export interface BonusCondition {
 export interface TodayActivity {
   content: string;           // 活动名称/内容
   duration: number;          // 活动时长（分钟）
-  activityType?: string;     // 活动类型（AI分类）
+  activityType?: ActivityType; // 活动类型（AI分类）
   moodLabel?: string;        // 活动旁显示的心情标签（八类或自定义）
   timestamp: number;         // 开始时间
   completed: boolean;        // 是否已完成

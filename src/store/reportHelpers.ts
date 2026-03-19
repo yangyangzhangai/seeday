@@ -7,42 +7,20 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
+import {
+  classifyRecordActivityType,
+  normalizeActivityType,
+  type ActivityRecordType,
+} from '../lib/activityType';
 import type { Message } from './useChatStore';
 import type { Todo } from './useTodoStore';
 import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
-type ActionCategory = 'study' | 'work' | 'social' | 'life' | 'entertainment' | 'health';
+type ActionCategory = ActivityRecordType;
 
 const FALLBACK_SUMMARY = '今天的你是一个很棒自己。';
 const CUSTOM_MOOD_LABEL = '自定义';
-
-const KEYWORDS: Record<ActionCategory, string[]> = {
-  study: [
-    '学习', '读书', '阅读', '复盘', '复习', '上课', '课程', '作业', '考试', '备考', '练习', '训练',
-    '写作', '绘画', '画画', '设计', '编程', '开发', '产品', '创造', '深度思考', '笔记',
-  ],
-  work: [
-    '工作', '上班', '加班', '开会', '会议', '面谈', '讨论', '协作', '对接', '商务', '谈判',
-    '汇报', '复盘工作', '需求', '项目', '任务', '工单', '通勤', '地铁', '公交', '打车',
-  ],
-  social: [
-    '家人', '父母', '孩子', '朋友', '同学', '聊天', '闲聊', '约会', '恋爱', '拥抱', '陪伴',
-    '聚会', '社交', '社交媒体', '微博', '小红书', '点赞', '私信', '联络',
-  ],
-  life: [
-    '吃饭', '用餐', '午餐', '晚餐', '早餐', '做饭', '买菜', '打扫', '清洁', '扫地', '拖地',
-    '收纳', '整理', '洗衣', '交房租', '交水电', '缴费', '办手续', '家务',
-  ],
-  entertainment: [
-    '短视频', '刷视频', '刷抖音', '刷快手', '追剧', '电影', '电视剧', '音乐', '听歌', '发呆',
-    '旅行', '旅游', '出游', '游戏', '打游戏', '电竞', '看演出', '观演', '放松',
-  ],
-  health: [
-    '运动', '跑步', '健身', '瑜伽', '拉伸', '散步', '冥想', '正念', '心理', '咨询',
-    '睡', '睡觉', '午休', '小憩', '体检', '看病', '就医', '康复', '治疗', '喝水',
-  ],
-};
 
 const ACTION_CATEGORY_LABELS: Record<ActionCategory, string> = {
   study: '学习',
@@ -139,17 +117,11 @@ export function classifyActivities(records: Message[]): { category: ActionCatego
   };
 
   records.forEach((m) => {
-    const content = m.content || '';
     const minutes = m.duration || 0;
-    const match = (keywords: readonly string[]) => keywords.some((k) => content.includes(k));
-
-    let category: ActionCategory = 'life';
-    if (match(KEYWORDS.study)) category = 'study';
-    else if (match(KEYWORDS.work)) category = 'work';
-    else if (match(KEYWORDS.social)) category = 'social';
-    else if (match(KEYWORDS.health)) category = 'health';
-    else if (match(KEYWORDS.entertainment)) category = 'entertainment';
-
+    const normalized = normalizeActivityType(m.activityType, m.content);
+    const category: ActionCategory = normalized === 'chat' || normalized === 'mood'
+      ? classifyRecordActivityType(m.content).activityType
+      : normalized;
     minutesByCategory[category] += minutes;
   });
 

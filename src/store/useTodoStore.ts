@@ -4,6 +4,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
+import { callClassifierAPI } from '../api/client';
+import {
+  classifyRecordActivityType,
+  mapClassifierCategoryToActivityType,
+  normalizeTodoCategory,
+  type ActivityRecordType,
+} from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
@@ -28,7 +35,7 @@ export interface Todo {
   completedAt?: number;
   duration?: number;                 // elapsed minutes
   // Categorization (legacy, used by Report / MagicPen)
-  category?: string;
+  category?: ActivityRecordType;
   scope?: TodoScope;
   // Recurrence
   recurrence?: Recurrence;
@@ -87,7 +94,7 @@ function migrateOldTodoStorage(currentIds: Set<string>): Todo[] {
         completedAt: t.completedAt as number | undefined,
         duration: t.duration as number | undefined,
         startedAt: t.startedAt as number | undefined,
-        category: t.category as string | undefined,
+        category: normalizeTodoCategory(t.category as string | undefined, (t.content ?? t.title ?? '') as string),
         scope: t.scope as TodoScope | undefined,
         recurrence: 'once' as Recurrence,
         isTemplate: false,
@@ -145,10 +152,27 @@ async function bgSyncDelete(id: string): Promise<void> {
   }
 }
 
+async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
+  try {
+    const result = await callClassifierAPI({
+      rawInput: `${title} 30分钟`,
+    });
+    const firstItem = result.data?.items?.[0];
+    if (!firstItem?.category) return;
+    const nextCategory = mapClassifierCategoryToActivityType(firstItem.category, title);
+    useTodoStore.setState((state) => ({
+      todos: state.todos.map((todo) => (todo.id === id ? { ...todo, category: nextCategory } : todo)),
+    }));
+    await bgSyncUpdate(id, { category: nextCategory });
+  } catch {
+    return;
+  }
+}
+
 // ── Store interface ─────────────────────────────────────────
 interface TodoState {
   todos: Todo[];
-  categories: string[];
+  categories: ActivityRecordType[];
   isLoading: boolean;
   activeTodoId: string | null;
   lastGeneratedDate: string;
@@ -162,14 +186,14 @@ interface TodoState {
     dueAt?: number;
     recurrence?: Recurrence;
     recurrenceDays?: number[];
-    category?: string;
+    category?: ActivityRecordType;
     scope?: TodoScope;
   }) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
   toggleTodo: (id: string) => void;
   togglePin: (id: string) => void;
   deleteTodo: (id: string) => void;
-  addCategory: (category: string) => void;
+  addCategory: (category: ActivityRecordType) => void;
   startTodo: (id: string) => void;
   completeActiveTodo: () => Promise<void>;
   completeTodoWithDuration: (id: string, duration: number) => Promise<void>;
@@ -206,6 +230,12 @@ export const useTodoStore = create<TodoState>()(
           return;
         }
         const cloudTodos = data.map(fromDbTodo);
+        data.forEach((row) => {
+          const normalizedCategory = normalizeTodoCategory(row.category, row.content);
+          if (row.category !== normalizedCategory) {
+            void bgSyncUpdate(row.id, { category: normalizedCategory });
+          }
+        });
         const localTodos = get().todos;
         const cloudIds = new Set(cloudTodos.map((t) => t.id));
         const allIds = new Set([...cloudIds, ...localTodos.map((t) => t.id)]);
@@ -228,6 +258,9 @@ export const useTodoStore = create<TodoState>()(
         const defaultSortOrder = input.dueAt ?? (maxOrder + Date.now());
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
+        const ruleClassified = classifyRecordActivityType(input.title);
+        const normalizedCategory = normalizeTodoCategory(input.category, input.title);
+        const shouldRefineByAI = ruleClassified.confidence === 'low';
 
         if (isRecurring) {
           const templateId = uuidv4();
@@ -243,7 +276,7 @@ export const useTodoStore = create<TodoState>()(
             recurrenceDays: input.recurrenceDays,
             isTemplate: true,
             sortOrder: defaultSortOrder,
-            category: input.category,
+            category: normalizedCategory,
             scope: input.scope,
           };
 
@@ -265,14 +298,20 @@ export const useTodoStore = create<TodoState>()(
               isTemplate: false,
               templateId,
               sortOrder: defaultSortOrder,
-              category: input.category,
+              category: normalizedCategory,
               scope: input.scope,
             };
             newTodos.push(instance);
             bgSyncInsert(instance).catch(console.error);
+            if (shouldRefineByAI) {
+              void refineTodoCategoryWithAI(instance.id, instance.title);
+            }
           }
           set((s) => ({ todos: [...s.todos, ...newTodos] }));
           bgSyncInsert(template).catch(console.error);
+          if (shouldRefineByAI) {
+            void refineTodoCategoryWithAI(template.id, template.title);
+          }
         } else {
           const todo: Todo = {
             id: uuidv4(),
@@ -285,11 +324,14 @@ export const useTodoStore = create<TodoState>()(
             recurrence: 'once',
             isTemplate: false,
             sortOrder: defaultSortOrder,
-            category: input.category,
+            category: normalizedCategory,
             scope: input.scope,
           };
           set((s) => ({ todos: [...s.todos, todo] }));
           bgSyncInsert(todo).catch(console.error);
+          if (shouldRefineByAI) {
+            void refineTodoCategoryWithAI(todo.id, todo.title);
+          }
         }
       },
 
@@ -357,7 +399,11 @@ export const useTodoStore = create<TodoState>()(
       },
 
       addCategory: (category) =>
-        set((state) => ({ categories: [...state.categories, category] })),
+        set((state) => (
+          state.categories.includes(category)
+            ? { categories: state.categories }
+            : { categories: [...state.categories, category] }
+        )),
 
       // ── Start working on a todo ──
       startTodo: (id) => {

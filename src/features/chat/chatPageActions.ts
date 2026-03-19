@@ -37,7 +37,8 @@ type ParseMagicPenFn = (rawText: string, options: { lang: 'zh' | 'en' | 'it' }) 
 
 interface ActiveTodoSnapshot {
   id: string;
-  content: string;
+  title?: string;
+  content?: string;
   startedAt?: number;
 }
 
@@ -99,7 +100,9 @@ async function completeActiveTodoAfterRealtimeIfNeeded(
   await completeActiveTodo();
   if (!todoToComplete?.startedAt) return;
   const duration = Math.round((Date.now() - todoToComplete.startedAt) / (1000 * 60));
-  await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, duration);
+  const todoLabel = todoToComplete.title ?? todoToComplete.content;
+  if (!todoLabel) return;
+  await updateMessageDuration(todoLabel, todoToComplete.startedAt, duration);
 }
 
 function shouldUseLocalFastPath(input: string, classification: LiveInputClassification): boolean {
@@ -239,7 +242,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       unparsedCount: parsed.unparsedSegments.length,
       autoWriteCount: parsed.autoWriteItems.length,
     });
-    const recoveredAutoWriteItems = parsed.autoWriteItems.map((item) => ({
+    const recoveredAutoWriteItems: Array<(typeof parsed.autoWriteItems)[number] & { source: 'ai' | 'unparsed_promoted' }> = parsed.autoWriteItems.map((item) => ({
       ...item,
       source: 'ai' as const,
     }));

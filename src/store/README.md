@@ -19,6 +19,8 @@
 1. `useXxxStore.ts`: state 与 action 的主入口。
 2. `xxxActions.ts`: 多步骤副作用逻辑（例如 API 调用 + 写库 + 状态回写）。
 3. `xxxHelpers.ts`: 可复用纯函数，避免在 store 内堆叠长函数。
+4. `useXxxStore.types.ts`: 当 store 入口过长时，抽离类型与接口定义。
+5. `xxxLegacy.ts`: 历史数据兼容/回填逻辑，避免污染主 store 可读性。
 
 ## 代码约束
 

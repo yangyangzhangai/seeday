@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRightLeft, StopCircle, X } from 'lucide-react';
+import { ArrowRightLeft, Camera, StopCircle, X } from 'lucide-react';
 import { getMoodColor } from '../../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
 import { formatDuration } from '../../../lib/time';
@@ -18,17 +18,18 @@ export interface EventCardProps {
   onConvertMood: (moodId: string) => void;
   onMoodClick: (messageId: string) => void;
   onDelete: (id: string) => void;
+  allowConvertToMood: boolean;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
-  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete,
+  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood,
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
-  const { detachMoodFromEvent, updateMessageImage } = useChatStore();
+  const { detachMoodFromEvent, updateMessageImage, reclassifyRecentInput } = useChatStore();
 
   const [cardActive, setCardActive] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -61,6 +62,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   const isOngoing = message.isActive && message.duration == null;
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
+  const canUploadImage = !hasImage1 || !hasImage2;
+  const [openImage1Signal, setOpenImage1Signal] = useState(0);
+  const [openImage2Signal, setOpenImage2Signal] = useState(0);
 
   // Live elapsed-time counter for ongoing events (ticks every 30s)
   const [elapsedSec, setElapsedSec] = useState(() =>
@@ -82,20 +86,49 @@ export const EventCard: React.FC<EventCardProps> = ({
     void updateMessageImage(message.id, slot, null);
   };
 
+  const handleOpenImageUpload = () => {
+    if (!hasImage1) {
+      setOpenImage1Signal(v => v + 1);
+      return;
+    }
+    if (!hasImage2) {
+      setOpenImage2Signal(v => v + 1);
+    }
+  };
+
   return (
     <div
       ref={cardRef}
       className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative"
       onClick={() => { if (!cardActive) setCardActive(true); }}
     >
-      {/* Delete button — top-right, only when card is tapped */}
       {cardActive && (
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(message.id); }}
-          className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
-        >
-          <X size={9} />
-        </button>
+        <div className="absolute -top-2.5 -right-2.5 flex items-center gap-1 z-10">
+          {canUploadImage && (
+            <button
+              onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }}
+              title={t('image_upload')}
+              className="w-6 h-6 bg-sky-500 hover:bg-sky-600 rounded-full text-white flex items-center justify-center transition-colors"
+            >
+              <Camera size={10} />
+            </button>
+          )}
+          {allowConvertToMood && (
+            <button
+              onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }}
+              title={t('event_to_mood')}
+              className="w-6 h-6 bg-violet-500 hover:bg-violet-600 rounded-full text-white flex items-center justify-center transition-colors"
+            >
+              <ArrowRightLeft size={10} />
+            </button>
+          )}
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(message.id); }}
+            className="w-6 h-6 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors"
+          >
+            <X size={9} />
+          </button>
+        </div>
       )}
 
       {/* ── Header: dot + title + mood chip ─────────────────── */}
@@ -150,6 +183,8 @@ export const EventCard: React.FC<EventCardProps> = ({
             onUploaded={url => handleImageUploaded('imageUrl', url)}
             onRemoved={() => handleImageRemoved('imageUrl')}
             compact
+            hideUploadButton
+            openSignal={openImage1Signal}
           />
         </div>
         {/* Second slot: only appears after first image is uploaded */}
@@ -162,6 +197,8 @@ export const EventCard: React.FC<EventCardProps> = ({
               onRemoved={() => handleImageRemoved('imageUrl2')}
               compact
               hideUploadWhen={hasImage2}
+              hideUploadButton
+              openSignal={openImage2Signal}
             />
           </div>
         )}

@@ -59,7 +59,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const { t } = useTranslation();
   const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
 
-  const { items, moodDescMap } = useMemo(() => {
+  const { items, moodDescMap, latestRecordMessageId } = useMemo(() => {
     const eligible = messages
       .filter(m => m.mode === 'record' && m.type === 'text')
       .sort((a, b) => a.timestamp - b.timestamp);
@@ -72,7 +72,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     }
 
     const items = eligible.filter(m => !m.isMood || m.detached === true);
-    return { items, moodDescMap };
+    const latestRecordMessageId = eligible.length > 0 ? eligible[eligible.length - 1].id : null;
+    return { items, moodDescMap, latestRecordMessageId };
   }, [messages]);
 
   if (isLoading) {
@@ -101,6 +102,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const isLast  = idx === items.length - 1;
           const timeLabel = format(msg.timestamp, 'HH:mm');
           const isMoodCard = msg.isMood && msg.detached;
+          const allowReclassify = msg.id === latestRecordMessageId;
 
           return (
             /* items-stretch makes all children equal height so the bottom
@@ -142,6 +144,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onReturnToEvent={id => reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
+                    allowConvertToEvent={allowReclassify}
                   />
                 ) : (
                   <EventCard
@@ -151,6 +154,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
                     onDelete={id => void deleteActivity(id)}
+                    allowConvertToMood={allowReclassify}
                   />
                 )}
               </div>
