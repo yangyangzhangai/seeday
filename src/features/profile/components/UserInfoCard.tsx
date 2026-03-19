@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, Crown, MoreHorizontal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -44,6 +44,23 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [streak, setStreak] = useState(0);
+
+  // Query all-time activity dates from Supabase to compute accurate streak
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('messages')
+      .select('timestamp')
+      .eq('user_id', user.id)
+      .neq('activity_type', 'chat')
+      .eq('is_mood', false)
+      .then(({ data }) => {
+        if (!data) return;
+        const dates = new Set(data.map((r) => toLocalDate(Number(r.timestamp))));
+        setStreak(calcStreakFromDates(dates));
+      });
+  }, [user]);
 
   const todayActs = calcTodayActivities(messages);
   const completedGoals = calcCompletedGoals(bottles);

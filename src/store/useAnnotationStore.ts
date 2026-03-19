@@ -17,7 +17,6 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbAnnotation, toDbAnnotation } from '../lib/dbMappers';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
-import { useAuthStore } from './useAuthStore';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -125,15 +124,6 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
         if (!shouldGenerate) {
           console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
-          return;
-        }
-
-        // 概率控制：根据 annotationDropRate 决定是否本次实际触发
-        const { annotationDropRate } = useAuthStore.getState().preferences;
-        const rateMap: Record<string, number> = { low: 0.3, medium: 0.6, high: 0.9 };
-        const probability = rateMap[annotationDropRate] ?? 0.3;
-        if (Math.random() > probability) {
-          console.log('[AI Annotator] 概率控制跳过本次批注:', annotationDropRate);
           return;
         }
 

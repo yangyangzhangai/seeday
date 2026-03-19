@@ -653,6 +653,31 @@ export const useChatStore = create<ChatState>()(
           };
         });
 
+        const { toLocalDateStr } = await import('../lib/dateUtils');
+        const isCrossDay = !latestEvent ||
+          toLocalDateStr(new Date(now)) !== toLocalDateStr(new Date(latestEvent.timestamp));
+
+        set(state => {
+          if (isCrossDay) {
+            return { messages: [...state.messages, { ...newMessage, detached: true }] };
+          }
+          const newDesc: import('./useChatStore').MoodDescription = {
+            id: newMessage.id,
+            content,
+            timestamp: now,
+          };
+          return {
+            messages: state.messages
+              .map(m =>
+                m.id === latestEvent.id
+                  ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
+                  : m,
+              )
+              .concat(newMessage),
+          };
+        });
+
+        // 兼容旧有 relatedActivityId 逻辑
         if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
           moodStore.setMoodNote(relatedActivityId, content, {
