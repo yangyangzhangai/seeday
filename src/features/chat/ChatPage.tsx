@@ -240,25 +240,30 @@ export const ChatPage = () => {
     const hasText   = input.trim().length > 0;
     const hasImages = pendingBlobs.length > 0;
 
-    // Must have text — images alone are not allowed
     if (!hasText) {
       if (hasImages) setInputError(t('chat_input_error_need_text'));
       return;
     }
-    // Guard against double-tap
     if (sendingRef.current) return;
 
     setInputError(null);
 
-    // ── Optimistic: capture current values and clear UI immediately ──
+    // Capture values before clearing UI
     const textToSend  = input;
     const blobsToSend = [...pendingBlobs];
+    // Keep previewUrls alive (do NOT revoke yet — needed for optimistic card render)
+    const previewUrls = [...pendingPreviews];
+
+    // Clear input bar immediately; defer blob URL revocation until after upload
     setInput('');
-    clearPendingImages();
+    setPendingBlobs([]);
+    setPendingPreviews([]);
     sendingRef.current = true;
 
     try {
       if (isMagicPenModeOn) {
+        // Magic pen doesn't use images — safe to revoke now
+        previewUrls.forEach(URL.revokeObjectURL);
         await handleMagicPenModeSend({
           input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
           isMagicPenSending, messages, activeTodoId, todos,
@@ -277,7 +282,6 @@ export const ChatPage = () => {
         return;
       }
 
-      // Track which message IDs exist before sending so we can find the new one
       const beforeIds = new Set(useChatStore.getState().messages.map(m => m.id));
       const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
       const classification = await sendAutoRecognizedInput(textToSend);
@@ -290,27 +294,46 @@ export const ChatPage = () => {
         }
       }
 
-      // Attach staged images to the newly created message (activity or mood)
       if (blobsToSend.length > 0 && classification?.kind) {
         const newMsg = [...useChatStore.getState().messages]
           .reverse()
           .find(m => !beforeIds.has(m.id));
+
         if (newMsg) {
-          // If a mood got attached to an event (same-day behaviour), force it detached
-          // so images appear on a standalone MoodCard, not merged into the event card.
+          // Mood attached to same-day event → force standalone card.
+          // detachMoodFromEvent (inside) is synchronous; Supabase persist is fire-and-forget.
           if (newMsg.isMood && !newMsg.detached) {
-            await useChatStore.getState().detachMoodMessage(newMsg.id);
+            void useChatStore.getState().detachMoodMessage(newMsg.id);
           }
 
+          // ── Optimistic: paint blob preview URLs into the card right now ──
+          // The card shows images instantly; real URLs silently replace them after upload.
+          useChatStore.setState(state => ({
+            messages: state.messages.map(m => {
+              if (m.id !== newMsg.id) return m;
+              return {
+                ...m,
+                ...(previewUrls[0] != null && { imageUrl:  previewUrls[0] }),
+                ...(previewUrls[1] != null && { imageUrl2: previewUrls[1] }),
+              };
+            }),
+          }));
+
+          // Upload in background — replace each optimistic URL with the permanent one
           const { updateMessageImage } = useChatStore.getState();
           const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, blobsToSend.length);
-          await Promise.all(
+          void Promise.all(
             slots.map(async (slot, i) => {
               const url = await uploadImage(blobsToSend[i], `${newMsg.id}_${slot}`);
               await updateMessageImage(newMsg.id, slot, url);
+              URL.revokeObjectURL(previewUrls[i]); // safe to revoke once real URL is live
             }),
           );
+        } else {
+          previewUrls.forEach(URL.revokeObjectURL);
         }
+      } else {
+        previewUrls.forEach(URL.revokeObjectURL);
       }
     } finally {
       sendingRef.current = false;
