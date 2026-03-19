@@ -36,7 +36,6 @@ import {
   persistMessageToSupabase,
   triggerMoodDetection,
 } from './chatActions';
-
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -53,11 +52,9 @@ export const useChatStore = create<ChatState>()(
       currentDateStr: null,
       activeViewDateStr: null,
       dateCache: new Map(),
-
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          // Guest mode: keep only today's messages; discard stale days.
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const todayStartMs = todayStart.getTime();
@@ -586,6 +583,19 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
+      detachMoodMessage: async (moodId: string) => {
+        const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
+        get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
+        const session = await getSupabaseSession();
+        if (!session) return;
+        const mood = get().messages.find(m => m.id === moodId);
+        if (mood) await persistMessageToSupabase(mood, session.user.id, true);
+        if (parentId) {
+          const parent = get().messages.find(m => m.id === parentId);
+          if (parent) await persistMessageToSupabase(parent, session.user.id);
+        }
+      },
+
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const relatedActivityId = options?.relatedActivityId;
@@ -601,7 +611,6 @@ export const useChatStore = create<ChatState>()(
           detached: false,
         };
 
-        // 在 set() 外计算目标事件（避免 Zustand 作用域问题）
         const { messages } = get();
         const latestEvent = [...messages]
           .filter(m => !m.isMood && m.mode === 'record')
@@ -666,7 +675,6 @@ export const useChatStore = create<ChatState>()(
 
       setMode: (mode) => set({ mode }),
       setHasInitialized: (value) => set({ hasInitialized: value }),
-
       clearHistory: async () => {
         set({ messages: [], lastActivityTime: null });
       },
@@ -726,9 +734,7 @@ export const useChatStore = create<ChatState>()(
         if (!latestRecordMessage || latestRecordMessage.id !== moodMsgId) {
           return;
         }
-
         const now = Date.now();
-        // Capture the previously active event before mutation
         const prevActive = currentMessages.find(m => m.isActive && !m.isMood) ?? null;
 
         set(state => ({
@@ -749,7 +755,6 @@ export const useChatStore = create<ChatState>()(
           }),
         }));
 
-        // Auto-detect mood for the event that just ended
         if (prevActive) {
           const moodStore = useMoodStore.getState();
           const isCustomApplied = moodStore.customMoodApplied[prevActive.id];
@@ -759,7 +764,6 @@ export const useChatStore = create<ChatState>()(
           }
         }
 
-        // Auto-detect mood for the newly converted event
         const newEvent = get().messages.find(m => m.id === moodMsgId);
         if (newEvent) {
           const moodStore = useMoodStore.getState();

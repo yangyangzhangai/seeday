@@ -12,12 +12,21 @@ export interface ImageUploaderProps {
   onRemoved:  () => void;
   compact?: boolean;
   hideUploadWhen?: boolean;
+<<<<<<< HEAD
   hideUploadButton?: boolean;
   openSignal?: number;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal,
+=======
+  /** View-only: tap shows zoom only, no delete button */
+  readonly?: boolean;
+}
+
+export const ImageUploader: React.FC<ImageUploaderProps> = ({
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, readonly,
+>>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 }) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -107,12 +116,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               >
                 <ZoomIn size={13} />
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); void handleRemove(); }}
-                className="p-1.5 bg-black/50 rounded-full text-white"
-              >
-                <X size={13} />
-              </button>
+              {!readonly && (
+                <button
+                  onClick={e => { e.stopPropagation(); void handleRemove(); }}
+                  className="p-1.5 bg-black/50 rounded-full text-white"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           )}
         </div>

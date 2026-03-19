@@ -17,16 +17,6 @@ function toLocalDate(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function calcStreakFromDates(activityDates: Set<string>): number {
-  let streak = 0;
-  const d = new Date();
-  while (activityDates.has(toLocalDate(d.getTime()))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
-}
-
 function calcTodayActivities(messages: any[]): number {
   const today = toLocalDate(Date.now());
   return messages.filter(
@@ -45,7 +35,7 @@ function calcCompletedGoals(bottles: any[]): number {
 
 export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
-  const { user, updateAvatar } = useAuthStore();
+  const { user, updateAvatar, activityStreak } = useAuthStore();
   const messages = useChatStore((s) => s.messages);
   const bottles = useGrowthStore((s) => s.bottles);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -177,7 +167,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {/* Stats — compact */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{streak}</span>
+          <span className="text-base font-bold text-blue-600">{activityStreak ?? '—'}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
         </div>
         <div className="flex flex-col items-center py-1">

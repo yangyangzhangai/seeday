@@ -18,11 +18,20 @@ export interface EventCardProps {
   onConvertMood: (moodId: string) => void;
   onMoodClick: (messageId: string) => void;
   onDelete: (id: string) => void;
+<<<<<<< HEAD
   allowConvertToMood: boolean;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
   message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood,
+=======
+  /** Past-date card: no editing or deleting allowed */
+  readonly?: boolean;
+}
+
+export const EventCard: React.FC<EventCardProps> = ({
+  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, readonly,
+>>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
@@ -100,8 +109,9 @@ export const EventCard: React.FC<EventCardProps> = ({
     <div
       ref={cardRef}
       className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative"
-      onClick={() => { if (!cardActive) setCardActive(true); }}
+      onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
+<<<<<<< HEAD
       {cardActive && (
         <div className="absolute -top-2.5 -right-2.5 flex items-center gap-1 z-10">
           {canUploadImage && (
@@ -129,6 +139,16 @@ export const EventCard: React.FC<EventCardProps> = ({
             <X size={9} />
           </button>
         </div>
+=======
+      {/* Delete button — top-right, only when card is tapped and not readonly */}
+      {cardActive && !readonly && (
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(message.id); }}
+          className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
+        >
+          <X size={9} />
+        </button>
+>>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
       )}
 
       {/* ── Header: dot + title + mood chip ─────────────────── */}
@@ -150,11 +170,12 @@ export const EventCard: React.FC<EventCardProps> = ({
           </span>
         </div>
 
-        {/* Mood chip (right) */}
+        {/* Mood chip (right) — clickable only when not readonly */}
         {mood ? (
-          <button
-            onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
-            className={cn('shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700 active:opacity-80')}
+          <div
+            role={readonly ? undefined : 'button'}
+            onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
+            className={cn('shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700', !readonly && 'active:opacity-80 cursor-pointer')}
             style={
               moodKey === 'anxious'
                 ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
@@ -164,16 +185,19 @@ export const EventCard: React.FC<EventCardProps> = ({
             <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
               {getTranslatedMood(rawLabel)}
             </span>
-          </button>
+          </div>
         ) : (
-          <button
-            onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
-            className="shrink-0 w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-            title={t('chat_unknown_mood_label')}
-          />
+          !readonly && (
+            <button
+              onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
+              className="shrink-0 w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              title={t('chat_unknown_mood_label')}
+            />
+          )
         )}
       </div>
 
+<<<<<<< HEAD
       {/* ── Images (up to 2, compact, side-by-side) ──────────── */}
       <div className="flex gap-1.5 mt-1.5">
         <div className="flex-1 min-w-0">
@@ -203,6 +227,39 @@ export const EventCard: React.FC<EventCardProps> = ({
           </div>
         )}
       </div>
+=======
+      {/* ── Images (up to 2, compact, side-by-side) — only shown when images exist ── */}
+      {(hasImage1 || hasImage2) && (
+        <div className="flex gap-1.5 mt-1.5">
+          {hasImage1 && (
+            <div className="flex-1 min-w-0">
+              <ImageUploader
+                messageId={message.id}
+                imageUrl={message.imageUrl}
+                onUploaded={url => handleImageUploaded('imageUrl', url)}
+                onRemoved={() => handleImageRemoved('imageUrl')}
+                compact
+                hideUploadWhen
+                readonly={readonly}
+              />
+            </div>
+          )}
+          {hasImage2 && (
+            <div className="flex-1 min-w-0">
+              <ImageUploader
+                messageId={`${message.id}_2`}
+                imageUrl={message.imageUrl2}
+                onUploaded={url => handleImageUploaded('imageUrl2', url)}
+                onRemoved={() => handleImageRemoved('imageUrl2')}
+                compact
+                hideUploadWhen
+                readonly={readonly}
+              />
+            </div>
+          )}
+        </div>
+      )}
+>>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 
       {/* ── Mood descriptions — below images ─────────────────── */}
       {moodDescriptions.length > 0 && (
@@ -215,17 +272,19 @@ export const EventCard: React.FC<EventCardProps> = ({
               >
                 {desc.content}
               </span>
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  detachMoodFromEvent(message.id, desc.id);
-                  onConvertMood(desc.id);
-                }}
-                title={t('mood_convert_btn')}
-                className="flex items-center text-sky-500 hover:text-sky-700 shrink-0 p-0.5"
-              >
-                <ArrowRightLeft size={12} />
-              </button>
+              {!readonly && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    detachMoodFromEvent(message.id, desc.id);
+                    onConvertMood(desc.id);
+                  }}
+                  title={t('mood_convert_btn')}
+                  className="flex items-center text-sky-500 hover:text-sky-700 shrink-0 p-0.5"
+                >
+                  <ArrowRightLeft size={12} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -240,13 +299,15 @@ export const EventCard: React.FC<EventCardProps> = ({
             </div>
           ) : (
             <>
-              <button
-                onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
-                title={t('end_event_btn')}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <StopCircle size={14} />
-              </button>
+              {!readonly && (
+                <button
+                  onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
+                  title={t('end_event_btn')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <StopCircle size={14} />
+                </button>
+              )}
               {/* Live elapsed time */}
               <span className="text-[10px] text-gray-400 tabular-nums">
                 {elapsedSec < 60

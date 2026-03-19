@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
@@ -18,6 +18,8 @@ import { MoodPickerModal } from './MoodPickerModal';
 import { DatePicker } from './components/DatePicker';
 import { TimelineView } from './components/TimelineView';
 import { YesterdaySummaryPopup } from './components/YesterdaySummaryPopup';
+import { ImageCropModal } from './components/ImageCropModal';
+import { useImageUpload } from '../../hooks/useImageUpload';
 
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
@@ -59,6 +61,39 @@ export const ChatPage = () => {
   const [selectedStardust, setSelectedStardust] = useState<{
     data: StardustCardData; position: { x: number; y: number };
   } | null>(null);
+
+  // ── Pending images (staged in input bar before send) ───────
+  const [pendingBlobs, setPendingBlobs]       = useState<Blob[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const [inputBarCropFile, setInputBarCropFile] = useState<File | null>(null);
+  const [inputError, setInputError]           = useState<string | null>(null);
+  const { upload: uploadImage } = useImageUpload();
+  const sendingRef = useRef(false);
+
+  const handleInputBarPhotoFileSelected = useCallback((file: File) => {
+    if (pendingBlobs.length >= 2) return; // max 2 images
+    setInputBarCropFile(file);
+  }, [pendingBlobs.length]);
+
+  const handleInputBarCropConfirm = useCallback((blob: Blob) => {
+    const preview = URL.createObjectURL(blob);
+    setPendingBlobs(prev => [...prev, blob]);
+    setPendingPreviews(prev => [...prev, preview]);
+    setInputBarCropFile(null);
+  }, []);
+
+  const handleRemovePendingImage = useCallback((idx: number) => {
+    setPendingBlobs(prev => prev.filter((_, i) => i !== idx));
+    setPendingPreviews(prev => {
+      URL.revokeObjectURL(prev[idx]); // free memory
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
+  const clearPendingImages = useCallback(() => {
+    setPendingPreviews(prev => { prev.forEach(URL.revokeObjectURL); return []; });
+    setPendingBlobs([]);
+  }, []);
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
@@ -202,38 +237,108 @@ export const ChatPage = () => {
 
   // ── Send ──────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!input.trim()) return;
+    const hasText   = input.trim().length > 0;
+    const hasImages = pendingBlobs.length > 0;
 
-    if (isMagicPenModeOn) {
-      await handleMagicPenModeSend({
-        input, lang: i18n.language?.split('-')[0] || 'zh',
-        isMagicPenSending, messages, activeTodoId, todos,
-        sendAutoRecognizedInput: async (content) => {
-          const before = useChatStore.getState().messages;
-          const beforeIds = new Set(before.map(m => m.id));
-          const classification = await sendAutoRecognizedInput(content);
-          const after = useChatStore.getState().messages;
-          const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
-          return { classification, messageId: createdMessage?.id };
-        },
-        completeActiveTodo, updateMessageDuration, parseMagicPenInput,
-        setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
-        setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
-      });
+    if (!hasText) {
+      if (hasImages) setInputError(t('chat_input_error_need_text'));
       return;
     }
+    if (sendingRef.current) return;
 
-    const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
-    const classification = await sendAutoRecognizedInput(input);
+    setInputError(null);
 
-    if (classification?.kind === 'activity' && activeTodoId) {
-      await completeActiveTodo();
-      if (todoToComplete?.startedAt) {
-        const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
-        await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
-      }
-    }
+    // Capture values before clearing UI
+    const textToSend  = input;
+    const blobsToSend = [...pendingBlobs];
+    // Keep previewUrls alive (do NOT revoke yet — needed for optimistic card render)
+    const previewUrls = [...pendingPreviews];
+
+    // Clear input bar immediately; defer blob URL revocation until after upload
     setInput('');
+    setPendingBlobs([]);
+    setPendingPreviews([]);
+    sendingRef.current = true;
+
+    try {
+      if (isMagicPenModeOn) {
+        // Magic pen doesn't use images — safe to revoke now
+        previewUrls.forEach(URL.revokeObjectURL);
+        await handleMagicPenModeSend({
+          input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
+          isMagicPenSending, messages, activeTodoId,
+          todos: todos.map(t => ({ id: t.id, content: t.title, startedAt: t.startedAt })),
+          sendAutoRecognizedInput: async (content) => {
+            const before = useChatStore.getState().messages;
+            const beforeIds = new Set(before.map(m => m.id));
+            const classification = await sendAutoRecognizedInput(content);
+            const after = useChatStore.getState().messages;
+            const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
+            return { classification, messageId: createdMessage?.id };
+          },
+          completeActiveTodo, updateMessageDuration, parseMagicPenInput,
+          setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
+          setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
+        });
+        return;
+      }
+
+      const beforeIds = new Set(useChatStore.getState().messages.map(m => m.id));
+      const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
+      const classification = await sendAutoRecognizedInput(textToSend);
+
+      if (classification?.kind === 'activity' && activeTodoId) {
+        await completeActiveTodo();
+        if (todoToComplete?.startedAt) {
+          const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
+          await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
+        }
+      }
+
+      if (blobsToSend.length > 0 && classification?.kind) {
+        const newMsg = [...useChatStore.getState().messages]
+          .reverse()
+          .find(m => !beforeIds.has(m.id));
+
+        if (newMsg) {
+          // Mood attached to same-day event → force standalone card.
+          // detachMoodFromEvent (inside) is synchronous; Supabase persist is fire-and-forget.
+          if (newMsg.isMood && !newMsg.detached) {
+            void useChatStore.getState().detachMoodMessage(newMsg.id);
+          }
+
+          // ── Optimistic: paint blob preview URLs into the card right now ──
+          // The card shows images instantly; real URLs silently replace them after upload.
+          useChatStore.setState(state => ({
+            messages: state.messages.map(m => {
+              if (m.id !== newMsg.id) return m;
+              return {
+                ...m,
+                ...(previewUrls[0] != null && { imageUrl:  previewUrls[0] }),
+                ...(previewUrls[1] != null && { imageUrl2: previewUrls[1] }),
+              };
+            }),
+          }));
+
+          // Upload in background — replace each optimistic URL with the permanent one
+          const { updateMessageImage } = useChatStore.getState();
+          const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, blobsToSend.length);
+          void Promise.all(
+            slots.map(async (slot, i) => {
+              const url = await uploadImage(blobsToSend[i], `${newMsg.id}_${slot}`);
+              await updateMessageImage(newMsg.id, slot, url);
+              URL.revokeObjectURL(previewUrls[i]); // safe to revoke once real URL is live
+            }),
+          );
+        } else {
+          previewUrls.forEach(URL.revokeObjectURL);
+        }
+      } else {
+        previewUrls.forEach(URL.revokeObjectURL);
+      }
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -270,11 +375,24 @@ export const ChatPage = () => {
         input={input}
         isLoading={isLoading || isMagicPenSending}
         isMagicPenModeOn={isMagicPenModeOn}
-        onInputChange={setInput}
-        onSend={handleSend}
+        onInputChange={v => { setInput(v); if (inputError) setInputError(null); }}
+        onSend={() => { void handleSend(); }}
         onKeyDown={handleKeyDown}
         onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
+        onPhotoFileSelected={handleInputBarPhotoFileSelected}
+        pendingImagePreviews={pendingPreviews}
+        onRemovePendingImage={handleRemovePendingImage}
+        inputError={inputError}
       />
+
+      {/* Crop modal for input-bar staged photos */}
+      {inputBarCropFile && (
+        <ImageCropModal
+          file={inputBarCropFile}
+          onConfirm={handleInputBarCropConfirm}
+          onCancel={() => setInputBarCropFile(null)}
+        />
+      )}
 
       {/* Edit/Insert Modal */}
       {(editingId || insertingAfterId) && (

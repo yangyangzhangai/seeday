@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md
 import { classifyLiveInput } from '../../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../../services/input/liveInputContext';
-import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
+import type { MagicPenAutoWriteItem, MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import type { LiveInputClassification } from '../../services/input/types';
 import type { Message } from '../../store/useChatStore';
 
@@ -242,7 +242,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       unparsedCount: parsed.unparsedSegments.length,
       autoWriteCount: parsed.autoWriteItems.length,
     });
-    const recoveredAutoWriteItems: Array<(typeof parsed.autoWriteItems)[number] & { source: 'ai' | 'unparsed_promoted' }> = parsed.autoWriteItems.map((item) => ({
+    const recoveredAutoWriteItems: MagicPenAutoWriteItem[] = parsed.autoWriteItems.map((item) => ({
       ...item,
       source: 'ai' as const,
     }));
