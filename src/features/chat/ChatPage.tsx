@@ -102,13 +102,21 @@ export const ChatPage = () => {
     const isToday = dateStr === toLocalDateStr(new Date());
 
     if (isToday) {
-      // 今天：用 fetchMessages 保持昨日摘要等逻辑
-      if (hasInitialized) return;
+      // First load is handled by the init useEffect — skip
+      if (!hasInitialized) return;
+      // Switching back to today: restore from cache (added by fetchMessages) or re-fetch
+      if (dateCache.get(dateStr)) {
+        void fetchMessagesByDate(dateStr);
+      } else {
+        void fetchMessages();
+      }
       return;
     }
 
+    // Non-today date
     if (dateCache.get(dateStr)) {
-      fetchMessagesByDate(dateStr);
+      // Already cached — update instantly, no loading spinner
+      void fetchMessagesByDate(dateStr);
       return;
     }
 

@@ -23,10 +23,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const { upload, remove, uploading } = useImageUpload();
   const inputRef  = useRef<HTMLInputElement>(null);
   const imageRef  = useRef<HTMLDivElement>(null);
-  const [error, setError]           = useState(false);
-  const [cropFile, setCropFile]     = useState<File | null>(null);
+  const [error, setError]             = useState(false);
+  const [cropFile, setCropFile]       = useState<File | null>(null);
   const [imageTapped, setImageTapped] = useState(false);
-  const [reCropping, setReCropping] = useState(false);
+  const [lightbox, setLightbox]       = useState(false);
 
   // Dismiss image overlay on tap outside
   useEffect(() => {
@@ -64,28 +64,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     onRemoved();
   };
 
-  /**
-   * Re-crop: fetch the current image as a blob and reopen the crop modal.
-   * Falls back to the file picker if the URL cannot be fetched (e.g. CORS).
-   */
-  const handleReCrop = async () => {
-    if (!imageUrl) return;
-    setImageTapped(false);
-    setReCropping(true);
-    try {
-      const res  = await fetch(imageUrl);
-      const blob = await res.blob();
-      const file = new File([blob], 'image.jpg', { type: blob.type || 'image/jpeg' });
-      setCropFile(file);
-    } catch {
-      // Fetch failed — let user pick a replacement file instead
-      inputRef.current?.click();
-    } finally {
-      setReCropping(false);
-    }
-  };
-
-  // Hidden file input is always rendered so the fallback picker works
+  // Hidden file input is always rendered
   const fileInput = (
     <input
       ref={inputRef}
@@ -118,7 +97,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {imageTapped && (
             <div className="absolute inset-0 bg-black/20 flex items-start justify-end p-1 gap-1">
               <button
-                onClick={e => { e.stopPropagation(); void handleReCrop(); }}
+                onClick={e => { e.stopPropagation(); setImageTapped(false); setLightbox(true); }}
                 className="p-1 bg-black/50 rounded-full text-white"
               >
                 <ZoomIn size={11} />
@@ -133,14 +112,28 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           )}
         </div>
 
-        {/* Re-crop loading indicator */}
-        {reCropping && (
-          <div className="flex items-center justify-center mt-1">
-            <Loader2 size={14} className="animate-spin text-gray-400" />
+        {/* Lightbox: full-screen image view */}
+        {lightbox && (
+          <div
+            className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50"
+            onClick={() => setLightbox(false)}
+          >
+            <img
+              src={imageUrl}
+              alt=""
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              onClick={e => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setLightbox(false)}
+              className="mt-5 flex items-center justify-center w-9 h-9 bg-white/15 hover:bg-white/25 rounded-full text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
           </div>
         )}
 
-        {/* Crop modal (initial upload or re-crop) */}
+        {/* Crop modal — only for new uploads */}
         {cropFile && (
           <ImageCropModal
             file={cropFile}

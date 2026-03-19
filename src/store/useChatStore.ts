@@ -163,6 +163,14 @@ export const useChatStore = create<ChatState>()(
 
           const messages = (todayData || []).map(mapDbRowToMessage);
 
+          // Ensure all completed events have at least an auto-detected mood label
+          const moodStoreToday = useMoodStore.getState();
+          for (const msg of messages) {
+            if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreToday.getMood(msg.id)) {
+              moodStoreToday.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0), 'auto');
+            }
+          }
+
           let yesterdaySummary: YesterdaySummary | null = null;
           if (latestBeforeToday && latestBeforeToday.length > 0) {
             const latest = latestBeforeToday[0];
@@ -203,6 +211,8 @@ export const useChatStore = create<ChatState>()(
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
+            // Cache today so switching back from other dates is instant
+            dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
         } catch (error) {
           console.error('Error fetching messages:', error);
@@ -281,6 +291,15 @@ export const useChatStore = create<ChatState>()(
           return;
         }
         const msgs = (data || []).map(mapDbRowToMessage);
+
+        // Ensure all completed events have at least an auto-detected mood label
+        const moodStoreDate = useMoodStore.getState();
+        for (const msg of msgs) {
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
+            moodStoreDate.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0), 'auto');
+          }
+        }
+
         set(state => ({
           messages: msgs,
           dateCache: new Map(state.dateCache).set(dateStr, msgs),
