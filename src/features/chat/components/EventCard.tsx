@@ -62,6 +62,18 @@ export const EventCard: React.FC<EventCardProps> = ({
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
 
+  // Live elapsed-time counter for ongoing events (ticks every 30s)
+  const [elapsedSec, setElapsedSec] = useState(() =>
+    isOngoing ? Math.floor((Date.now() - message.timestamp) / 1000) : 0,
+  );
+  useEffect(() => {
+    if (!isOngoing) return;
+    const update = () => setElapsedSec(Math.floor((Date.now() - message.timestamp) / 1000));
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, [isOngoing, message.timestamp]);
+
   const handleImageUploaded = (slot: 'imageUrl' | 'imageUrl2', url: string) => {
     useChatStore.setState(state => ({
       messages: state.messages.map(m =>
@@ -192,19 +204,29 @@ export const EventCard: React.FC<EventCardProps> = ({
 
       {/* ── Bottom-left: end button / duration ───────────────── */}
       {(isOngoing || message.duration != null) && (
-        <div className="flex items-center mt-1.5">
+        <div className="flex items-center gap-1.5 mt-1.5">
           {message.duration != null ? (
             <div className="text-[10px] text-sky-600 border border-sky-200 rounded-full px-2 py-0.5">
               {formatDuration(message.duration)}
             </div>
           ) : (
-            <button
-              onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
-              title={t('end_event_btn')}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <StopCircle size={14} />
-            </button>
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
+                title={t('end_event_btn')}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <StopCircle size={14} />
+              </button>
+              {/* Live elapsed time */}
+              <span className="text-[10px] text-gray-400 tabular-nums">
+                {elapsedSec < 60
+                  ? `< 1m`
+                  : elapsedSec < 3600
+                  ? `${Math.floor(elapsedSec / 60)}m`
+                  : `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}m`}
+              </span>
+            </>
           )}
         </div>
       )}
