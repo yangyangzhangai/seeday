@@ -57,11 +57,11 @@ export const YesterdaySummaryPopup: React.FC = () => {
     <AnimatePresence>
       {event && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
+          exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
-          className="fixed bottom-24 left-4 right-4 z-30 pointer-events-auto"
+          className="fixed top-16 left-4 right-4 z-30 pointer-events-auto"
           onPointerDown={() => setUserInteracted(true)}
         >
           <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl px-4 py-3 shadow-lg flex items-start gap-3">

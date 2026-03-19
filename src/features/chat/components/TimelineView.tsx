@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { EventCard } from './EventCard';
@@ -14,6 +14,33 @@ export interface TimelineViewProps {
   isLoading: boolean;
   onMoodClick: (messageId: string) => void;
 }
+
+/** Animated growing line shown below the dot of an ongoing (not-yet-ended) event */
+const OngoingGrowthLine: React.FC<{ startTimestamp: number }> = ({ startTimestamp }) => {
+  const [height, setHeight] = useState(() =>
+    Math.min(Math.floor((Date.now() - startTimestamp) / 60000) * 5, 100),
+  );
+
+  useEffect(() => {
+    const update = () =>
+      setHeight(Math.min(Math.floor((Date.now() - startTimestamp) / 60000) * 5, 100));
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, [startTimestamp]);
+
+  return (
+    <div className="flex flex-col items-center mt-0.5">
+      {/* Solid growing line */}
+      <div
+        className="w-0.5 bg-gradient-to-b from-blue-400 to-blue-200 transition-[height] duration-[800ms] ease-linear"
+        style={{ height: `${Math.max(height, 8)}px` }}
+      />
+      {/* Pulsing tip dot — indicates "still going" */}
+      <div className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse mt-0.5" />
+    </div>
+  );
+};
 
 const SkeletonCard: React.FC = () => (
   <div className="flex items-stretch animate-pulse">
@@ -101,6 +128,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 )} />
                 {/* Bottom connector: flex-1 fills to row bottom = seamless line */}
                 {!isLast && <div className="w-0.5 bg-gray-300 flex-1" />}
+                {/* Growing animated line for the last ongoing event */}
+                {isLast && !isMoodCard && msg.isActive && msg.duration == null && (
+                  <OngoingGrowthLine startTimestamp={msg.timestamp} />
+                )}
               </div>
 
               {/* ── Card ───────────────────────────────────── */}
@@ -110,6 +141,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     message={msg}
                     onReturnToEvent={id => reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
+                    onDelete={id => void deleteActivity(id)}
                   />
                 ) : (
                   <EventCard
