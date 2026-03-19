@@ -36,6 +36,16 @@
   display: none; /* Chrome/Safari */
 }
 
+/* Eliminate 300 ms tap delay on iOS for all interactive elements */
+button,
+[role="button"],
+input,
+textarea,
+select,
+a {
+  touch-action: manipulation;
+}
+
 /* Calendar custom styles for 时间报告 */
 .calendar-wrapper .react-calendar {
   width: min(92vw, 420px);

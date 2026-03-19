@@ -212,7 +212,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
       ...useMoodStore.getState(),
       activityMood: {
         'activity-auto': 'down',
-        'activity-manual': 'up',
+        'activity-manual': 'happy',
       },
       activityMoodMeta: {
         'activity-auto': { source: 'auto' },

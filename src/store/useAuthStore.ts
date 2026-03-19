@@ -32,12 +32,16 @@ interface AuthState {
   user: any | null;
   loading: boolean;
   preferences: UserPreferences;
+  /** Consecutive days with recorded activities, null = not yet fetched */
+  activityStreak: number | null;
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
+  /** Re-compute activityStreak from Supabase — call after recording a new activity */
+  refreshActivityStreak: () => Promise<void>;
 }
 
 function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
@@ -53,6 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   preferences: DEFAULT_PREFERENCES,
+  activityStreak: null,
 
   initialize: async () => {
     // Get initial session
@@ -88,7 +93,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // syncLocalAnnotations 成功后内部会调用 fetchAnnotations
 
         // 拉取各云端数据（并行执行互不依赖的部分）
-        await Promise.all([
+        const [activityStreak] = await Promise.all([
+          fetchActivityStreak(currentUser.id),
           useChatStore.getState().fetchMessages(),
           useTodoStore.getState().fetchTodos(),
           useReportStore.getState().fetchReports(),
@@ -96,6 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           useGrowthStore.getState().fetchBottles(),
           useFocusStore.getState().fetchSessions(),
         ]);
+        set({ activityStreak });
 
         // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
         await useStardustStore.getState().syncPendingStardusts();
@@ -110,7 +117,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useMoodStore.getState().clear();
         useGrowthStore.setState({ bottles: [] });
         useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
-        set({ preferences: DEFAULT_PREFERENCES });
+        set({ preferences: DEFAULT_PREFERENCES, activityStreak: null });
       }
     });
   },
@@ -160,7 +167,64 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
   },
+
+  refreshActivityStreak: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    const streak = await fetchActivityStreak(userId, true); // force bypass cache
+    set({ activityStreak: streak });
+  },
 }));
+
+// ── Helper: local date string from timestamp (ms) ─────────────
+function toLocalDateStr(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Fetch consecutive activity days from Supabase (full history, no date limit).
+ * Cached in localStorage — only re-fetches on the first open of each calendar day.
+ * Pass force=true to bypass the cache (e.g. after recording a new activity).
+ */
+async function fetchActivityStreak(userId: string, force = false): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const dateKey  = `streakDate_${userId}`;
+  const valueKey = `streakValue_${userId}`;
+
+  // Return cached value if already fetched today (and not forced)
+  if (!force && localStorage.getItem(dateKey) === today) {
+    const cached = localStorage.getItem(valueKey);
+    return cached !== null ? Number(cached) : 0;
+  }
+
+  try {
+    // Fetch ALL activity timestamps (no date filter) to compute full streak
+    const { data } = await supabase
+      .from('messages')
+      .select('timestamp')
+      .eq('user_id', userId)
+      .neq('activity_type', 'chat')
+      .eq('is_mood', false);
+
+    if (!data) return 0;
+    const dates = new Set(data.map(r => toLocalDateStr(Number(r.timestamp))));
+
+    let streak = 0;
+    const d = new Date();
+    while (dates.has(toLocalDateStr(d.getTime()))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+
+    // Cache result so we skip the query for the rest of today
+    localStorage.setItem(dateKey,  today);
+    localStorage.setItem(valueKey, String(streak));
+    return streak;
+  } catch {
+    return 0;
+  }
+}
 
 /**
  * Upsert user_stats with updated login streak.

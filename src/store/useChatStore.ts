@@ -32,12 +32,7 @@ import {
 
 export type MessageType = 'text' | 'system' | 'ai';
 
-/** 结构化心情描述条目，存储在 EventCard 内部 */
-export interface MoodDescription {
-  id: string;        // 心情消息的 messageId
-  content: string;   // 心情文字
-  timestamp: number; // 发送时间
-}
+export interface MoodDescription { id: string; content: string; timestamp: number; }
 
 export interface Message {
   id: string;
@@ -50,7 +45,6 @@ export interface Message {
   isMood?: boolean;
   stardustId?: string;
   stardustEmoji?: string;
-  // ★ v1.2 新增字段
   imageUrl?: string | null;
   imageUrl2?: string | null;
   moodDescriptions?: MoodDescription[] | null;
@@ -79,9 +73,7 @@ interface ChatState {
   isLoadingMore: boolean;
   yesterdaySummary: YesterdaySummary | null;
   currentDateStr: string | null;
-  /** 当前 messages 所对应的日期字符串（每次 messages 被替换时更新，用于导航恢复判断） */
   activeViewDateStr: string | null;
-  /** 日期 → 消息缓存，防止重复请求 */
   dateCache: Map<string, Message[]>;
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: () => Promise<void>;
@@ -102,6 +94,7 @@ interface ChatState {
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
+  detachMoodMessage: (moodId: string) => Promise<void>;
   setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
@@ -131,7 +124,6 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          // Guest mode: keep only today's messages; discard stale days.
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const todayStartMs = todayStart.getTime();
@@ -604,6 +596,19 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
+      detachMoodMessage: async (moodId: string) => {
+        const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
+        get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
+        const session = await getSupabaseSession();
+        if (!session) return;
+        const mood = get().messages.find(m => m.id === moodId);
+        if (mood) await persistMessageToSupabase(mood, session.user.id, true);
+        if (parentId) {
+          const parent = get().messages.find(m => m.id === parentId);
+          if (parent) await persistMessageToSupabase(parent, session.user.id);
+        }
+      },
+
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const relatedActivityId = options?.relatedActivityId;
@@ -619,11 +624,34 @@ export const useChatStore = create<ChatState>()(
           detached: false,
         };
 
-        // 在 set() 外计算目标事件（避免 Zustand 作用域问题）
         const { messages } = get();
         const latestEvent = [...messages]
           .filter(m => !m.isMood && m.mode === 'record')
           .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+        const { toLocalDateStr } = await import('../lib/dateUtils');
+        const isCrossDay = !latestEvent ||
+          toLocalDateStr(new Date(now)) !== toLocalDateStr(new Date(latestEvent.timestamp));
+
+        set(state => {
+          if (isCrossDay) {
+            return { messages: [...state.messages, { ...newMessage, detached: true }] };
+          }
+          const newDesc: import('./useChatStore').MoodDescription = {
+            id: newMessage.id,
+            content,
+            timestamp: now,
+          };
+          return {
+            messages: state.messages
+              .map(m =>
+                m.id === latestEvent.id
+                  ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
+                  : m,
+              )
+              .concat(newMessage),
+          };
+        });
 
         const { toLocalDateStr } = await import('../lib/dateUtils');
         const isCrossDay = !latestEvent ||
@@ -738,7 +766,6 @@ export const useChatStore = create<ChatState>()(
 
       convertMoodToEvent: async (moodMsgId) => {
         const now = Date.now();
-        // Capture the previously active event before mutation
         const prevActive = get().messages.find(m => m.isActive && !m.isMood) ?? null;
 
         set(state => ({
@@ -753,7 +780,6 @@ export const useChatStore = create<ChatState>()(
           }),
         }));
 
-        // Auto-detect mood for the event that just ended
         if (prevActive) {
           const moodStore = useMoodStore.getState();
           const isCustomApplied = moodStore.customMoodApplied[prevActive.id];
@@ -763,7 +789,6 @@ export const useChatStore = create<ChatState>()(
           }
         }
 
-        // Auto-detect mood for the newly converted event
         const newEvent = get().messages.find(m => m.id === moodMsgId);
         if (newEvent) {
           const moodStore = useMoodStore.getState();

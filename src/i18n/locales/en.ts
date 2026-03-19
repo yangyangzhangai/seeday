@@ -358,6 +358,7 @@ const en = {
     mood_return_event: 'Return to Event',
     mood_to_event: 'Convert to Event',
     image_upload: 'Upload Image',
+    chat_input_error_need_text: 'Please add a description to record this',
     image_uploading: 'Uploading...',
     image_upload_fail: 'Upload failed, tap to retry',
     image_delete: 'Delete Image',

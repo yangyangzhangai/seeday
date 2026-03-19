@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { EventCard } from './EventCard';
 import { MoodCard } from './MoodCard';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
@@ -101,6 +101,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const isLast  = idx === items.length - 1;
           const timeLabel = format(msg.timestamp, 'HH:mm');
           const isMoodCard = msg.isMood && msg.detached;
+          const cardReadonly = !isToday(selectedDate);
 
           return (
             /* items-stretch makes all children equal height so the bottom
@@ -142,6 +143,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onReturnToEvent={id => reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
+                    onMoodClick={onMoodClick}
+                    readonly={cardReadonly}
                   />
                 ) : (
                   <EventCard
@@ -151,6 +154,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
                     onDelete={id => void deleteActivity(id)}
+                    readonly={cardReadonly}
                   />
                 )}
               </div>
