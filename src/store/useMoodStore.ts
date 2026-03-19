@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type MoodKey, normalizeMoodKey } from '../lib/moodOptions';
+import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 
 const MAX_MOOD_ENTRIES = 500;
 
@@ -48,6 +50,8 @@ interface MoodState {
   clearAutoMoodAttachmentsByMessage: (activityId: string, moodMessageId: string) => void;
   getMood: (activityId: string) => MoodOption | undefined;
   clear: () => void;
+  /** Fetch all mood rows from Supabase and hydrate local state */
+  fetchMoods: () => Promise<void>;
 }
 
 type MoodRecordMaps = {
@@ -98,6 +102,29 @@ function pruneMoodRecordMaps(maps: MoodRecordMaps): MoodRecordMaps {
   };
 }
 
+/** Upsert a single mood row to Supabase. Fires-and-forgets alongside local state update. */
+async function persistMoodRow(
+  messageId: string,
+  patch: {
+    mood_label?: string | null;
+    custom_label?: string | null;
+    is_custom?: boolean;
+    note?: string | null;
+    source?: string;
+  }
+): Promise<void> {
+  try {
+    const session = await getSupabaseSession();
+    if (!session) return;
+    await supabase.from('moods').upsert(
+      { user_id: session.user.id, message_id: messageId, ...patch },
+      { onConflict: 'user_id,message_id' }
+    );
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('[MoodStore] Supabase upsert failed', err);
+  }
+}
+
 export const useMoodStore = create<MoodState>()(
   persist(
     (set, get) => ({
@@ -108,18 +135,24 @@ export const useMoodStore = create<MoodState>()(
       customMoodOptions: [],
       moodNote: {},
       moodNoteMeta: {},
-      setMood: (activityId, mood, source) =>
+
+      setMood: (activityId, mood, source) => {
+        const normalized = normalizeMoodKey(mood);
+        const meta = normalizeMoodAttachmentMeta(source);
         set(state =>
           pruneMoodRecordMaps({
-            activityMood: { ...state.activityMood, [activityId]: normalizeMoodKey(mood) },
-            activityMoodMeta: { ...state.activityMoodMeta, [activityId]: normalizeMoodAttachmentMeta(source) },
+            activityMood: { ...state.activityMood, [activityId]: normalized },
+            activityMoodMeta: { ...state.activityMoodMeta, [activityId]: meta },
             customMoodLabel: state.customMoodLabel,
             customMoodApplied: state.customMoodApplied,
             moodNote: state.moodNote,
             moodNoteMeta: state.moodNoteMeta,
           })
-        ),
-      setCustomMoodLabel: (activityId, label) =>
+        );
+        void persistMoodRow(activityId, { mood_label: normalized ?? null, source: meta.source });
+      },
+
+      setCustomMoodLabel: (activityId, label) => {
         set(state =>
           pruneMoodRecordMaps({
             activityMood: state.activityMood,
@@ -129,8 +162,11 @@ export const useMoodStore = create<MoodState>()(
             moodNote: state.moodNote,
             moodNoteMeta: state.moodNoteMeta,
           })
-        ),
-      setCustomMoodApplied: (activityId, applied) =>
+        );
+        void persistMoodRow(activityId, { custom_label: label ?? null });
+      },
+
+      setCustomMoodApplied: (activityId, applied) => {
         set(state =>
           pruneMoodRecordMaps({
             activityMood: state.activityMood,
@@ -140,16 +176,19 @@ export const useMoodStore = create<MoodState>()(
             moodNote: state.moodNote,
             moodNoteMeta: state.moodNoteMeta,
           })
-        ),
+        );
+        void persistMoodRow(activityId, { is_custom: applied });
+      },
+
       addCustomMoodOption: (label) =>
         set(state => {
           const value = label.trim();
           if (!value) return state;
-          return {
-            customMoodOptions: [value],
-          };
+          return { customMoodOptions: [value] };
         }),
-      setMoodNote: (activityId, note, source) =>
+
+      setMoodNote: (activityId, note, source) => {
+        const meta = normalizeMoodAttachmentMeta(source);
         set(state =>
           pruneMoodRecordMaps({
             activityMood: state.activityMood,
@@ -157,9 +196,12 @@ export const useMoodStore = create<MoodState>()(
             customMoodLabel: state.customMoodLabel,
             customMoodApplied: state.customMoodApplied,
             moodNote: { ...state.moodNote, [activityId]: note },
-            moodNoteMeta: { ...state.moodNoteMeta, [activityId]: normalizeMoodAttachmentMeta(source) },
+            moodNoteMeta: { ...state.moodNoteMeta, [activityId]: meta },
           })
-        ),
+        );
+        void persistMoodRow(activityId, { note, source: meta.source });
+      },
+
       clearAutoMoodAttachmentsByMessage: (activityId, moodMessageId) =>
         set((state) => {
           const moodMeta = state.activityMoodMeta[activityId];
@@ -169,9 +211,10 @@ export const useMoodStore = create<MoodState>()(
           const shouldClearNote =
             noteMeta?.source === 'auto' && noteMeta.linkedMoodMessageId === moodMessageId;
 
-          if (!shouldClearMood && !shouldClearNote) {
-            return state;
-          }
+          if (!shouldClearMood && !shouldClearNote) return state;
+
+          if (shouldClearMood) void persistMoodRow(activityId, { mood_label: null });
+          if (shouldClearNote)  void persistMoodRow(activityId, { note: null });
 
           return pruneMoodRecordMaps({
             activityMood: shouldClearMood
@@ -190,7 +233,9 @@ export const useMoodStore = create<MoodState>()(
               : state.moodNoteMeta,
           });
         }),
+
       getMood: (activityId) => get().activityMood[activityId],
+
       clear: () => set({
         activityMood: {},
         activityMoodMeta: {},
@@ -199,6 +244,46 @@ export const useMoodStore = create<MoodState>()(
         moodNote: {},
         moodNoteMeta: {},
       }),
+
+      fetchMoods: async () => {
+        try {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { data, error } = await supabase
+            .from('moods')
+            .select('message_id, mood_label, custom_label, is_custom, note, source')
+            .eq('user_id', session.user.id);
+          if (error || !data) return;
+
+          const cloudMood: Record<string, MoodOption | undefined> = {};
+          const cloudMoodMeta: Record<string, MoodAttachmentMeta | undefined> = {};
+          const cloudCustomLabel: Record<string, string | undefined> = {};
+          const cloudCustomApplied: Record<string, boolean | undefined> = {};
+          const cloudNote: Record<string, string | undefined> = {};
+
+          for (const row of data) {
+            const id: string = row.message_id;
+            if (row.mood_label) {
+              cloudMood[id] = normalizeMoodKey(row.mood_label) ?? undefined;
+              cloudMoodMeta[id] = { source: (row.source as MoodSource) ?? 'auto' };
+            }
+            if (row.custom_label != null) cloudCustomLabel[id] = row.custom_label;
+            if (row.is_custom != null)    cloudCustomApplied[id] = row.is_custom;
+            if (row.note != null)         cloudNote[id] = row.note;
+          }
+
+          // Cloud is source-of-truth; local overwrites with any newer unsent entries
+          set(state => ({
+            activityMood:    { ...cloudMood,         ...state.activityMood },
+            activityMoodMeta: { ...cloudMoodMeta,    ...state.activityMoodMeta },
+            customMoodLabel: { ...cloudCustomLabel,  ...state.customMoodLabel },
+            customMoodApplied: { ...cloudCustomApplied, ...state.customMoodApplied },
+            moodNote:        { ...cloudNote,         ...state.moodNote },
+          }));
+        } catch (err) {
+          if (import.meta.env.DEV) console.warn('[MoodStore] fetchMoods failed', err);
+        }
+      },
     }),
     {
       name: 'activity-mood-storage',
