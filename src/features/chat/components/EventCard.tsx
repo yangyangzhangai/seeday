@@ -141,31 +141,35 @@ export const EventCard: React.FC<EventCardProps> = ({
         )}
       </div>
 
-      {/* ── Images (up to 2, compact, side-by-side) ──────────── */}
-      <div className="flex gap-1.5 mt-1.5">
-        <div className="flex-1 min-w-0">
-          <ImageUploader
-            messageId={message.id}
-            imageUrl={message.imageUrl}
-            onUploaded={url => handleImageUploaded('imageUrl', url)}
-            onRemoved={() => handleImageRemoved('imageUrl')}
-            compact
-          />
+      {/* ── Images (up to 2, compact, side-by-side) — only shown when images exist ── */}
+      {(hasImage1 || hasImage2) && (
+        <div className="flex gap-1.5 mt-1.5">
+          {hasImage1 && (
+            <div className="flex-1 min-w-0">
+              <ImageUploader
+                messageId={message.id}
+                imageUrl={message.imageUrl}
+                onUploaded={url => handleImageUploaded('imageUrl', url)}
+                onRemoved={() => handleImageRemoved('imageUrl')}
+                compact
+                hideUploadWhen
+              />
+            </div>
+          )}
+          {hasImage2 && (
+            <div className="flex-1 min-w-0">
+              <ImageUploader
+                messageId={`${message.id}_2`}
+                imageUrl={message.imageUrl2}
+                onUploaded={url => handleImageUploaded('imageUrl2', url)}
+                onRemoved={() => handleImageRemoved('imageUrl2')}
+                compact
+                hideUploadWhen
+              />
+            </div>
+          )}
         </div>
-        {/* Second slot: only appears after first image is uploaded */}
-        {hasImage1 && (
-          <div className="flex-1 min-w-0">
-            <ImageUploader
-              messageId={`${message.id}_2`}
-              imageUrl={message.imageUrl2}
-              onUploaded={url => handleImageUploaded('imageUrl2', url)}
-              onRemoved={() => handleImageRemoved('imageUrl2')}
-              compact
-              hideUploadWhen={hasImage2}
-            />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* ── Mood descriptions — below images ─────────────────── */}
       {moodDescriptions.length > 0 && (

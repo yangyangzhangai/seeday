@@ -18,6 +18,8 @@ import { MoodPickerModal } from './MoodPickerModal';
 import { DatePicker } from './components/DatePicker';
 import { TimelineView } from './components/TimelineView';
 import { YesterdaySummaryPopup } from './components/YesterdaySummaryPopup';
+import { ImageCropModal } from './components/ImageCropModal';
+import { useImageUpload } from '../../hooks/useImageUpload';
 
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
@@ -59,6 +61,40 @@ export const ChatPage = () => {
   const [selectedStardust, setSelectedStardust] = useState<{
     data: StardustCardData; position: { x: number; y: number };
   } | null>(null);
+
+  // ── Photo upload via input bar ─────────────────────────────
+  const [photoCropFile, setPhotoCropFile] = useState<File | null>(null);
+  const [photoCropTarget, setPhotoCropTarget] = useState<{ id: string; slot: 'imageUrl' | 'imageUrl2' } | null>(null);
+  const { upload: uploadImage } = useImageUpload();
+  const { updateMessageImage } = useChatStore.getState();
+
+  const handleInputBarPhotoSelect = useCallback((file: File) => {
+    // Find latest non-mood message with a free image slot
+    const msgs = useChatStore.getState().messages;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.isMood) continue;
+      if (!m.imageUrl) {
+        setPhotoCropTarget({ id: m.id, slot: 'imageUrl' });
+      } else if (!m.imageUrl2) {
+        setPhotoCropTarget({ id: m.id, slot: 'imageUrl2' });
+      } else {
+        continue; // both slots full, try previous card
+      }
+      setPhotoCropFile(file);
+      return;
+    }
+    // No eligible card found — still open crop, will upload to first available on confirm
+    setPhotoCropFile(file);
+  }, []);
+
+  const handlePhotoCropConfirm = useCallback(async (blob: Blob) => {
+    if (!photoCropTarget) { setPhotoCropFile(null); return; }
+    const url = await uploadImage(blob, `${photoCropTarget.id}_${photoCropTarget.slot}`);
+    await updateMessageImage(photoCropTarget.id, photoCropTarget.slot, url);
+    setPhotoCropFile(null);
+    setPhotoCropTarget(null);
+  }, [photoCropTarget, uploadImage, updateMessageImage]);
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
@@ -274,7 +310,17 @@ export const ChatPage = () => {
         onSend={handleSend}
         onKeyDown={handleKeyDown}
         onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
+        onPhotoSelect={handleInputBarPhotoSelect}
       />
+
+      {/* Photo crop modal — triggered from input bar ➕ */}
+      {photoCropFile && (
+        <ImageCropModal
+          file={photoCropFile}
+          onConfirm={blob => { void handlePhotoCropConfirm(blob); }}
+          onCancel={() => { setPhotoCropFile(null); setPhotoCropTarget(null); }}
+        />
+      )}
 
       {/* Edit/Insert Modal */}
       {(editingId || insertingAfterId) && (
