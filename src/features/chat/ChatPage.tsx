@@ -31,6 +31,7 @@ export const ChatPage = () => {
     checkAndRefreshForNewDay, updateActivity, insertActivity, deleteActivity,
     endActivity, reclassifyRecentInput, isLoading,
     hasInitialized, setHasInitialized, updateMessageDuration, dateCache,
+    activeViewDateStr,
   } = useChatStore();
 
   const { activeTodoId, completeActiveTodo, todos } = useTodoStore();
@@ -76,8 +77,11 @@ export const ChatPage = () => {
   })));
 
   // ── 初始化 ─────────────────────────────────────────────────
+  // Skip re-fetch if we already have today's data in memory.
+  // This prevents flicker and skeleton flash when navigating back to the chat page,
+  // and preserves any optimistic messages added while on other pages (e.g. todo start).
   useEffect(() => {
-    setHasInitialized(false);
+    if (hasInitialized) return;
     fetchMessages();
   }, []);
 
@@ -104,18 +108,23 @@ export const ChatPage = () => {
     if (isToday) {
       // First load is handled by the init useEffect — skip
       if (!hasInitialized) return;
-      // Switching back to today: restore from cache (added by fetchMessages) or re-fetch
-      if (dateCache.get(dateStr)) {
-        void fetchMessagesByDate(dateStr);
-      } else {
-        void fetchMessages();
+      // Only restore today's data if the store is currently showing a different date.
+      // Use getState() to read fresh store value (not the stale closure).
+      const { activeViewDateStr: viewDate } = useChatStore.getState();
+      if (viewDate && viewDate !== dateStr) {
+        // Was showing another date — restore today instantly from cache or re-fetch
+        const cached = useChatStore.getState().dateCache.get(dateStr);
+        if (cached) {
+          void fetchMessagesByDate(dateStr);
+        } else {
+          void fetchMessages();
+        }
       }
       return;
     }
 
-    // Non-today date
-    if (dateCache.get(dateStr)) {
-      // Already cached — update instantly, no loading spinner
+    // Non-today date: use cache for instant switch, show loading only on first fetch
+    if (useChatStore.getState().dateCache.get(dateStr)) {
       void fetchMessagesByDate(dateStr);
       return;
     }

@@ -79,6 +79,8 @@ interface ChatState {
   isLoadingMore: boolean;
   yesterdaySummary: YesterdaySummary | null;
   currentDateStr: string | null;
+  /** 当前 messages 所对应的日期字符串（每次 messages 被替换时更新，用于导航恢复判断） */
+  activeViewDateStr: string | null;
   /** 日期 → 消息缓存，防止重复请求 */
   dateCache: Map<string, Message[]>;
   fetchMessages: () => Promise<void>;
@@ -122,6 +124,7 @@ export const useChatStore = create<ChatState>()(
       isLoadingMore: false,
       yesterdaySummary: null,
       currentDateStr: null,
+      activeViewDateStr: null,
       dateCache: new Map(),
 
       fetchMessages: async () => {
@@ -211,6 +214,7 @@ export const useChatStore = create<ChatState>()(
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
+            activeViewDateStr: todayStr,
             // Cache today so switching back from other dates is instant
             dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
@@ -269,7 +273,7 @@ export const useChatStore = create<ChatState>()(
       fetchMessagesByDate: async (dateStr: string) => {
         const cached = get().dateCache.get(dateStr);
         if (cached) {
-          set({ messages: cached });
+          set({ messages: cached, activeViewDateStr: dateStr });
           return;
         }
         const session = await getSupabaseSession();
@@ -302,6 +306,7 @@ export const useChatStore = create<ChatState>()(
 
         set(state => ({
           messages: msgs,
+          activeViewDateStr: dateStr,
           dateCache: new Map(state.dateCache).set(dateStr, msgs),
         }));
       },
