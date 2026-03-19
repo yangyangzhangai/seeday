@@ -7,6 +7,9 @@ import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useStardustStore } from './useStardustStore';
+import { useMoodStore } from './useMoodStore';
+import { useGrowthStore } from './useGrowthStore';
+import { useFocusStore } from './useFocusStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
@@ -77,14 +80,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.log('User signed in. Syncing local data...');
         await syncLocalDataToSupabase(currentUser.id);
 
+        // 更新连续登录天数
+        await updateLoginStreak(currentUser.id);
+
         // 先同步本地 annotation 到云端
         await useAnnotationStore.getState().syncLocalAnnotations(currentUser.id);
         // syncLocalAnnotations 成功后内部会调用 fetchAnnotations
 
-        // 再拉取其他云端数据
-        await useChatStore.getState().fetchMessages();
-        await useTodoStore.getState().fetchTodos();
-        await useReportStore.getState().fetchReports();
+        // 拉取各云端数据（并行执行互不依赖的部分）
+        await Promise.all([
+          useChatStore.getState().fetchMessages(),
+          useTodoStore.getState().fetchTodos(),
+          useReportStore.getState().fetchReports(),
+          useMoodStore.getState().fetchMoods(),
+          useGrowthStore.getState().fetchBottles(),
+          useFocusStore.getState().fetchSessions(),
+        ]);
 
         // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
         await useStardustStore.getState().syncPendingStardusts();
@@ -96,6 +107,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
+        useMoodStore.getState().clear();
+        useGrowthStore.setState({ bottles: [] });
+        useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
         set({ preferences: DEFAULT_PREFERENCES });
       }
     });
@@ -147,6 +161,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 }));
+
+/**
+ * Upsert user_stats with updated login streak.
+ * - If last_login_date was yesterday → streak + 1
+ * - If last_login_date is today      → no change (already counted)
+ * - Otherwise                        → streak resets to 1
+ */
+async function updateLoginStreak(userId: string): Promise<void> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from('user_stats')
+      .select('login_streak, last_login_date')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (data?.last_login_date === today) return; // Already counted today
+
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const newStreak = data?.last_login_date === yesterday
+      ? (data.login_streak ?? 0) + 1
+      : 1;
+
+    await supabase.from('user_stats').upsert(
+      { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
+  }
+}
 
 async function syncLocalDataToSupabase(userId: string) {
   const messages = useChatStore.getState().messages;

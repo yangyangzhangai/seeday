@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../api/supabase';
+import { getSupabaseSession } from '../lib/supabase-utils';
 
 export type BottleType = 'habit' | 'goal';
 export type BottleStatus = 'active' | 'achieved' | 'irrigated';
@@ -32,10 +34,37 @@ interface GrowthState {
   shouldShowDailyGoal: () => boolean;
   disablePopup: () => void;
   enablePopup: () => void;
+  /** Fetch bottles from Supabase and hydrate local state */
+  fetchBottles: () => Promise<void>;
 }
 
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function toDbBottle(bottle: Bottle, userId: string) {
+  return {
+    id: bottle.id,
+    user_id: userId,
+    name: bottle.name,
+    type: bottle.type,
+    stars: bottle.stars,
+    round: bottle.round,
+    status: bottle.status,
+    created_at: new Date(bottle.createdAt).toISOString(),
+  };
+}
+
+function fromDbBottle(row: Record<string, unknown>): Bottle {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as BottleType,
+    stars: row.stars as number,
+    round: row.round as number,
+    status: row.status as BottleStatus,
+    createdAt: new Date(row.created_at as string).getTime(),
+  };
 }
 
 export const useGrowthStore = create<GrowthState>()(
@@ -49,7 +78,6 @@ export const useGrowthStore = create<GrowthState>()(
       addBottle: (name, type) => {
         const activeBottles = get().bottles.filter((b) => b.status === 'active');
         if (activeBottles.length >= MAX_BOTTLES) return null;
-        // Duplicate name check (case-insensitive)
         const duplicate = activeBottles.some(
           (b) => b.name.trim().toLowerCase() === name.trim().toLowerCase()
         );
@@ -65,11 +93,32 @@ export const useGrowthStore = create<GrowthState>()(
           createdAt: Date.now(),
         };
         set((s) => ({ bottles: [...s.bottles, bottle] }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            await supabase.from('bottles').insert([toDbBottle(bottle, session.user.id)]);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] insert bottle failed', err);
+          }
+        })();
+
         return bottle;
       },
 
       removeBottle: (id) => {
         set((s) => ({ bottles: s.bottles.filter((b) => b.id !== id) }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            await supabase.from('bottles').delete().eq('id', id).eq('user_id', session.user.id);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] delete bottle failed', err);
+          }
+        })();
       },
 
       incrementBottleStar: (id) => {
@@ -83,6 +132,22 @@ export const useGrowthStore = create<GrowthState>()(
             return { ...b, stars: newStars };
           }),
         }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            const updated = get().bottles.find(b => b.id === id);
+            if (!updated) return;
+            await supabase
+              .from('bottles')
+              .update({ stars: updated.stars, status: updated.status, updated_at: new Date().toISOString() })
+              .eq('id', id)
+              .eq('user_id', session.user.id);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] update stars failed', err);
+          }
+        })();
       },
 
       markBottleAchieved: (id) => {
@@ -91,13 +156,39 @@ export const useGrowthStore = create<GrowthState>()(
             b.id === id ? { ...b, status: 'achieved' as BottleStatus } : b
           ),
         }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            await supabase
+              .from('bottles')
+              .update({ status: 'achieved', updated_at: new Date().toISOString() })
+              .eq('id', id)
+              .eq('user_id', session.user.id);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] markAchieved failed', err);
+          }
+        })();
       },
 
-      // 浇灌后归档移除瓶子
+      // 浇灌后归档移除瓶子（本地删除，云端标记为 irrigated 保留历史）
       markBottleIrrigated: (id) => {
-        set((s) => ({
-          bottles: s.bottles.filter((b) => b.id !== id),
-        }));
+        set((s) => ({ bottles: s.bottles.filter((b) => b.id !== id) }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            await supabase
+              .from('bottles')
+              .update({ status: 'irrigated', updated_at: new Date().toISOString() })
+              .eq('id', id)
+              .eq('user_id', session.user.id);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] markIrrigated failed', err);
+          }
+        })();
       },
 
       // 继续追踪：重置星星，进入下一轮
@@ -109,6 +200,22 @@ export const useGrowthStore = create<GrowthState>()(
               : b
           ),
         }));
+
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
+            const updated = get().bottles.find(b => b.id === id);
+            if (!updated) return;
+            await supabase
+              .from('bottles')
+              .update({ status: 'active', stars: 0, round: updated.round, updated_at: new Date().toISOString() })
+              .eq('id', id)
+              .eq('user_id', session.user.id);
+          } catch (err) {
+            if (import.meta.env.DEV) console.warn('[GrowthStore] continueBottle failed', err);
+          }
+        })();
       },
 
       setDailyGoal: (goal) => set({ dailyGoal: goal, goalDate: todayDateStr() }),
@@ -120,8 +227,32 @@ export const useGrowthStore = create<GrowthState>()(
       },
 
       disablePopup: () => set({ popupDisabled: true }),
-
       enablePopup: () => set({ popupDisabled: false }),
+
+      fetchBottles: async () => {
+        try {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { data, error } = await supabase
+            .from('bottles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .neq('status', 'irrigated')   // irrigated = archived, don't restore
+            .order('created_at', { ascending: true });
+          if (error || !data) return;
+
+          const cloudBottles = (data as Record<string, unknown>[]).map(fromDbBottle);
+
+          set(state => {
+            // Keep any local bottles not yet synced to cloud
+            const cloudIds = new Set(cloudBottles.map(b => b.id));
+            const localOnly = state.bottles.filter(b => !cloudIds.has(b.id));
+            return { bottles: [...cloudBottles, ...localOnly] };
+          });
+        } catch (err) {
+          if (import.meta.env.DEV) console.warn('[GrowthStore] fetchBottles failed', err);
+        }
+      },
     }),
     { name: 'growth-store' }
   )
