@@ -98,7 +98,7 @@ interface ChatState {
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
-  endActivity: (id: string) => Promise<void>;
+  endActivity: (id: string, opts?: { skipBottleStar?: boolean }) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
@@ -477,7 +477,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      endActivity: async (id) => {
+      endActivity: async (id, opts) => {
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
@@ -504,6 +504,8 @@ export const useChatStore = create<ChatState>()(
         useTodoStore.getState().completeTodoByMessage(id);
 
         // AI semantic matching: if activity relates to a habit/goal bottle, add a star
+        // Skip if the caller already awarded a star (e.g. todo toggle)
+        if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
@@ -574,18 +576,13 @@ export const useChatStore = create<ChatState>()(
         );
 
         if (!targetMessage) {
-          console.log('[DEBUG] 未找到匹配的消息:', content, timestamp);
           return;
         }
-
         set({ messages: updatedMessages });
-
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
-
-        console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
       },
 
       updateMessageImage: async (id, slot, url) => {
@@ -793,6 +790,7 @@ export const useChatStore = create<ChatState>()(
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
         currentDateStr: state.currentDateStr,
+        hasInitialized: state.hasInitialized,
       }),
     }
   )

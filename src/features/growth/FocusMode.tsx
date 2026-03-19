@@ -79,7 +79,8 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const finishFocus = useCallback(async () => {
     // End record page activity (duration = focus session duration)
     if (activeMessageId) {
-      await endActivity(activeMessageId);
+      // skipBottleStar: star will be awarded below via incrementBottleStar
+      await endActivity(activeMessageId, { skipBottleStar: !!todo.bottleId });
     }
     const session = endFocus();
     // Auto-complete the todo and award bottle star

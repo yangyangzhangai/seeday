@@ -24,7 +24,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     const { t } = useTranslation();
 
     return (
-        <div className="bg-white border-t border-gray-200 p-4 pb-safe">
+        <div className="bg-white border-t border-gray-200 p-4 pb-safe mt-auto shrink-0">
             <div className="flex items-center space-x-2 rounded-full px-4 py-2 bg-gray-100 transition-all duration-300">
                 <button
                     onClick={onToggleMagicPenMode}
