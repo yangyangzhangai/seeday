@@ -6,7 +6,7 @@ import type { MagicPenDraftItem } from './magicPenTypes';
 
 const FUTURE_CLOCK_BUFFER_MS = 2 * 60 * 1000;
 
-const ZH_TODO_ACTION_PATTERN = /(?:开组会|组会|开会|会议|看电影|汇报|提交|整理|处理|准备|复习|学习|跑步|锻炼|买菜|打电话|发消息|回电话|写|改|做|去|交|发|回|买)/;
+const ZH_TODO_ACTION_PATTERN = /(?:开组会|组会|开会|会议|看电影|汇报|提交|整理|处理|准备|复习|学习|跑步|锻炼|打球|打篮球|打羽毛球|打乒乓球|踢球|踢足球|游泳|骑车|健身|买菜|打电话|发消息|回电话|写|改|做|去|交|发|回|买)/;
 const ZH_TODO_INTENT_PATTERN = /(?:记得|要|还要|需要|得|别忘了|提醒我|计划|打算|准备)/;
 const ZH_MOOD_ONLY_PATTERN = /(?:烦|焦虑|难过|低落|开心|高兴|累|崩溃|郁闷|无语|害怕|担心|紧张)/;
 
@@ -155,6 +155,14 @@ export function salvageTodoDraftFromUnparsedSegment(segment: string, now: Date):
     dueDate = explicitClockTs;
   } else if (periodClockTs !== undefined) {
     dueDate = periodClockTs;
+  }
+
+  // "等会儿/待会/一会/稍后/马上" with no explicit time → default to 30 min from now
+  if (dueDate === undefined) {
+    const hasSoonWord = /(待会|等会|一会|稍后|马上)/.test(source);
+    if (hasSoonWord) {
+      dueDate = nowTs + 30 * 60 * 1000;
+    }
   }
 
   if (dueDate === undefined) return null;
