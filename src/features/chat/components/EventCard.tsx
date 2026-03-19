@@ -28,7 +28,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
-  const { detachMoodFromEvent } = useChatStore();
+  const { detachMoodFromEvent, updateMessageImage } = useChatStore();
 
   const [cardActive, setCardActive] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -75,19 +75,11 @@ export const EventCard: React.FC<EventCardProps> = ({
   }, [isOngoing, message.timestamp]);
 
   const handleImageUploaded = (slot: 'imageUrl' | 'imageUrl2', url: string) => {
-    useChatStore.setState(state => ({
-      messages: state.messages.map(m =>
-        m.id === message.id ? { ...m, [slot]: url } : m,
-      ),
-    }));
+    void updateMessageImage(message.id, slot, url);
   };
 
   const handleImageRemoved = (slot: 'imageUrl' | 'imageUrl2') => {
-    useChatStore.setState(state => ({
-      messages: state.messages.map(m =>
-        m.id === message.id ? { ...m, [slot]: null } : m,
-      ),
-    }));
+    void updateMessageImage(message.id, slot, null);
   };
 
   return (

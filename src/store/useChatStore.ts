@@ -101,6 +101,7 @@ interface ChatState {
   endActivity: (id: string) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
+  updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
   setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
@@ -585,6 +586,23 @@ export const useChatStore = create<ChatState>()(
         }
 
         console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
+      },
+
+      updateMessageImage: async (id, slot, url) => {
+        const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
+        set(state => ({
+          messages: state.messages.map(m =>
+            m.id === id ? { ...m, [slot]: url } : m,
+          ),
+        }));
+        const session = await getSupabaseSession();
+        if (session) {
+          await supabase
+            .from('messages')
+            .update({ [dbCol]: url })
+            .eq('id', id)
+            .eq('user_id', session.user.id);
+        }
       },
 
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
