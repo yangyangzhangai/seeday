@@ -7,6 +7,9 @@ import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useStardustStore } from './useStardustStore';
+import { useMoodStore } from './useMoodStore';
+import { useGrowthStore } from './useGrowthStore';
+import { useFocusStore } from './useFocusStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
@@ -29,12 +32,16 @@ interface AuthState {
   user: any | null;
   loading: boolean;
   preferences: UserPreferences;
+  /** Consecutive days with recorded activities, null = not yet fetched */
+  activityStreak: number | null;
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
+  /** Re-compute activityStreak from Supabase — call after recording a new activity */
+  refreshActivityStreak: () => Promise<void>;
 }
 
 function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
@@ -50,6 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   preferences: DEFAULT_PREFERENCES,
+  activityStreak: null,
 
   initialize: async () => {
     // Get initial session
@@ -77,14 +85,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.log('User signed in. Syncing local data...');
         await syncLocalDataToSupabase(currentUser.id);
 
+        // 更新连续登录天数
+        await updateLoginStreak(currentUser.id);
+
         // 先同步本地 annotation 到云端
         await useAnnotationStore.getState().syncLocalAnnotations(currentUser.id);
         // syncLocalAnnotations 成功后内部会调用 fetchAnnotations
 
-        // 再拉取其他云端数据
-        await useChatStore.getState().fetchMessages();
-        await useTodoStore.getState().fetchTodos();
-        await useReportStore.getState().fetchReports();
+        // 拉取各云端数据（并行执行互不依赖的部分）
+        const [activityStreak] = await Promise.all([
+          fetchActivityStreak(currentUser.id),
+          useChatStore.getState().fetchMessages(),
+          useTodoStore.getState().fetchTodos(),
+          useReportStore.getState().fetchReports(),
+          useMoodStore.getState().fetchMoods(),
+          useGrowthStore.getState().fetchBottles(),
+          useFocusStore.getState().fetchSessions(),
+        ]);
+        set({ activityStreak });
 
         // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
         await useStardustStore.getState().syncPendingStardusts();
@@ -92,11 +110,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        useChatStore.setState({ messages: [] });
+        useChatStore.setState({ messages: [], hasInitialized: false });
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
-        set({ preferences: DEFAULT_PREFERENCES });
+        useMoodStore.getState().clear();
+        useGrowthStore.setState({ bottles: [] });
+        useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
+        set({ preferences: DEFAULT_PREFERENCES, activityStreak: null });
       }
     });
   },
@@ -146,7 +167,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
   },
+
+  refreshActivityStreak: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    const streak = await fetchActivityStreak(userId);
+    set({ activityStreak: streak });
+  },
 }));
+
+// ── Helper: local date string from timestamp (ms) ─────────────
+function toLocalDateStr(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Fetch consecutive activity days from Supabase.
+ * Only looks back 366 days (max possible streak) to keep the query small.
+ */
+async function fetchActivityStreak(userId: string): Promise<number> {
+  try {
+    const oneYearAgo = Date.now() - 366 * 24 * 60 * 60 * 1000;
+    const { data } = await supabase
+      .from('messages')
+      .select('timestamp')
+      .eq('user_id', userId)
+      .neq('activity_type', 'chat')
+      .eq('is_mood', false)
+      .gte('timestamp', oneYearAgo);
+
+    if (!data) return 0;
+    const dates = new Set(data.map(r => toLocalDateStr(Number(r.timestamp))));
+
+    let streak = 0;
+    const d = new Date();
+    while (dates.has(toLocalDateStr(d.getTime()))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Upsert user_stats with updated login streak.
+ * - If last_login_date was yesterday → streak + 1
+ * - If last_login_date is today      → no change (already counted)
+ * - Otherwise                        → streak resets to 1
+ */
+async function updateLoginStreak(userId: string): Promise<void> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from('user_stats')
+      .select('login_streak, last_login_date')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (data?.last_login_date === today) return; // Already counted today
+
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const newStreak = data?.last_login_date === yesterday
+      ? (data.login_streak ?? 0) + 1
+      : 1;
+
+    await supabase.from('user_stats').upsert(
+      { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
+  }
+}
 
 async function syncLocalDataToSupabase(userId: string) {
   const messages = useChatStore.getState().messages;

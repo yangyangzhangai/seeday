@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { User, Crown, MoreHorizontal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -15,16 +15,6 @@ interface Props {
 function toLocalDate(ts: number): string {
   const d = new Date(ts);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function calcStreakFromDates(activityDates: Set<string>): number {
-  let streak = 0;
-  const d = new Date();
-  while (activityDates.has(toLocalDate(d.getTime()))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
 }
 
 function calcTodayActivities(messages: any[]): number {
@@ -45,7 +35,7 @@ function calcCompletedGoals(bottles: any[]): number {
 
 export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
-  const { user, updateAvatar } = useAuthStore();
+  const { user, updateAvatar, activityStreak } = useAuthStore();
   const messages = useChatStore((s) => s.messages);
   const bottles = useGrowthStore((s) => s.bottles);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -54,23 +44,6 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
-  const [streak, setStreak] = useState<number | null>(null);
-
-  // Query all-time activity dates from Supabase to compute accurate streak
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from('messages')
-      .select('timestamp')
-      .eq('user_id', user.id)
-      .neq('activity_type', 'chat')
-      .eq('is_mood', false)
-      .then(({ data }) => {
-        if (!data) return;
-        const dates = new Set(data.map((r) => toLocalDate(Number(r.timestamp))));
-        setStreak(calcStreakFromDates(dates));
-      });
-  }, [user]);
 
   const todayActs = calcTodayActivities(messages);
   const completedGoals = calcCompletedGoals(bottles);
@@ -177,7 +150,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {/* Stats — compact */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{streak ?? '—'}</span>
+          <span className="text-base font-bold text-blue-600">{activityStreak ?? '—'}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
         </div>
         <div className="flex flex-col items-center py-1">
