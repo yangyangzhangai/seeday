@@ -290,11 +290,11 @@ export const ChatPage = () => {
         }
       }
 
-      // Attach staged images to the newly created activity message
-      if (blobsToSend.length > 0 && classification?.kind === 'activity') {
+      // Attach staged images to the newly created message (activity or mood)
+      if (blobsToSend.length > 0 && classification?.kind) {
         const newMsg = [...useChatStore.getState().messages]
           .reverse()
-          .find(m => !beforeIds.has(m.id) && !m.isMood);
+          .find(m => !beforeIds.has(m.id));
         if (newMsg) {
           const { updateMessageImage } = useChatStore.getState();
           const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, blobsToSend.length);

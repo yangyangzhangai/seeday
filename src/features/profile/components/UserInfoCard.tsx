@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, Crown, MoreHorizontal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -11,15 +11,16 @@ interface Props {
   isPlus: boolean;
 }
 
-function calcStreakDays(messages: any[]): number {
-  const activityDates = new Set(
-    messages
-      .filter((m) => m.mode === 'record' && !m.isMood)
-      .map((m) => new Date(m.timestamp).toISOString().slice(0, 10))
-  );
+// Returns local date string YYYY-MM-DD for a timestamp (ms)
+function toLocalDate(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function calcStreakFromDates(activityDates: Set<string>): number {
   let streak = 0;
   const d = new Date();
-  while (activityDates.has(d.toISOString().slice(0, 10))) {
+  while (activityDates.has(toLocalDate(d.getTime()))) {
     streak++;
     d.setDate(d.getDate() - 1);
   }
@@ -27,12 +28,12 @@ function calcStreakDays(messages: any[]): number {
 }
 
 function calcTodayActivities(messages: any[]): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toLocalDate(Date.now());
   return messages.filter(
     (m) =>
       m.mode === 'record' &&
       !m.isMood &&
-      new Date(m.timestamp).toISOString().slice(0, 10) === today
+      toLocalDate(m.timestamp) === today
   ).length;
 }
 
@@ -53,8 +54,24 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [streak, setStreak] = useState<number | null>(null);
 
-  const streak = calcStreakDays(messages);
+  // Query all-time activity dates from Supabase to compute accurate streak
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('messages')
+      .select('timestamp')
+      .eq('user_id', user.id)
+      .neq('activity_type', 'chat')
+      .eq('is_mood', false)
+      .then(({ data }) => {
+        if (!data) return;
+        const dates = new Set(data.map((r) => toLocalDate(Number(r.timestamp))));
+        setStreak(calcStreakFromDates(dates));
+      });
+  }, [user]);
+
   const todayActs = calcTodayActivities(messages);
   const completedGoals = calcCompletedGoals(bottles);
 
@@ -160,7 +177,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {/* Stats — compact */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{streak}</span>
+          <span className="text-base font-bold text-blue-600">{streak ?? '—'}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
         </div>
         <div className="flex flex-col items-center py-1">
@@ -211,7 +228,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             )}
 
             {/* Full avatar */}
-            <div className="w-64 h-64 bg-gray-900 flex items-center justify-center">
+            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] bg-gray-900 flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
