@@ -26,6 +26,7 @@ const zh: TranslationKeys = {
     // ── 底部导航 ──
     nav_record: '记录',
     nav_report: '时间报告',
+    nav_profile: '我的',
 
     // ── 聊天 / 记录页面 ──
     chat_title: '记录',

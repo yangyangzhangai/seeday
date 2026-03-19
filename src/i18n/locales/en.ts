@@ -24,6 +24,7 @@ const en = {
     // ── Bottom Nav ──
     nav_record: 'Track',
     nav_report: 'Reports',
+    nav_profile: 'Profile',
 
     // ── Chat / Record Page ──
     chat_title: 'Track',
