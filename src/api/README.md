@@ -14,6 +14,9 @@
 - `callDiaryAPI()`
 - `callStardustAPI()`
 - `callMagicPenParseAPI()`
+- `callPlantGenerateAPI()`
+- `callPlantDiaryAPI()`
+- `callPlantHistoryAPI()`
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -29,6 +32,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Error-shape changes can break store fallback handling
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
 - `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `api/annotation-handler.ts`, `api/annotation-prompts.ts`)
+- Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session.
 
 ## Current Notes
 
@@ -45,4 +49,4 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `docs/PROJECT_MAP.md`
 - `api/README.md`
 - `docs/ARCHITECTURE.md`
-- `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+- `docs/CURRENT_TASK.md`

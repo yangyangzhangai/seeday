@@ -8,6 +8,189 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-18 — Plant System Phase 3 (Viewport Clamp + Hit-Target Regression Guard)
+
+### Added
+
+- Added viewport math helper `src/features/report/plant/soilCanvasViewport.ts` and unit coverage `src/features/report/plant/soilCanvasViewport.test.ts` for scale clamp, drag-bound clamp, focus offset, and reset-to-center behavior.
+- Added performance evidence template `docs/PLANT_P3_PERFORMANCE_SAMPLING_TEMPLATE.md` for WebView FPS/long-task sampling and Gate-D acceptance records.
+
+### Changed
+
+- Updated `src/features/report/plant/SoilCanvas.tsx` with clamped viewport offset, selected-root auto-focus under zoom, and deterministic reset behavior to reduce extreme-zoom unreachable/jitter states.
+- Updated `src/features/report/plant/RootSegmentPath.tsx` and `src/features/report/plant/rootInteractionHelpers.ts` to introduce a transparent expanded hit layer (`resolveRootHitStrokeWidth`) for dense-root tap/long-press reliability.
+- Updated `src/features/report/plant/PlantRootSection.tsx` empty-state block to a structured guidance card to improve no-root readability.
+- Extended `src/features/report/plant/rootInteractionHelpers.test.ts` with hit-target regression assertions.
+- Updated `docs/CURRENT_TASK.md` P3 checklist and snapshot to reflect completed boundary/hit/empty-state/template items.
+
+### Validation
+
+- `npm run test:unit -- src/features/report/plant/soilCanvasViewport.test.ts src/features/report/plant/rootInteractionHelpers.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Synced implementation changes in `src/features/report/plant/**` with execution docs `docs/CURRENT_TASK.md` and `docs/CHANGELOG.md`, and added reusable performance sampling artifact in `docs/`.
+
+## 2026-03-18 — Plant Root Realtime Window Fix (Post-20:00)
+
+### Changed
+
+- Updated `src/store/usePlantStore.ts` root refresh gating: removed the `20:00` hard stop so ungenerated days continue mapping completed activities to roots until day rollover (`00:00`), while keeping "generated today" lock behavior unchanged.
+- Updated `docs/CURRENT_TASK.md` timing description/checklist wording to align with the implemented rule: root realtime updates continue within the current day and stop on generate-lock or next-day reset.
+- Updated product/spec source docs `docs/TimeShine_植物生长_PRD_v1_8.docx` and `docs/TimeShine_植物生长_技术实现文档_v1.7.docx` to unify timing wording: roots keep updating until `24:00` if not generated, and lock immediately after manual/auto generation.
+
+### Validation
+
+- `npm run test:unit -- src/store/usePlantStore.test.ts src/features/report/plant/plantGenerateUi.test.ts`
+
+### Doc-sync impact
+
+- Synced timing-rule behavior between code path (`src/store/usePlantStore.ts`) and task/spec docs (`docs/CURRENT_TASK.md`, `docs/TimeShine_植物生长_PRD_v1_8.docx`, `docs/TimeShine_植物生长_技术实现文档_v1.7.docx`, `docs/CHANGELOG.md`).
+
+## 2026-03-18 — Plant System Phase 3 (UI Polish + Test Backfill)
+
+### Added
+
+- Added test coverage for P3 root interaction and timing flows: `src/store/usePlantStore.test.ts`, `src/features/report/plant/rootInteractionHelpers.test.ts`, `src/features/report/plant/plantGenerateUi.test.ts`, `src/features/report/plant/soilLegend.test.ts`, and `src/features/report/reportPage.integration.test.tsx`.
+- Added small helper modules to keep report plant interactions testable and deterministic: `src/features/report/plant/rootInteractionHelpers.ts`, `src/features/report/plant/plantGenerateUi.ts`, and `src/features/report/plant/soilLegend.ts`.
+
+### Changed
+
+- Updated `src/features/report/plant/SoilCanvas.tsx` to move the direction legend into an in-soil right-bottom floating card, keep touch pass-through, and add clamped zoom-control disabled states plus zoom level display.
+- Updated `src/features/report/plant/RootSystem.tsx` and `src/features/report/plant/RootSegmentPath.tsx` to improve dense-scene readability (main/side root visual hierarchy and selected-root top-layer rendering).
+- Updated `src/features/report/plant/PlantRootSection.tsx` to unify generate-button state UX (daytime locked / evening enabled / generated locked) and upgrade root empty-state presentation.
+- Updated `src/store/usePlantStore.ts` by extracting realtime duration resolution (`resolvePlantDurationForMessage`) for explicit P3 timing rule testing.
+- Extended locale packs `src/i18n/locales/zh.ts`, `src/i18n/locales/en.ts`, and `src/i18n/locales/it.ts` with root empty-state title and generated-button copy.
+- Updated `docs/CURRENT_TASK.md` latest snapshot and P3 checklist status to reflect this round of UI/test completion.
+
+### Validation
+
+- `npm run test:unit -- src/store/usePlantStore.test.ts src/features/report/plant/rootInteractionHelpers.test.ts src/features/report/plant/plantGenerateUi.test.ts src/features/report/plant/soilLegend.test.ts src/features/report/reportPage.integration.test.tsx`
+
+### Doc-sync impact
+
+- Synced code-path changes (`src/features/report/plant/**`, `src/store/usePlantStore.ts`, `src/i18n/locales/*.ts`) with execution anchor docs (`docs/CURRENT_TASK.md`, `docs/CHANGELOG.md`).
+
+## 2026-03-18 — Plant System Phase 3 (Image 1 Interaction Convergence)
+
+### Added
+
+- Added profile direction-config UI `src/features/profile/components/DirectionSettingsPanel.tsx` and wired it into `src/features/profile/components/SettingsList.tsx` so users can set the five direction-category mappings from the “My/Profile” page.
+
+### Changed
+
+- Updated `src/features/report/plant/SoilCanvas.tsx` to remove drag/pan gesture handling, keep button-based zoom/reset, and add in-soil direction legend labels (top/right-top/right-bottom/left-bottom/left-top) bound to live `directionOrder`.
+- Updated `src/features/report/plant/PlantRootSection.tsx` and `src/features/report/plant/RootDetailBubble.tsx` to show fixed root detail fields with full info: activity name, start-end time range, duration, type, and focus.
+- Updated `src/features/report/plant/SoilCanvas.tsx`, `src/features/report/plant/PlantRootSection.tsx`, and `src/lib/rootRenderer.ts` so root details render as an in-canvas bubble near the selected root tip (instead of below the canvas) and auto-dismiss after 5 seconds.
+- Extended locale packs `src/i18n/locales/zh.ts`, `src/i18n/locales/en.ts`, and `src/i18n/locales/it.ts` with root direction legend labels, detail time-range label, soil-canvas reset text, and profile direction-setting copy.
+- Updated `docs/CURRENT_TASK.md` Phase 3 / Phase 5 checklist and latest snapshot to reflect the interaction replacement and direction-setting entry completion.
+
+### Doc-sync impact
+
+- Synced implementation status for code paths (`src/features/report/plant/**`, `src/features/profile/components/**`, `src/i18n/locales/*.ts`) with task anchor docs (`docs/CURRENT_TASK.md`, `docs/CHANGELOG.md`).
+
+## 2026-03-18 — Plant System Phase 3 (Report Embedded Root Daytime Experience)
+
+### Added
+
+- Added report-embedded plant root UI components under `src/features/report/plant/`: `PlantRootSection.tsx`, `SoilCanvas.tsx`, `RootSystem.tsx`, `RootSegmentPath.tsx`, and `RootDetailBubble.tsx`.
+
+### Changed
+
+- Updated `src/features/report/ReportPage.tsx` to permanently render the root section directly below the week/month/custom button group, following the frozen IA decision for `/report` default visibility.
+- Updated `src/store/usePlantStore.ts` daytime segment refresh logic to support P3 timing rules: `<5m` hidden, `5-15m` visible after completion, `>15m` ongoing segments visible via realtime extension.
+- Refined mobile-shell behavior in `src/features/report/ReportPage.tsx` and `src/features/report/plant/SoilCanvas.tsx`: safe-area-aware bottom spacing, bottom-nav avoidance padding, and stronger touch-target/active feedback for non-hover interaction.
+- Added first-pass performance tuning for root daytime interactions in `src/store/usePlantStore.ts` and `src/features/report/plant/*`: segment equality short-circuit before state updates, RAF-batched pan updates, and memoized root rendering components.
+- Extended locale packs `src/i18n/locales/en.ts`, `src/i18n/locales/zh.ts`, and `src/i18n/locales/it.ts` with root-section labels, generate-status hints, category/focus detail labels, and interaction copy.
+- Updated `docs/CURRENT_TASK.md` latest snapshot + P3 checklist to reflect implemented root daytime interaction milestones and remaining mobile/performance hardening item.
+
+### Validation
+
+- `npx tsc --noEmit`
+- `npm run lint:docs-sync`
+
+### Doc-sync impact
+
+- Synced implementation status between code paths (`src/features/report/**`, `src/store/usePlantStore.ts`, `src/i18n/locales/*.ts`) and task anchor docs (`docs/CURRENT_TASK.md`, `docs/CHANGELOG.md`).
+
+## 2026-03-18 — Documentation Governance Cleanup (Handover Doc Removal)
+
+### Changed
+
+- Updated `scripts/check-state-consistency.mjs` to require `docs/CHANGELOG.md` as the sole global state-doc gate for code-path changes.
+- Removed stale references to deleted `docs/CODE_CLEANUP_HANDOVER_PLAN.md` in active docs: `LLM.md`, `docs/PROJECT_MAP.md`, `PROJECT_CONTEXT.md`, `CONTRIBUTING.md`, `README.md`, `src/features/chat/README.md`, `src/features/auth/README.md`, `src/features/report/README.md`, and `src/api/README.md`.
+- Clarified doc governance wording in `LLM.md` and `CONTRIBUTING.md` so session restore and doc-sync anchors now point to `docs/CURRENT_TASK.md` + `docs/CHANGELOG.md`.
+
+### Validation
+
+- `npm run lint:state-consistency`
+
+### Doc-sync impact
+
+- Synced documentation policy to the current repository reality where handover tracking is consolidated into `docs/CURRENT_TASK.md` and `docs/CHANGELOG.md`.
+
+## 2026-03-18 — Plant System Phase 0 (Data Baseline + SQL Fix)
+
+### Added
+
+- Added plant domain types in `src/types/plant.ts` (root type/stage/focus/category, root metrics, daily record, direction config).
+- Added DB schema scripts `scripts/plant_p0_schema_up.sql` and `scripts/plant_p0_schema_down.sql` for Phase 0 table setup and rollback.
+
+### Changed
+
+- Extended `src/lib/dbMappers.ts` with `fromDbPlantRecord()` and `toDbPlantRecord()` to normalize `daily_plant_records` app-model <-> DB-row mapping.
+- Updated `scripts/plant_p0_schema_up.sql` policy statements from unsupported `CREATE POLICY IF NOT EXISTS` to `DROP POLICY IF EXISTS + CREATE POLICY` for Supabase SQL editor compatibility.
+- Synced `docs/CURRENT_TASK.md` as the execution anchor and marked Phase 0 checklist items complete.
+
+### Validation
+
+- `npx tsc --noEmit`
+- `npm run lint:docs-sync`
+- `npm run lint:max-lines`
+
+### Doc-sync impact
+
+- Added this changelog entry for code/documentation consistency.
+- Updated `docs/CURRENT_TASK.md` with Phase 0 completion and handoff snapshot.
+
+## 2026-03-18 — Plant System Phase 1 (Algorithm Layer)
+
+### Added
+
+- Added `src/lib/plantCalculator.ts` with `computeRootMetrics()`, `matchRootType()`, `resolveSupportVariant()`, plus configurable `ROOT_SCORE_CONFIG` and special-day helpers (`isAirPlantDay`, `isEntertainmentDominantDay`).
+- Added `src/lib/rootRenderer.ts` with logarithmic length mapping, fixed direction-angle rendering, same-direction root fusion (main/side/extend), seeded path perturbation, and SVG-ready render payload output.
+- Added unit tests `src/lib/plantCalculator.test.ts` and `src/lib/rootRenderer.test.ts` covering denominator rules, score competition + tie-break, air/fun/support scenarios, fusion behavior, and deterministic path generation.
+
+### Validation
+
+- `npm run test:unit -- src/lib/plantCalculator.test.ts src/lib/rootRenderer.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Updated `docs/CURRENT_TASK.md` to mark Phase 1 algorithm checklist items complete.
+
+## 2026-03-18 — Plant System Phase 2 (Store + API Mainline)
+
+### Added
+
+- Added plant store `src/store/usePlantStore.ts` with day-segment state, generation state, root selection state, direction-order persistence, and 20:00-before realtime sync from chat activities.
+- Added plant API endpoints `api/plant-generate.ts`, `api/plant-diary.ts`, and `api/plant-history.ts`.
+- Added plant API shared helpers `api/plant-shared.ts` and diary service `api/plant-diary-service.ts` for auth, timezone/day-window handling, DB serialization, and fallback diary generation.
+- Added activity-to-plant mapping helper `src/lib/plantActivityMapper.ts`.
+
+### Changed
+
+- Extended `src/types/plant.ts` with `RootSegment`, default direction order, and plant API request/response contracts.
+- Extended `src/api/client.ts` with authenticated plant API calls: `callPlantGenerateAPI`, `callPlantDiaryAPI`, and `callPlantHistoryAPI`.
+- Updated endpoint/module docs in `api/README.md` and `src/api/README.md` for the new plant routes and bearer-auth contract.
+- Updated `docs/CURRENT_TASK.md` to mark Phase 2 checklist complete and set Phase 3 as next execution entry.
+
+### Doc-sync impact
+
+- Synced `docs/CURRENT_TASK.md`, `api/README.md`, and `src/api/README.md` with the new plant data-flow contracts.
+
 ## 2026-03-11 — Magic Pen V2 Mode-B + AI-First Parser Cutover (Session-21)
 
 ### Changed

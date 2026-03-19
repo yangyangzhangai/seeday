@@ -96,7 +96,7 @@ src/
 
 ## 文档入口
 
-- 主交接计划: `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+- 当前任务锚点: `docs/CURRENT_TASK.md`
 - 目录地图: `docs/PROJECT_MAP.md`
 - 架构说明: `docs/ARCHITECTURE.md`
 - 贡献规范: `CONTRIBUTING.md`

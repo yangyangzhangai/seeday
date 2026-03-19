@@ -36,7 +36,7 @@ function logApiDebug(step: string, payload: Record<string, unknown>): void {
   console.log(`[api-client] ${step}`, payload);
 }
 
-async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
+async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit): Promise<TRes> {
   const requestId = createApiRequestId(path);
   const startedAt = Date.now();
   logApiDebug('request.start', {
@@ -45,9 +45,11 @@ async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
   });
 
   const response = await fetch(`${API_BASE}${path}`, {
+    ...(init ?? {}),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
     },
     body: JSON.stringify(body),
   });
@@ -93,6 +95,61 @@ async function postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
   }
 
   return parsedBody as TRes;
+}
+
+async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
+  const requestId = createApiRequestId(path);
+  const startedAt = Date.now();
+  logApiDebug('request.start', {
+    requestId,
+    path,
+  });
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'GET',
+    ...(init ?? {}),
+  });
+
+  const elapsedMs = Date.now() - startedAt;
+  const responseText = await response.text();
+
+  let parsedBody: unknown = undefined;
+  if (responseText.trim()) {
+    try {
+      parsedBody = JSON.parse(responseText);
+    } catch {
+      parsedBody = undefined;
+    }
+  }
+
+  if (!response.ok) {
+    const error = (parsedBody || { error: 'Unknown error' }) as ApiErrorShape;
+    logApiDebug('request.error', {
+      requestId,
+      path,
+      status: response.status,
+      elapsedMs,
+      error: error.error || `HTTP ${response.status}`,
+      responsePreview: previewApiText(responseText),
+    });
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  if (parsedBody === undefined) {
+    throw new Error(`Invalid JSON response from ${path}`);
+  }
+
+  return parsedBody as TRes;
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const session = await getSupabaseSession();
+  if (!session?.access_token) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+  };
 }
 
 interface ChatRequest {
@@ -295,3 +352,27 @@ export async function callMagicPenParseAPI(
 ): Promise<MagicPenParseResponse> {
   return postJson<MagicPenParseRequest, MagicPenParseResponse>('/magic-pen-parse', request);
 }
+
+export async function callPlantGenerateAPI(request: PlantGenerateRequest): Promise<PlantGenerateResponse> {
+  const headers = await getAuthHeaders();
+  return postJson<PlantGenerateRequest, PlantGenerateResponse>('/plant-generate', request, { headers });
+}
+
+export async function callPlantDiaryAPI(request: PlantDiaryRequest): Promise<PlantDiaryResponse> {
+  const headers = await getAuthHeaders();
+  return postJson<PlantDiaryRequest, PlantDiaryResponse>('/plant-diary', request, { headers });
+}
+
+export async function callPlantHistoryAPI(startDate: string, endDate: string): Promise<PlantHistoryResponse> {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ startDate, endDate });
+  return getJson<PlantHistoryResponse>(`/plant-history?${params.toString()}`, { headers });
+}
+import { getSupabaseSession } from '../lib/supabase-utils';
+import type {
+  PlantDiaryRequest,
+  PlantDiaryResponse,
+  PlantGenerateRequest,
+  PlantGenerateResponse,
+  PlantHistoryResponse,
+} from '../types/plant';

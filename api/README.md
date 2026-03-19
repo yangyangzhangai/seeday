@@ -15,15 +15,19 @@
 | --- | --- | --- |
 | `/api/chat` | `chat.ts` | `{ content, model, usage? }` |
 | `/api/report` | `report.ts` | `{ content }` |
-| `/api/annotation` | `annotation.ts` (entry) + `annotation-handler.ts` + `annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
+| `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
 | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
+| `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus? }` |
+| `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
+| `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
+Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 
 ## 本地调试（Windows）
 
@@ -43,4 +47,4 @@ npm run dev
 
 ## Endpoint test anchor
 
-- `api/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。
+- `src/server/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。

@@ -22,7 +22,7 @@ export interface ReportStats {
   totalTodos: number;
   completionRate: number;
   actionAnalysis?: {
-    category: '生存' | '连接与交互' | '成长与创造' | '修复与娱乐' | '巅峰体验' | '其他';
+    category: 'study' | 'work' | 'social' | 'life' | 'entertainment' | 'health';
     minutes: number;
     percent: number;
   }[];

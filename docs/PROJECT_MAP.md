@@ -52,7 +52,15 @@ src/
 - `classify.ts` -> `POST /api/classify`
 - `diary.ts` -> `POST /api/diary`
 - `stardust.ts` -> `POST /api/stardust`
-- `http.ts` -> 通用 CORS/method/error 包装
+- `src/server/http.ts` -> 通用 CORS/method/error 包装
+
+## 3.1) 服务端共享模块 `src/server/`
+
+- `src/server/annotation-handler.ts` -> `/api/annotation` 共享处理逻辑
+- `src/server/annotation-prompts.ts` -> annotation prompt 模板
+- `src/server/magic-pen-prompts.ts` -> magic-pen prompt 模板
+- `src/server/plant-shared.ts` -> 植物接口鉴权/序列化/日期窗口工具
+- `src/server/plant-diary-service.ts` -> 植物日记生成服务
 
 ## 4) 关键边界（必须遵守）
 
@@ -63,7 +71,7 @@ src/
 
 ## 5) 与当前治理状态对齐
 
-- 当前主线状态与任务进度以 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 看板为准。
+- 当前主线状态与任务进度以 `docs/CURRENT_TASK.md` 为准。
 - C12/C13 在本轮为停止执行项（由用户后续自行推进）。
 
 ## 6) Core Path Index (for doc-sync)

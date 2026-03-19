@@ -12,6 +12,7 @@ import { useMoodStore } from '../../store/useMoodStore';
 import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
 import { getDailyMoodDistribution } from './reportPageHelpers';
+import { PlantRootSection } from './plant/PlantRootSection';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -58,12 +59,12 @@ export const ReportPage = () => {
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 overflow-y-auto">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 overflow-y-auto pb-safe">
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-center">{t('report_title')}</h1>
       </header>
 
-      <div className="p-4 pb-24 space-y-6">
+      <div className="p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] space-y-6">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-sm font-medium text-gray-500 mb-3">{t('report_calendar_view')}</h2>
           <div className="calendar-wrapper flex justify-center">
@@ -85,7 +86,7 @@ export const ReportPage = () => {
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => openReportList('weekly')}
-            className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-blue-50 transition-colors"
+            className="min-h-11 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-blue-50 active:scale-[0.98] transition"
           >
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-2">
               <FileText size={20} />
@@ -95,7 +96,7 @@ export const ReportPage = () => {
 
           <button
             onClick={() => openReportList('monthly')}
-            className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-purple-50 transition-colors"
+            className="min-h-11 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-purple-50 active:scale-[0.98] transition"
           >
             <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mb-2">
               <FileText size={20} />
@@ -105,7 +106,7 @@ export const ReportPage = () => {
 
           <button
             onClick={() => openReportList('custom')}
-            className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-orange-50 transition-colors"
+            className="min-h-11 flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-orange-50 active:scale-[0.98] transition"
           >
             <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 mb-2">
               <Sparkles size={20} />
@@ -113,6 +114,8 @@ export const ReportPage = () => {
             <span className="text-xs font-medium">{t('report_custom')}</span>
           </button>
         </div>
+
+        <PlantRootSection />
       </div>
 
       {showReportList && (

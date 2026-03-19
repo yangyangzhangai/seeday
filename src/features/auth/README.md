@@ -29,4 +29,4 @@
 - `docs/PROJECT_MAP.md`
 - `PROJECT_CONTEXT.md`
 - `FEATURE_STATUS.md`
-- `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+- `docs/CURRENT_TASK.md`
