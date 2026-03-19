@@ -368,6 +368,7 @@ const it: TranslationKeys = {
     end_event_btn: 'Termina',
     image_crop_title: 'Ritaglia immagine',
     image_crop_hint: 'Trascina per riposizionare',
+    image_recrop: 'Ritaglia',
 
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',

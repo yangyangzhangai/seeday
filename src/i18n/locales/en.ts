@@ -366,6 +366,7 @@ const en = {
     end_event_btn: 'End',
     image_crop_title: 'Crop Image',
     image_crop_hint: 'Drag to reposition',
+    image_recrop: 'Re-crop',
 
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',

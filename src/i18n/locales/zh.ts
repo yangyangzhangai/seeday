@@ -368,6 +368,7 @@ const zh: TranslationKeys = {
     end_event_btn: '结束',
     image_crop_title: '裁剪图片',
     image_crop_hint: '拖动调整位置',
+    image_recrop: '重新裁剪',
 
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',
