@@ -42,7 +42,7 @@
 3. `docs/PROJECT_MAP.md`
 4. 各模块 `README.md`
 5. 各文件 `DOC-DEPS:` 头声明
-6. `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（执行看板与交接历史）
+6. `docs/CHANGELOG.md`
 
 ---
 
@@ -97,7 +97,7 @@ npm run build                   # 构建验证（关键改动后执行）
 | API 请求/响应契约变更 | `src/api/README.md` |
 | Store action / state 变更 | 对应模块 README |
 | 目录结构 / 边界变更 | `LLM.md` + `docs/PROJECT_MAP.md` |
-| 任意 `src/**` 或 `api/**` 代码改动 | `docs/CODE_CLEANUP_HANDOVER_PLAN.md`（看板状态）<br>`docs/CHANGELOG.md`<br>`docs/CURRENT_TASK.md` |
+| 任意 `src/**` 或 `api/**` 代码改动 | `docs/CHANGELOG.md`<br>`docs/CURRENT_TASK.md` |
 
 新增关键文件时，必须在文件头 20 行内包含 `DOC-DEPS:` 声明。
 
@@ -105,7 +105,7 @@ npm run build                   # 构建验证（关键改动后执行）
 
 ## 🚫 禁止事项
 
-1. 禁止新建与 `docs/CODE_CLEANUP_HANDOVER_PLAN.md` 平行的"主计划"文档
+1. 禁止新建平行的"主计划"文档
 2. 禁止在 `src/features/*` 之外新建页面组件
 3. 禁止在结构或接口变更后跳过 `npm run lint:docs-sync`
 4. 禁止硬编码密钥、硬编码中文字符串、硬编码日期格式

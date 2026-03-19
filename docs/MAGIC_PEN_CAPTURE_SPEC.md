@@ -209,13 +209,13 @@ const activeRecord = useMemo(() => {
 | 层级 | 文件 | 说明 |
 |------|------|------|
 | Serverless | `api/classify.ts` | 用智谱 GLM-4.7-flash，OpenAI 兼容协议 |
-| Serverless | `api/annotation-handler.ts` | 用 Chutes AI，OpenAI 兼容协议 |
+| Serverless | `src/server/annotation-handler.ts` | 用 Chutes AI，OpenAI 兼容协议 |
 | 前端 Client | `src/api/client.ts` | 统一 `postJson` 封装 |
-| 共用基础 | `api/http.ts` | CORS、method 校验、`jsonError` 工具 |
+| 共用基础 | `src/server/http.ts` | CORS、method 校验、`jsonError` 工具 |
 
 **关键约束（`PROJECT_CONTEXT.md` §4）**：前端 `src/**` 不得直连带密钥的第三方 AI 服务，必须通过 `api/*` serverless 中转。
 
-魔法笔 AI 调用必须遵守此约束，复用 `api/http.ts` 的 `applyCors / handlePreflight / requireMethod / jsonError`。
+魔法笔 AI 调用必须遵守此约束，复用 `src/server/http.ts` 的 `applyCors / handlePreflight / requireMethod / jsonError`。
 
 ### 2.12 结论
 
@@ -223,7 +223,7 @@ const activeRecord = useMemo(() => {
 2. 活动补录直接调用 `insertActivity(null, null, content, startTime, endTime)`。
 3. Todo 提取必须沿用现有 Todo 模型，不发明新字段。
 4. 不新增 Supabase 字段。
-5. 新增 `/api/magic-pen-parse` serverless endpoint 做 AI 结构化提取（复用现有 `api/http.ts` 基础设施和 `ZHIPU_API_KEY`）。
+5. 新增 `/api/magic-pen-parse` serverless endpoint 做 AI 结构化提取（复用现有 `src/server/http.ts` 基础设施和 `ZHIPU_API_KEY`）。
 
 ## 3. 最终产品定义
 
@@ -999,7 +999,7 @@ const handleCloseMagicPen = (submitted: boolean) => {
 
 #### `api/magic-pen-parse.ts`
 
-新增 Vercel Serverless Function，复用现有 `api/http.ts` 基础设施：
+新增 Vercel Serverless Function，复用现有 `src/server/http.ts` 基础设施：
 
 ```ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';

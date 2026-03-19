@@ -12,38 +12,54 @@ import type { Todo } from './useTodoStore';
 import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
-type ActionCategory = '生存' | '连接与交互' | '成长与创造' | '修复与娱乐' | '巅峰体验' | '其他';
+type ActionCategory = 'study' | 'work' | 'social' | 'life' | 'entertainment' | 'health';
 
 const FALLBACK_SUMMARY = '今天的你是一个很棒自己。';
 const CUSTOM_MOOD_LABEL = '自定义';
 
-const KEYWORDS: Record<Exclude<ActionCategory, '其他'>, string[]> = {
-  生存: [
-    '吃饭', '用餐', '餐', '午餐', '晚餐', '早餐', '睡', '睡觉', '小憩', '午休', '卫生', '洗澡', '刷牙', '如厕', '上厕所', '排泄',
-    '工作', '上班', '打工', '谋生', '收入', '加班', '通勤', '地铁', '公交', '打车',
-    '看病', '就医', '体检', '保险', '储蓄', '理财', '交房租', '交水电', '缴费',
-    '打扫', '清洁', '扫地', '拖地', '收纳', '整理', '洗衣', '做饭', '买菜',
+const KEYWORDS: Record<ActionCategory, string[]> = {
+  study: [
+    '学习', '读书', '阅读', '复盘', '复习', '上课', '课程', '作业', '考试', '备考', '练习', '训练',
+    '写作', '绘画', '画画', '设计', '编程', '开发', '产品', '创造', '深度思考', '笔记',
   ],
-  连接与交互: [
-    '家人', '父母', '孩子', '朋友', '同学', '聊天', '闲聊', '约会', '恋爱', '拥抱', '陪伴', '育儿',
-    '沟通', '会议', '面谈', '讨论', '协作', '对接', '商务', '谈判',
-    '聚会', '酒局', '发朋友圈', '社交媒体', '微博', '小红书', '点赞', '私信', '人情', '联络',
+  work: [
+    '工作', '上班', '加班', '开会', '会议', '面谈', '讨论', '协作', '对接', '商务', '谈判',
+    '汇报', '复盘工作', '需求', '项目', '任务', '工单', '通勤', '地铁', '公交', '打车',
   ],
-  成长与创造: [
-    '学习', '读书', '阅读', '复盘', '复习', '上课', '课程', '作业', '考试', '备考', '练习', '刻意练习', '训练',
-    '写作', '绘画', '画画', '设计', '编程', '开发', '产品', '发明', '创造', '深度思考', '笔记',
-    '宗教', '信仰', '哲学', '志愿', '公益', '义工', '意义',
+  social: [
+    '家人', '父母', '孩子', '朋友', '同学', '聊天', '闲聊', '约会', '恋爱', '拥抱', '陪伴',
+    '聚会', '社交', '社交媒体', '微博', '小红书', '点赞', '私信', '联络',
   ],
-  修复与娱乐: [
+  life: [
+    '吃饭', '用餐', '午餐', '晚餐', '早餐', '做饭', '买菜', '打扫', '清洁', '扫地', '拖地',
+    '收纳', '整理', '洗衣', '交房租', '交水电', '缴费', '办手续', '家务',
+  ],
+  entertainment: [
     '短视频', '刷视频', '刷抖音', '刷快手', '追剧', '电影', '电视剧', '音乐', '听歌', '发呆',
-    '旅行', '旅游', '出游', '游戏', '打游戏', '电竞', '运动', '跑步', '健身', '瑜伽', '看演出', '观演',
-    '冥想', '正念', '心理', '咨询', '日记', '倾诉',
+    '旅行', '旅游', '出游', '游戏', '打游戏', '电竞', '看演出', '观演', '放松',
   ],
-  巅峰体验: [
-    '心流', '忘我', '沉浸', '人琴合一', '上头', '出神', '状态拉满',
-    '登山', '攀登', '冲顶', '破 PB', '比赛夺冠',
-    '婚礼', '结婚', '毕业典礼', '节日', '团聚', '庆典',
+  health: [
+    '运动', '跑步', '健身', '瑜伽', '拉伸', '散步', '冥想', '正念', '心理', '咨询',
+    '睡', '睡觉', '午休', '小憩', '体检', '看病', '就医', '康复', '治疗', '喝水',
   ],
+};
+
+const ACTION_CATEGORY_LABELS: Record<ActionCategory, string> = {
+  study: '学习',
+  work: '工作',
+  social: '社交',
+  life: '生活',
+  entertainment: '娱乐',
+  health: '健康',
+};
+
+const ACTION_CATEGORY_ENCOURAGEMENT: Record<ActionCategory, string> = {
+  study: '稳稳向前，哪怕一点点，都是积累与突破。',
+  work: '你在把事情一件件落地，执行力很扎实。',
+  social: '好的人际让能量流动，你在建立支持与被支持。',
+  life: '生活有序是长期状态的底座，你在打磨日常节奏。',
+  entertainment: '适度放松是前进的缓冲区，恢复之后会更有劲。',
+  health: '你在照顾身体和心理的边界，这份自我照护很重要。',
 };
 
 function clampText50(s: string): string {
@@ -112,14 +128,14 @@ export function filterRelevantTodos(todos: Todo[], start: Date, end: Date, type:
 }
 
 export function classifyActivities(records: Message[]): { category: ActionCategory; minutes: number; percent: number }[] {
-  const categories: ActionCategory[] = ['生存', '连接与交互', '成长与创造', '修复与娱乐', '巅峰体验', '其他'];
+  const categories: ActionCategory[] = ['study', 'work', 'social', 'life', 'entertainment', 'health'];
   const minutesByCategory: Record<ActionCategory, number> = {
-    生存: 0,
-    连接与交互: 0,
-    成长与创造: 0,
-    修复与娱乐: 0,
-    巅峰体验: 0,
-    其他: 0,
+    study: 0,
+    work: 0,
+    social: 0,
+    life: 0,
+    entertainment: 0,
+    health: 0,
   };
 
   records.forEach((m) => {
@@ -127,12 +143,12 @@ export function classifyActivities(records: Message[]): { category: ActionCatego
     const minutes = m.duration || 0;
     const match = (keywords: readonly string[]) => keywords.some((k) => content.includes(k));
 
-    let category: ActionCategory = '其他';
-    if (match(KEYWORDS.巅峰体验)) category = '巅峰体验';
-    else if (match(KEYWORDS.成长与创造)) category = '成长与创造';
-    else if (match(KEYWORDS.连接与交互)) category = '连接与交互';
-    else if (match(KEYWORDS.修复与娱乐)) category = '修复与娱乐';
-    else if (match(KEYWORDS.生存)) category = '生存';
+    let category: ActionCategory = 'life';
+    if (match(KEYWORDS.study)) category = 'study';
+    else if (match(KEYWORDS.work)) category = 'work';
+    else if (match(KEYWORDS.social)) category = 'social';
+    else if (match(KEYWORDS.health)) category = 'health';
+    else if (match(KEYWORDS.entertainment)) category = 'entertainment';
 
     minutesByCategory[category] += minutes;
   });
@@ -190,14 +206,9 @@ export function generateActionSummary(
   const second = sorted[1];
 
   const parts: string[] = [];
-  parts.push(`今天你的行动重心在「${top.category}」，约${Math.round(top.percent * 100)}%。`);
-  if (second) parts.push(`其次是「${second.category}」，节奏平衡。`);
-
-  if (top.category === '生存') parts.push('稳定打底很重要，你在打磨生活的地基。');
-  if (top.category === '连接与交互') parts.push('好的人际让能量流动，你在建立支持与被支持。');
-  if (top.category === '成长与创造') parts.push('稳稳向前，哪怕一点点，都是积累与突破。');
-  if (top.category === '修复与娱乐') parts.push('适度放松是前进的缓冲区，恢复之后会更有劲。');
-  if (top.category === '巅峰体验') parts.push('你触到了心流的边界，这份专注很珍贵。');
+  parts.push(`今天你的行动重心在「${ACTION_CATEGORY_LABELS[top.category]}」，约${Math.round(top.percent * 100)}%。`);
+  if (second) parts.push(`其次是「${ACTION_CATEGORY_LABELS[second.category]}」，节奏平衡。`);
+  parts.push(ACTION_CATEGORY_ENCOURAGEMENT[top.category]);
 
   parts.push('继续保持这份诚实与投入，明天也会更好。');
   return clampText50(parts.join(''));

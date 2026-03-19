@@ -185,7 +185,7 @@ export const useTodoStore = create<TodoState>()(
   persist(
     (set, get) => ({
       todos: [],
-      categories: ['study', 'work', 'social', 'life', 'entertainment'],
+      categories: ['study', 'work', 'social', 'life', 'entertainment', 'health'],
       isLoading: false,
       activeTodoId: null,
       lastGeneratedDate: '',

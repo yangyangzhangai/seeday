@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
-import { MAGIC_PEN_PROMPT_EN, MAGIC_PEN_PROMPT_IT, MAGIC_PEN_PROMPT_ZH } from './magic-pen-prompts.js';
+import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { MAGIC_PEN_PROMPT_EN, MAGIC_PEN_PROMPT_IT, MAGIC_PEN_PROMPT_ZH } from '../src/server/magic-pen-prompts.js';
 
 type MagicPenKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 type MagicPenConfidence = 'high' | 'medium' | 'low';
@@ -115,6 +115,10 @@ function normalizeBaseUrl(baseUrl: string | undefined): string {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || /abort/i.test(error.message));
+}
+
+function isProviderFailure(result: ProviderCallResult): result is ProviderCallFailure {
+  return result.ok === false;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -427,9 +431,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
     const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
 
-    let primaryResult: ProviderCallResult | null = null;
     if (fallbackApiKey) {
-      primaryResult = await callProvider(
+      const fallbackResult = await callProvider(
         'qwen_flash_fallback',
         fallbackApiUrl,
         fallbackApiKey,
@@ -439,42 +442,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fallbackTimeoutMs,
       );
 
-      if (primaryResult.ok) {
+      if (fallbackResult.ok) {
         logMagicPen(traceId, 'provider.success', {
-          provider: primaryResult.provider,
-          status: primaryResult.status,
-          elapsedMs: primaryResult.elapsedMs,
-          parseStrategy: primaryResult.parsed.strategy,
-          rawLength: primaryResult.raw.length,
-          rawPreview: previewText(primaryResult.raw, 220),
-          segmentCount: primaryResult.parsed.data.segments.length,
-          unparsedCount: primaryResult.parsed.data.unparsed.length,
+          provider: fallbackResult.provider,
+          status: fallbackResult.status,
+          elapsedMs: fallbackResult.elapsedMs,
+          parseStrategy: fallbackResult.parsed.strategy,
+          rawLength: fallbackResult.raw.length,
+          rawPreview: previewText(fallbackResult.raw, 220),
+          segmentCount: fallbackResult.parsed.data.segments.length,
+          unparsedCount: fallbackResult.parsed.data.unparsed.length,
         });
 
         res.status(200).json({
           success: true,
-          data: primaryResult.parsed.data,
-          raw: primaryResult.raw,
+          data: fallbackResult.parsed.data,
+          raw: fallbackResult.raw,
           traceId,
-          parseStrategy: primaryResult.parsed.strategy,
-          providerUsed: primaryResult.provider,
+          parseStrategy: fallbackResult.parsed.strategy,
+          providerUsed: fallbackResult.provider,
         });
         return;
       }
 
-      providerAttempts.push(primaryResult);
-      logMagicPen(traceId, 'provider.failure', {
-        provider: primaryResult.provider,
-        reason: primaryResult.reason,
-        status: primaryResult.status,
-        elapsedMs: primaryResult.elapsedMs,
-        details: primaryResult.details,
-      });
+      if (isProviderFailure(fallbackResult)) {
+        providerAttempts.push(fallbackResult);
+        logMagicPen(traceId, 'provider.failure', {
+          provider: fallbackResult.provider,
+          reason: fallbackResult.reason,
+          status: fallbackResult.status,
+          elapsedMs: fallbackResult.elapsedMs,
+          details: fallbackResult.details,
+        });
+      }
     }
 
     if (apiKey) {
       const primaryTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_PRIMARY_TIMEOUT_MS, PRIMARY_TIMEOUT_MS);
-      primaryResult = await callProvider(
+      const primaryResult = await callProvider(
         'zhipu',
         ZHIPU_API_URL,
         apiKey,
@@ -509,14 +514,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      providerAttempts.push(primaryResult);
-      logMagicPen(traceId, 'provider.failure', {
-        provider: primaryResult.provider,
-        reason: primaryResult.reason,
-        status: primaryResult.status,
-        elapsedMs: primaryResult.elapsedMs,
-        details: primaryResult.details,
-      });
+      if (isProviderFailure(primaryResult)) {
+        providerAttempts.push(primaryResult);
+        logMagicPen(traceId, 'provider.failure', {
+          provider: primaryResult.provider,
+          reason: primaryResult.reason,
+          status: primaryResult.status,
+          elapsedMs: primaryResult.elapsedMs,
+          details: primaryResult.details,
+        });
+      }
     }
 
     logMagicPen(traceId, 'provider.exhausted', {

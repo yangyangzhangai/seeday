@@ -8,6 +8,7 @@
 
 - Route: `/report`
 - Main user flows:
+  - Embedded daytime plant root interaction section (always visible below report-range buttons)
   - Daily/weekly/monthly report generation
   - Report detail modal and task list modal
   - Timeshine diary generation and display
@@ -37,4 +38,4 @@
 - `docs/PROJECT_MAP.md`
 - `docs/ARCHITECTURE.md`
 - `FEATURE_STATUS.md`
-- `docs/CODE_CLEANUP_HANDOVER_PLAN.md`
+- `docs/CURRENT_TASK.md`
