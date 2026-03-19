@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Camera, X, Loader2, AlertCircle, ZoomIn, Crop } from 'lucide-react';
+import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
 import { useImageUpload } from '../../../hooks/useImageUpload';
 import { ImageCropModal } from './ImageCropModal';
 
@@ -24,7 +24,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const inputRef  = useRef<HTMLInputElement>(null);
   const imageRef  = useRef<HTMLDivElement>(null);
   const [error, setError]           = useState(false);
-  const [lightbox, setLightbox]     = useState(false);
   const [cropFile, setCropFile]     = useState<File | null>(null);
   const [imageTapped, setImageTapped] = useState(false);
   const [reCropping, setReCropping] = useState(false);
@@ -71,7 +70,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
    */
   const handleReCrop = async () => {
     if (!imageUrl) return;
-    setLightbox(false);
+    setImageTapped(false);
     setReCropping(true);
     try {
       const res  = await fetch(imageUrl);
@@ -119,7 +118,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {imageTapped && (
             <div className="absolute inset-0 bg-black/20 flex items-start justify-end p-1 gap-1">
               <button
-                onClick={e => { e.stopPropagation(); setLightbox(true); setImageTapped(false); }}
+                onClick={e => { e.stopPropagation(); void handleReCrop(); }}
                 className="p-1 bg-black/50 rounded-full text-white"
               >
                 <ZoomIn size={11} />
@@ -138,42 +137,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         {reCropping && (
           <div className="flex items-center justify-center mt-1">
             <Loader2 size={14} className="animate-spin text-gray-400" />
-          </div>
-        )}
-
-        {/* Lightbox with re-crop action */}
-        {lightbox && (
-          <div
-            className="fixed inset-0 z-50 bg-black/85 flex flex-col items-center justify-center"
-            onClick={() => setLightbox(false)}
-          >
-            {/* Full-size image */}
-            <img
-              src={imageUrl}
-              alt=""
-              className="max-w-full max-h-[75vh] object-contain"
-              onClick={e => e.stopPropagation()}
-            />
-
-            {/* Toolbar */}
-            <div
-              className="flex items-center gap-3 mt-5"
-              onClick={e => e.stopPropagation()}
-            >
-              <button
-                onClick={() => void handleReCrop()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-xs rounded-full transition-colors"
-              >
-                <Crop size={13} />
-                <span>{t('image_recrop')}</span>
-              </button>
-              <button
-                onClick={() => setLightbox(false)}
-                className="flex items-center justify-center w-8 h-8 bg-white/15 hover:bg-white/25 text-white rounded-full transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
           </div>
         )}
 
