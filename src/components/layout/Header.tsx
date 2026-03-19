@@ -130,7 +130,7 @@ export const Header = () => {
                 </button>
               </div>
             )}
-            <div className="w-[280px] h-[280px] bg-gray-100 flex items-center justify-center">
+            <div className="w-[min(280px,90vw)] h-[min(280px,90vw)] bg-gray-100 flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img src={user.user_metadata.avatar_url} alt="avatar large" className="w-full h-full object-cover" />
               ) : (

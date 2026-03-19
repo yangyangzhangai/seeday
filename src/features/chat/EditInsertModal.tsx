@@ -29,8 +29,8 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
     const { t } = useTranslation();
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4 shadow-xl">
                 <div className="flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-900">{editingId ? t('chat_edit_record') : t('chat_insert_record')}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -44,7 +44,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             type="text"
                             value={editContent}
                             onChange={(e) => onContentChange(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                             placeholder={t('chat_placeholder_content')}
                         />
                     </div>
@@ -55,7 +55,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                                 type="datetime-local"
                                 value={editStartTime}
                                 onChange={(e) => onStartTimeChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                             />
                         </div>
                         <div>
@@ -64,7 +64,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                                 type="datetime-local"
                                 value={editEndTime}
                                 onChange={(e) => onEndTimeChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                             />
                         </div>
                     </div>

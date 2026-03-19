@@ -45,7 +45,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                     onChange={(e) => onInputChange(e.target.value)}
                     onKeyDown={onKeyDown}
                     placeholder={t('chat_placeholder_neutral')}
-                    className="flex-1 bg-transparent border-none focus:outline-none text-sm"
+                    className="flex-1 bg-transparent border-none focus:outline-none text-base"
                     disabled={isLoading}
                 />
                 <button

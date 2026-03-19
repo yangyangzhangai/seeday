@@ -92,7 +92,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       {cardActive && (
         <button
           onClick={e => { e.stopPropagation(); onDelete(message.id); }}
-          className="absolute -top-2 -right-2 w-5 h-5 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
+          className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
         >
           <X size={9} />
         </button>

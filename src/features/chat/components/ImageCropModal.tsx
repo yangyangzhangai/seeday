@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, X } from 'lucide-react';
 
-const DISPLAY_W = 320;   // modal image display width px
+// Clamp to screen width with 32px margin so the crop area never overflows on narrow phones
+const DISPLAY_W = Math.min(320, (typeof window !== 'undefined' ? window.innerWidth : 375) - 32);
 const OUTPUT_W  = 600;   // final output width px
 const ASPECT_W  = 3;
 const ASPECT_H  = 2;     // 3:2 landscape crop

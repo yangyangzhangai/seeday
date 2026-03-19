@@ -73,7 +73,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                 onSelectMood(moodPickerFor, opt);
                             }}
                             className={cn(
-                                "inline-flex items-center justify-center px-2.5 py-[3px] text-[10px] rounded-full border shadow-sm transition-colors",
+                                "inline-flex items-center justify-center px-3 py-1.5 text-xs rounded-full border shadow-sm transition-colors",
                                 selectedMoodOpt === opt
                                     ? "bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-200"
                                     : "bg-white text-slate-700 border-gray-200 hover:bg-gray-50",
