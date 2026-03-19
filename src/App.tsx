@@ -14,6 +14,7 @@ import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 /** Thin wrapper around Outlet that fades in on route change */
 const PageOutlet: React.FC = () => {
@@ -139,6 +140,9 @@ function App() {
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  // Multi-device realtime sync: subscribes when signed in, unsubscribes on sign-out
+  useRealtimeSync();
 
   return (
     <BrowserRouter>
