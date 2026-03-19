@@ -353,6 +353,23 @@ const it: TranslationKeys = {
     membership_feat_monthly_report: 'Report Mensile',
     membership_feat_yearly_report: 'Report Annuale',
 
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: 'Seleziona Data',
+    month_grid_title: 'Seleziona Mese',
+    mood_convert_btn: 'Converti',
+    mood_return_event: "Torna all'Evento",
+    mood_to_event: 'Converti in Evento',
+    image_upload: 'Carica Immagine',
+    image_uploading: 'Caricamento...',
+    image_upload_fail: 'Caricamento fallito, tocca per riprovare',
+    image_delete: 'Elimina Immagine',
+    yesterday_popup: 'Ultimo evento ieri',
+    event_ongoing: 'In corso...',
+    end_event_btn: 'Termina',
+    image_crop_title: 'Ritaglia immagine',
+    image_crop_hint: 'Trascina per riposizionare',
+    image_recrop: 'Ritaglia',
+
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',
     previous_day_summary: 'Il {{date}} hai registrato {{count}} attività',

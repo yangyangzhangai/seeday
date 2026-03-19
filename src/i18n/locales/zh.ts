@@ -353,6 +353,23 @@ const zh: TranslationKeys = {
     membership_feat_monthly_report: '每月分析报告',
     membership_feat_yearly_report: '每年分析报告',
 
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: '选择日期',
+    month_grid_title: '选择月份',
+    mood_convert_btn: '转换',
+    mood_return_event: '回归事件',
+    mood_to_event: '转为事件',
+    image_upload: '上传图片',
+    image_uploading: '上传中...',
+    image_upload_fail: '上传失败，点击重试',
+    image_delete: '删除图片',
+    yesterday_popup: '昨天最后一件事',
+    event_ongoing: '进行中...',
+    end_event_btn: '结束',
+    image_crop_title: '裁剪图片',
+    image_crop_hint: '拖动调整位置',
+    image_recrop: '重新裁剪',
+
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',
     previous_day_summary: '{{date}} 你记录了 {{count}} 件事',
