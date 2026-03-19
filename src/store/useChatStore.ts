@@ -131,7 +131,14 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ hasInitialized: true });
+          // Guest mode: keep only today's messages; discard stale days.
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayStartMs = todayStart.getTime();
+          set(state => ({
+            messages: state.messages.filter(m => m.timestamp >= todayStartMs),
+            hasInitialized: true,
+          }));
           return;
         }
 
@@ -216,7 +223,6 @@ export const useChatStore = create<ChatState>()(
             yesterdaySummary,
             currentDateStr: todayStr,
             activeViewDateStr: todayStr,
-            // Cache today so switching back from other dates is instant
             dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
         } catch (error) {
@@ -500,11 +506,7 @@ export const useChatStore = create<ChatState>()(
           moodStore.setMood(id, autoDetectMood(target.content, duration));
         }
 
-        // Auto-complete linked growth todo
         useTodoStore.getState().completeTodoByMessage(id);
-
-        // AI semantic matching: if activity relates to a habit/goal bottle, add a star
-        // Skip if the caller already awarded a star (e.g. todo toggle)
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');

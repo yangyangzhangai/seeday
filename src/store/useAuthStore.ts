@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        useChatStore.setState({ messages: [] });
+        useChatStore.setState({ messages: [], hasInitialized: false });
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
