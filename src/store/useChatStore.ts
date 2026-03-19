@@ -32,6 +32,8 @@ import {
 
 export type MessageType = 'text' | 'system' | 'ai';
 
+export interface MoodDescription { id: string; content: string; timestamp: number; }
+
 export interface Message {
   id: string;
   content: string;
@@ -43,6 +45,11 @@ export interface Message {
   isMood?: boolean;
   stardustId?: string;
   stardustEmoji?: string;
+  imageUrl?: string | null;
+  imageUrl2?: string | null;
+  moodDescriptions?: MoodDescription[] | null;
+  isActive?: boolean;
+  detached?: boolean;
 }
 
 interface YesterdaySummary {
@@ -66,8 +73,11 @@ interface ChatState {
   isLoadingMore: boolean;
   yesterdaySummary: YesterdaySummary | null;
   currentDateStr: string | null;
+  activeViewDateStr: string | null;
+  dateCache: Map<string, Message[]>;
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: () => Promise<void>;
+  fetchMessagesByDate: (dateStr: string) => Promise<void>;
   checkAndRefreshForNewDay: () => void;
   sendMessage: (
     content: string,
@@ -80,13 +90,18 @@ interface ChatState {
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
-  endActivity: (id: string) => Promise<void>;
+  endActivity: (id: string, opts?: { skipBottleStar?: boolean }) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
+  updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
+  detachMoodMessage: (moodId: string) => Promise<void>;
   setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
   attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;
+  detachMoodFromEvent: (eventId: string, moodMsgId: string) => void;
+  reattachMoodToEvent: (moodMsgId: string) => void;
+  convertMoodToEvent: (moodMsgId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -103,11 +118,19 @@ export const useChatStore = create<ChatState>()(
       isLoadingMore: false,
       yesterdaySummary: null,
       currentDateStr: null,
+      activeViewDateStr: null,
+      dateCache: new Map(),
 
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ hasInitialized: true });
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayStartMs = todayStart.getTime();
+          set(state => ({
+            messages: state.messages.filter(m => m.timestamp >= todayStartMs),
+            hasInitialized: true,
+          }));
           return;
         }
 
@@ -142,6 +165,14 @@ export const useChatStore = create<ChatState>()(
           if (latestBeforeTodayError) throw latestBeforeTodayError;
 
           const messages = (todayData || []).map(mapDbRowToMessage);
+
+          // Ensure all completed events have at least an auto-detected mood label
+          const moodStoreToday = useMoodStore.getState();
+          for (const msg of messages) {
+            if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreToday.getMood(msg.id)) {
+              moodStoreToday.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0), 'auto');
+            }
+          }
 
           let yesterdaySummary: YesterdaySummary | null = null;
           if (latestBeforeToday && latestBeforeToday.length > 0) {
@@ -183,6 +214,8 @@ export const useChatStore = create<ChatState>()(
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
+            activeViewDateStr: todayStr,
+            dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
         } catch (error) {
           console.error('Error fetching messages:', error);
@@ -231,9 +264,50 @@ export const useChatStore = create<ChatState>()(
         const state = get();
         const todayStr = getLocalDateString(new Date());
         if (state.currentDateStr && state.currentDateStr !== todayStr) {
-          console.log('[DayRefresh] Midnight crossed, refreshing messages...');
+          import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
           state.fetchMessages();
         }
+      },
+
+      fetchMessagesByDate: async (dateStr: string) => {
+        const cached = get().dateCache.get(dateStr);
+        if (cached) {
+          set({ messages: cached, activeViewDateStr: dateStr });
+          return;
+        }
+        const session = await getSupabaseSession();
+        if (!session) return;
+
+        const dayStart = new Date(dateStr + 'T00:00:00').getTime();
+        const dayEnd = new Date(dateStr + 'T23:59:59.999').getTime();
+
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('timestamp', dayStart)
+          .lte('timestamp', dayEnd)
+          .order('timestamp', { ascending: true });
+
+        if (error) {
+          import.meta.env.DEV && console.log('[fetchMessagesByDate] error', error);
+          return;
+        }
+        const msgs = (data || []).map(mapDbRowToMessage);
+
+        // Ensure all completed events have at least an auto-detected mood label
+        const moodStoreDate = useMoodStore.getState();
+        for (const msg of msgs) {
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
+            moodStoreDate.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0), 'auto');
+          }
+        }
+
+        set(state => ({
+          messages: msgs,
+          activeViewDateStr: dateStr,
+          dateCache: new Map(state.dateCache).set(dateStr, msgs),
+        }));
       },
 
       sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record', options?: { skipMoodDetection?: boolean }) => {
@@ -252,7 +326,8 @@ export const useChatStore = create<ChatState>()(
           timestamp: now,
           type: 'text',
           mode: effectiveMode,
-          activityType: effectiveMode === 'record' ? '待分类' : 'chat'
+          activityType: effectiveMode === 'record' ? '待分类' : 'chat',
+          isActive: effectiveMode === 'record' ? true : undefined,
         };
 
         updatedMessages.push(newMessage);
@@ -400,7 +475,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      endActivity: async (id) => {
+      endActivity: async (id, opts) => {
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
@@ -409,13 +484,13 @@ export const useChatStore = create<ChatState>()(
 
         set(state => ({
           messages: state.messages.map(m =>
-            m.id === id ? { ...m, duration } : m
+            m.id === id ? { ...m, duration, isActive: false } : m
           )
         }));
 
         const session = await getSupabaseSession();
         if (session) {
-          await supabase.from('messages').update({ duration }).eq('id', id).eq('user_id', session.user.id);
+          await supabase.from('messages').update({ duration, is_active: false }).eq('id', id).eq('user_id', session.user.id);
         }
 
         const moodStore = useMoodStore.getState();
@@ -423,10 +498,8 @@ export const useChatStore = create<ChatState>()(
           moodStore.setMood(id, autoDetectMood(target.content, duration));
         }
 
-        // Auto-complete linked growth todo
         useTodoStore.getState().completeTodoByMessage(id);
-
-        // AI semantic matching: if activity relates to a habit/goal bottle, add a star
+        if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
@@ -497,23 +570,47 @@ export const useChatStore = create<ChatState>()(
         );
 
         if (!targetMessage) {
-          console.log('[DEBUG] 未找到匹配的消息:', content, timestamp);
           return;
         }
-
         set({ messages: updatedMessages });
-
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
+      },
 
-        console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
+      updateMessageImage: async (id, slot, url) => {
+        const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
+        set(state => ({
+          messages: state.messages.map(m =>
+            m.id === id ? { ...m, [slot]: url } : m,
+          ),
+        }));
+        const session = await getSupabaseSession();
+        if (session) {
+          await supabase
+            .from('messages')
+            .update({ [dbCol]: url })
+            .eq('id', id)
+            .eq('user_id', session.user.id);
+        }
+      },
+
+      detachMoodMessage: async (moodId: string) => {
+        const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
+        get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
+        const session = await getSupabaseSession();
+        if (!session) return;
+        const mood = get().messages.find(m => m.id === moodId);
+        if (mood) await persistMessageToSupabase(mood, session.user.id, true);
+        if (parentId) {
+          const parent = get().messages.find(m => m.id === parentId);
+          if (parent) await persistMessageToSupabase(parent, session.user.id);
+        }
       },
 
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
-        const state = get();
         const relatedActivityId = options?.relatedActivityId;
 
         const newMessage: Message = {
@@ -523,12 +620,38 @@ export const useChatStore = create<ChatState>()(
           type: 'text',
           mode: 'record',
           activityType: 'mood',
-          isMood: true
+          isMood: true,
+          detached: false,
         };
 
-        set(state => ({
-          messages: [...state.messages, newMessage]
-        }));
+        const { messages } = get();
+        const latestEvent = [...messages]
+          .filter(m => !m.isMood && m.mode === 'record')
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+        const { toLocalDateStr } = await import('../lib/dateUtils');
+        const isCrossDay = !latestEvent ||
+          toLocalDateStr(new Date(now)) !== toLocalDateStr(new Date(latestEvent.timestamp));
+
+        set(state => {
+          if (isCrossDay) {
+            return { messages: [...state.messages, { ...newMessage, detached: true }] };
+          }
+          const newDesc: import('./useChatStore').MoodDescription = {
+            id: newMessage.id,
+            content,
+            timestamp: now,
+          };
+          return {
+            messages: state.messages
+              .map(m =>
+                m.id === latestEvent.id
+                  ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
+                  : m,
+              )
+              .concat(newMessage),
+          };
+        });
 
         if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
@@ -546,16 +669,17 @@ export const useChatStore = create<ChatState>()(
         const moodEvent: AnnotationEvent = {
           type: 'mood_recorded',
           timestamp: Date.now(),
-          data: {
-            messageId: newMessage.id,
-            mood: content,
-          },
+          data: { messageId: newMessage.id, mood: content },
         };
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
 
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id, true);
+          if (!isCrossDay && latestEvent) {
+            const updated = get().messages.find(m => m.id === latestEvent.id);
+            if (updated) await persistMessageToSupabase(updated, session.user.id);
+          }
         }
 
         return newMessage.id;
@@ -577,15 +701,98 @@ export const useChatStore = create<ChatState>()(
           ),
         }));
       },
+
+      detachMoodFromEvent: (eventId, moodMsgId) => {
+        set(state => ({
+          messages: state.messages.map(m => {
+            if (m.id === eventId) {
+              return {
+                ...m,
+                moodDescriptions: (m.moodDescriptions || []).filter(d => d.id !== moodMsgId),
+              };
+            }
+            if (m.id === moodMsgId) return { ...m, detached: true };
+            return m;
+          }),
+        }));
+      },
+
+      reattachMoodToEvent: (moodMsgId) => {
+        const { messages } = get();
+        const moodMsg = messages.find(m => m.id === moodMsgId && m.isMood);
+        if (!moodMsg) return;
+        const latestEvent = [...messages]
+          .filter(m => !m.isMood && m.mode === 'record')
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
+        if (!latestEvent) return;
+        const newDesc: MoodDescription = {
+          id: moodMsg.id, content: moodMsg.content, timestamp: moodMsg.timestamp,
+        };
+        set(state => ({
+          messages: state.messages.map(m => {
+            if (m.id === latestEvent.id) {
+              return { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] };
+            }
+            if (m.id === moodMsgId) return { ...m, detached: false };
+            return m;
+          }),
+        }));
+      },
+
+      convertMoodToEvent: async (moodMsgId) => {
+        const now = Date.now();
+        const prevActive = get().messages.find(m => m.isActive && !m.isMood) ?? null;
+
+        set(state => ({
+          messages: state.messages.map(m => {
+            if (m.isActive && !m.isMood) {
+              return { ...m, isActive: false, duration: Math.max(0, Math.round((now - m.timestamp) / 60000)) };
+            }
+            if (m.id === moodMsgId) {
+              return { ...m, isMood: false, detached: false, isActive: true, activityType: '待分类' };
+            }
+            return m;
+          }),
+        }));
+
+        if (prevActive) {
+          const moodStore = useMoodStore.getState();
+          const isCustomApplied = moodStore.customMoodApplied[prevActive.id];
+          if (!isCustomApplied) {
+            const duration = Math.max(0, Math.round((now - prevActive.timestamp) / 60000));
+            moodStore.setMood(prevActive.id, autoDetectMood(prevActive.content, duration), 'auto');
+          }
+        }
+
+        const newEvent = get().messages.find(m => m.id === moodMsgId);
+        if (newEvent) {
+          const moodStore = useMoodStore.getState();
+          if (!moodStore.getMood(moodMsgId)) {
+            void triggerMoodDetection(moodMsgId, newEvent.content);
+          }
+        }
+
+        const session = await getSupabaseSession();
+        if (session) {
+          const updated = get().messages;
+          for (const m of updated) {
+            if (m.id === moodMsgId || (m.isActive === false && m.duration !== undefined)) {
+              await persistMessageToSupabase(m, session.user.id);
+            }
+          }
+        }
+      },
     }),
     {
       name: 'chat-storage',
+      // dateCache 是 Map，不能 JSON 序列化，排除持久化
       partialize: (state) => ({
         messages: state.messages,
         mode: state.mode,
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
         currentDateStr: state.currentDateStr,
+        hasInitialized: state.hasInitialized,
       }),
     }
   )

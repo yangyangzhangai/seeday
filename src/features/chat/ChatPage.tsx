@@ -296,6 +296,12 @@ export const ChatPage = () => {
           .reverse()
           .find(m => !beforeIds.has(m.id));
         if (newMsg) {
+          // If a mood got attached to an event (same-day behaviour), force it detached
+          // so images appear on a standalone MoodCard, not merged into the event card.
+          if (newMsg.isMood && !newMsg.detached) {
+            await useChatStore.getState().detachMoodMessage(newMsg.id);
+          }
+
           const { updateMessageImage } = useChatStore.getState();
           const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, blobsToSend.length);
           await Promise.all(

@@ -171,7 +171,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshActivityStreak: async () => {
     const userId = get().user?.id;
     if (!userId) return;
-    const streak = await fetchActivityStreak(userId);
+    const streak = await fetchActivityStreak(userId, true); // force bypass cache
     set({ activityStreak: streak });
   },
 }));
@@ -183,19 +183,29 @@ function toLocalDateStr(ts: number): string {
 }
 
 /**
- * Fetch consecutive activity days from Supabase.
- * Only looks back 366 days (max possible streak) to keep the query small.
+ * Fetch consecutive activity days from Supabase (full history, no date limit).
+ * Cached in localStorage — only re-fetches on the first open of each calendar day.
+ * Pass force=true to bypass the cache (e.g. after recording a new activity).
  */
-async function fetchActivityStreak(userId: string): Promise<number> {
+async function fetchActivityStreak(userId: string, force = false): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const dateKey  = `streakDate_${userId}`;
+  const valueKey = `streakValue_${userId}`;
+
+  // Return cached value if already fetched today (and not forced)
+  if (!force && localStorage.getItem(dateKey) === today) {
+    const cached = localStorage.getItem(valueKey);
+    return cached !== null ? Number(cached) : 0;
+  }
+
   try {
-    const oneYearAgo = Date.now() - 366 * 24 * 60 * 60 * 1000;
+    // Fetch ALL activity timestamps (no date filter) to compute full streak
     const { data } = await supabase
       .from('messages')
       .select('timestamp')
       .eq('user_id', userId)
       .neq('activity_type', 'chat')
-      .eq('is_mood', false)
-      .gte('timestamp', oneYearAgo);
+      .eq('is_mood', false);
 
     if (!data) return 0;
     const dates = new Set(data.map(r => toLocalDateStr(Number(r.timestamp))));
@@ -206,6 +216,10 @@ async function fetchActivityStreak(userId: string): Promise<number> {
       streak++;
       d.setDate(d.getDate() - 1);
     }
+
+    // Cache result so we skip the query for the rest of today
+    localStorage.setItem(dateKey,  today);
+    localStorage.setItem(valueKey, String(streak));
     return streak;
   } catch {
     return 0;
