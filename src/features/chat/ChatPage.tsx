@@ -1,62 +1,175 @@
-import { Fragment, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useStardustStore } from '../../store/useStardustStore';
-import { Activity, ChevronUp, Loader2 } from 'lucide-react';
-import { formatDuration } from '../../lib/time';
-import { format, isSameDay } from 'date-fns';
-import { zhCN, enUS, it } from 'date-fns/locale';
-import { StardustCard } from '../../components/feedback/StardustCard';
-import type { StardustCardData } from '../../types/stardust';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useShallow } from 'zustand/react/shallow';
 
-// Sub-components
-import { MessageItem } from './MessageItem';
-import { MoodPickerModal } from './MoodPickerModal';
-import { EditInsertModal } from './EditInsertModal';
+import { StardustCard } from '../../components/feedback/StardustCard';
+import type { StardustCardData } from '../../types/stardust';
+
 import { ChatInputBar } from './ChatInputBar';
 import { MagicPenSheet } from './MagicPenSheet';
+import { EditInsertModal } from './EditInsertModal';
+import { MoodPickerModal } from './MoodPickerModal';
+import { DatePicker } from './components/DatePicker';
+import { TimelineView } from './components/TimelineView';
+import { YesterdaySummaryPopup } from './components/YesterdaySummaryPopup';
+
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
-import {
-  handleMagicPenModeSend,
-  handleLatestMessageReclassify,
-} from './chatPageActions';
+import { handleMagicPenModeSend, handleLatestMessageReclassify } from './chatPageActions';
+import { toLocalDateStr } from '../../lib/dateUtils';
+import { format } from 'date-fns';
 
 export const ChatPage = () => {
   const {
-    messages, sendAutoRecognizedInput, fetchMessages, fetchOlderMessages, checkAndRefreshForNewDay,
-    updateActivity, insertActivity, deleteActivity, endActivity, reclassifyRecentInput, isLoading, isLoadingMore,
-    hasMoreHistory, yesterdaySummary,
-    hasInitialized, setHasInitialized, updateMessageDuration,
+    messages, sendAutoRecognizedInput, fetchMessages, fetchMessagesByDate,
+    checkAndRefreshForNewDay, updateActivity, insertActivity, deleteActivity,
+    endActivity, reclassifyRecentInput, isLoading,
+    hasInitialized, setHasInitialized, updateMessageDuration, dateCache,
   } = useChatStore();
+
   const { activeTodoId, completeActiveTodo, todos } = useTodoStore();
   const getStardustByMessageId = useStardustStore(state => state.getStardustByMessageId);
   const [searchParams, setSearchParams] = useSearchParams();
   const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [currentDuration, setCurrentDuration] = useState(0);
-  const [moodPickerFor, setMoodPickerFor] = useState<string | null>(null);
-  const [customMoodInput, setCustomMoodInput] = useState('');
-  const [customLabelInput, setCustomLabelInput] = useState('');
-  const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
-  const [selectedMoodOpt, setSelectedMoodOpt] = useState<string | null>(null);
-  const [moodPickerReadonly, setMoodPickerReadonly] = useState(false);
-  const { t, i18n } = useTranslation();
-  const [expandedActionsId, setExpandedActionsId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isLoadingDate, setIsLoadingDate] = useState(false);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
   const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
   const [isMagicPenSending, setIsMagicPenSending] = useState(false);
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
   const [magicPenSeedAutoWritten, setMagicPenSeedAutoWritten] = useState<MagicPenAutoWrittenItem[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [insertingAfterId, setInsertingAfterId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
+  const [moodPickerFor, setMoodPickerFor] = useState<string | null>(null);
+  const [customLabelInput, setCustomLabelInput] = useState('');
+  const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
+  const [selectedMoodOpt, setSelectedMoodOpt] = useState<string | null>(null);
+  const [moodPickerReadonly] = useState(false);
+  const [selectedStardust, setSelectedStardust] = useState<{
+    data: StardustCardData; position: { x: number; y: number };
+  } | null>(null);
 
+  const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
-  const isDefaultCustomLabel = (label: string) => !label || label === customLabelDefault || label === '自定义';
+  const isDefaultCustomLabel = (label: string) =>
+    !label || label === customLabelDefault || label === '自定义';
+
+  const {
+    setMood, customMoodLabel, setCustomMoodLabel,
+    customMoodApplied, setCustomMoodApplied,
+  } = useMoodStore(useShallow(s => ({
+    setMood: s.setMood,
+    customMoodLabel: s.customMoodLabel,
+    setCustomMoodLabel: s.setCustomMoodLabel,
+    customMoodApplied: s.customMoodApplied,
+    setCustomMoodApplied: s.setCustomMoodApplied,
+  })));
+
+  // ── 初始化 ─────────────────────────────────────────────────
+  useEffect(() => {
+    setHasInitialized(false);
+    fetchMessages();
+  }, []);
+
+  // ── URL 参数清理 ───────────────────────────────────────────
+  useEffect(() => {
+    if (searchParams.get('todoId')) setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // ── 跨天自动刷新 ──────────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(checkAndRefreshForNewDay, 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkAndRefreshForNewDay();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, [checkAndRefreshForNewDay]);
+
+  // ── 日期切换加载 ───────────────────────────────────────────
+  useEffect(() => {
+    const dateStr = toLocalDateStr(selectedDate);
+    const isToday = dateStr === toLocalDateStr(new Date());
+
+    if (isToday) {
+      // 今天：用 fetchMessages 保持昨日摘要等逻辑
+      if (hasInitialized) return;
+      return;
+    }
+
+    if (dateCache.get(dateStr)) {
+      fetchMessagesByDate(dateStr);
+      return;
+    }
+
+    setIsLoadingDate(true);
+    fetchMessagesByDate(dateStr).finally(() => setIsLoadingDate(false));
+  }, [selectedDate]);
+
+  // ── Edit/Insert handlers ───────────────────────────────────
+  const handleEditClick = useCallback((msg: any) => {
+    setEditingId(msg.id);
+    setInsertingAfterId(null);
+    setEditContent(msg.content);
+    setEditStartTime(format(msg.timestamp, "yyyy-MM-dd'T'HH:mm"));
+    setEditEndTime(format(msg.timestamp + (msg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm"));
+  }, []);
+
+  const handleInsertClick = useCallback((prevMsg: any) => {
+    setInsertingAfterId(prevMsg.id);
+    setEditingId(null);
+    setEditContent('');
+    setEditStartTime(format(prevMsg.timestamp, "yyyy-MM-dd'T'HH:mm"));
+    const idx = messages.findIndex(m => m.id === prevMsg.id);
+    const nextMsg = messages[idx + 1];
+    setEditEndTime(nextMsg
+      ? format(nextMsg.timestamp + (nextMsg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm")
+      : format(Date.now(), "yyyy-MM-dd'T'HH:mm"));
+  }, [messages]);
+
+  const handleSave = async () => {
+    if (!editContent || !editStartTime || !editEndTime) return;
+    const parseTime = (s: string) => new Date(s).getTime();
+    if (editingId) {
+      await updateActivity(editingId, editContent, parseTime(editStartTime), parseTime(editEndTime));
+    } else if (insertingAfterId) {
+      const idx = messages.findIndex(m => m.id === insertingAfterId);
+      const nextMsg = messages[idx + 1];
+      await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, parseTime(editStartTime), parseTime(editEndTime));
+    }
+    setEditingId(null);
+    setInsertingAfterId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm(t('chat_confirm_delete'))) await deleteActivity(id);
+  };
+
+  const handleReclassify = async (messageId: string, nextKind: 'activity' | 'mood') => {
+    await handleLatestMessageReclassify(messageId, nextKind, reclassifyRecentInput, () => {});
+  };
+
+  /** Open mood picker for a card — pre-fill the currently selected option */
+  const handleMoodClick = useCallback((msgId: string) => {
+    setMoodPickerFor(msgId);
+    const ms = useMoodStore.getState();
+    const isCustom = ms.customMoodApplied[msgId];
+    const current  = ms.activityMood[msgId] || null;
+    setSelectedMoodOpt(isCustom ? '__custom__' : current);
+    const label = ms.customMoodLabel[msgId] || '';
+    setCustomLabelInput(isCustom && label ? label : customLabelDefault);
+    setShowCustomLabelInput(false);
+  }, [customLabelDefault]);
 
   const saveCustomLabel = (value: string) => {
     const next = value.trim() || customLabelDefault;
@@ -70,236 +183,44 @@ export const ChatPage = () => {
     setShowCustomLabelInput(false);
   };
 
-  // Edit/Insert State
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [insertingAfterId, setInsertingAfterId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [editStartTime, setEditStartTime] = useState('');
-  const [editEndTime, setEditEndTime] = useState('');
-
-  // Stardust Card State
-  const [selectedStardust, setSelectedStardust] = useState<{
-    data: StardustCardData;
-    position: { x: number; y: number };
-  } | null>(null);
-  const {
-    activityMood,
-    setMood,
-    customMoodLabel,
-    setCustomMoodLabel,
-    customMoodApplied,
-    setCustomMoodApplied,
-    moodNote,
-    setMoodNote,
-  } = useMoodStore(
-    useShallow((state) => ({
-      activityMood: state.activityMood,
-      setMood: state.setMood,
-      customMoodLabel: state.customMoodLabel,
-      setCustomMoodLabel: state.setCustomMoodLabel,
-      customMoodApplied: state.customMoodApplied,
-      setCustomMoodApplied: state.setCustomMoodApplied,
-      moodNote: state.moodNote,
-      setMoodNote: state.setMoodNote,
-    }))
-  );
-
-
-  // ── 初始化 ──────────────────────────────────────────────────
-  useEffect(() => {
-    setHasInitialized(false);
-    fetchMessages();
-  }, []);
-
-  // ── URL 参数清理 ────────────────────────────────────────────
-  useEffect(() => {
-    const todoId = searchParams.get('todoId');
-    if (todoId) {
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
-  // ── 跨天自动刷新 ────────────────────────────────────────────
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkAndRefreshForNewDay();
-    }, 30_000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        checkAndRefreshForNewDay();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [checkAndRefreshForNewDay]);
-
-  // ── 点击卡片加载上一天记录（仅一次） ───────────────────────
-  const handleLoadMore = useCallback(async () => {
-    const container = scrollContainerRef.current;
-    if (!container || !hasMoreHistory || isLoadingMore) return;
-
-    const prevScrollHeight = container.scrollHeight;
-    await fetchOlderMessages();
-
-    requestAnimationFrame(() => {
-      const newScrollHeight = container.scrollHeight;
-      container.scrollTop += newScrollHeight - prevScrollHeight;
-    });
-  }, [hasMoreHistory, isLoadingMore, fetchOlderMessages]);
-
-  // ── 新消息滚动到底部 ────────────────────────────────────────
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
-
-  const activeRecord = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
-      if (message.mode === 'record' && !message.isMood && message.duration == null) {
-        return message;
-      }
-    }
-    return undefined;
-  }, [messages]);
-
-  // ── 当前活动计时器 ──────────────────────────────────────────
-  useEffect(() => {
-    if (!activeRecord) {
-      setCurrentDuration(0);
-      return;
-    }
-
-    const updateDuration = () => {
-      const duration = Math.floor((Date.now() - activeRecord.timestamp) / (1000 * 60));
-      setCurrentDuration(duration);
-    };
-
-    updateDuration();
-    const interval = setInterval(updateDuration, 1000);
-    return () => clearInterval(interval);
-  }, [activeRecord?.id, activeRecord?.timestamp]);
-
-  // ── 编辑 / 插入 handlers ────────────────────────────────────
-  const handleEditClick = (msg: any) => {
-    setEditingId(msg.id);
-    setInsertingAfterId(null);
-    setEditContent(msg.content);
-    setEditStartTime(format(msg.timestamp, "yyyy-MM-dd'T'HH:mm"));
-    const endTime = msg.timestamp + (msg.duration || 0) * 60 * 1000;
-    setEditEndTime(format(endTime, "yyyy-MM-dd'T'HH:mm"));
-  };
-
-  const handleInsertClick = (prevMsg: any) => {
-    setInsertingAfterId(prevMsg.id);
-    setEditingId(null);
-    setEditContent('');
-    setEditStartTime(format(prevMsg.timestamp, "yyyy-MM-dd'T'HH:mm"));
-
-    const index = messages.findIndex(m => m.id === prevMsg.id);
-    const nextMsg = messages[index + 1];
-    if (nextMsg) {
-      const nextEnd = nextMsg.timestamp + (nextMsg.duration || 0) * 60 * 1000;
-      setEditEndTime(format(nextEnd, "yyyy-MM-dd'T'HH:mm"));
-    } else {
-      setEditEndTime(format(Date.now(), "yyyy-MM-dd'T'HH:mm"));
-    }
-  };
-
-  const handleSave = async () => {
-    if (!editContent || !editStartTime || !editEndTime) return;
-    const parseTime = (s: string) => new Date(s).getTime();
-
-    if (editingId) {
-      const msg = messages.find(m => m.id === editingId);
-      if (msg) {
-        await updateActivity(editingId, editContent, parseTime(editStartTime), parseTime(editEndTime));
-      }
-    } else if (insertingAfterId) {
-      const prevMsg = messages.find(m => m.id === insertingAfterId);
-      if (prevMsg) {
-        const index = messages.findIndex(m => m.id === insertingAfterId);
-        const nextMsg = messages[index + 1];
-        await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, parseTime(editStartTime), parseTime(editEndTime));
-      }
-    }
-    setEditingId(null);
-    setInsertingAfterId(null);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm(t('chat_confirm_delete'))) {
-      await deleteActivity(id);
-    }
-  };
-
-  const handleReclassify = async (messageId: string, nextKind: 'activity' | 'mood') => {
-    await handleLatestMessageReclassify(messageId, nextKind, reclassifyRecentInput, setExpandedActionsId);
-  };
-
+  // ── Send ──────────────────────────────────────────────────
   const handleSend = async () => {
     if (!input.trim()) return;
 
     if (isMagicPenModeOn) {
       await handleMagicPenModeSend({
-        input,
-        lang: i18n.language?.split('-')[0] || 'zh',
-        isMagicPenSending,
-        messages,
-        activeTodoId,
-        todos,
+        input, lang: i18n.language?.split('-')[0] || 'zh',
+        isMagicPenSending, messages, activeTodoId, todos,
         sendAutoRecognizedInput: async (content) => {
           const before = useChatStore.getState().messages;
-          const beforeIds = new Set(before.map((message) => message.id));
+          const beforeIds = new Set(before.map(m => m.id));
           const classification = await sendAutoRecognizedInput(content);
           const after = useChatStore.getState().messages;
-          const createdMessage = [...after].reverse().find((message) => !beforeIds.has(message.id));
-          return {
-            classification,
-            messageId: createdMessage?.id,
-          };
+          const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
+          return { classification, messageId: createdMessage?.id };
         },
-        completeActiveTodo,
-        updateMessageDuration,
-        parseMagicPenInput,
-        setIsMagicPenSending,
-        setMagicPenSeedDrafts,
-        setMagicPenSeedUnparsed,
-        setMagicPenSeedAutoWritten,
-        setIsMagicPenOpen,
-        setInput,
+        completeActiveTodo, updateMessageDuration, parseMagicPenInput,
+        setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
+        setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
       });
       return;
     }
 
     const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
-
     const classification = await sendAutoRecognizedInput(input);
 
     if (classification?.kind === 'activity' && activeTodoId) {
       await completeActiveTodo();
-      if (todoToComplete && todoToComplete.startedAt) {
-        const duration = Math.round((Date.now() - todoToComplete.startedAt) / (1000 * 60));
-        await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, duration);
+      if (todoToComplete?.startedAt) {
+        const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
+        await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
       }
     }
-
     setInput('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleOpenMagicPen = () => {
-    setIsMagicPenModeOn((prev) => !prev);
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const handleCloseMagicPen = () => {
@@ -309,19 +230,6 @@ export const ChatPage = () => {
     setMagicPenSeedAutoWritten([]);
   };
 
-  // ── 辅助：计算日期分隔线 ─────────────────────────────────────
-  const getDateLabel = (ts: number) => {
-    const currentLang = i18n.language?.split('-')[0] || 'en';
-    const locale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
-    const datePattern =
-      currentLang === 'zh'
-        ? 'M月d日 EEEE'
-        : currentLang === 'it'
-          ? 'd MMMM EEEE'
-          : 'MMMM d, EEEE';
-    return format(ts, datePattern, { locale });
-  };
-
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
@@ -329,124 +237,27 @@ export const ChatPage = () => {
         <h1 className="text-lg font-semibold text-gray-800">{t('chat_title')}</h1>
       </header>
 
-      {/* Messages Area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isLoadingMore && (
-          <div className="flex items-center justify-center py-3 gap-2 text-gray-400 text-sm">
-            <Loader2 size={16} className="animate-spin" />
-            <span>{t('chat_load_more_records')}</span>
-          </div>
-        )}
+      {/* Date Picker */}
+      <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
-        {!hasMoreHistory && messages.length > 0 && (
-          <div className="flex items-center justify-center py-3 text-xs text-gray-300">
-            {t('chat_reached_oldest')}
-          </div>
-        )}
+      {/* Timeline */}
+      <TimelineView
+        messages={messages}
+        selectedDate={selectedDate}
+        isLoading={isLoading || isLoadingDate}
+        onMoodClick={handleMoodClick}
+      />
 
-        {yesterdaySummary && (
-          <div
-            onClick={handleLoadMore}
-            className="rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 px-4 py-3 flex items-start gap-3 shadow-sm cursor-pointer hover:border-indigo-300 hover:shadow-md active:scale-[0.98] transition-all"
-          >
-            <div className="text-2xl mt-0.5">🌙</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-indigo-800">
-                {yesterdaySummary.isYesterday
-                  ? t('yesterday_summary', { count: yesterdaySummary.count })
-                  : t('previous_day_summary', {
-                      date: getDateLabel(yesterdaySummary.dateStartMs),
-                      count: yesterdaySummary.count,
-                    })}
-              </p>
-              <p className="text-xs text-indigo-500 mt-0.5 truncate">
-                {t('yesterday_last_activity', { content: yesterdaySummary.lastContent })}
-              </p>
-              {hasMoreHistory && (
-                <p className="text-xs text-indigo-400 mt-1.5 flex items-center gap-1">
-                  <ChevronUp size={12} />
-                  {t('yesterday_tap_to_view')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {messages.length === 0 && !isLoading && hasInitialized && !yesterdaySummary && (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
-            <div className="text-4xl mb-3">✨</div>
-            <p className="text-sm font-medium">{t('new_day_start')}</p>
-            <p className="text-xs mt-1 text-gray-300">{t('record_what_you_do')}</p>
-          </div>
-        )}
-
-        {messages.map((msg, index) => {
-          const prevMsg = messages[index - 1];
-          const showDateSep = !prevMsg || !isSameDay(msg.timestamp, prevMsg.timestamp);
-
-          return (
-            <Fragment key={msg.id}>
-              {showDateSep && (
-                <div className="flex items-center gap-2 py-1">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-xs text-gray-400 whitespace-nowrap">
-                    {getDateLabel(msg.timestamp)}
-                  </span>
-                  <div className="flex-1 h-px bg-gray-200" />
-                </div>
-              )}
-
-              <div className="flex flex-col space-y-1">
-                <MessageItem
-                  msg={msg}
-                  activityMood={activityMood}
-                  customMoodLabel={customMoodLabel}
-                  customMoodApplied={customMoodApplied}
-                  moodNote={moodNote}
-                  getStardustByMessageId={getStardustByMessageId}
-                  onEditClick={handleEditClick}
-                  onInsertClick={handleInsertClick}
-                  onDelete={handleDelete}
-                  onMoodPickerOpen={(msgId) => {
-                    setMoodPickerFor(msgId);
-                    setMoodPickerReadonly(false);
-                    setCustomMoodInput(moodNote[msgId] || '');
-                    setCustomLabelInput(customMoodLabel[msgId] || '');
-                    setShowCustomLabelInput(false);
-                  }}
-                  onStardustSelect={(data, position) => setSelectedStardust({ data, position })}
-                  onEndActivity={endActivity}
-                  onReclassify={handleReclassify}
-                  isLatest={index === messages.length - 1}
-                  isActionsExpanded={expandedActionsId === msg.id}
-                  onToggleActions={(id) => {
-                    setExpandedActionsId(prev => (prev === id ? null : id));
-                  }}
-                />
-              </div>
-            </Fragment>
-          );
-        })}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Current Activity Indicator */}
-      {(activeRecord || activeTodoId) && (
-        <div className="px-4 py-2 bg-green-50 border-t border-green-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-green-700">
-            <Activity size={16} className="animate-pulse" />
-            <span className="text-sm font-medium">
-              {t('chat_current_activity')}<span className="font-bold">
-                {activeTodoId
-                  ? todos.find(t => t.id === activeTodoId)?.title || activeRecord?.content
-                  : activeRecord?.content}
-              </span>
-            </span>
-          </div>
-          <span className="text-sm font-bold text-green-600">{t('elapsed_label', { duration: formatDuration(currentDuration, t) })}</span>
-        </div>
-      )}
+      {/* Input Area */}
+      <ChatInputBar
+        input={input}
+        isLoading={isLoading || isMagicPenSending}
+        isMagicPenModeOn={isMagicPenModeOn}
+        onInputChange={setInput}
+        onSend={handleSend}
+        onKeyDown={handleKeyDown}
+        onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
+      />
 
       {/* Edit/Insert Modal */}
       {(editingId || insertingAfterId) && (
@@ -470,7 +281,6 @@ export const ChatPage = () => {
           moodPickerFor={moodPickerFor}
           moodPickerReadonly={moodPickerReadonly}
           selectedMoodOpt={selectedMoodOpt}
-          customMoodInput={customMoodInput}
           customLabelInput={customLabelInput}
           showCustomLabelInput={showCustomLabelInput}
           customMoodLabel={customMoodLabel}
@@ -503,26 +313,10 @@ export const ChatPage = () => {
             }
           }}
           onCustomLabelSave={saveCustomLabel}
-          onMoodNoteChange={(value) => {
-            setCustomMoodInput(value);
-            if (moodPickerFor) {
-              setMoodNote(moodPickerFor, value, 'manual');
-            }
-          }}
         />
       )}
 
-      {/* Input Area */}
-      <ChatInputBar
-        input={input}
-        isLoading={isLoading || isMagicPenSending}
-        isMagicPenModeOn={isMagicPenModeOn}
-        onInputChange={setInput}
-        onSend={handleSend}
-        onKeyDown={handleKeyDown}
-        onToggleMagicPenMode={handleOpenMagicPen}
-      />
-
+      {/* Magic Pen */}
       <MagicPenSheet
         isOpen={isMagicPenOpen}
         initialDrafts={magicPenSeedDrafts}
@@ -530,21 +324,21 @@ export const ChatPage = () => {
         initialAutoWrittenItems={magicPenSeedAutoWritten}
         messages={messages}
         onUndoAutoWritten={async (item: MagicPenAutoWrittenItem) => {
-          if (!item.messageId) {
-            return;
-          }
-          await deleteActivity(item.messageId);
+          if (item.messageId) await deleteActivity(item.messageId);
         }}
         onClose={handleCloseMagicPen}
       />
 
-      {/* 星尘珍藏查看卡片 */}
+      {/* Stardust Card */}
       <StardustCard
         isOpen={!!selectedStardust}
         data={selectedStardust?.data}
         position={selectedStardust?.position}
         onClose={() => setSelectedStardust(null)}
       />
+
+      {/* Yesterday Summary Popup */}
+      <YesterdaySummaryPopup />
     </div>
   );
 };

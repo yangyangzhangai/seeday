@@ -351,6 +351,22 @@ const en = {
     membership_feat_monthly_report: 'Monthly Report',
     membership_feat_yearly_report: 'Yearly Report',
 
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: 'Select Date',
+    month_grid_title: 'Select Month',
+    mood_convert_btn: 'Convert',
+    mood_return_event: 'Return to Event',
+    mood_to_event: 'Convert to Event',
+    image_upload: 'Upload Image',
+    image_uploading: 'Uploading...',
+    image_upload_fail: 'Upload failed, tap to retry',
+    image_delete: 'Delete Image',
+    yesterday_popup: 'Last event yesterday',
+    event_ongoing: 'Ongoing...',
+    end_event_btn: 'End',
+    image_crop_title: 'Crop Image',
+    image_crop_hint: 'Drag to reposition',
+
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',
     previous_day_summary: 'On {{date}}, you logged {{count}} entries',
