@@ -165,7 +165,18 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
     );
   }
 
-  if (hideUploadWhen || hideUploadButton) return <>{fileInput}</>;
+  if (hideUploadWhen || hideUploadButton) return (
+    <>
+      {fileInput}
+      {cropFile && (
+        <ImageCropModal
+          file={cropFile}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
+    </>
+  );
 
   return (
     <>
