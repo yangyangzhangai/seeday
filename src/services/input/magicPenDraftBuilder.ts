@@ -36,7 +36,13 @@ function cloneDraftWithErrors(draft: MagicPenDraftItem, errors: MagicPenDraftErr
 function collectTimeErrors(draft: MagicPenDraftItem, now: number): MagicPenDraftErrorCode[] {
   const activity = draft.activity;
   if (!activity) return [];
-  if (activity.startAt === undefined || activity.endAt === undefined) return ['missing_time'];
+  if (
+    activity.startAt === undefined
+    || activity.endAt === undefined
+    || activity.timeResolution === 'missing'
+  ) {
+    return ['missing_time'];
+  }
   if (activity.startAt >= activity.endAt) return ['invalid_time_range'];
   if (activity.endAt > now) return ['future_time'];
   if (!isSameLocalDay(activity.startAt, activity.endAt)) return ['cross_day'];

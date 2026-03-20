@@ -1,3 +1,6 @@
+import { getCategoryLexicon, type SupportedLang } from '../services/input/lexicon/getLexicon';
+import { zhCategoryLexicon } from '../services/input/lexicon/categoryLexicon.zh';
+
 export const ACTIVITY_RECORD_TYPES = [
   'study',
   'work',
@@ -16,34 +19,10 @@ interface ActivityTypeResult {
   confidence: ActivityTypeConfidence;
 }
 
-const STUDY_HINTS = [
-  '学习', '复习', '预习', '课程', '作业', '刷题', '考试', '备考', '背单词', '看教材', '看论文',
-  'study', 'review', 'learn', 'lesson', 'homework', 'exam',
-];
+// Derived from zhCategoryLexicon for backward-compatible isStudyLike() calls.
+const STUDY_HINTS: readonly string[] = zhCategoryLexicon.keywords.study;
 
-const KEYWORDS: Record<ActivityRecordType, string[]> = {
-  study: STUDY_HINTS,
-  work: [
-    '工作', '上班', '开会', '会议', '需求', '项目', '汇报', '沟通', '对接', '通勤', '写代码', '开发',
-    'work', 'meeting', 'project', 'task', 'office', 'code',
-  ],
-  social: [
-    '社交', '聊天', '闲聊', '朋友', '家人', '约会', '聚会', '聚餐', '见朋友', '电话', '连麦',
-    'social', 'friend', 'family', 'chat', 'call', 'meeting with',
-  ],
-  life: [
-    '生活', '吃饭', '做饭', '家务', '通勤', '洗澡', '购物', '买菜', '收拾', '打扫', '睡觉',
-    'life', 'meal', 'commute', 'chores', 'clean',
-  ],
-  entertainment: [
-    '娱乐', '游戏', '电影', '追剧', '看剧', '刷视频', '短视频', '听歌', '看动漫', '放松',
-    'entertainment', 'game', 'movie', 'music', 'video', 'relax',
-  ],
-  health: [
-    '健康', '运动', '健身', '跑步', '散步', '瑜伽', '拉伸', '体检', '看医生', '喝水', '睡眠',
-    'health', 'exercise', 'gym', 'run', 'walk', 'yoga', 'sleep',
-  ],
-};
+
 
 const CHAT_OR_MOOD_TYPES = new Set(['chat', 'mood']);
 const RECORD_TYPES = new Set<ActivityRecordType>(ACTIVITY_RECORD_TYPES);
@@ -83,18 +62,23 @@ function resolveWorkOrStudy(input: string): ActivityRecordType {
   return isStudyLike(input) ? 'study' : 'work';
 }
 
-export function classifyRecordActivityType(content?: string | null): ActivityTypeResult {
+export function classifyRecordActivityType(
+  content?: string | null,
+  lang: SupportedLang = 'zh',
+): ActivityTypeResult {
   const normalized = (content ?? '').trim().toLowerCase();
   if (!normalized) {
     return { activityType: 'life', confidence: 'low' };
   }
+
+  const keywords = getCategoryLexicon(lang).keywords;
 
   let bestType: ActivityRecordType = 'life';
   let bestScore = -1;
   let secondScore = -1;
 
   for (const type of ACTIVITY_RECORD_TYPES) {
-    const score = includesAnyKeyword(normalized, KEYWORDS[type]);
+    const score = includesAnyKeyword(normalized, keywords[type] as string[]);
     if (score > bestScore) {
       secondScore = bestScore;
       bestScore = score;
@@ -136,7 +120,8 @@ export function mapClassifierCategoryToActivityType(
   if (normalizedCategory === 'dopamine') return 'entertainment';
   if (normalizedCategory === 'dissolved') return 'life';
   if (normalizedCategory === 'recharge') {
-    if (KEYWORDS.social.some((word) => normalizedContent.includes(word.toLowerCase()))) {
+    const socialWords = getCategoryLexicon('zh').keywords.social as string[];
+    if (socialWords.some((word) => normalizedContent.includes(word.toLowerCase()))) {
       return 'social';
     }
     return 'entertainment';

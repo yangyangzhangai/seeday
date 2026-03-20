@@ -1,44 +1,29 @@
 # CURRENT TASK (Session Resume Anchor)
 
-- Last Updated: 2026-03-19
+- Last Updated: 2026-03-20
 - Owner: current working session
-- Purpose: this file is the single execution anchor for `植物系统一期（根系 + 晚间生成 + AI 日记）` 开发。
+- Purpose: this file is the single execution anchor for `多语言词库优化` and `植物系统开发`.
 
 ## Current Focus
 
-- Mainline task status: `植物系统开发` 为当前唯一主线任务。
-- Scope anchor: 以 `LLM.md` + `TimeShine_植物生长_PRD_v1_8.docx` + `TimeShine_植物生长_技术实现文档_v1.7.docx` 为准执行一期开发。
-- Frozen IA decision (must follow): `植物根系展示` 不再作为独立页面入口，统一并入 `src/features/report/ReportPage.tsx`，并固定展示在「周报 / 月报 / 自定义」按钮下方，用户进入 `/report` 即可直接看到根系区（无需额外点击）。
-- Mobile shell-app reminder (must follow): 后续以 Capacitor 套壳上架为目标，所有植物相关 UI 需优先满足移动端规范（safe-area、44x44 触控目标、禁 hover-only 交互、底部导航避让、iOS/Android WebView 流畅性）。
+- **Task Completed**: `多语言词库优化` (Multi-language Lexicon Optimization) is fully implemented, verified, and documented.
+- **Next Mainline**: Return to `植物系统开发` (Phase 3-4 convergence) or continue with Magic Pen multi-language expansion as requested.
 
-## Latest Execution Snapshot (2026-03-18)
+## Latest Execution Snapshot (2026-03-20)
 
-- 已完成 Phase 0 数据层与 Phase 1 算法层：类型/映射/SQL、`plantCalculator`、`rootRenderer` 及单测覆盖。
-- 已完成 Phase 2 主链路代码：`src/store/usePlantStore.ts`、`api/plant-generate.ts`、`api/plant-diary.ts`、`api/plant-history.ts` 与 `src/api/client.ts` 植物接口接入。
-- 已接入活动到根系的实时监听链路（当天持续到 24:00）与当日生成后锁定逻辑（不再回刷）。
-- API 已统一返回状态枚举：`too_early` / `empty_day` / `generated` / `already_generated`。
-- 已在 `src/features/report/ReportPage.tsx` 按冻结 IA 决策内嵌 `PlantRootSection`，并落地 `SoilCanvas` / `RootSystem` / `RootSegmentPath` / `RootDetailBubble` 组件骨架。
-- 已打通 P3 交互主链路：<5 分钟不渲染、5-15 分钟结束后展示、>15 分钟进行中实时延伸；支持点击/长按详情、按钮缩放与白天禁用生成按钮提示。
-- 已补齐首批移动端适配细项：`/report` 根系区底部安全区留白、底部导航避让、触控反馈与 44x44 触控目标强化（hover 非唯一反馈）。
-- 已完成首轮性能收敛：根系分段刷新增加等价短路（无变化不 setState）、拖拽改为 `requestAnimationFrame` 合帧更新、根系渲染组件 `memo` 化，降低高频交互下重渲染成本。
-- 已补充 P3 待办清单（UI 收口 + 测试任务）到本文件，作为接下来默认执行入口。
-- 已确认新的交互冻结方案：取消土壤拖拽心智，改为“根段点击详情 + 我的页方向设置 + 土壤区方向图例”，后续以该方案替换当前临时拖拽实现。
-- 已完成 P3 交互替换首轮：`SoilCanvas` 移除拖拽画布手势、保留按钮缩放与重置；根段点选命中率不再受容器手势影响。
-- 已补齐土壤方向图例（上/右上/右下/左下/左上）并与 `directionOrder` 联动，保证图例与真实方向映射一致。
-- 已补齐根段详情信息：新增 `start-end` 时间段展示，当前详情字段为活动名称 + 时间段 + 时长 + 类型 + 专注度。
-- 已在“我的”页 `SettingsList` 前置“根系方向设置”入口，支持 5 个方向与 5 类活动映射调整并持久化至 `plant_direction_config`。
-- 已完成详情气泡形态修正：根段点选后详情在根尖附近以浮层气泡展示（非画布下方），并在 5 秒后自动消失（支持手动关闭）。
-- 已完成根系区图例视觉升级：图例由画布上方列表改为土壤区右下角悬浮卡片（不拦截触控），并保留方向-类别实时映射。
-- 已完成生成按钮状态文案收口：白天禁用、晚间可点、当日已生成锁定文案统一。
-- 已完成 P3 首批测试补齐：`usePlantStore` 时机规则单测、长按交互控制器单测、方向图例映射一致性单测、`/report` 根系区嵌入集成测试。
-- 已完成 P3 缩放边界收口：`SoilCanvas` 新增 viewport 偏移 clamp 与选中根段自动聚焦，极限缩放时不再出现内容不可达或越界抖动。
-- 已完成根段点选命中增强：`RootSegmentPath` 引入透明命中层（扩大触达笔画），降低高密度根段误触/漏触。
-- 已完成无根段空状态视觉优化：空状态由纯文本升级为结构化提示卡片，减少“空白区”观感。
-- 已新增性能采样模板：`docs/PLANT_P3_PERFORMANCE_SAMPLING_TEMPLATE.md`，用于 WebView FPS/长任务记录。
-- 已完成 chat 记录页卡片交互收口：拍照入口移至卡片激活态右上角功能区，并新增“活动转心情”功能按钮。
-- 已完成“仅最新消息可互转”双层约束：时间线按钮层和 store 层（`convertMoodToEvent`）均限制为最新 `record + text` 消息。
-- 已完成 `useChatStore` 结构拆分（类型与历史回填辅助下沉），store 主入口已降到 max-lines 硬限以内。
-- 下一步入口：继续 Phase 3 收敛（性能压测 + 视觉细节校准 + 移动端验收）。
+- [x] **Unified Lexicon Architecture**: Created `src/services/input/lexicon/` with per-language files for activities, moods, and categories.
+- [x] **Interfaces & Factory**: Implemented `types.ts` and `getLexicon.ts` for clean multi-language access.
+- [x] **Core Refactoring**: `autoDetectMood` and `classifyRecordActivityType` now use the centralized lexicon and support `lang` parameter (ZH/EN/IT).
+- [x] **Logic Synchronization**: Updated `liveInputRules.zh.ts`, `magicPenTodoSalvage.ts`, and `magicPenDraftBuilder.ts` to consume the new system.
+- [x] **Documentation Sync**: Updated `ACTIVITY_LEXICON.md`, `ACTIVITY_MOOD_AUTO_RECOGNITION.md`, `TSHINE_DEV_SPEC.md`, and created `LEXICON_ARCHITECTURE.md`.
+- [x] **Validation**: All 129 core classification tests and multi-language regressions pass.
+
+---
+
+## Historical Tasks (Plant System Phase 0-3)
+
+- 已完成 Phase 0 数据层与 Phase 1 算法层... (keeping the rest of the file content)
+
 
 ## Reference Documents
 

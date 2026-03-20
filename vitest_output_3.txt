@@ -1,0 +1,179 @@
+﻿
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc[39m
+
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mdefaults punct-only input to standalone mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies standalone mood case: 濂界疮
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies standalone mood case: 闅捐繃浜? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies new activity case: 寮€浼? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies group-meeting phrase as activity: 寮€缁勪細
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies activity_with_mood case: 鍐欏懆鎶ュ啓寰楀緢鐑? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mdefaults ambiguous short text to mood: 鏈夌偣涔? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mmaps happy mood keyword in activity_with_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mmaps anxious mood keyword in activity_with_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mnormalizes trailing particles and keeps mood classification
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mforces short pure mood phrase to high standalone mood: 鎴戝緢绱у紶
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mforces colloquial short mood phrase to high standalone mood: 蹇冩儏濂藉ソ
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mclassifies colloquial status phrase as mood: 鐘舵€佽繕琛? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput zh seed and regression cases[2m > [22mdoes not force short pure mood override when time anchor exists: 鍒氭墠濂界疮
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases to mood_about_last_activity: 鍚冮キ濂藉紑蹇? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases to mood_about_last_activity: 鍒氭墠閭ｄ釜浼氱湡鐑? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases repeated newspaper activity+emotion to mood_about_last_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases by expanded zh reference variants: 閭ｄ釜鐢佃瘽鎵撳畬鍚庢暣涓汉閮芥斁鏉句簡
+ [31m脳[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases by expanded zh reference variants: 鍒氭墠閭ｈ妭璇捐鎴戞湁鐐规尗璐?[31m   鈫?expected 'standalone_mood' to be 'mood_about_last_activity' // Object.is equality[39m
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mbiases to mood_about_last_activity: 缁堜簬鍋氬畬浜嗚繖浠朵簨鎯咃紝濂藉紑蹇冨晩
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22muses context-gated strong completion: 鍒氬啓瀹屾姤鍛婁簡濂界疮
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mkeeps strong completion as activity when no related context
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mtreats weak completion as mood signal without context linking when no recent context
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mkeeps weak completion as standalone mood with ongoing context
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mkeeps new activity when strong new-action switch exists: 鍐欏畬鍛ㄦ姤鍚庡幓娲楁尽浜? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput context bias[2m > [22mkeeps new activity when sentence turns into a next action: 鍚冨畬楗幓鏁ｆ
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "璧峰簥" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍚冩棭楗? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鐪嬪皬璇? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鐪嬪姩婕? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "娲楀ご" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鏀舵嬀鎴块棿" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "閬涚嫍" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍙栧揩閫? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鐐瑰鍗? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鎵撴父鎴? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍚瓕" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍠濇按" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鑱婂ぉ" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "绾﹂キ" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "寮€榛? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "杩為害" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "閫涜" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鎺㈠簵" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鎾搁搧" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "澶嶄範鑻辫" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "澶嶄範璇枃" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "澶嶄範鍏徃閲戣瀺" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "澶嶄範姒傜巼缁熻" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "瀛﹀叕鍙搁噾铻? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "瀛﹀尰瀛﹁嫳璇? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鐪嬪叕鍙搁噾铻? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "缁冩鐜囩粺璁? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鑳屽尰瀛﹁嫳璇? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "瀛︿範" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "澶嶄範鏁板" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍋氫綔涓? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍘昏繍鍔? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍘绘暎姝? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "娲楁尽" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "鍐欎唬鐮? as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "闃呰鏂囨。" as new_activity
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "濂界儲" as standalone_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "寰堢劍铏? as standalone_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "浠婂ぉ鐘舵€佸緢宸? as standalone_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "娌＄簿绁? as standalone_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput additional regression set[2m > [22mclassifies "涔? as standalone_mood
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mrecognizes colloquial activity: 鎽搁奔
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mrecognizes place-based activity: 鍘诲仴韬埧
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mhandles completion-style short activity: 鎼炲畾浜? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mkeeps pure mood phrase as standalone mood: 寰堝紑蹇? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with bodily feeling: 鍐欎唬鐮佸啓鍒板ご鐤? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood with mixed clause: 涓婅涓婂緱鏈夌偣鐑? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not classify negative intention as new activity: 涓嶆兂寮€浼? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not classify plan statement as new activity: 鏄庡ぉ瑕佸紑浼? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mintercepts no-output sentence as standalone mood: 浠婂ぉ娌℃湁浜у嚭
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mintercepts no-output sentence as standalone mood: 娌′骇鍑? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mtreats inability phrasing as mood: 瀛︿笉涓嬪幓浜? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mtreats inability phrasing as mood: 鐪嬩笉杩涘幓
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mtreats inability phrasing as mood: 鍐欎笉鍔ㄤ簡
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mtreats inability phrasing as mood: 骞蹭笉涓嬪幓
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mtreats low-motivation phrasing as mood: 瀛︿範鎻愪笉璧峰姴
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not over-trigger activity for 瀛︽湡 in mood sentence
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not over-trigger activity for 鐪嬭捣鏉?in mood sentence
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not over-trigger activity for 缁冧範鎯?in neutral sentence
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mbiases short evaluative phrase to last activity when context exists: 鐖? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mblocks planned activity before activity detection: 鏄庡ぉ瑕佸幓寮€浼? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mclassifies go+place as new activity: 鍘诲叕鍥? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mclassifies go+place as new activity: 鍘诲崥鐗╅
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mclassifies go+place as new activity: 鍘昏秴甯? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mblocks planned go+place: 寰呬細鍘诲叕鍥? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mblocks planned go+place: 鏄庡ぉ鍘诲崥鐗╅
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mblocks negated not-occurred go+place: 鎯冲幓鍏洯浣嗘病鍘? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mkeeps happened shell go+place as activity: 鍒氬幓瓒呭競鍥炴潵
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mkeeps happened shell go+place as activity: 宸茬粡鍘诲叕鍥簡
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mclassifies go+place with mood as activity_with_mood: 鍘诲叕鍥ソ寮€蹇? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22memits evidence entries for planned interception
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22memits go+place happened-shell evidence details
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mdoes not use raw substring context matching: 鍒氬啓瀹屾姤鍛婁簡 vs 寮€浼? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in social-work phrasing: 鍜屽鎴蜂細寮€寰楀緢椤哄埄
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in completion + joy phrasing: 鍒氭墦瀹岀悆锛屽ソ鐖? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in completion + weak mood phrasing: 鍐欏畬鎶ュ憡浜嗭紝缁堜簬鏉惧彛姘? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in result-eval phrasing: 鍗堜紤鐫″緱寰堝ソ
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput gold-driven zh regressions[2m > [22mcaptures activity_with_mood in purchase + mood phrasing: 涔板埌鎯宠鐨勪笢瑗匡紝寮€蹇? [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English standalone mood: I feel tired
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English activity: I am working
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English generic study object: studying corporate finance
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English generic review object: reviewing probability statistics
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English social slang activity: grabbing lunch with friends
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English entertainment activity: watching anime
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English daily activity: reading the newspaper
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English mood about last activity with context
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English mood_about_last_activity with causal evaluation phrasing
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English repeated activity+mood as mood_about_last_activity with context overlap
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies English activity_with_mood: just finished report, relieved
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mkeeps English future plan sentence out of activity: later I will go to the gym
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mdoes not link to unrelated recent context by raw substring in English
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian standalone mood: sono stanco
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian activity: sto studiando
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mkeeps planned Italian sentence out of activity: domani voglio correre
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian generic study object: sto studiando finanza aziendale
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian generic review object: ripasso statistica
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian social activity: prendo pranzo con un amico
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian entertainment activity: guardo anime
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian daily activity: leggo il giornale
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian activity_with_mood: ho appena finito la riunione, sono sollevato
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian mood_about_last_activity with causal mood phrasing
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mclassifies Italian repeated activity+mood as mood_about_last_activity with context overlap
+ [32m鉁?[39m src/services/input/liveInputClassifier.test.ts[2m > [22mclassifyLiveInput en/it baseline regressions[2m > [22mkeeps Italian future plan sentence out of activity: stasera ho intenzione di andare in palestra
+
+node.exe : [31m鈳幆鈳幆鈳幆鈳?[
+1m[7m Failed Tests 1 [27m
+[22m鈳幆鈳幆鈳幆鈳?[39m
+所在位置 行:1 字符: 1
++ & "C:\Program Files\nodejs
+/node.exe" "C:\Program Files
+\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: ([31m  
+  鈳幆鈳幆鈳幆鈳...鈳幆鈳幆鈳幆鈳   
+ ?[39m:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+
+[31m[1m[7m FAIL [27m[22
+m[39m src/services/input/li
+veInputClassifier.test.ts[2
+m > [22mclassifyLiveInput c
+ontext bias[2m > [22mbiase
+s by expanded zh reference v
+ariants: 鍒氭墠閭ｈ妭璇捐鎴戞湁鐐规尗璐?[
+31m[1mAssertionError[22m: 
+expected 'standalone_mood' t
+o be 'mood_about_last_activi
+ty' // Object.is equality[3
+9m
+
+Expected: [32m"mood_about_l
+ast_activity"[39m
+Received: [31m"standalone_m
+ood"[39m
+
+[36m [2m鉂?[22m src/service
+s/input/liveInputClassifier.
+test.ts:[2m192:33[22m[39m
+    [90m190| [39m    })[3
+3m;[39m
+    [90m191| [39m    [34m
+expect[39m(result[33m.[39
+mkind)[33m.[39m[34mtoBe[
+39m([32m'mood'[39m)[33m;
+[39m
+    [90m192| [39m    [34m
+expect[39m(result[33m.[39
+minternalKind)[33m.[39m[3
+4mtoBe[39m([32m'mood_about
+_last_activity'[39m)[33m;
+[39m
+    [90m   | [39m         
+                       [31m
+^[39m
+    [90m193| [39m    [34m
+expect[39m(result[33m.[39
+mrelatedActivityId)[33m.[3
+9m[34mtoBe[39m([32m'a-cla
+ss'[39m)[33m;[39m
+    [90m194| [39m  })[33m
+;[39m
+
+[31m[2m鈳幆鈳幆鈳幆鈳幆鈳幆鈳幆鈳
+幆鈳幆鈳幆鈳幆鈳幆鈳幆[1/1]鈳?[22m
+[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m128 passed[39m[22m[90m (129)[39m
+[2m   Start at [22m 17:54:59
+[2m   Duration [22m 1.13s[2m (transform 179ms, setup 0ms, collect 325ms, tests 79ms, environment 0ms, prepare 296ms)[22m
+

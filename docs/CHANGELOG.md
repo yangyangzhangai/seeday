@@ -8,6 +8,38 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-20 — Multi-language Lexicon Optimization & Unified Architecture
+
+### Added
+
+- Created a unified, multi-language lexicon system in `src/services/input/lexicon/`:
+    - `types.ts`: Defined `ActivityLexicon`, `MoodLexicon`, `CategoryLexicon`, and `LanguageLexicon` interfaces.
+    - `getLexicon.ts`: Implemented a factory for language-based lexicon retrieval (ZH, EN, IT).
+    - `activityLexicon.{zh,en,it}.ts`: Centralized 200+ activity terms and verbs.
+    - `moodLexicon.{zh,en,it}.ts`: Consolidated mood explicit mappings, activity-to-mood inferences, and sentence patterns.
+    - `categoryLexicon.{zh,en,it}.ts`: Centralized activity classification keywords for all supported languages.
+- Added `docs/LEXICON_ARCHITECTURE.md` as the core documentation for the new architecture.
+
+### Changed
+
+- Refactored `src/lib/mood.ts` (`autoDetectMood`) to use the new `MoodLexicon` and support the `lang` parameter for multi-language inference.
+- Refactored `src/lib/activityType.ts` (`classifyRecordActivityType`) to use the new `CategoryLexicon`, enabling full English and Italian category classification.
+- Updated `src/services/input/liveInputRules.zh.ts` to source all its vocabulary from the centralized lexicon, eliminating duplicate lists.
+- Updated `src/services/input/magicPenTodoSalvage.ts` to use `zhMoodLexicon` for consistent mood detection.
+- Updated `src/services/input/magicPenDraftBuilder.ts` to correctly flag `missing_time` when time resolution is missing, fixing a parsing regression.
+- Updated `docs/ACTIVITY_LEXICON.md` and `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` to point to the new centralized lexicon architecture.
+- Updated `docs/TSHINE_DEV_SPEC.md` to include the `lexicon/` folder in the project structure.
+
+### Validation
+
+- `npx vitest run src/lib/mood.test.ts src/lib/activityType.test.ts src/services/input/liveInputClassifier.test.ts src/services/input/magicPenParser.test.ts src/services/input/magicPenTodoSalvage.test.ts`
+- Verified all 129 `liveInputClassifier` tests pass, including context bias and multilingual regressions.
+- Verified Magic Pen parsing correctly extracts content and dates after the lexicon migration.
+
+### Doc-sync impact
+
+- Synced the new lexicon architecture across code paths (`src/services/input/lexicon/**`, `src/lib/mood.ts`, `src/lib/activityType.ts`, `src/services/input/liveInputRules.zh.ts`, `src/services/input/magicPenDraftBuilder.ts`) and documentation files (`docs/CHANGELOG.md`, `docs/ACTIVITY_LEXICON.md`, `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`, `docs/LEXICON_ARCHITECTURE.md`).
+
 ## 2026-03-19 — Chat Reclassify Guard + Timeline Action Area + ChatStore Split
 
 ### Added

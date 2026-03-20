@@ -1,0 +1,688 @@
+﻿
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc[39m
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2mparses activity with exact time
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'浠婂ぉ10鐐瑰紑浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhj-1'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m4[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2mparses activity with exact colon time
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m9[39m,
+  inputPreview: [32m'浠婂ぉ10:30涔拌彍'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhn-2'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2mparses todo from duty word
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'璁板緱鏁寸悊鍙戠エ'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhp-3'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2mparses todo from future word
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m8[39m,
+  inputPreview: [32m'鏅氱偣缁欏濡堝洖鐢佃瘽'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhq-4'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2msends vague sentence to unparsed
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'浠婂ぉ鍋氫簡寰堝浜?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhr-5'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m0[39m,
+  unparsedCount: [33m1[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput basic parsing[2m > [22m[2mrejects cross-day sentence to unparsed
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'鏄ㄥぉ寮€浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhr-6'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m0[39m,
+  unparsedCount: [33m1[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput mixed segments[2m > [22m[2msplits by punctuation and parses activity + todo
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m16[39m,
+  inputPreview: [32m'浠婂ぉ涓婂崍鏀规柟妗堬紝鏅氫笂璁板緱鏁寸悊鍙戠エ'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhs-7'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m2[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput mixed segments[2m > [22m[2mkeeps connector signal for todo segment
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m15[39m,
+  inputPreview: [32m'浠婂ぉ涓婂崍鏀规柟妗堢劧鍚庤寰楁暣鐞嗗彂绁?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glht-8'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m2[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput mixed segments[2m > [22m[2msupports multiline segments
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m12[39m,
+  inputPreview: [32m'浠婂ぉ涓婂崍寮€浼?鏅氱偣鍥炴秷鎭?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhu-9'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m2[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput mixed segments[2m > [22m[2massigns missing_time when activity lacks explicit time
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'浠婂ぉ寮€浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhu-10'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput period windows[2m > [22m[2mmaps 涓婂崍 to 09:00-11:00
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'涓婂崍鏀规柟妗?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhw-11'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput period windows[2m > [22m[2mmaps 涓嬪崍 to 15:00-17:00
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'涓嬪崍涔拌彍'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhw-12'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput period windows[2m > [22m[2mmaps 鏅氫笂 to 20:00-21:00
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'鏅氫笂鏁ｆ'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhx-13'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput period windows[2m > [22m[2mmaps 涓崍 to 12:00-13:00
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'涓崍鍚冮キ'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhx-14'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput explicit time ranges[2m > [22m[2mparses 浠?0鐐瑰埌12鐐?as exact range
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m12[39m,
+  inputPreview: [32m'浠婂ぉ浠?0鐐瑰埌12鐐瑰紑浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhy-15'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput explicit time ranges[2m > [22m[2mparses 涓嬪崍3鐐瑰埌4:30 with period label normalization
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m14[39m,
+  inputPreview: [32m'浠婂ぉ涓嬪崍3鐐瑰埌4:30鍐欐柟妗?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glhz-16'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput explicit time ranges[2m > [22m[2mparses hyphen time range
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m15[39m,
+  inputPreview: [32m'浠婂ぉ10:30-11:45瀛︿範'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli0-17'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput explicit time ranges[2m > [22m[2mmarks invalid range when end is earlier than start
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m11[39m,
+  inputPreview: [32m'浠婂ぉ浠?0鐐瑰埌9鐐瑰紑浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli0-18'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 璁板緱浜ょ數璐?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'璁板緱浜ょ數璐?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli1-19'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 杩樿缁欏洟闃熷彂鍛ㄦ姤
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m8[39m,
+  inputPreview: [32m'杩樿缁欏洟闃熷彂鍛ㄦ姤'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli1-20'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 绋嶅悗鍥炵數璇?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'绋嶅悗鍥炵數璇?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli1-21'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 鏈懆瑕佷拱鍜栧暋璞?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'鏈懆瑕佷拱鍜栧暋璞?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli2-22'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 闇€瑕佽ˉ涓€寮犲彂绁?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'闇€瑕佽ˉ涓€寮犲彂绁?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli2-23'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mparses todo: 鍒繕浜嗗彇蹇€?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'鍒繕浜嗗彇蹇€?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli2-24'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mextracts tomorrow dueDate and strips date word from content
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'鏄庡ぉ鑰冭瘯'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli3-25'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mfills today dueDate for immediate todo phrase
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'寰呬細璺戞'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli3-26'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mtreats evening plan entered in morning as todo
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'鏅氫笂鐪嬬數褰?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T08:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli4-27'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mstrips leading first-person token from immediate todo phrase
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'鎴戝緟浼氬紑浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli5-28'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mextracts next weekday dueDate and strips signals from content
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m8[39m,
+  inputPreview: [32m'涓嬪懆浜岃寰椾氦鏉愭枡'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli5-29'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2msupports numeric month-day dueDate
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'3.18鏃呮父'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli6-30'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2msupports chinese month-day dueDate
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'3鏈?8鍙锋梾琛?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli6-31'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2mrolls yearless explicit date to next year when already past
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'2.10澶嶆煡'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli7-32'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput todo-focused cases[2m > [22m[2msplits compact multi-date todo input into multiple drafts
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m10[39m,
+  inputPreview: [32m'鏄庡ぉ鑰冭瘯3鏈?8鏃呮父'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli8-33'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m2[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 浠婂ぉ鏃╀笂寮€浼?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'浠婂ぉ鏃╀笂寮€浼?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli9-34'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 浠婂ぉ涓嬪崍涔拌彍
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'浠婂ぉ涓嬪崍涔拌彍'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4gli9-35'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 鍒氬垰閫氬嫟
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m4[39m,
+  inputPreview: [32m'鍒氬垰閫氬嫟'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glia-36'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 浠婂ぉ鏅氫笂鍋氬鍔?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'浠婂ぉ鏅氫笂鍋氬鍔?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glia-37'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 浠婂ぉ10鐐瑰涔?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'浠婂ぉ10鐐瑰涔?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glib-38'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 涓婂崍鍐欐柟妗?[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m5[39m,
+  inputPreview: [32m'涓婂崍鍐欐柟妗?[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glib-39'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mparses activity: 鏃╀笂閫冭鍘婚€涜
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m7[39m,
+  inputPreview: [32m'鏃╀笂閫冭鍘婚€涜'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glic-40'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m0[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22mparses activity with exact time
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22mparses activity with exact colon time
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22mparses todo from duty word
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22mparses todo from future word
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22msends vague sentence to unparsed
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput basic parsing[2m > [22mrejects cross-day sentence to unparsed
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput mixed segments[2m > [22msplits by punctuation and parses activity + todo
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput mixed segments[2m > [22mkeeps connector signal for todo segment
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput mixed segments[2m > [22msupports multiline segments
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput mixed segments[2m > [22massigns missing_time when activity lacks explicit time
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput period windows[2m > [22mmaps 涓婂崍 to 09:00-11:00
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput period windows[2m > [22mmaps 涓嬪崍 to 15:00-17:00
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput period windows[2m > [22mmaps 鏅氫笂 to 20:00-21:00
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput period windows[2m > [22mmaps 涓崍 to 12:00-13:00
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput explicit time ranges[2m > [22mparses 浠?0鐐瑰埌12鐐?as exact range
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput explicit time ranges[2m > [22mparses 涓嬪崍3鐐瑰埌4:30 with period label normalization
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput explicit time ranges[2m > [22mparses hyphen time range
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput explicit time ranges[2m > [22mmarks invalid range when end is earlier than start
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 璁板緱浜ょ數璐? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 杩樿缁欏洟闃熷彂鍛ㄦ姤
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 绋嶅悗鍥炵數璇? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 鏈懆瑕佷拱鍜栧暋璞? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 闇€瑕佽ˉ涓€寮犲彂绁? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mparses todo: 鍒繕浜嗗彇蹇€? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mextracts tomorrow dueDate and strips date word from content
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mfills today dueDate for immediate todo phrase
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mtreats evening plan entered in morning as todo
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mstrips leading first-person token from immediate todo phrase
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mextracts next weekday dueDate and strips signals from content
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22msupports numeric month-day dueDate
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22msupports chinese month-day dueDate
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22mrolls yearless explicit date to next year when already past
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput todo-focused cases[2m > [22msplits compact multi-date todo input into multiple drafts
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 浠婂ぉ鏃╀笂寮€浼? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 浠婂ぉ涓嬪崍涔拌彍
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 鍒氬垰閫氬嫟
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 浠婂ぉ鏅氫笂鍋氬鍔? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 浠婂ぉ10鐐瑰涔? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 涓婂崍鍐欐柟妗? [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mparses activity: 鏃╀笂閫冭鍘婚€涜
+ [32m鉁?[39m src/services/input/magicPenParser.test.ts[2m > [22mparseMagicPenInput activity-focused cases[2m > [22mstrips leading first-person token from activity backfill content
+[90mstdout[2m | src/services/input/magicPenParser.test.ts[2m > [22m[2mparseMagicPenInput activity-focused cases[2m > [22m[2mstrips leading first-person token from activity backfill content
+[22m[39m[magic-pen-parser] parse.start {
+  inputLength: [33m6[39m,
+  inputPreview: [32m'鎴戜笂鍗堝涔犱簡'[39m,
+  lang: [32m'zh'[39m,
+  now: [32m'2026-03-11T17:00:00.000Z'[39m
+}
+[api-client] request.start { requestId: [32m'magic-pen-parse-mmz4glic-41'[39m, path: [32m'/magic-pen-parse'[39m }
+[magic-pen-parser] parse.fallback_local {
+  elapsedMs: [33m1[39m,
+  reason: [32m'Failed to parse URL from /api/magic-pen-parse'[39m,
+  draftCount: [33m1[39m,
+  unparsedCount: [33m0[39m,
+  autoWriteCount: [33m0[39m
+}
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m41 passed[39m[22m[90m (41)[39m
+[2m   Start at [22m 17:37:09
+[2m   Duration [22m 1.35s[2m (transform 302ms, setup 0ms, collect 501ms, tests 33ms, environment 0ms, prepare 423ms)[22m
+

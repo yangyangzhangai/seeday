@@ -42,6 +42,8 @@ src/
 ├── services/          # 业务逻辑层（纯 TypeScript，无 React 依赖）
 │   ├── chatService.ts      # 聊天业务逻辑
 │   ├── todoService.ts      # 待办业务逻辑
+│   ├── input/              # 输入分类与词库 (Lexicon)
+│   │   └── lexicon/        # 多语言词典数据 (SSOT)
 │   ├── reportService.ts    # 日报业务逻辑
 │   ├── plantService.ts     # 植物生成逻辑（新功能）
 │   └── native/             # 原生能力封装（Capacitor 插件）
