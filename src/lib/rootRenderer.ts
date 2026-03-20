@@ -52,13 +52,7 @@ const DIRECTION_BRANCH_ANGLE_RANGES: Record<DirectionIndex, { min: number; max: 
   4: { min: 20, max: 70 },
 };
 
-const SOIL_ANCHOR_RATIO: Record<DirectionIndex, number> = {
-  0: 0.2,
-  1: 0.35,
-  2: 0.5,
-  3: 0.65,
-  4: 0.8,
-};
+const SOIL_ANCHOR_X_RATIO = 0.5;
 
 const defaultOptions: Required<RootRendererOptions> = {
   canvasWidth: 360,
@@ -344,8 +338,8 @@ interface Vector {
   y: number;
 }
 
-const getAnchorPoint = (segment: RootSegment, options: Required<RootRendererOptions>): Point => {
-  const x = options.canvasWidth * SOIL_ANCHOR_RATIO[segment.direction];
+const getAnchorPoint = (_segment: RootSegment, options: Required<RootRendererOptions>): Point => {
+  const x = options.canvasWidth * SOIL_ANCHOR_X_RATIO;
   const y = options.soilY;
   return { x, y };
 };
