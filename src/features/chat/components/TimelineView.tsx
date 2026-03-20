@@ -102,11 +102,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const isLast  = idx === items.length - 1;
           const timeLabel = format(msg.timestamp, 'HH:mm');
           const isMoodCard = msg.isMood && msg.detached;
-<<<<<<< HEAD
           const allowReclassify = msg.id === latestRecordMessageId;
-=======
           const cardReadonly = !isToday(selectedDate);
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 
           return (
             /* items-stretch makes all children equal height so the bottom
@@ -148,12 +145,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onReturnToEvent={id => reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
-<<<<<<< HEAD
                     allowConvertToEvent={allowReclassify}
-=======
                     onMoodClick={onMoodClick}
                     readonly={cardReadonly}
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
                   />
                 ) : (
                   <EventCard
@@ -163,11 +157,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
                     onDelete={id => void deleteActivity(id)}
-<<<<<<< HEAD
                     allowConvertToMood={allowReclassify}
-=======
                     readonly={cardReadonly}
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
                   />
                 )}
               </div>

@@ -15,13 +15,9 @@ export interface MoodCardProps {
   onReturnToEvent: (id: string) => void;
   onConvertToEvent: (id: string) => void;
   onDelete: (id: string) => void;
-<<<<<<< HEAD
   allowConvertToEvent: boolean;
-=======
   onMoodClick: (messageId: string) => void;
-  /** Past-date card: no editing or deleting allowed */
   readonly?: boolean;
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 }
 
 export const MoodCard: React.FC<MoodCardProps> = ({
@@ -29,12 +25,9 @@ export const MoodCard: React.FC<MoodCardProps> = ({
   onReturnToEvent,
   onConvertToEvent,
   onDelete,
-<<<<<<< HEAD
   allowConvertToEvent,
-=======
   onMoodClick,
   readonly,
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 }) => {
   const { t } = useTranslation();
   const { updateMessageImage } = useChatStore();
@@ -95,34 +88,6 @@ export const MoodCard: React.FC<MoodCardProps> = ({
         </button>
       )}
 
-<<<<<<< HEAD
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
-        <span
-          className="text-sm text-gray-800 truncate"
-          style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
-        >
-          {message.content}
-        </span>
-      </div>
-      <div className="flex items-center gap-1 shrink-0 ml-2">
-        <button
-          onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }}
-          title={t('mood_return_event')}
-          className="flex items-center text-sky-600 border border-sky-200 rounded-full p-1 hover:bg-sky-100 transition-colors"
-        >
-          <ArrowLeft size={12} />
-        </button>
-        {allowConvertToEvent && (
-          <button
-            onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
-            title={t('mood_to_event')}
-            className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
-          >
-            <Zap size={12} />
-          </button>
-        )}
-=======
       {/* Text row: dot + content + mood chip + action buttons */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-1.5 flex-1 min-w-0">
@@ -179,17 +144,18 @@ export const MoodCard: React.FC<MoodCardProps> = ({
               >
                 <ArrowLeft size={12} />
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
-                title={t('mood_to_event')}
-                className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
-              >
-                <Zap size={12} />
-              </button>
+              {allowConvertToEvent && (
+                <button
+                  onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
+                  title={t('mood_to_event')}
+                  className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
+                >
+                  <Zap size={12} />
+                </button>
+              )}
             </>
           )}
         </div>
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
       </div>
 
       {/* Images — same layout/size as EventCard, with tap-to-zoom/delete via ImageUploader */}

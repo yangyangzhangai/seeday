@@ -12,21 +12,13 @@ export interface ImageUploaderProps {
   onRemoved:  () => void;
   compact?: boolean;
   hideUploadWhen?: boolean;
-<<<<<<< HEAD
   hideUploadButton?: boolean;
   openSignal?: number;
-}
-
-export const ImageUploader: React.FC<ImageUploaderProps> = ({
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal,
-=======
-  /** View-only: tap shows zoom only, no delete button */
   readonly?: boolean;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, readonly,
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly,
 }) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -50,9 +42,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   }, [imageTapped]);
 
   useEffect(() => {
-    if (!openSignal || imageUrl || uploading) return;
+    if (readonly || !openSignal || imageUrl || uploading) return;
     inputRef.current?.click();
-  }, [openSignal, imageUrl, uploading]);
+  }, [openSignal, imageUrl, uploading, readonly]);
 
   const handleCropConfirm = async (blob: Blob) => {
     setCropFile(null);

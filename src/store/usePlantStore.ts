@@ -107,7 +107,6 @@ function normalizeDirectionOrder(order: PlantCategoryKey[]): PlantCategoryKey[] 
 
 function toDirectionMap(order: PlantCategoryKey[]): Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> {
   const fullOrder = normalizeDirectionOrder(order);
-<<<<<<< HEAD
   const directionMap: Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> = {
     entertainment: 0,
     social: 1,
@@ -119,15 +118,6 @@ function toDirectionMap(order: PlantCategoryKey[]): Record<PlantCategoryKey, 0 |
     directionMap[category] = index as 0 | 1 | 2 | 3 | 4;
   });
   return directionMap;
-=======
-  return {
-    [fullOrder[0]]: 0,
-    [fullOrder[1]]: 1,
-    [fullOrder[2]]: 2,
-    [fullOrder[3]]: 3,
-    [fullOrder[4]]: 4,
-  } as Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4>;
->>>>>>> 1f9febc31a34769f24e8ae42e050b0d32c42b673
 }
 
 function isTodayPlantLocked(todayPlant: DailyPlantRecord | null): boolean {
