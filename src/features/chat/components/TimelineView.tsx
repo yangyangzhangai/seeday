@@ -13,6 +13,7 @@ export interface TimelineViewProps {
   selectedDate: Date;
   isLoading: boolean;
   onMoodClick: (messageId: string) => void;
+  onTimeClick?: (message: Message) => void;
 }
 
 /** Animated growing line shown below the dot of an ongoing (not-yet-ended) event */
@@ -54,7 +55,7 @@ const SkeletonCard: React.FC = () => (
 );
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
-  messages, selectedDate, isLoading, onMoodClick,
+  messages, selectedDate, isLoading, onMoodClick, onTimeClick,
 }) => {
   const { t } = useTranslation();
   const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
@@ -112,7 +113,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
               {/* ── Time label (left of line) ──────────────── */}
               <div className="w-10 shrink-0 flex flex-col items-end pr-2 pt-1">
-                <span className="text-[11px] font-medium text-gray-400 leading-none tabular-nums">
+                <span
+                  className={cn(
+                    'text-[11px] font-medium text-gray-400 leading-none tabular-nums',
+                    !cardReadonly && !isMoodCard && onTimeClick ? 'cursor-pointer hover:text-gray-600' : '',
+                  )}
+                  onClick={() => {
+                    if (!cardReadonly && !isMoodCard && onTimeClick) onTimeClick(msg);
+                  }}
+                >
                   {timeLabel}
                 </span>
               </div>

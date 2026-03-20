@@ -6,7 +6,7 @@ import { getMoodColor } from '../../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
 import { formatDuration } from '../../../lib/time';
 import { cn } from '../../../lib/utils';
-import { ImageUploader } from './ImageUploader';
+import { ImageUploader, type ImageUploaderHandle } from './ImageUploader';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { useChatStore } from '../../../store/useChatStore';
@@ -64,8 +64,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
   const canUploadImage = !hasImage1 || !hasImage2;
-  const [openImage1Signal, setOpenImage1Signal] = useState(0);
-  const [openImage2Signal, setOpenImage2Signal] = useState(0);
+  const image1UploaderRef = useRef<ImageUploaderHandle | null>(null);
+  const image2UploaderRef = useRef<ImageUploaderHandle | null>(null);
 
   // Live elapsed-time counter for ongoing events (ticks every 30s)
   const [elapsedSec, setElapsedSec] = useState(() =>
@@ -89,11 +89,11 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const handleOpenImageUpload = () => {
     if (!hasImage1) {
-      setOpenImage1Signal(v => v + 1);
+      image1UploaderRef.current?.openFilePicker();
       return;
     }
     if (!hasImage2) {
-      setOpenImage2Signal(v => v + 1);
+      image2UploaderRef.current?.openFilePicker();
     }
   };
 
@@ -211,18 +211,19 @@ export const EventCard: React.FC<EventCardProps> = ({
         <div className="flex gap-1.5 mt-1.5">
           <div className="flex-1 min-w-0">
             <ImageUploader
+              ref={image1UploaderRef}
               messageId={message.id}
               imageUrl={message.imageUrl}
               onUploaded={url => handleImageUploaded('imageUrl', url)}
               onRemoved={() => handleImageRemoved('imageUrl')}
               compact
               hideUploadButton
-              openSignal={openImage1Signal}
             />
           </div>
           {hasImage1 && (
             <div className="flex-1 min-w-0">
               <ImageUploader
+                ref={image2UploaderRef}
                 messageId={`${message.id}_2`}
                 imageUrl={message.imageUrl2}
                 onUploaded={url => handleImageUploaded('imageUrl2', url)}
@@ -230,7 +231,6 @@ export const EventCard: React.FC<EventCardProps> = ({
                 compact
                 hideUploadWhen={hasImage2}
                 hideUploadButton
-                openSignal={openImage2Signal}
               />
             </div>
           )}
