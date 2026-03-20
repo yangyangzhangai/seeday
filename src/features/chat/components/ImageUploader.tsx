@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
 import { useImageUpload } from '../../../hooks/useImageUpload';
@@ -17,9 +17,13 @@ export interface ImageUploaderProps {
   readonly?: boolean;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({
+export interface ImageUploaderHandle {
+  openFilePicker: () => void;
+}
+
+export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploaderProps>(({
   messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly,
-}) => {
+}, ref) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -41,9 +45,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [imageTapped]);
 
-  useEffect(() => {
-    if (readonly || !openSignal || imageUrl || uploading) return;
+  const openFilePicker = () => {
+    if (readonly || imageUrl || uploading) return;
     inputRef.current?.click();
+  };
+
+  useImperativeHandle(ref, () => ({ openFilePicker }), [readonly, imageUrl, uploading]);
+
+  useEffect(() => {
+    if (!openSignal) return;
+    openFilePicker();
   }, [openSignal, imageUrl, uploading, readonly]);
 
   const handleCropConfirm = async (blob: Blob) => {
@@ -193,4 +204,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       )}
     </>
   );
-};
+});
+
+ImageUploader.displayName = 'ImageUploader';

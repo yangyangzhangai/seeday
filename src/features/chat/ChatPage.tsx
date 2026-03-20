@@ -18,8 +18,6 @@ import { MoodPickerModal } from './MoodPickerModal';
 import { DatePicker } from './components/DatePicker';
 import { TimelineView } from './components/TimelineView';
 import { YesterdaySummaryPopup } from './components/YesterdaySummaryPopup';
-import { ImageCropModal } from './components/ImageCropModal';
-import { useImageUpload } from '../../hooks/useImageUpload';
 
 import { parseMagicPenInput } from '../../services/input/magicPenParser';
 import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
@@ -28,6 +26,7 @@ import { toLocalDateStr } from '../../lib/dateUtils';
 import { format } from 'date-fns';
 
 export const ChatPage = () => {
+  const todayStr = toLocalDateStr(new Date());
   const {
     messages, sendAutoRecognizedInput, fetchMessages, fetchMessagesByDate,
     checkAndRefreshForNewDay, updateActivity, insertActivity, deleteActivity,
@@ -62,38 +61,7 @@ export const ChatPage = () => {
     data: StardustCardData; position: { x: number; y: number };
   } | null>(null);
 
-  // ── Pending images (staged in input bar before send) ───────
-  const [pendingBlobs, setPendingBlobs]       = useState<Blob[]>([]);
-  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
-  const [inputBarCropFile, setInputBarCropFile] = useState<File | null>(null);
-  const [inputError, setInputError]           = useState<string | null>(null);
-  const { upload: uploadImage } = useImageUpload();
   const sendingRef = useRef(false);
-
-  const handleInputBarPhotoFileSelected = useCallback((file: File) => {
-    if (pendingBlobs.length >= 2) return; // max 2 images
-    setInputBarCropFile(file);
-  }, [pendingBlobs.length]);
-
-  const handleInputBarCropConfirm = useCallback((blob: Blob) => {
-    const preview = URL.createObjectURL(blob);
-    setPendingBlobs(prev => [...prev, blob]);
-    setPendingPreviews(prev => [...prev, preview]);
-    setInputBarCropFile(null);
-  }, []);
-
-  const handleRemovePendingImage = useCallback((idx: number) => {
-    setPendingBlobs(prev => prev.filter((_, i) => i !== idx));
-    setPendingPreviews(prev => {
-      URL.revokeObjectURL(prev[idx]); // free memory
-      return prev.filter((_, i) => i !== idx);
-    });
-  }, []);
-
-  const clearPendingImages = useCallback(() => {
-    setPendingPreviews(prev => { prev.forEach(URL.revokeObjectURL); return []; });
-    setPendingBlobs([]);
-  }, []);
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
@@ -138,7 +106,7 @@ export const ChatPage = () => {
   // ── 日期切换加载 ───────────────────────────────────────────
   useEffect(() => {
     const dateStr = toLocalDateStr(selectedDate);
-    const isToday = dateStr === toLocalDateStr(new Date());
+    const isToday = dateStr === todayStr;
 
     if (isToday) {
       // First load is handled by the init useEffect — skip
@@ -166,28 +134,18 @@ export const ChatPage = () => {
 
     setIsLoadingDate(true);
     fetchMessagesByDate(dateStr).finally(() => setIsLoadingDate(false));
-  }, [selectedDate]);
+  }, [selectedDate, todayStr]);
 
-  // ── Edit/Insert handlers ───────────────────────────────────
-  const handleEditClick = useCallback((msg: any) => {
+  const isSelectedDateToday = toLocalDateStr(selectedDate) === todayStr;
+
+  const handleTimeClick = useCallback((msg: any) => {
+    if (!isSelectedDateToday || msg?.isMood) return;
     setEditingId(msg.id);
     setInsertingAfterId(null);
     setEditContent(msg.content);
     setEditStartTime(format(msg.timestamp, "yyyy-MM-dd'T'HH:mm"));
     setEditEndTime(format(msg.timestamp + (msg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm"));
-  }, []);
-
-  const handleInsertClick = useCallback((prevMsg: any) => {
-    setInsertingAfterId(prevMsg.id);
-    setEditingId(null);
-    setEditContent('');
-    setEditStartTime(format(prevMsg.timestamp, "yyyy-MM-dd'T'HH:mm"));
-    const idx = messages.findIndex(m => m.id === prevMsg.id);
-    const nextMsg = messages[idx + 1];
-    setEditEndTime(nextMsg
-      ? format(nextMsg.timestamp + (nextMsg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm")
-      : format(Date.now(), "yyyy-MM-dd'T'HH:mm"));
-  }, [messages]);
+  }, [isSelectedDateToday]);
 
   const handleSave = async () => {
     if (!editContent || !editStartTime || !editEndTime) return;
@@ -237,33 +195,16 @@ export const ChatPage = () => {
 
   // ── Send ──────────────────────────────────────────────────
   const handleSend = async () => {
-    const hasText   = input.trim().length > 0;
-    const hasImages = pendingBlobs.length > 0;
-
-    if (!hasText) {
-      if (hasImages) setInputError(t('chat_input_error_need_text'));
-      return;
-    }
+    if (!isSelectedDateToday) return;
+    if (!input.trim()) return;
     if (sendingRef.current) return;
 
-    setInputError(null);
-
-    // Capture values before clearing UI
-    const textToSend  = input;
-    const blobsToSend = [...pendingBlobs];
-    // Keep previewUrls alive (do NOT revoke yet — needed for optimistic card render)
-    const previewUrls = [...pendingPreviews];
-
-    // Clear input bar immediately; defer blob URL revocation until after upload
+    const textToSend = input;
     setInput('');
-    setPendingBlobs([]);
-    setPendingPreviews([]);
     sendingRef.current = true;
 
     try {
       if (isMagicPenModeOn) {
-        // Magic pen doesn't use images — safe to revoke now
-        previewUrls.forEach(URL.revokeObjectURL);
         await handleMagicPenModeSend({
           input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
           isMagicPenSending, messages, activeTodoId,
@@ -283,7 +224,6 @@ export const ChatPage = () => {
         return;
       }
 
-      const beforeIds = new Set(useChatStore.getState().messages.map(m => m.id));
       const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
       const classification = await sendAutoRecognizedInput(textToSend);
 
@@ -293,48 +233,6 @@ export const ChatPage = () => {
           const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
           await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
         }
-      }
-
-      if (blobsToSend.length > 0 && classification?.kind) {
-        const newMsg = [...useChatStore.getState().messages]
-          .reverse()
-          .find(m => !beforeIds.has(m.id));
-
-        if (newMsg) {
-          // Mood attached to same-day event → force standalone card.
-          // detachMoodFromEvent (inside) is synchronous; Supabase persist is fire-and-forget.
-          if (newMsg.isMood && !newMsg.detached) {
-            void useChatStore.getState().detachMoodMessage(newMsg.id);
-          }
-
-          // ── Optimistic: paint blob preview URLs into the card right now ──
-          // The card shows images instantly; real URLs silently replace them after upload.
-          useChatStore.setState(state => ({
-            messages: state.messages.map(m => {
-              if (m.id !== newMsg.id) return m;
-              return {
-                ...m,
-                ...(previewUrls[0] != null && { imageUrl:  previewUrls[0] }),
-                ...(previewUrls[1] != null && { imageUrl2: previewUrls[1] }),
-              };
-            }),
-          }));
-
-          // Upload in background — replace each optimistic URL with the permanent one
-          const { updateMessageImage } = useChatStore.getState();
-          const slots = (['imageUrl', 'imageUrl2'] as const).slice(0, blobsToSend.length);
-          void Promise.all(
-            slots.map(async (slot, i) => {
-              const url = await uploadImage(blobsToSend[i], `${newMsg.id}_${slot}`);
-              await updateMessageImage(newMsg.id, slot, url);
-              URL.revokeObjectURL(previewUrls[i]); // safe to revoke once real URL is live
-            }),
-          );
-        } else {
-          previewUrls.forEach(URL.revokeObjectURL);
-        }
-      } else {
-        previewUrls.forEach(URL.revokeObjectURL);
       }
     } finally {
       sendingRef.current = false;
@@ -368,31 +266,21 @@ export const ChatPage = () => {
         selectedDate={selectedDate}
         isLoading={isLoading || isLoadingDate}
         onMoodClick={handleMoodClick}
+        onTimeClick={handleTimeClick}
       />
 
       {/* Input Area */}
       <ChatInputBar
         input={input}
         isLoading={isLoading || isMagicPenSending}
+        isReadOnly={!isSelectedDateToday}
+        readOnlyMessage="已切换到历史日期，切换回今日可继续记录"
         isMagicPenModeOn={isMagicPenModeOn}
-        onInputChange={v => { setInput(v); if (inputError) setInputError(null); }}
+        onInputChange={setInput}
         onSend={() => { void handleSend(); }}
         onKeyDown={handleKeyDown}
         onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
-        onPhotoFileSelected={handleInputBarPhotoFileSelected}
-        pendingImagePreviews={pendingPreviews}
-        onRemovePendingImage={handleRemovePendingImage}
-        inputError={inputError}
       />
-
-      {/* Crop modal for input-bar staged photos */}
-      {inputBarCropFile && (
-        <ImageCropModal
-          file={inputBarCropFile}
-          onConfirm={handleInputBarCropConfirm}
-          onCancel={() => setInputBarCropFile(null)}
-        />
-      )}
 
       {/* Edit/Insert Modal */}
       {(editingId || insertingAfterId) && (
