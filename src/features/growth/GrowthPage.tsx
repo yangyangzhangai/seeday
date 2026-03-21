@@ -52,15 +52,19 @@ export const GrowthPage = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!userId) return;
-    if (typeof window === 'undefined' || !window.sessionStorage) return;
+    if (typeof window === 'undefined' || !window.sessionStorage || !window.localStorage) return;
     let cancelled = false;
 
     const checkPopup = async () => {
       const today = localDateStr();
-      const visitKey = `growth:first-visit:${userId}:${today}`;
+      const firstLoginSessionKey = `growth:is-first-login:${userId}:${today}`;
+      const visitKey = `growth:daily-goal-evaluated:${userId}:${today}`;
+
+      // Popup may only be evaluated in today's first login session.
+      if (window.sessionStorage.getItem(firstLoginSessionKey) !== '1') return;
 
       // Only evaluate popup rules on the first Growth-page visit of the day.
-      if (window.sessionStorage.getItem(visitKey)) return;
+      if (window.localStorage.getItem(visitKey) === '1') return;
 
       let freshestRemoteGoalDate = normalizeDateKey(remoteGoalDate);
       try {
@@ -82,7 +86,7 @@ export const GrowthPage = () => {
       }
 
       if (!cancelled) {
-        window.sessionStorage.setItem(visitKey, '1');
+        window.localStorage.setItem(visitKey, '1');
       }
     };
 

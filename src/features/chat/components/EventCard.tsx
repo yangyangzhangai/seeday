@@ -10,6 +10,7 @@ import { ImageUploader, type ImageUploaderHandle } from './ImageUploader';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { useChatStore } from '../../../store/useChatStore';
+import { useStardustStore } from '../../../store/useStardustStore';
 import { autoDetectMood } from '../../../lib/mood';
 
 export interface EventCardProps {
@@ -32,7 +33,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
+  const stardust = useStardustStore(s => s.getStardustByMessageId(message.id));
   const { detachMoodFromEvent, updateMessageImage, reclassifyRecentInput } = useChatStore();
+  const stardustEmoji = stardust?.emojiChar || message.stardustEmoji;
 
   const [cardActive, setCardActive] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -162,6 +165,11 @@ export const EventCard: React.FC<EventCardProps> = ({
           >
             {message.content}
           </span>
+          {stardustEmoji && (
+            <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
+              {stardustEmoji}
+            </span>
+          )}
         </div>
 
         {/* Mood chip (right) — clickable only when not readonly */}

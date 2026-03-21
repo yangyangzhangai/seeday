@@ -35,11 +35,13 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     // Optimistic update — toggle immediately so the UI responds without waiting for async ops
     toggleTodo(id);
     if (todo && !wasCompleted) {
+      const now = Date.now();
       // Increment bottle star if linked
       if (todo.bottleId) incrementBottleStar(todo.bottleId);
       // Create a completed record card:
-      // Start time = todo's due time (or createdAt as fallback), end time = now
-      const startTime = todo.dueAt ?? todo.createdAt;
+      // If the todo was started before, preserve that start time; otherwise use completion time.
+      // Never fallback to dueAt/createdAt here, otherwise timeline order can be incorrect.
+      const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, 'record', {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
       });
