@@ -41,6 +41,7 @@ const en = {
     chat_label_content: 'Activity',
     chat_placeholder_content: 'What were you doing…',
     chat_label_start_time: 'Start Time',
+    chat_start_time_no_future: 'Start time cannot be in the future',
     chat_label_end_time: 'End Time',
     chat_title_edit: 'Edit',
     chat_title_insert: 'Insert after',

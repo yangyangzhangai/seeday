@@ -63,6 +63,19 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     expect(sendMood).not.toHaveBeenCalled();
   });
 
+  it('falls back to auto mood when activity_with_mood has no extracted mood', async () => {
+    const sendMessage = vi.fn(async () => 'activity-2');
+    const sendMood = vi.fn(async () => 'mood-2');
+
+    const result = await sendAutoRecognizedInputFlow('写完报告了，终于松口气', [], sendMessage, sendMood);
+
+    expect(result?.classification.internalKind).toBe('activity_with_mood');
+    const moodState = useMoodStore.getState();
+    expect(moodState.activityMood['activity-2']).toBeDefined();
+    expect(moodState.moodNote['activity-2']).toBe('写完报告了，终于松口气');
+    expect(sendMood).not.toHaveBeenCalled();
+  });
+
   it('classifies mood_about_last_activity with recent context sentence', async () => {
     const now = Date.now();
     const messages: Message[] = [

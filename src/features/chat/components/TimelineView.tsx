@@ -7,6 +7,8 @@ import { MoodCard } from './MoodCard';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { cn } from '../../../lib/utils';
+import { useMoodStore } from '../../../store/useMoodStore';
+import { autoDetectMood } from '../../../lib/mood';
 
 export interface TimelineViewProps {
   messages: Message[];
@@ -59,6 +61,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 }) => {
   const { t } = useTranslation();
   const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
+  const getMood = useMoodStore(s => s.getMood);
+  const setMood = useMoodStore(s => s.setMood);
 
   const { items, moodDescMap, latestRecordMessageId } = useMemo(() => {
     const eligible = messages
@@ -76,6 +80,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     const latestRecordMessageId = eligible.length > 0 ? eligible[eligible.length - 1].id : null;
     return { items, moodDescMap, latestRecordMessageId };
   }, [messages]);
+
+  // Backfill missing auto-mood labels for completed record events already in timeline.
+  // This covers legacy/multi-device entries that can appear without mood rows.
+  useEffect(() => {
+    for (const msg of items) {
+      if (msg.mode !== 'record' || msg.isMood || msg.duration == null) continue;
+      if (getMood(msg.id)) continue;
+      setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0), 'auto');
+    }
+  }, [items, getMood, setMood]);
 
   if (isLoading) {
     return (
@@ -116,10 +130,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <span
                   className={cn(
                     'text-[11px] font-medium text-gray-400 leading-none tabular-nums',
-                    !cardReadonly && !isMoodCard && onTimeClick ? 'cursor-pointer hover:text-gray-600' : '',
+                    !cardReadonly && onTimeClick ? 'cursor-pointer hover:text-gray-600' : '',
                   )}
                   onClick={() => {
-                    if (!cardReadonly && !isMoodCard && onTimeClick) onTimeClick(msg);
+                    if (!cardReadonly && onTimeClick) onTimeClick(msg);
                   }}
                 >
                   {timeLabel}
@@ -154,7 +168,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onReturnToEvent={id => reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
-                    allowConvertToEvent={allowReclassify}
                     onMoodClick={onMoodClick}
                     readonly={cardReadonly}
                   />
