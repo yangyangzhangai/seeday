@@ -1,0 +1,44 @@
+[
+  {
+    "id": "zh-simple-activity",
+    "lang": "zh",
+    "input": "今天上午开会",
+    "expected": "activity_backfill",
+    "note": "simple activity"
+  },
+  {
+    "id": "zh-simple-mood",
+    "lang": "zh",
+    "input": "我有点烦",
+    "expected": "unparsed",
+    "note": "simple mood"
+  },
+  {
+    "id": "zh-simple-todo",
+    "lang": "zh",
+    "input": "记得整理发票",
+    "expected": "todo_add",
+    "note": "simple todo"
+  },
+  {
+    "id": "zh-backfill-like",
+    "lang": "zh",
+    "input": "今天10点开会",
+    "expected": "activity_backfill",
+    "note": "zh backfill-like input"
+  },
+  {
+    "id": "en-ambiguous-safe-unparsed",
+    "lang": "en",
+    "input": "maybe later",
+    "expected": "unparsed",
+    "note": "en ambiguous should remain unparsed"
+  },
+  {
+    "id": "it-ambiguous-safe-unparsed",
+    "lang": "it",
+    "input": "forse dopo",
+    "expected": "unparsed",
+    "note": "it ambiguous should remain unparsed"
+  }
+]

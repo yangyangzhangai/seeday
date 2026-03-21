@@ -28,7 +28,7 @@ const TYPE_TO_CATEGORY: Record<string, PlantCategoryKey> = {
 
 export function toPlantCategoryKey(activityType?: string | null, content?: string): PlantCategoryKey {
   const normalized = normalizeActivityType(activityType, content);
-  if (normalized === 'chat' || normalized === 'mood') {
+  if (normalized === 'mood') {
     return 'life';
   }
   return TYPE_TO_CATEGORY[normalized] ?? 'life';

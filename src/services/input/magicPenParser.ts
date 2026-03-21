@@ -121,7 +121,7 @@ export async function parseMagicPenInput(
       autoWriteItems: built.autoWriteItems,
     };
   } catch (error) {
-    const fallback = parseMagicPenInputLocal(cleaned, now);
+    const fallback = parseMagicPenInputLocal(cleaned, now, options.lang ?? 'zh');
     logMagicPenParser('parse.fallback_local', {
       elapsedMs: Date.now() - startedAt,
       reason: error instanceof Error ? error.message : 'unknown',

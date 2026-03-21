@@ -48,7 +48,7 @@ export interface LiveInputContextMessage {
   content: string;
   timestamp: number;
   duration?: number;
-  mode?: 'chat' | 'record';
+  mode?: 'record';
   isMood?: boolean;
 }
 

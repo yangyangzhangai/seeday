@@ -93,6 +93,7 @@ const zh: TranslationKeys = {
     chat_magic_pen_scope: '范围',
     chat_magic_pen_priority: '优先级',
     chat_magic_pen_category: '分类',
+    chat_magic_pen_category_auto: '自动判定',
     chat_magic_pen_due_date: '日期',
 
     // ── 待办页面 ──

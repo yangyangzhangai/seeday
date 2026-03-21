@@ -9,12 +9,14 @@ import { useChatStore } from '../../../store/useChatStore';
 import { cn } from '../../../lib/utils';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { autoDetectMood } from '../../../lib/mood';
+import type { StardustCardData } from '../../../types/stardust';
 
 export interface TimelineViewProps {
   messages: Message[];
   selectedDate: Date;
   isLoading: boolean;
   onMoodClick: (messageId: string) => void;
+  onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
   onTimeClick?: (message: Message) => void;
 }
 
@@ -57,7 +59,7 @@ const SkeletonCard: React.FC = () => (
 );
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
-  messages, selectedDate, isLoading, onMoodClick, onTimeClick,
+  messages, selectedDate, isLoading, onMoodClick, onStardustSelect, onTimeClick,
 }) => {
   const { t } = useTranslation();
   const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
@@ -169,6 +171,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
                     onMoodClick={onMoodClick}
+                    onStardustSelect={onStardustSelect}
                     readonly={cardReadonly}
                   />
                 ) : (
@@ -178,6 +181,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     onEndActivity={id => void endActivity(id)}
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
+                    onStardustSelect={onStardustSelect}
                     onDelete={id => void deleteActivity(id)}
                     allowConvertToMood={allowReclassify}
                     readonly={cardReadonly}

@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_PRD_v1_8.docx -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { isLegacyChatActivityType } from '../src/lib/activityType.js';
 import {
   computeRootMetrics,
   isAirPlantDay,
@@ -96,7 +97,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     .eq('user_id', auth.user.id)
     .gte('timestamp', window.startMs)
     .lt('timestamp', window.endMs)
-    .neq('activity_type', 'chat')
     .eq('is_mood', false)
     .gt('duration', 0)
     .order('timestamp', { ascending: true });
@@ -106,7 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const messages = (rows ?? []) as MessageRow[];
+  const messages = ((rows ?? []) as MessageRow[])
+    .filter((row) => !isLegacyChatActivityType(row.activity_type));
   const activities = mapSourcesToPlantActivities(messages.map(row => ({
     id: row.id,
     content: row.content,
@@ -153,6 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     isSpecial: isAirDay || isEntertainmentDay,
     isSupportVariant,
     lang: body.lang,
+    aiMode: auth.user.user_metadata?.ai_mode,
     userName: auth.user.user_metadata?.full_name,
   });
 

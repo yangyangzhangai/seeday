@@ -38,7 +38,7 @@ export function fromDbMessage(row: any): Message {
     type: row.type as MessageType,
     duration: row.duration ?? undefined,
     activityType: normalizeActivityType(row.activity_type, row.content),
-    mode: (row.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
+    mode: 'record',
     isMood: row.is_mood || false,
     // ★ v1.2 新增字段
     imageUrl: row.image_url ?? null,

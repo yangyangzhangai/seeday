@@ -4,7 +4,7 @@ Tshine 是一个以「聊天记录 + Todo + 日报观察」为核心的时间记
 
 ## 功能概览
 
-- Chat (`/chat`): 记录活动、对话消息、心情标签，支持 AI 辅助分类与回应。
+- Chat (`/chat`): 记录活动、心情标签与 Magic Pen 整理流，支持 AI 辅助分类。
 - Todo (`/todo`): 任务增删改查、优先级与状态管理，并与记录流程联动。
 - Report (`/report`): 按日/周/月/自定义区间生成报告，支持观察员分析（Timeshine Diary）。
 - Auth (`/auth`): 基于 Supabase 的登录/注册与会话初始化。

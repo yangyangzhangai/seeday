@@ -16,7 +16,7 @@ export interface Message {
   type: MessageType;
   duration?: number;
   activityType?: ActivityType;
-  mode?: 'chat' | 'record';
+  mode?: 'record';
   isMood?: boolean;
   stardustId?: string;
   stardustEmoji?: string;
@@ -38,7 +38,6 @@ export interface YesterdaySummary {
 
 export interface ChatState {
   messages: Message[];
-  mode: 'chat' | 'record';
   lastActivityTime: number | null;
   isMoodMode: boolean;
   isLoading: boolean;
@@ -57,7 +56,6 @@ export interface ChatState {
   sendMessage: (
     content: string,
     customTimestamp?: number,
-    forcedMode?: 'chat' | 'record',
     options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType }
   ) => Promise<string | null>;
   sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
@@ -69,7 +67,6 @@ export interface ChatState {
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
-  setMode: (mode: 'chat' | 'record') => void;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
   attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;

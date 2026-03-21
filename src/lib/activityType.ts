@@ -11,7 +11,7 @@ export const ACTIVITY_RECORD_TYPES = [
 ] as const;
 
 export type ActivityRecordType = (typeof ACTIVITY_RECORD_TYPES)[number];
-export type ActivityType = ActivityRecordType | 'chat' | 'mood';
+export type ActivityType = ActivityRecordType | 'mood';
 export type ActivityTypeConfidence = 'high' | 'medium' | 'low';
 
 interface ActivityTypeResult {
@@ -21,10 +21,7 @@ interface ActivityTypeResult {
 
 // Derived from zhCategoryLexicon for backward-compatible isStudyLike() calls.
 const STUDY_HINTS: readonly string[] = zhCategoryLexicon.keywords.study;
-
-
-
-const CHAT_OR_MOOD_TYPES = new Set(['chat', 'mood']);
+const SPECIAL_ACTIVITY_TYPES = new Set(['mood']);
 const RECORD_TYPES = new Set<ActivityRecordType>(ACTIVITY_RECORD_TYPES);
 
 const LEGACY_TO_RECORD_TYPE: Record<string, ActivityRecordType | 'work_or_study'> = {
@@ -60,6 +57,10 @@ function isStudyLike(input: string): boolean {
 
 function resolveWorkOrStudy(input: string): ActivityRecordType {
   return isStudyLike(input) ? 'study' : 'work';
+}
+
+export function isLegacyChatActivityType(value?: string | null): boolean {
+  return (value ?? '').trim().toLowerCase() === 'chat';
 }
 
 export function classifyRecordActivityType(
@@ -99,49 +100,24 @@ export function classifyRecordActivityType(
   return { activityType: bestType, confidence: 'medium' };
 }
 
-export function mapClassifierCategoryToActivityType(
-  category?: string | null,
-  content?: string | null,
-): ActivityRecordType {
-  const normalizedCategory = (category ?? '').trim().toLowerCase();
-  const normalizedContent = (content ?? '').trim().toLowerCase();
-
-  if (!normalizedCategory) {
-    return classifyRecordActivityType(normalizedContent).activityType;
-  }
-
-  if (normalizedCategory === 'deep_focus') {
-    return resolveWorkOrStudy(normalizedContent);
-  }
-  if (normalizedCategory === 'necessary') return 'life';
-  if (normalizedCategory === 'body') return 'health';
-  if (normalizedCategory === 'social_duty') return 'social';
-  if (normalizedCategory === 'self_talk') return 'life';
-  if (normalizedCategory === 'dopamine') return 'entertainment';
-  if (normalizedCategory === 'dissolved') return 'life';
-  if (normalizedCategory === 'recharge') {
-    const socialWords = getCategoryLexicon('zh').keywords.social as string[];
-    if (socialWords.some((word) => normalizedContent.includes(word.toLowerCase()))) {
-      return 'social';
-    }
-    return 'entertainment';
-  }
-  return classifyRecordActivityType(normalizedContent).activityType;
-}
-
 export function normalizeActivityType(
   value?: string | null,
   content?: string | null,
+  lang: SupportedLang = 'zh',
 ): ActivityType {
   const normalizedValue = (value ?? '').trim().toLowerCase();
   const normalizedContent = (content ?? '').trim().toLowerCase();
 
   if (!normalizedValue) {
-    return classifyRecordActivityType(normalizedContent).activityType;
+    return classifyRecordActivityType(normalizedContent, lang).activityType;
   }
 
-  if (CHAT_OR_MOOD_TYPES.has(normalizedValue)) {
+  if (SPECIAL_ACTIVITY_TYPES.has(normalizedValue)) {
     return normalizedValue as ActivityType;
+  }
+
+  if (isLegacyChatActivityType(normalizedValue)) {
+    return classifyRecordActivityType(normalizedContent, lang).activityType;
   }
 
   if (RECORD_TYPES.has(normalizedValue as ActivityRecordType)) {
@@ -150,7 +126,7 @@ export function normalizeActivityType(
 
   const legacyMapped = LEGACY_TO_RECORD_TYPE[normalizedValue];
   if (!legacyMapped) {
-    return classifyRecordActivityType(normalizedContent).activityType;
+    return classifyRecordActivityType(normalizedContent, lang).activityType;
   }
 
   if (legacyMapped === 'work_or_study') {
@@ -158,12 +134,16 @@ export function normalizeActivityType(
   }
 
   if (normalizedValue === 'unknown' || normalizedValue === '待分类' || normalizedValue === '未分类') {
-    return classifyRecordActivityType(normalizedContent).activityType;
+    return classifyRecordActivityType(normalizedContent, lang).activityType;
   }
 
   return legacyMapped;
 }
 
-export function normalizeTodoCategory(category?: string | null, title?: string | null): ActivityRecordType {
-  return normalizeActivityType(category, title) as ActivityRecordType;
+export function normalizeTodoCategory(
+  category?: string | null,
+  title?: string | null,
+  lang: SupportedLang = 'zh',
+): ActivityRecordType {
+  return normalizeActivityType(category, title, lang) as ActivityRecordType;
 }

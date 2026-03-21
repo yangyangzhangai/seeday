@@ -12,6 +12,7 @@ import { useMoodStore } from '../../../store/useMoodStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { useStardustStore } from '../../../store/useStardustStore';
 import { autoDetectMood } from '../../../lib/mood';
+import type { StardustCardData } from '../../../types/stardust';
 
 export interface EventCardProps {
   message: Message;
@@ -22,10 +23,11 @@ export interface EventCardProps {
   onDelete: (id: string) => void;
   allowConvertToMood: boolean;
   readonly?: boolean;
+  onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
-  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood, readonly,
+  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood, readonly, onStardustSelect,
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
@@ -116,6 +118,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <div
       ref={cardRef}
+      data-message-id={message.id}
       className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative"
       onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
@@ -166,9 +169,32 @@ export const EventCard: React.FC<EventCardProps> = ({
             {message.content}
           </span>
           {stardustEmoji && (
-            <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
-              {stardustEmoji}
-            </span>
+            stardust && onStardustSelect ? (
+              <button
+                type="button"
+                className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
+                aria-label="stardust-emoji"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  onStardustSelect(
+                    {
+                      emojiChar: stardust.emojiChar,
+                      message: stardust.message,
+                      alienName: stardust.alienName || 'T.S',
+                      createdAt: stardust.createdAt,
+                    },
+                    { x: rect.left + rect.width / 2, y: rect.top },
+                  );
+                }}
+              >
+                {stardustEmoji}
+              </button>
+            ) : (
+              <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
+                {stardustEmoji}
+              </span>
+            )
           )}
         </div>
 

@@ -45,7 +45,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
 
     expect(result?.classification.kind).toBe('activity');
     expect(result?.classification.internalKind).toBe('new_activity');
-    expect(sendMessage).toHaveBeenCalledWith('开会', undefined, 'record', { skipMoodDetection: false });
+    expect(sendMessage).toHaveBeenCalledWith('开会', undefined, { skipMoodDetection: false });
     expect(sendMood).not.toHaveBeenCalled();
   });
 
@@ -56,7 +56,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     const result = await sendAutoRecognizedInputFlow('写周报写得很烦', [], sendMessage, sendMood);
 
     expect(result?.classification.internalKind).toBe('activity_with_mood');
-    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, 'record', { skipMoodDetection: true });
+    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, { skipMoodDetection: true });
     const moodState = useMoodStore.getState();
     expect(moodState.activityMood['activity-1']).toBe('down');
     expect(moodState.moodNote['activity-1']).toBe('写周报写得很烦');

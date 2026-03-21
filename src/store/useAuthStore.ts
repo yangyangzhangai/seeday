@@ -11,11 +11,13 @@ import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
+import { isLegacyChatActivityType } from '../lib/activityType';
+import type { AiCompanionMode } from '../lib/aiCompanion';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 
 export interface UserPreferences {
-  aiMode: 'van' | 'agnes' | 'zep' | 'spring_thunder';
+  aiMode: AiCompanionMode;
   aiModeEnabled: boolean;
   dailyGoalEnabled: boolean;
   annotationDropRate: AnnotationDropRate;
@@ -252,13 +254,16 @@ async function fetchActivityStreak(userId: string, force = false): Promise<numbe
     // Fetch ALL activity timestamps (no date filter) to compute full streak
     const { data } = await supabase
       .from('messages')
-      .select('timestamp')
+      .select('timestamp, activity_type')
       .eq('user_id', userId)
-      .neq('activity_type', 'chat')
       .eq('is_mood', false);
 
     if (!data) return 0;
-    const dates = new Set(data.map(r => toLocalDateStr(Number(r.timestamp))));
+    const dates = new Set(
+      data
+        .filter((row) => !isLegacyChatActivityType(row.activity_type))
+        .map((row) => toLocalDateStr(Number(row.timestamp)))
+    );
 
     let streak = 0;
     const d = new Date();
@@ -308,7 +313,8 @@ async function updateLoginStreak(userId: string): Promise<void> {
 }
 
 async function syncLocalDataToSupabase(userId: string) {
-  const messages = useChatStore.getState().messages;
+  const messages = useChatStore.getState().messages
+    .filter((message) => !isLegacyChatActivityType(message.activityType));
   const todos = useTodoStore.getState().todos;
 
   // 1. Sync Messages

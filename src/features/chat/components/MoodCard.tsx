@@ -8,6 +8,8 @@ import { useMoodStore } from '../../../store/useMoodStore';
 import { getMoodColor } from '../../../lib/moodColor';
 import { normalizeMoodKey } from '../../../lib/moodOptions';
 import { ImageUploader } from './ImageUploader';
+import { useStardustStore } from '../../../store/useStardustStore';
+import type { StardustCardData } from '../../../types/stardust';
 
 export interface MoodCardProps {
   message: Message; // isMood: true, detached: true
@@ -16,6 +18,7 @@ export interface MoodCardProps {
   onDelete: (id: string) => void;
   onMoodClick: (messageId: string) => void;
   readonly?: boolean;
+  onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const MoodCard: React.FC<MoodCardProps> = ({
@@ -25,12 +28,15 @@ export const MoodCard: React.FC<MoodCardProps> = ({
   onDelete,
   onMoodClick,
   readonly,
+  onStardustSelect,
 }) => {
   const { t } = useTranslation();
   const { updateMessageImage } = useChatStore();
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
+  const stardust = useStardustStore(s => s.getStardustByMessageId(message.id));
+  const stardustEmoji = stardust?.emojiChar || message.stardustEmoji;
 
   const [cardActive, setCardActive] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -65,6 +71,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
   return (
     <div
       ref={cardRef}
+      data-message-id={message.id}
       className="bg-sky-50 border border-sky-100 px-3 py-2 rounded-xl relative"
       onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
@@ -95,6 +102,34 @@ export const MoodCard: React.FC<MoodCardProps> = ({
           >
             {message.content}
           </span>
+          {stardustEmoji && (
+            stardust && onStardustSelect ? (
+              <button
+                type="button"
+                className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
+                aria-label="stardust-emoji"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  onStardustSelect(
+                    {
+                      emojiChar: stardust.emojiChar,
+                      message: stardust.message,
+                      alienName: stardust.alienName || 'T.S',
+                      createdAt: stardust.createdAt,
+                    },
+                    { x: rect.left + rect.width / 2, y: rect.top },
+                  );
+                }}
+              >
+                {stardustEmoji}
+              </button>
+            ) : (
+              <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
+                {stardustEmoji}
+              </span>
+            )
+          )}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">

@@ -20,7 +20,7 @@ let cachedResponseId: string | null = null;
  * 调用 OpenAI Responses API 生成 AI 批注（气泡）
  *
  * POST /api/annotation
- * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it' }
+ * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it', aiMode?: string }
  */
 
 // ==================== Emoji 保障函数 ====================
@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { eventType, eventData, userContext, lang = 'zh' } = req.body;
+  const { eventType, eventData, userContext, lang = 'zh', aiMode } = req.body;
 
   if (!eventType || !eventData) {
     jsonError(res, 400, 'Missing eventType or eventData');
@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recentAnnotationsList,
       recentEmojisText
     );
-    const systemPrompt = getSystemPrompt(lang);
+    const systemPrompt = getSystemPrompt(lang, aiMode);
     const model = getModel(lang);
 
     openai.apiKey = apiKey;

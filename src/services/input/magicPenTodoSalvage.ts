@@ -187,7 +187,6 @@ export function salvageTodoDraftFromUnparsedSegment(segment: string, now: Date):
     errors: [],
     todo: {
       priority: 'important-not-urgent',
-      category: 'life',
       scope: 'daily',
       dueDate,
     },

@@ -91,6 +91,7 @@ const en = {
     chat_magic_pen_scope: 'Scope',
     chat_magic_pen_priority: 'Priority',
     chat_magic_pen_category: 'Category',
+    chat_magic_pen_category_auto: 'auto',
     chat_magic_pen_due_date: 'Date',
 
     // ── Todo Page ──

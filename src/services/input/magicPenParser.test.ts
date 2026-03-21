@@ -245,3 +245,24 @@ describe('parseMagicPenInput activity-focused cases', () => {
     expect(draft.content.startsWith('我')).toBe(false);
   });
 });
+
+describe('parseMagicPenInput non-zh conservative fallback', () => {
+  it('keeps ambiguous en input as unparsed', async () => {
+    const result = await parseMagicPenInput('maybe later', { now: fixedNow, lang: 'en' });
+    expect(result.drafts).toHaveLength(0);
+    expect(result.unparsedSegments).toContain('maybe later');
+  });
+
+  it('creates todo draft for clear en future obligation', async () => {
+    const result = await parseMagicPenInput('I need to submit report tomorrow', { now: fixedNow, lang: 'en' });
+    expect(result.drafts).toHaveLength(1);
+    expect(result.drafts[0].kind).toBe('todo_add');
+    expect(result.drafts[0].todo?.category).toBeUndefined();
+  });
+
+  it('keeps ambiguous it input as unparsed', async () => {
+    const result = await parseMagicPenInput('forse dopo', { now: fixedNow, lang: 'it' });
+    expect(result.drafts).toHaveLength(0);
+    expect(result.unparsedSegments).toContain('forse dopo');
+  });
+});

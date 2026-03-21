@@ -30,6 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       isSpecial: Boolean(body.isSpecial),
       isSupportVariant: Boolean(body.isSupportVariant),
       lang: body.lang,
+      aiMode: auth.user.user_metadata?.ai_mode,
       userName: auth.user.user_metadata?.full_name,
     });
 

@@ -7,14 +7,33 @@ import { supabase } from '../api/supabase';
 import { callClassifierAPI } from '../api/client';
 import {
   classifyRecordActivityType,
-  mapClassifierCategoryToActivityType,
   normalizeTodoCategory,
   type ActivityRecordType,
 } from '../lib/activityType';
+import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import type { AnnotationEvent } from '../types/annotation';
+import i18n from '../i18n';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
+function resolveLangForText(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  const lowered = content.toLowerCase();
+  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
+    return 'it';
+  }
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  return resolveCurrentLang();
+}
 
 // ── Priority types ──────────────────────────────────────────
 export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
@@ -94,7 +113,11 @@ function migrateOldTodoStorage(currentIds: Set<string>): Todo[] {
         completedAt: t.completedAt as number | undefined,
         duration: t.duration as number | undefined,
         startedAt: t.startedAt as number | undefined,
-        category: normalizeTodoCategory(t.category as string | undefined, (t.content ?? t.title ?? '') as string),
+        category: normalizeTodoCategory(
+          t.category as string | undefined,
+          (t.content ?? t.title ?? '') as string,
+          resolveLangForText((t.content ?? t.title ?? '') as string),
+        ),
         scope: t.scope as TodoScope | undefined,
         recurrence: 'once' as Recurrence,
         isTemplate: false,
@@ -154,12 +177,14 @@ async function bgSyncDelete(id: string): Promise<void> {
 
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
   try {
+    const lang = resolveLangForText(title);
     const result = await callClassifierAPI({
       rawInput: `${title} 30分钟`,
+      lang,
     });
     const firstItem = result.data?.items?.[0];
     if (!firstItem?.category) return;
-    const nextCategory = mapClassifierCategoryToActivityType(firstItem.category, title);
+    const nextCategory = mapDiaryClassifierCategoryToActivityType(firstItem.category, title, lang);
     useTodoStore.setState((state) => ({
       todos: state.todos.map((todo) => (todo.id === id ? { ...todo, category: nextCategory } : todo)),
     }));
@@ -236,7 +261,7 @@ export const useTodoStore = create<TodoState>()(
         }
         const cloudTodos = data.map(fromDbTodo);
         data.forEach((row) => {
-          const normalizedCategory = normalizeTodoCategory(row.category, row.content);
+          const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
           if (row.category !== normalizedCategory) {
             void bgSyncUpdate(row.id, { category: normalizedCategory });
           }
@@ -263,8 +288,9 @@ export const useTodoStore = create<TodoState>()(
         const defaultSortOrder = input.dueAt ?? (maxOrder + Date.now());
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
-        const ruleClassified = classifyRecordActivityType(input.title);
-        const normalizedCategory = normalizeTodoCategory(input.category, input.title);
+        const lang = resolveLangForText(input.title);
+        const ruleClassified = classifyRecordActivityType(input.title, lang);
+        const normalizedCategory = normalizeTodoCategory(input.category, input.title, lang);
         const shouldRefineByAI = ruleClassified.confidence === 'low';
 
         if (isRecurring) {

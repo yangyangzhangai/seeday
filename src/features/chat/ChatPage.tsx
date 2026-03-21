@@ -158,6 +158,10 @@ export const ChatPage = () => {
     setEditEndTime(format(msg.timestamp + (msg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm"));
   }, [isSelectedDateToday]);
 
+  const handleStardustSelect = useCallback((data: StardustCardData, position: { x: number; y: number }) => {
+    setSelectedStardust({ data, position });
+  }, []);
+
   const handleSave = async () => {
     if (!editContent || !editStartTime || !editEndTime) return;
     const parseTime = (s: string) => new Date(s).getTime();
@@ -283,6 +287,7 @@ export const ChatPage = () => {
         selectedDate={selectedDate}
         isLoading={isLoading || isLoadingDate}
         onMoodClick={handleMoodClick}
+        onStardustSelect={handleStardustSelect}
         onTimeClick={handleTimeClick}
       />
 

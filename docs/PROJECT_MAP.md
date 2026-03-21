@@ -46,7 +46,6 @@ src/
 
 ## 3) 服务端 `api/` 实际端点
 
-- `chat.ts` -> `POST /api/chat`
 - `report.ts` -> `POST /api/report`
 - `annotation.ts` -> `POST /api/annotation`
 - `classify.ts` -> `POST /api/classify`

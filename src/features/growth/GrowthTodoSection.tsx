@@ -32,7 +32,6 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const deleteActivity = useChatStore((s) => s.deleteActivity);
-  const setMode = useChatStore((s) => s.setMode);
   const [showAdd, setShowAdd] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
 
@@ -63,7 +62,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
       // If the todo was started before, preserve that start time; otherwise use completion time.
       // Never fallback to dueAt/createdAt here, otherwise timeline order can be incorrect.
       const startTime = todo.startedAt ?? now;
-      const msgId = await sendMessage(todo.title, startTime, 'record', {
+      const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
       });
       if (msgId) {
@@ -91,13 +90,12 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const handleStart = async (todo: GrowthTodo) => {
     startTodo(todo.id);
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record', {
+    const msgId = await sendMessage(todo.title, now, {
       activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
     });
     if (msgId) {
       linkMessageToTodo(msgId, todo.id);
     }
-    setMode('record');
     navigate('/chat');
   };
 

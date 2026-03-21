@@ -144,7 +144,7 @@ insertActivity: async (prevId, nextId, content, startTime, endTime) => {
 
 ### 2.5 sendMessage 不适合补录
 
-`sendMessage(content, customTimestamp?, forcedMode?, options?)` 会关闭上一条进行中的 activity 并创建实时记录（新活动 `duration=undefined` 表示进行中）。历史补录必须绕过此函数。
+`sendMessage(content, customTimestamp?, options?)` 会关闭上一条进行中的 activity 并创建实时记录（新活动 `duration=undefined` 表示进行中）。历史补录必须绕过此函数。
 
 ### 2.6 Todo 写入入口
 

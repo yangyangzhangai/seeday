@@ -57,14 +57,13 @@ Browser (React)
 - 文件: `src/api/client.ts`
 - 作用:
   - 统一封装前端到 serverless 的 HTTP 调用
-  - 提供 `callChatAPI` / `callReportAPI` / `callAnnotationAPI`
+  - 提供 `callReportAPI` / `callAnnotationAPI`
   - 提供 `callClassifierAPI` / `callDiaryAPI` / `callStardustAPI`
 
 ## 3. 服务端函数层
 
 目录: `api/`
 
-- `chat.ts`: 对话生成
 - `report.ts`: 报告分析
 - `annotation.ts`: 批注生成与内容提取
 - `classify.ts`: 结构化分类

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyRecordActivityType,
-  mapClassifierCategoryToActivityType,
   normalizeActivityType,
   normalizeTodoCategory,
 } from './activityType';
@@ -18,12 +17,6 @@ describe('activityType', () => {
     expect(normalizeActivityType('待分类', '跑步')).toBe('health');
     expect(normalizeActivityType('work_study', '学习英语')).toBe('study');
     expect(normalizeActivityType('work_study', '需求评审')).toBe('work');
-  });
-
-  it('maps classifier categories to unified activity types', () => {
-    expect(mapClassifierCategoryToActivityType('body', '运动')).toBe('health');
-    expect(mapClassifierCategoryToActivityType('deep_focus', '背单词')).toBe('study');
-    expect(mapClassifierCategoryToActivityType('deep_focus', '写周报')).toBe('work');
   });
 
   it('normalizes todo category to six categories', () => {

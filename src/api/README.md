@@ -7,7 +7,6 @@
 
 ## Public Interface
 
-- `callChatAPI()`
 - `callReportAPI()`
 - `callAnnotationAPI()`
 - `callClassifierAPI()`
@@ -42,6 +41,9 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Magic Pen parse `segments[*].kind` now supports four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (plus `unparsed` array for unmatched content).
 - Magic Pen parse `segments[*]` now supports `timeRelation` (`realtime` / `future` / `past` / `unknown`) for parser-first direct-write gating.
 - Endpoint robustness baseline now includes `api/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
+- `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
+- Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
+- The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.
 
 ## Related Docs
 

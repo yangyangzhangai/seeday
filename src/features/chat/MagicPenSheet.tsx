@@ -106,7 +106,7 @@ export function MagicPenSheet({
         ...draft,
         kind: 'todo_add',
         activity: undefined,
-        todo: { priority: 'important-not-urgent', category: 'life', scope: 'daily' },
+        todo: { priority: 'important-not-urgent', scope: 'daily' },
         needsUserConfirmation: false,
         errors: [],
       });
@@ -372,7 +372,9 @@ export function MagicPenSheet({
                   <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
                     <span>{t('chat_magic_pen_scope')}: daily</span>
                     <span>{t('chat_magic_pen_priority')}: important-not-urgent</span>
-                    <span className="col-span-2">{t('chat_magic_pen_category')}: life</span>
+                    <span className="col-span-2">
+                      {t('chat_magic_pen_category')}: {draft.todo?.category || t('chat_magic_pen_category_auto')}
+                    </span>
                     <label className="col-span-2 flex items-center gap-2">
                       <span>{t('chat_magic_pen_due_date')}:</span>
                       <input

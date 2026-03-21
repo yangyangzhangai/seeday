@@ -93,6 +93,7 @@ const it: TranslationKeys = {
     chat_magic_pen_scope: 'Ambito',
     chat_magic_pen_priority: 'Priorità',
     chat_magic_pen_category: 'Categoria',
+    chat_magic_pen_category_auto: 'automatica',
     chat_magic_pen_due_date: 'Data',
 
     // ── Pagina Attività ──

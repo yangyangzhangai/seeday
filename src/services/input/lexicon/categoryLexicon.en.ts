@@ -12,6 +12,8 @@ export const enCategoryLexicon: CategoryLexicon = {
     study: [
       'study', 'studying', 'studied',
       'review', 'reviewing', 'reviewed',
+      'probability', 'statistics', 'statistical',
+      'reviewing probability statistics',
       'learn', 'learning', 'learned',
       'lesson', 'class', 'lecture', 'course',
       'homework', 'assignment',

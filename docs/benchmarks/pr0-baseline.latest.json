@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-03-21T21:57:33.106Z",
+  "liveInput": {
+    "kind": {
+      "hit": 18,
+      "total": 18
+    },
+    "internal": {
+      "hit": 18,
+      "total": 18
+    },
+    "byLang": {
+      "zh": {
+        "hit": 6,
+        "total": 6
+      },
+      "en": {
+        "hit": 6,
+        "total": 6
+      },
+      "it": {
+        "hit": 6,
+        "total": 6
+      }
+    },
+    "bySubset": {
+      "core": {
+        "hit": 9,
+        "total": 9
+      },
+      "future_plan": {
+        "hit": 3,
+        "total": 3
+      },
+      "negation": {
+        "hit": 3,
+        "total": 3
+      },
+      "mood_about_last_activity": {
+        "hit": 3,
+        "total": 3
+      }
+    },
+    "mismatches": []
+  },
+  "activityCategory": {
+    "overall": {
+      "hit": 18,
+      "total": 18
+    },
+    "byLang": {
+      "zh": {
+        "hit": 6,
+        "total": 6
+      },
+      "en": {
+        "hit": 6,
+        "total": 6
+      },
+      "it": {
+        "hit": 6,
+        "total": 6
+      }
+    },
+    "mismatches": []
+  },
+  "todoCategory": {
+    "overall": {
+      "hit": 18,
+      "total": 18
+    },
+    "byLang": {
+      "zh": {
+        "hit": 6,
+        "total": 6
+      },
+      "en": {
+        "hit": 6,
+        "total": 6
+      },
+      "it": {
+        "hit": 6,
+        "total": 6
+      }
+    },
+    "mismatches": []
+  },
+  "magicPenFallback": {
+    "overall": {
+      "hit": 6,
+      "total": 6
+    },
+    "byLang": {
+      "zh": {
+        "hit": 4,
+        "total": 4
+      },
+      "en": {
+        "hit": 1,
+        "total": 1
+      },
+      "it": {
+        "hit": 1,
+        "total": 1
+      }
+    },
+    "mismatches": []
+  }
+}

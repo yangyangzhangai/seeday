@@ -6,7 +6,7 @@
 Browser (Vite/React)
   -> /api/* (Vercel Serverless)
   -> External AI Providers
-     - Chutes: chat/report/diary/annotation/stardust
+     - Chutes: report/diary/annotation/stardust
      - Zhipu : classify
 ```
 
@@ -20,7 +20,7 @@ VITE_SUPABASE_ANON_KEY=...
 ```
 
 说明：
-- `CHUTES_API_KEY` 用于 `chat/report/diary/annotation/stardust`
+- `CHUTES_API_KEY` 用于 `report/diary/annotation/stardust`
 - `ZHIPU_API_KEY` 用于 `classify`（`glm-4.7-flash`）
 
 ## 本地开发
@@ -57,7 +57,6 @@ npx vercel --prod
 
 ## API 端点（当前实现）
 
-- `POST /api/chat`
 - `POST /api/report`
 - `POST /api/annotation`
 - `POST /api/classify`
@@ -66,7 +65,6 @@ npx vercel --prod
 
 ## 运行时模型（当前实现）
 
-- `/api/chat`: `NousResearch/Hermes-4-405B-FP8-TEE`
 - `/api/report`: `NousResearch/Hermes-4-405B-FP8-TEE`
 - `/api/diary`: `Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
 - `/api/classify`: `glm-4.7-flash`

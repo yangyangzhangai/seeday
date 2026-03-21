@@ -71,7 +71,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     startFocus(todo.id, countUp ? 0 : durationMinutes * 60);
     // Create record page activity
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record', {
+    const msgId = await sendMessage(todo.title, now, {
       activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
     });
     if (msgId) {

@@ -12,6 +12,7 @@ import {
   normalizeActivityType,
   type ActivityRecordType,
 } from '../lib/activityType';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import type { Message } from './useChatStore';
 import type { Todo } from './useTodoStore';
 import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
@@ -105,7 +106,10 @@ export function filterRelevantTodos(todos: Todo[], start: Date, end: Date, type:
   });
 }
 
-export function classifyActivities(records: Message[]): { category: ActionCategory; minutes: number; percent: number }[] {
+export function classifyActivities(
+  records: Message[],
+  lang: SupportedLang = 'zh',
+): { category: ActionCategory; minutes: number; percent: number }[] {
   const categories: ActionCategory[] = ['study', 'work', 'social', 'life', 'entertainment', 'health'];
   const minutesByCategory: Record<ActionCategory, number> = {
     study: 0,
@@ -118,9 +122,9 @@ export function classifyActivities(records: Message[]): { category: ActionCatego
 
   records.forEach((m) => {
     const minutes = m.duration || 0;
-    const normalized = normalizeActivityType(m.activityType, m.content);
-    const category: ActionCategory = normalized === 'chat' || normalized === 'mood'
-      ? classifyRecordActivityType(m.content).activityType
+    const normalized = normalizeActivityType(m.activityType, m.content, lang);
+    const category: ActionCategory = normalized === 'mood'
+      ? classifyRecordActivityType(m.content, lang).activityType
       : normalized;
     minutesByCategory[category] += minutes;
   });

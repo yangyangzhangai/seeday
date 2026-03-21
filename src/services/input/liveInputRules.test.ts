@@ -11,12 +11,14 @@ import {
   EN_ACTIVITY_PATTERNS,
   EN_FUTURE_OR_PLAN_PATTERNS,
   EN_MOOD_PATTERNS,
+  EN_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   EN_STRONG_COMPLETION_PATTERNS,
 } from './liveInputRules.en';
 import {
   IT_ACTIVITY_PATTERNS,
   IT_FUTURE_OR_PLAN_PATTERNS,
   IT_MOOD_PATTERNS,
+  IT_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   IT_STRONG_COMPLETION_PATTERNS,
 } from './liveInputRules.it';
 
@@ -49,6 +51,7 @@ describe('liveInputRules pattern smoke regression', () => {
     { input: 'I feel exhausted', shouldMatch: true, rules: EN_MOOD_PATTERNS },
     { input: 'that was stressful', shouldMatch: true, rules: EN_MOOD_PATTERNS },
     { input: 'later I will go to the gym', shouldMatch: true, rules: EN_FUTURE_OR_PLAN_PATTERNS },
+    { input: 'I am not working now', shouldMatch: true, rules: EN_NEGATED_OR_NOT_OCCURRED_PATTERNS },
   ];
 
   const itCases: Array<{ input: string; shouldMatch: boolean; rules: RegExp[] }> = [
@@ -60,6 +63,7 @@ describe('liveInputRules pattern smoke regression', () => {
     { input: 'sono esausto', shouldMatch: true, rules: IT_MOOD_PATTERNS },
     { input: 'era stressante', shouldMatch: true, rules: IT_MOOD_PATTERNS },
     { input: 'stasera ho intenzione di andare in palestra', shouldMatch: true, rules: IT_FUTURE_OR_PLAN_PATTERNS },
+    { input: 'non sto lavorando adesso', shouldMatch: true, rules: IT_NEGATED_OR_NOT_OCCURRED_PATTERNS },
   ];
 
   for (const [index, testCase] of [...zhCases, ...enCases, ...itCases].entries()) {

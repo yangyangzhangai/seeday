@@ -23,7 +23,7 @@ const dependencyHeaderFiles = [
   'src/store/useStardustStore.ts',
   'src/store/useReportStore.ts',
   'src/store/useTodoStore.ts',
-  'api/chat.ts',
+  'api/magic-pen-parse.ts',
   'api/report.ts',
   'api/annotation.ts',
   'api/classify.ts',

@@ -83,7 +83,8 @@ export function createGeneratedReport({
 
     if (!isToday) {
       const records = filterActivities(messages, start, end, { requireDuration: true });
-      const actionAnalysis = classifyActivities(records);
+      const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+      const actionAnalysis = classifyActivities(records, currentLang);
       stats.actionAnalysis = actionAnalysis;
       stats.actionSummary = generateActionSummary(actionAnalysis);
     }

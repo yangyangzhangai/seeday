@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { supabase } from '../../../api/supabase';
 import { getSupabaseSession } from '../../../lib/supabase-utils';
 import { toLocalDateStr, getYesterdayStr } from '../../../lib/dateUtils';
+import { isLegacyChatActivityType } from '../../../lib/activityType';
 import type { Message } from '../../../store/useChatStore';
 import { mapDbRowToMessage } from '../../../store/chatHelpers';
 
@@ -38,8 +39,9 @@ export const YesterdaySummaryPopup: React.FC = () => {
         .order('timestamp', { ascending: false })
         .limit(1);
 
-      if (data?.length) {
-        setEvent(mapDbRowToMessage(data[0]));
+      const latestRuntimeRow = data?.find((row) => !isLegacyChatActivityType(row.activity_type));
+      if (latestRuntimeRow) {
+        setEvent(mapDbRowToMessage(latestRuntimeRow));
         // 成功后才写，失败不记录，下次还会弹
         localStorage.setItem(STORAGE_KEY, today);
       }

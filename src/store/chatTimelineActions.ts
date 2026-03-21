@@ -13,6 +13,25 @@ import {
   persistMessageToSupabase,
 } from './chatActions';
 import { getLocalDateString } from './chatHelpers';
+import i18n from '../i18n';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
+function resolveLangForText(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  const lowered = content.toLowerCase();
+  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
+    return 'it';
+  }
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  return resolveCurrentLang();
+}
 
 type Setter = <U>(fn: (state: { messages: Message[] }) => U) => void;
 type Getter = () => { messages: Message[] };
@@ -53,7 +72,7 @@ export function createChatTimelineActions(
     const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
     const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
     if (!hasManualMood && !hasManualCustomLabel && !moodStore.getMood(moodMsgId)) {
-      moodStore.setMood(moodMsgId, autoDetectMood(moodMessage.content, 0), 'auto');
+      moodStore.setMood(moodMsgId, autoDetectMood(moodMessage.content, 0, resolveLangForText(moodMessage.content)), 'auto');
     }
   };
 
@@ -111,7 +130,7 @@ export function createChatTimelineActions(
             detached: false,
             isActive: shouldStartAsActiveEvent,
             duration: shouldStartAsActiveEvent ? undefined : (m.duration ?? 0),
-            activityType: classifyRecordActivityType(m.content).activityType,
+            activityType: classifyRecordActivityType(m.content, resolveLangForText(m.content)).activityType,
           };
         }
         return m;
@@ -123,7 +142,7 @@ export function createChatTimelineActions(
       const isCustomApplied = moodStore.customMoodApplied[prevActive.id];
       if (!isCustomApplied) {
         const duration = Math.max(0, Math.round((now - prevActive.timestamp) / 60000));
-        moodStore.setMood(prevActive.id, autoDetectMood(prevActive.content, duration), 'auto');
+        moodStore.setMood(prevActive.id, autoDetectMood(prevActive.content, duration, resolveLangForText(prevActive.content)), 'auto');
       }
     }
 
@@ -133,7 +152,7 @@ export function createChatTimelineActions(
       const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
       const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
       if (!hasManualMood && !hasManualCustomLabel) {
-        moodStore.setMood(moodMsgId, autoDetectMood(newEvent.content, 0), 'auto');
+        moodStore.setMood(moodMsgId, autoDetectMood(newEvent.content, 0, resolveLangForText(newEvent.content)), 'auto');
       }
     }
 
@@ -156,6 +175,7 @@ export function createChatTimelineActions(
       content,
       startTime,
       endTime,
+      resolveLangForText(content),
     );
 
     set({ messages: finalMessages });
@@ -163,7 +183,7 @@ export function createChatTimelineActions(
     if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
       useMoodStore.getState().setMood(
         insertedPrimary.id,
-        autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0),
+        autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0, resolveLangForText(insertedPrimary.content)),
         'auto',
       );
     }
@@ -186,7 +206,7 @@ export function createChatTimelineActions(
             timestamp: startTime,
             duration,
             activityType: m.mode === 'record' && !m.isMood
-              ? classifyRecordActivityType(content).activityType
+              ? classifyRecordActivityType(content, resolveLangForText(content)).activityType
               : m.activityType,
           }
           : m
@@ -199,7 +219,7 @@ export function createChatTimelineActions(
         content,
         timestamp: startTime,
         duration,
-        activity_type: classifyRecordActivityType(content).activityType,
+        activity_type: classifyRecordActivityType(content, resolveLangForText(content)).activityType,
       }).eq('id', id).eq('user_id', session.user.id);
     }
 
@@ -207,7 +227,7 @@ export function createChatTimelineActions(
     const moodMeta = moodStore.activityMoodMeta[id];
     const isCustomApplied = moodStore.customMoodApplied[id] === true;
     if (moodMeta?.source === 'auto' && !isCustomApplied) {
-      moodStore.setMood(id, autoDetectMood(content, duration), 'auto');
+      moodStore.setMood(id, autoDetectMood(content, duration, resolveLangForText(content)), 'auto');
     }
   };
 

@@ -22,7 +22,7 @@ export interface MagicPenActivityFields {
 
 export interface MagicPenTodoFields {
   priority: Priority;
-  category: string;
+  category?: string;
   scope: TodoScope;
   dueDate?: number;
 }

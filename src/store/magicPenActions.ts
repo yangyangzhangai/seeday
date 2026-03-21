@@ -4,6 +4,8 @@ import type { MagicPenDraftItem } from '../services/input/magicPenTypes';
 import { normalizeTodoCategory } from '../lib/activityType';
 import { useChatStore } from './useChatStore';
 import { useTodoStore } from './useTodoStore';
+import i18n from '../i18n';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 
 export interface MagicPenCommitResult {
   successActivityCount: number;
@@ -15,8 +17,16 @@ function sortActivityDrafts(drafts: MagicPenDraftItem[]): MagicPenDraftItem[] {
   return [...drafts].sort((a, b) => (a.activity?.startAt ?? 0) - (b.activity?.startAt ?? 0));
 }
 
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
 export async function commitMagicPenDrafts(drafts: MagicPenDraftItem[]): Promise<MagicPenCommitResult> {
   const chatStore = useChatStore.getState();
+  const currentLang = resolveCurrentLang();
   const validatedDrafts = validateDrafts(drafts, chatStore.messages);
   const hasErrors = validatedDrafts.some((draft) => draft.errors.length > 0 || !draft.content.trim());
   if (hasErrors) {
@@ -53,7 +63,7 @@ export async function commitMagicPenDrafts(drafts: MagicPenDraftItem[]): Promise
       useTodoStore.getState().addTodo({
         title: draft.content,
         priority: draft.todo!.priority,
-        category: normalizeTodoCategory(draft.todo!.category, draft.content),
+        category: normalizeTodoCategory(draft.todo?.category, draft.content, currentLang),
         scope: draft.todo!.scope,
         dueAt: draft.todo!.dueDate,
         recurrence: 'none',

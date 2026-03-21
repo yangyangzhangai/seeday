@@ -1,23 +1,21 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
-import { callChatAPI } from '../api/client';
 import { autoDetectMood } from '../lib/mood';
 import { toDbMessage } from '../lib/dbMappers';
 import { classifyRecordActivityType } from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
-import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
 import type { Message } from './useChatStore.types';
 import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputClassification } from '../services/input/liveInputTelemetry';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+import i18n from '../i18n';
 
 type SendMessageFn = (
   content: string,
   customTimestamp?: number,
-  forcedMode?: 'chat' | 'record',
   options?: { skipMoodDetection?: boolean; activityTypeOverride?: import('../lib/activityType').ActivityRecordType },
 ) => Promise<string | null>;
 
@@ -56,6 +54,18 @@ function inferAutoMoodLang(content: string): SupportedLang {
   return 'en';
 }
 
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
+function resolveLangForText(content: string): SupportedLang {
+  if (!content.trim()) return resolveCurrentLang();
+  return inferAutoMoodLang(content);
+}
+
 function findLatestMessageIndex(messages: Message[]): number {
   let latestIndex = -1;
   let latestTimestamp = -Infinity;
@@ -74,7 +84,7 @@ function findLatestMessageIndex(messages: Message[]): number {
 function findPreviousActivityIndex(messages: Message[], fromIndex: number): number {
   for (let i = fromIndex - 1; i >= 0; i--) {
     const message = messages[i];
-    if (message.mode === 'record' && !message.isMood) {
+    if (!message.isMood) {
       return i;
     }
   }
@@ -97,13 +107,13 @@ function buildMoodToActivityReclassify(
   updatedMessages[targetIndex] = {
     ...target,
     isMood: false,
-    activityType: classifyRecordActivityType(target.content).activityType,
+    activityType: classifyRecordActivityType(target.content, resolveLangForText(target.content)).activityType,
     duration: undefined,
   };
   patches.push({
     id: target.id,
     isMood: false,
-    activityType: classifyRecordActivityType(target.content).activityType,
+    activityType: classifyRecordActivityType(target.content, resolveLangForText(target.content)).activityType,
     duration: undefined,
   });
 
@@ -116,7 +126,7 @@ function buildMoodToActivityReclassify(
       patches.push({
         id: previous.id,
         isMood: false,
-        activityType: previous.activityType || classifyRecordActivityType(previous.content).activityType,
+        activityType: previous.activityType || classifyRecordActivityType(previous.content, resolveLangForText(previous.content)).activityType,
         duration,
       });
     }
@@ -171,7 +181,7 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
       patches.push({
         id: previous.id,
         isMood: false,
-        activityType: previous.activityType || classifyRecordActivityType(previous.content).activityType,
+        activityType: previous.activityType || classifyRecordActivityType(previous.content, resolveLangForText(previous.content)).activityType,
         duration: undefined,
       });
     }
@@ -205,9 +215,6 @@ export function buildRecentReclassifyResult(
   }
 
   const target = messages[targetIndex];
-  if (target.mode !== 'record') {
-    return null;
-  }
 
   const latestIndex = findLatestMessageIndex(messages);
   if (targetIndex !== latestIndex) {
@@ -305,17 +312,17 @@ export async function dispatchAutoRecognizedInput(
       return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
     }
     case 'activity_with_mood':
-      return sendMessage(trimmed, undefined, 'record', {
+      return sendMessage(trimmed, undefined, {
         skipMoodDetection: true,
       });
     case 'new_activity':
-      return sendMessage(trimmed, undefined, 'record', {
+      return sendMessage(trimmed, undefined, {
         skipMoodDetection: false,
       });
     default:
       return classification.kind === 'mood'
         ? sendMood(trimmed)
-        : sendMessage(trimmed, undefined, 'record');
+        : sendMessage(trimmed);
   }
 }
 
@@ -366,7 +373,7 @@ export async function closePreviousActivity(messages: Message[], now: number): P
 
   let lastRecordIndex = -1;
   for (let i = updatedMessages.length - 1; i >= 0; i--) {
-    if (updatedMessages[i].mode === 'record' && !updatedMessages[i].isMood) {
+    if (!updatedMessages[i].isMood) {
       lastRecordIndex = i;
       break;
     }
@@ -390,7 +397,7 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   }
 
   const moodStore = useMoodStore.getState();
-  moodStore.setMood(lastMessage.id, autoDetectMood(lastMessage.content, duration));
+  moodStore.setMood(lastMessage.id, autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)));
 
   return updatedMessages;
 }
@@ -400,6 +407,7 @@ export function buildInsertedActivityResult(
   content: string,
   startTime: number,
   endTime: number,
+  lang?: SupportedLang,
 ): {
   finalMessages: Message[];
   messagesToInsert: Message[];
@@ -411,7 +419,7 @@ export function buildInsertedActivityResult(
     timestamp: startTime,
     type: 'text',
     duration: Math.round((endTime - startTime) / (1000 * 60)),
-    activityType: classifyRecordActivityType(content).activityType,
+    activityType: classifyRecordActivityType(content, lang ?? resolveLangForText(content)).activityType,
     mode: 'record',
   };
 
@@ -419,8 +427,6 @@ export function buildInsertedActivityResult(
   const messagesToUpdate: Message[] = [];
 
   const currentMessages = messages.map((message) => {
-    if (message.mode !== 'record') return message;
-
     const messageStart = message.timestamp;
     const messageDuration = message.duration || 0;
     const messageEnd = messageStart + messageDuration * 60 * 1000;
@@ -544,43 +550,8 @@ export async function triggerMoodDetection(
   messageId: string,
   content: string,
   source: 'auto' | 'manual' | { source: 'auto' | 'manual'; linkedMoodMessageId?: string } = 'auto',
+  lang: SupportedLang = resolveLangForText(content),
 ): Promise<void> {
   const moodStore = useMoodStore.getState();
-  moodStore.setMood(messageId, autoDetectMood(content, 0), source);
-}
-
-export async function handleAIChatResponse(messages: Message[], userId?: string): Promise<Message> {
-  try {
-    const apiMessages = buildChatApiMessages(messages);
-    const aiResponse = await callChatAPI({
-      messages: apiMessages,
-      temperature: 0.9,
-      max_tokens: 512,
-    });
-
-    const aiMessage: Message = {
-      id: uuidv4(),
-      content: aiResponse,
-      timestamp: Date.now(),
-      type: 'ai',
-      mode: 'chat',
-      activityType: 'chat',
-    };
-
-    if (userId) {
-      await persistMessageToSupabase(aiMessage, userId);
-    }
-
-    return aiMessage;
-  } catch (error) {
-    console.error('AI Error:', error);
-    return {
-      id: uuidv4(),
-      content: getAiErrorText(),
-      timestamp: Date.now(),
-      type: 'system',
-      mode: 'chat',
-      activityType: 'chat',
-    };
-  }
+  moodStore.setMood(messageId, autoDetectMood(content, 0, lang), source);
 }

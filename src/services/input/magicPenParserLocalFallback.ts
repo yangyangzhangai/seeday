@@ -16,6 +16,7 @@ import {
   ZH_MAGIC_PEN_UNPARSED_HINT_WORDS,
 } from './magicPenRules.zh';
 import type { MagicPenDraftConfidence, MagicPenDraftItem, MagicPenParseResult } from './magicPenTypes';
+import type { SupportedLang } from './lexicon/getLexicon';
 
 interface SegmentClassification {
   kind: 'activity_backfill' | 'todo_add' | 'unparsed';
@@ -255,7 +256,6 @@ function buildTodoDraft(segment: string, confidence: MagicPenDraftConfidence, no
     errors: [],
     todo: {
       priority: 'important-not-urgent',
-      category: 'life',
       scope: 'daily',
       dueDate: extractTodoDueDate(segment, now),
     },
@@ -344,7 +344,56 @@ function buildDraftFromSegment(segment: string, now: Date): MagicPenDraftItem | 
   return null;
 }
 
-export function parseMagicPenInputLocal(rawText: string, now: Date = new Date()): MagicPenParseResult {
+function parseMagicPenInputLocalConservativeNonZh(rawText: string): MagicPenParseResult {
+  const normalized = normalizeText(rawText);
+  if (!normalized) return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
+
+  const hasMultiSegmentSignal = /[\n,，;；。!?]|\b(and|then|also|but|e|poi|ma|anche)\b/i.test(normalized);
+  if (hasMultiSegmentSignal) {
+    return { drafts: [], unparsedSegments: [normalized], autoWriteItems: [] };
+  }
+
+  const todoSignal = /\b(need to|needs to|should|must|remember to|tonight|tomorrow|devo|devi|dobbiamo|bisogna|ricorda|ricordati|stasera|domani)\b/i;
+  if (!todoSignal.test(normalized)) {
+    return { drafts: [], unparsedSegments: [normalized], autoWriteItems: [] };
+  }
+
+  const cleanedContent = normalized
+    .replace(/\b(i\s+need\s+to|need\s+to|i\s+should|should|remember\s+to|devo|devi|dobbiamo|bisogna|ricordati\s+di|ricorda\s+di)\b/gi, '')
+    .replace(/\b(tonight|tomorrow|stasera|domani)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const draft: MagicPenDraftItem = {
+    id: uuidv4(),
+    kind: 'todo_add',
+    content: cleanedContent || normalized,
+    sourceText: normalized,
+    confidence: 'medium',
+    needsUserConfirmation: false,
+    errors: [],
+    todo: {
+      priority: 'important-not-urgent',
+      scope: 'daily',
+    },
+  };
+
+  return {
+    drafts: validateDrafts([draft], [], Date.now()),
+    unparsedSegments: [],
+    autoWriteItems: [],
+  };
+}
+
+export function parseMagicPenInputLocal(
+  rawText: string,
+  now: Date = new Date(),
+  lang: SupportedLang = 'zh',
+): MagicPenParseResult {
+  if (lang !== 'zh') {
+    return parseMagicPenInputLocalConservativeNonZh(rawText);
+  }
+
   const normalized = normalizeText(rawText);
   if (!normalized) return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
 

@@ -532,7 +532,6 @@ export default config;
 
 | Vercel 文件 | Edge Function 名 | 状态 |
 |---|---|---|
-| `api/chat.ts` | `chat` | ⬜ 待迁移 |
 | `api/annotation.ts` | `annotation` | ⬜ 待迁移 |
 | `api/classify.ts` | `classify` | ⬜ 待迁移 |
 | `api/diary.ts` | `diary` | ⬜ 待迁移 |
@@ -545,16 +544,10 @@ export default config;
 # 1. 安装 Supabase CLI
 npx supabase init
 
-# 2. 创建 Edge Function
-npx supabase functions new chat
-
-# 3. 将 api/chat.ts 逻辑移入 supabase/functions/chat/index.ts
-
-# 4. 配置密钥
+# 2. 配置密钥
 npx supabase secrets set CHUTES_API_KEY=xxx ZHIPU_API_KEY=xxx
 
-# 5. 部署
-npx supabase functions deploy chat
+# 3. 部署仍在使用中的函数
 
 # 6. 更新前端 src/api/client.ts 调用地址
 ```
