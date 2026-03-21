@@ -177,6 +177,7 @@ interface TodoState {
   activeTodoId: string | null;
   lastGeneratedDate: string;
   activeMessageMap: Record<string, string>;
+  todoCompletionMessageMap: Record<string, string>;
 
   fetchTodos: () => Promise<void>;
   addTodo: (input: {
@@ -202,6 +203,9 @@ interface TodoState {
   generateRecurringTodos: () => void;
   linkMessageToTodo: (messageId: string, todoId: string) => void;
   completeTodoByMessage: (messageId: string) => void;
+  setTodoCompletionMessage: (todoId: string, messageId: string) => void;
+  getTodoCompletionMessage: (todoId: string) => string | undefined;
+  clearTodoCompletionMessage: (todoId: string) => void;
 }
 
 // ── Unified Store ───────────────────────────────────────────
@@ -214,6 +218,7 @@ export const useTodoStore = create<TodoState>()(
       activeTodoId: null,
       lastGeneratedDate: '',
       activeMessageMap: {},
+      todoCompletionMessageMap: {},
 
       // ── Fetch from Supabase (merge with local) ──
       fetchTodos: async () => {
@@ -381,11 +386,19 @@ export const useTodoStore = create<TodoState>()(
             todos: s.todos.filter(
               (t) => t.id !== id && !(t.templateId === id && !t.completed)
             ),
+            todoCompletionMessageMap: Object.fromEntries(
+              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
+            ),
           }));
           bgSyncDelete(id).catch(console.error);
           instanceIds.forEach((iid) => bgSyncDelete(iid).catch(console.error));
         } else {
-          set((s) => ({ todos: s.todos.filter((t) => t.id !== id) }));
+          set((s) => ({
+            todos: s.todos.filter((t) => t.id !== id),
+            todoCompletionMessageMap: Object.fromEntries(
+              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id)
+            ),
+          }));
           bgSyncDelete(id).catch(console.error);
         }
 
@@ -566,6 +579,25 @@ export const useTodoStore = create<TodoState>()(
           }));
           bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch(console.error);
         }
+      },
+
+      setTodoCompletionMessage: (todoId, messageId) => {
+        set((s) => ({
+          todoCompletionMessageMap: {
+            ...s.todoCompletionMessageMap,
+            [todoId]: messageId,
+          },
+        }));
+      },
+
+      getTodoCompletionMessage: (todoId) => get().todoCompletionMessageMap[todoId],
+
+      clearTodoCompletionMessage: (todoId) => {
+        set((s) => ({
+          todoCompletionMessageMap: Object.fromEntries(
+            Object.entries(s.todoCompletionMessageMap).filter(([key]) => key !== todoId)
+          ),
+        }));
       },
     }),
     {
