@@ -1,4 +1,4 @@
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 import i18n from '../i18n';
 import { fromDbMessage } from '../lib/dbMappers';
 

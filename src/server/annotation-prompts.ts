@@ -426,9 +426,8 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
   return DEFAULT_ANNOTATIONS;
 }
 
-export function getModel(lang: string): string {
-  if (lang === 'zh') return 'deepseek-ai/DeepSeek-V3';
-  return 'openai/gpt-oss-120b-TEE';
+export function getModel(_lang: string): string {
+  return 'gpt-4o-mini';
 }
 
 export function buildTodayActivitiesText(activities: any[], lang: string): string {

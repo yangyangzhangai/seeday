@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyActivities } from './reportHelpers';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 import { normalizeActivityType } from '../lib/activityType';
 
 function buildMessage(input: (Omit<Partial<Message>, 'activityType'> & { activityType?: string })): Message {

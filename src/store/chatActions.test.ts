@@ -5,7 +5,7 @@ import {
 } from './chatActions';
 import { useMoodStore } from './useMoodStore';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 
 function resetMoodStore() {
   useMoodStore.setState({

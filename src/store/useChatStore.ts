@@ -10,6 +10,7 @@ import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
+import { createChatTimelineActions } from './chatTimelineActions';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
@@ -632,7 +633,7 @@ export const useChatStore = create<ChatState>()(
           if (isCrossDay) {
             return { messages: [...state.messages, { ...newMessage, detached: true }] };
           }
-          const newDesc: import('./useChatStore').MoodDescription = {
+          const newDesc: MoodDescription = {
             id: newMessage.id,
             content,
             timestamp: now,
@@ -696,123 +697,7 @@ export const useChatStore = create<ChatState>()(
           ),
         }));
       },
-
-      detachMoodFromEvent: (eventId, moodMsgId) => {
-        const moodMessage = get().messages.find(m => m.id === moodMsgId);
-        set(state => ({
-          messages: state.messages.map(m => {
-            if (m.id === eventId) {
-              return {
-                ...m,
-                moodDescriptions: (m.moodDescriptions || []).filter(d => d.id !== moodMsgId),
-              };
-            }
-            if (m.id === moodMsgId) return { ...m, detached: true };
-            return m;
-          }),
-        }));
-
-        if (!moodMessage) return;
-        const moodStore = useMoodStore.getState();
-        const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
-        const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
-        if (!hasManualMood && !hasManualCustomLabel && !moodStore.getMood(moodMsgId)) {
-          moodStore.setMood(moodMsgId, autoDetectMood(moodMessage.content, 0), 'auto');
-        }
-      },
-
-      reattachMoodToEvent: (moodMsgId) => {
-        const { messages } = get();
-        const moodMsg = messages.find(m => m.id === moodMsgId && m.isMood);
-        if (!moodMsg) return;
-        const latestEvent = [...messages]
-          .filter(m => !m.isMood && m.mode === 'record')
-          .sort((a, b) => b.timestamp - a.timestamp)[0];
-        if (!latestEvent) return;
-        const newDesc: MoodDescription = {
-          id: moodMsg.id, content: moodMsg.content, timestamp: moodMsg.timestamp,
-        };
-        set(state => ({
-          messages: state.messages.map(m => {
-            if (m.id === latestEvent.id) {
-              return { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] };
-            }
-            if (m.id === moodMsgId) return { ...m, detached: false };
-            return m;
-          }),
-        }));
-      },
-
-      convertMoodToEvent: async (moodMsgId) => {
-        const currentMessages = get().messages;
-        const moodTarget = currentMessages.find(
-          m => m.id === moodMsgId && m.mode === 'record' && m.type === 'text' && m.isMood,
-        );
-        if (!moodTarget) {
-          return;
-        }
-
-        const latestRecordMessage = [...currentMessages]
-          .filter(m => m.mode === 'record' && m.type === 'text')
-          .sort((a, b) => b.timestamp - a.timestamp)[0];
-        const isLatestRecordMessage = latestRecordMessage?.id === moodMsgId;
-        const isMoodOnToday = getLocalDateString(new Date(moodTarget.timestamp)) === getLocalDateString(new Date());
-        const shouldStartAsActiveEvent = isLatestRecordMessage && isMoodOnToday;
-        const now = Date.now();
-        const prevActive = shouldStartAsActiveEvent
-          ? (currentMessages.find(m => m.isActive && !m.isMood) ?? null)
-          : null;
-
-        set(state => ({
-          messages: state.messages.map(m => {
-            if (shouldStartAsActiveEvent && m.isActive && !m.isMood) {
-              return { ...m, isActive: false, duration: Math.max(0, Math.round((now - m.timestamp) / 60000)) };
-            }
-            if (m.id === moodMsgId) {
-              return {
-                ...m,
-                isMood: false,
-                detached: false,
-                isActive: shouldStartAsActiveEvent,
-                duration: shouldStartAsActiveEvent ? undefined : (m.duration ?? 0),
-                activityType: classifyRecordActivityType(m.content).activityType,
-              };
-            }
-            return m;
-          }),
-        }));
-
-        if (prevActive) {
-          const moodStore = useMoodStore.getState();
-          const isCustomApplied = moodStore.customMoodApplied[prevActive.id];
-          if (!isCustomApplied) {
-            const duration = Math.max(0, Math.round((now - prevActive.timestamp) / 60000));
-            moodStore.setMood(prevActive.id, autoDetectMood(prevActive.content, duration), 'auto');
-          }
-        }
-
-        const newEvent = get().messages.find(m => m.id === moodMsgId);
-        if (newEvent) {
-          const moodStore = useMoodStore.getState();
-          const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
-          const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
-          if (!hasManualMood && !hasManualCustomLabel) {
-            moodStore.setMood(moodMsgId, autoDetectMood(newEvent.content, 0), 'auto');
-          }
-        }
-
-        const session = await getSupabaseSession();
-        if (session) {
-          const updated = get().messages;
-          const idsToPersist = new Set<string>([moodMsgId]);
-          if (prevActive) idsToPersist.add(prevActive.id);
-          for (const id of idsToPersist) {
-            const message = updated.find(m => m.id === id);
-            if (!message) continue;
-            await persistMessageToSupabase(message, session.user.id);
-          }
-        }
-      },
+      ...createChatTimelineActions(set as never, get as never),
     }),
     {
       name: 'chat-storage',

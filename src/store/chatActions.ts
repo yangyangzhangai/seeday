@@ -7,7 +7,7 @@ import { classifyRecordActivityType } from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
 import { buildChatApiMessages, getAiErrorText } from './chatHelpers';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';

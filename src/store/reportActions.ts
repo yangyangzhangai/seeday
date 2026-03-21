@@ -17,7 +17,7 @@ import {
   generateMoodSummary,
   getDateRange,
 } from './reportHelpers';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 import type { Todo } from './useTodoStore';
 import type { Report, ReportStats } from './useReportStore';
 

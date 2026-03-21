@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import OpenAI from 'openai';
 import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 import {
@@ -10,9 +11,13 @@ import {
   getSystemPrompt,
 } from './annotation-prompts.js';
 
+const openai = new OpenAI();
+
+let cachedResponseId: string | null = null;
+
 /**
  * Vercel Serverless Function - Annotation API
- * 调用 Chutes AI 生成AI批注（气泡）
+ * 调用 OpenAI Responses API 生成 AI 批注（气泡）
  *
  * POST /api/annotation
  * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it' }
@@ -72,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const defaultSet = getDefaultAnnotations(lang);
-  const apiKey = process.env.CHUTES_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
@@ -121,79 +126,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const systemPrompt = getSystemPrompt(lang);
     const model = getModel(lang);
 
-    const requestBody: any = {
+    openai.apiKey = apiKey;
+
+    const llmResponse = await openai.responses.create({
       model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      instructions: systemPrompt,
+      input: userPrompt,
       temperature: lang === 'zh' ? 0.75 : 0.8,
-      // gpt-oss 推理 token 占比高，给 EN/IT 更高 completion 上限，避免只产出 reasoning 不产出最终正文
-      max_tokens: lang === 'zh' ? 180 : 480,
-      stream: false,
-    };
-
-    // gpt-oss 会先输出 reasoning_content，容易命中 '\n\n' 提前停止，导致 message.content 为空
-    if (lang === 'zh') {
-      requestBody.stop = ['\n\n', '\n- ', '\n1. '];
-    }
-
-    const response = await fetch('https://llm.chutes.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
+      max_output_tokens: lang === 'zh' ? 180 : 480,
+      previous_response_id: cachedResponseId ?? undefined,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Annotation API error:', response.status, errorText);
-      const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-      res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'fetch_failed' });
-      return;
-    }
+    cachedResponseId = llmResponse.id;
 
-    const data = await response.json();
-    const firstChoice = data?.choices?.[0];
-    const firstMessage = firstChoice?.message;
-
-    // Debug: gpt-oss 在部分场景会给出 reasoning，但 message.content 为空
+    const promptCacheHits = llmResponse.usage?.prompt_cache_hits ?? 0;
+    const promptCacheMisses = llmResponse.usage?.prompt_cache_misses ?? 0;
     console.log('[Annotation API] LLM meta:', {
       lang,
       model,
-      finish_reason: firstChoice?.finish_reason,
-      stop_reason: firstChoice?.stop_reason,
-      usage: data?.usage,
-      content_type: typeof firstMessage?.content,
-      content_len: typeof firstMessage?.content === 'string' ? firstMessage.content.length : null,
-      has_reasoning: !!firstMessage?.reasoning,
-      has_reasoning_content: !!firstMessage?.reasoning_content,
-      reasoning_len: typeof firstMessage?.reasoning === 'string' ? firstMessage.reasoning.length : null,
-      reasoning_content_len: typeof firstMessage?.reasoning_content === 'string' ? firstMessage.reasoning_content.length : null,
+      usage: llmResponse.usage,
+      prompt_cache_hits: promptCacheHits,
+      prompt_cache_misses: promptCacheMisses,
+      cached: promptCacheHits > 0,
+      response_id: llmResponse.id,
     });
 
-    if (!data.choices || data.choices.length === 0) {
-      const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-      res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'empty_response' });
-      return;
-    }
-
-    let content: string = firstMessage?.content;
+    let content: string = llmResponse.output_text;
 
     if (!content || !content.trim()) {
-      console.warn('[Annotation API] empty_content details:', {
-        eventType,
-        lang,
-        finish_reason: firstChoice?.finish_reason,
-        stop_reason: firstChoice?.stop_reason,
-        content: firstMessage?.content,
-        reasoning: typeof firstMessage?.reasoning === 'string' ? firstMessage.reasoning.slice(0, 300) : firstMessage?.reasoning,
-        reasoning_content: typeof firstMessage?.reasoning_content === 'string'
-          ? firstMessage.reasoning_content.slice(0, 300)
-          : firstMessage?.reasoning_content,
-      });
+      console.warn('[Annotation API] empty_content details:', { eventType, lang });
       const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
       res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'empty_content' });
       return;

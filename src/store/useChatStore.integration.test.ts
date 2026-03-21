@@ -14,7 +14,7 @@ vi.mock('./useAnnotationStore', () => ({
 
 import { useMoodStore } from './useMoodStore';
 import { useChatStore } from './useChatStore';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
 
 function resetMoodStore() {
