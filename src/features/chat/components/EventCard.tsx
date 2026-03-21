@@ -10,6 +10,7 @@ import { ImageUploader, type ImageUploaderHandle } from './ImageUploader';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { useChatStore } from '../../../store/useChatStore';
+import { autoDetectMood } from '../../../lib/mood';
 
 export interface EventCardProps {
   message: Message;
@@ -27,6 +28,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
+  const setMood           = useMoodStore(s => s.setMood);
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
@@ -50,8 +52,13 @@ export const EventCard: React.FC<EventCardProps> = ({
   const rawLabel = (customMoodApplied[message.id] && customMoodLabel[message.id])
     ? customMoodLabel[message.id]
     : activityMood[message.id];
-  const moodKey   = normalizeMoodKey(rawLabel);
-  const moodColor = getMoodColor(rawLabel) || '#10B981';
+  const fallbackLabel =
+    !rawLabel && message.mode === 'record' && !message.isMood && message.duration != null
+      ? autoDetectMood(message.content, 0)
+      : undefined;
+  const displayLabel = rawLabel || fallbackLabel;
+  const moodKey   = normalizeMoodKey(displayLabel);
+  const moodColor = getMoodColor(displayLabel) || '#10B981';
 
   const getTranslatedMood = (label?: string) => {
     if (!label) return t('chat_unknown_mood_label');
@@ -60,6 +67,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   };
 
   const mood      = getMood(message.id);
+  const hasMoodChip = Boolean(displayLabel || mood);
   const isOngoing = message.isActive && message.duration == null;
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
@@ -78,6 +86,11 @@ export const EventCard: React.FC<EventCardProps> = ({
     const id = setInterval(update, 30_000);
     return () => clearInterval(id);
   }, [isOngoing, message.timestamp]);
+
+  useEffect(() => {
+    if (rawLabel || mood || !fallbackLabel) return;
+    setMood(message.id, fallbackLabel, 'auto');
+  }, [rawLabel, mood, fallbackLabel, message.id, setMood]);
 
   const handleImageUploaded = (slot: 'imageUrl' | 'imageUrl2', url: string) => {
     void updateMessageImage(message.id, slot, url);
@@ -152,11 +165,15 @@ export const EventCard: React.FC<EventCardProps> = ({
         </div>
 
         {/* Mood chip (right) — clickable only when not readonly */}
-        {mood ? (
+        {hasMoodChip ? (
           <div
             role={readonly ? undefined : 'button'}
             onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-            className={cn('shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700', !readonly && 'active:opacity-80 cursor-pointer')}
+            className={cn(
+              'shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700',
+              !readonly && 'active:opacity-80 cursor-pointer',
+              cardActive && !readonly && 'mr-20',
+            )}
             style={
               moodKey === 'anxious'
                 ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
@@ -164,7 +181,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             }
           >
             <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-              {getTranslatedMood(rawLabel)}
+              {getTranslatedMood(displayLabel)}
             </span>
           </div>
         ) : (

@@ -43,6 +43,7 @@ const zh: TranslationKeys = {
     chat_label_content: '内容',
     chat_placeholder_content: '做了什么...',
     chat_label_start_time: '开始时间',
+    chat_start_time_no_future: '开始时间不能晚于当前时间',
     chat_label_end_time: '结束时间',
     chat_title_edit: '编辑',
     chat_title_insert: '在此后插入',

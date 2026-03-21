@@ -6,8 +6,7 @@ import type { Message } from '../../../store/useChatStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { getMoodColor } from '../../../lib/moodColor';
-import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
-import { cn } from '../../../lib/utils';
+import { normalizeMoodKey } from '../../../lib/moodOptions';
 import { ImageUploader } from './ImageUploader';
 
 export interface MoodCardProps {
@@ -15,7 +14,6 @@ export interface MoodCardProps {
   onReturnToEvent: (id: string) => void;
   onConvertToEvent: (id: string) => void;
   onDelete: (id: string) => void;
-  allowConvertToEvent: boolean;
   onMoodClick: (messageId: string) => void;
   readonly?: boolean;
 }
@@ -25,13 +23,11 @@ export const MoodCard: React.FC<MoodCardProps> = ({
   onReturnToEvent,
   onConvertToEvent,
   onDelete,
-  allowConvertToEvent,
   onMoodClick,
   readonly,
 }) => {
   const { t } = useTranslation();
   const { updateMessageImage } = useChatStore();
-  const getMood           = useMoodStore(s => s.getMood);
   const activityMood      = useMoodStore(s => s.activityMood);
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
@@ -55,14 +51,8 @@ export const MoodCard: React.FC<MoodCardProps> = ({
     : activityMood[message.id];
   const moodKey   = normalizeMoodKey(rawLabel);
   const moodColor = getMoodColor(rawLabel) || '#38BDF8';
-
-  const getTranslatedMood = (label?: string) => {
-    if (!label) return t('chat_unknown_mood_label');
-    const key = getMoodI18nKey(label);
-    return key ? t(key) : label;
-  };
-
-  const mood = getMood(message.id);
+  // Keep mood data in store for analytics/reporting, while hiding chip in this card UI.
+  void onMoodClick;
 
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
@@ -108,34 +98,8 @@ export const MoodCard: React.FC<MoodCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Mood chip */}
-          {mood ? (
-            <div
-              role={readonly ? undefined : 'button'}
-              onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-              className={cn('shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700', !readonly && 'active:opacity-80 cursor-pointer')}
-              style={
-                moodKey === 'anxious'
-                  ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
-                  : { backgroundColor: moodColor }
-              }
-            >
-              <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-                {getTranslatedMood(rawLabel)}
-              </span>
-            </div>
-          ) : (
-            !readonly && (
-              <button
-                onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
-                className="shrink-0 w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-                title={t('chat_unknown_mood_label')}
-              />
-            )
-          )}
-
-          {/* Return / convert buttons — hidden when readonly */}
-          {!readonly && (
+          {/* Return / convert buttons — hidden until card is activated */}
+          {!readonly && cardActive && (
             <>
               <button
                 onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }}
@@ -144,15 +108,13 @@ export const MoodCard: React.FC<MoodCardProps> = ({
               >
                 <ArrowLeft size={12} />
               </button>
-              {allowConvertToEvent && (
-                <button
-                  onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
-                  title={t('mood_to_event')}
-                  className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
-                >
-                  <Zap size={12} />
-                </button>
-              )}
+              <button
+                onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
+                title={t('mood_to_event')}
+                className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
+              >
+                <Zap size={12} />
+              </button>
             </>
           )}
         </div>

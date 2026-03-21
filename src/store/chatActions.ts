@@ -12,6 +12,7 @@ import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputClassification } from '../services/input/liveInputTelemetry';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 
 type SendMessageFn = (
   content: string,
@@ -40,6 +41,19 @@ interface ReclassifyResult {
 export interface AutoRecognizedInputResult {
   classification: LiveInputClassification;
   messageId: string | null;
+}
+
+function inferAutoMoodLang(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) {
+    return 'zh';
+  }
+  const lowered = content.toLowerCase();
+  if (
+    /\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)
+  ) {
+    return 'it';
+  }
+  return 'en';
 }
 
 function findLatestMessageIndex(messages: Message[]): number {
@@ -318,9 +332,8 @@ export function applyAutoRecognizedInputEffects(
   }
 
   const moodStore = useMoodStore.getState();
-  if (classification.extractedMood) {
-    moodStore.setMood(messageId, classification.extractedMood, 'auto');
-  }
+  const fallbackMood = autoDetectMood(classification.moodNote ?? '', 0, inferAutoMoodLang(classification.moodNote ?? ''));
+  moodStore.setMood(messageId, classification.extractedMood ?? fallbackMood, 'auto');
   if (classification.moodNote) {
     moodStore.setMoodNote(messageId, classification.moodNote, 'auto');
   }

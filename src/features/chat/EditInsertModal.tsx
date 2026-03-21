@@ -8,6 +8,7 @@ interface EditInsertModalProps {
     editContent: string;
     editStartTime: string;
     editEndTime: string;
+    maxDateTime: string;
     onContentChange: (v: string) => void;
     onStartTimeChange: (v: string) => void;
     onEndTimeChange: (v: string) => void;
@@ -20,6 +21,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
     editContent,
     editStartTime,
     editEndTime,
+    maxDateTime,
     onContentChange,
     onStartTimeChange,
     onEndTimeChange,
@@ -27,6 +29,21 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
     onClose,
 }) => {
     const { t } = useTranslation();
+    const clampToMaxDateTime = (next: string): string => {
+        if (!next) return next;
+        const nextMs = new Date(next).getTime();
+        const maxMs = new Date(maxDateTime).getTime();
+        if (!Number.isFinite(nextMs) || !Number.isFinite(maxMs)) return next;
+        return nextMs > maxMs ? maxDateTime : next;
+    };
+    const handleBoundedDateTimeBlur = (next: string, onChange: (v: string) => void) => {
+        const clamped = clampToMaxDateTime(next);
+        if (clamped !== next) onChange(clamped);
+    };
+    const openNativePicker = (target: HTMLInputElement) => {
+        const pickerTarget = target as HTMLInputElement & { showPicker?: () => void };
+        pickerTarget.showPicker?.();
+    };
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
@@ -54,7 +71,12 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             <input
                                 type="datetime-local"
                                 value={editStartTime}
+                                max={maxDateTime}
+                                step={60}
+                                onClick={(e) => openNativePicker(e.currentTarget)}
+                                onFocus={(e) => openNativePicker(e.currentTarget)}
                                 onChange={(e) => onStartTimeChange(e.target.value)}
+                                onBlur={(e) => handleBoundedDateTimeBlur(e.target.value, onStartTimeChange)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                             />
                         </div>
@@ -63,7 +85,12 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             <input
                                 type="datetime-local"
                                 value={editEndTime}
+                                max={maxDateTime}
+                                step={60}
+                                onClick={(e) => openNativePicker(e.currentTarget)}
+                                onFocus={(e) => openNativePicker(e.currentTarget)}
                                 onChange={(e) => onEndTimeChange(e.target.value)}
+                                onBlur={(e) => handleBoundedDateTimeBlur(e.target.value, onEndTimeChange)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                             />
                         </div>

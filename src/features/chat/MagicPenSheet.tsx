@@ -66,8 +66,7 @@ export function MagicPenSheet({
   const failedDraftCount = pendingDrafts.filter((draft) => commitStates.get(draft.id) === 'error').length;
   const idleDraftCount = pendingDrafts.filter((draft) => (commitStates.get(draft.id) || 'idle') === 'idle').length;
 
-  const hasErrorInPending = pendingDrafts.some((draft) => draft.errors.length > 0 || !draft.content.trim());
-  const isConfirmDisabled = pendingDrafts.length === 0 || hasErrorInPending || isSubmitting;
+  const isConfirmDisabled = pendingDrafts.length === 0 || isSubmitting;
 
   const resetErroredDraftState = (draftId: string) => {
     setCommitStates((prev) => {
@@ -129,35 +128,50 @@ export function MagicPenSheet({
     const validated = validateDrafts(toCommit, messages);
     const hasErrors = validated.some((draft) => draft.errors.length > 0);
     setDrafts((prev) => prev.map((item) => validated.find((draft) => draft.id === item.id) ?? item));
-    if (hasErrors || validated.length === 0) return;
+    if (hasErrors || validated.length === 0) {
+      setStatusText(t('chat_magic_pen_item_error'));
+      return;
+    }
 
     const nextStates = new Map(commitStates);
     for (const draft of validated) nextStates.set(draft.id, 'submitting');
     setCommitStates(nextStates);
     setIsSubmitting(true);
+    setStatusText('');
+    try {
+      const result = await commitMagicPenDrafts(validated);
+      const failed = new Set(result.failedDraftIds);
+      setCommitStates((prev) => {
+        const updated = new Map(prev);
+        for (const draft of validated) {
+          updated.set(draft.id, failed.has(draft.id) ? 'error' : 'success');
+        }
+        return updated;
+      });
 
-    const result = await commitMagicPenDrafts(validated);
-    const failed = new Set(result.failedDraftIds);
-    setCommitStates((prev) => {
-      const updated = new Map(prev);
-      for (const draft of validated) {
-        updated.set(draft.id, failed.has(draft.id) ? 'error' : 'success');
+      if (result.failedDraftIds.length === 0) {
+        setStatusText(
+          t('chat_magic_pen_success_summary', {
+            activityCount: result.successActivityCount,
+            todoCount: result.successTodoCount,
+          }),
+        );
+        onClose();
+        return;
       }
-      return updated;
-    });
-    setIsSubmitting(false);
-
-    if (result.failedDraftIds.length === 0) {
-      setStatusText(
-        t('chat_magic_pen_success_summary', {
-          activityCount: result.successActivityCount,
-          todoCount: result.successTodoCount,
-        }),
-      );
-      onClose();
-      return;
+      setStatusText(t('chat_magic_pen_partial_success'));
+    } catch {
+      setCommitStates((prev) => {
+        const updated = new Map(prev);
+        for (const draft of validated) {
+          updated.set(draft.id, 'error');
+        }
+        return updated;
+      });
+      setStatusText(t('chat_magic_pen_item_error'));
+    } finally {
+      setIsSubmitting(false);
     }
-    setStatusText(t('chat_magic_pen_partial_success'));
   };
 
   const handleUndoAutoWrite = async (item: MagicPenAutoWrittenItem) => {

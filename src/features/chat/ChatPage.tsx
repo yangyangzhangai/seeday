@@ -137,9 +137,10 @@ export const ChatPage = () => {
   }, [selectedDate, todayStr]);
 
   const isSelectedDateToday = toLocalDateStr(selectedDate) === todayStr;
+  const maxEditableDateTime = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
   const handleTimeClick = useCallback((msg: any) => {
-    if (!isSelectedDateToday || msg?.isMood) return;
+    if (!isSelectedDateToday) return;
     setEditingId(msg.id);
     setInsertingAfterId(null);
     setEditContent(msg.content);
@@ -150,12 +151,18 @@ export const ChatPage = () => {
   const handleSave = async () => {
     if (!editContent || !editStartTime || !editEndTime) return;
     const parseTime = (s: string) => new Date(s).getTime();
+    const startMs = parseTime(editStartTime);
+    const endMs = parseTime(editEndTime);
+    if (startMs > Date.now()) {
+      window.alert(t('chat_start_time_no_future'));
+      return;
+    }
     if (editingId) {
-      await updateActivity(editingId, editContent, parseTime(editStartTime), parseTime(editEndTime));
+      await updateActivity(editingId, editContent, startMs, endMs);
     } else if (insertingAfterId) {
       const idx = messages.findIndex(m => m.id === insertingAfterId);
       const nextMsg = messages[idx + 1];
-      await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, parseTime(editStartTime), parseTime(editEndTime));
+      await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, startMs, endMs);
     }
     setEditingId(null);
     setInsertingAfterId(null);
@@ -290,6 +297,7 @@ export const ChatPage = () => {
           editContent={editContent}
           editStartTime={editStartTime}
           editEndTime={editEndTime}
+          maxDateTime={maxEditableDateTime}
           onContentChange={setEditContent}
           onStartTimeChange={setEditStartTime}
           onEndTimeChange={setEditEndTime}

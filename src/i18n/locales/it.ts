@@ -43,6 +43,7 @@ const it: TranslationKeys = {
     chat_label_content: 'Contenuto',
     chat_placeholder_content: 'Cosa hai fatto…',
     chat_label_start_time: 'Ora di inizio',
+    chat_start_time_no_future: 'L\'ora di inizio non puo essere nel futuro',
     chat_label_end_time: 'Ora di fine',
     chat_title_edit: 'Modifica',
     chat_title_insert: 'Inserisci dopo',

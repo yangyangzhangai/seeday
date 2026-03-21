@@ -514,6 +514,7 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
   it('captures activity_with_mood in completion + weak mood phrasing: 写完报告了，终于松口气', () => {
     const result = classify('写完报告了，终于松口气');
     expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.extractedMood).toBe('satisfied');
   });
 
   it('captures activity_with_mood in result-eval phrasing: 午休睡得很好', () => {

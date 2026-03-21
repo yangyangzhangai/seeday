@@ -418,6 +418,14 @@ export const useChatStore = create<ChatState>()(
         );
 
         set({ messages: finalMessages });
+        const insertedPrimary = messagesToInsert[0];
+        if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
+          useMoodStore.getState().setMood(
+            insertedPrimary.id,
+            autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0),
+            'auto',
+          );
+        }
 
         const session = await getSupabaseSession();
         if (session) {
@@ -690,6 +698,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       detachMoodFromEvent: (eventId, moodMsgId) => {
+        const moodMessage = get().messages.find(m => m.id === moodMsgId);
         set(state => ({
           messages: state.messages.map(m => {
             if (m.id === eventId) {
@@ -702,6 +711,14 @@ export const useChatStore = create<ChatState>()(
             return m;
           }),
         }));
+
+        if (!moodMessage) return;
+        const moodStore = useMoodStore.getState();
+        const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
+        const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
+        if (!hasManualMood && !hasManualCustomLabel && !moodStore.getMood(moodMsgId)) {
+          moodStore.setMood(moodMsgId, autoDetectMood(moodMessage.content, 0), 'auto');
+        }
       },
 
       reattachMoodToEvent: (moodMsgId) => {
@@ -728,18 +745,27 @@ export const useChatStore = create<ChatState>()(
 
       convertMoodToEvent: async (moodMsgId) => {
         const currentMessages = get().messages;
+        const moodTarget = currentMessages.find(
+          m => m.id === moodMsgId && m.mode === 'record' && m.type === 'text' && m.isMood,
+        );
+        if (!moodTarget) {
+          return;
+        }
+
         const latestRecordMessage = [...currentMessages]
           .filter(m => m.mode === 'record' && m.type === 'text')
           .sort((a, b) => b.timestamp - a.timestamp)[0];
-        if (!latestRecordMessage || latestRecordMessage.id !== moodMsgId) {
-          return;
-        }
+        const isLatestRecordMessage = latestRecordMessage?.id === moodMsgId;
+        const isMoodOnToday = getLocalDateString(new Date(moodTarget.timestamp)) === getLocalDateString(new Date());
+        const shouldStartAsActiveEvent = isLatestRecordMessage && isMoodOnToday;
         const now = Date.now();
-        const prevActive = currentMessages.find(m => m.isActive && !m.isMood) ?? null;
+        const prevActive = shouldStartAsActiveEvent
+          ? (currentMessages.find(m => m.isActive && !m.isMood) ?? null)
+          : null;
 
         set(state => ({
           messages: state.messages.map(m => {
-            if (m.isActive && !m.isMood) {
+            if (shouldStartAsActiveEvent && m.isActive && !m.isMood) {
               return { ...m, isActive: false, duration: Math.max(0, Math.round((now - m.timestamp) / 60000)) };
             }
             if (m.id === moodMsgId) {
@@ -747,7 +773,8 @@ export const useChatStore = create<ChatState>()(
                 ...m,
                 isMood: false,
                 detached: false,
-                isActive: true,
+                isActive: shouldStartAsActiveEvent,
+                duration: shouldStartAsActiveEvent ? undefined : (m.duration ?? 0),
                 activityType: classifyRecordActivityType(m.content).activityType,
               };
             }
@@ -767,18 +794,22 @@ export const useChatStore = create<ChatState>()(
         const newEvent = get().messages.find(m => m.id === moodMsgId);
         if (newEvent) {
           const moodStore = useMoodStore.getState();
-          if (!moodStore.getMood(moodMsgId)) {
-            void triggerMoodDetection(moodMsgId, newEvent.content);
+          const hasManualMood = moodStore.activityMoodMeta[moodMsgId]?.source === 'manual';
+          const hasManualCustomLabel = moodStore.customMoodApplied[moodMsgId] === true;
+          if (!hasManualMood && !hasManualCustomLabel) {
+            moodStore.setMood(moodMsgId, autoDetectMood(newEvent.content, 0), 'auto');
           }
         }
 
         const session = await getSupabaseSession();
         if (session) {
           const updated = get().messages;
-          for (const m of updated) {
-            if (m.id === moodMsgId || (m.isActive === false && m.duration !== undefined)) {
-              await persistMessageToSupabase(m, session.user.id);
-            }
+          const idsToPersist = new Set<string>([moodMsgId]);
+          if (prevActive) idsToPersist.add(prevActive.id);
+          for (const id of idsToPersist) {
+            const message = updated.find(m => m.id === id);
+            if (!message) continue;
+            await persistMessageToSupabase(message, session.user.id);
           }
         }
       },
