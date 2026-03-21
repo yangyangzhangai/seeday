@@ -78,18 +78,20 @@ function normalizeDailyGoalDate(raw: unknown): string {
   return toLocalDateStr(parsed.getTime());
 }
 
-function clearGrowthDailyPopupFirstVisitFlags(userId: string): void {
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
-  const prefix = `growth:first-visit:${userId}:`;
-  const keysToDelete: string[] = [];
-  for (let i = 0; i < window.sessionStorage.length; i += 1) {
-    const key = window.sessionStorage.key(i);
-    if (!key || !key.startsWith(prefix)) continue;
-    keysToDelete.push(key);
+function markGrowthDailyLoginSession(userId: string): void {
+  if (typeof window === 'undefined' || !window.localStorage || !window.sessionStorage) return;
+  const today = toLocalDateStr(Date.now());
+  const firstLoginDateKey = `growth:first-login-date:${userId}`;
+  const sessionFlagKey = `growth:is-first-login:${userId}:${today}`;
+  const hasLoggedInToday = window.localStorage.getItem(firstLoginDateKey) === today;
+
+  if (hasLoggedInToday) {
+    window.sessionStorage.setItem(sessionFlagKey, '0');
+    return;
   }
-  for (const key of keysToDelete) {
-    window.sessionStorage.removeItem(key);
-  }
+
+  window.localStorage.setItem(firstLoginDateKey, today);
+  window.sessionStorage.setItem(sessionFlagKey, '1');
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -108,6 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       preferences: session?.user ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
     });
     if (session?.user) {
+      markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
       await updateLoginStreak(session.user.id);
       const activityStreak = await fetchActivityStreak(session.user.id);
@@ -128,6 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+        markGrowthDailyLoginSession(currentUser.id);
         console.log('User signed in. Syncing local data...');
         await syncLocalDataToSupabase(currentUser.id);
 
@@ -156,9 +160,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        if (previousUser?.id) {
-          clearGrowthDailyPopupFirstVisitFlags(previousUser.id);
-        }
         useChatStore.setState({ messages: [], hasInitialized: false });
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });

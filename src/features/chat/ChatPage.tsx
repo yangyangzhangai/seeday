@@ -37,6 +37,8 @@ export const ChatPage = () => {
 
   const { activeTodoId, completeActiveTodo, todos } = useTodoStore();
   const getStardustByMessageId = useStardustStore(state => state.getStardustByMessageId);
+  const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
+  const fetchStardusts = useStardustStore(state => state.fetchStardusts);
   const [searchParams, setSearchParams] = useSearchParams();
   const [input, setInput] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -87,6 +89,14 @@ export const ChatPage = () => {
     if (hasInitialized) return;
     fetchMessages();
   }, []);
+
+  // Ensure stardust emojis survive refresh/login and cross-device sync.
+  useEffect(() => {
+    void (async () => {
+      await syncPendingStardusts();
+      await fetchStardusts();
+    })();
+  }, [syncPendingStardusts, fetchStardusts]);
 
   // ── URL 参数清理 ───────────────────────────────────────────
   useEffect(() => {

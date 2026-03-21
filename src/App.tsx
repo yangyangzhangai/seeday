@@ -16,6 +16,33 @@ import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 
+const BlankScreen: React.FC = () => (
+  <div className="fixed inset-0 bg-gray-50" />
+);
+
+const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+  const location = useLocation();
+
+  if (loading) return <BlankScreen />;
+  if (!user) {
+    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+};
+
+const AuthRoute: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+
+  if (loading) return <BlankScreen />;
+  if (user) return <Navigate to="/chat" replace />;
+
+  return <AuthPage />;
+};
+
 /** Thin wrapper around Outlet that fades in on route change */
 const PageOutlet: React.FC = () => {
   const { pathname } = useLocation();
@@ -147,7 +174,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />}>
+        <Route
+          path="/"
+          element={(
+            <RequireAuth>
+              <MainLayout />
+            </RequireAuth>
+          )}
+        >
           <Route index element={<Navigate to="/chat" replace />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="todo" element={<Navigate to="/growth" replace />} />
@@ -155,7 +189,7 @@ function App() {
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
-        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth" element={<AuthRoute />} />
       </Routes>
     </BrowserRouter>
   );
