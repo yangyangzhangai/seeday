@@ -17,9 +17,21 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
-  const { todos, toggleTodo, deleteTodo, startTodo, addTodo, generateRecurringTodos, linkMessageToTodo } = useTodoStore();
+  const {
+    todos,
+    toggleTodo,
+    deleteTodo,
+    startTodo,
+    addTodo,
+    generateRecurringTodos,
+    linkMessageToTodo,
+    setTodoCompletionMessage,
+    getTodoCompletionMessage,
+    clearTodoCompletionMessage,
+  } = useTodoStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
+  const deleteActivity = useChatStore((s) => s.deleteActivity);
   const setMode = useChatStore((s) => s.setMode);
   const [showAdd, setShowAdd] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
@@ -34,6 +46,15 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     const wasCompleted = todo?.completed ?? true;
     // Optimistic update — toggle immediately so the UI responds without waiting for async ops
     toggleTodo(id);
+    if (todo && wasCompleted) {
+      const generatedMessageId = getTodoCompletionMessage(todo.id);
+      if (generatedMessageId) {
+        await deleteActivity(generatedMessageId);
+      }
+      clearTodoCompletionMessage(todo.id);
+      return;
+    }
+
     if (todo && !wasCompleted) {
       const now = Date.now();
       // Increment bottle star if linked
@@ -46,9 +67,12 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
       });
       if (msgId) {
+        setTodoCompletionMessage(todo.id, msgId);
         // Immediately end the activity so it shows as a completed card with correct duration
         // skipBottleStar: star was already awarded above via incrementBottleStar
         await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
+      } else {
+        clearTodoCompletionMessage(todo.id);
       }
     }
   };
