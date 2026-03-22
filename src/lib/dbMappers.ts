@@ -1,11 +1,22 @@
 import type { AIAnnotation } from '../types/annotation';
 import type { DailyPlantRecord } from '../types/plant';
 import type { StardustMemory } from '../types/stardust';
-import type { Message, MessageType } from '../store/useChatStore';
+import { normalizeActivityType, normalizeTodoCategory } from './activityType';
+import type { Message, MessageType, MoodDescription } from '../store/useChatStore';
 import type { Report } from '../store/useReportStore';
 import type { Todo } from '../store/useTodoStore';
 
 export type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
+
+/** 安全解析 mood_descriptions JSONB 字段，容错脏数据 */
+export function safeParseMoodDescriptions(raw: unknown): MoodDescription[] | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) return raw as MoodDescription[];
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+}
 
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   title: 'content',
@@ -26,9 +37,15 @@ export function fromDbMessage(row: any): Message {
     timestamp: Number(row.timestamp),
     type: row.type as MessageType,
     duration: row.duration ?? undefined,
-    activityType: row.activity_type,
-    mode: (row.activity_type === 'chat' ? 'chat' : 'record') as 'chat' | 'record',
+    activityType: normalizeActivityType(row.activity_type, row.content),
+    mode: 'record',
     isMood: row.is_mood || false,
+    // ★ v1.2 新增字段
+    imageUrl: row.image_url ?? null,
+    imageUrl2: row.image_url_2 ?? null,
+    moodDescriptions: safeParseMoodDescriptions(row.mood_descriptions),
+    isActive: row.is_active ?? false,
+    detached: row.detached ?? false,
   };
 }
 
@@ -42,6 +59,12 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
     activity_type: message.activityType,
     is_mood: message.isMood || false,
     user_id: userId,
+    // ★ v1.2 新增字段
+    image_url: message.imageUrl ?? null,
+    image_url_2: message.imageUrl2 ?? null,
+    mood_descriptions: message.moodDescriptions ?? null,
+    is_active: message.isActive ?? false,
+    detached: message.detached ?? false,
   };
 }
 
@@ -51,7 +74,7 @@ export function fromDbTodo(row: any): Todo {
     title: row.content,              // DB 'content' → app 'title'
     completed: row.completed,
     priority: row.priority,
-    category: row.category,
+    category: normalizeTodoCategory(row.category, row.content),
     dueAt: row.due_date,             // DB 'due_date' → app 'dueAt'
     scope: row.scope,
     createdAt: row.created_at,

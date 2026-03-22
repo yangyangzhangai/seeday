@@ -7,12 +7,17 @@ import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useStardustStore } from './useStardustStore';
+import { useMoodStore } from './useMoodStore';
+import { useGrowthStore } from './useGrowthStore';
+import { useFocusStore } from './useFocusStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
+import { isLegacyChatActivityType } from '../lib/activityType';
+import type { AiCompanionMode } from '../lib/aiCompanion';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 
 export interface UserPreferences {
-  aiMode: 'van' | 'agnes' | 'zep' | 'spring_thunder';
+  aiMode: AiCompanionMode;
   aiModeEnabled: boolean;
   dailyGoalEnabled: boolean;
   annotationDropRate: AnnotationDropRate;
@@ -29,12 +34,16 @@ interface AuthState {
   user: any | null;
   loading: boolean;
   preferences: UserPreferences;
+  /** Consecutive days with recorded activities, null = not yet fetched */
+  activityStreak: number | null;
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
+  /** Re-compute activityStreak from Supabase — call after recording a new activity */
+  refreshActivityStreak: () => Promise<void>;
 }
 
 function getTodayDateStr(): string {
@@ -80,10 +89,52 @@ function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
   };
 }
 
+function hydrateGrowthDailyGoalFromMeta(meta: Record<string, any>): void {
+  const remoteGoal = typeof meta.daily_goal === 'string' ? meta.daily_goal : '';
+  const remoteGoalDate = normalizeDailyGoalDate(meta.daily_goal_date);
+  if (!remoteGoal && !remoteGoalDate) return;
+  useGrowthStore.setState((state) => ({
+    dailyGoal: remoteGoal || state.dailyGoal,
+    goalDate: remoteGoalDate || state.goalDate,
+  }));
+}
+
+function normalizeDailyGoalDate(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const value = raw.trim();
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const slash = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if (slash) {
+    const [, y, m, d] = slash;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return toLocalDateStr(parsed.getTime());
+}
+
+function markGrowthDailyLoginSession(userId: string): void {
+  if (typeof window === 'undefined' || !window.localStorage || !window.sessionStorage) return;
+  const today = toLocalDateStr(Date.now());
+  const firstLoginDateKey = `growth:first-login-date:${userId}`;
+  const sessionFlagKey = `growth:is-first-login:${userId}:${today}`;
+  const hasLoggedInToday = window.localStorage.getItem(firstLoginDateKey) === today;
+
+  if (hasLoggedInToday) {
+    window.sessionStorage.setItem(sessionFlagKey, '0');
+    return;
+  }
+
+  window.localStorage.setItem(firstLoginDateKey, today);
+  window.sessionStorage.setItem(sessionFlagKey, '1');
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   preferences: DEFAULT_PREFERENCES,
+  activityStreak: null,
 
   initialize: async () => {
     // Get initial session
@@ -95,6 +146,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       loading: false,
       preferences: sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
     });
+    if (session?.user) {
+      markGrowthDailyLoginSession(session.user.id);
+      hydrateGrowthDailyGoalFromMeta(meta);
+      await updateLoginStreak(session.user.id);
+      const activityStreak = await fetchActivityStreak(session.user.id);
+      set({ activityStreak });
+    }
 
     // Listen for changes
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -110,20 +168,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (event === 'SIGNED_IN' && currentUser) {
         const meta = currentUser.user_metadata || {};
         set({ preferences: preferencesFromMeta(meta) });
+        hydrateGrowthDailyGoalFromMeta(meta);
       }
 
       if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+        markGrowthDailyLoginSession(currentUser.id);
         console.log('User signed in. Syncing local data...');
         await syncLocalDataToSupabase(currentUser.id);
+
+        // 更新连续登录天数
+        await updateLoginStreak(currentUser.id);
 
         // 先同步本地 annotation 到云端
         await useAnnotationStore.getState().syncLocalAnnotations(currentUser.id);
         // syncLocalAnnotations 成功后内部会调用 fetchAnnotations
 
-        // 再拉取其他云端数据
-        await useChatStore.getState().fetchMessages();
-        await useTodoStore.getState().fetchTodos();
-        await useReportStore.getState().fetchReports();
+        // 拉取各云端数据（并行执行互不依赖的部分）
+        const [activityStreak] = await Promise.all([
+          fetchActivityStreak(currentUser.id),
+          useChatStore.getState().fetchMessages(),
+          useTodoStore.getState().fetchTodos(),
+          useReportStore.getState().fetchReports(),
+          useMoodStore.getState().fetchMoods(),
+          useGrowthStore.getState().fetchBottles(),
+          useFocusStore.getState().fetchSessions(),
+        ]);
+        set({ activityStreak });
 
         // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
         await useStardustStore.getState().syncPendingStardusts();
@@ -131,11 +201,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        useChatStore.setState({ messages: [] });
+        useChatStore.setState({ messages: [], hasInitialized: false });
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
-        set({ preferences: DEFAULT_PREFERENCES });
+        useMoodStore.getState().clear();
+        useGrowthStore.setState({ bottles: [], dailyGoal: '', goalDate: '', popupDisabled: false });
+        useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
+        set({ preferences: DEFAULT_PREFERENCES, activityStreak: null });
       }
     });
   },
@@ -185,10 +258,102 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
   },
+
+  refreshActivityStreak: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    const streak = await fetchActivityStreak(userId, true); // force bypass cache
+    set({ activityStreak: streak });
+  },
 }));
 
+// ── Helper: local date string from timestamp (ms) ─────────────
+function toLocalDateStr(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Fetch consecutive activity days from Supabase (full history, no date limit).
+ * Cached in localStorage — only re-fetches on the first open of each calendar day.
+ * Pass force=true to bypass the cache (e.g. after recording a new activity).
+ */
+async function fetchActivityStreak(userId: string, force = false): Promise<number> {
+  const today = toLocalDateStr(Date.now());
+  const dateKey  = `streakDate_${userId}`;
+  const valueKey = `streakValue_${userId}`;
+
+  // Return cached value if already fetched today (and not forced)
+  if (!force && localStorage.getItem(dateKey) === today) {
+    const cached = localStorage.getItem(valueKey);
+    return cached !== null ? Number(cached) : 0;
+  }
+
+  try {
+    // Fetch ALL activity timestamps (no date filter) to compute full streak
+    const { data } = await supabase
+      .from('messages')
+      .select('timestamp, activity_type')
+      .eq('user_id', userId)
+      .eq('is_mood', false);
+
+    if (!data) return 0;
+    const dates = new Set(
+      data
+        .filter((row) => !isLegacyChatActivityType(row.activity_type))
+        .map((row) => toLocalDateStr(Number(row.timestamp)))
+    );
+
+    let streak = 0;
+    const d = new Date();
+    while (dates.has(toLocalDateStr(d.getTime()))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+
+    // Cache result so we skip the query for the rest of today
+    localStorage.setItem(dateKey,  today);
+    localStorage.setItem(valueKey, String(streak));
+    return streak;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Upsert user_stats with updated login streak.
+ * - If last_login_date was yesterday → streak + 1
+ * - If last_login_date is today      → no change (already counted)
+ * - Otherwise                        → streak resets to 1
+ */
+async function updateLoginStreak(userId: string): Promise<void> {
+  try {
+    const today = toLocalDateStr(Date.now());
+    const { data } = await supabase
+      .from('user_stats')
+      .select('login_streak, last_login_date')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (data?.last_login_date === today) return; // Already counted today
+
+    const yesterday = toLocalDateStr(Date.now() - 86_400_000);
+    const newStreak = data?.last_login_date === yesterday
+      ? (data.login_streak ?? 0) + 1
+      : 1;
+
+    await supabase.from('user_stats').upsert(
+      { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
+  }
+}
+
 async function syncLocalDataToSupabase(userId: string) {
-  const messages = useChatStore.getState().messages;
+  const messages = useChatStore.getState().messages
+    .filter((message) => !isLegacyChatActivityType(message.activityType));
   const todos = useTodoStore.getState().todos;
 
   // 1. Sync Messages

@@ -37,7 +37,6 @@ function getLoginDaysFromMeta(user: any): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((item): item is string => typeof item === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item));
 }
-
 function calcTodayActivities(messages: any[]): number {
   const today = toLocalDate(Date.now());
   return messages.filter(
@@ -266,7 +265,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             )}
 
             {/* Full avatar */}
-            <div className="w-64 h-64 bg-gray-900 flex items-center justify-center">
+            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] bg-gray-900 flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}

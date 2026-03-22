@@ -4,10 +4,36 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
+import { callClassifierAPI } from '../api/client';
+import {
+  classifyRecordActivityType,
+  normalizeTodoCategory,
+  type ActivityRecordType,
+} from '../lib/activityType';
+import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import type { AnnotationEvent } from '../types/annotation';
+import i18n from '../i18n';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
+function resolveLangForText(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  const lowered = content.toLowerCase();
+  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
+    return 'it';
+  }
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  return resolveCurrentLang();
+}
 
 // ── Priority types ──────────────────────────────────────────
 export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
@@ -28,7 +54,7 @@ export interface Todo {
   completedAt?: number;
   duration?: number;                 // elapsed minutes
   // Categorization (legacy, used by Report / MagicPen)
-  category?: string;
+  category?: ActivityRecordType;
   scope?: TodoScope;
   // Recurrence
   recurrence?: Recurrence;
@@ -87,7 +113,11 @@ function migrateOldTodoStorage(currentIds: Set<string>): Todo[] {
         completedAt: t.completedAt as number | undefined,
         duration: t.duration as number | undefined,
         startedAt: t.startedAt as number | undefined,
-        category: t.category as string | undefined,
+        category: normalizeTodoCategory(
+          t.category as string | undefined,
+          (t.content ?? t.title ?? '') as string,
+          resolveLangForText((t.content ?? t.title ?? '') as string),
+        ),
         scope: t.scope as TodoScope | undefined,
         recurrence: 'once' as Recurrence,
         isTemplate: false,
@@ -145,14 +175,34 @@ async function bgSyncDelete(id: string): Promise<void> {
   }
 }
 
+async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
+  try {
+    const lang = resolveLangForText(title);
+    const result = await callClassifierAPI({
+      rawInput: `${title} 30分钟`,
+      lang,
+    });
+    const firstItem = result.data?.items?.[0];
+    if (!firstItem?.category) return;
+    const nextCategory = mapDiaryClassifierCategoryToActivityType(firstItem.category, title, lang);
+    useTodoStore.setState((state) => ({
+      todos: state.todos.map((todo) => (todo.id === id ? { ...todo, category: nextCategory } : todo)),
+    }));
+    await bgSyncUpdate(id, { category: nextCategory });
+  } catch {
+    return;
+  }
+}
+
 // ── Store interface ─────────────────────────────────────────
 interface TodoState {
   todos: Todo[];
-  categories: string[];
+  categories: ActivityRecordType[];
   isLoading: boolean;
   activeTodoId: string | null;
   lastGeneratedDate: string;
   activeMessageMap: Record<string, string>;
+  todoCompletionMessageMap: Record<string, string>;
 
   fetchTodos: () => Promise<void>;
   addTodo: (input: {
@@ -162,14 +212,14 @@ interface TodoState {
     dueAt?: number;
     recurrence?: Recurrence;
     recurrenceDays?: number[];
-    category?: string;
+    category?: ActivityRecordType;
     scope?: TodoScope;
   }) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
   toggleTodo: (id: string) => void;
   togglePin: (id: string) => void;
   deleteTodo: (id: string) => void;
-  addCategory: (category: string) => void;
+  addCategory: (category: ActivityRecordType) => void;
   startTodo: (id: string) => void;
   completeActiveTodo: () => Promise<void>;
   completeTodoWithDuration: (id: string, duration: number) => Promise<void>;
@@ -178,6 +228,9 @@ interface TodoState {
   generateRecurringTodos: () => void;
   linkMessageToTodo: (messageId: string, todoId: string) => void;
   completeTodoByMessage: (messageId: string) => void;
+  setTodoCompletionMessage: (todoId: string, messageId: string) => void;
+  getTodoCompletionMessage: (todoId: string) => string | undefined;
+  clearTodoCompletionMessage: (todoId: string) => void;
 }
 
 // ── Unified Store ───────────────────────────────────────────
@@ -190,6 +243,7 @@ export const useTodoStore = create<TodoState>()(
       activeTodoId: null,
       lastGeneratedDate: '',
       activeMessageMap: {},
+      todoCompletionMessageMap: {},
 
       // ── Fetch from Supabase (merge with local) ──
       fetchTodos: async () => {
@@ -206,6 +260,12 @@ export const useTodoStore = create<TodoState>()(
           return;
         }
         const cloudTodos = data.map(fromDbTodo);
+        data.forEach((row) => {
+          const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
+          if (row.category !== normalizedCategory) {
+            void bgSyncUpdate(row.id, { category: normalizedCategory });
+          }
+        });
         const localTodos = get().todos;
         const cloudIds = new Set(cloudTodos.map((t) => t.id));
         const allIds = new Set([...cloudIds, ...localTodos.map((t) => t.id)]);
@@ -228,6 +288,10 @@ export const useTodoStore = create<TodoState>()(
         const defaultSortOrder = input.dueAt ?? (maxOrder + Date.now());
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
+        const lang = resolveLangForText(input.title);
+        const ruleClassified = classifyRecordActivityType(input.title, lang);
+        const normalizedCategory = normalizeTodoCategory(input.category, input.title, lang);
+        const shouldRefineByAI = ruleClassified.confidence === 'low';
 
         if (isRecurring) {
           const templateId = uuidv4();
@@ -243,7 +307,7 @@ export const useTodoStore = create<TodoState>()(
             recurrenceDays: input.recurrenceDays,
             isTemplate: true,
             sortOrder: defaultSortOrder,
-            category: input.category,
+            category: normalizedCategory,
             scope: input.scope,
           };
 
@@ -265,14 +329,20 @@ export const useTodoStore = create<TodoState>()(
               isTemplate: false,
               templateId,
               sortOrder: defaultSortOrder,
-              category: input.category,
+              category: normalizedCategory,
               scope: input.scope,
             };
             newTodos.push(instance);
             bgSyncInsert(instance).catch(console.error);
+            if (shouldRefineByAI) {
+              void refineTodoCategoryWithAI(instance.id, instance.title);
+            }
           }
           set((s) => ({ todos: [...s.todos, ...newTodos] }));
           bgSyncInsert(template).catch(console.error);
+          if (shouldRefineByAI) {
+            void refineTodoCategoryWithAI(template.id, template.title);
+          }
         } else {
           const todo: Todo = {
             id: uuidv4(),
@@ -285,11 +355,14 @@ export const useTodoStore = create<TodoState>()(
             recurrence: 'once',
             isTemplate: false,
             sortOrder: defaultSortOrder,
-            category: input.category,
+            category: normalizedCategory,
             scope: input.scope,
           };
           set((s) => ({ todos: [...s.todos, todo] }));
           bgSyncInsert(todo).catch(console.error);
+          if (shouldRefineByAI) {
+            void refineTodoCategoryWithAI(todo.id, todo.title);
+          }
         }
       },
 
@@ -339,11 +412,19 @@ export const useTodoStore = create<TodoState>()(
             todos: s.todos.filter(
               (t) => t.id !== id && !(t.templateId === id && !t.completed)
             ),
+            todoCompletionMessageMap: Object.fromEntries(
+              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
+            ),
           }));
           bgSyncDelete(id).catch(console.error);
           instanceIds.forEach((iid) => bgSyncDelete(iid).catch(console.error));
         } else {
-          set((s) => ({ todos: s.todos.filter((t) => t.id !== id) }));
+          set((s) => ({
+            todos: s.todos.filter((t) => t.id !== id),
+            todoCompletionMessageMap: Object.fromEntries(
+              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id)
+            ),
+          }));
           bgSyncDelete(id).catch(console.error);
         }
 
@@ -357,7 +438,11 @@ export const useTodoStore = create<TodoState>()(
       },
 
       addCategory: (category) =>
-        set((state) => ({ categories: [...state.categories, category] })),
+        set((state) => (
+          state.categories.includes(category)
+            ? { categories: state.categories }
+            : { categories: [...state.categories, category] }
+        )),
 
       // ── Start working on a todo ──
       startTodo: (id) => {
@@ -520,6 +605,25 @@ export const useTodoStore = create<TodoState>()(
           }));
           bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch(console.error);
         }
+      },
+
+      setTodoCompletionMessage: (todoId, messageId) => {
+        set((s) => ({
+          todoCompletionMessageMap: {
+            ...s.todoCompletionMessageMap,
+            [todoId]: messageId,
+          },
+        }));
+      },
+
+      getTodoCompletionMessage: (todoId) => get().todoCompletionMessageMap[todoId],
+
+      clearTodoCompletionMessage: (todoId) => {
+        set((s) => ({
+          todoCompletionMessageMap: Object.fromEntries(
+            Object.entries(s.todoCompletionMessageMap).filter(([key]) => key !== todoId)
+          ),
+        }));
       },
     }),
     {

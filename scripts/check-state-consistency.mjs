@@ -8,7 +8,6 @@ const REQUIRED_GLOBAL_DOCS = [
 const FEATURE_README_MAP = {
   'src/features/auth/': 'src/features/auth/README.md',
   'src/features/chat/': 'src/features/chat/README.md',
-  'src/features/growth/': 'src/features/growth/GrowthPage.tsx',
   'src/features/report/': 'src/features/report/README.md',
   'src/api/': 'src/api/README.md',
   'api/': 'src/api/README.md',

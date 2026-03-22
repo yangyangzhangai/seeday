@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
+import { normalizeTodoCategory } from '../../lib/activityType';
 import { GrowthTodoCard } from './GrowthTodoCard';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 
@@ -16,10 +17,21 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
-  const { todos, toggleTodo, deleteTodo, startTodo, addTodo, generateRecurringTodos, linkMessageToTodo } = useTodoStore();
+  const {
+    todos,
+    toggleTodo,
+    deleteTodo,
+    startTodo,
+    addTodo,
+    generateRecurringTodos,
+    linkMessageToTodo,
+    setTodoCompletionMessage,
+    getTodoCompletionMessage,
+    clearTodoCompletionMessage,
+  } = useTodoStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
-  const setMode = useChatStore((s) => s.setMode);
+  const deleteActivity = useChatStore((s) => s.deleteActivity);
   const [showAdd, setShowAdd] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
 
@@ -33,16 +45,33 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     const wasCompleted = todo?.completed ?? true;
     // Optimistic update — toggle immediately so the UI responds without waiting for async ops
     toggleTodo(id);
+    if (todo && wasCompleted) {
+      const generatedMessageId = getTodoCompletionMessage(todo.id);
+      if (generatedMessageId) {
+        await deleteActivity(generatedMessageId);
+      }
+      clearTodoCompletionMessage(todo.id);
+      return;
+    }
+
     if (todo && !wasCompleted) {
+      const now = Date.now();
       // Increment bottle star if linked
       if (todo.bottleId) incrementBottleStar(todo.bottleId);
       // Create a completed record card:
-      // Start time = todo's due time (or createdAt as fallback), end time = now
-      const startTime = todo.dueAt ?? todo.createdAt;
-      const msgId = await sendMessage(todo.title, startTime, 'record');
+      // If the todo was started before, preserve that start time; otherwise use completion time.
+      // Never fallback to dueAt/createdAt here, otherwise timeline order can be incorrect.
+      const startTime = todo.startedAt ?? now;
+      const msgId = await sendMessage(todo.title, startTime, {
+        activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+      });
       if (msgId) {
+        setTodoCompletionMessage(todo.id, msgId);
         // Immediately end the activity so it shows as a completed card with correct duration
-        await endActivity(msgId);
+        // skipBottleStar: star was already awarded above via incrementBottleStar
+        await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
+      } else {
+        clearTodoCompletionMessage(todo.id);
       }
     }
   };
@@ -61,11 +90,12 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const handleStart = async (todo: GrowthTodo) => {
     startTodo(todo.id);
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record');
+    const msgId = await sendMessage(todo.title, now, {
+      activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+    });
     if (msgId) {
       linkMessageToTodo(msgId, todo.id);
     }
-    setMode('record');
     navigate('/chat');
   };
 

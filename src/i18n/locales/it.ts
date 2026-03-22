@@ -44,6 +44,7 @@ const it: TranslationKeys = {
     chat_label_content: 'Contenuto',
     chat_placeholder_content: 'Cosa hai fatto…',
     chat_label_start_time: 'Ora di inizio',
+    chat_start_time_no_future: 'L\'ora di inizio non puo essere nel futuro',
     chat_label_end_time: 'Ora di fine',
     chat_title_edit: 'Modifica',
     chat_title_insert: 'Inserisci dopo',
@@ -94,6 +95,7 @@ const it: TranslationKeys = {
     chat_magic_pen_scope: 'Ambito',
     chat_magic_pen_priority: 'Priorità',
     chat_magic_pen_category: 'Categoria',
+    chat_magic_pen_category_auto: 'automatica',
     chat_magic_pen_due_date: 'Data',
 
     // ── Pagina Attività ──
@@ -359,6 +361,25 @@ const it: TranslationKeys = {
     membership_feat_weekly_report: 'Report Settimanale',
     membership_feat_monthly_report: 'Report Mensile',
     membership_feat_yearly_report: 'Report Annuale',
+
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: 'Seleziona Data',
+    month_grid_title: 'Seleziona Mese',
+    mood_convert_btn: 'Converti',
+    mood_return_event: "Torna all'Evento",
+    mood_to_event: 'Converti in Evento',
+    event_to_mood: "Converti in Umore",
+    image_upload: 'Carica Immagine',
+    chat_input_error_need_text: 'Aggiungi una descrizione per registrare',
+    image_uploading: 'Caricamento...',
+    image_upload_fail: 'Caricamento fallito, tocca per riprovare',
+    image_delete: 'Elimina Immagine',
+    yesterday_popup: 'Ultimo evento ieri',
+    event_ongoing: 'In corso...',
+    end_event_btn: 'Termina',
+    image_crop_title: 'Ritaglia immagine',
+    image_crop_hint: 'Trascina per riposizionare',
+    image_recrop: 'Ritaglia',
 
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',

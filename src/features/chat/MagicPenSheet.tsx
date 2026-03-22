@@ -66,8 +66,7 @@ export function MagicPenSheet({
   const failedDraftCount = pendingDrafts.filter((draft) => commitStates.get(draft.id) === 'error').length;
   const idleDraftCount = pendingDrafts.filter((draft) => (commitStates.get(draft.id) || 'idle') === 'idle').length;
 
-  const hasErrorInPending = pendingDrafts.some((draft) => draft.errors.length > 0 || !draft.content.trim());
-  const isConfirmDisabled = pendingDrafts.length === 0 || hasErrorInPending || isSubmitting;
+  const isConfirmDisabled = pendingDrafts.length === 0 || isSubmitting;
 
   const resetErroredDraftState = (draftId: string) => {
     setCommitStates((prev) => {
@@ -107,7 +106,7 @@ export function MagicPenSheet({
         ...draft,
         kind: 'todo_add',
         activity: undefined,
-        todo: { priority: 'important-not-urgent', category: 'life', scope: 'daily' },
+        todo: { priority: 'important-not-urgent', scope: 'daily' },
         needsUserConfirmation: false,
         errors: [],
       });
@@ -129,35 +128,50 @@ export function MagicPenSheet({
     const validated = validateDrafts(toCommit, messages);
     const hasErrors = validated.some((draft) => draft.errors.length > 0);
     setDrafts((prev) => prev.map((item) => validated.find((draft) => draft.id === item.id) ?? item));
-    if (hasErrors || validated.length === 0) return;
+    if (hasErrors || validated.length === 0) {
+      setStatusText(t('chat_magic_pen_item_error'));
+      return;
+    }
 
     const nextStates = new Map(commitStates);
     for (const draft of validated) nextStates.set(draft.id, 'submitting');
     setCommitStates(nextStates);
     setIsSubmitting(true);
+    setStatusText('');
+    try {
+      const result = await commitMagicPenDrafts(validated);
+      const failed = new Set(result.failedDraftIds);
+      setCommitStates((prev) => {
+        const updated = new Map(prev);
+        for (const draft of validated) {
+          updated.set(draft.id, failed.has(draft.id) ? 'error' : 'success');
+        }
+        return updated;
+      });
 
-    const result = await commitMagicPenDrafts(validated);
-    const failed = new Set(result.failedDraftIds);
-    setCommitStates((prev) => {
-      const updated = new Map(prev);
-      for (const draft of validated) {
-        updated.set(draft.id, failed.has(draft.id) ? 'error' : 'success');
+      if (result.failedDraftIds.length === 0) {
+        setStatusText(
+          t('chat_magic_pen_success_summary', {
+            activityCount: result.successActivityCount,
+            todoCount: result.successTodoCount,
+          }),
+        );
+        onClose();
+        return;
       }
-      return updated;
-    });
-    setIsSubmitting(false);
-
-    if (result.failedDraftIds.length === 0) {
-      setStatusText(
-        t('chat_magic_pen_success_summary', {
-          activityCount: result.successActivityCount,
-          todoCount: result.successTodoCount,
-        }),
-      );
-      onClose();
-      return;
+      setStatusText(t('chat_magic_pen_partial_success'));
+    } catch {
+      setCommitStates((prev) => {
+        const updated = new Map(prev);
+        for (const draft of validated) {
+          updated.set(draft.id, 'error');
+        }
+        return updated;
+      });
+      setStatusText(t('chat_magic_pen_item_error'));
+    } finally {
+      setIsSubmitting(false);
     }
-    setStatusText(t('chat_magic_pen_partial_success'));
   };
 
   const handleUndoAutoWrite = async (item: MagicPenAutoWrittenItem) => {
@@ -216,7 +230,7 @@ export function MagicPenSheet({
                       value={draft.content}
                       disabled={!editable}
                       onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
-                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                      className="flex-1 text-base px-2 py-1 border border-gray-300 rounded-md outline-none"
                     />
                     <button
                       type="button"
@@ -250,7 +264,7 @@ export function MagicPenSheet({
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg text-base ${
                         highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
                       }`}
                     />
@@ -268,7 +282,7 @@ export function MagicPenSheet({
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg text-base ${
                         highlightTime ? 'border-dashed border-orange-400' : 'border-gray-300'
                       }`}
                     />
@@ -336,7 +350,7 @@ export function MagicPenSheet({
                       value={draft.content}
                       disabled={!editable}
                       onChange={(event) => upsertDraft({ ...draft, content: event.target.value })}
-                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md outline-none"
+                      className="flex-1 text-base px-2 py-1 border border-gray-300 rounded-md outline-none"
                     />
                     <button
                       type="button"
@@ -358,7 +372,9 @@ export function MagicPenSheet({
                   <div className="text-xs text-gray-500 grid grid-cols-2 gap-2">
                     <span>{t('chat_magic_pen_scope')}: daily</span>
                     <span>{t('chat_magic_pen_priority')}: important-not-urgent</span>
-                    <span className="col-span-2">{t('chat_magic_pen_category')}: life</span>
+                    <span className="col-span-2">
+                      {t('chat_magic_pen_category')}: {draft.todo?.category || t('chat_magic_pen_category_auto')}
+                    </span>
                     <label className="col-span-2 flex items-center gap-2">
                       <span>{t('chat_magic_pen_due_date')}:</span>
                       <input

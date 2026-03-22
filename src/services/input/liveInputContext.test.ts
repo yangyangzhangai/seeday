@@ -49,9 +49,8 @@ describe('getLiveInputContext', () => {
     expect(context.recentActivity).toBeUndefined();
   });
 
-  it('ignores chat and mood messages when finding context', () => {
+  it('ignores mood messages when finding context', () => {
     const messages: LiveInputContextMessage[] = [
-      recordMessage({ id: 'chat', mode: 'chat', content: '你好' }),
       recordMessage({ id: 'mood', content: '好累', isMood: true }),
       recordMessage({ id: 'activity', content: '开会', timestamp: NOW - 5 * 60 * 1000, duration: 3 }),
     ];

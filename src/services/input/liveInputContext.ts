@@ -15,7 +15,7 @@ function toRecentActivity(message: LiveInputContextMessage): RecentActivityConte
 export function getLiveInputContext(messages: LiveInputContextMessage[], now = Date.now()): LiveInputContext {
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i];
-    if (message.mode !== 'record' || message.isMood) {
+    if (message.isMood) {
       continue;
     }
 

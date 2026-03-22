@@ -1,9 +1,9 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> src/features/chat/README.md
 # 活动 / 心情自动识别需求与开发规划
 
-- 文档版本: v1.3
-- 状态: Draft
-- 最后更新: 2026-03-10
+- 文档版本: v1.4
+- 状态: Active
+- 最后更新: 2026-03-20 (Lexicon Optimization)
 - 适用范围: `src\features\chat` 实时输入主链路
 - 目标读者: 产品、前端、状态层、API 层开发
 
@@ -522,26 +522,33 @@ reclassifyRecentInput(messageId: string, nextKind: 'activity' | 'mood'): Promise
 
 ## 8. 技术方案
 
-### 8.1 建议新增文件
+### 8.1 目录结构与规范
+
+为保持单一事实来源 (SSOT)，所有解析规则和词典统一存放于 `src/services/input/`：
 
 ```text
 src/
 └── services/
     └── input/
-        ├── types.ts
-        ├── liveInputClassifier.ts
-        ├── liveInputContext.ts
-        ├── liveInputRules.zh.ts
-        ├── liveInputRules.en.ts
-        └── liveInputRules.it.ts
+        ├── lexicon/           # 统一多语言词库（核心事实来源）
+        │   ├── types.ts       # 词库结构定义
+        │   ├── getLexicon.ts  # 词库工厂（ZH, EN, IT）
+        │   ├── activityLexicon.{zh,en,it}.ts  # 活动短语与动词
+        │   ├── moodLexicon.{zh,en,it}.ts      # 心情信号与句式
+        │   └── categoryLexicon.{zh,en,it}.ts  # 活动分类关键词
+        ├── types.ts           # 分类器类型定义
+        ├── liveInputClassifier.ts # 核心分类引擎
+        ├── liveInputContext.ts    # 上下文感知逻辑
+        ├── liveInputRules.{zh,en,it}.ts   # 各语言正则规则集
+        └── magicPenRules.zh.ts    # 魔法笔专属规则
 ```
 
 说明：
 
-1. 规则和分类逻辑不应继续堆进 `ChatPage.tsx`
-2. 分类逻辑属于业务逻辑，应尽量落在 service 层
-3. 上下文纠偏建议独立封装，避免和基础词典规则混成一团
-4. `liveInputClassifier` 应作为实时输入分类的唯一规则入口；页面层、store action 与后续增强逻辑只能消费分类结果，不应重复实现平行规则
+1. **词典分离**: 词库 (Lexicon) 与分类规则 (Rules) 分离。词库只管“词”，规则管“匹配逻辑”。
+2. **多语言并发**: 现在支持中、英、意三语，所有分类与推断逻辑通过 `lang` 参数解耦。
+3. **消费者**: `liveInputClassifier` 是主要消费者，但也包括 `mood.ts` 和 `activityType.ts`。
+4. **统一入口**: 页面应调用 `src/store/chatActions.ts` 的自动识别入口，不再分散处理。
 
 ### 8.2 页面改动
 

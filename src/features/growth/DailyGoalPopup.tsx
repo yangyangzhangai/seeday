@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { supabase } from '../../api/supabase';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -10,12 +12,33 @@ interface Props {
 export const DailyGoalPopup = ({ onClose }: Props) => {
   const { t } = useTranslation();
   const { dailyGoal, setDailyGoal, disablePopup } = useGrowthStore();
+  const updatePreferences = useAuthStore((s) => s.updatePreferences);
+  const user = useAuthStore((s) => s.user);
   const [text, setText] = useState(dailyGoal);
   const [showMenu, setShowMenu] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setDailyGoal(text);
+    if (user?.id) {
+      const now = new Date();
+      const goalDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      setIsSaving(true);
+      try {
+        const { data } = await supabase.auth.updateUser({
+          data: {
+            daily_goal: text,
+            daily_goal_date: goalDate,
+          },
+        });
+        if (data?.user) {
+          useAuthStore.setState({ user: data.user });
+        }
+      } finally {
+        setIsSaving(false);
+      }
+    }
     onClose();
   };
 
@@ -29,6 +52,8 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
 
   const handleDisable = () => {
     disablePopup();
+    // Also turn off the Profile setting so the toggle stays in sync
+    void updatePreferences({ dailyGoalEnabled: false });
     onClose();
   };
 
@@ -62,10 +87,11 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
         />
 
         <button
-          onClick={handleConfirm}
-          className="w-full mt-4 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+          onClick={() => { void handleConfirm(); }}
+          disabled={isSaving}
+          className="w-full mt-4 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
         >
-          {t('growth_daily_goal_confirm')}
+          {isSaving ? t('loading') : t('growth_daily_goal_confirm')}
         </button>
 
         {showMenu && (

@@ -13,7 +13,6 @@
 
 | Route | File | Success shape |
 | --- | --- | --- |
-| `/api/chat` | `chat.ts` | `{ content, model, usage? }` |
 | `/api/report` | `report.ts` | `{ content }` |
 | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
 | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
@@ -28,6 +27,7 @@
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
+Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 
 ## 本地调试（Windows）
 

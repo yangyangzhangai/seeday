@@ -302,13 +302,21 @@ export const useStardustStore = create<StardustStore>()(
         }
 
         if (data) {
-          const memories: StardustMemory[] = data.map(fromDbStardust);
+          const cloudMemories: StardustMemory[] = data.map(fromDbStardust);
 
-          set({
-            memories,
-            memoryIdByMessageId: buildMemoryIdByMessageId(memories),
+          // Merge instead of blind replace:
+          // keep local-only memories (especially pending sync items) so emoji won't disappear
+          // when cloud replication/API responds late.
+          set((state) => {
+            const cloudMessageIds = new Set(cloudMemories.map((m) => m.messageId));
+            const localOnly = state.memories.filter((m) => !cloudMessageIds.has(m.messageId));
+            const memories = [...cloudMemories, ...localOnly];
+            return {
+              memories,
+              memoryIdByMessageId: buildMemoryIdByMessageId(memories),
+            };
           });
-          console.log(`[Stardust] 已拉取 ${memories.length} 条珍藏`);
+          console.log(`[Stardust] 已拉取 ${cloudMemories.length} 条珍藏`);
         }
       },
 

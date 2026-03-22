@@ -1,0 +1,22 @@
+[
+  { "id": "zh-study", "lang": "zh", "content": "复习数学", "expected": "study" },
+  { "id": "zh-work", "lang": "zh", "content": "开会同步需求", "expected": "work" },
+  { "id": "zh-social", "lang": "zh", "content": "和朋友约饭", "expected": "social" },
+  { "id": "zh-life", "lang": "zh", "content": "整理房间", "expected": "life" },
+  { "id": "zh-ent", "lang": "zh", "content": "打游戏", "expected": "entertainment" },
+  { "id": "zh-health", "lang": "zh", "content": "跑步30分钟", "expected": "health" },
+
+  { "id": "en-study", "lang": "en", "content": "reviewing probability statistics", "expected": "study" },
+  { "id": "en-work", "lang": "en", "content": "team meeting with product", "expected": "work" },
+  { "id": "en-social", "lang": "en", "content": "grabbing lunch with friends", "expected": "social" },
+  { "id": "en-life", "lang": "en", "content": "cleaning my room", "expected": "life" },
+  { "id": "en-ent", "lang": "en", "content": "watching anime", "expected": "entertainment" },
+  { "id": "en-health", "lang": "en", "content": "going for a run", "expected": "health" },
+
+  { "id": "it-study", "lang": "it", "content": "ripasso statistica", "expected": "study" },
+  { "id": "it-work", "lang": "it", "content": "riunione con il team", "expected": "work" },
+  { "id": "it-social", "lang": "it", "content": "pranzo con un amico", "expected": "social" },
+  { "id": "it-life", "lang": "it", "content": "riordinare la stanza", "expected": "life" },
+  { "id": "it-ent", "lang": "it", "content": "guardo anime", "expected": "entertainment" },
+  { "id": "it-health", "lang": "it", "content": "vado a correre", "expected": "health" }
+]

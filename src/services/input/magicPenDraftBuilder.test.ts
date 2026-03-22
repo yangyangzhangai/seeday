@@ -214,7 +214,7 @@ describe('magicPenDraftBuilder', () => {
     const parsed = buildDraftsFromAIResult(input, fixedNow);
     expect(parsed.drafts[0].todo?.scope).toBe('daily');
     expect(parsed.drafts[0].todo?.priority).toBe('important-not-urgent');
-    expect(parsed.drafts[0].todo?.category).toBe('life');
+    expect(parsed.drafts[0].todo?.category).toBeUndefined();
   });
 
   it('normalizes leading first-person token in todo content', () => {

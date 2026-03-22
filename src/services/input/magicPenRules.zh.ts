@@ -1,8 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import {
-  ZH_SHARED_ACTIVITY_STRONG_PHRASES,
-  ZH_SHARED_ACTIVITY_VERBS,
-} from './activityLexicon.zh';
+  zhActivityLexicon,
+} from './lexicon/activityLexicon.zh';
 
 export const ZH_MAGIC_PEN_PUNCT_SPLITTER = /[，。；、\n]/;
 
@@ -22,8 +21,8 @@ export const ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS = [
 
 export const ZH_MAGIC_PEN_ACTIVITY_VERBS = Array.from(
   new Set([
-    ...ZH_SHARED_ACTIVITY_VERBS,
-    ...ZH_SHARED_ACTIVITY_STRONG_PHRASES,
+    ...zhActivityLexicon.verbs,
+    ...zhActivityLexicon.strongPhrases,
     '写方案',
     '改方案',
     '买菜',

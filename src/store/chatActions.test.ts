@@ -5,7 +5,7 @@ import {
 } from './chatActions';
 import { useMoodStore } from './useMoodStore';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
-import type { Message } from './useChatStore';
+import type { Message } from './useChatStore.types';
 
 function resetMoodStore() {
   useMoodStore.setState({
@@ -45,7 +45,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
 
     expect(result?.classification.kind).toBe('activity');
     expect(result?.classification.internalKind).toBe('new_activity');
-    expect(sendMessage).toHaveBeenCalledWith('开会', undefined, 'record', { skipMoodDetection: false });
+    expect(sendMessage).toHaveBeenCalledWith('开会', undefined, { skipMoodDetection: false });
     expect(sendMood).not.toHaveBeenCalled();
   });
 
@@ -56,10 +56,23 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     const result = await sendAutoRecognizedInputFlow('写周报写得很烦', [], sendMessage, sendMood);
 
     expect(result?.classification.internalKind).toBe('activity_with_mood');
-    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, 'record', { skipMoodDetection: true });
+    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, { skipMoodDetection: true });
     const moodState = useMoodStore.getState();
     expect(moodState.activityMood['activity-1']).toBe('down');
     expect(moodState.moodNote['activity-1']).toBe('写周报写得很烦');
+    expect(sendMood).not.toHaveBeenCalled();
+  });
+
+  it('falls back to auto mood when activity_with_mood has no extracted mood', async () => {
+    const sendMessage = vi.fn(async () => 'activity-2');
+    const sendMood = vi.fn(async () => 'mood-2');
+
+    const result = await sendAutoRecognizedInputFlow('写完报告了，终于松口气', [], sendMessage, sendMood);
+
+    expect(result?.classification.internalKind).toBe('activity_with_mood');
+    const moodState = useMoodStore.getState();
+    expect(moodState.activityMood['activity-2']).toBeDefined();
+    expect(moodState.moodNote['activity-2']).toBe('写完报告了，终于松口气');
     expect(sendMood).not.toHaveBeenCalled();
   });
 
@@ -72,7 +85,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 5 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -97,7 +110,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 5 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -121,7 +134,7 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
         timestamp: now - 20 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
     ];
@@ -159,7 +172,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
       {
@@ -194,7 +207,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: 10,
       },
       {
@@ -203,7 +216,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base + 10 * 60 * 1000,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
         duration: undefined,
       },
     ];
@@ -215,6 +228,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     const previous = result!.updatedMessages.find((m) => m.id === 'activity-1');
     expect(latest?.isMood).toBe(true);
     expect(latest?.activityType).toBe('mood');
+    expect(latest?.detached).toBe(true);
     expect(previous?.duration).toBeUndefined();
   });
 
@@ -227,7 +241,7 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
         timestamp: base,
         type: 'text',
         mode: 'record',
-        activityType: '待分类',
+        activityType: 'life',
       },
       {
         id: 'latest',

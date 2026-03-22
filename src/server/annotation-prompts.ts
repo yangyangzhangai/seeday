@@ -1,3 +1,5 @@
+import { buildAiCompanionModePrompt, normalizeAiCompanionLang } from '../lib/aiCompanion.js';
+
 interface AnnotationTemplate {
   content: string;
   tone: string;
@@ -414,10 +416,12 @@ const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
   day_complete: { content: '🌙 I frammenti di oggi hanno formato una vetrata. Vai a vederla.', tone: 'celebrating', fallbackEmoji: '🌙' },
 };
 
-export function getSystemPrompt(lang: string): string {
-  if (lang === 'en') return SYSTEM_PROMPT_EN_B;
-  if (lang === 'it') return SYSTEM_PROMPT_IT_B;
-  return SYSTEM_PROMPT_ZH_B;
+export function getSystemPrompt(lang: string, aiMode?: string): string {
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  const modePrompt = buildAiCompanionModePrompt(normalizedLang, aiMode, 'annotation');
+  if (normalizedLang === 'en') return `${modePrompt}\n\n${SYSTEM_PROMPT_EN_B}`;
+  if (normalizedLang === 'it') return `${modePrompt}\n\n${SYSTEM_PROMPT_IT_B}`;
+  return `${modePrompt}\n\n${SYSTEM_PROMPT_ZH_B}`;
 }
 
 export function getDefaultAnnotations(lang: string): AnnotationMap {
@@ -426,9 +430,8 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
   return DEFAULT_ANNOTATIONS;
 }
 
-export function getModel(lang: string): string {
-  if (lang === 'zh') return 'deepseek-ai/DeepSeek-V3';
-  return 'openai/gpt-oss-120b-TEE';
+export function getModel(_lang: string): string {
+  return 'gpt-4o-mini';
 }
 
 export function buildTodayActivitiesText(activities: any[], lang: string): string {

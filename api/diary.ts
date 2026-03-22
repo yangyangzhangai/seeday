@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { buildAiCompanionModePrompt, normalizeAiCompanionLang } from '../src/lib/aiCompanion.js';
 import { removeThinkingTags } from '../src/lib/aiParser.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 
@@ -267,8 +268,15 @@ A short closing sentence, under 15 words. Example: "Everything running as usual.
 【Emotional Tone】
 - When ${name} is doing well: Appreciative, curious, slightly pleasantly surprised.
 - When ${name} is doing poorly: Understanding, partner-in-crime, gentle acceptance.
-- Always: Believing ${name} is a uniquely interesting soul.`;
+  - Always: Believing ${name} is a uniquely interesting soul.`;
 };
+
+function buildDiaryModePrompt(lang: string, userName?: string, aiMode?: string): string {
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  const basePrompt = normalizedLang === 'zh' ? getDiarySystemPrompt(userName) : getDiarySystemPromptEn(userName);
+  const modePrompt = buildAiCompanionModePrompt(normalizedLang, aiMode, 'diary');
+  return `${modePrompt}\n\n${basePrompt}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
@@ -276,7 +284,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName } = req.body;
+  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName, aiMode } = req.body;
 
   if (!structuredData || typeof structuredData !== 'string') {
     jsonError(res, 400, 'Missing or invalid structuredData');
@@ -305,9 +313,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 如果提供了用户昵称，在使用 system prompt 前给出强制指令（保留原逻辑作为双重保险）
-  let finalSystemPrompt = lang === 'en' ? getDiarySystemPromptEn(userName) : getDiarySystemPrompt(userName);
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  let finalSystemPrompt = buildDiaryModePrompt(normalizedLang, userName, aiMode);
   if (userName) {
-    if (lang === 'en') {
+    if (normalizedLang === 'en' || normalizedLang === 'it') {
       finalSystemPrompt += `\n\n【IMPORTANT CRITICAL RULE】: The user's name is "${userName}". You MUST refer to the user by this name ("${userName}") instead of using generic terms like "them", "the user", or "my host". For example, write "I noticed ${userName} was tired" instead of "I noticed they were tired".`;
     } else {
       finalSystemPrompt += `\n\n【最重要指令】：用户的昵称是“${userName}”。你在日记正文中，绝对禁止使用“ta”或“用户”来称呼对方，必须全程使用“${userName}”来称呼！例如：“我发现${userName}今天很累”。记住，你是在观察并记录 ${userName} 的生活。`;

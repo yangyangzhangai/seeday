@@ -44,6 +44,7 @@ const zh: TranslationKeys = {
     chat_label_content: '内容',
     chat_placeholder_content: '做了什么...',
     chat_label_start_time: '开始时间',
+    chat_start_time_no_future: '开始时间不能晚于当前时间',
     chat_label_end_time: '结束时间',
     chat_title_edit: '编辑',
     chat_title_insert: '在此后插入',
@@ -94,6 +95,7 @@ const zh: TranslationKeys = {
     chat_magic_pen_scope: '范围',
     chat_magic_pen_priority: '优先级',
     chat_magic_pen_category: '分类',
+    chat_magic_pen_category_auto: '自动判定',
     chat_magic_pen_due_date: '日期',
 
     // ── 待办页面 ──
@@ -359,6 +361,25 @@ const zh: TranslationKeys = {
     membership_feat_weekly_report: '每周温室报告',
     membership_feat_monthly_report: '每月温室报告',
     membership_feat_yearly_report: '年度生长档案',
+
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: '选择日期',
+    month_grid_title: '选择月份',
+    mood_convert_btn: '转换',
+    mood_return_event: '回归事件',
+    mood_to_event: '转为事件',
+    event_to_mood: '转为心情',
+    image_upload: '上传图片',
+    chat_input_error_need_text: '需要填写事件内容才可以记录哦',
+    image_uploading: '上传中...',
+    image_upload_fail: '上传失败，点击重试',
+    image_delete: '删除图片',
+    yesterday_popup: '昨天最后一件事',
+    event_ongoing: '进行中...',
+    end_event_btn: '结束',
+    image_crop_title: '裁剪图片',
+    image_crop_hint: '拖动调整位置',
+    image_recrop: '重新裁剪',
 
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',

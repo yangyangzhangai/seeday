@@ -42,6 +42,7 @@ const en = {
     chat_label_content: 'Activity',
     chat_placeholder_content: 'What were you doing…',
     chat_label_start_time: 'Start Time',
+    chat_start_time_no_future: 'Start time cannot be in the future',
     chat_label_end_time: 'End Time',
     chat_title_edit: 'Edit',
     chat_title_insert: 'Insert after',
@@ -92,6 +93,7 @@ const en = {
     chat_magic_pen_scope: 'Scope',
     chat_magic_pen_priority: 'Priority',
     chat_magic_pen_category: 'Category',
+    chat_magic_pen_category_auto: 'auto',
     chat_magic_pen_due_date: 'Date',
 
     // ── Todo Page ──
@@ -357,6 +359,25 @@ const en = {
     membership_feat_weekly_report: 'Weekly Report',
     membership_feat_monthly_report: 'Monthly Report',
     membership_feat_yearly_report: 'Yearly Report',
+
+    // ── Timeline / DatePicker / EventCard (v1.2) ──
+    date_picker_title: 'Select Date',
+    month_grid_title: 'Select Month',
+    mood_convert_btn: 'Convert',
+    mood_return_event: 'Return to Event',
+    mood_to_event: 'Convert to Event',
+    event_to_mood: 'Convert to Mood',
+    image_upload: 'Upload Image',
+    chat_input_error_need_text: 'Please add a description to record this',
+    image_uploading: 'Uploading...',
+    image_upload_fail: 'Upload failed, tap to retry',
+    image_delete: 'Delete Image',
+    yesterday_popup: 'Last event yesterday',
+    event_ongoing: 'Ongoing...',
+    end_event_btn: 'End',
+    image_crop_title: 'Crop Image',
+    image_crop_hint: 'Drag to reposition',
+    image_recrop: 'Re-crop',
 
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',

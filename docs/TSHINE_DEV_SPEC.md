@@ -42,6 +42,8 @@ src/
 ├── services/          # 业务逻辑层（纯 TypeScript，无 React 依赖）
 │   ├── chatService.ts      # 聊天业务逻辑
 │   ├── todoService.ts      # 待办业务逻辑
+│   ├── input/              # 输入分类与词库 (Lexicon)
+│   │   └── lexicon/        # 多语言词典数据 (SSOT)
 │   ├── reportService.ts    # 日报业务逻辑
 │   ├── plantService.ts     # 植物生成逻辑（新功能）
 │   └── native/             # 原生能力封装（Capacitor 插件）
@@ -530,7 +532,6 @@ export default config;
 
 | Vercel 文件 | Edge Function 名 | 状态 |
 |---|---|---|
-| `api/chat.ts` | `chat` | ⬜ 待迁移 |
 | `api/annotation.ts` | `annotation` | ⬜ 待迁移 |
 | `api/classify.ts` | `classify` | ⬜ 待迁移 |
 | `api/diary.ts` | `diary` | ⬜ 待迁移 |
@@ -543,16 +544,10 @@ export default config;
 # 1. 安装 Supabase CLI
 npx supabase init
 
-# 2. 创建 Edge Function
-npx supabase functions new chat
-
-# 3. 将 api/chat.ts 逻辑移入 supabase/functions/chat/index.ts
-
-# 4. 配置密钥
+# 2. 配置密钥
 npx supabase secrets set CHUTES_API_KEY=xxx ZHIPU_API_KEY=xxx
 
-# 5. 部署
-npx supabase functions deploy chat
+# 3. 部署仍在使用中的函数
 
 # 6. 更新前端 src/api/client.ts 调用地址
 ```

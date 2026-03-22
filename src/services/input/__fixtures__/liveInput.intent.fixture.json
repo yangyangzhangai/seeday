@@ -1,0 +1,149 @@
+[
+  {
+    "id": "zh-mood-short-1",
+    "lang": "zh",
+    "input": "好累",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "core"
+  },
+  {
+    "id": "zh-activity-1",
+    "lang": "zh",
+    "input": "开组会",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "core"
+  },
+  {
+    "id": "zh-activity-mood-1",
+    "lang": "zh",
+    "input": "写周报写得很烦",
+    "expectedKind": "activity",
+    "expectedInternalKind": "activity_with_mood",
+    "subset": "core"
+  },
+  {
+    "id": "zh-future-1",
+    "lang": "zh",
+    "input": "明天要开会",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "future_plan"
+  },
+  {
+    "id": "zh-negation-1",
+    "lang": "zh",
+    "input": "不想开会",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "negation"
+  },
+  {
+    "id": "zh-context-1",
+    "lang": "zh",
+    "input": "刚才那个会真烦",
+    "contextRecentActivity": "开会",
+    "expectedKind": "mood",
+    "expectedInternalKind": "mood_about_last_activity",
+    "subset": "mood_about_last_activity"
+  },
+  {
+    "id": "en-mood-1",
+    "lang": "en",
+    "input": "I feel tired",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "core"
+  },
+  {
+    "id": "en-activity-1",
+    "lang": "en",
+    "input": "I am working",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "core"
+  },
+  {
+    "id": "en-activity-mood-1",
+    "lang": "en",
+    "input": "Just finished the report, relieved",
+    "expectedKind": "activity",
+    "expectedInternalKind": "activity_with_mood",
+    "subset": "core"
+  },
+  {
+    "id": "en-future-1",
+    "lang": "en",
+    "input": "Later I will go to the gym",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "future_plan"
+  },
+  {
+    "id": "en-negation-1",
+    "lang": "en",
+    "input": "I am not working now",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "negation"
+  },
+  {
+    "id": "en-context-1",
+    "lang": "en",
+    "input": "that phone call made me anxious",
+    "contextRecentActivity": "phone call with client",
+    "expectedKind": "mood",
+    "expectedInternalKind": "mood_about_last_activity",
+    "subset": "mood_about_last_activity"
+  },
+  {
+    "id": "it-mood-1",
+    "lang": "it",
+    "input": "sono stanco",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "core"
+  },
+  {
+    "id": "it-activity-1",
+    "lang": "it",
+    "input": "sto studiando",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "core"
+  },
+  {
+    "id": "it-activity-mood-1",
+    "lang": "it",
+    "input": "Ho appena finito la riunione, sono sollevato",
+    "expectedKind": "activity",
+    "expectedInternalKind": "activity_with_mood",
+    "subset": "core"
+  },
+  {
+    "id": "it-future-1",
+    "lang": "it",
+    "input": "Stasera ho intenzione di andare in palestra",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "future_plan"
+  },
+  {
+    "id": "it-negation-1",
+    "lang": "it",
+    "input": "non voglio correre adesso",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "negation"
+  },
+  {
+    "id": "it-context-1",
+    "lang": "it",
+    "input": "quella lezione mi ha confuso",
+    "contextRecentActivity": "lezione",
+    "expectedKind": "mood",
+    "expectedInternalKind": "mood_about_last_activity",
+    "subset": "mood_about_last_activity"
+  }
+]

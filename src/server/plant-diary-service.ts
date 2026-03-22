@@ -1,8 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+import { buildAiCompanionModePrompt, normalizeAiCompanionLang, type AiCompanionMode } from '../lib/aiCompanion.js';
 import { removeThinkingTags } from '../lib/aiParser.js';
 import type { PlantCategoryKey, PlantDiaryRequest } from '../types/plant.js';
 
 export interface PlantDiaryServiceInput extends PlantDiaryRequest {
+  aiMode?: AiCompanionMode;
   userName?: string;
 }
 
@@ -30,14 +32,18 @@ function fallbackDiary(lang: 'zh' | 'en' | 'it' = 'zh'): string {
 }
 
 function buildPrompt(input: PlantDiaryServiceInput): string {
+  const lang = normalizeAiCompanionLang(input.lang);
   const topActivities = [...input.activities]
     .sort((a, b) => b.duration - a.duration)
     .slice(0, 5)
     .map(item => `- ${CATEGORY_LABELS[item.category]}: ${item.duration}min, focus=${item.focus}`)
     .join('\n');
+  const modePrompt = buildAiCompanionModePrompt(lang, input.aiMode, 'plant_diary');
 
   return [
     'You are writing a warm daily plant diary.',
+    'Companion mode guidance:',
+    modePrompt,
     'Constraints:',
     '- 150-220 Chinese characters if lang=zh; 120-180 words otherwise.',
     '- Keep tone gentle and observant, avoid judgment.',

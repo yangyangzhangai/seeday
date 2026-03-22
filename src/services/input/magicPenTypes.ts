@@ -22,7 +22,7 @@ export interface MagicPenActivityFields {
 
 export interface MagicPenTodoFields {
   priority: Priority;
-  category: string;
+  category?: string;
   scope: TodoScope;
   dueDate?: number;
 }
@@ -52,6 +52,7 @@ export interface MagicPenAutoWriteItem {
   sourceText: string;
   confidence: MagicPenDraftConfidence;
   linkedMoodContent?: string;
+  source?: 'ai' | 'unparsed_promoted';
 }
 
 export interface MagicPenAutoWrittenItem {

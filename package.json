@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "vite",
     "dev:vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -14,6 +14,8 @@
     "lint:secrets": "node ./scripts/check-secrets.mjs",
     "lint:all": "npm run lint:secrets && npm run lint:max-lines && npm run lint:docs-sync && npx tsc --noEmit",
     "eval:live-input:gold": "python ./scripts/evaluate_live_input_gold.py --lang zh",
+    "eval:classification:pr0": "npx vite-node scripts/multilingual_classification_benchmark.ts",
+    "eval:classification:pr0:artifact": "npx vite-node scripts/multilingual_classification_benchmark.ts --artifact-out docs/benchmarks/pr0-baseline.latest.json",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "prepare": "node ./scripts/install-hooks.mjs"
@@ -30,6 +32,7 @@
     "i18next": "^23.10.1",
     "i18next-browser-languagedetector": "^7.2.0",
     "lucide-react": "^0.533.0",
+    "openai": "^5.7.0",
     "react": "^18.3.1",
     "react-calendar": "^6.0.0",
     "react-dom": "^18.3.1",

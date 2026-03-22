@@ -5,6 +5,7 @@ import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { normalizeTodoCategory } from '../../lib/activityType';
 import { FocusTimer } from './FocusTimer';
 import { type GrowthTodo } from './GrowthTodoCard';
 
@@ -70,7 +71,9 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     startFocus(todo.id, countUp ? 0 : durationMinutes * 60);
     // Create record page activity
     const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, 'record');
+    const msgId = await sendMessage(todo.title, now, {
+      activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+    });
     if (msgId) {
       setActiveMessageId(msgId);
     }
@@ -79,7 +82,8 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const finishFocus = useCallback(async () => {
     // End record page activity (duration = focus session duration)
     if (activeMessageId) {
-      await endActivity(activeMessageId);
+      // skipBottleStar: star will be awarded below via incrementBottleStar
+      await endActivity(activeMessageId, { skipBottleStar: !!todo.bottleId });
     }
     const session = endFocus();
     // Auto-complete the todo and award bottle star
@@ -169,7 +173,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
         /* Duration picker */
         <div className="flex flex-col items-center">
           {/* Circular duration selector — drag the ring to set time */}
-          <div className="relative w-64 h-64 mb-8 cursor-pointer select-none">
+          <div className="relative w-52 h-52 sm:w-64 sm:h-64 mb-8 cursor-pointer select-none">
             <svg
               ref={svgRef}
               className="w-full h-full -rotate-90"

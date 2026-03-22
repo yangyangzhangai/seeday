@@ -8,13 +8,22 @@ import { useAnnotationStore } from './useAnnotationStore';
 import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
-import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
+import { createChatTimelineActions } from './chatTimelineActions';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
+import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
+import {
+  classifyRecordActivityType,
+} from '../lib/activityType';
+import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
+import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
+export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -22,7 +31,6 @@ import {
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
   closePreviousActivity,
-  handleAIChatResponse,
   persistReclassifiedMessages,
   persistInsertedActivityResult,
   persistMessageDurationUpdate,
@@ -30,70 +38,31 @@ import {
   triggerMoodDetection,
 } from './chatActions';
 
-export type MessageType = 'text' | 'system' | 'ai';
-
-export interface Message {
-  id: string;
-  content: string;
-  timestamp: number;
-  type: MessageType;
-  duration?: number;
-  activityType?: string;
-  mode?: 'chat' | 'record';
-  isMood?: boolean;
-  stardustId?: string;
-  stardustEmoji?: string;
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
 }
 
-interface YesterdaySummary {
-  count: number;
-  lastContent: string;
-  dateStr: string;
-  dateStartMs: number;
-  dateEndMs: number;
-  isYesterday: boolean;
+function resolveLangForText(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  const lowered = content.toLowerCase();
+  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
+    return 'it';
+  }
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  return resolveCurrentLang();
 }
 
-interface ChatState {
-  messages: Message[];
-  mode: 'chat' | 'record';
-  lastActivityTime: number | null;
-  isMoodMode: boolean;
-  isLoading: boolean;
-  hasInitialized: boolean;
-  oldestLoadedDate: string | null;
-  hasMoreHistory: boolean;
-  isLoadingMore: boolean;
-  yesterdaySummary: YesterdaySummary | null;
-  currentDateStr: string | null;
-  fetchMessages: () => Promise<void>;
-  fetchOlderMessages: () => Promise<void>;
-  checkAndRefreshForNewDay: () => void;
-  sendMessage: (
-    content: string,
-    customTimestamp?: number,
-    forcedMode?: 'chat' | 'record',
-    options?: { skipMoodDetection?: boolean }
-  ) => Promise<string | null>;
-  sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
-  sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
-  reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
-  insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
-  updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
-  endActivity: (id: string) => Promise<void>;
-  deleteActivity: (id: string) => Promise<void>;
-  updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
-  setMode: (mode: 'chat' | 'record') => void;
-  setHasInitialized: (value: boolean) => void;
-  clearHistory: () => Promise<void>;
-  attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;
+function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
+  return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       messages: [],
-      mode: 'record',
       lastActivityTime: null,
       isMoodMode: false,
       isLoading: false,
@@ -103,11 +72,20 @@ export const useChatStore = create<ChatState>()(
       isLoadingMore: false,
       yesterdaySummary: null,
       currentDateStr: null,
-
+      activeViewDateStr: null,
+      dateCache: new Map(),
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ hasInitialized: true });
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayStartMs = todayStart.getTime();
+          set(state => ({
+            messages: state.messages.filter(
+              (m) => m.timestamp >= todayStartMs && !isLegacyChatActivityType(m.activityType)
+            ),
+            hasInitialized: true,
+          }));
           return;
         }
 
@@ -137,15 +115,26 @@ export const useChatStore = create<ChatState>()(
             .eq('user_id', session.user.id)
             .lt('timestamp', todayStartMs)
             .order('timestamp', { ascending: false })
-            .limit(1);
+            .limit(50);
 
           if (latestBeforeTodayError) throw latestBeforeTodayError;
 
-          const messages = (todayData || []).map(mapDbRowToMessage);
+          queueBackfillLegacyActivityTypes(todayData || [], session.user.id);
+          const runtimeTodayRows = filterLegacyChatRows(todayData || []);
+          const messages = runtimeTodayRows.map(mapDbRowToMessage);
+
+          // Ensure all completed events have at least an auto-detected mood label
+          const moodStoreToday = useMoodStore.getState();
+          for (const msg of messages) {
+            if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreToday.getMood(msg.id)) {
+              moodStoreToday.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0, resolveLangForText(msg.content)), 'auto');
+            }
+          }
 
           let yesterdaySummary: YesterdaySummary | null = null;
-          if (latestBeforeToday && latestBeforeToday.length > 0) {
-            const latest = latestBeforeToday[0];
+          const latestNonChatBeforeToday = filterLegacyChatRows(latestBeforeToday || [])[0];
+          if (latestNonChatBeforeToday) {
+            const latest = latestNonChatBeforeToday;
             const targetDate = new Date(latest.timestamp);
             targetDate.setHours(0, 0, 0, 0);
             const targetDateStartMs = targetDate.getTime();
@@ -164,7 +153,7 @@ export const useChatStore = create<ChatState>()(
 
             if (previousDayError) throw previousDayError;
 
-            const safePreviousDayData = previousDayData || [];
+            const safePreviousDayData = filterLegacyChatRows(previousDayData || []);
             const lastPreviousDay = safePreviousDayData[safePreviousDayData.length - 1] || latest;
 
             yesterdaySummary = {
@@ -183,6 +172,8 @@ export const useChatStore = create<ChatState>()(
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
+            activeViewDateStr: todayStr,
+            dateCache: new Map(get().dateCache).set(todayStr, messages),
           });
         } catch (error) {
           console.error('Error fetching messages:', error);
@@ -212,7 +203,7 @@ export const useChatStore = create<ChatState>()(
 
           if (error) throw error;
 
-          const olderMessages = (data || []).map(mapDbRowToMessage);
+          const olderMessages = filterLegacyChatRows(data || []).map(mapDbRowToMessage);
 
           set(state => ({
             messages: [...olderMessages, ...state.messages],
@@ -231,41 +222,86 @@ export const useChatStore = create<ChatState>()(
         const state = get();
         const todayStr = getLocalDateString(new Date());
         if (state.currentDateStr && state.currentDateStr !== todayStr) {
-          console.log('[DayRefresh] Midnight crossed, refreshing messages...');
+          import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
           state.fetchMessages();
         }
       },
 
-      sendMessage: async (content: string, customTimestamp?: number, forcedMode?: 'chat' | 'record', options?: { skipMoodDetection?: boolean }) => {
-        const now = customTimestamp ?? Date.now();
-        const state = get();
-        const effectiveMode = forcedMode ?? state.mode;
-        let updatedMessages = [...state.messages];
-
-        if (effectiveMode === 'record') {
-          updatedMessages = await closePreviousActivity(updatedMessages, now);
+      fetchMessagesByDate: async (dateStr: string) => {
+        const cached = get().dateCache.get(dateStr);
+        if (cached) {
+          set({ messages: cached, activeViewDateStr: dateStr });
+          return;
         }
+        const session = await getSupabaseSession();
+        if (!session) return;
+
+        const dayStart = new Date(dateStr + 'T00:00:00').getTime();
+        const dayEnd = new Date(dateStr + 'T23:59:59.999').getTime();
+
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('timestamp', dayStart)
+          .lte('timestamp', dayEnd)
+          .order('timestamp', { ascending: true });
+
+        if (error) {
+          import.meta.env.DEV && console.log('[fetchMessagesByDate] error', error);
+          return;
+        }
+        queueBackfillLegacyActivityTypes(data || [], session.user.id);
+        const msgs = filterLegacyChatRows(data || []).map(mapDbRowToMessage);
+
+        // Ensure all completed events have at least an auto-detected mood label
+        const moodStoreDate = useMoodStore.getState();
+        for (const msg of msgs) {
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
+            moodStoreDate.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0, resolveLangForText(msg.content)), 'auto');
+          }
+        }
+
+        set(state => ({
+          messages: msgs,
+          activeViewDateStr: dateStr,
+          dateCache: new Map(state.dateCache).set(dateStr, msgs),
+        }));
+      },
+
+      sendMessage: async (
+        content: string,
+        customTimestamp?: number,
+        options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType },
+      ) => {
+        const now = customTimestamp ?? Date.now();
+        let updatedMessages = [...get().messages];
+
+        updatedMessages = await closePreviousActivity(updatedMessages, now);
+
+        const classifiedByRule = !options?.activityTypeOverride
+          ? classifyRecordActivityType(content, resolveLangForText(content))
+          : null;
 
         const newMessage: Message = {
           id: uuidv4(),
           content,
           timestamp: now,
           type: 'text',
-          mode: effectiveMode,
-          activityType: effectiveMode === 'record' ? '待分类' : 'chat'
+          mode: 'record',
+          activityType: options?.activityTypeOverride ?? classifiedByRule?.activityType ?? 'life',
+          isActive: true,
         };
 
         updatedMessages.push(newMessage);
 
         set({
           messages: updatedMessages,
-          lastActivityTime: effectiveMode === 'record' ? now : state.lastActivityTime
+          lastActivityTime: now,
         });
 
-        if (effectiveMode === 'record') {
-          if (!options?.skipMoodDetection) {
-            void triggerMoodDetection(newMessage.id, content);
-          }
+        if (!options?.skipMoodDetection) {
+          void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
         }
 
         const session = await getSupabaseSession();
@@ -273,34 +309,52 @@ export const useChatStore = create<ChatState>()(
           await persistMessageToSupabase(newMessage, session.user.id);
         }
 
-        // 触发 AI 批注（记录模式下）
-        if (effectiveMode === 'record') {
-          const annotationStore = useAnnotationStore.getState();
-
-          let lastRecordIndex = -1;
-          for (let i = updatedMessages.length - 1; i >= 0; i--) {
-            const m = updatedMessages[i];
-            if (m.mode === 'record' && !m.isMood && m.duration !== undefined) {
-              lastRecordIndex = i;
-              break;
+        if (
+          !options?.activityTypeOverride
+          && classifiedByRule?.confidence === 'low'
+        ) {
+          void (async () => {
+            try {
+              const aiResult = await callClassifierAPI({
+                rawInput: `${content} 30分钟`,
+                lang: resolveLangForText(content),
+              });
+              const aiCategory = aiResult.data?.items?.[0]?.category;
+              if (!aiCategory) {
+                return;
+              }
+              const refinedType = mapDiaryClassifierCategoryToActivityType(aiCategory, content, resolveLangForText(content));
+              set((currentState) => ({
+                messages: currentState.messages.map((item) => (
+                  item.id === newMessage.id ? { ...item, activityType: refinedType } : item
+                )),
+              }));
+              const latestSession = await getSupabaseSession();
+              if (latestSession) {
+                await supabase
+                  .from('messages')
+                  .update({ activity_type: refinedType })
+                  .eq('id', newMessage.id)
+                  .eq('user_id', latestSession.user.id);
+              }
+            } catch {
+              return;
             }
-          }
-
-          const recordEvent: AnnotationEvent = {
-            type: 'activity_recorded',
-            timestamp: Date.now(),
-            data: {
-              messageId: newMessage.id,
-              content: newMessage.content,
-            },
-          };
-          annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+          })();
         }
 
-        if (effectiveMode === 'chat') {
-          const aiMessage = await handleAIChatResponse(updatedMessages, session?.user.id);
-          set((currentState) => ({ messages: [...currentState.messages, aiMessage] }));
-        }
+        // 触发 AI 批注
+        const annotationStore = useAnnotationStore.getState();
+
+        const recordEvent: AnnotationEvent = {
+          type: 'activity_recorded',
+          timestamp: Date.now(),
+          data: {
+            messageId: newMessage.id,
+            content: newMessage.content,
+          },
+        };
+        annotationStore.triggerAnnotation(recordEvent).catch(console.error);
 
         return newMessage.id;
       },
@@ -362,9 +416,18 @@ export const useChatStore = create<ChatState>()(
           content,
           startTime,
           endTime,
+          resolveCurrentLang(),
         );
 
         set({ messages: finalMessages });
+        const insertedPrimary = messagesToInsert[0];
+        if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
+          useMoodStore.getState().setMood(
+            insertedPrimary.id,
+            autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0, resolveLangForText(insertedPrimary.content)),
+            'auto',
+          );
+        }
 
         const session = await getSupabaseSession();
         if (session) {
@@ -378,7 +441,15 @@ export const useChatStore = create<ChatState>()(
         set(state => ({
           messages: state.messages.map(m =>
             m.id === id
-              ? { ...m, content, timestamp: startTime, duration }
+              ? {
+                ...m,
+                content,
+                timestamp: startTime,
+                duration,
+                activityType: m.mode === 'record' && !m.isMood
+                  ? classifyRecordActivityType(content, resolveLangForText(content)).activityType
+                  : m.activityType,
+              }
               : m
           ).sort((a, b) => a.timestamp - b.timestamp)
         }));
@@ -388,7 +459,8 @@ export const useChatStore = create<ChatState>()(
           await supabase.from('messages').update({
             content,
             timestamp: startTime,
-            duration
+            duration,
+            activity_type: classifyRecordActivityType(content, resolveLangForText(content)).activityType,
           }).eq('id', id).eq('user_id', session.user.id);
         }
 
@@ -396,11 +468,11 @@ export const useChatStore = create<ChatState>()(
         const moodMeta = moodStore.activityMoodMeta[id];
         const isCustomApplied = moodStore.customMoodApplied[id] === true;
         if (moodMeta?.source === 'auto' && !isCustomApplied) {
-          moodStore.setMood(id, autoDetectMood(content, duration), 'auto');
+          moodStore.setMood(id, autoDetectMood(content, duration, resolveLangForText(content)), 'auto');
         }
       },
 
-      endActivity: async (id) => {
+      endActivity: async (id, opts) => {
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
@@ -409,31 +481,29 @@ export const useChatStore = create<ChatState>()(
 
         set(state => ({
           messages: state.messages.map(m =>
-            m.id === id ? { ...m, duration } : m
+            m.id === id ? { ...m, duration, isActive: false } : m
           )
         }));
 
         const session = await getSupabaseSession();
         if (session) {
-          await supabase.from('messages').update({ duration }).eq('id', id).eq('user_id', session.user.id);
+          await supabase.from('messages').update({ duration, is_active: false }).eq('id', id).eq('user_id', session.user.id);
         }
 
         const moodStore = useMoodStore.getState();
         if (!moodStore.getMood(id)) {
-          moodStore.setMood(id, autoDetectMood(target.content, duration));
+          moodStore.setMood(id, autoDetectMood(target.content, duration, resolveLangForText(target.content)));
         }
 
-        // Auto-complete linked growth todo
         useTodoStore.getState().completeTodoByMessage(id);
-
-        // AI semantic matching: if activity relates to a habit/goal bottle, add a star
+        if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
 
         if (habits.length > 0 || goals.length > 0) {
-          const lang = (i18n.language?.slice(0, 2) as 'zh' | 'en' | 'it') || 'zh';
+          const lang = resolveCurrentLang();
 
           // Keyword fallback: match activity content against bottle names
           const keywordMatch = (text: string, bottles: { id: string; name: string }[]): string | null => {
@@ -497,23 +567,47 @@ export const useChatStore = create<ChatState>()(
         );
 
         if (!targetMessage) {
-          console.log('[DEBUG] 未找到匹配的消息:', content, timestamp);
           return;
         }
-
         set({ messages: updatedMessages });
-
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
+      },
 
-        console.log('[DEBUG] 消息 duration 已更新:', content, duration, '分钟');
+      updateMessageImage: async (id, slot, url) => {
+        const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
+        set(state => ({
+          messages: state.messages.map(m =>
+            m.id === id ? { ...m, [slot]: url } : m,
+          ),
+        }));
+        const session = await getSupabaseSession();
+        if (session) {
+          await supabase
+            .from('messages')
+            .update({ [dbCol]: url })
+            .eq('id', id)
+            .eq('user_id', session.user.id);
+        }
+      },
+
+      detachMoodMessage: async (moodId: string) => {
+        const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
+        get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
+        const session = await getSupabaseSession();
+        if (!session) return;
+        const mood = get().messages.find(m => m.id === moodId);
+        if (mood) await persistMessageToSupabase(mood, session.user.id, true);
+        if (parentId) {
+          const parent = get().messages.find(m => m.id === parentId);
+          if (parent) await persistMessageToSupabase(parent, session.user.id);
+        }
       },
 
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
-        const state = get();
         const relatedActivityId = options?.relatedActivityId;
 
         const newMessage: Message = {
@@ -523,13 +617,40 @@ export const useChatStore = create<ChatState>()(
           type: 'text',
           mode: 'record',
           activityType: 'mood',
-          isMood: true
+          isMood: true,
+          detached: false,
         };
 
-        set(state => ({
-          messages: [...state.messages, newMessage]
-        }));
+        const { messages } = get();
+        const latestEvent = [...messages]
+          .filter(m => !m.isMood && m.mode === 'record')
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
 
+        const { toLocalDateStr } = await import('../lib/dateUtils');
+        const isCrossDay = !latestEvent ||
+          toLocalDateStr(new Date(now)) !== toLocalDateStr(new Date(latestEvent.timestamp));
+
+        set(state => {
+          if (isCrossDay) {
+            return { messages: [...state.messages, { ...newMessage, detached: true }] };
+          }
+          const newDesc: MoodDescription = {
+            id: newMessage.id,
+            content,
+            timestamp: now,
+          };
+          return {
+            messages: state.messages
+              .map(m =>
+                m.id === latestEvent.id
+                  ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
+                  : m,
+              )
+              .concat(newMessage),
+          };
+        });
+
+        // 兼容旧有 relatedActivityId 逻辑
         if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
           moodStore.setMoodNote(relatedActivityId, content, {
@@ -539,31 +660,30 @@ export const useChatStore = create<ChatState>()(
           void triggerMoodDetection(relatedActivityId, content, {
             source: 'auto',
             linkedMoodMessageId: newMessage.id,
-          });
+          }, resolveCurrentLang());
         }
 
         const annotationStore = useAnnotationStore.getState();
         const moodEvent: AnnotationEvent = {
           type: 'mood_recorded',
           timestamp: Date.now(),
-          data: {
-            messageId: newMessage.id,
-            mood: content,
-          },
+          data: { messageId: newMessage.id, mood: content },
         };
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
 
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id, true);
+          if (!isCrossDay && latestEvent) {
+            const updated = get().messages.find(m => m.id === latestEvent.id);
+            if (updated) await persistMessageToSupabase(updated, session.user.id);
+          }
         }
 
         return newMessage.id;
       },
 
-      setMode: (mode) => set({ mode }),
       setHasInitialized: (value) => set({ hasInitialized: value }),
-
       clearHistory: async () => {
         set({ messages: [], lastActivityTime: null });
       },
@@ -577,15 +697,17 @@ export const useChatStore = create<ChatState>()(
           ),
         }));
       },
+      ...createChatTimelineActions(set as never, get as never),
     }),
     {
       name: 'chat-storage',
+      // dateCache 是 Map，不能 JSON 序列化，排除持久化
       partialize: (state) => ({
         messages: state.messages,
-        mode: state.mode,
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
         currentDateStr: state.currentDateStr,
+        hasInitialized: state.hasInitialized,
       }),
     }
   )

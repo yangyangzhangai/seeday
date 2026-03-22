@@ -24,7 +24,7 @@
   - `src/store/chatActions.ts`
   - `src/store/chatHelpers.ts`
 - 说明:
-  - 支持记录模式与聊天模式。
+  - `/chat` 已收口为记录时间线入口，不再保留独立聊天模式。
   - 支持消息插入、编辑、删除、时长计算、历史加载。
   - 已完成 sendMessage 拆分（C7），可维护性较审计初期明显改善。
   - 已完成 F17 映射收口，消息 DB 映射由 `src/lib/dbMappers.ts` 统一维护。

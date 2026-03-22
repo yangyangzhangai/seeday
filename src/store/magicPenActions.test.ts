@@ -3,6 +3,7 @@ import type { MagicPenDraftItem } from '../services/input/magicPenTypes';
 import { commitMagicPenDrafts } from './magicPenActions';
 import { useChatStore } from './useChatStore';
 import { useTodoStore } from './useTodoStore';
+import i18n from '../i18n';
 
 function buildActivityDraft(id: string, startAt: number, endAt: number): MagicPenDraftItem {
   return {
@@ -17,16 +18,16 @@ function buildActivityDraft(id: string, startAt: number, endAt: number): MagicPe
   };
 }
 
-function buildTodoDraft(id: string): MagicPenDraftItem {
+function buildTodoDraft(id: string, content: string = `todo-${id}`): MagicPenDraftItem {
   return {
     id,
     kind: 'todo_add',
-    content: `todo-${id}`,
-    sourceText: `todo-${id}`,
+    content,
+    sourceText: content,
     confidence: 'high',
     needsUserConfirmation: false,
     errors: [],
-    todo: { priority: 'important-not-urgent', category: 'life', scope: 'daily' },
+    todo: { priority: 'important-not-urgent', scope: 'daily' },
   };
 }
 
@@ -62,6 +63,18 @@ describe('commitMagicPenDrafts', () => {
     const result = await commitMagicPenDrafts([buildTodoDraft('todo-1')]);
     expect(addTodo).toHaveBeenCalledTimes(1);
     expect(result.successTodoCount).toBe(1);
+  });
+
+  it('classifies todo category at commit when draft category is unset', async () => {
+    await i18n.changeLanguage('zh');
+    const addTodo = vi.fn(async () => undefined);
+    vi.spyOn(useChatStore, 'getState').mockReturnValue({ messages: [], insertActivity: vi.fn() } as never);
+    vi.spyOn(useTodoStore, 'getState').mockReturnValue({ addTodo } as never);
+
+    await commitMagicPenDrafts([buildTodoDraft('todo-2', '写周报')]);
+
+    expect(addTodo).toHaveBeenCalledTimes(1);
+    expect(addTodo).toHaveBeenCalledWith(expect.objectContaining({ category: 'work' }));
   });
 
   it('blocks full submission when a draft has validation error', async () => {

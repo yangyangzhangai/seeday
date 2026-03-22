@@ -1,13 +1,13 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md
 import type { MoodKey } from '../../lib/moodOptions';
-import {
-  ZH_SHARED_ACTIVITY_STRONG_PHRASES,
-  ZH_SHARED_ACTIVITY_VERBS,
-} from './activityLexicon.zh';
+import { getLexicon } from './lexicon/getLexicon';
 
-export const ZH_ACTIVITY_STRONG_PHRASES = [...ZH_SHARED_ACTIVITY_STRONG_PHRASES];
+const zhLexicon = getLexicon('zh');
+const { activity: zhActivity, mood: zhMood } = zhLexicon;
 
-export const ZH_ACTIVITY_VERBS = [...ZH_SHARED_ACTIVITY_VERBS];
+export const ZH_ACTIVITY_STRONG_PHRASES = [...zhActivity.strongPhrases];
+
+export const ZH_ACTIVITY_VERBS = [...zhActivity.verbs];
 
 export const ZH_ACTIVITY_SINGLE_VERB_PATTERNS = [
   /(起床了?|刚起床|刚睡醒)/,
@@ -159,99 +159,9 @@ export const ZH_PLACE_NOUNS = [
   '医院',
 ];
 
-export const ZH_MOOD_WORDS = [
-  '开心',
-  '烦',
-  '焦虑',
-  '累',
-  '疲惫',
-  '低落',
-  '平静',
-  '难受',
-  '难过',
-  '紧张',
-  '满足',
-  '崩溃',
-  '无语',
-  '糟糕',
-  '压抑',
-  '舒服',
-  '放松',
-  '没精神',
-  '头疼',
-  '后悔',
-  '充实',
-  '爽',
-  '状态差',
-  '顺利',
-  '轻松',
-  '不满意',
-  '失望',
-  '挫败',
-  '困',
-  '饿',
-  '渴',
-  '头晕',
-  '胃疼',
-  '人麻了',
-  '裂开',
-  '绷不住',
-  'emo',
-  '上头',
-  '心态炸了',
-  '内耗',
-  '摆烂',
-  '躺平',
-  '无敌',
-  '服了',
-  '醉了',
-  '晕了',
-  '受不了',
-  '算了',
-  '随便',
-  '迷茫',
-  '期待',
-  '激动',
-  '感动',
-  '孤独',
-  '寂寞',
-  '害怕',
-  '恐惧',
-  '心虚',
-  '尴尬',
-  '羡慕',
-  '嫉妒',
-  '委屈',
-  '冤枉',
-  '郁闷',
-  '窝火',
-  '憋屈',
-  '心酸',
-  '心疼',
-  '欣慰',
-  '感恩',
-  '庆幸',
-  '成就感',
-  '解脱',
-  '如释重负',
-  '头秃',
-  '崩溃',
-  '想睡觉',
-];
+export const ZH_MOOD_WORDS = [...zhMood.allMoodWords];
 
-export const ZH_MOOD_PATTERNS = [
-  /^好(累|烦|焦虑|难受|难过|开心|崩溃|痛苦|疲惫|困|饿|委屈|郁闷|紧张)/,
-  /^很(累|烦|焦虑|难受|难过|开心|崩溃|痛苦|疲惫|困|饿|委屈|郁闷|紧张)/,
-  /^有点(累|烦|焦虑|难受|难过|乱|困|饿|紧张|崩溃|低落)/,
-  /^今天状态.+/,
-  /^真(烦|累|难受|难过|焦虑|崩溃|无语|糟糕|痛苦|开心)/,
-  /心情(好好|很好|挺好|还行|一般|不太好)/,
-  /状态(好好|很好|挺好|还行|一般|不太好)/,
-  /心情(很差|不好|低落|不错|糟糕|崩溃)/,
-  /状态(很差|不好|低落|不错|糟糕|崩溃)/,
-  /感觉(不错|很好|轻松|糟糕)/,
-  /[得地]很(好|顺利)/,
-];
+export const ZH_MOOD_PATTERNS = [...zhMood.moodSentencePatterns];
 
 export const ZH_EVALUATION_WORDS = [
   '终于',
@@ -338,14 +248,7 @@ export const ZH_TRAILING_PARTICLES = /[啊呀呢吧嘛哦哈]$/g;
 export const ZH_PUNCT_ONLY = /^[\p{P}\p{S}\s]+$/u;
 
 export const ZH_MOOD_KEYWORDS: Array<{ pattern: RegExp; mood: MoodKey }> = [
-  { pattern: /(开心|高兴|愉快|兴奋)/, mood: 'happy' },
-  { pattern: /(平静|放松|安稳|松弛)/, mood: 'calm' },
-  { pattern: /(专注|投入|高效)/, mood: 'focused' },
-  { pattern: /(满足|踏实|有成就)/, mood: 'satisfied' },
-  { pattern: /(累|疲惫|困|没精神)/, mood: 'tired' },
-  { pattern: /(焦虑|紧张|不安|压力)/, mood: 'anxious' },
-  { pattern: /(无聊|没劲)/, mood: 'bored' },
-  { pattern: /(低落|难受|难过|崩溃|糟糕|烦)/, mood: 'down' },
+  ...zhMood.explicitMoodMap,
 ];
 
 export const ZH_CONTEXT_ACTIVITY_KEYWORDS = [

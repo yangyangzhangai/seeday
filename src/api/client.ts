@@ -5,6 +5,17 @@
  * 所有 AI 请求都通过服务端中转，API Key 不会暴露在前端
  */
 
+import { normalizeAiCompanionMode, type AiCompanionMode } from '../lib/aiCompanion';
+import { getSupabaseSession } from '../lib/supabase-utils';
+import { useAuthStore } from '../store/useAuthStore';
+import type {
+  PlantDiaryRequest,
+  PlantDiaryResponse,
+  PlantGenerateRequest,
+  PlantGenerateResponse,
+  PlantHistoryResponse,
+} from '../types/plant';
+
 const API_BASE = '/api';
 
 interface ApiErrorShape {
@@ -152,22 +163,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
-interface ChatRequest {
-  messages: { role: string; content: string }[];
-  temperature?: number;
-  max_tokens?: number;
-}
-
-interface ChatResponse {
-  content: string;
-  model: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
 interface ReportRequest {
   data: {
     date: string;
@@ -194,6 +189,7 @@ interface AnnotationRequest {
     todayActivitiesList?: any[];
   };
   lang?: 'zh' | 'en' | 'it';
+  aiMode?: AiCompanionMode;
 }
 
 interface AnnotationResponse {
@@ -202,14 +198,6 @@ interface AnnotationResponse {
   displayDuration: number;
   source?: 'ai' | 'default';
   reason?: 'no_key' | 'fetch_failed' | 'empty_response' | 'empty_content' | 'extract_failed' | 'exception';
-}
-
-/**
- * 调用 Chat API
- */
-export async function callChatAPI(request: ChatRequest): Promise<string> {
-  const data = await postJson<ChatRequest, ChatResponse>('/chat', request);
-  return data.content;
 }
 
 /**
@@ -224,7 +212,10 @@ export async function callReportAPI(request: ReportRequest): Promise<string> {
  * 调用 Annotation API
  */
 export async function callAnnotationAPI(request: AnnotationRequest): Promise<AnnotationResponse> {
-  return postJson<AnnotationRequest, AnnotationResponse>('/annotation', request);
+  return postJson<AnnotationRequest, AnnotationResponse>('/annotation', {
+    ...request,
+    aiMode: request.aiMode ?? getCurrentAiMode(),
+  });
 }
 
 // ── Timeshine 三步走新 API ────────────────────────────────────────────────────
@@ -273,6 +264,7 @@ interface DiaryRequest {
   historyContext?: string;
   lang?: 'zh' | 'en' | 'it';
   userName?: string;
+  aiMode?: AiCompanionMode;
 }
 
 interface DiaryResponse {
@@ -291,7 +283,10 @@ export async function callClassifierAPI(request: ClassifyRequest): Promise<Class
  * 步骤3: 调用日记 API - 生成诗意的观察手记
  */
 export async function callDiaryAPI(request: DiaryRequest): Promise<DiaryResponse> {
-  return postJson<DiaryRequest, DiaryResponse>('/diary', request);
+  return postJson<DiaryRequest, DiaryResponse>('/diary', {
+    ...request,
+    aiMode: request.aiMode ?? getCurrentAiMode(),
+  });
 }
 
 // ── Stardust Emoji 生成 API ───────────────────────────────────────────────────
@@ -368,11 +363,7 @@ export async function callPlantHistoryAPI(startDate: string, endDate: string): P
   const params = new URLSearchParams({ startDate, endDate });
   return getJson<PlantHistoryResponse>(`/plant-history?${params.toString()}`, { headers });
 }
-import { getSupabaseSession } from '../lib/supabase-utils';
-import type {
-  PlantDiaryRequest,
-  PlantDiaryResponse,
-  PlantGenerateRequest,
-  PlantGenerateResponse,
-  PlantHistoryResponse,
-} from '../types/plant';
+
+function getCurrentAiMode(): AiCompanionMode {
+  return normalizeAiCompanionMode(useAuthStore.getState().preferences.aiMode);
+}
