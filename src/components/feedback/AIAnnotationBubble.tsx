@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useStardustStore } from '../../store/useStardustStore';
 import type { Message } from '../../store/useChatStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { AI_COMPANION_VISUALS } from '../../constants/aiCompanionVisuals';
+import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
 
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏
@@ -28,10 +31,12 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 }) => {
   const { currentAnnotation, dismissAnnotation } = useAnnotationStore();
   const { hasStardust, createStardust, isGenerating } = useStardustStore();
+  const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(100);
   const [isCondensed, setIsCondensed] = useState(false);
+  const currentModeVisual = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)];
 
   // 当批注变化时，重置进度
   useEffect(() => {
@@ -141,8 +146,12 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
           {/* 外星人头像 */}
           <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center text-2xl shadow-lg">
-              👽
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white overflow-hidden shadow-lg ring-1 ring-white/80">
+              <img
+                src={currentModeVisual.avatar}
+                alt={`${currentModeVisual.name} avatar`}
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* 批注内容 */}
