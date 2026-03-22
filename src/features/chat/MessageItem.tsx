@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
-import { formatDuration } from '../../lib/time';
 import { getMoodColor } from '../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../lib/moodOptions';
 import { ArrowRightLeft, Edit2, Plus, Trash2 } from 'lucide-react';
@@ -200,9 +199,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             <div className="mt-1">
                                 <div
                                     className="inline-flex items-center justify-center rounded-full border border-sky-300 text-sky-700 bg-white/80 text-[9px] font-semibold shadow-sm px-2 py-0.5 text-center"
-                                    style={{ minWidth: '9em' }}
+                                    style={{ minWidth: '11em' }}
                                 >
-                                    {formatDuration(msg.duration)}
+                                    {t('chat_duration_logged', { minutes: msg.duration })}
                                 </div>
                             </div>
                         )}

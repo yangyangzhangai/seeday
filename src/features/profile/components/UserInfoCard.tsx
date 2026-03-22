@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, Crown, MoreHorizontal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -17,6 +17,26 @@ function toLocalDate(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function calcLast7DayCount(dates: Set<string>): number {
+  let days = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 7; i++) {
+    if (dates.has(toLocalDate(d.getTime()))) {
+      days++;
+    }
+    d.setDate(d.getDate() - 1);
+  }
+
+  return days;
+}
+
+function getLoginDaysFromMeta(user: any): string[] {
+  const raw = user?.user_metadata?.login_days;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item));
+}
 function calcTodayActivities(messages: any[]): number {
   const today = toLocalDate(Date.now());
   return messages.filter(
@@ -35,7 +55,7 @@ function calcCompletedGoals(bottles: any[]): number {
 
 export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
-  const { user, updateAvatar, activityStreak } = useAuthStore();
+  const { user, updateAvatar } = useAuthStore();
   const messages = useChatStore((s) => s.messages);
   const bottles = useGrowthStore((s) => s.bottles);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -44,6 +64,41 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [weeklyLoginDays, setWeeklyLoginDays] = useState(0);
+
+  // Prefer login-day history; activity dates are used as fallback for older accounts.
+  useEffect(() => {
+    if (!user) {
+      setWeeklyLoginDays(0);
+      return;
+    }
+
+    let cancelled = false;
+    const recentDays = new Set(getLoginDaysFromMeta(user));
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    const load = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('timestamp')
+        .eq('user_id', user.id)
+        .neq('activity_type', 'chat')
+        .eq('is_mood', false)
+        .gte('timestamp', sevenDaysAgo.getTime());
+
+      (data || []).forEach((row) => recentDays.add(toLocalDate(Number(row.timestamp))));
+      if (!cancelled) {
+        setWeeklyLoginDays(calcLast7DayCount(recentDays));
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const todayActs = calcTodayActivities(messages);
   const completedGoals = calcCompletedGoals(bottles);
@@ -150,16 +205,25 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {/* Stats — compact */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{activityStreak ?? '—'}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
+          <span className="text-base font-bold text-blue-600 mt-0.5">{weeklyLoginDays}</span>
+          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+            {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
+          </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{todayActs}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_today_activities')}</span>
+          <span className="text-base font-bold text-blue-600 mt-0.5">{todayActs}</span>
+          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+            {t('profile_today_activities_hint', { count: todayActs })}
+          </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-base font-bold text-blue-600">{completedGoals}</span>
           <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_completed_goals')}</span>
+          <span className="text-base font-bold text-blue-600 mt-0.5">{completedGoals}</span>
+          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+            {t('profile_completed_goals_hint')}
+          </span>
         </div>
       </div>
 

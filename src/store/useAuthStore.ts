@@ -46,6 +46,40 @@ interface AuthState {
   refreshActivityStreak: () => Promise<void>;
 }
 
+function getTodayDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function normalizeLoginDays(rawDays: unknown): string[] {
+  if (!Array.isArray(rawDays)) return [];
+  const uniq = new Set(
+    rawDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+  );
+  return Array.from(uniq).sort();
+}
+
+async function ensureTodayLoginDay(user: any): Promise<any> {
+  const today = getTodayDateStr();
+  const existingDays = normalizeLoginDays(user?.user_metadata?.login_days);
+  if (existingDays.includes(today)) return user;
+
+  const nextDays = [...existingDays, today].slice(-90);
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      ...(user?.user_metadata || {}),
+      login_days: nextDays,
+    },
+  });
+
+  if (error || !data?.user) {
+    console.warn('Failed to persist login_days:', error);
+    return user;
+  }
+
+  return data.user;
+}
+
 function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
   return {
     aiMode: meta.ai_mode || 'van',
@@ -105,11 +139,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     // Get initial session
     const session = await getSupabaseSession();
-    const meta = session?.user?.user_metadata || {};
+    const sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
+    const meta = sessionUser?.user_metadata || {};
     set({
-      user: session?.user || null,
+      user: sessionUser,
       loading: false,
-      preferences: session?.user ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
+      preferences: sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
     });
     if (session?.user) {
       markGrowthDailyLoginSession(session.user.id);
@@ -122,7 +157,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Listen for changes
     supabase.auth.onAuthStateChange(async (event, session) => {
       const previousUser = get().user;
-      const currentUser = session?.user || null;
+      let currentUser = session?.user || null;
+
+      if (event === 'SIGNED_IN' && currentUser) {
+        currentUser = await ensureTodayLoginDay(currentUser);
+      }
 
       set({ user: currentUser, loading: false });
 

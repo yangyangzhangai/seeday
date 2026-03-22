@@ -81,16 +81,19 @@ export const BottleList = () => {
 
   return (
     <section className="mb-4">
-      <div className="flex items-center justify-between px-4 mb-3">
-        <h2 className="text-base font-bold text-gray-800">{t('growth_bottle_section')}</h2>
-        <button
-          onClick={() => !isMaxReached && setShowAdd(true)}
-          disabled={isMaxReached}
-          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
-          title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
-        >
-          <Plus size={18} />
-        </button>
+      <div className="px-4 mb-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-800">{t('growth_bottle_section')}</h2>
+          <button
+            onClick={() => !isMaxReached && setShowAdd(true)}
+            disabled={isMaxReached}
+            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-400">{t('growth_bottle_section_hint')}</p>
       </div>
 
       {isMaxReached && (
