@@ -36,6 +36,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   const customMoodLabel   = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
   const stardust = useStardustStore(s => s.getStardustByMessageId(message.id));
+  const stardustMemories = useStardustStore(s => s.memories);
   const { detachMoodFromEvent, updateMessageImage, reclassifyRecentInput } = useChatStore();
   const stardustEmoji = stardust?.emojiChar || message.stardustEmoji;
 
@@ -299,6 +300,41 @@ export const EventCard: React.FC<EventCardProps> = ({
               >
                 {desc.content}
               </span>
+              {(() => {
+                const moodStardust = stardustMemories.find((memory) => memory.messageId === desc.id);
+                if (!moodStardust?.emojiChar) return null;
+
+                if (onStardustSelect) {
+                  return (
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
+                      aria-label="stardust-emoji"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        onStardustSelect(
+                          {
+                            emojiChar: moodStardust.emojiChar,
+                            message: moodStardust.message,
+                            alienName: moodStardust.alienName || 'T.S',
+                            createdAt: moodStardust.createdAt,
+                          },
+                          { x: rect.left + rect.width / 2, y: rect.top },
+                        );
+                      }}
+                    >
+                      {moodStardust.emojiChar}
+                    </button>
+                  );
+                }
+
+                return (
+                  <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
+                    {moodStardust.emojiChar}
+                  </span>
+                );
+              })()}
               {!readonly && (
                 <button
                   onClick={e => {

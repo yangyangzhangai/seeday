@@ -13,6 +13,7 @@ import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryP
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
+import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
@@ -59,6 +60,7 @@ const PageOutlet: React.FC = () => {
 
 const MainLayout = () => {
   const messages = useChatStore(state => state.messages);
+  const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const [animationState, setAnimationState] = React.useState<{
@@ -80,12 +82,35 @@ const MainLayout = () => {
       .slice(-1)[0];
   }, [messages]);
 
+  const relatedMessage = React.useMemo(() => {
+    const annotationMessageId = currentAnnotation?.relatedEvent?.data?.messageId;
+    if (typeof annotationMessageId === 'string') {
+      const exact = messages.find((message) => message.id === annotationMessageId);
+      if (exact) {
+        return exact;
+      }
+    }
+    return lastRecordMessage;
+  }, [currentAnnotation?.id, currentAnnotation?.relatedEvent?.data?.messageId, messages, lastRecordMessage]);
+
+  const condenseTargetMessage = React.useMemo(() => {
+    if (!relatedMessage) return lastRecordMessage;
+    if (!relatedMessage.isMood || relatedMessage.detached === true) {
+      return relatedMessage;
+    }
+
+    const parentEvent = messages.find(
+      (message) => !message.isMood && message.moodDescriptions?.some((desc) => desc.id === relatedMessage.id),
+    );
+    return parentEvent || lastRecordMessage || relatedMessage;
+  }, [relatedMessage, lastRecordMessage, messages]);
+
   // 处理凝结动画
   const handleCondense = React.useCallback((emojiChar?: string) => {
     // 获取气泡位置（作为动画起点）
     const bubbleElement = document.querySelector('[data-stardust-bubble]');
-    const targetElement = lastRecordMessage
-      ? document.querySelector(`[data-message-id="${lastRecordMessage.id}"]`)
+    const targetElement = condenseTargetMessage
+      ? document.querySelector(`[data-message-id="${condenseTargetMessage.id}"]`)
       : null;
 
     if (bubbleElement && targetElement) {
@@ -96,19 +121,19 @@ const MainLayout = () => {
         emojiChar: emojiChar || '✨', // 使用批注中提取的emoji，如果没有则默认星星
       });
     }
-  }, [lastRecordMessage]);
+  }, [condenseTargetMessage]);
 
   // 动画完成回调
   const handleAnimationComplete = React.useCallback(() => {
     setAnimationState(prev => ({ ...prev, isActive: false }));
     // 触发一次messages的读取来刷新UI显示新创建的Emoji
-    if (lastRecordMessage) {
+    if (condenseTargetMessage) {
       // 强制ChatPage重新渲染以显示Emoji
       window.dispatchEvent(new CustomEvent('stardust-created', {
-        detail: { messageId: lastRecordMessage.id }
+        detail: { messageId: condenseTargetMessage.id }
       }));
     }
-  }, [lastRecordMessage]);
+  }, [condenseTargetMessage]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -149,7 +174,7 @@ const MainLayout = () => {
       {/* AI 批注气泡 - 全局显示 */}
       {aiModeEnabled ? (
         <AIAnnotationBubble
-          relatedMessage={lastRecordMessage}
+          relatedMessage={relatedMessage}
           onCondense={handleCondense}
         />
       ) : null}

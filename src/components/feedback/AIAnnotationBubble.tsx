@@ -81,10 +81,9 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
     }
   }, [progress, currentAnnotation, dismissAnnotation]);
 
-  // 从批注内容中提取emoji
+  // 从批注内容中提取 emoji（覆盖组合 emoji / 旗帜 / keycap）
   const extractEmojiFromContent = (content: string): string | undefined => {
-    // Emoji Unicode 范围正则 (常用Emoji范围)
-    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]/gu;
+    const emojiRegex = /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)/gu;
     const matches = content.match(emojiRegex);
     return matches && matches.length > 0 ? matches[0] : undefined;
   };
