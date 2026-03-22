@@ -344,6 +344,12 @@ export const ChatPage = () => {
           </div>
         )}
 
+        {(messages.length > 0 || !!yesterdaySummary) && (
+          <div className="flex items-center justify-center -mb-1">
+            <p className="text-[11px] text-gray-300 leading-none text-center">{t('chat_date_section_hint')}</p>
+          </div>
+        )}
+
         {yesterdaySummary && (
           <div
             onClick={handleLoadMore}
@@ -383,16 +389,23 @@ export const ChatPage = () => {
         {messages.map((msg, index) => {
           const prevMsg = messages[index - 1];
           const showDateSep = !prevMsg || !isSameDay(msg.timestamp, prevMsg.timestamp);
+          const isTodaySep = isSameDay(msg.timestamp, Date.now());
 
           return (
             <Fragment key={msg.id}>
               {showDateSep && (
                 <div className="flex items-center gap-2 py-1">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                  <div className={`flex-1 h-px ${isTodaySep ? 'bg-gradient-to-r from-emerald-100 via-sky-100 to-emerald-100' : 'bg-gray-200'}`} />
+                  <span
+                    className={
+                      isTodaySep
+                        ? 'text-[11px] text-slate-600 whitespace-nowrap px-2.5 py-0.5 rounded-full border border-emerald-100/80 bg-gradient-to-r from-emerald-50/95 via-teal-50/90 to-sky-50/95 shadow-[0_0_0_1px_rgba(255,255,255,0.6),0_6px_18px_rgba(122,168,150,0.16)]'
+                        : 'text-xs text-gray-400 whitespace-nowrap'
+                    }
+                  >
                     {getDateLabel(msg.timestamp)}
                   </span>
-                  <div className="flex-1 h-px bg-gray-200" />
+                  <div className={`flex-1 h-px ${isTodaySep ? 'bg-gradient-to-r from-emerald-100 via-sky-100 to-emerald-100' : 'bg-gray-200'}`} />
                 </div>
               )}
 

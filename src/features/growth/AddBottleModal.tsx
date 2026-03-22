@@ -28,7 +28,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
       <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe animate-slide-up">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold">{t('growth_add_bottle')}</h3>
+          <h3 className="text-lg font-bold">{t('growth_add_bottle_modal_title')}</h3>
           <button onClick={onClose} className="text-gray-400"><X size={20} /></button>
         </div>
 

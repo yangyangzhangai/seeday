@@ -4,12 +4,12 @@ import { Check, Circle } from 'lucide-react';
 
 const FEATURES = [
   { labelKey: 'membership_feat_basic_analysis', free: true },
-  { labelKey: 'membership_feat_daily_plant', free: true },
   { labelKey: 'membership_feat_ai_chat', free: true },
-  { labelKey: 'membership_feat_advanced_analysis', free: false },
   { labelKey: 'membership_feat_daily_report', free: false },
-  { labelKey: 'membership_feat_weekly_report', free: false },
   { labelKey: 'membership_feat_monthly_report', free: false },
+  { labelKey: 'membership_feat_daily_plant', free: true },
+  { labelKey: 'membership_feat_advanced_analysis', free: false },
+  { labelKey: 'membership_feat_weekly_report', free: false },
   { labelKey: 'membership_feat_yearly_report', free: false },
 ];
 
