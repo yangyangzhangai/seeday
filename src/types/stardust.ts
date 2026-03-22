@@ -44,6 +44,7 @@ export interface CreateStardustRequest {
   message: string;
   userRawContent: string;
   emojiChar?: string;              // 可选，如未提供则使用默认✨
+  alienName?: string;
 }
 
 // Emoji生成请求

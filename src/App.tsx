@@ -72,10 +72,10 @@ const MainLayout = () => {
     emojiChar: '✨',
   });
 
-  // 获取最后一个记录模式的消息（活动或心情，作为凝结目标）
+  // 获取时间线中最后一个可见的记录消息（避免附着在活动下的心情消息被错误作为凝结目标）
   const lastRecordMessage = React.useMemo(() => {
     return messages
-      .filter(m => m.mode === 'record')
+      .filter(m => m.mode === 'record' && (!m.isMood || m.detached === true))
       .slice(-1)[0];
   }, [messages]);
 

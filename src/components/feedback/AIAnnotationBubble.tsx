@@ -105,6 +105,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
       message: currentAnnotation.content,
       userRawContent: relatedMessage.content,
       emojiChar, // 传递提取的emoji
+      alienName: currentModeVisual.name,
     });
 
     setIsCondensed(true);

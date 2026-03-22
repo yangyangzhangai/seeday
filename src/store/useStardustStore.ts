@@ -85,7 +85,7 @@ export const useStardustStore = create<StardustStore>()(
        * Local-First策略：先写入本地，再异步同步到云端
        */
       createStardust: async (request: CreateStardustRequest) => {
-        const { messageId, message, userRawContent, emojiChar } = request;
+        const { messageId, message, userRawContent, emojiChar, alienName } = request;
 
         // 检查是否已存在
         if (get().hasStardust(messageId)) {
@@ -114,7 +114,7 @@ export const useStardustStore = create<StardustStore>()(
             emojiChar: finalEmoji,
             userRawContent,
             createdAt: Date.now(),
-            alienName: 'T.S',
+            alienName: alienName?.trim() || 'T.S',
             syncStatus: 'pending_sync',
           };
 

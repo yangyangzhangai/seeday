@@ -218,7 +218,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               recentMoodMessages,
               todayActivitiesList,
             },
-            lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en',
+            lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
             aiMode,
           });
           const debugAiMode = response.debugAiMode || aiMode;

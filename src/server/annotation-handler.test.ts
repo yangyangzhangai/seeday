@@ -78,4 +78,55 @@ describe('annotation-handler', () => {
     expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');
     expect((res.payload as { source?: string }).source).toBe('ai');
   });
+
+  it('rewrites when generated annotation is too similar to recent ones', async () => {
+    responsesCreateMock
+      .mockResolvedValueOnce({
+        id: 'resp_initial',
+        output_text: 'You actually did the thing today, and it counts ✨',
+        usage: {
+          prompt_cache_hits: 0,
+          prompt_cache_misses: 1,
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'resp_rewrite',
+        output_text: 'You turned this page into a tiny trip, and your mind got fresh air 🌊',
+        usage: {
+          prompt_cache_hits: 0,
+          prompt_cache_misses: 1,
+        },
+      });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'Read a novel for a while' },
+        userContext: {
+          todayActivities: 2,
+          todayDuration: 80,
+          currentHour: 20,
+          recentAnnotations: ['You actually did the thing today, and it counts ✨'],
+          recentMoodMessages: [],
+          todayActivitiesList: [{ content: 'Read a novel', completed: false }],
+        },
+        lang: 'en',
+        aiMode: 'zep',
+      },
+    } as any, res as any);
+
+    expect(responsesCreateMock).toHaveBeenCalledTimes(2);
+
+    const rewriteRequest = responsesCreateMock.mock.calls[1][0];
+    expect(rewriteRequest.input).toContain('Draft to avoid:');
+    expect(rewriteRequest.input).toContain('Recent annotations:');
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { content?: string }).content).toContain('tiny trip');
+    expect((res.payload as { source?: string }).source).toBe('ai');
+  });
 });

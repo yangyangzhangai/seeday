@@ -130,7 +130,7 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
 }
 
 export function getModel(_lang: string): string {
-  return 'gpt-4o-mini';
+  return 'gpt-4.1-mini';
 }
 
 export function buildTodayActivitiesText(activities: any[], lang: string): string {

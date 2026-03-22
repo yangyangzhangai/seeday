@@ -80,7 +80,7 @@ npx vercel --prod
 
 - `/api/report`: `NousResearch/Hermes-4-405B-FP8-TEE`
 - `/api/diary`: `Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
-- `/api/annotation`: `gpt-4o-mini`
+- `/api/annotation`: `gpt-4.1-mini`
 - `/api/classify`: `qwen-plus`（可由 `CLASSIFY_MODEL` 覆盖）
 - `/api/stardust`: `NousResearch/Hermes-4-405B-FP8-TEE`
 - `/api/magic-pen-parse`: `glm-4.7-flash`（失败时可回退 `qwen-flash`）
