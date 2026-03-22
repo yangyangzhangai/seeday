@@ -15,12 +15,20 @@ import { isLegacyChatActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
+export type MembershipPlan = 'free' | 'plus';
+export type MembershipSource = 'metadata' | 'temporary_unlock' | 'default_free';
 
 export interface UserPreferences {
   aiMode: AiCompanionMode;
   aiModeEnabled: boolean;
   dailyGoalEnabled: boolean;
   annotationDropRate: AnnotationDropRate;
+}
+
+export interface MembershipState {
+  plan: MembershipPlan;
+  isPlus: boolean;
+  source: MembershipSource;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -36,10 +44,22 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
   high: 8,
 };
 
+const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = true;
+const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
+const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
+const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
+
+const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED
+  ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' }
+  : { plan: 'free', isPlus: false, source: 'default_free' };
+
 interface AuthState {
   user: any | null;
   loading: boolean;
   preferences: UserPreferences;
+  membershipPlan: MembershipPlan;
+  membershipSource: MembershipSource;
+  isPlus: boolean;
   /** Consecutive days with recorded activities, null = not yet fetched */
   activityStreak: number | null;
   initialize: () => Promise<void>;
@@ -95,17 +115,82 @@ function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
   };
 }
 
+function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
+  if (typeof raw === 'boolean') {
+    return raw ? 'plus' : 'free';
+  }
+
+  if (typeof raw !== 'string') return null;
+
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (PLUS_PLAN_ALIASES.has(normalized)) return 'plus';
+  if (FREE_PLAN_ALIASES.has(normalized)) return 'free';
+  return null;
+}
+
+export function resolveMembershipState(
+  user: { user_metadata?: Record<string, any>; app_metadata?: Record<string, any> } | null | undefined,
+  options?: { temporaryUnlockEnabled?: boolean },
+): MembershipState {
+  const temporaryUnlockEnabled = options?.temporaryUnlockEnabled ?? MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED;
+  const userMeta = user?.user_metadata || {};
+  const appMeta = user?.app_metadata || {};
+  const membershipCandidates = [
+    appMeta.membership_plan,
+    userMeta.membership_plan,
+    appMeta.plan,
+    userMeta.plan,
+    appMeta.subscription_plan,
+    userMeta.subscription_plan,
+    appMeta.membership_tier,
+    userMeta.membership_tier,
+    appMeta.tier,
+    userMeta.tier,
+    appMeta.membership?.plan,
+    userMeta.membership?.plan,
+    appMeta.subscription?.plan,
+    userMeta.subscription?.plan,
+    appMeta.is_plus,
+    userMeta.is_plus,
+    appMeta.plus_member,
+    userMeta.plus_member,
+    appMeta.vip,
+    userMeta.vip,
+  ];
+
+  for (const candidate of membershipCandidates) {
+    const plan = normalizeMembershipPlan(candidate);
+    if (plan) {
+      return {
+        plan,
+        isPlus: plan === 'plus',
+        source: 'metadata',
+      };
+    }
+  }
+
+  if (temporaryUnlockEnabled) {
+    return { plan: 'plus', isPlus: true, source: 'temporary_unlock' };
+  }
+
+  return { plan: 'free', isPlus: false, source: 'default_free' };
+}
+
 export function getAnnotationConfigFromPreferences(
   preferences: Pick<UserPreferences, 'aiModeEnabled' | 'annotationDropRate'>,
+  isPlus = DEFAULT_MEMBERSHIP_STATE.isPlus,
 ): { enabled: boolean; dailyLimit: number } {
   return {
     enabled: preferences.aiModeEnabled,
-    dailyLimit: ANNOTATION_DAILY_LIMIT_BY_DROP_RATE[preferences.annotationDropRate] ?? 3,
+    dailyLimit: isPlus
+      ? PLUS_ANNOTATION_DAILY_LIMIT
+      : (ANNOTATION_DAILY_LIMIT_BY_DROP_RATE[preferences.annotationDropRate] ?? 3),
   };
 }
 
-function syncAnnotationStateWithPreferences(preferences: UserPreferences): void {
-  const nextConfig = getAnnotationConfigFromPreferences(preferences);
+function syncAnnotationStateWithPreferences(preferences: UserPreferences, isPlus: boolean): void {
+  const nextConfig = getAnnotationConfigFromPreferences(preferences, isPlus);
   useAnnotationStore.setState((state) => ({
     config: {
       ...state.config,
@@ -113,6 +198,14 @@ function syncAnnotationStateWithPreferences(preferences: UserPreferences): void 
     },
     currentAnnotation: preferences.aiModeEnabled ? state.currentAnnotation : null,
   }));
+  if (import.meta.env.DEV) {
+    console.log('[Membership] synced annotation quota:', {
+      isPlus,
+      aiModeEnabled: preferences.aiModeEnabled,
+      annotationDropRate: preferences.annotationDropRate,
+      dailyLimit: nextConfig.dailyLimit,
+    });
+  }
 }
 
 function hydrateGrowthDailyGoalFromMeta(meta: Record<string, any>): void {
@@ -160,6 +253,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   preferences: DEFAULT_PREFERENCES,
+  membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
+  membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
+  isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
   activityStreak: null,
 
   initialize: async () => {
@@ -168,12 +264,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     const meta = sessionUser?.user_metadata || {};
     const nextPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
-    syncAnnotationStateWithPreferences(nextPreferences);
+    const membership = resolveMembershipState(sessionUser);
+    syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
     set({
       user: sessionUser,
       loading: false,
       preferences: nextPreferences,
+      membershipPlan: membership.plan,
+      membershipSource: membership.source,
+      isPlus: membership.isPlus,
     });
+    if (import.meta.env.DEV && sessionUser) {
+      console.log('[Membership] resolved membership:', {
+        userId: sessionUser.id,
+        plan: membership.plan,
+        source: membership.source,
+      });
+    }
     if (session?.user) {
       markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
@@ -194,12 +301,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const nextPreferences = currentUser
         ? preferencesFromMeta(currentUser.user_metadata || {})
         : DEFAULT_PREFERENCES;
-      syncAnnotationStateWithPreferences(nextPreferences);
+      const membership = resolveMembershipState(currentUser);
+      syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
       set({
         user: currentUser,
         loading: false,
         preferences: nextPreferences,
+        membershipPlan: membership.plan,
+        membershipSource: membership.source,
+        isPlus: membership.isPlus,
       });
+      if (import.meta.env.DEV && currentUser) {
+        console.log('[Membership] resolved membership:', {
+          userId: currentUser.id,
+          plan: membership.plan,
+          source: membership.source,
+        });
+      }
 
       if (event === 'SIGNED_IN' && currentUser) {
         const meta = currentUser.user_metadata || {};
@@ -244,13 +362,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           currentAnnotation: null,
           config: {
             ...state.config,
-            ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES),
+            ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES, DEFAULT_MEMBERSHIP_STATE.isPlus),
           },
         }));
         useMoodStore.getState().clear();
         useGrowthStore.setState({ bottles: [], dailyGoal: '', goalDate: '', popupDisabled: false });
         useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
-        set({ preferences: DEFAULT_PREFERENCES, activityStreak: null });
+        set({
+          preferences: DEFAULT_PREFERENCES,
+          membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
+          membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
+          isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
+          activityStreak: null,
+        });
       }
     });
   },
@@ -291,7 +415,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updatePreferences: async (partial: Partial<UserPreferences>) => {
     const merged = { ...get().preferences, ...partial };
     set({ preferences: merged });
-    syncAnnotationStateWithPreferences(merged);
+    syncAnnotationStateWithPreferences(merged, get().isPlus);
     await supabase.auth.updateUser({
       data: {
         ai_mode: merged.aiMode,
