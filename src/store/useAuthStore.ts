@@ -180,12 +180,13 @@ export function resolveMembershipState(
 export function getAnnotationConfigFromPreferences(
   preferences: Pick<UserPreferences, 'aiModeEnabled' | 'annotationDropRate'>,
   isPlus = DEFAULT_MEMBERSHIP_STATE.isPlus,
-): { enabled: boolean; dailyLimit: number } {
+): { enabled: boolean; dailyLimit: number; dropRate: AnnotationDropRate } {
   return {
     enabled: preferences.aiModeEnabled,
     dailyLimit: isPlus
       ? PLUS_ANNOTATION_DAILY_LIMIT
       : (ANNOTATION_DAILY_LIMIT_BY_DROP_RATE[preferences.annotationDropRate] ?? 3),
+    dropRate: preferences.annotationDropRate,
   };
 }
 

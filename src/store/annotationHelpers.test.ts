@@ -51,7 +51,7 @@ describe('annotationHelpers cooldown checks', () => {
     const now = Date.now();
     const previousEvent: AnnotationEvent = {
       type: 'activity_recorded',
-      timestamp: now - 60 * 1000,
+      timestamp: now - 1000,
       data: { content: '吃饭' },
     };
     const currentEvent: AnnotationEvent = {
@@ -75,5 +75,47 @@ describe('annotationHelpers cooldown checks', () => {
     );
 
     expect(shouldGenerate).toBe(false);
+  });
+
+  it('uses drop-rate tiers for activity_recorded base probability', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // random = 50%
+
+    const now = Date.now();
+    const currentEvent: AnnotationEvent = {
+      type: 'activity_recorded',
+      timestamp: now,
+      data: { content: '看书' },
+    };
+
+    const baseStats = {
+      date: '2026-03-22',
+      speakCount: 0,
+      lastSpeakTime: 0,
+      events: [currentEvent],
+    };
+
+    expect(
+      shouldGenerateAnnotation(currentEvent, baseStats, {
+        dailyLimit: 999,
+        enabled: true,
+        dropRate: 'low',
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldGenerateAnnotation(currentEvent, baseStats, {
+        dailyLimit: 999,
+        enabled: true,
+        dropRate: 'medium',
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldGenerateAnnotation(currentEvent, baseStats, {
+        dailyLimit: 999,
+        enabled: true,
+        dropRate: 'high',
+      }),
+    ).toBe(true);
   });
 });

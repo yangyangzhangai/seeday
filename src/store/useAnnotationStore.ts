@@ -79,6 +79,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
       config: {
         dailyLimit: 5,
         enabled: true,
+        dropRate: 'low',
       },
 
       // 跟踪最后一次批注生成时间（防止重复触发）

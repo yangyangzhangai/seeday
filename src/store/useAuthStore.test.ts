@@ -62,6 +62,7 @@ describe('useAuthStore membership helpers', () => {
     ).toEqual({
       enabled: true,
       dailyLimit: 9999,
+      dropRate: 'low',
     });
   });
 
@@ -77,6 +78,7 @@ describe('useAuthStore membership helpers', () => {
     ).toEqual({
       enabled: true,
       dailyLimit: 5,
+      dropRate: 'medium',
     });
   });
 });

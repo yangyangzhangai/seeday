@@ -34,11 +34,6 @@ const DEFAULT_ANNOTATIONS_ZH: AnnotationMap = {
     tone: 'curious',
     fallbackEmoji: '🌿',
   },
-  day_complete: {
-    content: '今天的碎片已经拼出轮廓了 🌙',
-    tone: 'celebrating',
-    fallbackEmoji: '🌙',
-  },
 };
 
 const DEFAULT_ANNOTATIONS_EN: AnnotationMap = {
@@ -67,11 +62,6 @@ const DEFAULT_ANNOTATIONS_EN: AnnotationMap = {
     tone: 'curious',
     fallbackEmoji: '🌿',
   },
-  day_complete: {
-    content: 'Today has a shape now 🌙',
-    tone: 'celebrating',
-    fallbackEmoji: '🌙',
-  },
 };
 
 const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
@@ -99,11 +89,6 @@ const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
     content: 'Questo silenzio sembra piu recupero che vuoto 🌿',
     tone: 'curious',
     fallbackEmoji: '🌿',
-  },
-  day_complete: {
-    content: 'Oggi ormai ha preso forma 🌙',
-    tone: 'celebrating',
-    fallbackEmoji: '🌙',
   },
 };
 

@@ -13,11 +13,18 @@ interface TodayStats {
 interface Config {
   dailyLimit: number;
   enabled: boolean;
+  dropRate?: 'low' | 'medium' | 'high';
 }
 
-const GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
-const SAME_EVENT_COOLDOWN_MS = 2 * 60 * 1000;
+const GLOBAL_COOLDOWN_MS = 5 * 1000;
+const SAME_EVENT_COOLDOWN_MS = 5 * 1000;
 const FORCE_ANNOTATION_TRIGGER = false;
+
+const BASE_PROBABILITY_BY_DROP_RATE: Record<'low' | 'medium' | 'high', number> = {
+  low: 30,
+  medium: 60,
+  high: 90,
+};
 
 /**
  * 事件权重配置
@@ -25,7 +32,7 @@ const FORCE_ANNOTATION_TRIGGER = false;
 const EVENT_WEIGHTS: Record<string, EventWeight> = {
   activity_completed: {
     base: 30,
-    max: 60,
+    max: 100,
     bonuses: [
       {
         check: (e) => (e.data?.duration || 0) > 120,
@@ -54,8 +61,8 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
   },
   
   activity_recorded: {
-    base: 15,
-    max: 45,
+    base: 30,
+    max: 100,
     bonuses: [
       {
         check: (e) => {
@@ -70,8 +77,8 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
   },
   
   mood_recorded: {
-    base: 20,
-    max: 40,
+    base: 30,
+    max: 100,
     bonuses: [
       {
         check: (e) => {
@@ -85,8 +92,8 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
   },
   
   task_deleted: {
-    base: 25,
-    max: 50,
+    base: 30,
+    max: 100,
     bonuses: [
       {
         check: (e, events) => {
@@ -104,7 +111,7 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
   
   idle_detected: {
     base: 30,
-    max: 45,
+    max: 100,
     bonuses: [
       {
         check: (e) => {
@@ -118,13 +125,7 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
   },
   
   overwork_detected: {
-    base: 50,
-    max: 70,
-    bonuses: [],
-  },
-  
-  day_complete: {
-    base: 80,
+    base: 30,
     max: 100,
     bonuses: [],
   },
@@ -173,7 +174,8 @@ export function shouldGenerateAnnotation(
     }
   }
 
-  let probability = weight.base;
+  const dropRate = config.dropRate || 'low';
+  let probability = BASE_PROBABILITY_BY_DROP_RATE[dropRate] ?? BASE_PROBABILITY_BY_DROP_RATE.low;
 
   weight.bonuses.forEach(bonus => {
     if (bonus.check(event, todayStats.events)) {
@@ -187,7 +189,7 @@ export function shouldGenerateAnnotation(
   const random = Math.random() * 100;
   const shouldTrigger = random < probability;
 
-  console.log(`[AI Annotator] 概率计算: ${probability.toFixed(1)}% (随机值: ${random.toFixed(1)}) - ${shouldTrigger ? '触发' : '未触发'}`);
+  console.log(`[AI Annotator] 概率计算(${dropRate}): ${probability.toFixed(1)}% (随机值: ${random.toFixed(1)}) - ${shouldTrigger ? '触发' : '未触发'}`);
 
   return shouldTrigger;
 }
