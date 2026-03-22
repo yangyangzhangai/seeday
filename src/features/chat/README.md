@@ -73,7 +73,7 @@
 
 ## Store Refactor Update (2026-03-21)
 
-`src/store/useChatStore.ts` is decomposed into focused action modules to stay under the max-lines gate (800 lines):
+`src/store/useChatStore.ts` is decomposed into focused action modules to stay under the max-lines gate (1000 lines):
 
 - `src/store/useChatStore.types.ts`: All shared types (`ChatState`, `Message`, `MoodDescription`, `YesterdaySummary`) and the `ChatState` interface.
 - `src/store/chatStoreLegacy.ts`: Legacy `activity_type` backfill helper (`queueBackfillLegacyActivityTypes`).

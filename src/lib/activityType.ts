@@ -1,4 +1,5 @@
 import { getCategoryLexicon, type SupportedLang } from '../services/input/lexicon/getLexicon';
+import { containsLatinSignal } from '../services/input/signals/latinSignalExtractor';
 import { zhCategoryLexicon } from '../services/input/lexicon/categoryLexicon.zh';
 
 export const ACTIVITY_RECORD_TYPES = [
@@ -41,10 +42,14 @@ const LEGACY_TO_RECORD_TYPE: Record<string, ActivityRecordType | 'work_or_study'
   '未分类': 'life',
 };
 
-function includesAnyKeyword(input: string, keywords: string[]): number {
+function includesAnyKeyword(input: string, keywords: string[], lang: SupportedLang): number {
   let score = 0;
   for (const keyword of keywords) {
-    if (input.includes(keyword.toLowerCase())) {
+    const matched =
+      lang === 'zh'
+        ? input.includes(keyword.toLowerCase())
+        : containsLatinSignal(input, keyword);
+    if (matched) {
       score += keyword.length >= 2 ? 2 : 1;
     }
   }
@@ -79,7 +84,7 @@ export function classifyRecordActivityType(
   let secondScore = -1;
 
   for (const type of ACTIVITY_RECORD_TYPES) {
-    const score = includesAnyKeyword(normalized, keywords[type] as string[]);
+    const score = includesAnyKeyword(normalized, keywords[type] as string[], lang);
     if (score > bestScore) {
       secondScore = bestScore;
       bestScore = score;

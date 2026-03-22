@@ -2,7 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import { mapSourcesToPlantActivities } from '../lib/plantActivityMapper';
 import { buildRootSegments } from '../lib/rootRenderer';
-import { resolvePlantDurationForMessage } from './usePlantStore';
+import {
+  addDaysToDate,
+  resolvePlantDurationForMessage,
+  shouldAttemptPlantAutoBackfill,
+} from './usePlantStore';
 
 function segmentCountFromSources(sources: Array<{ id: string; duration?: number; timestamp: number }>): number {
   const nowMs = 1_800_000;
@@ -42,5 +46,16 @@ describe('usePlantStore timing rules', () => {
 
     expect(before15Count).toBe(0);
     expect(after15Count).toBe(1);
+  });
+
+  it('calculates previous date for auto-backfill', () => {
+    expect(addDaysToDate('2026-03-22', -1)).toBe('2026-03-21');
+    expect(addDaysToDate('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('only runs auto-backfill once per local date', () => {
+    expect(shouldAttemptPlantAutoBackfill(null, '2026-03-22')).toBe(true);
+    expect(shouldAttemptPlantAutoBackfill('2026-03-21', '2026-03-22')).toBe(true);
+    expect(shouldAttemptPlantAutoBackfill('2026-03-22', '2026-03-22')).toBe(false);
   });
 });

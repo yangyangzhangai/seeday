@@ -22,15 +22,16 @@
 | `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus? }` |
 | `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
 | `GET` | `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
+| `POST` | `/api/plant-asset-telemetry` | `plant-asset-telemetry.ts` | `{ success, id }` (`{ success: false, skipped: true }` when table not provisioned) |
 | `POST` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | `{ success, id }` |
-| `GET` | `/api/live-input-dashboard` | `live-input-dashboard.ts` | `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, series, recentEvents }` |
+| `GET` | `/api/live-input-dashboard` | `live-input-dashboard.ts` | `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, series, recentEvents }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
-Live input telemetry ingest/dashboard endpoints also use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata.
+Live input telemetry ingest/dashboard endpoints also use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates both `live_input_events` and `plant_asset_events` as a unified telemetry view.
 
 当前 provider 映射：
 

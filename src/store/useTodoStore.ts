@@ -10,6 +10,7 @@ import {
   normalizeTodoCategory,
   type ActivityRecordType,
 } from '../lib/activityType';
+import { buildClassifierRawInput } from '../lib/classifierRawInput';
 import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
@@ -179,7 +180,7 @@ async function refineTodoCategoryWithAI(id: string, title: string): Promise<void
   try {
     const lang = resolveLangForText(title);
     const result = await callClassifierAPI({
-      rawInput: `${title} 30分钟`,
+      rawInput: buildClassifierRawInput(title, lang),
       lang,
     });
     const firstItem = result.data?.items?.[0];

@@ -9,6 +9,8 @@ import { normalizeAiCompanionMode, type AiCompanionMode } from '../lib/aiCompani
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAuthStore } from '../store/useAuthStore';
 import type {
+  PlantAssetTelemetryRequest,
+  PlantAssetTelemetryResponse,
   PlantDiaryRequest,
   PlantDiaryResponse,
   PlantGenerateRequest,
@@ -385,6 +387,16 @@ export async function callPlantHistoryAPI(startDate: string, endDate: string): P
   const headers = await getAuthHeaders();
   const params = new URLSearchParams({ startDate, endDate });
   return getJson<PlantHistoryResponse>(`/plant-history?${params.toString()}`, { headers });
+}
+
+export async function callPlantAssetTelemetryAPI(
+  request: PlantAssetTelemetryRequest,
+): Promise<PlantAssetTelemetryResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    return { success: false, skipped: true };
+  }
+  return postJson<PlantAssetTelemetryRequest, PlantAssetTelemetryResponse>('/plant-asset-telemetry', request, { headers });
 }
 
 export async function callLiveInputTelemetryIngestAPI(

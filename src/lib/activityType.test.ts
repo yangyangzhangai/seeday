@@ -27,4 +27,8 @@ describe('activityType', () => {
     expect(normalizeTodoCategory(undefined, '打游戏')).toBe('entertainment');
     expect(normalizeTodoCategory('study', '任意文本')).toBe('study');
   });
+  it('uses token-aware English keyword matching for category scoring', () => {
+    expect(classifyRecordActivityType('Prepare lunch', 'en').activityType).toBe('life');
+    expect(classifyRecordActivityType('PR review', 'en').activityType).toBe('work');
+  });
 });

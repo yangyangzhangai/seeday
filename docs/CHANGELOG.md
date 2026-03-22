@@ -8,6 +8,65 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-22 - Plant Phase 4 Generate Window And Irreversible Confirmation
+
+### Changed
+
+- Updated plant generation store flow in `src/store/usePlantStore.ts`:
+  - pass explicit runtime `lang` to `callPlantGenerateAPI(...)`
+  - add next-day first-open auto-backfill attempt for the previous date when no previous-day plant record exists
+  - persist a per-day backfill-attempt marker to avoid repeated retries on the same local date
+- Updated report plant trigger UX in `src/features/report/plant/PlantRootSection.tsx`:
+  - require confirmation before generating today's plant (irreversible for the day)
+  - surface a localized failure hint when API call throws
+- Added new i18n copy for plant-generation confirmation/error states in:
+  - `src/i18n/locales/zh.ts`
+  - `src/i18n/locales/en.ts`
+  - `src/i18n/locales/it.ts`
+- Added reveal and plant-image display chain in report plant section:
+  - `src/features/report/plant/PlantRootSection.tsx`
+  - `src/features/report/plant/PlantRevealAnimation.tsx`
+  - `src/features/report/plant/PlantImage.tsx`
+- Added four-level plant artwork fallback resolver (`plantId` -> `rootType+stage` -> `rootType_mid_001` -> `sha_mid_001`) in:
+  - `src/features/report/plant/plantImageResolver.ts`
+  - `src/features/report/plant/plantImageResolver.test.ts`
+- Added special-scenario handling for air-day and entertainment-dominant reveal copy, plus empty-day fallback hint wiring in:
+  - `src/features/report/plant/plantSpecialScenario.ts`
+  - `src/features/report/plant/plantSpecialScenario.test.ts`
+  - `src/features/report/plant/PlantRootSection.tsx`
+  - `src/i18n/locales/zh.ts`
+  - `src/i18n/locales/en.ts`
+  - `src/i18n/locales/it.ts`
+- Added plant image observability telemetry for fallback-level resolution in:
+  - `src/features/report/plant/PlantImage.tsx`
+  - `src/features/report/plant/plantImageResolver.ts`
+  - `src/api/client.ts`
+  - `api/plant-asset-telemetry.ts`
+  - `scripts/plant_asset_telemetry_schema.sql`
+- Merged plant fallback telemetry into the existing telemetry dashboard surface (`/telemetry/live-input`) in:
+  - `api/live-input-dashboard.ts`
+  - `src/services/input/liveInputTelemetryApi.ts`
+  - `src/features/telemetry/LiveInputTelemetryPage.tsx`
+- Updated docs to define `/telemetry/live-input` as the unified telemetry website for multiple instrumentation streams in:
+  - `LLM.md`
+  - `api/README.md`
+  - `src/api/README.md`
+  - `docs/PROJECT_MAP.md`
+- Added focused store helper coverage in `src/store/usePlantStore.test.ts` for:
+  - previous-date derivation (`addDaysToDate`)
+  - once-per-day auto-backfill gate (`shouldAttemptPlantAutoBackfill`)
+
+### Validation
+
+- `npx vitest run src/store/usePlantStore.test.ts`
+- `npx vitest run src/store/usePlantStore.test.ts src/features/report/plant/plantImageResolver.test.ts`
+- `npx vitest run src/store/usePlantStore.test.ts src/features/report/plant/plantImageResolver.test.ts src/features/report/plant/plantSpecialScenario.test.ts src/features/report/plant/plantGenerateUi.test.ts`
+- `npx tsc --noEmit`
+
+### Doc-sync impact
+
+- Synced Phase 4 execution state and completion checkboxes in `docs/CURRENT_TASK.md` for generate-window state machine, irreversible confirmation, generated-day lock, reveal-animation chain, artwork fallback order, and special-scenario fallback copy.
+
 ## 2026-03-21 - PR4 Magic Pen Fallback And Todo Category Hardening
 
 ### Changed

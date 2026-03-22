@@ -59,6 +59,7 @@ src/
 - `plant-generate.ts` -> `POST /api/plant-generate`
 - `plant-diary.ts` -> `POST /api/plant-diary`
 - `plant-history.ts` -> `GET /api/plant-history`
+- `plant-asset-telemetry.ts` -> `POST /api/plant-asset-telemetry`
 
 ## 3.1) 服务端共享模块 `src/server/`
 

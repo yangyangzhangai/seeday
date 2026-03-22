@@ -7,11 +7,16 @@ import {
 } from './liveInputRules.zh';
 import {
   EN_LAST_ACTIVITY_REFERENCES,
+  EN_SHORT_ACTIVITY_SHELL_PATTERNS,
+  EN_SHORT_REPLY_PATTERNS,
 } from './liveInputRules.en';
 import {
   IT_LAST_ACTIVITY_REFERENCES,
+  IT_SHORT_ACTIVITY_SHELL_PATTERNS,
+  IT_SHORT_REPLY_PATTERNS,
 } from './liveInputRules.it';
 import {
+  containsAnyLatinSignal,
   extractLatinSignals,
   hasLatinContextKeywordOverlap,
 } from './signals/latinSignalExtractor';
@@ -67,6 +72,14 @@ function hasLatin(input: string): boolean {
   return /[A-Za-z\u00C0-\u017F]/.test(input);
 }
 
+function getLatinTokenCount(input: string): number {
+  return input
+    .toLowerCase()
+    .split(/[^a-z\u00c0-\u017f]+/i)
+    .filter(Boolean)
+    .length;
+}
+
 function getCompactSemanticLength(input: string): number {
   return input
     .replace(/\s+/g, '')
@@ -84,6 +97,16 @@ function isShortReplyLikeText(input: string): boolean {
 
 function hasShortActionShell(input: string): boolean {
   return /^(去|上|下|开|关|回|到|进|出|拿|做|写|看|读|学|跑|吃|喝|打|发|洗|刷|煮|包|登).{1,5}$/.test(input.trim());
+}
+
+function isShortLatinReplyLikeText(input: string, lang: 'en' | 'it'): boolean {
+  const patterns = lang === 'it' ? IT_SHORT_REPLY_PATTERNS : EN_SHORT_REPLY_PATTERNS;
+  return patterns.some((pattern) => pattern.test(input.trim()));
+}
+
+function hasShortLatinActivityShell(input: string, lang: 'en' | 'it'): boolean {
+  const patterns = lang === 'it' ? IT_SHORT_ACTIVITY_SHELL_PATTERNS : EN_SHORT_ACTIVITY_SHELL_PATTERNS;
+  return patterns.some((pattern) => pattern.test(input.trim()));
 }
 
 function getRelatedOngoingActivityId(context: LiveInputContext): string | undefined {
@@ -177,7 +200,7 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
   if (context.recentActivity) {
     const referencesLast =
       hasStrongCompletion
-      || includesAny(text, references)
+      || containsAnyLatinSignal(text, references)
       || hasLatinContextKeywordOverlap(text, context.recentActivity.content);
     if (referencesLast && hasMood && scores.activity <= scores.mood + 1) {
       const contextEvidence = [
@@ -196,6 +219,33 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
         relatedActivityId: context.recentActivity.id,
       };
     }
+  }
+
+  const tokenCount = getLatinTokenCount(text);
+  if (
+    !hasActivity
+    && !hasMood
+    && !signals.hasFuturePlan
+    && !signals.hasNegatedOrNotOccurred
+    && tokenCount > 0
+    && tokenCount <= 2
+    && !isShortLatinReplyLikeText(text, lang)
+    && hasShortLatinActivityShell(text, lang)
+  ) {
+    const fallbackEvidence = [
+      ...evidence,
+      makeEvidence('lexicon', 'short_non_mood_default_to_activity_latin', [text], 'medium', 'positive'),
+    ];
+    const fallbackScores = buildScoresFromEvidence(fallbackEvidence);
+    return {
+      kind: 'activity',
+      internalKind: 'new_activity',
+      confidence: 'medium',
+      scores: fallbackScores,
+      reasons: buildReasonsFromEvidence(fallbackEvidence),
+      evidence: fallbackEvidence,
+      containsMoodSignal: false,
+    };
   }
 
   return resolveFinalClassification({
@@ -355,7 +405,7 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
     && !zhSignals.hasFutureOrPlanned
     && !zhSignals.hasNegatedOrNotOccurred
     && compactLength > 0
-    && compactLength <= 6
+    && compactLength < 4
     && !hasSchedulingOrReminderSignals(text)
     && !isShortReplyLikeText(text)
     && hasShortActionShell(text)

@@ -65,6 +65,15 @@ export const IT_NEGATED_OR_NOT_OCCURRED_PATTERNS = [
   /\b(volevo|avevo\s+intenzione\s+di)\s+.+\s+ma\s+non\s+(ho|sono\s+riuscit[oa])\b/i,
 ];
 
+export const IT_SHORT_REPLY_PATTERNS = [
+  /^(ok|va bene|bene|capito|ricevuto|perfetto|grazie)$/i,
+];
+
+export const IT_SHORT_ACTIVITY_SHELL_PATTERNS = [
+  /^(bere|bevo|bollire|cucinare|cuocere|preparare|comprare|fare)\s+(acqua|riso|pranzo|cena|spesa|verdure|frutta|pasti?)$/i,
+  /^(fare\s+la\s+spesa|preparare\s+i\s+pasti)$/i,
+];
+
 export const IT_LAST_ACTIVITY_REFERENCES = [
   'quello',
   'quella',

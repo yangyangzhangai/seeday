@@ -16,6 +16,10 @@ export const EN_ACTIVITY_PATTERNS = [
   /\b(working|studying|coding|running|walking|cooking)\s+(now|right now)\b/i,
   /\b(study|studying|review|reviewing|learn|learning)\s+(?!about\s+to\b|how\s+to\b)([a-z][a-z0-9-]*(\s+[a-z][a-z0-9-]*){0,3})\b/i,
   /\b(just\s+)?(had|did|wrapped\s+up)\s+(a\s+)?(meeting|workout|class|call)\b/i,
+  /\b(just\s+)?got\s+home\b/i,
+  /\b(went|going)\s+for\s+(a\s+)?(run|walk)\b/i,
+  /\b(out\s+for\s+(a\s+)?coffee)\b/i,
+  /\b(grabbing|grabbed|having|had)\s+(a\s+)?coffee\b/i,
   /\b(writing|working\s+on|reviewing)\s+(the\s+)?(report|doc|assignment|ticket|code)\b/i,
   /\b(sending|replying\s+to|answering)\s+(emails?|messages?)\b/i,
   /\b(preparing|building|drafting|updating)\s+(a\s+|the\s+)?(presentation|slides|roadmap|report|doc|deck)\b/i,
@@ -34,6 +38,7 @@ export const EN_ACTIVITY_PATTERNS = [
   /\b(chatting|chatted)\s+with\b/i,
   /\b(hanging\s+out|hung\s+out)\b/i,
   /\b(grabbing|grabbed|having|had)\s+(breakfast|lunch|dinner|brunch)\b/i,
+  /\b(reading|read|finished\s+reading)\s+(a\s+)?(book|novel|chapter)\b/i,
   /\b(watching|watched|reading|read)\s+(anime|manga|novel|novels)\b/i,
   /\b(reading|read|skimming|skimmed)\s+(the\s+)?(newspaper|news|article|articles)\b/i,
   /\b(journaling|journaled|writing|wrote)\s+(a\s+)?(journal|diary|journal\s+entry)\b/i,
@@ -49,6 +54,7 @@ export const EN_ACTIVITY_PATTERNS = [
 export const EN_STRONG_COMPLETION_PATTERNS = [
   /\b(just\s+)?(finished|done|completed)\b/i,
   /\bfinished\s+(the\s+)?(report|meeting|task|workout|class)\b/i,
+  /\b(done|finished)\s+with\s+(the\s+)?(work|report|meeting|task|workout|class|call|book|reading)\b/i,
   /\b(wrapped\s+up|got\s+done\s+with)\s+(the\s+)?(report|meeting|task|class|workout|call)\b/i,
   /\b(sent\s+out\s+the\s+report)\b/i,
   /\b(finally\s+)?(shipped|released|deployed|pushed)\b/i,
@@ -65,6 +71,15 @@ export const EN_NEGATED_OR_NOT_OCCURRED_PATTERNS = [
   /\b(didn't|did not|haven't|have not|couldn't|could not|wasn't|was not)\s+(work|study|exercise|go|finish|start)\b/i,
   /\b(no\s+progress|nothing\s+done|got\s+nothing\s+done)\b/i,
   /\b(wanted\s+to|planned\s+to)\s+.+\s+but\s+(didn't|did not|couldn't|could not)\b/i,
+];
+
+export const EN_SHORT_REPLY_PATTERNS = [
+  /^(ok|okay|kk|yep|yeah|yup|sure|fine|got it|thanks|thank you)$/i,
+];
+
+export const EN_SHORT_ACTIVITY_SHELL_PATTERNS = [
+  /^(drink|boil|cook|steam|prep|prepare|buy|get)\s+(water|tea|rice|meal|lunch|dinner|groceries|veggies|vegetables|fruits?)$/i,
+  /^(meal prep|food prep)$/i,
 ];
 
 export const EN_LAST_ACTIVITY_REFERENCES = [

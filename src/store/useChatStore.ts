@@ -17,6 +17,7 @@ import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
+import { buildClassifierRawInput } from '../lib/classifierRawInput';
 import {
   classifyRecordActivityType,
 } from '../lib/activityType';
@@ -313,15 +314,16 @@ export const useChatStore = create<ChatState>()(
         ) {
           void (async () => {
             try {
+              const lang = resolveLangForText(content);
               const aiResult = await callClassifierAPI({
-                rawInput: `${content} 30分钟`,
-                lang: resolveLangForText(content),
+                rawInput: buildClassifierRawInput(content, lang),
+                lang,
               });
               const aiCategory = aiResult.data?.items?.[0]?.category;
               if (!aiCategory) {
                 return;
               }
-              const refinedType = mapDiaryClassifierCategoryToActivityType(aiCategory, content, resolveLangForText(content));
+              const refinedType = mapDiaryClassifierCategoryToActivityType(aiCategory, content, lang);
               set((currentState) => ({
                 messages: currentState.messages.map((item) => (
                   item.id === newMessage.id ? { ...item, activityType: refinedType } : item

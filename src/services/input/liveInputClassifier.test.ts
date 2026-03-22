@@ -329,6 +329,13 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
     expect(result.reasons).toContain('short_non_mood_default_to_activity');
   });
 
+  it('defaults 3-char short shell to activity with 4-char threshold: 上个线', () => {
+    const result = classify('上个线');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.reasons).toContain('short_non_mood_default_to_activity');
+  });
+
   it('does not treat ack-like short reply as activity: 好的', () => {
     const result = classify('好的');
     expect(result.kind).toBe('mood');

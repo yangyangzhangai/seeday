@@ -19,15 +19,56 @@ import {
 
 export type LatinLang = 'en' | 'it';
 
-function includesAny(input: string, words: string[]): boolean {
-  return words.some((word) => input.includes(word));
+const LATIN_TOKEN_PATTERN = /[a-z\u00c0-\u017f]+(?:['’-][a-z\u00c0-\u017f]+)*/gi;
+
+function tokenizeLatin(input: string): string[] {
+  return input.toLowerCase().match(LATIN_TOKEN_PATTERN) ?? [];
+}
+
+function normalizeLatinSignal(signal: string): string {
+  return (signal.toLowerCase().match(LATIN_TOKEN_PATTERN) ?? []).join(' ');
+}
+
+function buildLatinTextIndex(input: string): {
+  normalized: string;
+  tokenSet: Set<string>;
+} {
+  const tokens = tokenizeLatin(input);
+  return {
+    normalized: tokens.join(' '),
+    tokenSet: new Set(tokens),
+  };
+}
+
+function containsNormalizedLatinSignal(
+  indexedText: { normalized: string; tokenSet: Set<string> },
+  normalizedSignal: string,
+): boolean {
+  if (!normalizedSignal) {
+    return false;
+  }
+
+  if (normalizedSignal.includes(' ')) {
+    return indexedText.normalized.includes(normalizedSignal);
+  }
+
+  return indexedText.tokenSet.has(normalizedSignal);
+}
+
+export function containsLatinSignal(input: string, signal: string): boolean {
+  return containsNormalizedLatinSignal(buildLatinTextIndex(input), normalizeLatinSignal(signal));
+}
+
+export function containsAnyLatinSignal(input: string, words: readonly string[]): boolean {
+  const indexedText = buildLatinTextIndex(input);
+  return words.some((word) => containsNormalizedLatinSignal(indexedText, normalizeLatinSignal(word)));
 }
 
 export function detectLatinLanguage(input: string): LatinLang {
   const lowered = input.toLowerCase();
-  if (includesAny(lowered, [
+  if (containsAnyLatinSignal(lowered, [
     'sono',
-    'sto ',
+    'sto',
     'stanco',
     'felice',
     'riunione',
@@ -73,6 +114,10 @@ export function detectLatinLanguage(input: string): LatinLang {
     'autobus',
     'treno',
     'spesa',
+    'acqua',
+    'bollire',
+    'comprare',
+    'verdure',
     'pulizie',
     'piatti',
     'nuotando',
@@ -97,10 +142,7 @@ export function detectLatinLanguage(input: string): LatinLang {
 }
 
 export function extractLatinKeywords(input: string): string[] {
-  const tokens = input
-    .toLowerCase()
-    .split(/[^a-z\u00c0-\u017f]+/i)
-    .filter((token) => token.length >= 4);
+  const tokens = tokenizeLatin(input).filter((token) => token.length >= 4);
   return Array.from(new Set(tokens));
 }
 
@@ -134,8 +176,8 @@ export function extractLatinSignals(text: string): {
     lang,
     hasFuturePlan: futurePatterns.some((pattern) => pattern.test(text)),
     hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)),
-    hasActivity: includesAny(text, activityVerbs) || activityPatterns.some((pattern) => pattern.test(text)),
-    hasMood: includesAny(text, moodWords) || moodPatterns.some((pattern) => pattern.test(text)),
+    hasActivity: containsAnyLatinSignal(text, activityVerbs) || activityPatterns.some((pattern) => pattern.test(text)),
+    hasMood: containsAnyLatinSignal(text, moodWords) || moodPatterns.some((pattern) => pattern.test(text)),
     hasStrongCompletion: completionPatterns.some((pattern) => pattern.test(text)),
   };
 }

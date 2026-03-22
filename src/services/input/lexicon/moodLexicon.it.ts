@@ -25,7 +25,7 @@ export const itMoodLexicon: MoodLexicon = {
     },
     { pattern: /\b(annoiato|annoiata|stufo|stufa|noioso|noiosa|annoiatissimo|annoiatissima|che noia|monotono|monotona|mi annoio)\b/i, mood: 'bored' },
     {
-      pattern: /\b(triste|arrabbiato|arrabbiata|frustrato|frustrata|confuso|confusa|abbattuto|abbattuta|depresso|depressa|di umore nero|giu di morale|a terra|demoralizzato|demoralizzata|deluso|delusa|svuotato|svuotata|senza energie|scazzato|scazzata|che schifo)\b/i,
+      pattern: /\b(triste|arrabbiato|arrabbiata|frustrato|frustrata|confuso|confusa|abbattuto|abbattuta|depresso|depressa|di umore nero|giu di morale|a terra|demoralizzato|demoralizzata|deluso|delusa|svuotato|svuotata|senza energie|scazzato|scazzata|che schifo|emo)\b/i,
       mood: 'down',
     },
   ],
@@ -79,6 +79,7 @@ export const itMoodLexicon: MoodLexicon = {
     'annoiato', 'annoiata', 'stufo', 'stufa', 'annoiatissimo', 'annoiatissima', 'che noia', 'monotono', 'monotona', 'mi annoio',
     'triste', 'arrabbiato', 'arrabbiata', 'frustrato', 'frustrata', 'confuso', 'confusa',
     'abbattuto', 'abbattuta', 'depresso', 'depressa', 'giu di morale', 'a terra', 'demoralizzato', 'demoralizzata', 'deluso', 'delusa', 'svuotato', 'svuotata', 'senza energie', 'scazzato', 'scazzata', 'che schifo',
+    'emo',
     'sollevato', 'sollevata', 'sollievo', 'pesante', 'faticoso', 'bene', 'male', 'ok',
   ],
 

@@ -105,6 +105,21 @@ export interface PlantHistoryResponse {
   records: DailyPlantRecord[];
 }
 
+export interface PlantAssetTelemetryRequest {
+  requestedPlantId: string;
+  resolvedAssetUrl: string;
+  fallbackLevel: 1 | 2 | 3 | 4;
+  rootType: RootType;
+  plantStage: PlantStage;
+  lang?: 'zh' | 'en' | 'it';
+}
+
+export interface PlantAssetTelemetryResponse {
+  success: boolean;
+  id?: string;
+  skipped?: boolean;
+}
+
 export interface PlantDirectionConfig {
   id: string;
   userId: string;

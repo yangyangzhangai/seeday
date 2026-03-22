@@ -24,6 +24,18 @@ interface LiveInputEventRow {
   lang: string | null;
 }
 
+interface PlantAssetEventRow {
+  id: string;
+  created_at: string;
+  user_id: string;
+  requested_plant_id: string | null;
+  resolved_asset_url: string | null;
+  fallback_level: number | null;
+  root_type: string | null;
+  plant_stage: string | null;
+  lang: string | null;
+}
+
 function parseDays(raw: unknown): number {
   const value = typeof raw === 'string' ? Number(raw) : Number(raw);
   if (!Number.isFinite(value)) {
@@ -63,6 +75,7 @@ function createDateSeries(days: number): LiveInputTelemetrySeriesPoint[] {
       day: date.toISOString().slice(0, 10),
       classificationCount: 0,
       correctionCount: 0,
+      plantAssetCount: 0,
       uniqueUsers: 0,
     });
   }
@@ -106,17 +119,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const { data: plantRows, error: plantError } = await auth.adminClient
+    .from('plant_asset_events')
+    .select('id, created_at, user_id, requested_plant_id, resolved_asset_url, fallback_level, root_type, plant_stage, lang')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(10000);
+
+  if (plantError && plantError.code !== '42P01') {
+    jsonError(res, 500, 'Failed to load plant asset telemetry dashboard', plantError.message);
+    return;
+  }
+
   const events = (rows || []) as LiveInputEventRow[];
+  const plantAssetEvents = ((plantRows || []) as PlantAssetEventRow[]);
   const byInternalKind = new Map<string, number>();
   const correctionPaths = new Map<string, number>();
   const topReasons = new Map<string, number>();
   const byLang = new Map<string, number>();
+  const plantFallbackLevels = new Map<string, number>();
   const uniqueUsers = new Set<string>();
   const series = createDateSeries(days);
   const seriesMap = new Map(series.map((point) => [point.day, { ...point, userIds: new Set<string>() }]));
 
   let classificationCount = 0;
   let correctionCount = 0;
+  let plantAssetCount = 0;
+  let plantExactHitCount = 0;
 
   for (const event of events) {
     uniqueUsers.add(event.user_id);
@@ -155,31 +184,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  for (const event of plantAssetEvents) {
+    uniqueUsers.add(event.user_id);
+    const day = event.created_at.slice(0, 10);
+    const seriesEntry = seriesMap.get(day);
+    if (seriesEntry) {
+      seriesEntry.userIds.add(event.user_id);
+      seriesEntry.plantAssetCount += 1;
+    }
+
+    plantAssetCount += 1;
+    const fallbackLevel = event.fallback_level === 1 || event.fallback_level === 2 || event.fallback_level === 3 || event.fallback_level === 4
+      ? event.fallback_level
+      : 4;
+    if (fallbackLevel === 1) {
+      plantExactHitCount += 1;
+    }
+
+    const lang = event.lang || 'unknown';
+    byLang.set(lang, (byLang.get(lang) ?? 0) + 1);
+    const key = `L${fallbackLevel}`;
+    plantFallbackLevels.set(key, (plantFallbackLevels.get(key) ?? 0) + 1);
+  }
+
   const normalizedSeries: LiveInputTelemetrySeriesPoint[] = series.map((point) => {
     const current = seriesMap.get(point.day);
     return {
       day: point.day,
       classificationCount: current?.classificationCount ?? 0,
       correctionCount: current?.correctionCount ?? 0,
+      plantAssetCount: current?.plantAssetCount ?? 0,
       uniqueUsers: current?.userIds.size ?? 0,
     };
   });
 
-  const recentEvents: LiveInputTelemetryRecentEvent[] = events.slice(0, 50).map((event) => ({
-    id: event.id,
-    createdAt: event.created_at,
-    userId: event.user_id,
-    eventType: event.event_type,
-    kind: (event.kind as LiveInputTelemetryRecentEvent['kind']) ?? null,
-    internalKind: (event.internal_kind as LiveInputTelemetryRecentEvent['internalKind']) ?? null,
-    confidence: (event.confidence as LiveInputTelemetryRecentEvent['confidence']) ?? null,
-    reasons: parseReasons(event.reasons),
-    fromKind: (event.from_kind as LiveInputTelemetryRecentEvent['fromKind']) ?? null,
-    toKind: (event.to_kind as LiveInputTelemetryRecentEvent['toKind']) ?? null,
-    lang: event.lang,
-    inputLength: event.input_length ?? 0,
-    inputPreview: event.raw_input ? event.raw_input.slice(0, 120) : null,
-  }));
+  const recentEvents: LiveInputTelemetryRecentEvent[] = [
+    ...events.map((event) => ({
+      id: event.id,
+      createdAt: event.created_at,
+      userId: event.user_id,
+      eventType: event.event_type,
+      kind: (event.kind as LiveInputTelemetryRecentEvent['kind']) ?? null,
+      internalKind: (event.internal_kind as LiveInputTelemetryRecentEvent['internalKind']) ?? null,
+      confidence: (event.confidence as LiveInputTelemetryRecentEvent['confidence']) ?? null,
+      reasons: parseReasons(event.reasons),
+      fromKind: (event.from_kind as LiveInputTelemetryRecentEvent['fromKind']) ?? null,
+      toKind: (event.to_kind as LiveInputTelemetryRecentEvent['toKind']) ?? null,
+      fallbackLevel: null,
+      requestedPlantId: null,
+      resolvedAssetUrl: null,
+      rootType: null,
+      plantStage: null,
+      lang: event.lang,
+      inputLength: event.input_length ?? 0,
+      inputPreview: event.raw_input ? event.raw_input.slice(0, 120) : null,
+    })),
+    ...plantAssetEvents.map((event) => {
+      const fallbackLevel = event.fallback_level === 1 || event.fallback_level === 2 || event.fallback_level === 3 || event.fallback_level === 4
+        ? event.fallback_level
+        : 4;
+      return {
+        id: event.id,
+        createdAt: event.created_at,
+        userId: event.user_id,
+        eventType: 'plant_asset' as const,
+        kind: null,
+        internalKind: null,
+        confidence: null,
+        reasons: [],
+        fromKind: null,
+        toKind: null,
+        fallbackLevel,
+        requestedPlantId: event.requested_plant_id,
+        resolvedAssetUrl: event.resolved_asset_url,
+        rootType: event.root_type,
+        plantStage: event.plant_stage,
+        lang: event.lang,
+        inputLength: 0,
+        inputPreview: event.resolved_asset_url,
+      };
+    }),
+  ]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, 50);
 
   const payload: LiveInputTelemetryDashboardResponse = {
     success: true,
@@ -187,13 +274,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       days,
       classificationCount,
       correctionCount,
+      plantAssetCount,
       correctionRate: classificationCount > 0 ? correctionCount / classificationCount : 0,
+      plantExactHitRate: plantAssetCount > 0 ? plantExactHitCount / plantAssetCount : 0,
       uniqueUsers: uniqueUsers.size,
     },
     byInternalKind: toBreakdownItems(byInternalKind, classificationCount),
     correctionPaths: toBreakdownItems(correctionPaths, correctionCount),
     topReasons: toBreakdownItems(topReasons, classificationCount),
-    byLang: toBreakdownItems(byLang, classificationCount),
+    byLang: toBreakdownItems(byLang, classificationCount + correctionCount + plantAssetCount),
+    plantFallbackLevels: toBreakdownItems(plantFallbackLevels, plantAssetCount),
     series: normalizedSeries,
     recentEvents,
   };

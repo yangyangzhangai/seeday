@@ -7,7 +7,10 @@ import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
 import { usePlantStore } from '../../../store/usePlantStore';
 import type { PlantCategoryKey } from '../../../types/plant';
+import { PlantImage } from './PlantImage';
+import { PlantRevealAnimation } from './PlantRevealAnimation';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
+import { resolvePlantSpecialScenario } from './plantSpecialScenario';
 import { SoilCanvas } from './SoilCanvas';
 
 function getCategoryKey(category: PlantCategoryKey): string {
@@ -29,6 +32,7 @@ export const PlantRootSection: React.FC = () => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
+  const [revealToken, setRevealToken] = useState(0);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
@@ -108,25 +112,40 @@ export const PlantRootSection: React.FC = () => {
     [isGenerating, isTooEarly, todayPlant],
   );
 
+  const specialScenario = useMemo(() => resolvePlantSpecialScenario(todayPlant), [todayPlant]);
+  const revealSubtitleKey = specialScenario === 'air'
+    ? 'plant_reveal_special_air'
+    : specialScenario === 'entertainment'
+      ? 'plant_reveal_special_entertainment'
+      : 'plant_reveal_subtitle';
+
   const handleGenerate = async () => {
     if (isTooEarly) {
       setStatusHint(t('plant_generate_locked_hint'));
       return;
     }
-    const response = await generatePlant();
-    if (response.status === 'generated') {
-      setStatusHint(t('plant_generate_success'));
+    if (!window.confirm(t('plant_generate_confirm'))) {
       return;
     }
-    if (response.status === 'already_generated') {
-      setStatusHint(t('plant_generate_already'));
-      return;
+    try {
+      const response = await generatePlant();
+      if (response.status === 'generated') {
+        setRevealToken(prev => prev + 1);
+        setStatusHint(t('plant_generate_success'));
+        return;
+      }
+      if (response.status === 'already_generated') {
+        setStatusHint(t('plant_generate_already'));
+        return;
+      }
+      if (response.status === 'empty_day') {
+        setStatusHint(t('plant_generate_empty_day_fallback'));
+        return;
+      }
+      setStatusHint(response.message ?? t('plant_generate_locked_hint'));
+    } catch {
+      setStatusHint(t('plant_generate_failed'));
     }
-    if (response.status === 'empty_day') {
-      setStatusHint(t('plant_generate_empty_day'));
-      return;
-    }
-    setStatusHint(response.message ?? t('plant_generate_locked_hint'));
   };
 
   return (
@@ -166,7 +185,24 @@ export const PlantRootSection: React.FC = () => {
             <div className="min-w-0 flex-1">
               <p className="font-medium text-stone-700">{t('report_root_empty_title')}</p>
               <p className="mt-1 leading-5 text-stone-600">{t('report_root_empty')}</p>
+              <p className="mt-1 leading-5 text-stone-500">{t('plant_generate_empty_day_fallback')}</p>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {todayPlant ? (
+        <div className="mt-3 rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50/80 to-white p-3">
+          <p className="text-xs font-medium text-amber-800">{t('plant_reveal_title')}</p>
+          <p className="mt-1 text-xs text-amber-700">{t(revealSubtitleKey)}</p>
+          <div className="mt-3">
+            <PlantRevealAnimation revealToken={revealToken}>
+              <PlantImage
+                plantId={todayPlant.plantId}
+                rootType={todayPlant.rootType}
+                plantStage={todayPlant.plantStage}
+              />
+            </PlantRevealAnimation>
           </div>
         </div>
       ) : null}

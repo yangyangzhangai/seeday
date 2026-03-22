@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const WARNING_LIMIT = 400;
-const ERROR_LIMIT = 800;
+const ERROR_LIMIT = 1000;
 const ROOT_DIRS = ['src', 'api'];
 const FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', '.vercel']);

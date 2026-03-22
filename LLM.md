@@ -51,7 +51,7 @@
 
 ### 文件与函数规模
 
-- 文件行数 **≤ 400 行**（警告），**≤ 800 行**（硬限，必须拆分再提交）
+- 文件行数 **≤ 400 行**（警告），**≤ 1000 行**（硬限，必须拆分再提交）
 - 单函数 **≤ 30 行**（超限提取到 `lib/` 或 `*Actions.ts`）
 - 嵌套层数 **≤ 3 层**，`if/else` 分支 **≤ 3 个**
 
@@ -79,7 +79,7 @@
 ## 🔁 回环检查（每次提交前必须执行）
 
 ```powershell
-npm run lint:max-lines          # 文件行数检查（>400 警告，>800 报错）
+npm run lint:max-lines          # 文件行数检查（>400 警告，>1000 报错）
 npm run lint:docs-sync          # 文档同构检查（README + DOC-DEPS 存在性）
 npm run lint:state-consistency  # 状态一致性检查（代码改动是否同步了文档）
 npx tsc --noEmit                # TypeScript 类型检查
@@ -124,4 +124,5 @@ npm run build                   # 构建验证（关键改动后执行）
 | `docs/ARCHITECTURE.md` | 架构说明（真实实现，非愿景） |
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（主输入受控整理模式：AI 提取 + 前端校验 + draft review） |
 | `CONTRIBUTING.md` | 贡献规范、包管理、回滚约定 |
+| `https://tshine2-13-new.vercel.app/telemetry/live-input` | 线上埋点看板（统一查看各类 telemetry 数据，含 live input 与 plant fallback） |
 

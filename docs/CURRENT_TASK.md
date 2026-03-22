@@ -528,12 +528,25 @@
 
 **目标**：完成“晚8点后生成 -> 揭晓植物 -> 展示日记”完整用户闭环。
 
-- [ ] 生成按钮状态机（00:00-19:59 禁用；20:00-23:59 可用；次日首次打开自动兜底；未生成时根系可持续增长到当日 24:00）。
-- [ ] 二次确认弹窗：确认后不可逆，不提供重新生成入口。
-- [ ] 破土动画组件 `PlantRevealAnimation` 与 `PlantImage` 展示串联。
-- [ ] 实现素材检索四级降级：`plantId` 精确 -> 同 rootType+stage -> rootType 默认 mid -> `sha_mid_001`。
-- [ ] 处理特殊场景：空气植物（AND 条件）、娱乐主导植物、无记录日兜底文案。
-- [ ] 生成后锁定规则：当天植物生成后不再因活动变更而回刷。
+- [x] 生成按钮状态机（00:00-19:59 禁用；20:00-23:59 可用；次日首次打开自动兜底；未生成时根系可持续增长到当日 24:00）。
+- [x] 二次确认弹窗：确认后不可逆，不提供重新生成入口。
+- [x] 破土动画组件 `PlantRevealAnimation` 与 `PlantImage` 展示串联。
+- [x] 实现素材检索四级降级：`plantId` 精确 -> 同 rootType+stage -> rootType 默认 mid -> `sha_mid_001`。
+- [x] 处理特殊场景：空气植物（AND 条件）、娱乐主导植物、无记录日兜底文案。
+- [x] 生成后锁定规则：当天植物生成后不再因活动变更而回刷。
+
+**Phase 4 execution snapshot（2026-03-22）**：
+
+- `src/store/usePlantStore.ts`：补齐 next-day first-open auto-backfill（上一日缺失记录时自动触发一次补生成），并将植物生成请求显式透传 `lang`。
+- `src/features/report/plant/PlantRootSection.tsx`：生成前增加不可逆确认弹窗；生成失败时回落统一错误提示。
+- `src/i18n/locales/{zh,en,it}.ts`：新增植物生成确认与失败提示文案，保持三语一致。
+- `src/store/usePlantStore.test.ts`：新增自动补生成日期推导与单日单次尝试规则单测。
+- `src/features/report/plant/PlantRevealAnimation.tsx` + `src/features/report/plant/PlantImage.tsx`：落地揭晓动画与图片展示串联。
+- `src/features/report/plant/plantImageResolver.ts`：实现四级素材降级链路，并新增 `plantImageResolver.test.ts` 覆盖。
+- `src/features/report/plant/plantSpecialScenario.ts`：按空气植物 AND 条件与娱乐主导比例识别特殊日，并在 `PlantRootSection` 展示对应揭晓文案。
+- `src/i18n/locales/{zh,en,it}.ts`：补齐无记录日兜底提示与特殊场景揭晓文案。
+- `src/features/report/plant/PlantImage.tsx` + `api/plant-asset-telemetry.ts`：新增植物素材解析埋点，上报命中 fallback level（1-4）。
+- `api/live-input-dashboard.ts` + `src/features/telemetry/LiveInputTelemetryPage.tsx`：将 plant fallback telemetry 并入 `/telemetry/live-input` 统一看板展示。
 
 **验收**：功能从点击到展示动画在 3 秒内启动；所有异常场景有稳定降级。
 

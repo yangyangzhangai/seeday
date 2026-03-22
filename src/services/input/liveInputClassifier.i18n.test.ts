@@ -81,6 +81,44 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
+  it('classifies English natural activity: just got home', () => {
+    const result = classify('Just got home');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English natural activity: went for a run', () => {
+    const result = classify('Went for a run');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English natural activity: done with work', () => {
+    const result = classify('Done with work');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English natural activity: out for coffee', () => {
+    const result = classify('Out for coffee');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English short activity shell fallback: buy veggies', () => {
+    const result = classify('buy veggies');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.reasons).toContain('short_non_mood_default_to_activity_latin');
+  });
+
+  it('keeps English emo slang as mood, not short activity fallback', () => {
+    const result = classify('emo');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).not.toContain('short_non_mood_default_to_activity_latin');
+  });
+
   it('classifies English mood about last activity with context', () => {
     const result = classify('the meeting was stressful', {
       now: Date.now(),
@@ -130,6 +168,18 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     const result = classify('Just finished the report, relieved');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('activity_with_mood');
+  });
+
+  it('keeps English book phrases as activity instead of ok/good substring mood hits', () => {
+    const result = classify('Reading a good book');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('keeps ambiguous English mood words phrase-based: I am doing okay', () => {
+    const result = classify('I am doing okay');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
   });
 
   it('keeps English future plan sentence out of activity: later I will go to the gym', () => {
@@ -192,6 +242,20 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     const result = classify('sto studiando');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian short activity shell fallback: bollire acqua', () => {
+    const result = classify('bollire acqua');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.reasons).toContain('short_non_mood_default_to_activity_latin');
+  });
+
+  it('keeps Italian emo slang as mood, not short activity fallback', () => {
+    const result = classify('sono emo');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).not.toContain('short_non_mood_default_to_activity_latin');
   });
 
   it('keeps planned Italian sentence out of activity: domani voglio correre', () => {

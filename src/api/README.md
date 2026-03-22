@@ -16,6 +16,7 @@
 - `callPlantGenerateAPI()`
 - `callPlantDiaryAPI()`
 - `callPlantHistoryAPI()` (`GET` with auth headers + query params)
+- `callPlantAssetTelemetryAPI()` (records resolved plant image fallback level)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -32,6 +33,8 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
 - `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `src/server/annotation-handler.ts`, `src/server/annotation-prompts.ts`)
 - Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session；其中 `plant-history` 是当前 GET 型端点。
+- Plant asset telemetry endpoint (`/api/plant-asset-telemetry`) records which fallback level (`1-4`) was used when plant artwork resolves.
+- `/api/live-input-dashboard` is used as the consolidated telemetry dashboard endpoint for both live input events and plant fallback telemetry events.
 
 ## Current Notes
 

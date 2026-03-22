@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
 import { callPlantGenerateAPI } from '../api/client';
+import i18n from '../i18n';
 import { buildRootSegments } from '../lib/rootRenderer';
 import { mapSourcesToPlantActivities } from '../lib/plantActivityMapper';
 import { fromDbPlantRecord } from '../lib/dbMappers';
@@ -22,6 +23,7 @@ interface PlantState {
   directionOrder: PlantCategoryKey[];
   isGenerating: boolean;
   selectedRootId: string | null;
+  lastAutoBackfillAttemptDate: string | null;
   loadTodayData: () => Promise<void>;
   refreshTodaySegments: () => void;
   startActivitySync: () => void;
@@ -32,6 +34,26 @@ interface PlantState {
 }
 
 let chatSubscription: (() => void) | null = null;
+
+function resolvePlantLang(): 'zh' | 'en' | 'it' {
+  const lang = i18n.language?.toLowerCase() ?? 'en';
+  if (lang.startsWith('zh')) return 'zh';
+  if (lang.startsWith('it')) return 'it';
+  return 'en';
+}
+
+export function addDaysToDate(date: string, days: number): string {
+  const next = new Date(`${date}T00:00:00`);
+  next.setDate(next.getDate() + days);
+  const year = next.getFullYear();
+  const month = String(next.getMonth() + 1).padStart(2, '0');
+  const day = String(next.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function shouldAttemptPlantAutoBackfill(lastAttemptDate: string | null, todayDate: string): boolean {
+  return lastAttemptDate !== todayDate;
+}
 
 export function resolvePlantDurationForMessage(
   duration: number | undefined,
@@ -134,11 +156,12 @@ export const usePlantStore = create<PlantState>()(
       directionOrder: [...DEFAULT_DIRECTION_ORDER],
       isGenerating: false,
       selectedRootId: null,
+      lastAutoBackfillAttemptDate: null,
 
       loadTodayData: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ todayPlant: null, todaySegments: [] });
+          set({ todayPlant: null, todaySegments: [], lastAutoBackfillAttemptDate: null });
           return;
         }
 
@@ -178,6 +201,36 @@ export const usePlantStore = create<PlantState>()(
         }
 
         get().refreshTodaySegments();
+
+        const { lastAutoBackfillAttemptDate } = get();
+        if (!shouldAttemptPlantAutoBackfill(lastAutoBackfillAttemptDate, date)) {
+          return;
+        }
+        set({ lastAutoBackfillAttemptDate: date });
+
+        const previousDate = addDaysToDate(date, -1);
+        const { data: previousPlant, error: previousPlantError } = await supabase
+          .from('daily_plant_records')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('date', previousDate)
+          .maybeSingle();
+
+        if (previousPlantError || previousPlant) {
+          return;
+        }
+
+        try {
+          await callPlantGenerateAPI({
+            date: previousDate,
+            timezone,
+            lang: resolvePlantLang(),
+          });
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn('[plant] auto-backfill failed', error);
+          }
+        }
       },
 
       refreshTodaySegments: () => {
@@ -250,7 +303,10 @@ export const usePlantStore = create<PlantState>()(
         const payload = getTodayDateAndRange();
         set({ isGenerating: true });
         try {
-          const response = await callPlantGenerateAPI(payload);
+          const response = await callPlantGenerateAPI({
+            ...payload,
+            lang: resolvePlantLang(),
+          });
           if (response.status === 'generated' || response.status === 'already_generated') {
             set({ todayPlant: response.plant, selectedRootId: null });
           }
@@ -304,6 +360,7 @@ export const usePlantStore = create<PlantState>()(
       partialize: (state) => ({
         todayPlant: state.todayPlant,
         directionOrder: state.directionOrder,
+        lastAutoBackfillAttemptDate: state.lastAutoBackfillAttemptDate,
       }),
     },
   ),
