@@ -6,28 +6,35 @@
 
 1. 仅处理服务端逻辑，不依赖 `window`、`localStorage` 等浏览器对象。
 2. 前端统一通过 `src/api/client.ts` 调用，不在 `src/**` 直连第三方 AI。
-3. 所有函数统一设置 CORS，并只接受 `POST`（含 `OPTIONS` 预检）。
-4. 密钥统一从 `process.env` 读取（如 `CHUTES_API_KEY`、`ZHIPU_API_KEY`）。
+3. 所有函数统一设置 CORS，并只接受各自的预期方法（含 `OPTIONS` 预检）；当前绝大多数为 `POST`，`/api/plant-history` 为 `GET`。
+4. 密钥统一从 `process.env` 读取（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
 
 ## 端点清单（与当前实现一致）
 
-| Route | File | Success shape |
-| --- | --- | --- |
-| `/api/report` | `report.ts` | `{ content }` |
-| `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
-| `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
-| `/api/diary` | `diary.ts` | `{ success: true, content }` |
-| `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
-| `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
-| `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus? }` |
-| `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
-| `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
+| Method | Route | File | Success shape |
+| --- | --- | --- | --- |
+| `POST` | `/api/report` | `report.ts` | `{ content }` |
+| `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason? }` |
+| `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
+| `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
+| `POST` | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
+| `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
+| `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus? }` |
+| `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
+| `GET` | `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
+
+当前 provider 映射：
+
+- `/api/annotation` -> `OPENAI_API_KEY`
+- `/api/report` / `/api/diary` / `/api/stardust` / `/api/plant-diary` -> `CHUTES_API_KEY`
+- `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
+- `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底
 
 ## 本地调试（Windows）
 
@@ -36,6 +43,8 @@ npm install
 Copy-Item .env.example .env
 npm run dev
 ```
+
+说明：当前仓库的 `npm run dev` / `npm run dev:vite` 都只启动 Vite 前端，未内置本地 serverless runtime。
 
 ## 新增/修改函数 checklist
 

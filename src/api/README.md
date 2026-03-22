@@ -15,7 +15,7 @@
 - `callMagicPenParseAPI()`
 - `callPlantGenerateAPI()`
 - `callPlantDiaryAPI()`
-- `callPlantHistoryAPI()`
+- `callPlantHistoryAPI()` (`GET` with auth headers + query params)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -30,8 +30,8 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Changes in request/response contracts affect all feature modules
 - Error-shape changes can break store fallback handling
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
-- `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `api/annotation-handler.ts`, `api/annotation-prompts.ts`)
-- Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session.
+- `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `src/server/annotation-handler.ts`, `src/server/annotation-prompts.ts`)
+- Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session；其中 `plant-history` 是当前 GET 型端点。
 
 ## Current Notes
 
@@ -40,7 +40,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `callMagicPenParseAPI()` supports `lang` (`zh`/`en`/`it`), and server prompt routing now follows this field.
 - Magic Pen parse `segments[*].kind` now supports four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (plus `unparsed` array for unmatched content).
 - Magic Pen parse `segments[*]` now supports `timeRelation` (`realtime` / `future` / `past` / `unknown`) for parser-first direct-write gating.
-- Endpoint robustness baseline now includes `api/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
+- Endpoint robustness baseline now includes `src/server/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.

@@ -930,7 +930,7 @@ V1 规则：
 |------|------|
 | `src/features/chat/magicPenSheetHelpers.ts` | 当 `MagicPenSheet.tsx` 行数接近 400 时，抽出 UI helper |
 | `src/store/magicPenActions.test.ts` | 提交流程单元测试 |
-| `api/magic-pen-parse.test.ts` | AI 响应解析 + 校验单元测试 |
+| `src/server/magic-pen-parse.test.ts` | AI 响应解析 + 校验单元测试 |
 
 ### 9.2 页面层职责
 

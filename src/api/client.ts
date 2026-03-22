@@ -364,6 +364,10 @@ export async function callPlantHistoryAPI(startDate: string, endDate: string): P
   return getJson<PlantHistoryResponse>(`/plant-history?${params.toString()}`, { headers });
 }
 
-function getCurrentAiMode(): AiCompanionMode {
-  return normalizeAiCompanionMode(useAuthStore.getState().preferences.aiMode);
+function getCurrentAiMode(): AiCompanionMode | undefined {
+  const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
+  if (!aiModeEnabled) {
+    return undefined;
+  }
+  return normalizeAiCompanionMode(aiMode);
 }

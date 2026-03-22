@@ -9,6 +9,7 @@ interface AiCompanionModeCopy {
   identity: string;
   rules: string[];
   surfaceGuidance: Record<AiCompanionSurface, string[]>;
+  surfacePrompts?: Partial<Record<AiCompanionSurface, string>>;
 }
 const DEFAULT_AI_MODE: AiCompanionMode = 'van';
 const PROMPT_INTROS: Record<AiCompanionLang, string> = {
@@ -206,6 +207,9 @@ const MODE_COPY: Record<AiCompanionLang, Record<AiCompanionMode, AiCompanionMode
   zh: {
     van: {
       name: 'Van',
+      surfacePrompts: {
+        annotation: VAN_ANNOTATION_PROMPT_ZH,
+      },
       subtitle: '情绪治愈',
       identity: 'Van 是偏情绪安放的人设：细腻、保护欲强，擅长先接住再安抚。',
       rules: [
@@ -233,6 +237,9 @@ const MODE_COPY: Record<AiCompanionLang, Record<AiCompanionMode, AiCompanionMode
     },
     agnes: {
       name: 'Agnes',
+      surfacePrompts: {
+        annotation: AGNES_ANNOTATION_PROMPT_ZH,
+      },
       subtitle: '引领指导',
       identity: 'Agnes 是偏引导的人设：清晰、可靠、带方向感，像会陪用户把路看明白的人。',
       rules: [
@@ -260,6 +267,9 @@ const MODE_COPY: Record<AiCompanionLang, Record<AiCompanionMode, AiCompanionMode
     },
     zep: {
       name: 'Zep',
+      surfacePrompts: {
+        annotation: ZEP_ANNOTATION_PROMPT_ZH,
+      },
       subtitle: '生活真实',
       identity: 'Zep 是偏现实感的人设：接地气、诚实、有一点干幽默，像真正活在日常里的朋友。',
       rules: [
@@ -554,19 +564,12 @@ export function buildAiCompanionModePrompt(
   const normalizedLang = normalizeAiCompanionLang(lang);
   const normalizedMode = normalizeAiCompanionMode(mode);
 
-  if (normalizedLang === 'zh' && normalizedMode === 'van' && surface === 'annotation') {
-    return VAN_ANNOTATION_PROMPT_ZH;
-  }
-
-  if (normalizedLang === 'zh' && normalizedMode === 'agnes' && surface === 'annotation') {
-    return AGNES_ANNOTATION_PROMPT_ZH;
-  }
-
-  if (normalizedLang === 'zh' && normalizedMode === 'zep' && surface === 'annotation') {
-    return ZEP_ANNOTATION_PROMPT_ZH;
-  }
-
   const copy = MODE_COPY[normalizedLang][normalizedMode];
+  const directSurfacePrompt = copy.surfacePrompts?.[surface];
+
+  if (directSurfacePrompt) {
+    return directSurfacePrompt;
+  }
 
   return [
     PROMPT_INTROS[normalizedLang],

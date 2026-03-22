@@ -21,7 +21,7 @@
 | 样式 | Tailwind CSS | 保持现有；RN 迁移时换 NativeWind |
 | 状态管理 | Zustand（含 persist） | 保持现有；RN 兼容 |
 | 数据库 | Supabase | 保持现有；两端通用 |
-| 后端 | Supabase Edge Functions | **替换 Vercel Serverless**（App 不走 Vercel） |
+| 后端 | Vercel Serverless（当前） / Supabase Edge Functions（迁移目标） | 当前仓库仍运行在 `api/*.ts`；若后续统一迁移，再收敛到 Edge Functions |
 | iOS 打包 | Capacitor 6.x | 核心迁移工具 |
 | 原生能力 | Capacitor 官方插件 | 推送/键盘/状态栏/触觉/相机等 |
 | 桌面小组件 | SwiftUI + WidgetKit | App Group 与主 App 共享数据 |
@@ -528,7 +528,7 @@ export default config;
 
 ## 6.5 Vercel → Supabase Edge Functions 迁移清单
 
-> 当前 `api/*.ts` 是 Vercel Serverless，Capacitor App 无法直接调用。必须迁移到 Supabase Edge Functions。
+> 当前 `api/*.ts` 是 Vercel Serverless，现有 Web/Capacitor 客户端仍通过 HTTPS 调用。本节描述的是“如果后续决定统一迁移到 Supabase Edge Functions”时的迁移清单，不代表当前代码已完成迁移。
 
 | Vercel 文件 | Edge Function 名 | 状态 |
 |---|---|---|
@@ -545,7 +545,7 @@ export default config;
 npx supabase init
 
 # 2. 配置密钥
-npx supabase secrets set CHUTES_API_KEY=xxx ZHIPU_API_KEY=xxx
+npx supabase secrets set OPENAI_API_KEY=xxx CHUTES_API_KEY=xxx QWEN_API_KEY=xxx ZHIPU_API_KEY=xxx
 
 # 3. 部署仍在使用中的函数
 

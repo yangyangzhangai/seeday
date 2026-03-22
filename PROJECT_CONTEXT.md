@@ -1,6 +1,6 @@
 # Tshine 项目上下文（Project Context）
 
-- 更新时间: 2026-03-04
+- 更新时间: 2026-03-22
 - 适用范围: `Tshine2-13-mainc` 全仓
 - 目标: 让接手人 30 分钟内建立可执行心智模型
 
@@ -9,8 +9,8 @@
 Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 1. 在 `/chat` 记录活动与心情。
-2. 在 `/todo` 管理任务并形成完成数据。
-3. 在 `/report` 汇总并生成日报/周报/月报与观察手记。
+2. 在 `/growth` 管理任务、成长瓶与专注流程，并形成完成数据（`/todo` 当前为兼容重定向）。
+3. 在 `/report` 汇总并生成日报/周报/月报、观察手记与植物可视化反馈。
 
 用户价值是将碎片化记录转成可复盘、可调整的行为反馈。
 
@@ -24,9 +24,11 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 开发命令（现状）:
 
-- `npm run dev`: 用 `vercel dev` 跑前端 + serverless
-- `npm run dev:vite`: 只跑前端
+- `npm run dev`: 启动 Vite 前端开发服务器
+- `npm run dev:vite`: 与 `npm run dev` 等价，当前同样只跑前端
 - `npm run build`: 生产构建
+
+说明：仓库当前没有把 `api/*` 的本地 serverless 联调绑定到 `npm run dev`。
 
 ## 3. 关键入口
 
@@ -34,8 +36,10 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 - 路由与主布局: `src/App.tsx`
 - 页面路由:
   - `/chat` -> `src/features/chat/ChatPage.tsx`
-  - `/todo` -> `src/features/growth/GrowthPage.tsx`
+  - `/growth` -> `src/features/growth/GrowthPage.tsx`
+  - `/todo` -> redirect 到 `/growth`
   - `/report` -> `src/features/report/ReportPage.tsx`
+  - `/profile` -> `src/features/profile/ProfilePage.tsx`
   - `/auth` -> `src/features/auth/AuthPage.tsx`
 
 ## 4. 数据流（真实实现）
@@ -43,16 +47,18 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 1. 页面触发 store action。
 2. store 读写 Supabase（`src/api/supabase.ts`）和本地持久化状态。
 3. AI 相关能力统一由 `src/api/client.ts` 调用 `api/*` serverless。
-4. serverless 在服务端读取 `CHUTES_API_KEY` 等环境变量并请求外部模型。
+4. serverless 在服务端读取 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY` 等环境变量并请求外部模型。
 
 约束: 前端 `src/**` 不应直连带密钥的第三方 AI 服务。
 
 ## 5. 目录分工（当前）
 
-- `api/`: Vercel serverless（聊天、报告、批注、分类、日记、stardust）
-- `src/features/`: 业务模块（auth/chat/todo/report）
+- `api/`: Vercel serverless（报告、批注、分类、日记、stardust、Magic Pen、植物）
+- `src/features/`: 业务模块（auth/chat/growth/report/profile）
 - `src/store/`: Zustand store 与 actions/helpers
 - `src/api/`: 前端 API client 与 Supabase 实例
+- `src/services/input/`: 多语言分类、词库、Magic Pen fallback/parser
+- `src/server/`: serverless 共享 handler/prompt/http/plant 工具
 - `src/components/layout`: 布局类共享组件
 - `src/components/feedback`: 反馈/提示类共享组件
 - `src/lib/`: 工具与纯函数
@@ -75,7 +81,9 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `OPENAI_API_KEY`
 - `CHUTES_API_KEY`
+- `QWEN_API_KEY`
 - `ZHIPU_API_KEY`
 
 ## 8. 当前已知风险

@@ -23,6 +23,12 @@ describe('aiCompanion', () => {
     expect(prompt).toContain('one strike is enough');
   });
 
+  it('uses the dedicated chinese annotation prompt when one is defined', () => {
+    const prompt = buildAiCompanionModePrompt('zh', 'van', 'annotation');
+
+    expect(prompt).toContain('# Van');
+  });
+
   it('injects the selected mode into annotation system prompts', () => {
     const prompt = getSystemPrompt('en', 'zep');
 

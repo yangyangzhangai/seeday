@@ -9,8 +9,9 @@
 - Route: `/auth`
 - Main actions:
   - Sign in / sign up
-  - Sign out
-  - Avatar update
+  - Avatar selection/update during auth flow
+  - Session restore via `useAuthStore.initialize()`
+  - Sign out / preference updates are exposed by `useAuthStore` and consumed by other pages such as `/profile`
 
 ## Upstream Dependencies
 
@@ -21,7 +22,7 @@
 ## Downstream Impact
 
 - Auth state controls route access in `src/App.tsx`
-- User identity is consumed by chat/todo/report stores for cloud sync
+- User identity is consumed by chat/growth/report/plant stores for cloud sync and hydration
 
 ## Related Docs
 
