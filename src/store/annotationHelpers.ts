@@ -161,7 +161,9 @@ export function shouldGenerateAnnotation(
     return false;
   }
 
-  const sameTypeEvents = todayStats.events.filter(e => e.type === event.type);
+  // The current event is already appended to todayStats.events before this check runs,
+  // so exclude it here and only compare against prior events of the same type.
+  const sameTypeEvents = todayStats.events.filter(e => e.type === event.type && e !== event);
   const lastSameTypeEvent = sameTypeEvents[sameTypeEvents.length - 1];
   if (lastSameTypeEvent) {
     const timeSinceLast = now - lastSameTypeEvent.timestamp;

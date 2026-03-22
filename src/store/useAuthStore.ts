@@ -360,6 +360,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useAnnotationStore.setState((state) => ({
           annotations: [],
           currentAnnotation: null,
+          todayStats: {
+            date: toLocalDateStr(Date.now()),
+            speakCount: 0,
+            lastSpeakTime: 0,
+            events: [],
+          },
           config: {
             ...state.config,
             ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES, DEFAULT_MEMBERSHIP_STATE.isPlus),
@@ -368,6 +374,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useMoodStore.getState().clear();
         useGrowthStore.setState({ bottles: [], dailyGoal: '', goalDate: '', popupDisabled: false });
         useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
+        useStardustStore.getState().clear();
         set({
           preferences: DEFAULT_PREFERENCES,
           membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
@@ -521,7 +528,11 @@ async function updateLoginStreak(userId: string): Promise<void> {
 async function syncLocalDataToSupabase(userId: string) {
   const messages = useChatStore.getState().messages
     .filter((message) => !isLegacyChatActivityType(message.activityType));
+  const moodState = useMoodStore.getState();
+  const bottles = useGrowthStore.getState().bottles;
   const todos = useTodoStore.getState().todos;
+  const focusSessions = useFocusStore.getState().sessions;
+  const growthState = useGrowthStore.getState();
 
   // 1. Sync Messages
   if (messages.length > 0) {
@@ -529,7 +540,7 @@ async function syncLocalDataToSupabase(userId: string) {
 
     // We use upsert to avoid conflicts if IDs somehow match, 
     // but typically local IDs (UUIDs) won't conflict with others.
-    const { error } = await supabase.from('messages').upsert(messagesToUpload);
+    const { error } = await supabase.from('messages').upsert(messagesToUpload, { onConflict: 'id' });
     if (error) {
       console.error('Error syncing messages:', error);
     } else {
@@ -537,11 +548,72 @@ async function syncLocalDataToSupabase(userId: string) {
     }
   }
 
-  // 2. Sync Todos
+  // 2. Sync Moods
+  const moodIds = Array.from(
+    new Set([
+      ...Object.keys(moodState.activityMood),
+      ...Object.keys(moodState.customMoodLabel),
+      ...Object.keys(moodState.customMoodApplied),
+      ...Object.keys(moodState.moodNote),
+    ]),
+  );
+
+  const moodsToUpload = moodIds
+    .map((messageId) => ({
+      user_id: userId,
+      message_id: messageId,
+      mood_label: moodState.activityMood[messageId] ?? null,
+      custom_label: moodState.customMoodLabel[messageId] ?? null,
+      is_custom: moodState.customMoodApplied[messageId] ?? null,
+      note: moodState.moodNote[messageId] ?? null,
+      source: moodState.moodNoteMeta[messageId]?.source ?? moodState.activityMoodMeta[messageId]?.source ?? 'auto',
+    }))
+    .filter((row) =>
+      row.mood_label != null
+      || row.custom_label != null
+      || row.is_custom != null
+      || row.note != null,
+    );
+
+  if (moodsToUpload.length > 0) {
+    const { error } = await supabase
+      .from('moods')
+      .upsert(moodsToUpload, { onConflict: 'user_id,message_id' });
+
+    if (error) {
+      console.error('Error syncing moods:', error);
+    } else {
+      console.log(`Synced ${moodsToUpload.length} moods.`);
+    }
+  }
+
+  // 3. Sync Bottles
+  if (bottles.length > 0) {
+    const bottlesToUpload = bottles.map((bottle) => ({
+      id: bottle.id,
+      user_id: userId,
+      name: bottle.name,
+      type: bottle.type,
+      stars: bottle.stars,
+      round: bottle.round,
+      status: bottle.status,
+      created_at: new Date(bottle.createdAt).toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase.from('bottles').upsert(bottlesToUpload, { onConflict: 'id' });
+    if (error) {
+      console.error('Error syncing bottles:', error);
+    } else {
+      console.log(`Synced ${bottles.length} bottles.`);
+    }
+  }
+
+  // 4. Sync Todos
   if (todos.length > 0) {
     const todosToUpload = todos.map((t) => toDbTodo(t, userId));
 
-    const { error } = await supabase.from('todos').upsert(todosToUpload);
+    const { error } = await supabase.from('todos').upsert(todosToUpload, { onConflict: 'id' });
     if (error) {
       console.error('Error syncing todos:', error);
     } else {
@@ -549,16 +621,59 @@ async function syncLocalDataToSupabase(userId: string) {
     }
   }
 
-  // 3. Sync Reports
+  // 5. Sync Focus Sessions
+  if (focusSessions.length > 0) {
+    const sessionsToUpload = focusSessions.map((session) => ({
+      id: session.id,
+      user_id: userId,
+      todo_id: session.todoId || null,
+      started_at: new Date(session.startedAt).toISOString(),
+      ended_at: session.endedAt ? new Date(session.endedAt).toISOString() : null,
+      set_duration: session.setDuration,
+      actual_duration: session.actualDuration ?? null,
+    }));
+
+    const { error } = await supabase.from('focus_sessions').upsert(sessionsToUpload, { onConflict: 'id' });
+    if (error) {
+      console.error('Error syncing focus sessions:', error);
+    } else {
+      console.log(`Synced ${focusSessions.length} focus sessions.`);
+    }
+  }
+
+  // 6. Sync Reports
   const reports = useReportStore.getState().reports;
   if (reports.length > 0) {
     const reportsToUpload = reports.map((r) => toDbReport(r, userId));
 
-    const { error } = await supabase.from('reports').upsert(reportsToUpload);
+    const { error } = await supabase.from('reports').upsert(reportsToUpload, { onConflict: 'id' });
     if (error) {
       console.error('Error syncing reports:', error);
     } else {
       console.log(`Synced ${reports.length} reports.`);
+    }
+  }
+
+  // 7. Sync Growth Daily Goal metadata when local is newer or cloud is empty
+  if (growthState.dailyGoal && growthState.goalDate) {
+    const currentUser = useAuthStore.getState().user;
+    const remoteGoalDate = normalizeDailyGoalDate(currentUser?.user_metadata?.daily_goal_date);
+    const shouldSyncDailyGoal = !remoteGoalDate || growthState.goalDate >= remoteGoalDate;
+
+    if (shouldSyncDailyGoal) {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          ...(currentUser?.user_metadata || {}),
+          daily_goal: growthState.dailyGoal,
+          daily_goal_date: growthState.goalDate,
+        },
+      });
+
+      if (error) {
+        console.error('Error syncing daily goal metadata:', error);
+      } else if (data?.user) {
+        useAuthStore.setState({ user: data.user });
+      }
     }
   }
 }

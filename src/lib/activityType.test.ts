@@ -8,9 +8,13 @@ import {
 describe('activityType', () => {
   it('classifies record content to target six categories', () => {
     expect(classifyRecordActivityType('复习数学').activityType).toBe('study');
+    expect(classifyRecordActivityType('读书30分钟').activityType).toBe('study');
+    expect(classifyRecordActivityType('读文献').activityType).toBe('study');
     expect(classifyRecordActivityType('开会同步需求').activityType).toBe('work');
     expect(classifyRecordActivityType('跑步30分钟').activityType).toBe('health');
     expect(classifyRecordActivityType('和朋友约饭').activityType).toBe('social');
+    expect(classifyRecordActivityType('逛超市买东西').activityType).toBe('life');
+    expect(classifyRecordActivityType('拖地擦桌子').activityType).toBe('life');
   });
 
   it('normalizes legacy activity types with content fallback', () => {

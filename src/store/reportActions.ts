@@ -152,7 +152,9 @@ export async function syncReportToSupabase(report: Report): Promise<void> {
 
   if (!session) return;
 
-  const { error } = await supabase.from('reports').insert([toDbReport(report, session.user.id)]);
+  const { error } = await supabase
+    .from('reports')
+    .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
 
   if (error) {
     console.error('Error syncing new report to Supabase:', error);

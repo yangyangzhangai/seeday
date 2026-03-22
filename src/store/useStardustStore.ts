@@ -31,6 +31,7 @@ interface StardustStore {
   syncPendingStardusts: () => Promise<void>;
   fetchStardusts: () => Promise<void>;
   getPendingSyncCount: () => number;
+  clear: () => void;
 
   // Generation state
   setGenerating: (isGenerating: boolean) => void;
@@ -47,6 +48,13 @@ function buildMemoryIdByMessageId(memories: StardustMemory[]): Record<string, st
     acc[memory.messageId] = memory.id;
     return acc;
   }, {});
+}
+
+function toDbStardustForUser(memory: StardustMemory, userId: string): Record<string, unknown> {
+  return {
+    ...toDbStardust({ ...memory, userId }),
+    user_id: userId,
+  };
 }
 
 /**
@@ -95,7 +103,7 @@ export const useStardustStore = create<StardustStore>()(
           }
 
           const session = await getSupabaseSession();
-          const userId = session?.user?.id || 'anonymous';
+          const userId = session?.user?.id ?? '';
 
           // 创建珍藏对象
           const stardust: StardustMemory = {
@@ -132,7 +140,7 @@ export const useStardustStore = create<StardustStore>()(
           if (session) {
             try {
               const { error } = await supabase.from('stardust_memories').insert([{
-                ...toDbStardust(stardust),
+                ...toDbStardustForUser(stardust, session.user.id),
               }]);
 
               if (error) {
@@ -142,7 +150,9 @@ export const useStardustStore = create<StardustStore>()(
               // 同步成功，更新状态
               set((state) => ({
                 memories: state.memories.map((m) =>
-                  m.id === stardust.id ? { ...m, syncStatus: 'synced' as SyncStatus } : m
+                  m.id === stardust.id
+                    ? { ...m, userId: session.user.id, syncStatus: 'synced' as SyncStatus }
+                    : m
                 ),
               }));
             } catch (syncError) {
@@ -255,13 +265,17 @@ export const useStardustStore = create<StardustStore>()(
         for (const stardust of pending) {
           try {
             const { error } = await supabase.from('stardust_memories').upsert([{
-              ...toDbStardust(stardust),
-            }]);
+              ...toDbStardustForUser(stardust, session.user.id),
+            }], {
+              onConflict: 'id',
+            });
 
             if (!error) {
               set((state) => ({
                 memories: state.memories.map((m) =>
-                  m.id === stardust.id ? { ...m, syncStatus: 'synced' as SyncStatus } : m
+                  m.id === stardust.id
+                    ? { ...m, userId: session.user.id, syncStatus: 'synced' as SyncStatus }
+                    : m
                 ),
                 memoryIdByMessageId: {
                   ...state.memoryIdByMessageId,
@@ -280,6 +294,15 @@ export const useStardustStore = create<StardustStore>()(
        */
       getPendingSyncCount: () => {
         return get().memories.filter((m) => m.syncStatus === 'pending_sync').length;
+      },
+
+      clear: () => {
+        set({
+          memories: [],
+          memoryIdByMessageId: {},
+          isGenerating: false,
+          generationError: null,
+        });
       },
 
       /**
@@ -309,7 +332,11 @@ export const useStardustStore = create<StardustStore>()(
           // when cloud replication/API responds late.
           set((state) => {
             const cloudMessageIds = new Set(cloudMemories.map((m) => m.messageId));
-            const localOnly = state.memories.filter((m) => !cloudMessageIds.has(m.messageId));
+            const localOnly = state.memories.filter(
+              (m) =>
+                !cloudMessageIds.has(m.messageId)
+                && (m.syncStatus === 'pending_sync' || !m.userId || m.userId === session.user.id),
+            );
             const memories = [...cloudMemories, ...localOnly];
             return {
               memories,

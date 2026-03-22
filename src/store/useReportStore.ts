@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/report/README.md
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isSameDay } from 'date-fns';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbReport } from '../lib/dbMappers';
@@ -99,7 +100,14 @@ export const useReportStore = create<ReportState>()(
 
           if (data && data.length > 0) {
             const mappedReports: Report[] = data.map(fromDbReport);
-            set({ reports: mappedReports });
+            const dedupedReports = mappedReports.reduce<Report[]>(
+              (reports, report) => mergeReportIntoList(reports, report.type, report.date, report),
+              [],
+            );
+            dedupedReports.sort((left, right) => right.date - left.date);
+            set({ reports: dedupedReports });
+          } else {
+            set({ reports: [] });
           }
         } catch (error) {
           console.error('Error fetching reports:', error);
@@ -128,8 +136,9 @@ export const useReportStore = create<ReportState>()(
         const todoStore = useTodoStore.getState();
         const chatStore = useChatStore.getState();
         const moodStore = useMoodStore.getState();
+        const existingReport = get().reports.find((report) => report.type === type && isSameDay(report.date, date));
 
-        const newReport = createGeneratedReport({
+        const generatedReport = createGeneratedReport({
           type,
           date,
           customEndDate,
@@ -137,6 +146,9 @@ export const useReportStore = create<ReportState>()(
           messages: chatStore.messages,
           moodStore,
         });
+        const newReport = existingReport
+          ? { ...generatedReport, id: existingReport.id }
+          : generatedReport;
 
         set((state) => ({
           reports: mergeReportIntoList(state.reports, type, date, newReport),

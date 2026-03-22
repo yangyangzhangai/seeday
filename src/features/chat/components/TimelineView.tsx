@@ -167,7 +167,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 {isMoodCard ? (
                   <MoodCard
                     message={msg}
-                    onReturnToEvent={id => reattachMoodToEvent(id)}
+                    onReturnToEvent={id => void reattachMoodToEvent(id)}
                     onConvertToEvent={id => void convertMoodToEvent(id)}
                     onDelete={id => void deleteActivity(id)}
                     onMoodClick={onMoodClick}

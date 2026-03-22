@@ -511,14 +511,21 @@ export const useTodoStore = create<TodoState>()(
 
         const thisOrder = visible[idx].sortOrder;
         const thatOrder = visible[swapIdx].sortOrder;
+        const currentTodoId = visible[idx].id;
+        const swapTodoId = visible[swapIdx].id;
 
         set((s) => ({
           todos: s.todos.map((t) => {
-            if (t.id === visible[idx].id) return { ...t, sortOrder: thatOrder };
-            if (t.id === visible[swapIdx].id) return { ...t, sortOrder: thisOrder };
+            if (t.id === currentTodoId) return { ...t, sortOrder: thatOrder };
+            if (t.id === swapTodoId) return { ...t, sortOrder: thisOrder };
             return t;
           }),
         }));
+
+        void Promise.all([
+          bgSyncUpdate(currentTodoId, { sortOrder: thatOrder }),
+          bgSyncUpdate(swapTodoId, { sortOrder: thisOrder }),
+        ]).catch(console.error);
       },
 
       // ── Generate recurring todos for today ──

@@ -13,10 +13,15 @@ import { supabase } from '../api/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
 import { useTodoStore } from '../store/useTodoStore';
-import { useMoodStore, type MoodOption, type MoodSource } from '../store/useMoodStore';
+import {
+  applyMoodRowToMaps,
+  pruneMoodRecordMaps,
+  removeMoodRecordFromMaps,
+  useMoodStore,
+  type MoodRowData,
+} from '../store/useMoodStore';
 import { useGrowthStore, type Bottle, type BottleType, type BottleStatus } from '../store/useGrowthStore';
 import { fromDbMessage, fromDbTodo } from '../lib/dbMappers';
-import { normalizeMoodKey } from '../lib/moodOptions';
 
 export function useRealtimeSync() {
   const user = useAuthStore(s => s.user);
@@ -105,26 +110,36 @@ export function useRealtimeSync() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'moods', filter: `user_id=eq.${userId}` },
-        ({ new: row, eventType }) => {
-          if (eventType === 'DELETE') return; // mood clears handled via UPDATE (null fields)
-          if (!row || !row.message_id) return;
-          const id: string = row.message_id;
+        ({ new: row, old: oldRow, eventType }) => {
+          const messageId = (row?.message_id ?? oldRow?.message_id) as string | undefined;
+          if (!messageId) return;
+
           useMoodStore.setState(state => ({
-            activityMood: row.mood_label
-              ? { ...state.activityMood, [id]: normalizeMoodKey(row.mood_label) as MoodOption }
-              : state.activityMood,
-            activityMoodMeta: row.source
-              ? { ...state.activityMoodMeta, [id]: { source: row.source as MoodSource } }
-              : state.activityMoodMeta,
-            customMoodLabel: row.custom_label != null
-              ? { ...state.customMoodLabel, [id]: row.custom_label }
-              : state.customMoodLabel,
-            customMoodApplied: row.is_custom != null
-              ? { ...state.customMoodApplied, [id]: row.is_custom }
-              : state.customMoodApplied,
-            moodNote: row.note != null
-              ? { ...state.moodNote, [id]: row.note }
-              : state.moodNote,
+            ...pruneMoodRecordMaps(
+              eventType === 'DELETE' || !row
+                ? removeMoodRecordFromMaps(
+                    {
+                      activityMood: state.activityMood,
+                      activityMoodMeta: state.activityMoodMeta,
+                      customMoodLabel: state.customMoodLabel,
+                      customMoodApplied: state.customMoodApplied,
+                      moodNote: state.moodNote,
+                      moodNoteMeta: state.moodNoteMeta,
+                    },
+                    messageId,
+                  )
+                : applyMoodRowToMaps(
+                    {
+                      activityMood: state.activityMood,
+                      activityMoodMeta: state.activityMoodMeta,
+                      customMoodLabel: state.customMoodLabel,
+                      customMoodApplied: state.customMoodApplied,
+                      moodNote: state.moodNote,
+                      moodNoteMeta: state.moodNoteMeta,
+                    },
+                    row as MoodRowData,
+                  ),
+            ),
           }));
         },
       )

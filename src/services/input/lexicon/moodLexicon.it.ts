@@ -11,21 +11,21 @@ export const itMoodLexicon: MoodLexicon = {
 
   // ── Parole di umore esplicite → MoodKey ────────────────────────────────
   explicitMoodMap: [
-    { pattern: /\b(felice|contento|contenta|entusiasta|allegro|allegra|euforico|euforica)\b/i, mood: 'happy' },
-    { pattern: /\b(calmo|calma|sereno|serena|rilassato|rilassata|tranquillo|tranquilla)\b/i, mood: 'calm' },
-    { pattern: /\b(concentrato|concentrata|produttivo|produttiva|in forma)\b/i, mood: 'focused' },
-    { pattern: /\b(soddisfatto|soddisfatta|appagato|appagata|realizzato|realizzata|orgoglioso|orgogliosa)\b/i, mood: 'satisfied' },
+    { pattern: /\b(felice|contento|contenta|entusiasta|allegro|allegra|euforico|euforica|gasato|gasata|felicissimo|felicissima|raggiante|di buon umore|in forma|positivo|positiva|ottimista)\b/i, mood: 'happy' },
+    { pattern: /\b(calmo|calma|sereno|serena|rilassato|rilassata|tranquillo|tranquilla|in pace|rasserenato|rasserenata|equilibrato|equilibrata)\b/i, mood: 'calm' },
+    { pattern: /\b(concentrato|concentrata|produttivo|produttiva|in forma|sul pezzo|focalizzato|focalizzata)\b/i, mood: 'focused' },
+    { pattern: /\b(soddisfatto|soddisfatta|appagato|appagata|realizzato|realizzata|orgoglioso|orgogliosa|sollevato|sollevata)\b/i, mood: 'satisfied' },
     {
-      pattern: /\b(stanco|stanca|esausto|esausta|stremato|stremata|scarico|scarica|a pezzi|sfinito|sfinita)\b/i,
+      pattern: /\b(stanco|stanca|esausto|esausta|stremato|stremata|scarico|scarica|a pezzi|sfinito|sfinita|distrutto|distrutta|cotto|cotta|spossato|spossata)\b/i,
       mood: 'tired',
     },
     {
-      pattern: /\b(ansioso|ansiosa|stressato|stressata|nervoso|nervosa|preoccupato|preoccupata|agitato|agitata)\b/i,
+      pattern: /\b(ansioso|ansiosa|stressato|stressata|nervoso|nervosa|preoccupato|preoccupata|agitato|agitata|in ansia|in paranoia|teso|tesa|in panico)\b/i,
       mood: 'anxious',
     },
-    { pattern: /\b(annoiato|annoiata|stufo|stufa|noioso|noiosa)\b/i, mood: 'bored' },
+    { pattern: /\b(annoiato|annoiata|stufo|stufa|noioso|noiosa|annoiatissimo|annoiatissima|che noia|monotono|monotona|mi annoio)\b/i, mood: 'bored' },
     {
-      pattern: /\b(triste|arrabbiato|arrabbiata|frustrato|frustrata|confuso|confusa|abbattuto|abbattuta|depresso|depressa|di umore nero)\b/i,
+      pattern: /\b(triste|arrabbiato|arrabbiata|frustrato|frustrata|confuso|confusa|abbattuto|abbattuta|depresso|depressa|di umore nero|giu di morale|a terra|demoralizzato|demoralizzata|deluso|delusa|svuotato|svuotata|senza energie|scazzato|scazzata|che schifo)\b/i,
       mood: 'down',
     },
   ],
@@ -70,15 +70,15 @@ export const itMoodLexicon: MoodLexicon = {
 
   // ── Tutte le parole di umore ─────────────────────────────────────────────
   allMoodWords: [
-    'felice', 'contento', 'contenta', 'entusiasta', 'allegro', 'allegra', 'euforico', 'euforica',
-    'calmo', 'calma', 'sereno', 'serena', 'rilassato', 'rilassata', 'tranquillo', 'tranquilla',
-    'concentrato', 'concentrata', 'produttivo', 'produttiva',
-    'soddisfatto', 'soddisfatta', 'appagato', 'appagata', 'orgoglioso', 'orgogliosa',
-    'stanco', 'stanca', 'esausto', 'esausta', 'stremato', 'stremata', 'scarico', 'scarica', 'sfinito', 'sfinita',
-    'ansioso', 'ansiosa', 'stressato', 'stressata', 'nervoso', 'nervosa', 'preoccupato', 'preoccupata', 'agitato', 'agitata',
-    'annoiato', 'annoiata', 'stufo', 'stufa',
+    'felice', 'contento', 'contenta', 'entusiasta', 'allegro', 'allegra', 'euforico', 'euforica', 'gasato', 'gasata', 'felicissimo', 'felicissima', 'raggiante', 'di buon umore', 'in forma', 'positivo', 'positiva', 'ottimista',
+    'calmo', 'calma', 'sereno', 'serena', 'rilassato', 'rilassata', 'tranquillo', 'tranquilla', 'in pace', 'rasserenato', 'rasserenata', 'equilibrato', 'equilibrata',
+    'concentrato', 'concentrata', 'produttivo', 'produttiva', 'sul pezzo', 'focalizzato', 'focalizzata',
+    'soddisfatto', 'soddisfatta', 'appagato', 'appagata', 'orgoglioso', 'orgogliosa', 'sollevato', 'sollevata',
+    'stanco', 'stanca', 'esausto', 'esausta', 'stremato', 'stremata', 'scarico', 'scarica', 'sfinito', 'sfinita', 'distrutto', 'distrutta', 'cotto', 'cotta', 'spossato', 'spossata',
+    'ansioso', 'ansiosa', 'stressato', 'stressata', 'nervoso', 'nervosa', 'preoccupato', 'preoccupata', 'agitato', 'agitata', 'in ansia', 'in paranoia', 'teso', 'tesa', 'in panico',
+    'annoiato', 'annoiata', 'stufo', 'stufa', 'annoiatissimo', 'annoiatissima', 'che noia', 'monotono', 'monotona', 'mi annoio',
     'triste', 'arrabbiato', 'arrabbiata', 'frustrato', 'frustrata', 'confuso', 'confusa',
-    'abbattuto', 'abbattuta', 'depresso', 'depressa',
+    'abbattuto', 'abbattuta', 'depresso', 'depressa', 'giu di morale', 'a terra', 'demoralizzato', 'demoralizzata', 'deluso', 'delusa', 'svuotato', 'svuotata', 'senza energie', 'scazzato', 'scazzata', 'che schifo',
     'sollevato', 'sollevata', 'sollievo', 'pesante', 'faticoso', 'bene', 'male', 'ok',
   ],
 
@@ -87,6 +87,13 @@ export const itMoodLexicon: MoodLexicon = {
     /\b(mi\s+sento|sono)\s+(molto\s+|troppo\s+|davvero\s+)?(stanco|stanca|stressato|stressata|ansioso|ansiosa|triste|felice|calmo|calma|arrabbiato|arrabbiata|esausto|esausta|sollevato|sollevata)\b/i,
     /\b(era|è\s+stata|è\s+stato|andata)\s+(stressante|pesante|ottima|bene|male)\b/i,
     /\bmi\s+ha\s+(stressato|stressata|confuso|confusa|stancato|stancata)\b/i,
+    /\b(mi\s+sento|sono)\s+(in\s+ansia|giu\s+di\s+morale|a\s+terra|distrutto|distrutta|cotto|cotta)\b/i,
+    /\b(che\s+ansia|che\s+noia)\b/i,
+    /\b(mi\s+sento|sono)\s+(teso|tesa|spossato|spossata|svuotato|svuotata)\b/i,
+    /\b(mi\s+sento|sono)\s+(molto\s+)?(raggiante|equilibrato|equilibrata)\b/i,
+    /\b(mi\s+sento|sono)\s+(molto\s+|davvero\s+)?(bene|felice|contento|contenta|ottimista)\b/i,
+    /\b(mi\s+sento|sono)\s+(molto\s+|davvero\s+)?(triste|scazzato|scazzata|in\s+panico)\b/i,
+    /\b(oggi\s+)?(sono\s+)?(giu|a\s+pezzi|ko)\b/i,
     /\bmi\s+ha\s+dato\s+sollievo\b/i,
     /\b(mi\s+sento|sono)\s+(un\s+po'\s+|molto\s+)?(bene|male|scarico|scarica|sereno|serena)\b/i,
     /\b(è|e)\s+(molto\s+|davvero\s+)?(faticoso|pesante|stressante)\b/i,

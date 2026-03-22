@@ -71,6 +71,6 @@ export interface ChatState {
   clearHistory: () => Promise<void>;
   attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;
   detachMoodFromEvent: (eventId: string, moodMsgId: string) => void;
-  reattachMoodToEvent: (moodMsgId: string) => void;
+  reattachMoodToEvent: (moodMsgId: string) => Promise<void>;
   convertMoodToEvent: (moodMsgId: string) => Promise<void>;
 }

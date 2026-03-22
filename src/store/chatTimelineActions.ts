@@ -43,7 +43,7 @@ export interface ChatTimelineActions {
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
   detachMoodFromEvent: (eventId: string, moodMsgId: string) => void;
-  reattachMoodToEvent: (moodMsgId: string) => void;
+  reattachMoodToEvent: (moodMsgId: string) => Promise<void>;
   convertMoodToEvent: (moodMsgId: string) => Promise<void>;
   detachMoodMessage: (moodId: string) => Promise<void>;
 }
@@ -76,7 +76,7 @@ export function createChatTimelineActions(
     }
   };
 
-  const reattachMoodToEvent = (moodMsgId: string) => {
+  const reattachMoodToEvent = async (moodMsgId: string) => {
     const { messages } = get();
     const moodMsg = messages.find(m => m.id === moodMsgId && m.isMood);
     if (!moodMsg) return;
@@ -96,6 +96,17 @@ export function createChatTimelineActions(
         return m;
       }),
     }));
+
+    const session = await getSupabaseSession();
+    if (!session) return;
+
+    const updatedMessages = get().messages;
+    const idsToPersist = new Set<string>([moodMsgId, latestEvent.id]);
+    for (const id of idsToPersist) {
+      const message = updatedMessages.find((candidate) => candidate.id === id);
+      if (!message) continue;
+      await persistMessageToSupabase(message, session.user.id);
+    }
   };
 
   const convertMoodToEvent = async (moodMsgId: string) => {
@@ -180,17 +191,18 @@ export function createChatTimelineActions(
 
     set({ messages: finalMessages });
     const insertedPrimary = messagesToInsert[0];
+
+    const session = await getSupabaseSession();
+    if (session) {
+      await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
+    }
+
     if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
       useMoodStore.getState().setMood(
         insertedPrimary.id,
         autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0, resolveLangForText(insertedPrimary.content)),
         'auto',
       );
-    }
-
-    const session = await getSupabaseSession();
-    if (session) {
-      await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
     }
   };
 

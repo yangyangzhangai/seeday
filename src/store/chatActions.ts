@@ -536,10 +536,17 @@ export async function persistMessageDurationUpdate(userId: string, messageId: st
     .eq('user_id', userId);
 }
 
-export async function persistMessageToSupabase(message: Message, userId: string, isMood = false): Promise<void> {
+export async function persistMessageToSupabase(
+  message: Message,
+  userId: string,
+  isMood = message.isMood ?? false,
+): Promise<void> {
   const { error } = await supabase
     .from('messages')
-    .insert([{ ...toDbMessage(message, userId), is_mood: isMood }]);
+    .upsert(
+      [{ ...toDbMessage(message, userId), is_mood: isMood }],
+      { onConflict: 'id' },
+    );
 
   if (error) {
     console.error('Error sending message:', error);

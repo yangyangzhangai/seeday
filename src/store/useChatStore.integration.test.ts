@@ -350,6 +350,43 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(useMoodStore.getState().activityMood[inserted!.id]).toBeDefined();
   });
 
+  it('keeps older local records when fetchMessages runs without a signed-in session', async () => {
+    const base = 1_700_000_000_000;
+    resetChatStore([
+      {
+        id: 'event-yesterday',
+        content: 'Review notes',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+      },
+      {
+        id: 'legacy',
+        content: 'Legacy row',
+        timestamp: base + 1_000,
+        type: 'text',
+        mode: 'record',
+        activityType: 'chat',
+      },
+      {
+        id: 'event-today',
+        content: 'Ship patch',
+        timestamp: base + 2_000,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+      },
+    ]);
+
+    await useChatStore.getState().fetchMessages();
+
+    expect(useChatStore.getState().messages.map((message) => message.id)).toEqual([
+      'event-yesterday',
+      'event-today',
+    ]);
+  });
+
   it('recomputes edited activity mood only when source is auto', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([

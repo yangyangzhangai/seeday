@@ -77,12 +77,9 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          const todayStartMs = todayStart.getTime();
           set(state => ({
             messages: state.messages.filter(
-              (m) => m.timestamp >= todayStartMs && !isLegacyChatActivityType(m.activityType)
+              (m) => !isLegacyChatActivityType(m.activityType)
             ),
             hasInitialized: true,
           }));
@@ -300,13 +297,13 @@ export const useChatStore = create<ChatState>()(
           lastActivityTime: now,
         });
 
-        if (!options?.skipMoodDetection) {
-          void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
-        }
-
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
+        }
+
+        if (!options?.skipMoodDetection) {
+          void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
         }
 
         if (
@@ -421,17 +418,18 @@ export const useChatStore = create<ChatState>()(
 
         set({ messages: finalMessages });
         const insertedPrimary = messagesToInsert[0];
+
+        const session = await getSupabaseSession();
+        if (session) {
+          await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
+        }
+
         if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
           useMoodStore.getState().setMood(
             insertedPrimary.id,
             autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0, resolveLangForText(insertedPrimary.content)),
             'auto',
           );
-        }
-
-        const session = await getSupabaseSession();
-        if (session) {
-          await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
         }
       },
 

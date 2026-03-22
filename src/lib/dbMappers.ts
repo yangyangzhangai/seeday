@@ -18,12 +18,33 @@ export function safeParseMoodDescriptions(raw: unknown): MoodDescription[] | nul
   return [];
 }
 
+function normalizeRecurrenceDays(raw: unknown): number[] | undefined {
+  if (raw == null) return undefined;
+
+  const values = Array.isArray(raw)
+    ? raw
+    : (typeof raw === 'string'
+      ? raw.replace(/[{}]/g, '').split(',').filter(Boolean)
+      : []);
+
+  const normalized = Array.from(
+    new Set(
+      values
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6),
+    ),
+  ).sort((left, right) => left - right);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   title: 'content',
   dueAt: 'due_date',
   completedAt: 'completed_at',
   isPinned: 'is_pinned',
   startedAt: 'started_at',
+  recurrenceDays: 'recurrence_days',
   bottleId: 'bottle_id',
   sortOrder: 'sort_order',
   isTemplate: 'is_template',
@@ -79,6 +100,7 @@ export function fromDbTodo(row: any): Todo {
     scope: row.scope,
     createdAt: row.created_at,
     recurrence: row.recurrence,
+    recurrenceDays: normalizeRecurrenceDays(row.recurrence_days),
     recurrenceId: row.recurrence_id,
     completedAt: row.completed_at,
     isPinned: row.is_pinned || false,
@@ -102,6 +124,7 @@ export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
     scope: todo.scope,
     created_at: todo.createdAt,
     recurrence: todo.recurrence,
+    recurrence_days: normalizeRecurrenceDays(todo.recurrenceDays) ?? null,
     recurrence_id: todo.recurrenceId,
     completed_at: todo.completedAt,
     is_pinned: todo.isPinned,
@@ -120,6 +143,10 @@ export function toDbTodoUpdates(updates: TodoUpdates): Record<string, unknown> {
 
   for (const [key, value] of Object.entries(updates) as [keyof TodoUpdates, TodoUpdates[keyof TodoUpdates]][]) {
     const mappedKey = TODO_DB_FIELD_MAP[key] || key;
+    if (key === 'recurrenceDays') {
+      dbUpdates[mappedKey] = normalizeRecurrenceDays(value) ?? null;
+      continue;
+    }
     dbUpdates[mappedKey] = value === undefined ? null : value;
   }
 

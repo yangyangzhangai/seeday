@@ -67,6 +67,25 @@ function hasLatin(input: string): boolean {
   return /[A-Za-z\u00C0-\u017F]/.test(input);
 }
 
+function getCompactSemanticLength(input: string): number {
+  return input
+    .replace(/\s+/g, '')
+    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
+    .length;
+}
+
+function hasSchedulingOrReminderSignals(input: string): boolean {
+  return /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(input);
+}
+
+function isShortReplyLikeText(input: string): boolean {
+  return /^(ok|okay|好的?|收到|嗯+|啊+|哦+|哈+|哈哈+|行|可以|知道了|明白了|是的|不是|好嘞)$/.test(input.trim().toLowerCase());
+}
+
+function hasShortActionShell(input: string): boolean {
+  return /^(去|上|下|开|关|回|到|进|出|拿|做|写|看|读|学|跑|吃|喝|打|发|洗|刷|煮|包|登).{1,5}$/.test(input.trim());
+}
+
 function getRelatedOngoingActivityId(context: LiveInputContext): string | undefined {
   return context.recentActivity && context.recentActivity.isOngoing
     ? context.recentActivity.id
@@ -328,6 +347,33 @@ export function classifyLiveInput(content: string, context: LiveInputContext): L
         relatedActivityId: recent.id,
       };
     }
+  }
+
+  const compactLength = getCompactSemanticLength(text);
+  if (
+    !hasMood
+    && !zhSignals.hasFutureOrPlanned
+    && !zhSignals.hasNegatedOrNotOccurred
+    && compactLength > 0
+    && compactLength <= 6
+    && !hasSchedulingOrReminderSignals(text)
+    && !isShortReplyLikeText(text)
+    && hasShortActionShell(text)
+  ) {
+    const fallbackEvidence = [
+      ...evidence,
+      makeEvidence('lexicon', 'short_non_mood_default_to_activity', [text], 'medium', 'positive'),
+    ];
+    const fallbackScores = buildScoresFromEvidence(fallbackEvidence);
+    return {
+      kind: 'activity',
+      internalKind: 'new_activity',
+      confidence: 'medium',
+      scores: fallbackScores,
+      reasons: buildReasonsFromEvidence(fallbackEvidence),
+      evidence: fallbackEvidence,
+      containsMoodSignal: false,
+    };
   }
 
   return resolveFinalClassification({

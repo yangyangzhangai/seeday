@@ -63,7 +63,20 @@ type MoodRecordMaps = {
   moodNoteMeta: Record<string, MoodAttachmentMeta | undefined>;
 };
 
-function pruneMoodRecordMaps(maps: MoodRecordMaps): MoodRecordMaps {
+export interface MoodRowData {
+  message_id: string;
+  mood_label?: string | null;
+  custom_label?: string | null;
+  is_custom?: boolean | null;
+  note?: string | null;
+  source?: string | null;
+}
+
+function normalizePersistedMoodSource(raw?: string | null): MoodSource {
+  return raw === 'manual' ? 'manual' : 'auto';
+}
+
+export function pruneMoodRecordMaps(maps: MoodRecordMaps): MoodRecordMaps {
   const orderedIds = Array.from(
     new Set([
       ...Object.keys(maps.activityMood),
@@ -100,6 +113,70 @@ function pruneMoodRecordMaps(maps: MoodRecordMaps): MoodRecordMaps {
     moodNote: trim(maps.moodNote),
     moodNoteMeta: trim(maps.moodNoteMeta),
   };
+}
+
+export function removeMoodRecordFromMaps(maps: MoodRecordMaps, activityId: string): MoodRecordMaps {
+  const activityMood = { ...maps.activityMood };
+  const activityMoodMeta = { ...maps.activityMoodMeta };
+  const customMoodLabel = { ...maps.customMoodLabel };
+  const customMoodApplied = { ...maps.customMoodApplied };
+  const moodNote = { ...maps.moodNote };
+  const moodNoteMeta = { ...maps.moodNoteMeta };
+
+  delete activityMood[activityId];
+  delete activityMoodMeta[activityId];
+  delete customMoodLabel[activityId];
+  delete customMoodApplied[activityId];
+  delete moodNote[activityId];
+  delete moodNoteMeta[activityId];
+
+  return {
+    activityMood,
+    activityMoodMeta,
+    customMoodLabel,
+    customMoodApplied,
+    moodNote,
+    moodNoteMeta,
+  };
+}
+
+export function applyMoodRowToMaps(maps: MoodRecordMaps, row: MoodRowData): MoodRecordMaps {
+  const next = removeMoodRecordFromMaps(maps, row.message_id);
+  const source = normalizePersistedMoodSource(row.source);
+
+  if (row.mood_label) {
+    next.activityMood[row.message_id] = normalizeMoodKey(row.mood_label) ?? undefined;
+    next.activityMoodMeta[row.message_id] = { source };
+  }
+
+  if (row.custom_label != null) {
+    next.customMoodLabel[row.message_id] = row.custom_label;
+  }
+
+  if (row.is_custom != null) {
+    next.customMoodApplied[row.message_id] = row.is_custom;
+  }
+
+  if (row.note != null) {
+    next.moodNote[row.message_id] = row.note;
+    next.moodNoteMeta[row.message_id] = { source };
+  }
+
+  return next;
+}
+
+export function buildMoodRecordMapsFromRows(rows: MoodRowData[]): MoodRecordMaps {
+  return rows.reduce<MoodRecordMaps>(
+    (maps, row) => applyMoodRowToMaps(maps, row),
+    {
+      activityMood: {},
+      activityMoodMeta: {},
+      customMoodLabel: {},
+      customMoodApplied: {},
+      moodNote: {},
+      moodNoteMeta: {},
+    },
+  );
 }
 
 /** Upsert a single mood row to Supabase. Fires-and-forgets alongside local state update. */
@@ -255,30 +332,15 @@ export const useMoodStore = create<MoodState>()(
             .eq('user_id', session.user.id);
           if (error || !data) return;
 
-          const cloudMood: Record<string, MoodOption | undefined> = {};
-          const cloudMoodMeta: Record<string, MoodAttachmentMeta | undefined> = {};
-          const cloudCustomLabel: Record<string, string | undefined> = {};
-          const cloudCustomApplied: Record<string, boolean | undefined> = {};
-          const cloudNote: Record<string, string | undefined> = {};
+          const cloudMaps = pruneMoodRecordMaps(buildMoodRecordMapsFromRows(data as MoodRowData[]));
 
-          for (const row of data) {
-            const id: string = row.message_id;
-            if (row.mood_label) {
-              cloudMood[id] = normalizeMoodKey(row.mood_label) ?? undefined;
-              cloudMoodMeta[id] = { source: (row.source as MoodSource) ?? 'auto' };
-            }
-            if (row.custom_label != null) cloudCustomLabel[id] = row.custom_label;
-            if (row.is_custom != null)    cloudCustomApplied[id] = row.is_custom;
-            if (row.note != null)         cloudNote[id] = row.note;
-          }
-
-          // Cloud is source-of-truth; local overwrites with any newer unsent entries
-          set(state => ({
-            activityMood:    { ...cloudMood,         ...state.activityMood },
-            activityMoodMeta: { ...cloudMoodMeta,    ...state.activityMoodMeta },
-            customMoodLabel: { ...cloudCustomLabel,  ...state.customMoodLabel },
-            customMoodApplied: { ...cloudCustomApplied, ...state.customMoodApplied },
-            moodNote:        { ...cloudNote,         ...state.moodNote },
+          set(() => ({
+            activityMood: cloudMaps.activityMood,
+            activityMoodMeta: cloudMaps.activityMoodMeta,
+            customMoodLabel: cloudMaps.customMoodLabel,
+            customMoodApplied: cloudMaps.customMoodApplied,
+            moodNote: cloudMaps.moodNote,
+            moodNoteMeta: cloudMaps.moodNoteMeta,
           }));
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[MoodStore] fetchMoods failed', err);
