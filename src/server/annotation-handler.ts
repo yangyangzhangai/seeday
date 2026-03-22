@@ -13,8 +13,6 @@ import {
 
 const openai = new OpenAI();
 
-let cachedResponseId: string | null = null;
-
 /**
  * Vercel Serverless Function - Annotation API
  * 调用 OpenAI Responses API 生成 AI 批注（气泡）
@@ -134,10 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       input: userPrompt,
       temperature: lang === 'zh' ? 0.75 : 0.8,
       max_output_tokens: lang === 'zh' ? 180 : 480,
-      previous_response_id: cachedResponseId ?? undefined,
     });
-
-    cachedResponseId = llmResponse.id;
 
     const promptCacheHits = llmResponse.usage?.prompt_cache_hits ?? 0;
     const promptCacheMisses = llmResponse.usage?.prompt_cache_misses ?? 0;

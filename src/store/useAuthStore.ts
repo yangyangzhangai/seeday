@@ -30,6 +30,12 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   annotationDropRate: 'low',
 };
 
+const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = {
+  low: 3,
+  medium: 5,
+  high: 8,
+};
+
 interface AuthState {
   user: any | null;
   loading: boolean;
@@ -89,6 +95,26 @@ function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
   };
 }
 
+export function getAnnotationConfigFromPreferences(
+  preferences: Pick<UserPreferences, 'aiModeEnabled' | 'annotationDropRate'>,
+): { enabled: boolean; dailyLimit: number } {
+  return {
+    enabled: preferences.aiModeEnabled,
+    dailyLimit: ANNOTATION_DAILY_LIMIT_BY_DROP_RATE[preferences.annotationDropRate] ?? 3,
+  };
+}
+
+function syncAnnotationStateWithPreferences(preferences: UserPreferences): void {
+  const nextConfig = getAnnotationConfigFromPreferences(preferences);
+  useAnnotationStore.setState((state) => ({
+    config: {
+      ...state.config,
+      ...nextConfig,
+    },
+    currentAnnotation: preferences.aiModeEnabled ? state.currentAnnotation : null,
+  }));
+}
+
 function hydrateGrowthDailyGoalFromMeta(meta: Record<string, any>): void {
   const remoteGoal = typeof meta.daily_goal === 'string' ? meta.daily_goal : '';
   const remoteGoalDate = normalizeDailyGoalDate(meta.daily_goal_date);
@@ -141,10 +167,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await getSupabaseSession();
     const sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     const meta = sessionUser?.user_metadata || {};
+    const nextPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
+    syncAnnotationStateWithPreferences(nextPreferences);
     set({
       user: sessionUser,
       loading: false,
-      preferences: sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES,
+      preferences: nextPreferences,
     });
     if (session?.user) {
       markGrowthDailyLoginSession(session.user.id);
@@ -163,11 +191,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         currentUser = await ensureTodayLoginDay(currentUser);
       }
 
-      set({ user: currentUser, loading: false });
+      const nextPreferences = currentUser
+        ? preferencesFromMeta(currentUser.user_metadata || {})
+        : DEFAULT_PREFERENCES;
+      syncAnnotationStateWithPreferences(nextPreferences);
+      set({
+        user: currentUser,
+        loading: false,
+        preferences: nextPreferences,
+      });
 
       if (event === 'SIGNED_IN' && currentUser) {
         const meta = currentUser.user_metadata || {};
-        set({ preferences: preferencesFromMeta(meta) });
         hydrateGrowthDailyGoalFromMeta(meta);
       }
 
@@ -204,7 +239,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useChatStore.setState({ messages: [], hasInitialized: false });
         useTodoStore.setState({ todos: [] });
         useReportStore.setState({ reports: [] });
-        useAnnotationStore.setState({ annotations: [], currentAnnotation: null });
+        useAnnotationStore.setState((state) => ({
+          annotations: [],
+          currentAnnotation: null,
+          config: {
+            ...state.config,
+            ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES),
+          },
+        }));
         useMoodStore.getState().clear();
         useGrowthStore.setState({ bottles: [], dailyGoal: '', goalDate: '', popupDisabled: false });
         useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
@@ -249,6 +291,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updatePreferences: async (partial: Partial<UserPreferences>) => {
     const merged = { ...get().preferences, ...partial };
     set({ preferences: merged });
+    syncAnnotationStateWithPreferences(merged);
     await supabase.auth.updateUser({
       data: {
         ai_mode: merged.aiMode,

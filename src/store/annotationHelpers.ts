@@ -17,7 +17,7 @@ interface Config {
 
 const GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
 const SAME_EVENT_COOLDOWN_MS = 2 * 60 * 1000;
-const FORCE_ANNOTATION_TRIGGER = true;
+const FORCE_ANNOTATION_TRIGGER = false;
 
 /**
  * 事件权重配置

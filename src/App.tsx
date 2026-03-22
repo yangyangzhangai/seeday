@@ -59,6 +59,7 @@ const PageOutlet: React.FC = () => {
 const MainLayout = () => {
   const messages = useChatStore(state => state.messages);
   const user = useAuthStore(state => state.user);
+  const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;
@@ -145,10 +146,12 @@ const MainLayout = () => {
       <PageOutlet />
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}
-      <AIAnnotationBubble
-        relatedMessage={lastRecordMessage}
-        onCondense={handleCondense}
-      />
+      {aiModeEnabled ? (
+        <AIAnnotationBubble
+          relatedMessage={lastRecordMessage}
+          onCondense={handleCondense}
+        />
+      ) : null}
       {/* 星尘凝结动画 */}
       <StardustAnimation
         isActive={animationState.isActive}
