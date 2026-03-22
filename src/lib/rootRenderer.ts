@@ -64,6 +64,11 @@ const defaultOptions: Required<RootRendererOptions> = {
   seedKey: 'default-seed',
 };
 
+const ROOT_EDGE_PADDING_PX = 18;
+const ROOT_LENGTH_BOUNDARY_SAFETY = 0.9;
+const MIN_ORIGIN_LENGTH_PX = 14;
+const MIN_BRANCH_LENGTH_PX = 10;
+
 const toRadians = (degrees: number): number => (degrees * Math.PI) / 180;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
@@ -97,15 +102,10 @@ const mergeOptions = (options?: RootRendererOptions): Required<RootRendererOptio
 });
 
 const BRANCH_MINUTES_THRESHOLD = 30;
-const MAX_ORIGIN_ROOTS_PER_DIRECTION = 3;
+const MAX_ORIGIN_ROOTS_PER_DIRECTION = 5;
 
 const ORIGIN_MIN_ANGLE_GAP = 6.5;
 const BRANCH_MIN_ANGLE_GAP = 8;
-
-const nextSegmentFocus = (current: FocusLevel, incoming: FocusLevel): FocusLevel => {
-  if (current === 'high' || incoming === 'high') return 'high';
-  return 'medium';
-};
 
 const createSegmentId = (seed: string, direction: DirectionIndex, order: number): string => {
   const hash = hashString(`${seed}-${direction}-${order}`).toString(36);
@@ -247,8 +247,13 @@ function resolveBranchRatio(
 export function mapMinutesToVisualLength(minutes: number, options?: RootRendererOptions): number {
   const resolved = mergeOptions(options);
   const maxLength = resolved.canvasHeight * resolved.maxLengthRatio;
-  const k = maxLength / Math.log(1 + maxLength / resolved.lengthScale);
-  const visualLength = k * Math.log(1 + Math.max(0, minutes) / resolved.lengthScale);
+  const safeMinutes = Math.max(0, minutes);
+  if (safeMinutes === 0) return 0;
+
+  const tau = Math.max(1, resolved.lengthScale);
+  const growth = 1 - Math.exp(-safeMinutes / tau);
+  const minVisibleLength = Math.min(10, maxLength * 0.2);
+  const visualLength = minVisibleLength + (maxLength - minVisibleLength) * growth;
   return Math.max(0, Math.min(maxLength, visualLength));
 }
 
@@ -270,9 +275,28 @@ export function buildRootSegments(activities: RootRenderActivityInput[], seedKey
     if (shouldStartFromOrigin) {
       const isAtCapacity = roots.length >= MAX_ORIGIN_ROOTS_PER_DIRECTION;
       if (isAtCapacity) {
-        const targetRoot = roots[roots.length - 1]!;
-        targetRoot.minutes += activity.minutes;
-        targetRoot.focus = nextSegmentFocus(targetRoot.focus, activity.focus);
+        const parentRoot = roots[roots.length - 1]!;
+        const segmentOrder = (segmentOrderByDirection.get(activity.direction) ?? 0) + 1;
+        segmentOrderByDirection.set(activity.direction, segmentOrder);
+        const branchOrder = (branchCountByParent.get(parentRoot.id) ?? 0) + 1;
+        branchCountByParent.set(parentRoot.id, branchOrder);
+        const existingRatios = branchRatiosByParent.get(parentRoot.id) ?? [];
+        const branchRatio = resolveBranchRatio(parentRoot.id, activity.activityId, existingRatios);
+        const sideRoot: RootSegment = {
+          id: createSegmentId(seedKey + activity.activityId, activity.direction, segmentOrder),
+          direction: activity.direction,
+          activityId: activity.activityId,
+          minutes: activity.minutes,
+          focus: activity.focus,
+          isMainRoot: false,
+          branchOrder,
+          growthMode: 'branch',
+          branchRatio,
+          parentRootId: parentRoot.id,
+        };
+        existingRatios.push(branchRatio);
+        branchRatiosByParent.set(parentRoot.id, existingRatios);
+        segments.push(sideRoot);
         continue;
       }
 
@@ -337,6 +361,36 @@ interface Vector {
   x: number;
   y: number;
 }
+
+const resolveMaxLengthByBounds = (
+  start: Point,
+  direction: Vector,
+  options: Required<RootRendererOptions>,
+): number => {
+  const xMin = ROOT_EDGE_PADDING_PX;
+  const xMax = options.canvasWidth - ROOT_EDGE_PADDING_PX;
+  const yMin = Math.min(options.canvasHeight - ROOT_EDGE_PADDING_PX, options.soilY + 4);
+  const yMax = options.canvasHeight - ROOT_EDGE_PADDING_PX;
+  const candidates: number[] = [];
+
+  if (direction.x > 1e-6) {
+    candidates.push((xMax - start.x) / direction.x);
+  } else if (direction.x < -1e-6) {
+    candidates.push((xMin - start.x) / direction.x);
+  }
+
+  if (direction.y > 1e-6) {
+    candidates.push((yMax - start.y) / direction.y);
+  } else if (direction.y < -1e-6) {
+    candidates.push((yMin - start.y) / direction.y);
+  }
+
+  const positiveCandidates = candidates.filter(value => Number.isFinite(value) && value > 0);
+  if (positiveCandidates.length === 0) {
+    return options.canvasHeight * options.maxLengthRatio;
+  }
+  return Math.min(...positiveCandidates);
+};
 
 const getAnchorPoint = (_segment: RootSegment, options: Required<RootRendererOptions>): Point => {
   const x = options.canvasWidth * SOIL_ANCHOR_X_RATIO;
@@ -471,7 +525,6 @@ const resolveSegmentGeometry = (
 ): SegmentGeometry => {
   const rawLength = mapMinutesToVisualLength(segment.minutes, options);
   const isBranch = (segment.growthMode ?? 'origin') === 'branch';
-  const length = isBranch ? Math.max(rawLength, 30) : rawLength;
   const start = resolveSegmentStartPoint(segment, options, geometryById);
   const ratio = segment.branchRatio ?? 0.55;
   const parentGeometry = isBranch && segment.parentRootId ? geometryById?.get(segment.parentRootId) : undefined;
@@ -485,8 +538,16 @@ const resolveSegmentGeometry = (
   const bounds = isBranch ? DIRECTION_BRANCH_ANGLE_RANGES[segment.direction] : DIRECTION_ANGLE_RANGES[segment.direction];
   const angle = toRadians(clamp(baseAngle + branchNudge, bounds.min, bounds.max));
   const depthDrift = isBranch ? 0.08 : 0;
+  const directionVector = {
+    x: Math.sin(angle) * (1 + depthDrift),
+    y: Math.cos(angle),
+  };
+  const maxLengthByBounds = resolveMaxLengthByBounds(start, directionVector, options) * ROOT_LENGTH_BOUNDARY_SAFETY;
+  const minLength = isBranch ? MIN_BRANCH_LENGTH_PX : MIN_ORIGIN_LENGTH_PX;
+  const desiredLength = Math.max(rawLength, minLength);
+  const length = Math.max(0, Math.min(desiredLength, maxLengthByBounds));
   const end = {
-    x: start.x + Math.sin(angle) * length * (1 + depthDrift),
+    x: start.x + directionVector.x * length,
     y: start.y + Math.cos(angle) * length,
   };
   const [c1x, c1y, c2x, c2y] = buildControlPoints(segment, start, end, options);

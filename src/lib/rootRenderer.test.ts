@@ -69,7 +69,7 @@ function nearestTOnCurve(curve: CubicPath, target: { x: number; y: number }): nu
 }
 
 describe('rootRenderer', () => {
-  it('branches short activities from existing main root and caps new origin roots', () => {
+  it('keeps one segment per activity and avoids merging when direction grows dense', () => {
     const segments = buildRootSegments([
       { activityId: 'a1', direction: 2, minutes: 40, focus: 'medium' },
       { activityId: 'a2', direction: 2, minutes: 20, focus: 'high' },
@@ -81,12 +81,30 @@ describe('rootRenderer', () => {
     const originRoots = segments.filter(segment => (segment.growthMode ?? 'origin') === 'origin');
     const branchRoots = segments.filter(segment => (segment.growthMode ?? 'origin') === 'branch');
 
-    expect(segments).toHaveLength(4);
-    expect(originRoots).toHaveLength(3);
+    expect(segments).toHaveLength(5);
+    expect(originRoots).toHaveLength(4);
     expect(branchRoots).toHaveLength(1);
     expect(branchRoots[0]!.parentRootId).toBe(originRoots[0]!.id);
-    expect(originRoots[2]!.minutes).toBe(95);
-    expect(originRoots[2]!.focus).toBe('high');
+    expect(new Set(segments.map(segment => segment.activityId)).size).toBe(5);
+  });
+
+  it('caps origin roots to five per direction and converts overflow to branches', () => {
+    const segments = buildRootSegments([
+      { activityId: 'm1', direction: 2, minutes: 45, focus: 'medium' },
+      { activityId: 'm2', direction: 2, minutes: 46, focus: 'medium' },
+      { activityId: 'm3', direction: 2, minutes: 47, focus: 'medium' },
+      { activityId: 'm4', direction: 2, minutes: 48, focus: 'medium' },
+      { activityId: 'm5', direction: 2, minutes: 49, focus: 'medium' },
+      { activityId: 'm6', direction: 2, minutes: 50, focus: 'high' },
+    ], '2026-03-20');
+
+    const originRoots = segments.filter(segment => (segment.growthMode ?? 'origin') === 'origin');
+    const branchRoots = segments.filter(segment => (segment.growthMode ?? 'origin') === 'branch');
+
+    expect(segments).toHaveLength(6);
+    expect(originRoots).toHaveLength(5);
+    expect(branchRoots).toHaveLength(1);
+    expect(branchRoots[0]!.parentRootId).toBe(originRoots[originRoots.length - 1]!.id);
   });
 
   it('starts branch roots from parent middle instead of soil origin', () => {
@@ -169,7 +187,7 @@ describe('rootRenderer', () => {
     expect(pathA).toBe(pathB);
   });
 
-  it('uses logarithmic mapping with visible saturation', () => {
+  it('uses smooth saturating mapping with visible saturation', () => {
     const shortLength = mapMinutesToVisualLength(30, { canvasHeight: 500 });
     const mediumLength = mapMinutesToVisualLength(180, { canvasHeight: 500 });
     const veryLongLength = mapMinutesToVisualLength(900, { canvasHeight: 500 });
@@ -177,6 +195,27 @@ describe('rootRenderer', () => {
     expect(shortLength).toBeGreaterThan(0);
     expect(mediumLength).toBeGreaterThan(shortLength);
     expect(veryLongLength).toBeLessThanOrEqual(500 * 0.6);
+  });
+
+  it('keeps tips inside canvas bounds for very long activities', () => {
+    const segments = buildRootSegments([
+      { activityId: 'b1', direction: 0, minutes: 1200, focus: 'high' },
+      { activityId: 'b2', direction: 2, minutes: 1200, focus: 'high' },
+      { activityId: 'b3', direction: 4, minutes: 1200, focus: 'high' },
+    ], '2026-03-21');
+    const rendered = renderRootSegments(segments, {
+      canvasWidth: 360,
+      canvasHeight: 520,
+      soilY: 52,
+      seedKey: '2026-03-21',
+    });
+
+    rendered.forEach((item) => {
+      expect(item.tip.x).toBeGreaterThanOrEqual(18);
+      expect(item.tip.x).toBeLessThanOrEqual(342);
+      expect(item.tip.y).toBeGreaterThanOrEqual(56);
+      expect(item.tip.y).toBeLessThanOrEqual(502);
+    });
   });
 
   it('renders path and stroke width payload for svg usage', () => {

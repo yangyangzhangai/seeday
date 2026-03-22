@@ -152,7 +152,7 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
   const { lang } = signals;
   const references = lang === 'it' ? IT_LAST_ACTIVITY_REFERENCES : EN_LAST_ACTIVITY_REFERENCES;
 
-  if (signals.hasFuturePlan) {
+  if (signals.hasFuturePlan && !(lang === 'en' && signals.hasActivityPattern) && !signals.hasStrongCompletion) {
     evidence.push(makeEvidence('future', 'matched_non_activity_signal', [text], 'strong', 'planned'));
     const scores = buildScoresFromEvidence(evidence);
     return {
@@ -182,9 +182,10 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
     };
   }
 
-  const { hasActivity, hasMood, hasStrongCompletion } = signals;
+  const { hasActivity, hasActivityPattern, hasMood, hasStrongCompletion } = signals;
+  const hasActivityEvidence = hasActivityPattern || (hasActivity && !signals.hasMoodPattern) || hasStrongCompletion;
 
-  if (hasActivity) {
+  if (hasActivityEvidence) {
     evidence.push(makeEvidence('lexicon', 'matched_activity_signal', [text], 'strong', 'positive'));
   }
   if (hasStrongCompletion) {
@@ -253,7 +254,7 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
     evidence,
     scores,
     reasons,
-    hasActivityEvidence: hasActivity,
+    hasActivityEvidence,
     hasMood,
     relatedActivityId: getRelatedOngoingActivityId(context),
   });

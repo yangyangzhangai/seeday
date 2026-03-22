@@ -19,7 +19,14 @@ import {
 
 export type LatinLang = 'en' | 'it';
 
-const LATIN_TOKEN_PATTERN = /[a-z\u00c0-\u017f]+(?:['’-][a-z\u00c0-\u017f]+)*/gi;
+const LATIN_TOKEN_PATTERN = /[a-z\u00c0-\u017f]+(?:['\u2019][a-z\u00c0-\u017f]+)*/gi;
+const LATIN_CONTEXT_ALIASES: Record<string, string[]> = {
+  film: ['movie'],
+  gym: ['workout', 'training', 'exercise'],
+  movie: ['film'],
+  training: ['gym', 'workout', 'exercise'],
+  workout: ['gym', 'training', 'exercise'],
+};
 
 function tokenizeLatin(input: string): string[] {
   return input.toLowerCase().match(LATIN_TOKEN_PATTERN) ?? [];
@@ -142,8 +149,31 @@ export function detectLatinLanguage(input: string): LatinLang {
 }
 
 export function extractLatinKeywords(input: string): string[] {
-  const tokens = tokenizeLatin(input).filter((token) => token.length >= 4);
+  const tokens = tokenizeLatin(input)
+    .filter((token) => token.length >= 3)
+    .flatMap((token) => [token, ...(LATIN_CONTEXT_ALIASES[token] ?? [])]);
   return Array.from(new Set(tokens));
+}
+
+function commonPrefixLength(a: string, b: string): number {
+  const limit = Math.min(a.length, b.length);
+  let idx = 0;
+  while (idx < limit && a[idx] === b[idx]) idx += 1;
+  return idx;
+}
+
+function areLatinKeywordsRelated(a: string, b: string): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (shorter.length >= 5 && longer.startsWith(shorter)) {
+    return true;
+  }
+
+  return commonPrefixLength(a, b) >= 6;
 }
 
 export function hasLatinContextKeywordOverlap(text: string, contextText: string): boolean {
@@ -151,15 +181,19 @@ export function hasLatinContextKeywordOverlap(text: string, contextText: string)
   if (textTokens.length === 0) {
     return false;
   }
-  const contextTokens = new Set(extractLatinKeywords(contextText));
-  return textTokens.some((token) => contextTokens.has(token));
+  const contextTokens = extractLatinKeywords(contextText);
+  return textTokens.some((token) => contextTokens.some((contextToken) => areLatinKeywordsRelated(token, contextToken)));
 }
 
 export function extractLatinSignals(text: string): {
   lang: LatinLang;
   hasFuturePlan: boolean;
   hasNegatedOrNotOccurred: boolean;
+  hasActivityLexicon: boolean;
+  hasActivityPattern: boolean;
   hasActivity: boolean;
+  hasMoodLexicon: boolean;
+  hasMoodPattern: boolean;
   hasMood: boolean;
   hasStrongCompletion: boolean;
 } {
@@ -171,13 +205,21 @@ export function extractLatinSignals(text: string): {
   const completionPatterns = lang === 'it' ? IT_STRONG_COMPLETION_PATTERNS : EN_STRONG_COMPLETION_PATTERNS;
   const futurePatterns = lang === 'it' ? IT_FUTURE_OR_PLAN_PATTERNS : EN_FUTURE_OR_PLAN_PATTERNS;
   const negationPatterns = lang === 'it' ? IT_NEGATED_OR_NOT_OCCURRED_PATTERNS : EN_NEGATED_OR_NOT_OCCURRED_PATTERNS;
+  const hasActivityLexicon = containsAnyLatinSignal(text, activityVerbs);
+  const hasActivityPattern = activityPatterns.some((pattern) => pattern.test(text));
+  const hasMoodLexicon = containsAnyLatinSignal(text, moodWords);
+  const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(text));
 
   return {
     lang,
     hasFuturePlan: futurePatterns.some((pattern) => pattern.test(text)),
     hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)),
-    hasActivity: containsAnyLatinSignal(text, activityVerbs) || activityPatterns.some((pattern) => pattern.test(text)),
-    hasMood: containsAnyLatinSignal(text, moodWords) || moodPatterns.some((pattern) => pattern.test(text)),
+    hasActivityLexicon,
+    hasActivityPattern,
+    hasActivity: hasActivityLexicon || hasActivityPattern,
+    hasMoodLexicon,
+    hasMoodPattern,
+    hasMood: hasMoodLexicon || hasMoodPattern,
     hasStrongCompletion: completionPatterns.some((pattern) => pattern.test(text)),
   };
 }
