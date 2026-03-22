@@ -198,6 +198,7 @@ interface AnnotationResponse {
   displayDuration: number;
   source?: 'ai' | 'default';
   reason?: 'no_key' | 'fetch_failed' | 'empty_response' | 'empty_content' | 'extract_failed' | 'exception';
+  debugAiMode?: string;
 }
 
 /**
@@ -212,10 +213,27 @@ export async function callReportAPI(request: ReportRequest): Promise<string> {
  * 调用 Annotation API
  */
 export async function callAnnotationAPI(request: AnnotationRequest): Promise<AnnotationResponse> {
-  return postJson<AnnotationRequest, AnnotationResponse>('/annotation', {
-    ...request,
-    aiMode: request.aiMode ?? getCurrentAiMode(),
+  const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
+  const resolvedAiMode = request.aiMode ?? (aiModeEnabled ? normalizeAiCompanionMode(aiMode) : undefined);
+  logApiDebug('annotation.request', {
+    eventType: request.eventType,
+    aiModeEnabled,
+    requestedAiMode: request.aiMode,
+    resolvedAiMode: resolvedAiMode ?? 'off',
   });
+
+  const response = await postJson<AnnotationRequest, AnnotationResponse>('/annotation', {
+    ...request,
+    aiMode: resolvedAiMode,
+  });
+
+  logApiDebug('annotation.response', {
+    eventType: request.eventType,
+    source: response.source ?? 'unknown',
+    debugAiMode: response.debugAiMode ?? resolvedAiMode ?? 'fallback',
+  });
+
+  return response;
 }
 
 // ── Timeshine 三步走新 API ────────────────────────────────────────────────────

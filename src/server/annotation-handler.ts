@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
 import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
+import { normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 import {
   buildTodayActivitiesText,
@@ -68,18 +69,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireMethod(req, res, 'POST')) return;
 
   const { eventType, eventData, userContext, lang = 'zh', aiMode } = req.body;
+  const resolvedAiMode = aiMode ? normalizeAiCompanionMode(aiMode) : undefined;
 
   if (!eventType || !eventData) {
     jsonError(res, 400, 'Missing eventType or eventData');
     return;
   }
 
+  console.log('[Annotation API] mode:', {
+    eventType,
+    lang,
+    requestedAiMode: aiMode || 'none',
+    resolvedAiMode: resolvedAiMode || 'fallback',
+  });
+
   const defaultSet = getDefaultAnnotations(lang);
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-    res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'no_key' });
+    res.status(200).json({
+      ...defaultAnnotation,
+      displayDuration: 8000,
+      source: 'default',
+      reason: 'no_key',
+      debugAiMode: resolvedAiMode || 'fallback',
+    });
     return;
   }
 
@@ -121,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recentAnnotationsList,
       recentEmojisText
     );
-    const systemPrompt = getSystemPrompt(lang, aiMode);
+    const systemPrompt = getSystemPrompt(lang, resolvedAiMode);
     const model = getModel(lang);
 
     openai.apiKey = apiKey;
@@ -151,7 +166,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!content || !content.trim()) {
       console.warn('[Annotation API] empty_content details:', { eventType, lang });
       const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-      res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'empty_content' });
+      res.status(200).json({
+        ...defaultAnnotation,
+        displayDuration: 8000,
+        source: 'default',
+        reason: 'empty_content',
+        debugAiMode: resolvedAiMode || 'fallback',
+      });
       return;
     }
 
@@ -163,7 +184,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!extractedContent) {
       console.warn('[Annotation API] 提取失败，使用默认批注');
       const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-      res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'extract_failed' });
+      res.status(200).json({
+        ...defaultAnnotation,
+        displayDuration: 8000,
+        source: 'default',
+        reason: 'extract_failed',
+        debugAiMode: resolvedAiMode || 'fallback',
+      });
       return;
     }
 
@@ -178,10 +205,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 如果 AI 忘记加 emoji，补上该 eventType 专属的兜底 emoji
     content = ensureEmoji(content, fallbackEmoji);
 
-    res.status(200).json({ content, tone, displayDuration: 8000, source: 'ai' });
+    res.status(200).json({
+      content,
+      tone,
+      displayDuration: 8000,
+      source: 'ai',
+      debugAiMode: resolvedAiMode || 'fallback',
+    });
   } catch (error) {
     console.error('Annotation API error:', error);
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
-    res.status(200).json({ ...defaultAnnotation, displayDuration: 8000, source: 'default', reason: 'exception' });
+    res.status(200).json({
+      ...defaultAnnotation,
+      displayDuration: 8000,
+      source: 'default',
+      reason: 'exception',
+      debugAiMode: resolvedAiMode || 'fallback',
+    });
   }
 }

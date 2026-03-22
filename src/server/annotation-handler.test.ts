@@ -75,6 +75,7 @@ describe('annotation-handler', () => {
     expect(request.instructions).toContain('Zep - Real-Life Candor');
     expect(request).not.toHaveProperty('previous_response_id');
     expect(res.statusCode).toBe(200);
+    expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');
     expect((res.payload as { source?: string }).source).toBe('ai');
   });
 });

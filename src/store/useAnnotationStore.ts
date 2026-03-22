@@ -18,6 +18,7 @@ import { fromDbAnnotation, toDbAnnotation } from '../lib/dbMappers';
 import { normalizeActivityType } from '../lib/activityType';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
+import { useAuthStore } from './useAuthStore';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -90,9 +91,21 @@ export const useAnnotationStore = create<AnnotationStore>()(
       triggerAnnotation: async (event: AnnotationEvent) => {
         const state = get();
         const { config, todayStats } = state;
+        const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
 
         // 检查是否启用
-        if (!config.enabled) return;
+        if (!aiModeEnabled) {
+          if (get().currentAnnotation) {
+            set({ currentAnnotation: null });
+          }
+          console.log('[AI Annotator] AI 已关闭，跳过批注:', event.type);
+          return;
+        }
+
+        if (!config.enabled) {
+          console.log('[AI Annotator] 批注配置已关闭，跳过批注:', event.type);
+          return;
+        }
 
         const now = Date.now();
 
@@ -205,7 +218,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayActivitiesList,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en',
+            aiMode,
           });
+          const debugAiMode = response.debugAiMode || aiMode;
+          console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
 
           // 先创建 id，后续同步需要
           const annotationId = uuidv4();
@@ -260,6 +276,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             console.warn(
               '[AI Annotator] 批注使用兜底:',
               `event=${event.type}`,
+              `aiMode=${debugAiMode || 'fallback'}`,
               `reason=${response.reason || 'unknown'}`,
               `source=${response.source}`,
               `content=${response.content}`
