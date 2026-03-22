@@ -2,13 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
-
-const AI_MODES = [
-  { key: 'van', name: 'Van', sub: '情绪治愈', icon: '🌸', free: true },
-  { key: 'agnes', name: 'Agnes', sub: '引领指导', icon: '⚡', free: true },
-  { key: 'zep', name: 'Zep', sub: '生活真实', icon: '🌿', free: true },
-  { key: 'spring_thunder', name: 'Thunder', sub: '秩序催化', icon: '🌙', free: false },
-];
+import {
+  AI_COMPANION_ORDER,
+  AI_COMPANION_VISUALS,
+} from '../../../constants/aiCompanionVisuals';
+import type { AiCompanionMode } from '../../../lib/aiCompanion';
 
 interface Props {
   isPlus: boolean;
@@ -28,12 +26,12 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
 
-  const handleModeClick = (key: string, free: boolean) => {
+  const handleModeClick = (key: AiCompanionMode, free: boolean) => {
     if (!free && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    updatePreferences({ aiMode: key as any });
+    updatePreferences({ aiMode: key });
   };
 
   return (
@@ -66,13 +64,14 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
           !enabled ? 'opacity-40 pointer-events-none' : ''
         }`}
       >
-        {AI_MODES.map((mode) => {
+        {AI_COMPANION_ORDER.map((modeKey) => {
+          const mode = AI_COMPANION_VISUALS[modeKey];
           const locked = !mode.free && !isPlus;
-          const selected = preferences.aiMode === mode.key;
+          const selected = preferences.aiMode === modeKey;
           return (
             <button
-              key={mode.key}
-              onClick={() => handleModeClick(mode.key, mode.free)}
+              key={modeKey}
+              onClick={() => handleModeClick(modeKey, mode.free)}
               className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
                 selected
                   ? 'border-blue-500 bg-blue-50'
@@ -81,9 +80,15 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
                   : 'border-gray-200 bg-gray-50 hover:border-blue-300'
               }`}
             >
-              <span className="text-lg leading-none mb-1">{mode.icon}</span>
+              <div className="w-9 h-9 mb-1 rounded-full bg-white/90 ring-1 ring-gray-200 overflow-hidden flex items-center justify-center">
+                <img
+                  src={mode.avatar}
+                  alt={`${mode.name} avatar`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <span className="text-[11px] font-semibold text-gray-800 leading-tight">{mode.name}</span>
-              <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center">{mode.sub}</span>
+              <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center">{mode.subtitle}</span>
               {locked && (
                 <Lock size={10} className="absolute top-1 right-1 text-gray-400" />
               )}
