@@ -242,9 +242,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (resolvedLang === 'en' ? 'None' : resolvedLang === 'it' ? 'Nessuno' : '无');
 
     const rawRecentAnnotations = userContext?.recentAnnotations?.slice(-3) || [];
-    const recentAnnotationsList =
-      rawRecentAnnotations.map(sanitizeAnnotation).filter(Boolean).join(' / ') ||
-      (resolvedLang === 'en' ? 'None' : resolvedLang === 'it' ? 'Nessuna' : '无');
+    const recentAnnotationsList = rawRecentAnnotations
+      .map(sanitizeAnnotation)
+      .filter(Boolean)
+      .join(' / ');
     const recentEmojis = extractRecentEmojisFromAnnotations(rawRecentAnnotations);
     const recentEmojisText = recentEmojis.join(' ');
 
@@ -255,7 +256,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       eventSummary,
       todayActivitiesText,
       recentMoodText,
-      recentAnnotationsList,
+      recentAnnotationsList || undefined,
       recentEmojisText
     );
     const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);

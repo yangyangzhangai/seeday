@@ -10,6 +10,7 @@ import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';
 import { recordLiveInputClassification } from '../services/input/liveInputTelemetry';
+import { emitLiveInputClassificationTelemetry } from '../services/input/liveInputTelemetryCloud';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import i18n from '../i18n';
 
@@ -361,6 +362,7 @@ export async function sendAutoRecognizedInputFlow(
 
   const messageId = await dispatchAutoRecognizedInput(content, classification, sendMessage, sendMood);
   applyAutoRecognizedInputEffects(messageId, classification);
+  emitLiveInputClassificationTelemetry(content, classification, messageId);
 
   return {
     classification,

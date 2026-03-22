@@ -9,6 +9,7 @@ import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
@@ -191,6 +192,7 @@ function App() {
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="telemetry/live-input" element={<LiveInputTelemetryPage />} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
       </Routes>

@@ -75,6 +75,17 @@ npx vercel --prod
 - `POST /api/plant-generate`
 - `POST /api/plant-diary`
 - `GET /api/plant-history`
+- `POST /api/live-input-telemetry`
+- `GET /api/live-input-dashboard`
+
+## Live Input Telemetry
+
+To enable the new live input telemetry dashboard in production:
+
+- Run `scripts/live_input_telemetry_schema.sql` in Supabase SQL Editor.
+- Set `SUPABASE_SERVICE_ROLE_KEY` in Vercel.
+- Set `LIVE_INPUT_ADMIN_EMAILS` to the comma-separated admin email list that can open `/telemetry/live-input`.
+- Optionally set `LIVE_INPUT_TELEMETRY_STORE_RAW_TEXT=true` if you explicitly want to store raw user input for debugging.
 
 ## 运行时模型（当前实现）
 

@@ -92,7 +92,7 @@ export interface AnnotationRequest {
     todayActivities: number;           // 活动总数
     todayDuration: number;             // 今日总时长
     currentHour: number;               // 当前时间
-    recentAnnotations: string[];       // 最近批注
+    recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据
   };

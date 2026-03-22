@@ -15,6 +15,11 @@ import type {
   PlantGenerateResponse,
   PlantHistoryResponse,
 } from '../types/plant';
+import type {
+  LiveInputTelemetryDashboardResponse,
+  LiveInputTelemetryIngestRequest,
+  LiveInputTelemetryIngestResponse,
+} from '../services/input/liveInputTelemetryApi';
 
 const API_BASE = '/api';
 
@@ -380,6 +385,33 @@ export async function callPlantHistoryAPI(startDate: string, endDate: string): P
   const headers = await getAuthHeaders();
   const params = new URLSearchParams({ startDate, endDate });
   return getJson<PlantHistoryResponse>(`/plant-history?${params.toString()}`, { headers });
+}
+
+export async function callLiveInputTelemetryIngestAPI(
+  request: LiveInputTelemetryIngestRequest,
+): Promise<LiveInputTelemetryIngestResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    return { success: false, skipped: true };
+  }
+
+  return postJson<LiveInputTelemetryIngestRequest, LiveInputTelemetryIngestResponse>(
+    '/live-input-telemetry',
+    request,
+    { headers },
+  );
+}
+
+export async function callLiveInputTelemetryDashboardAPI(
+  days = 14,
+): Promise<LiveInputTelemetryDashboardResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+
+  const params = new URLSearchParams({ days: String(days) });
+  return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-dashboard?${params.toString()}`, { headers });
 }
 
 function getCurrentAiMode(): AiCompanionMode | undefined {

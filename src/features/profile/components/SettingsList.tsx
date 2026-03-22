@@ -1,15 +1,34 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout } from 'lucide-react';
+import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { DirectionSettingsPanel } from './DirectionSettingsPanel';
 
+function isLikelyAdmin(user: any): boolean {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  const roleCandidates = [
+    user?.app_metadata?.role,
+    user?.user_metadata?.role,
+    ...(Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []),
+    ...(Array.isArray(user?.user_metadata?.roles) ? user.user_metadata.roles : []),
+  ];
+
+  return roleCandidates.some((item) => (
+    typeof item === 'string'
+    && ['admin', 'owner', 'staff', 'internal', 'super_admin'].includes(item.trim().toLowerCase())
+  ));
+}
+
 export const SettingsList: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { signOut } = useAuthStore();
+  const { signOut, user } = useAuthStore();
   const [isDirectionOpen, setIsDirectionOpen] = React.useState(false);
+  const canSeeTelemetry = isLikelyAdmin(user);
 
   const handleLogout = () => {
     if (window.confirm(t('header_confirm_logout'))) {
@@ -57,6 +76,19 @@ export const SettingsList: React.FC = () => {
           <ChevronRight size={14} className="text-gray-300" />
         </button>
       ))}
+
+      {canSeeTelemetry ? (
+        <button
+          onClick={() => navigate('/telemetry/live-input')}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition border-t border-gray-100"
+        >
+          <div className="flex items-center space-x-2.5">
+            <BarChart3 size={16} className="text-gray-500" />
+            <span className="text-xs text-gray-700">Live Input Telemetry</span>
+          </div>
+          <ChevronRight size={14} className="text-gray-300" />
+        </button>
+      ) : null}
 
       {/* Logout */}
       <button

@@ -9,6 +9,7 @@ import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
+import { emitLiveInputCorrectionTelemetry } from '../services/input/liveInputTelemetryCloud';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import { createChatTimelineActions } from './chatTimelineActions';
 import { useTodoStore } from './useTodoStore';
@@ -390,6 +391,12 @@ export const useChatStore = create<ChatState>()(
 
         if (originalMessage) {
           recordLiveInputCorrection(originalMessage.isMood ? 'mood' : 'activity', nextKind);
+          emitLiveInputCorrectionTelemetry({
+            rawInput: originalMessage.content,
+            fromKind: originalMessage.isMood ? 'mood' : 'activity',
+            toKind: nextKind,
+            messageId,
+          });
         }
 
         applyReclassifyMoodSideEffects(

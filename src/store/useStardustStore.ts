@@ -114,7 +114,7 @@ export const useStardustStore = create<StardustStore>()(
             emojiChar: finalEmoji,
             userRawContent,
             createdAt: Date.now(),
-            alienName: alienName?.trim() || 'T.S',
+            alienName: alienName?.trim() || 'Van',
             syncStatus: 'pending_sync',
           };
 

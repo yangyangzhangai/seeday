@@ -7,6 +7,9 @@ import { ArrowRightLeft, Edit2, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { StardustEmoji } from '../../components/feedback/StardustEmoji';
 import type { StardustCardData } from '../../types/stardust';
+import { useAuthStore } from '../../store/useAuthStore';
+import { AI_COMPANION_VISUALS } from '../../constants/aiCompanionVisuals';
+import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
 
 interface MessageItemProps {
     msg: any;
@@ -45,6 +48,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     onToggleActions,
 }) => {
     const { t } = useTranslation();
+    const aiMode = useAuthStore((state) => state.preferences.aiMode);
+    const fallbackAlienName = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)].name;
 
     const getMoodLabelForMsg = () => {
         return (customMoodApplied[msg.id] && customMoodLabel[msg.id] && customMoodLabel[msg.id] !== t('chat_custom_label_default') && customMoodLabel[msg.id] !== '自定义')
@@ -79,7 +84,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         {
                             emojiChar: stardust.emojiChar,
                             message: stardust.message,
-                            alienName: stardust.alienName || 'T.S',
+                            alienName: stardust.alienName && stardust.alienName !== 'T.S'
+                                ? stardust.alienName
+                                : fallbackAlienName,
                             createdAt: stardust.createdAt,
                         },
                         { x: rect.left + rect.width / 2, y: rect.top },

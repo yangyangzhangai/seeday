@@ -154,12 +154,6 @@ export const useAnnotationStore = create<AnnotationStore>()(
             sum + (e.data?.duration || 0), 0
           );
 
-          // 获取最近批注内容（避免重复）
-          const recentAnnotations = todayEvents
-            .filter(e => e.type === 'annotation_generated')
-            .slice(-3)
-            .map(e => e.data?.content || '');
-
           // 仅在连续心情输入时，传最多3条连续心情原文
           const recentMoodMessages: string[] = [];
           if (event.type === 'mood_recorded') {
@@ -214,7 +208,6 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayActivities: activities.length,
               todayDuration: totalDuration,
               currentHour: new Date().getHours(),
-              recentAnnotations,
               recentMoodMessages,
               todayActivitiesList,
             },
