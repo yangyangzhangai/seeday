@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { format, getDaysInMonth, startOfMonth, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { X } from 'lucide-react';
@@ -15,6 +15,9 @@ const MAX_VIS = 4;            // max visible stacked pages per side
 const HEIGHT_SHRINK = 20;     // px — each stacked page shrinks in height (top & bottom each = HEIGHT_SHRINK/2)
 // Trapezoid inset equals one stacking step so spine-edge diagonal is uniform across all layers
 const TRAPEZOID_INSET = HEIGHT_SHRINK / 2;  // = 6px
+const PAPER_COLOR = '#faf7f2';
+const PAGE_SPINE_W = 4;
+const SPINE_OVERLAP = 2;
 
 /* ──────────────────────────────── types ──────────────────────────────── */
 interface Props { onClose: () => void; reports: Report[]; }
@@ -51,9 +54,9 @@ function PageContent({ page }: { page: ReturnType<typeof buildPages>[number] }) 
     return <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #5c3a28 0%, #3b2014 100%)' }} />;
   }
   if (page.type === 'blank') {
-    return <div style={{ width: '100%', height: '100%', background: '#faf7f2' }} />;
+    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
-  return <div style={{ width: '100%', height: '100%', background: '#faf7f2' }} />;
+  return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
@@ -64,6 +67,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [animatingSheet, setAnimatingSheet] = useState<number | null>(null);
   const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
   const pages = buildPages(currentMonth, reports);
   const numSheets = pages.length / 2;
@@ -86,10 +90,34 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
     setTimeout(() => { setIsAnimating(false); setAnimatingSheet(null); }, FLIP_MS);
   }, [isAnimating, flippedCount]);
 
-  const onTouchStart = useCallback((e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; }, []);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 40) { dx < 0 ? flipNext() : flipPrev(); }
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      dx < 0 ? flipNext() : flipPrev();
+    }
+  }, [flipNext, flipPrev]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName ?? '';
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable;
+      if (isEditable) return;
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        flipNext();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        flipPrev();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [flipNext, flipPrev]);
 
   const getIndicator = () => {
@@ -199,6 +227,18 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
                 transformStyle: 'preserve-3d',
                 pointerEvents: 'none',
               }}>
+                {/* Bound paper-color spine patch: attached to sheet container, rotates with page */}
+                <div style={{
+                  position: 'absolute',
+                  left: -SPINE_OVERLAP,
+                  top: TRAPEZOID_INSET,
+                  width: PAGE_SPINE_W + SPINE_OVERLAP,
+                  height: `calc(100% - ${TRAPEZOID_INSET * 2}px)`,
+                  background: PAPER_COLOR,
+                  borderRadius: PAGE_SPINE_W,
+                  transform: 'translateZ(0.5px)',
+                  pointerEvents: 'none',
+                }} />
                 {/* front face — shadow only on outer (right) side */}
                 <div style={{
                   position: 'absolute', inset: 0,
