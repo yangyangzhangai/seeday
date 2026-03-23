@@ -62,8 +62,20 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
   const { t } = useTranslation();
   const [scale, setScale] = useState(1);
   const [viewportOffset, setViewportOffset] = useState({ x: 0, y: 0 });
+  const [isActive, setIsActive] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsActive(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current || typeof ResizeObserver === 'undefined') return;
@@ -138,10 +150,15 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
   const isMaxScale = scale >= MAX_SCALE - 0.001;
 
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-stone-100/40 p-3 select-none">
+    <div
+      ref={wrapperRef}
+      className="rounded-2xl border border-stone-200/80 p-3 select-none"
+      onClick={() => setIsActive(true)}
+    >
       <div
         ref={canvasRef}
-        className="relative h-[280px] sm:h-[320px] overflow-hidden rounded-xl bg-gradient-to-b from-stone-100/10 via-stone-200/30 to-stone-300/45"
+        className="relative h-[280px] sm:h-[320px] overflow-hidden rounded-xl"
+        style={{ backgroundImage: 'url(/assets/soil.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}
       >
         <div
           className="w-full h-full origin-center will-change-transform"
@@ -172,56 +189,60 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute right-3 bottom-3 z-10 max-w-[72%] rounded-xl border border-stone-300/70 bg-stone-50/82 p-2 shadow-[0_8px_20px_rgba(66,45,24,0.12)] backdrop-blur-[2px]">
-          <div className="space-y-1">
-            {legendItems.map((item) => (
-              <div
-                key={item.slotKey}
-                className="flex items-center gap-1.5 rounded-md bg-white/62 px-1.5 py-1 text-[10px] leading-none text-stone-700"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-stone-500/80" />
-                <span className="font-semibold text-stone-900">{t(item.positionKey)}</span>
-                <span className="text-stone-400">·</span>
-                <span className="truncate">{t(toCategoryKey(item.category))}</span>
-              </div>
-            ))}
+        {isActive && (
+          <div className="pointer-events-none absolute right-3 bottom-3 z-10 max-w-[72%] rounded-xl border border-stone-300/70 bg-stone-50/82 p-2 shadow-[0_8px_20px_rgba(66,45,24,0.12)] backdrop-blur-[2px]">
+            <div className="space-y-1">
+              {legendItems.map((item) => (
+                <div
+                  key={item.slotKey}
+                  className="flex items-center gap-1.5 rounded-md bg-white/62 px-1.5 py-1 text-[10px] leading-none text-stone-700"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-stone-500/80" />
+                  <span className="font-semibold text-stone-900">{t(item.positionKey)}</span>
+                  <span className="text-stone-400">·</span>
+                  <span className="truncate">{t(toCategoryKey(item.category))}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="mt-3 flex items-center justify-end gap-2">
-        <span className="rounded-lg border border-stone-300/70 bg-white/70 px-2 py-1 text-[11px] text-stone-600">
-          x{scale.toFixed(2)}
-        </span>
-        <button
-          type="button"
-          onClick={() => setScale(prev => getNextScale(prev, -SCALE_STEP))}
-          disabled={isMinScale}
-          className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-          aria-label="Zoom out"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={() => setScale(prev => getNextScale(prev, SCALE_STEP))}
-          disabled={isMaxScale}
-          className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-          aria-label="Zoom in"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setScale(1);
-            setViewportOffset({ x: 0, y: 0 });
-          }}
-          className="min-h-11 px-4 rounded-xl border border-stone-300 bg-white text-sm text-stone-700 touch-manipulation active:scale-95 transition-transform"
-        >
-          {t('plant_canvas_reset')}
-        </button>
-      </div>
+      {isActive && (
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <span className="rounded-lg border border-stone-300/70 bg-white/70 px-2 py-1 text-[11px] text-stone-600">
+            x{scale.toFixed(2)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setScale(prev => getNextScale(prev, -SCALE_STEP))}
+            disabled={isMinScale}
+            className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
+            aria-label="Zoom out"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={() => setScale(prev => getNextScale(prev, SCALE_STEP))}
+            disabled={isMaxScale}
+            className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setScale(1);
+              setViewportOffset({ x: 0, y: 0 });
+            }}
+            className="min-h-11 px-4 rounded-xl border border-stone-300 bg-white text-sm text-stone-700 touch-manipulation active:scale-95 transition-transform"
+          >
+            {t('plant_canvas_reset')}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -25,7 +25,7 @@ const zh: TranslationKeys = {
 
     // ── 底部导航 ──
     nav_record: '记录',
-    nav_report: '时间报告',
+    nav_report: '日记',
     nav_profile: '我的',
 
     // ── 聊天 / 记录页面 ──
@@ -136,7 +136,7 @@ const zh: TranslationKeys = {
     recurrence_monthly: '每月',
 
     // ── 报告页面 ──
-    report_title: '时间报告',
+    report_title: '日记',
     report_calendar_view: '日历视图',
     report_daily: '日报',
     report_weekly: '周报',
