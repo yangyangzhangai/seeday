@@ -580,6 +580,7 @@ export const ZH_FUTURE_OR_PLAN_PATTERNS = [
   /要去.+/,
   /打算去.+/,
   /计划去.+/,
+  /^(?!.*(?:刚|已经|了|完|过)).*想(?:去|吃|喝|做|干|看|听|玩|买|打|刷|练|考|学|写|上|下|回|睡|跑).+/,
 ];
 
 export const ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS = [

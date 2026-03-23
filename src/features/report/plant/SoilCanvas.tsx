@@ -135,7 +135,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
     const minLeft = TOOLTIP_MIN_MARGIN;
     const maxLeft = Math.max(minLeft, canvasSize.width - TOOLTIP_WIDTH - TOOLTIP_MIN_MARGIN);
     const left = Math.min(maxLeft, Math.max(minLeft, scaledX + 14));
-    const showAbove = scaledY > 118;
+    const showAbove = scaledY > 186;
     const top = showAbove ? scaledY - 12 : scaledY + 18;
     return {
       left,
