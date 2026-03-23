@@ -17,7 +17,7 @@ const openai = new OpenAI();
 type AnnotationLang = 'zh' | 'en' | 'it';
 
 const MAX_REWRITE_ATTEMPTS = 1;
-const SIMILARITY_THRESHOLD = 0.72;
+const SIMILARITY_THRESHOLD = 0.2;
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
@@ -226,13 +226,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // 构建今日时间线（最近6个活动）
+    // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
     const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang);
 
-    // 最近批注：清洗掉可能导致 prompt 自我污染的内容（标签、指令关键词）
-    const sanitizeAnnotation = (s: string) =>
-      s.replace(/【[^】]*】/g, '').replace(/\b(IMPORTANT|OUTPUT|JSON|comment|system)\b/gi, '').replace(/\s+/g, ' ').trim().slice(0, 60);
     const sanitizeMoodText = (s: string) =>
       s.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
 
@@ -242,23 +239,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (resolvedLang === 'en' ? 'None' : resolvedLang === 'it' ? 'Nessuno' : '无');
 
     const rawRecentAnnotations = userContext?.recentAnnotations?.slice(-3) || [];
-    const recentAnnotationsList = rawRecentAnnotations
-      .map(sanitizeAnnotation)
-      .filter(Boolean)
-      .join(' / ');
-    const recentEmojis = extractRecentEmojisFromAnnotations(rawRecentAnnotations);
-    const recentEmojisText = recentEmojis.join(' ');
+    const rawRecentAnnotationsForEmoji = userContext?.recentAnnotations?.slice(-5) || [];
+    const recentEmojis = extractRecentEmojisFromAnnotations(rawRecentAnnotationsForEmoji);
 
     // 构建提示词
+    const currentHour = userContext?.currentHour;
     const userPrompt = buildUserPrompt(
       resolvedLang,
       eventType,
       eventSummary,
       todayActivitiesText,
       recentMoodText,
-      recentAnnotationsList || undefined,
-      recentEmojisText
+      currentHour
     );
+    console.log('[Annotation API] User Prompt:', userPrompt);
     const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
     const model = getModel(resolvedLang);
 
@@ -268,12 +262,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model,
       instructions: systemPrompt,
       input: userPrompt,
-      temperature: resolvedLang === 'zh' ? 0.75 : 0.8,
-      max_output_tokens: resolvedLang === 'zh' ? 180 : 480,
+      temperature: 0.7,
+      max_output_tokens: 480,
     });
 
-    const promptCacheHits = llmResponse.usage?.prompt_cache_hits ?? 0;
-    const promptCacheMisses = llmResponse.usage?.prompt_cache_misses ?? 0;
+    const promptCacheHits = (llmResponse.usage as any)?.prompt_cache_hits ?? 0;
+    const promptCacheMisses = (llmResponse.usage as any)?.prompt_cache_misses ?? 0;
     console.log('[Annotation API] LLM meta:', {
       lang: resolvedLang,
       model,
@@ -320,13 +314,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     content = extractedContent;
     console.log('[Annotation API] 提取后:', content);
 
+    let finalContent = content;
     const similarityScore = getMaxSimilarityAgainstRecent(content, rawRecentAnnotations, resolvedLang);
+    const contentEmojis = extractRecentEmojisFromAnnotations([content]);
+    const hasDuplicateEmoji = contentEmojis.some(e => recentEmojis.includes(e));
+
+    let needsRewrite = false;
     if (rawRecentAnnotations.length > 0 && similarityScore >= SIMILARITY_THRESHOLD) {
       console.warn('[Annotation API] 检测到高相似批注，触发重写', {
         similarityScore: Number(similarityScore.toFixed(3)),
         threshold: SIMILARITY_THRESHOLD,
       });
+      needsRewrite = true;
+    } else if (hasDuplicateEmoji) {
+      console.warn('[Annotation API] 检测到 emoji 重复，触发重写');
+      needsRewrite = true;
+    }
 
+    if (needsRewrite) {
       let rewrittenContent: string | null = null;
 
       for (let attempt = 1; attempt <= MAX_REWRITE_ATTEMPTS; attempt += 1) {
@@ -356,14 +361,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
 
           const rewriteSimilarity = getMaxSimilarityAgainstRecent(extractedRewrite, rawRecentAnnotations, resolvedLang);
+          const rewriteEmojis = extractRecentEmojisFromAnnotations([extractedRewrite]);
+          const rewriteHasDuplicateEmoji = rewriteEmojis.some(e => recentEmojis.includes(e));
+
           rewrittenContent = extractedRewrite;
 
           console.log('[Annotation API] 重写候选', {
             attempt,
             similarity: Number(rewriteSimilarity.toFixed(3)),
+            hasDuplicateEmoji: rewriteHasDuplicateEmoji,
           });
 
-          if (rewriteSimilarity < SIMILARITY_THRESHOLD) {
+          if (rewriteSimilarity < SIMILARITY_THRESHOLD && !rewriteHasDuplicateEmoji) {
             break;
           }
         } catch (rewriteError) {
@@ -375,9 +384,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (rewrittenContent) {
-        content = rewrittenContent;
+        finalContent = rewrittenContent;
       }
     }
+
+    // 最终检查是否仍然与最近批注重复或包含重复的Emoji
+    const finalSim = getMaxSimilarityAgainstRecent(finalContent, rawRecentAnnotations, resolvedLang);
+    const finalEmojis = extractRecentEmojisFromAnnotations([finalContent]);
+    const finalHasDuplicateEmoji = finalEmojis.some(e => recentEmojis.includes(e));
+
+    if ((rawRecentAnnotations.length > 0 && finalSim >= SIMILARITY_THRESHOLD) || finalHasDuplicateEmoji) {
+      console.warn('[Annotation API] AI回复相似度过高或Emoji重复，不显示给用户，使用默认批注');
+      const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
+      res.status(200).json({
+        ...defaultAnnotation,
+        displayDuration: 8000,
+        source: 'default',
+        reason: 'duplicate_or_emoji_repeated',
+        debugAiMode: resolvedAiMode || 'fallback',
+      });
+      return;
+    }
+
+    content = finalContent;
 
     // tone 和 fallbackEmoji 均从 defaultSet 取，不分析生成内容
     const eventDefaults = defaultSet[eventType] || defaultSet.activity_completed;

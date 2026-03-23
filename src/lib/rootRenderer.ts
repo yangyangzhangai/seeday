@@ -57,7 +57,7 @@ const SOIL_ANCHOR_X_RATIO = 0.5;
 const defaultOptions: Required<RootRendererOptions> = {
   canvasWidth: 360,
   canvasHeight: 520,
-  soilY: 176,
+  soilY: 108,
   maxLengthRatio: 0.6,
   lengthScale: 68,
   jitterPx: 7,

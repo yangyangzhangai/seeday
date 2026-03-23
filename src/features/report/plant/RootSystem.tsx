@@ -31,8 +31,8 @@ const RootSystemImpl: React.FC<RootSystemProps> = ({ items, selectedRootId, onSe
         <mask id={soilMaskId}>
           <linearGradient id={`${soilMaskId}_fade`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="black" stopOpacity="0" />
-            <stop offset="31%" stopColor="black" stopOpacity="0" />
-            <stop offset="35%" stopColor="white" stopOpacity="1" />
+            <stop offset="18%" stopColor="black" stopOpacity="0" />
+            <stop offset="22%" stopColor="white" stopOpacity="1" />
             <stop offset="100%" stopColor="white" stopOpacity="1" />
           </linearGradient>
           <rect x="0" y="0" width="360" height="520" fill={`url(#${soilMaskId}_fade)`} />

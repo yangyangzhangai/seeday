@@ -140,20 +140,20 @@ export function buildTodayActivitiesText(activities: any[], lang: string): strin
     return '今天还没有活动记录';
   }
 
+  const locale = lang === 'zh' ? 'zh-CN' : lang === 'en' ? 'en-US' : 'it-IT';
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+  const separator = lang === 'zh' ? '；' : ' | ';
+
   return activities
     .map((activity: any, index: number) => {
-      const moodLabel = String(activity?.moodLabel || '').trim();
-      const moodText = moodLabel
-        ? lang === 'en'
-          ? ` [Mood: ${moodLabel}]`
-          : lang === 'it'
-            ? ` [Umore: ${moodLabel}]`
-            : ` [心情: ${moodLabel}]`
-        : '';
       const completedMark = activity.completed ? ' ✓' : '';
-      return `${index + 1}. ${activity.content}${moodText}${completedMark}`;
+      const timeStr = new Date(activity.timestamp).toLocaleTimeString(locale, timeOptions);
+      const typeStr = activity.activityType ? `[${activity.activityType}]` : '';
+      const durationStr = activity.duration ? `(${activity.duration}${lang === 'zh' ? '分钟' : 'min'})` : '';
+
+      return `${index + 1}. [${timeStr}] ${typeStr}${activity.content}${durationStr}${completedMark}`;
     })
-    .join(lang === 'zh' ? '；' : ' | ');
+    .join(separator);
 }
 
 export function buildUserPrompt(
@@ -162,19 +162,22 @@ export function buildUserPrompt(
   eventSummary: string,
   todayActivitiesText: string,
   recentMoodText: string,
-  recentAnnotationsList: string,
-  recentEmojisText = '',
+  currentHour?: number,
 ): string {
+  const hourText = currentHour !== undefined ? (() => {
+    if (lang === 'en') return `${currentHour}:00`;
+    if (lang === 'it') return `${currentHour}:00`;
+    return `${currentHour}点`;
+  })() : null;
+
   if (lang === 'en') {
     return [
       `Just happened: [${eventType}] ${eventSummary}`,
+      hourText ? `Current time: ${hourText}` : null,
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
-      `Recent annotations: ${recentAnnotationsList}`,
-      recentEmojisText ? `Recent emojis: ${recentEmojisText}` : '',
       'Write one direct annotation in your current voice.',
       'Use exactly one emoji at the end.',
-      'If this moment resembles recent annotations, change your angle completely and do not repeat the same perspective.',
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -183,13 +186,11 @@ export function buildUserPrompt(
   if (lang === 'it') {
     return [
       `Appena successo: [${eventType}] ${eventSummary}`,
+      hourText ? `Ora corrente: ${hourText}` : null,
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
-      `Annotazioni recenti: ${recentAnnotationsList}`,
-      recentEmojisText ? `Emoji recenti: ${recentEmojisText}` : '',
       'Scrivi una sola annotazione diretta con la tua voce attuale.',
       'Usa esattamente una emoji alla fine.',
-      'Se questo momento somiglia alle annotazioni recenti, cambia del tutto angolo e non ripetere la stessa prospettiva.',
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -197,13 +198,11 @@ export function buildUserPrompt(
 
   return [
     `刚刚发生：[${eventType}] ${eventSummary}`,
+    hourText ? `当前时间：${hourText}` : null,
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
-    `最近批注：${recentAnnotationsList}`,
-    recentEmojisText ? `最近 emoji：${recentEmojisText}` : '',
     '请用你当前的人设语气，写一句直接批注。',
     '句末必须只有一个 emoji。',
-    '如果这次内容和最近批注相似，必须换一个完全不同的切入角度，不要重复同一视角。',
   ]
     .filter(Boolean)
     .join('\n\n');
