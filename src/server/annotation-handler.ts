@@ -222,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 预处理事件数据（去除多余空白，避免 prompt 里混入奇怪换行）
-    const eventSummary = (eventData.summary || eventData.content || JSON.stringify(eventData).slice(0, 50))
+    const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
       .replace(/\s+/g, ' ')
       .trim();
 
