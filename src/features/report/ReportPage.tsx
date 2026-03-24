@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, isSameDay } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
@@ -11,7 +11,7 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
-import { DiaryBookViewer } from './DiaryBookViewer';
+import { DiaryBookShelf } from './DiaryBookShelf';
 import { getDailyMoodDistribution } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 
@@ -44,8 +44,11 @@ export const ReportPage = () => {
       (report) => report.type === 'daily' && isSameDay(new Date(report.date), value)
     );
 
-    const needRegenerate = !existingReport || !existingReport.stats?.moodDistribution;
+    // Today: calendar cannot view or generate — use "生成日记" button instead
+    if (isSameDay(value, today)) return;
 
+    // Historical dates: generate if missing, otherwise view
+    const needRegenerate = !existingReport || !existingReport.stats?.moodDistribution;
     if (needRegenerate) {
       const reportId = await generateReport('daily', value.getTime());
       setSelectedReportId(reportId);
@@ -70,6 +73,31 @@ export const ReportPage = () => {
       setSelectedReportId(reportId);
     }
   };
+
+  // Keep a ref so the midnight timer can read latest reports without re-scheduling
+  const reportsRef = useRef(reports);
+  reportsRef.current = reports;
+
+  // Auto-generate today's diary at midnight if the user hasn't done it manually
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+      timer = setTimeout(async () => {
+        const todayNow = new Date();
+        const existing = reportsRef.current.find(
+          r => r.type === 'daily' && isSameDay(new Date(r.date), todayNow)
+        );
+        if (!existing) {
+          await generateReport('daily', todayNow.getTime());
+        }
+        schedule(); // reschedule for next midnight
+      }, midnight.getTime() - now.getTime());
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, [generateReport]);
 
   const today = new Date();
   const currentLang = i18n.language?.split('-')[0] || 'en';
@@ -159,7 +187,7 @@ export const ReportPage = () => {
       />
 
       {showDiaryBook && (
-        <DiaryBookViewer
+        <DiaryBookShelf
           onClose={() => setShowDiaryBook(false)}
           reports={reports}
         />

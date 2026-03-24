@@ -5,22 +5,21 @@ import { X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 
 /* ────────────────────────── tuning constants ────────────────────────── */
-const PAGE_W = 180;
-const PAGE_H = 260;
+const BASE_PAGE_W = 180;
+const BASE_PAGE_H = 260;
 const FLIP_MS = 550;
 
 // Stacking
-const SIDE_GAP = 6;           // px gap between stacked page edges
+const BASE_SIDE_GAP = 6;      // px gap between stacked page edges
 const MAX_VIS = 4;            // max visible stacked pages per side
-const HEIGHT_SHRINK = 20;     // px — each stacked page shrinks in height (top & bottom each = HEIGHT_SHRINK/2)
-// Trapezoid inset equals one stacking step so spine-edge diagonal is uniform across all layers
-const TRAPEZOID_INSET = HEIGHT_SHRINK / 2;  // = 6px
+const BASE_HEIGHT_SHRINK = 20; // px — each stacked page shrinks in height (top & bottom each = HEIGHT_SHRINK/2)
 const PAPER_COLOR = '#faf7f2';
-const PAGE_SPINE_W = 4;
-const SPINE_OVERLAP = 2;
+const COVER_COLOR = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
+const SPINE_STRIP_W = 14; // px — decorative spine strip width inside the page
+const BASE_SHEET_SPINE_OVERLAP = 2;
 
 /* ──────────────────────────────── types ──────────────────────────────── */
-interface Props { onClose: () => void; reports: Report[]; }
+interface Props { onClose: () => void; reports: Report[]; initialMonth?: Date; }
 
 /* ──────────────────────────────── data ───────────────────────────────── */
 function buildPages(month: Date, reports: Report[]) {
@@ -44,14 +43,21 @@ function buildPages(month: Date, reports: Report[]) {
 function PageContent({ page }: { page: ReturnType<typeof buildPages>[number] }) {
   if (page.type === 'cover') {
     return (
-      <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #5c3a28 0%, #3b2014 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: '#d4b896' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: '#6b5a3e' }}>
+        {/* Spine strip on left edge — vertical stripes */}
+        <div style={{ position: 'absolute', left: 0, top: 0, width: SPINE_STRIP_W, height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
         <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 3 }}>日记本</div>
         <div style={{ fontSize: 11, opacity: 0.55, marginTop: 6 }}>Diary</div>
       </div>
     );
   }
   if (page.type === 'back') {
-    return <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #5c3a28 0%, #3b2014 100%)' }} />;
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR }}>
+        {/* Spine strip on right edge — vertical stripes */}
+        <div style={{ position: 'absolute', right: 0, top: 0, width: SPINE_STRIP_W, height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
+      </div>
+    );
   }
   if (page.type === 'blank') {
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
@@ -60,14 +66,26 @@ function PageContent({ page }: { page: ReturnType<typeof buildPages>[number] }) 
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
-export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
+export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth }) => {
   const today = new Date();
-  const [currentMonth] = useState(startOfMonth(today));
+  const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
   const [flippedCount, setFlippedCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [animatingSheet, setAnimatingSheet] = useState<number | null>(null);
+  const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === 'undefined' ? 390 : window.innerWidth,
+    height: typeof window === 'undefined' ? 844 : window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const pages = buildPages(currentMonth, reports);
   const numSheets = pages.length / 2;
@@ -76,38 +94,26 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
 
   const flipNext = useCallback(() => {
     if (isAnimating || flippedCount >= numSheets) return;
-    setAnimatingSheet(flippedCount);
+    setLastFlipDir('next');
     setIsAnimating(true);
     setFlippedCount(f => f + 1);
-    setTimeout(() => { setIsAnimating(false); setAnimatingSheet(null); }, FLIP_MS);
+    setTimeout(() => { setIsAnimating(false); }, FLIP_MS);
   }, [isAnimating, flippedCount, numSheets]);
 
   const flipPrev = useCallback(() => {
     if (isAnimating || flippedCount <= 0) return;
-    setAnimatingSheet(flippedCount - 1);
+    setLastFlipDir('prev');
     setIsAnimating(true);
     setFlippedCount(f => f - 1);
-    setTimeout(() => { setIsAnimating(false); setAnimatingSheet(null); }, FLIP_MS);
+    setTimeout(() => { setIsAnimating(false); }, FLIP_MS);
   }, [isAnimating, flippedCount]);
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
-  const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      dx < 0 ? flipNext() : flipPrev();
-    }
-  }, [flipNext, flipPrev]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const tag = target?.tagName ?? '';
-      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable;
-      if (isEditable) return;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) {
+        return;
+      }
       if (event.key === 'ArrowRight') {
         event.preventDefault();
         flipNext();
@@ -118,6 +124,17 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+  }, [flipNext, flipPrev]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const isHorizontalSwipe = Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (isHorizontalSwipe) { dx < 0 ? flipNext() : flipPrev(); }
   }, [flipNext, flipPrev]);
 
   const getIndicator = () => {
@@ -132,11 +149,28 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
   };
 
   /* total width of book wrapper = pages + side margins for stacking */
-  const sideMargin = MAX_VIS * SIDE_GAP;
-  const wrapW = PAGE_W * 2 + sideMargin * 2;
+  const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
+  const baseWrapW = BASE_PAGE_W * 2 + baseSideMargin * 2;
+  const availableW = Math.max(240, viewport.width - 24);
+  const availableH = Math.max(220, viewport.height - 220);
+  const scaleW = availableW / baseWrapW;
+  const scaleH = availableH / BASE_PAGE_H;
+  const scale = Math.min(1, Math.max(0.62, Math.min(scaleW, scaleH)));
+
+  const pageW = BASE_PAGE_W * scale;
+  const pageH = BASE_PAGE_H * scale;
+  const sideGap = BASE_SIDE_GAP * scale;
+  const heightShrink = BASE_HEIGHT_SHRINK * scale;
+  const trapezoidInset = heightShrink / 2;
+  const sheetSpineW = trapezoidInset + sideGap;
+  const sheetSpineOverlap = Math.max(1, BASE_SHEET_SPINE_OVERLAP * scale);
+
+  const sideMargin = MAX_VIS * sideGap;
+  const wrapW = pageW * 2 + sideMargin * 2;
+  const spineX = sideMargin + pageW;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', background: '#1c2b4a', userSelect: 'none', touchAction: 'pan-y' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', background: '#7a9b7e', userSelect: 'none', touchAction: 'pan-y' }}>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '40px 20px 12px' }}>
         <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
@@ -156,10 +190,51 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
         <div style={{
           position: 'relative',
           width: wrapW,
-          height: PAGE_H,
+          height: pageH,
           transformStyle: 'preserve-3d',
           transform: 'rotateX(0deg)',
         }}>
+          {/* ─── Fixed spine bars — fill the gap between pages during flips.
+               Direction-aware conditions prevent white strips against dark background:
+               • Right bar: during backward flip, only show when a right STACKED page exists
+                 (flippedCount < numSheets-1). During forward flip it's always covered by
+                 the new right current page so showing is harmless (flippedCount < numSheets).
+               • Left bar: during forward flip, only show when a left STACKED page exists
+                 (flippedCount > 1). During backward flip even flippedCount=1 is fine since
+                 the current left page covers the bar (flippedCount > 0). ─── */}
+          {(isBookOpen || isAnimating) && (
+            isAnimating && lastFlipDir === 'prev'
+              ? flippedCount < numSheets - 1   // backward: need a right stacked page
+              : flippedCount < numSheets        // forward/static: right current page covers it
+          ) && (
+            <div style={{
+              position: 'absolute',
+              left: spineX,
+              top: trapezoidInset,
+              width: sideGap + sheetSpineOverlap,
+              height: pageH - trapezoidInset * 2,
+              background: PAPER_COLOR,
+              transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`,
+              pointerEvents: 'none',
+            }} />
+          )}
+          {(isBookOpen || isAnimating) && (
+            isAnimating && lastFlipDir === 'next'
+              ? flippedCount > 1   // forward: need a left stacked page (hide during cover-open)
+              : flippedCount > 0   // backward/static: current left page covers it
+          ) && (
+            <div style={{
+              position: 'absolute',
+              left: spineX - sideGap - sheetSpineOverlap,
+              top: trapezoidInset,
+              width: sideGap + sheetSpineOverlap,
+              height: pageH - trapezoidInset * 2,
+              background: PAPER_COLOR,
+              transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`,
+              pointerEvents: 'none',
+            }} />
+          )}
+
           {/* ─── sheets ─── */}
           {Array.from({ length: numSheets }, (_, i) => {
             const isFlipped = i < flippedCount;
@@ -168,24 +243,30 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
 
             const isOnCover = flippedCount === 0;
             const isOnBackCover = flippedCount >= numSheets;
+            const isFullyClosedCover = isOnCover && !isAnimating;
+            const isFullyClosedBack = isOnBackCover && !isAnimating;
 
-            // On cover/back-cover: hide all stacked pages, only show the current one
-            if ((isOnCover || isOnBackCover) && dist > 0) return null;
+            // After the closing animation ends, switch to top-down single-page view.
+            if ((isFullyClosedCover || isFullyClosedBack) && dist > 0) return null;
+
+            // Only render sheets within MAX_VIS distance — cover/back-cover naturally
+            // become the outermost stacked page when within range, hidden otherwise.
+            if (dist > MAX_VIS) return null;
 
             /* ── Z stacking: front page highest Z ── */
-            const stackZ = (MAX_VIS - vis) * 4;
+            const stackZ = (MAX_VIS - vis) * 4 * scale;
 
             /* ── rotation: all pages lay flat; animation handled by CSS transition ── */
             const rotY = isFlipped ? -180 : 0;
 
             /* ── horizontal offset: stacked pages peek out on sides ── */
-            const offset = dist === 0 ? 0 : vis * SIDE_GAP;
+            const offset = dist === 0 ? 0 : vis * sideGap;
             const shiftX = isFlipped ? -offset : offset;
 
             /* spine = center of wrapper.
-               On cover/back-cover, shift to center the single page. */
-            const spineX = sideMargin + PAGE_W;
-            const centerShift = isOnCover ? -PAGE_W / 2 : isOnBackCover ? PAGE_W / 2 : 0;
+               On cover/back-cover, shift to center the single page.
+               Use `left` (not translateX) so the centering snap is instant — no transition. */
+            const coverShiftLeft = isFullyClosedCover ? -pageW / 2 : isFullyClosedBack ? pageW / 2 : 0;
 
             /* ── sizing:
                Current page (dist=0): full height, no topOffset, trapezoid clip.
@@ -193,12 +274,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
                the trapezoid's spine-side cut; height shrinks with each layer. ── */
             const isCurrent = dist === 0;
             // Both top and bottom shrink symmetrically per layer
-            const layerShrink = isCurrent ? 0 : (dist - 1) * HEIGHT_SHRINK;
-            const pageH = isCurrent
-              ? PAGE_H
-              : PAGE_H - 2 * TRAPEZOID_INSET - layerShrink;
+            const layerShrink = isCurrent ? 0 : (dist - 1) * heightShrink;
+            const sheetH = isCurrent
+              ? pageH
+              : pageH - 2 * trapezoidInset - layerShrink;
             // Top steps down by half the shrink each layer (bottom steps up by the other half)
-            const topOffset = isCurrent ? 0 : TRAPEZOID_INSET + layerShrink / 2;
+            const topOffset = isCurrent ? 0 : trapezoidInset + layerShrink / 2;
 
             /* Cover face (front of sheet 0) and back-cover face (back of last sheet) get no trapezoid.
                Their opposite faces (cover's back = first day page, back-cover's front = last day page)
@@ -208,37 +289,25 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
             /* Front face: spine is local-left(0%) → make it shorter
                Back face: mirrored polygon so spine appears shorter after double-flip */
             const frontClip = (isCurrent && !isCoverFront)
-              ? `polygon(0 ${TRAPEZOID_INSET}px, 100% 0, 100% 100%, 0 calc(100% - ${TRAPEZOID_INSET}px))`
+              ? `polygon(0 ${trapezoidInset}px, 100% 0, 100% 100%, 0 calc(100% - ${trapezoidInset}px))`
               : undefined;
             const backClip = (isCurrent && !isBackCoverBack)
-              ? `polygon(0 0, 100% ${TRAPEZOID_INSET}px, 100% calc(100% - ${TRAPEZOID_INSET}px), 0 100%)`
+              ? `polygon(0 0, 100% ${trapezoidInset}px, 100% calc(100% - ${trapezoidInset}px), 0 100%)`
               : undefined;
 
             return (
               <div key={i} style={{
                 position: 'absolute',
-                left: spineX,
+                left: spineX + coverShiftLeft,
                 top: topOffset,
-                width: PAGE_W,
-                height: pageH,
+                width: pageW,
+                height: sheetH,
                 transformOrigin: 'left center',
-                transform: `translateZ(${stackZ}px) translateX(${shiftX + centerShift}px) rotateY(${rotY}deg)`,
+                transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${rotY}deg)`,
                 transition: `transform ${FLIP_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
                 transformStyle: 'preserve-3d',
                 pointerEvents: 'none',
               }}>
-                {/* Bound paper-color spine patch: attached to sheet container, rotates with page */}
-                <div style={{
-                  position: 'absolute',
-                  left: -SPINE_OVERLAP,
-                  top: TRAPEZOID_INSET,
-                  width: PAGE_SPINE_W + SPINE_OVERLAP,
-                  height: `calc(100% - ${TRAPEZOID_INSET * 2}px)`,
-                  background: PAPER_COLOR,
-                  borderRadius: PAGE_SPINE_W,
-                  transform: 'translateZ(0.5px)',
-                  pointerEvents: 'none',
-                }} />
                 {/* front face — shadow only on outer (right) side */}
                 <div style={{
                   position: 'absolute', inset: 0,
@@ -269,15 +338,15 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports }) => {
           {/* click zones — fully cover left & right halves */}
           <div onClick={flipPrev} style={{
             position: 'absolute', left: 0, top: 0,
-            width: sideMargin + PAGE_W, height: PAGE_H,
+            width: sideMargin + pageW, height: pageH,
             cursor: flippedCount > 0 ? 'pointer' : 'default',
-            transform: `translateZ(${(MAX_VIS + 3) * 18}px)`,
+            transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`,
           }} />
           <div onClick={flipNext} style={{
-            position: 'absolute', left: sideMargin + PAGE_W, top: 0,
-            width: sideMargin + PAGE_W, height: PAGE_H,
+            position: 'absolute', left: sideMargin + pageW, top: 0,
+            width: sideMargin + pageW, height: pageH,
             cursor: flippedCount < numSheets ? 'pointer' : 'default',
-            transform: `translateZ(${(MAX_VIS + 3) * 18}px)`,
+            transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`,
           }} />
         </div>
       </div>
