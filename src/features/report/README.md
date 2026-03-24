@@ -16,8 +16,11 @@
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
   - No-record fallback hint for empty-day generate attempts
   - Daily/weekly/monthly report generation
-  - Report detail modal and task list modal
-  - Timeshine diary generation and display
+  - Report detail modal (`ReportDetailModal`) and task list modal (`TaskListModal`)
+  - Report stats view (`ReportStatsView`): todo breakdown, habit/goal/recurring/one-time stats display
+  - Activity records view (`ActivityRecordsView`): activity timeline with durations
+  - Mood pie chart (`MoodPieChart`): mood distribution visualization
+  - Timeshine diary generation and display (`DiaryBookShelf` + `DiaryBookViewer`)
 
 ## Upstream Dependencies
 
@@ -49,14 +52,14 @@ Template todos (`isTemplate: true`) are excluded from all counts.
 
 Weekly/monthly reports continue to use `recurringStats` (habit rate over the period) and `dailyCompletion` (day-by-day trend bar chart).
 
-The same breakdown is serialised into plain text and passed to the Timeshine diary AI via `buildRawInput` in `reportActions.ts`.
+The same breakdown is serialised into plain text and passed to the Timeshine diary AI via internal helper `buildRawInput()` in `reportActions.ts` (not exported).
 
 ## Downstream Impact
 
 - Report schema changes affect persisted report rows and report detail UI
 - Summary/mood/action computation changes impact diary generation and user insights
 - Date-range semantics affect cross-day auto-generation behavior from `src/App.tsx`
-- Plant section changes affect `daily_plant_records` rendering、plant-history 读取与 `/profile` 方向设置预期
+- Plant section changes affect `daily_plant_records` rendering, plant-history reads, and `/profile` orientation settings
 
 ## Related Docs
 

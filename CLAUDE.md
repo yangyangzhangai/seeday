@@ -2,7 +2,7 @@
 
 这是 Tshine 仓库的 AI/LLM 唯一入口文档。**每次新会话开始时，必须先读完本文件，再做任何其他事情。**
 
-> 本文件同时维护了一份 `CLAUDE.md`（Claude Code 专用副本，内容与本文件保持同步）。
+> 本文件是 `LLM.md` 的 Claude Code 专用副本，由 Claude Code 在启动时自动加载。内容与 `LLM.md` 保持同步，**以 `LLM.md` 为主版本**，修改时两份同步更新。
 
 ---
 
@@ -18,7 +18,7 @@
 
 依次读取以下 4 个文件，建立全局上下文：
 
-1. **本文件 `LLM.md`**：权威顺序、硬性约束、禁止事项（正在读）
+1. **本文件 `CLAUDE.md`**：权威顺序、硬性约束、禁止事项（正在读）
 2. **`docs/CURRENT_TASK.md`**：当前任务焦点与断点恢复锚点
 3. **`docs/PROJECT_MAP.md`**：目录结构、边界、核心路径
 4. **`docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范（技术栈、分层架构、移动端 UI、App Store 审核规避）
@@ -50,7 +50,7 @@
 
 如果两份文档存在冲突，以下顺序靠前的为准：
 
-1. `LLM.md`（本文件）
+1. `LLM.md` / `CLAUDE.md`（本文件）
 2. `docs/CURRENT_TASK.md`
 3. `docs/PROJECT_MAP.md`
 4. 各模块 `README.md` / `DOC-DEPS:` 头声明
@@ -157,4 +157,3 @@ npm run build                   # 构建验证（关键改动后执行）
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（AI 提取 + 前端校验 + draft review） |
 | `docs/ACTIVITY_LEXICON.md` | 活动/心情多语言词库（Lexicon SSOT） |
 | `CONTRIBUTING.md` | 贡献规范、包管理、回滚约定 |
-

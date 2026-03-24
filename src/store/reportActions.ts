@@ -6,6 +6,7 @@ import { callClassifierAPI, callDiaryAPI, callReportAPI } from '../api/client';
 import { computeAll, formatForDiaryAI, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
+import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 import i18n from '../i18n';
 import { useAuthStore } from './useAuthStore';
 import {
@@ -232,7 +233,7 @@ export async function runTimeshineDiary({
 
   const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
   const isZh = currentLang === 'zh';
-  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, dailyTodoStats, isZh);
+  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh);
 
   console.log('[Timeshine] Step 1: 调用分类器...');
   const classifyResult = await callClassifierAPI({ rawInput, lang: currentLang });
@@ -281,10 +282,25 @@ export async function runTimeshineDiary({
   };
 }
 
+type MoodSnapshot = Pick<MoodStoreSnapshot, 'activityMood' | 'customMoodLabel' | 'customMoodApplied'>;
+
+function resolveMoodLabel(messageId: string, snapshot: MoodSnapshot, isZh: boolean): string | undefined {
+  const custom = snapshot.customMoodLabel[messageId];
+  const useCustom = snapshot.customMoodApplied?.[messageId] === true;
+  if (useCustom && custom && custom.trim() && custom.trim() !== '自定义') return custom.trim();
+
+  const base = snapshot.activityMood[messageId];
+  if (!base) return undefined;
+  const key = normalizeMoodKey(base);
+  if (key) return isZh ? moodKeyToLegacyLabel(key) : key;
+  return base;
+}
+
 function buildRawInput(
   activities: Message[],
   moodMessages: Message[],
   moodNotes: Record<string, string>,
+  moodSnapshot: MoodSnapshot,
   todoStats: DailyTodoStats,
   isZh: boolean
 ): string {
@@ -294,9 +310,11 @@ function buildRawInput(
   activities.forEach((message) => {
     const timeStr = format(message.timestamp, 'HH:mm');
     const durationStr = message.duration ? (isZh ? ` (${message.duration}分钟)` : ` (${message.duration}min)`) : '';
-    lines.push(`- ${timeStr} ${message.content}${durationStr}`);
+    const moodLabel = resolveMoodLabel(message.id, moodSnapshot, isZh);
+    const moodSuffix = moodLabel ? (isZh ? ` [心情：${moodLabel}]` : ` [mood: ${moodLabel}]`) : '';
+    lines.push(`- ${timeStr} ${message.content}${durationStr}${moodSuffix}`);
     const note = moodNotes[message.id];
-    if (note && note.trim()) lines.push(`  心情记录：${note.trim()}`);
+    if (note && note.trim()) lines.push(`  心情备注：${note.trim()}`);
   });
 
   if (moodMessages.length > 0) {

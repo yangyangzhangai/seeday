@@ -83,4 +83,4 @@
 - `src/store/useChatStore.ts`: State entry + persist config + orchestration layer. Uses `...createChatTimelineActions(set, get)` to compose timeline actions. Does not contain business logic directly.
 - `src/store/chatHelpers.ts`: Date helpers and DB row mappers (`getLocalDateString`, `mapDbRowToMessage`).
 
-`src/store/useChatStore.ts` line count: 830 → 716 (as of 2026-03-21).
+`src/store/useChatStore.ts` line count: 830 → 721 (as of 2026-03-24).

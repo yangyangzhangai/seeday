@@ -178,7 +178,7 @@ export function buildUserPrompt(
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
       `Just happened: [${eventType}] ${eventSummary}`,
-      'Write one direct annotation in your current voice.',
+      'Please write one annotation about the activity or mood that just happened, in your current voice.',
       'Use exactly one emoji at the end.',
     ]
       .filter(Boolean)
@@ -191,7 +191,7 @@ export function buildUserPrompt(
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
       `Appena successo: [${eventType}] ${eventSummary}`,
-      'Scrivi una sola annotazione diretta con la tua voce attuale.',
+      "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
       'Usa esattamente una emoji alla fine.',
     ]
       .filter(Boolean)
@@ -203,7 +203,7 @@ export function buildUserPrompt(
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
     `刚刚发生：[${eventType}] ${eventSummary}`,
-    '请用你当前的人设语气，写一句直接批注。',
+    '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',
     '句末必须只有一个 emoji。',
   ]
     .filter(Boolean)
