@@ -8,6 +8,31 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-24 - Daily Report Todo Breakdown Refactor
+
+### Changed
+
+- Removed four-quadrant priority stats from daily reports (`priorityStats` field and UI section deleted):
+  - `src/store/useReportStore.ts` — removed `priorityStats` from `ReportStats` type
+  - `src/store/reportActions.ts` — removed dead `priorityStats` computation (was always zero since priority migrated to `high/medium/low`)
+  - `src/features/report/ReportStatsView.tsx` — removed quadrant distribution render block
+
+- Fixed template todos being incorrectly counted in report stats:
+  - `src/store/reportHelpers.ts` — `filterRelevantTodos` now skips `isTemplate: true` entries
+
+- Added structured daily todo breakdown, splitting todos into four groups based on bottle linkage and recurrence:
+  - `src/store/reportHelpers.ts` — added `computeDailyTodoStats`, `HabitCheckinItem`, `GoalProgressItem`, `DailyTodoStats`
+  - `src/store/useReportStore.ts` — added `habitCheckin`, `goalProgress`, `independentRecurring`, `oneTimeTasks` to `ReportStats`; imported `useGrowthStore` in `generateReport` and `generateTimeshineDiary`
+  - `src/store/reportActions.ts` — `createGeneratedReport` now accepts `bottles: BottleSnapshot[]` and calls `computeDailyTodoStats` for daily reports; `runTimeshineDiary` accepts `bottles` and computes breakdown for AI input; `buildRawInput` rewritten to include habit check-in, goal progress, completed task titles
+  - `src/features/report/ReportStatsView.tsx` — daily UI now shows: habit checkin list, goal progress with star bar, independent recurring count bar, one-time task priority breakdown with completed-title chips
+
+- Updated docs:
+  - `src/features/report/README.md` — added `useGrowthStore` to Upstream Dependencies; documented `ReportStats` daily fields
+
+### Validation
+
+- `npx tsc --noEmit`: 0 errors
+
 ## 2026-03-22 - Plant Phase 4 Generate Window And Irreversible Confirmation
 
 ### Changed

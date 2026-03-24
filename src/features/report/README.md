@@ -24,6 +24,7 @@
 - Stores:
   - `src/store/useReportStore.ts`
   - `src/store/useTodoStore.ts`
+  - `src/store/useGrowthStore.ts` ← bottles data for daily todo breakdown
   - `src/store/useChatStore.ts`
   - `src/store/useMoodStore.ts`
   - `src/store/usePlantStore.ts`
@@ -34,6 +35,21 @@
 - Plant UI:
   - `src/features/report/plant/*`
 - API client: `src/api/client.ts`
+
+## ReportStats Daily Fields
+
+Daily reports (`type === 'daily'`) compute a structured todo breakdown via `computeDailyTodoStats` in `reportHelpers.ts`. Todos are split by whether they are linked to a bottle:
+
+- `habitCheckin` — todos linked to a `habit` bottle; one row per todo with done/not-done state
+- `goalProgress` — todos linked to a `goal` bottle; grouped by bottle, shows `currentStars/21` progress bar
+- `independentRecurring` — recurring todos with no bottle link; shown as a single completed/total count
+- `oneTimeTasks` — one-time todos with no bottle link; broken down by priority (`high/medium/low`) with completed-title chips
+
+Template todos (`isTemplate: true`) are excluded from all counts.
+
+Weekly/monthly reports continue to use `recurringStats` (habit rate over the period) and `dailyCompletion` (day-by-day trend bar chart).
+
+The same breakdown is serialised into plain text and passed to the Timeshine diary AI via `buildRawInput` in `reportActions.ts`.
 
 ## Downstream Impact
 

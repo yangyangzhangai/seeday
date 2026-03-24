@@ -9,6 +9,7 @@ import i18n from '../i18n';
 import { useTodoStore } from './useTodoStore';
 import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
+import { useGrowthStore } from './useGrowthStore';
 import { type ComputedResult } from '../lib/reportCalculator';
 import {
   createGeneratedReport,
@@ -40,17 +41,32 @@ export interface ReportStats {
     total?: number; // For weekly/monthly
     rate?: number;
   }[];
-  priorityStats?: {
-    priority: string;
-    count: number;
-    completed: number;
-  }[];
   dailyCompletion?: {
     date: string;
     completed: number;
     total: number;
     rate: number;
   }[];
+  // Daily-only: new todo breakdown
+  habitCheckin?: {
+    bottleId: string;
+    name: string;
+    done: boolean;
+    recurrence: string;
+  }[];
+  goalProgress?: {
+    bottleId: string;
+    bottleName: string;
+    doneToday: boolean;
+    currentStars: number;
+  }[];
+  independentRecurring?: { completed: number; total: number };
+  oneTimeTasks?: {
+    high: { completed: number; total: number };
+    medium: { completed: number; total: number };
+    low: { completed: number; total: number };
+    completedTitles: string[];
+  };
 }
 
 export interface Report {
@@ -136,6 +152,7 @@ export const useReportStore = create<ReportState>()(
         const todoStore = useTodoStore.getState();
         const chatStore = useChatStore.getState();
         const moodStore = useMoodStore.getState();
+        const growthStore = useGrowthStore.getState();
         const existingReport = get().reports.find((report) => report.type === type && isSameDay(report.date, date));
 
         const generatedReport = createGeneratedReport({
@@ -145,6 +162,7 @@ export const useReportStore = create<ReportState>()(
           todos: todoStore.todos,
           messages: chatStore.messages,
           moodStore,
+          bottles: growthStore.bottles,
         });
         const newReport = existingReport
           ? { ...generatedReport, id: existingReport.id }
@@ -193,6 +211,7 @@ export const useReportStore = create<ReportState>()(
         const chatStore = useChatStore.getState();
         const todoStore = useTodoStore.getState();
         const moodStore = useMoodStore.getState();
+        const growthStore = useGrowthStore.getState();
 
         get().updateReport(reportId, { analysisStatus: 'generating', errorMessage: null });
 
@@ -203,6 +222,7 @@ export const useReportStore = create<ReportState>()(
             messages: chatStore.messages,
             moodStore,
             computedHistory: state.computedHistory,
+            bottles: growthStore.bottles,
           });
 
           set((current) => ({

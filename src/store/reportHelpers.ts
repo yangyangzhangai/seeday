@@ -98,6 +98,7 @@ export function filterActivities(
 
 export function filterRelevantTodos(todos: Todo[], start: Date, end: Date, type: ReportType): Todo[] {
   return todos.filter((t) => {
+    if (t.isTemplate) return false;
     const due = t.dueAt ?? t.createdAt;
     const inDateRange = due >= start.getTime() && due <= end.getTime();
     if (!inDateRange) return false;
@@ -188,6 +189,86 @@ export function generateActionSummary(
 
   parts.push('继续保持这份诚实与投入，明天也会更好。');
   return clampText50(parts.join(''));
+}
+
+// ── Daily todo stats ─────────────────────────────────────────
+
+interface BottleInfo {
+  id: string;
+  name: string;
+  type: 'habit' | 'goal';
+  stars: number;
+}
+
+export interface HabitCheckinItem {
+  bottleId: string;
+  name: string;
+  done: boolean;
+  recurrence: string;
+}
+
+export interface GoalProgressItem {
+  bottleId: string;
+  bottleName: string;
+  doneToday: boolean;
+  currentStars: number;
+}
+
+export interface DailyTodoStats {
+  habitCheckin: HabitCheckinItem[];
+  goalProgress: GoalProgressItem[];
+  independentRecurring: { completed: number; total: number };
+  oneTimeTasks: {
+    high: { completed: number; total: number };
+    medium: { completed: number; total: number };
+    low: { completed: number; total: number };
+    completedTitles: string[];
+  };
+}
+
+function normalizePriorityForReport(p: string): 'high' | 'medium' | 'low' {
+  if (p === 'high' || p === 'urgent-important') return 'high';
+  if (p === 'medium' || p === 'urgent-not-important' || p === 'important-not-urgent') return 'medium';
+  return 'low';
+}
+
+export function computeDailyTodoStats(todos: Todo[], bottles: BottleInfo[], start: Date, end: Date): DailyTodoStats {
+  const relevant = filterRelevantTodos(todos, start, end, 'daily');
+  const bottleMap = new Map(bottles.map((b) => [b.id, b]));
+
+  const bottled = relevant.filter((t) => t.bottleId && bottleMap.has(t.bottleId));
+  const independent = relevant.filter((t) => !t.bottleId || !bottleMap.has(t.bottleId));
+
+  const habitCheckin: HabitCheckinItem[] = bottled
+    .filter((t) => bottleMap.get(t.bottleId!)?.type === 'habit')
+    .map((t) => ({ bottleId: t.bottleId!, name: t.title, done: t.completed, recurrence: t.recurrence || 'once' }));
+
+  const goalByBottle = new Map<string, boolean>();
+  bottled
+    .filter((t) => bottleMap.get(t.bottleId!)?.type === 'goal')
+    .forEach((t) => {
+      if (!goalByBottle.has(t.bottleId!)) goalByBottle.set(t.bottleId!, false);
+      if (t.completed) goalByBottle.set(t.bottleId!, true);
+    });
+  const goalProgress: GoalProgressItem[] = Array.from(goalByBottle.entries()).map(([id, doneToday]) => {
+    const b = bottleMap.get(id)!;
+    return { bottleId: id, bottleName: b.name, doneToday, currentStars: b.stars };
+  });
+
+  const recurring = independent.filter((t) => t.recurrence && t.recurrence !== 'none' && t.recurrence !== 'once');
+  const independentRecurring = { completed: recurring.filter((t) => t.completed).length, total: recurring.length };
+
+  const onetime = independent.filter((t) => !t.recurrence || t.recurrence === 'none' || t.recurrence === 'once');
+  const byP = (p: 'high' | 'medium' | 'low') => onetime.filter((t) => normalizePriorityForReport(t.priority) === p);
+  const high = byP('high'), medium = byP('medium'), low = byP('low');
+  const oneTimeTasks = {
+    high: { completed: high.filter((t) => t.completed).length, total: high.length },
+    medium: { completed: medium.filter((t) => t.completed).length, total: medium.length },
+    low: { completed: low.filter((t) => t.completed).length, total: low.length },
+    completedTitles: onetime.filter((t) => t.completed).map((t) => t.title).slice(0, 10),
+  };
+
+  return { habitCheckin, goalProgress, independentRecurring, oneTimeTasks };
 }
 
 export function generateMoodSummary(moodDistribution: { mood: string; minutes: number }[]): string {
