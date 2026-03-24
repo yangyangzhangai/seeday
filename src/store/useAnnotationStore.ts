@@ -208,6 +208,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayActivities: activities.length,
               todayDuration: totalDuration,
               currentHour: new Date().getHours(),
+              currentMinute: new Date().getMinutes(),
               recentMoodMessages,
               todayActivitiesList,
             },

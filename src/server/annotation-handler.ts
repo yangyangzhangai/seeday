@@ -244,13 +244,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 构建提示词
     const currentHour = userContext?.currentHour;
+    const currentMinute = userContext?.currentMinute;
     const userPrompt = buildUserPrompt(
       resolvedLang,
       eventType,
       eventSummary,
       todayActivitiesText,
       recentMoodText,
-      currentHour
+      currentHour,
+      currentMinute
     );
     console.log('[Annotation API] User Prompt:', userPrompt);
     const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);

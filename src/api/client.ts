@@ -191,6 +191,7 @@ interface AnnotationRequest {
     todayActivities?: number;
     todayDuration?: number;
     currentHour?: number;
+    currentMinute?: number;
     recentAnnotations?: string[];
     recentMoodMessages?: string[]; // 连续心情原文（最多3条）
     todayActivitiesList?: any[];

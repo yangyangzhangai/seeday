@@ -163,11 +163,13 @@ export function buildUserPrompt(
   todayActivitiesText: string,
   recentMoodText: string,
   currentHour?: number,
+  currentMinute?: number,
 ): string {
   const hourText = currentHour !== undefined ? (() => {
-    if (lang === 'en') return `${currentHour}:00`;
-    if (lang === 'it') return `${currentHour}:00`;
-    return `${currentHour}点`;
+    const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
+    const hour12 = currentHour % 12 || 12;
+    const ampm = currentHour < 12 ? 'AM' : 'PM';
+    return `${hour12}:${minuteStr} ${ampm}`;
   })() : null;
 
   if (lang === 'en') {
