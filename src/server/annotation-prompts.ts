@@ -174,10 +174,10 @@ export function buildUserPrompt(
 
   if (lang === 'en') {
     return [
-      `Just happened: [${eventType}] ${eventSummary}`,
       hourText ? `Current time: ${hourText}` : null,
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
+      `Just happened: [${eventType}] ${eventSummary}`,
       'Write one direct annotation in your current voice.',
       'Use exactly one emoji at the end.',
     ]
@@ -187,10 +187,10 @@ export function buildUserPrompt(
 
   if (lang === 'it') {
     return [
-      `Appena successo: [${eventType}] ${eventSummary}`,
       hourText ? `Ora corrente: ${hourText}` : null,
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
+      `Appena successo: [${eventType}] ${eventSummary}`,
       'Scrivi una sola annotazione diretta con la tua voce attuale.',
       'Usa esattamente una emoji alla fine.',
     ]
@@ -199,10 +199,10 @@ export function buildUserPrompt(
   }
 
   return [
-    `刚刚发生：[${eventType}] ${eventSummary}`,
     hourText ? `当前时间：${hourText}` : null,
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
+    `刚刚发生：[${eventType}] ${eventSummary}`,
     '请用你当前的人设语气，写一句直接批注。',
     '句末必须只有一个 emoji。',
   ]
