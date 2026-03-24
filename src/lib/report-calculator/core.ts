@@ -143,7 +143,11 @@ export function computeLightQuality(
   };
 }
 
-export function detectGravityMismatch(items: ClassifiedItem[], energyLog: EnergyLog[]): string | null {
+export function detectGravityMismatch(
+  items: ClassifiedItem[],
+  energyLog: EnergyLog[],
+  lang: 'zh' | 'en' | 'it' = 'zh',
+): string | null {
   if (!energyLog || energyLog.length === 0) return null;
 
   const lowSlots = new Set(
@@ -158,20 +162,18 @@ export function detectGravityMismatch(items: ClassifiedItem[], energyLog: Energy
 
   if (mismatch.length === 0) return null;
 
-  const names = mismatch
-    .slice(0, 2)
-    .map((i) => i.name)
-    .join('、');
-  const slotLabels: Record<string, string> = {
-    morning: '上午',
-    afternoon: '下午',
-    evening: '晚间',
-  };
-  const slots = Array.from(lowSlots)
-    .map((s) => slotLabels[s as string] || s)
-    .join('、');
+  const isZh = lang === 'zh';
+  const nameSep = isZh ? '、' : ', ';
+  const names = mismatch.slice(0, 2).map((i) => i.name).join(nameSep);
+  const slotLabels: Record<string, string> = isZh
+    ? { morning: '上午', afternoon: '下午', evening: '晚间' }
+    : { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
+  const slotSep = isZh ? '、' : ', ';
+  const slots = Array.from(lowSlots).map((s) => slotLabels[s as string] || s).join(slotSep);
 
-  return `${names} 出现在能量低谷时段（${slots}）`;
+  return isZh
+    ? `${names} 出现在能量低谷时段（${slots}）`
+    : `${names} occurred during low-energy period (${slots})`;
 }
 
 export function computeHistoryTrend(today: ComputedResult, history: ComputedResult[]): TrendSignal[] {
@@ -219,12 +221,39 @@ export function computeHistoryTrend(today: ComputedResult, history: ComputedResu
     });
   }
 
+  // 能量水平趋势（来自 energy_log 的结构化能量评估）
+  if (history.length >= 2) {
+    const energyScore = (log: EnergyLog[]) => {
+      if (!log || log.length === 0) return null;
+      const map: Record<string, number> = { high: 3, medium: 2, low: 1 };
+      const scores = log.map((e) => map[e.energy_level ?? ''] ?? 2);
+      return scores.reduce((a, b) => a + b, 0) / scores.length;
+    };
+    const todayScore = energyScore(today.energy_log);
+    if (todayScore !== null) {
+      const histScores = history.slice(-7).map((d) => energyScore(d.energy_log)).filter((s): s is number => s !== null);
+      if (histScores.length > 0) {
+        const histAvg = histScores.reduce((a, b) => a + b, 0) / histScores.length;
+        const label = (s: number) => s >= 2.5 ? 'High' : s >= 1.5 ? 'Medium' : 'Low';
+        signals.push({
+          metric: '能量水平',
+          today: label(todayScore),
+          hist_avg: label(histAvg),
+          direction: todayScore > histAvg + 0.3 ? '↑' : todayScore < histAvg - 0.3 ? '↓' : '→',
+          is_positive: todayScore > histAvg + 0.3,
+          is_warning: todayScore < histAvg - 0.3,
+        });
+      }
+    }
+  }
+
   return signals;
 }
 
 export function computeAll(
   classifiedJson: ClassifiedData,
-  history: ComputedResult[] | null = null
+  history: ComputedResult[] | null = null,
+  lang: 'zh' | 'en' | 'it' = 'zh',
 ): ComputedResult {
   const items = classifiedJson.items || [];
   const totalMin = classifiedJson.total_duration_min || 0;
@@ -233,7 +262,7 @@ export function computeAll(
 
   const spectrum = computeSpectrum(items, totalMin);
   const lightQuality = computeLightQuality(spectrum, totalMin, todos.completed || 0, todos.total || 0);
-  const gravityMismatch = detectGravityMismatch(items, energyLog);
+  const gravityMismatch = detectGravityMismatch(items, energyLog, lang);
 
   const today: ComputedResult = {
     total_duration_str: minutesToDisplay(totalMin),

@@ -5,6 +5,11 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
   const isZh = lang === 'zh';
   const lines: string[] = [isZh ? '【今日结构化数据】' : "【Today's Structured Data】", ''];
 
+  if (result.total_duration_str) {
+    lines.push(isZh ? `今日记录总时长：${result.total_duration_str}` : `Total Recorded Duration: ${result.total_duration_str}`);
+    lines.push('');
+  }
+
   const slotLabel: Record<string, string> = isZh
     ? {
         morning: '上午',
@@ -78,7 +83,10 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
   lines.push(isZh ? '▸ 光质读数' : '▸ Light Quality');
   lines.push(isZh ? `  专注聚光 vs 碎片散光  ${lq.focus_pct}  /  ${lq.scatter_pct}` : `  Focus vs Scatter  ${lq.focus_pct}  /  ${lq.scatter_pct}`);
   lines.push(isZh ? `  主动燃烧 vs 被动响应  ${lq.active_pct}  /  ${lq.passive_pct}` : `  Active vs Passive  ${lq.active_pct}  /  ${lq.passive_pct}`);
-  lines.push(isZh ? `  待办着陆率            ${lq.todo_str}` : `  Todo Completion   ${lq.todo_str}`);
+  const todoCompletionStr = lq.todo_total > 0
+    ? (isZh ? `${lq.todo_completed}/${lq.todo_total} 项完成` : `${lq.todo_completed}/${lq.todo_total} done`)
+    : (isZh ? '无待办' : 'no todos');
+  lines.push(isZh ? `  待办着陆率            ${todoCompletionStr}` : `  Todo Completion   ${todoCompletionStr}`);
   lines.push('');
 
   if (result.energy_log && result.energy_log.length > 0) {
@@ -119,6 +127,11 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
 
   if (result.history_trends && result.history_trends.length > 0) {
     lines.push(isZh ? '▸ 历史观测趋势' : '▸ Historical Trends');
+    const METRIC_EN: Record<string, string> = {
+      '待办着陆率': 'Todo Rate',
+      '深度专注时长': 'Focus Duration',
+      '能量水平': 'Energy Level',
+    };
     for (const t of result.history_trends) {
       let tag = '';
       if (t.is_positive) {
@@ -126,11 +139,11 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
       } else if (t.is_warning) {
         tag = isZh ? '  ⚠ 状态预警' : '  ⚠ Warning';
       }
-
+      const metricLabel = isZh ? t.metric : (METRIC_EN[t.metric] ?? t.metric);
       lines.push(
         isZh
-          ? `  ${t.metric.padEnd(10)}  ${t.direction}  今日 ${t.today}  均值 ${t.hist_avg}${tag}`
-          : `  ${t.metric.padEnd(10)}  ${t.direction}  Today ${t.today}  Avg ${t.hist_avg}${tag}`
+          ? `  ${metricLabel.padEnd(10)}  ${t.direction}  今日 ${t.today}  均值 ${t.hist_avg}${tag}`
+          : `  ${metricLabel.padEnd(14)}  ${t.direction}  Today ${t.today}  Avg ${t.hist_avg}${tag}`
       );
     }
     lines.push('');

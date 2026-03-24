@@ -4,6 +4,8 @@ export interface ClassifiedItem {
   time_slot: 'morning' | 'afternoon' | 'evening' | null;
   category: string;
   flag: 'ambiguous' | null;
+  matched_bottle?: { type: 'habit' | 'goal'; id: string; stars: number } | null;
+  matched_by?: 'ai' | 'keyword';
 }
 
 export interface EnergyLog {

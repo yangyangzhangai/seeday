@@ -365,7 +365,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let userContent = structuredData;
 
   if (rawInput) {
-    userContent += '\n\n【用户原始记录片段】\n' + rawInput.slice(0, 500); // 限制长度
+    userContent += '\n\n【用户原始记录片段】\n' + rawInput.slice(0, 800); // 包含活动心情标签
   }
 
   if (date) {

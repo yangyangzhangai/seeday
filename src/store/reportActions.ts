@@ -197,6 +197,8 @@ interface RunTimeshineDiaryInput {
   moodStore: MoodStoreSnapshot;
   computedHistory: ComputedResult[];
   bottles: BottleSnapshot[];
+  dailyGoal?: string;
+  goalDate?: string;
 }
 
 export async function runTimeshineDiary({
@@ -206,6 +208,8 @@ export async function runTimeshineDiary({
   moodStore,
   computedHistory,
   bottles,
+  dailyGoal,
+  goalDate,
 }: RunTimeshineDiaryInput): Promise<TimeshineResult> {
   const range = getDateRange(report.type, report.date, report.endDate);
   const start = report.startDate ? new Date(report.startDate) : range.start;
@@ -233,7 +237,9 @@ export async function runTimeshineDiary({
 
   const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
   const isZh = currentLang === 'zh';
-  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh);
+  const reportDateStr = format(start, 'yyyy-MM-dd');
+  const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
+  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);
 
   console.log('[Timeshine] Step 1: 调用分类器...');
   const classifyResult = await callClassifierAPI({ rawInput, lang: currentLang });
@@ -242,7 +248,7 @@ export async function runTimeshineDiary({
   }
 
   console.log('[Timeshine] Step 2: 计算层处理...');
-  const computed = computeAll(classifyResult.data, computedHistory);
+  const computed = computeAll(classifyResult.data, computedHistory, currentLang);
   computed.mood_records = moodRecords;
   const structuredData = formatForDiaryAI(computed, currentLang);
 
@@ -265,7 +271,7 @@ export async function runTimeshineDiary({
 
   const diaryResult = await callDiaryAPI({
     structuredData: structuredDataWithMeta,
-    rawInput: rawInput.slice(0, 500),
+    rawInput: rawInput.slice(0, 800),
     date: dateStr,
     historyContext,
     userName: userNickname,
@@ -302,9 +308,16 @@ function buildRawInput(
   moodNotes: Record<string, string>,
   moodSnapshot: MoodSnapshot,
   todoStats: DailyTodoStats,
-  isZh: boolean
+  isZh: boolean,
+  dailyGoal?: string,
 ): string {
   const lines: string[] = [];
+
+  if (dailyGoal) {
+    lines.push(isZh ? `今日目标：${dailyGoal}` : `Today's Goal: ${dailyGoal}`);
+    lines.push('');
+  }
+
   lines.push(isZh ? '今天的时间记录：' : "Today's Time Log:");
 
   activities.forEach((message) => {
@@ -314,7 +327,7 @@ function buildRawInput(
     const moodSuffix = moodLabel ? (isZh ? ` [心情：${moodLabel}]` : ` [mood: ${moodLabel}]`) : '';
     lines.push(`- ${timeStr} ${message.content}${durationStr}${moodSuffix}`);
     const note = moodNotes[message.id];
-    if (note && note.trim()) lines.push(`  心情备注：${note.trim()}`);
+    if (note && note.trim()) lines.push(isZh ? `  心情备注：${note.trim()}` : `  mood note: ${note.trim()}`);
   });
 
   if (moodMessages.length > 0) {
@@ -342,7 +355,9 @@ function buildRawInput(
     lines.push(isZh ? '目标进展：' : 'Goal Progress:');
     goalProgress.forEach((g) => {
       const progress = g.doneToday ? (isZh ? '今日有进展' : 'progressed today') : (isZh ? '今日无进展' : 'no progress');
-      lines.push(`- ${g.bottleName}：${progress}（${g.currentStars}/21颗星）`);
+      lines.push(isZh
+        ? `- ${g.bottleName}：${progress}（${g.currentStars}/21颗星）`
+        : `- ${g.bottleName}: ${progress} (${g.currentStars}/21 stars)`);
     });
   }
 
@@ -381,7 +396,10 @@ function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
     const focusItem = item.spectrum.find((spectrum) => spectrum.category === 'deep_focus');
     const dayIndex = history.length - recent.length + index + 1;
     const focusStr = focusItem?.duration_str || '0';
-    const todoStr = item.light_quality.todo_str;
+    const { todo_completed, todo_total } = item.light_quality;
+    const todoStr = todo_total > 0
+      ? (isZh ? `${todo_completed}/${todo_total} 项完成` : `${todo_completed}/${todo_total} done`)
+      : (isZh ? '无待办' : 'no todos');
 
     if (isZh) {
       contextLines.push(`  第${dayIndex}日：专注${focusStr}，待办${todoStr}`);

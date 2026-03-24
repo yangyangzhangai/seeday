@@ -223,6 +223,8 @@ export const useReportStore = create<ReportState>()(
             moodStore,
             computedHistory: state.computedHistory,
             bottles: growthStore.bottles,
+            dailyGoal: growthStore.dailyGoal,
+            goalDate: growthStore.goalDate,
           });
 
           set((current) => ({
