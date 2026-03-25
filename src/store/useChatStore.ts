@@ -293,20 +293,25 @@ export const useChatStore = create<ChatState>()(
           return get().messages.filter(m => m.timestamp >= start.getTime() && m.timestamp <= end.getTime());
         }
 
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .gte('timestamp', start.getTime())
-          .lte('timestamp', end.getTime())
-          .order('timestamp', { ascending: true });
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .gte('timestamp', start.getTime())
+            .lte('timestamp', end.getTime())
+            .order('timestamp', { ascending: true });
 
-        if (error) {
-          console.error('[getMessagesForDateRange] error', error);
+          if (error) {
+            import.meta.env.DEV && console.error('[getMessagesForDateRange] error', error);
+            return [];
+          }
+
+          return filterLegacyChatRows(data || []).map(mapDbRowToMessage);
+        } catch (e) {
+          import.meta.env.DEV && console.error('[getMessagesForDateRange] network error', e);
           return [];
         }
-
-        return filterLegacyChatRows(data || []).map(mapDbRowToMessage);
       },
 
       sendMessage: async (

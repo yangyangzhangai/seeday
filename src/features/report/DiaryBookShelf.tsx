@@ -152,18 +152,6 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
             </span>
           </div>
 
-          {/* Current-month dot */}
-          {isCurrent && (
-            <div style={{
-              position: 'absolute',
-              top: -7,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 6, height: 6,
-              borderRadius: '50%',
-              background: '#d4b896',
-            }} />
-          )}
         </div>
 
         {/* Month label */}
@@ -186,11 +174,12 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
 interface Props {
   onClose: () => void;
   reports: Report[];
-  onOpenDiaryPage?: (date: Date, subPage: 0 | 1) => void;
+  onOpenDiaryPage?: (date: Date, subPage: 0 | 1, flippedCount: number) => void;
   initialOpenMonth?: Date;
+  initialOpenFlippedCount?: number;
 }
 
-export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth }) => {
+export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth, initialOpenFlippedCount }) => {
   const user = useAuthStore(s => s.user);
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
@@ -262,6 +251,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         onClose={() => setOpenMonth(null)}
         reports={reports}
         initialMonth={openMonth}
+        initialFlippedCount={initialOpenFlippedCount}
         onOpenDiaryPage={onOpenDiaryPage}
       />
     );

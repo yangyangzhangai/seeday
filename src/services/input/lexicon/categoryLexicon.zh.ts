@@ -7,7 +7,7 @@
 // at least one category below so that no recognised activity falls through to
 // the 'life' default by lack of coverage.
 
-import type { CategoryLexicon } from './types';
+import type { CategoryLexicon } from './types.js';
 
 export const zhCategoryLexicon: CategoryLexicon = {
   keywords: {

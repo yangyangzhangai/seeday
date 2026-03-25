@@ -7,6 +7,8 @@ import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { normalizeMoodKey } from '../../lib/moodOptions';
+import { computeActivityDistribution } from './reportPageHelpers';
+import { ACTIVITY_COLORS } from './ActivityPieChart';
 
 const MOOD_COLORS: Record<string, string> = {
   happy: '#F9A8D4', calm: '#93C5FD', focused: '#86EFAC',
@@ -32,7 +34,8 @@ interface Props {
   onClose: () => void;
   reports: Report[];
   initialMonth?: Date;
-  onOpenDiaryPage?: (date: Date, subPage: 0 | 1) => void;
+  initialFlippedCount?: number;
+  onOpenDiaryPage?: (date: Date, subPage: 0 | 1, flippedCount: number) => void;
 }
 
 type PageData = {
@@ -164,19 +167,52 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
             .sort((a, b) => b.minutes - a.minutes);
           const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
 
+          // Compute activity distribution for mini pie
+          const actDist = computeActivityDistribution(dayMsgs);
+          const DAY_MINS = 24 * 60;
+          const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
+
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: px(2), overflow: 'hidden', flex: 1 }}>
-              {/* Activity records — all items, clipped by overflow */}
-              {dayMsgs.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), overflow: 'hidden' }}>
-                  {dayMsgs.map(msg => (
-                    <div key={msg.id} style={{ display: 'flex', alignItems: 'center', gap: px(2), padding: `${px(1)}px ${px(2)}px`, background: 'rgba(0,0,0,0.03)', borderRadius: px(2), flexShrink: 0 }}>
-                      <span style={{ flex: 1, fontSize: px(5.5), color: '#5a4a3a', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{msg.content}</span>
-                      {msg.duration != null && <span style={{ fontSize: px(4.5), color: '#8a9a7a', flexShrink: 0 }}>{Math.round(msg.duration / 60)}m</span>}
+              {/* Mini activity pie chart */}
+              {actDist.length > 0 ? (() => {
+                const piePx = px(28);
+                const cx = 14, cy = 14, r = 12;
+                type ActPieEntry = { type: string; minutes: number };
+                const actPieData: ActPieEntry[] = [...actDist];
+                const actRemaining = Math.max(DAY_MINS - totalActMins, 0);
+                if (actRemaining > 0) actPieData.push({ type: '__other', minutes: actRemaining });
+                let cur = 0;
+                const actSlices = actPieData.map(d => {
+                  const frac = d.minutes / DAY_MINS;
+                  const s = { type: d.type, frac, start: cur, end: cur + frac };
+                  cur += frac;
+                  return s;
+                });
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: px(3), flexShrink: 0 }}>
+                    <svg width={piePx} height={piePx} viewBox="0 0 28 28" style={{ flexShrink: 0 }}>
+                      {actSlices.map(s => {
+                        const sa = 2 * Math.PI * s.start - Math.PI / 2;
+                        const ea = 2 * Math.PI * s.end - Math.PI / 2;
+                        const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa);
+                        const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea);
+                        const la = s.frac > 0.5 ? 1 : 0;
+                        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${la} 1 ${x2} ${y2} Z`;
+                        return <path key={`${s.type}-${s.start}`} d={d} fill={s.type === '__other' ? '#F3F4F6' : ACTIVITY_COLORS[s.type] || '#9CA3AF'} />;
+                      })}
+                    </svg>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: px(1) }}>
+                      {actDist.slice(0, 3).map(d => (
+                        <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+                          <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
+                          <span style={{ fontSize: px(5), color: '#5a4a3a' }}>{d.type} {Math.round(d.minutes / DAY_MINS * 100)}%</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : report?.stats?.actionSummary ? (
+                  </div>
+                );
+              })() : report?.stats?.actionSummary ? (
                 <p style={{ margin: 0, fontSize: px(6), color: '#5a4a3a', lineHeight: 1.5,
                   overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
                   {report.stats.actionSummary}
@@ -382,7 +418,7 @@ function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () =
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
-export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth, onOpenDiaryPage }) => {
+export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
   const today = new Date();
   const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
   const allMessages = useChatStore(state => state.messages);
@@ -391,11 +427,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
   useEffect(() => {
     loadMessagesForDateRange(startOfMonth(currentMonth), endOfMonth(currentMonth));
   }, [currentMonth, loadMessagesForDateRange]);
-  const [flippedCount, setFlippedCount] = useState(0);
+  const [flippedCount, setFlippedCount] = useState(initialFlippedCount ?? 0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');
   const [expandTarget, setExpandTarget] = useState<ExpandTarget>(null);
   const dblClickTimer = useRef<{ side: 'left' | 'right'; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const pointerUpWasDrag = useRef(false); // true when pointer-up followed a real drag
   const dragRef = useRef<{
     side: 'left' | 'right'; sheetIdx: number;
     startClientX: number; lastClientX: number; lastT: number; velDeg: number;
@@ -452,7 +489,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
           const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
           if (pageDate.getTime() >= todayStart.getTime()) return; // today or future — blank, not clickable
           if (onOpenDiaryPage) {
-            onOpenDiaryPage(pageDate, side === 'left' ? 0 : 1);
+            onOpenDiaryPage(pageDate, side === 'left' ? 0 : 1, flippedCount);
           } else {
             setExpandTarget({ side, page: p });
           }
@@ -522,9 +559,11 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
 
     if (!drag.isDragging || Math.abs(deltaX) < 8) {
       setLiveFlip(null);
-      handleZoneClick(drag.side);
+      pointerUpWasDrag.current = false; // onClick will handle the tap
       return;
     }
+
+    pointerUpWasDrag.current = true; // was a real drag — suppress onClick
 
     const curRotY = drag.side === 'right'
       ? Math.max(-180, Math.min(0, (deltaX / pw) * 180))
@@ -550,7 +589,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
     } else {
       setTimeout(() => setSnapDur(null), dur);
     }
-  }, [handleZoneClick]);
+  }, []);
 
   const getIndicator = () => {
     if (flippedCount === 0) return '封面';
@@ -649,29 +688,45 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
             const effectiveDur = isSnap ? snapDur!.ms : FLIP_MS;
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + coverShiftLeft, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip }}>
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
                   <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} />
                 </div>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip }}>
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
                   <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} />
                 </div>
               </div>
             );
           })}
 
+          {/* Center spine divider — thin line between left and right pages */}
+          {isBookOpen && (
+            <div style={{
+              position: 'absolute',
+              left: spineX,
+              top: trapezoidInset,
+              width: 0.5,
+              height: pageH - trapezoidInset * 2,
+              background: 'rgba(0,0,0,0.06)',
+              pointerEvents: 'none',
+              transform: `translateZ(${(MAX_VIS * 4 + 1) * scale}px)`,
+            }} />
+          )}
+
           {/* Interaction zones — drag to flip, tap to flip, double-tap to expand */}
           <div
             onPointerDown={(e) => onZonePointerDown('left', e)}
             onPointerMove={onZonePointerMove}
             onPointerUp={onZonePointerUp}
-            onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); }}
+            onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
+            onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('left'); pointerUpWasDrag.current = false; }}
             style={{ position: 'absolute', left: 0, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount > 0 ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
           <div
             onPointerDown={(e) => onZonePointerDown('right', e)}
             onPointerMove={onZonePointerMove}
             onPointerUp={onZonePointerUp}
-            onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); }}
+            onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
+            onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('right'); pointerUpWasDrag.current = false; }}
             style={{ position: 'absolute', left: sideMargin + pageW, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount < numSheets ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
         </div>

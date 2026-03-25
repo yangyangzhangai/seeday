@@ -348,7 +348,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName, aiMode } = req.body;
+  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName, aiMode, action, kind, summary } = req.body;
+
+  // Short insight branch: action === 'insight'
+  if (action === 'insight') {
+    const apiKey = process.env.CHUTES_API_KEY;
+    if (!apiKey || !kind || !summary) {
+      res.status(200).json({ insight: '' });
+      return;
+    }
+    const insightLang = lang || 'zh';
+    const systemMsg = insightLang === 'zh'
+      ? `你是一位简洁的生活观察者。根据用户提供的${kind === 'activity' ? '活动分布' : '心情分布'}数据，用不超过20个中文字给出一句简短的洞察或感悟。只输出这句话，不加任何多余内容。`
+      : `You are a concise life observer. Based on the user's ${kind === 'activity' ? 'activity distribution' : 'mood distribution'}, provide a single insightful sentence in under 20 words. Output only the sentence.`;
+    try {
+      const r = await fetch('https://llm.chutes.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen3-30B-A3B',
+          messages: [{ role: 'system', content: systemMsg }, { role: 'user', content: String(summary) }],
+          temperature: 0.7,
+          max_tokens: 60,
+          stream: false,
+        }),
+      });
+      const data = await r.json();
+      const raw: string = data.choices?.[0]?.message?.content || '';
+      res.status(200).json({ insight: raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim().slice(0, 20) });
+    } catch {
+      res.status(200).json({ insight: '' });
+    }
+    return;
+  }
 
   if (!structuredData || typeof structuredData !== 'string') {
     jsonError(res, 400, 'Missing or invalid structuredData');

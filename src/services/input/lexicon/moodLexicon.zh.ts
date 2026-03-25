@@ -9,7 +9,7 @@
 //
 // All consumers should import from this file (directly or via getLexicon.ts).
 
-import type { MoodLexicon } from './types';
+import type { MoodLexicon } from './types.js';
 
 export const zhMoodLexicon: MoodLexicon = {
 

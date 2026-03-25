@@ -3,7 +3,7 @@
 // English mood lexicon – single source of truth for all EN mood signals.
 // Mirrors the structure of moodLexicon.zh.ts.
 
-import type { MoodLexicon } from './types';
+import type { MoodLexicon } from './types.js';
 
 export const enMoodLexicon: MoodLexicon = {
 

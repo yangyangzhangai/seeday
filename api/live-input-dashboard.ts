@@ -218,7 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
   });
 
-  const recentEvents: LiveInputTelemetryRecentEvent[] = [
+  const recentEvents: LiveInputTelemetryRecentEvent[] = ([
     ...events.map((event) => ({
       id: event.id,
       createdAt: event.created_at,
@@ -264,7 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         inputPreview: event.resolved_asset_url,
       };
     }),
-  ]
+  ] as LiveInputTelemetryRecentEvent[])
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, 50);
 

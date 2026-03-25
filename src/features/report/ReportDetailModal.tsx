@@ -4,10 +4,14 @@ import { format } from 'date-fns';
 import { Sparkles, ChevronLeft, ChevronRight, PenLine } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useReportStore } from '../../store/useReportStore';
-import type { MoodDistributionItem } from './reportPageHelpers';
-import { ActivityRecordsView } from './ActivityRecordsView';
+import { useChatStore } from '../../store/useChatStore';
+import { useMoodStore } from '../../store/useMoodStore';
+import type { MoodDistributionItem, ActivityDistributionItem } from './reportPageHelpers';
+import { getDailyActivityDistribution, getDailyMoodDistribution } from './reportPageHelpers';
+import { ActivityPieChart } from './ActivityPieChart';
 import { MoodPieChart } from './MoodPieChart';
 import { ReportStatsView } from './ReportStatsView';
+import { callShortInsightAPI } from '../../api/client';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -20,6 +24,14 @@ interface ReportDetailModalProps {
   readOnly?: boolean;
 }
 
+function buildActivitySummary(dist: ActivityDistributionItem[]): string {
+  return dist.map(d => `${d.type}${Math.round(d.minutes)}min`).join('、');
+}
+
+function buildMoodSummary(dist: MoodDistributionItem[]): string {
+  return dist.map(d => `${d.mood}${Math.round(d.minutes)}min`).join('、');
+}
+
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   selectedReport,
   dailyMoodDistribution,
@@ -30,11 +42,37 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   initialPage,
   readOnly,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { updateReport } = useReportStore();
+  const chatMessages = useChatStore((state) => state.messages);
+  const activityMood = useMoodStore((state) => state.activityMood);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(0);
   const [noteValue, setNoteValue] = useState('');
+  const [activityInsight, setActivityInsight] = useState('');
+  const [moodInsight, setMoodInsight] = useState('');
+
+  const activityDistribution = selectedReport
+    ? getDailyActivityDistribution(chatMessages, selectedReport)
+    : [];
+  const moodDistribution = selectedReport
+    ? getDailyMoodDistribution(chatMessages, activityMood, selectedReport)
+    : dailyMoodDistribution;
+
+  useEffect(() => {
+    if (!selectedReport) return;
+    setActivityInsight('');
+    setMoodInsight('');
+    const lang = (i18n.language?.split('-')[0] as 'zh' | 'en' | 'it') || 'zh';
+    const actSummary = buildActivitySummary(activityDistribution);
+    const moodSumm = buildMoodSummary(moodDistribution);
+    if (actSummary) {
+      callShortInsightAPI({ kind: 'activity', summary: actSummary, lang }).then(setActivityInsight);
+    }
+    if (moodSumm) {
+      callShortInsightAPI({ kind: 'mood', summary: moodSumm, lang }).then(setMoodInsight);
+    }
+  }, [selectedReport?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setNoteValue(selectedReport?.userNote ?? '');
@@ -177,13 +215,26 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             <span>生成植物</span>
           </button>
 
-          <ActivityRecordsView report={selectedReport} />
+          {activityDistribution.length > 0 && (
+            <div>
+              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>活动分布</h3>
+              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
+                <ActivityPieChart distribution={activityDistribution} />
+                {activityInsight && (
+                  <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{activityInsight}</p>
+                )}
+              </div>
+            </div>
+          )}
 
-          {dailyMoodDistribution.length > 0 && (
+          {moodDistribution.length > 0 && (
             <div>
               <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_today_mood_spectrum')}</h3>
               <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <MoodPieChart distribution={dailyMoodDistribution} />
+                <MoodPieChart distribution={moodDistribution} />
+                {moodInsight && (
+                  <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{moodInsight}</p>
+                )}
               </div>
             </div>
           )}
