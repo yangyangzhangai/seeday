@@ -8,6 +8,66 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-25 - Diary Rebuild Audit: D4 + D6 Already Complete
+
+### Audit Findings (no code changes)
+
+Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully implemented but undocumented:
+
+- **D4 (formatForDiaryAI)** — `src/lib/report-calculator/formatter.ts` already uses every field of `ComputedResult`: `mood_records`, `spectrum` (with anomaly flags), `light_quality` (focus/scatter/active/passive/todo), `energy_log` (with per-slot mood), `gravity_mismatch`, `history_trends`. ZH/EN two-path, IT falls back to EN (acceptable for AI input). No changes needed.
+
+- **D6 (classify.ts prompt alignment)** — `api/classify.ts` ZH/EN/IT three-language prompts already reflect D1 mood-tag format (`[心情：label]` / `[mood: label]`), D2 daily-goal format (`今日目标：` / `Today's Goal:`), habit check-in and todo sections. Output spec matches `ClassifiedData` type exactly (total_duration_min, items[], todos{completed,total}, energy_log[]). No changes needed.
+
+- **D5 (history trends)** — partially done: `computeHistoryTrend` in `src/lib/report-calculator/core.ts` already tracks energy-level trend (via energy_log high/medium/low). Remaining gap: no cross-day trend for mood-key distribution (happy/anxious/etc. from moodDistribution). To be completed.
+
+- Updated docs:
+  - `docs/DIARY_REBUILD_PLAN.md` — D4 marked ✅, D6 marked ✅, D5 marked ⚠️ with gap description
+  - `docs/CURRENT_TASK.md` — pending list updated accordingly
+
+## 2026-03-25 - Diary Rebuild Phase 2+4: Visualization Components + i18n
+
+### Added
+
+- V2: `ActivityCategoryDonut` — SVG donut chart from `stats.actionAnalysis` (6-category, percent + total hours):
+  - `src/features/report/ActivityCategoryDonut.tsx`
+
+- V4: `SpectrumBarChart` — horizontal bar chart from `SpectrumItem[]` (8-category, emoji, anomaly highlight):
+  - `src/features/report/SpectrumBarChart.tsx`
+
+- V6: `LightQualityDashboard` — 3-row comparison bar from `LightQuality` (focus/scatter, active/passive, todo ratio):
+  - `src/features/report/LightQualityDashboard.tsx`
+
+- Extended `ReportStats` to carry `spectrum?: SpectrumItem[]` and `lightQuality?: LightQuality`:
+  - `src/store/useReportStore.ts` — interface extension + import
+  - `src/store/useReportStore.ts` — `generateTimeshineDiary` now saves `computed.spectrum` + `computed.light_quality` into report stats after diary generation
+
+- V7: Integrated three new visualization components into `ReportDetailModal` Page 1 (after existing sections):
+  - `src/features/report/ReportDetailModal.tsx` — imports + conditional render blocks
+
+- Added 9 new i18n keys (ZH/EN/IT): `report_activity_category`, `report_spectrum_title`, `report_light_quality_title`, `lq_focus`, `lq_scatter`, `lq_active`, `lq_passive`, `lq_todo_done`, `lq_todo_total`
+
+- Updated docs:
+  - `src/features/report/README.md` — visualization components listed
+
+## 2026-03-25 - Report i18n Cleanup + Action/Mood Summary Multilingual
+
+### Changed
+
+- A6: Replaced all hardcoded Chinese strings in report UI components with `t()` i18n calls:
+  - `src/features/report/ReportPage.tsx` — page title, diary book button, generate button, early-tip dialog
+  - `src/features/report/ReportDetailModal.tsx` — back button labels, date format (ZH/EN locale-aware), generate plant placeholder, swipe hint, my-diary section (title, placeholder, empty state, save button)
+  - `src/features/report/ReportStatsView.tsx` — habit check-in title, goal progress title, recurring tasks label, task priority label, priority level labels, check-in status badges
+
+- A7 (partial): Made `generateActionSummary` and `generateMoodSummary` multilingual (ZH/EN/IT):
+  - `src/store/reportHelpers.ts` — both functions now accept `lang: SupportedLang = 'zh'`; added EN/IT text variants; `FALLBACK_SUMMARY`, `ACTION_CATEGORY_LABELS`, `ACTION_CATEGORY_ENCOURAGEMENT` now keyed by lang
+  - `src/store/reportActions.ts` — callers now pass `currentLang` / `moodLang` to both summary functions
+
+- Added 17 new i18n keys (ZH/EN/IT):
+  - `src/i18n/locales/zh.ts`, `en.ts`, `it.ts` — `report_view_diary_book`, `report_generate_button`, `report_early_tip`, `report_early_tip_ok`, `report_back_diary_book`, `report_generate_plant`, `report_swipe_hint`, `report_my_diary`, `report_diary_placeholder`, `report_diary_empty`, `report_save`, `report_habit_checkin`, `report_goal_progress`, `report_goal_done_today`, `report_goal_not_today`, `report_recurring_tasks`, `report_task_priority`
+
+- Updated docs:
+  - `src/features/report/README.md` — noted i18n coverage completed for all user-visible strings
+
 ## 2026-03-24 - Daily Report Todo Breakdown Refactor
 
 ### Changed

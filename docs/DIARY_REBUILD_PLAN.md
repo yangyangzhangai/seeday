@@ -61,7 +61,7 @@
 
 ## 二、数据对齐与代码清理任务
 
-### 任务 A1：审计 ReportStats 接口与实际数据的对齐情况
+### ✅ 任务 A1：审计 ReportStats 接口与实际数据的对齐情况
 - **具体操作**：逐字段检查 `ReportStats`（useReportStore.ts:22-69）与 `createGeneratedReport`（reportActions.ts:52-144）的产出是否一一匹配
 - **需读文件**：
   - `src/store/useReportStore.ts`（ReportStats 定义）
@@ -69,7 +69,7 @@
   - `src/store/reportHelpers.ts`（computeDailyTodoStats、classifyActivities、computeMoodDistribution）
 - **完成标准**：列出所有字段的填充来源，标注哪些字段可能为空、哪些字段已废弃
 
-### 任务 A2：审计 Message 类型字段是否都被正确使用
+### ✅ 任务 A2：审计 Message 类型字段是否都被正确使用
 - **具体操作**：检查 `Message.activityType`、`Message.duration`、`Message.isMood`、`Message.mode` 这几个字段在日报管线中的使用方式是否与 useChatStore 的实际写入一致
 - **需读文件**：
   - `src/store/useChatStore.types.ts`（Message 接口）
@@ -77,7 +77,7 @@
   - `src/store/reportHelpers.ts`（filterActivities 如何过滤）
 - **完成标准**：确认没有遗漏字段、没有读取了已删除的字段
 
-### 任务 A3：审计 MoodStore 在日报中的使用方式
+### ✅ 任务 A3：审计 MoodStore 在日报中的使用方式
 - **具体操作**：确认 `activityMood`、`customMoodLabel`、`customMoodApplied`、`moodNote` 四个 map 在报告计算中是否被正确消费
 - **需读文件**：
   - `src/store/useMoodStore.ts`
@@ -85,14 +85,14 @@
   - `src/store/reportActions.ts`（buildRawInput 中对 moodNote 的使用）
 - **完成标准**：确认数据流完整无断裂
 
-### 任务 A4：审计 Todo 数据在日报中的消费方式
+### ✅ 任务 A4：审计 Todo 数据在日报中的消费方式
 - **具体操作**：检查 `useTodoStore.todos` 的字段（特别是 `bottleId`、`scope`、`recurrence`、`priority`、`isTemplate`）在 reportHelpers 中的使用是否与当前 Todo 接口匹配
 - **需读文件**：
   - `src/store/useTodoStore.ts`（Todo 接口定义）
   - `src/store/reportHelpers.ts`（filterRelevantTodos、computeDailyTodoStats）
 - **完成标准**：确认 Todo 字段全部对齐，priority 映射正确
 
-### 任务 A5：审计 GrowthStore（Bottles）在日报中的消费方式
+### ✅ 任务 A5：审计 GrowthStore（Bottles）在日报中的消费方式
 - **具体操作**：确认 `bottles` 数据的 `type`、`stars`、`status` 字段在 reportActions/reportHelpers 中被正确读取
 - **需读文件**：
   - `src/store/useGrowthStore.ts`（Bottle 接口）
@@ -100,12 +100,12 @@
   - `src/store/reportHelpers.ts`（computeDailyTodoStats 中 BottleInfo）
 - **完成标准**：确认 BottleSnapshot/BottleInfo 与 Bottle 接口对齐
 
-### 任务 A6：审计前端 Report 组件中的硬编码中文
+### ✅ 任务 A6：审计前端 Report 组件中的硬编码中文
 - **具体操作**：扫描 `src/features/report/` 下所有组件，找出硬编码中文字符串，改为 i18n key
 - **需读文件**：`src/features/report/*.tsx`、`src/i18n/locales/zh.ts`
 - **完成标准**：所有用户可见文本通过 `t()` 引用
 
-### 任务 A7：清理 reportHelpers 中的硬编码中文
+### ⚠️ 任务 A7：清理 reportHelpers 中的硬编码中文（部分完成）
 - **具体操作**：`reportHelpers.ts` 中的 `ACTION_CATEGORY_LABELS`、`ACTION_CATEGORY_ENCOURAGEMENT`、`FALLBACK_SUMMARY`、`generateMoodSummary` 等都有硬编码中文，需要决定是改成 i18n 还是这些只作为内部数据不对用户展示
 - **需读文件**：`src/store/reportHelpers.ts`
 - **完成标准**：明确每段中文的用途（AI 输入 vs 用户展示），分别处理
@@ -163,7 +163,7 @@
 
 ### 3.2 可视化实现任务
 
-#### 任务 V1：设计新日记页面布局
+#### ⚠️ 任务 V1：设计新日记页面布局（以现有 ReportDetailModal 两页结构为基础，已可用）
 - **具体操作**：确定新日记页面的整体结构、模块排列、滚动方式
 - **需读文件**：
   - `src/features/report/ReportPage.tsx`（现有布局参考）
@@ -171,12 +171,13 @@
   - `docs/TSHINE_DEV_SPEC.md`（iOS UI 规范）
 - **完成标准**：产出 wireframe 或组件树结构
 
-#### 任务 V2：实现活动分类圆环图组件
+#### ✅ 任务 V2：实现活动分类圆环图组件
 - **具体操作**：基于 classifyActivities() 的输出，用 SVG 或 Canvas 实现圆环图
 - **需读文件**：`src/store/reportHelpers.ts`（classifyActivities）
 - **完成标准**：接收 `{ category, minutes, percent }[]` 渲染圆环
+- **落地文件**：`src/features/report/ActivityCategoryDonut.tsx`（SVG 圆环 + 图例）
 
-#### 任务 V3：实现心情能量曲线组件
+#### ⬜ 任务 V3：实现心情能量曲线组件（阻塞：moodDistribution 无时间戳，需数据结构扩展）
 - **具体操作**：基于心情数据 + 时间戳，绘制日内能量变化曲线
 - **需读文件**：
   - `src/store/useMoodStore.ts`（心情数据结构）
@@ -184,23 +185,26 @@
   - `src/lib/moodColor.ts`（颜色）
 - **完成标准**：接收一天的心情记录数组，渲染平滑曲线
 
-#### 任务 V4：更新/重构光谱条形图组件
+#### ✅ 任务 V4：更新/重构光谱条形图组件
 - **具体操作**：将 formatForDiaryAI 中纯文本的光谱展示改为可视化条形图组件
 - **需读文件**：`src/lib/report-calculator/types.ts`（SpectrumItem）
 - **完成标准**：接收 SpectrumItem[] 渲染水平条形图
+- **落地文件**：`src/features/report/SpectrumBarChart.tsx`；`stats.spectrum` 字段日记生成后写入
 
-#### 任务 V5：实现待办完成卡片组件
+#### ⚠️ 任务 V5：实现待办完成卡片组件（现有 ReportStatsView 已覆盖，可选做视觉升级）
 - **具体操作**：将 DailyTodoStats 渲染为紧凑卡片
 - **需读文件**：`src/store/reportHelpers.ts`（DailyTodoStats 接口）
 - **完成标准**：展示习惯、目标、循环、一次性任务四组数据
 
-#### 任务 V6：实现光质读数组件
+#### ✅ 任务 V6：实现光质读数组件
 - **具体操作**：将 LightQuality 渲染为三组对比条
 - **需读文件**：`src/lib/report-calculator/types.ts`（LightQuality 接口）
+- **落地文件**：`src/features/report/LightQualityDashboard.tsx`；`stats.lightQuality` 字段日记生成后写入
 
-#### 任务 V7：整合新日记页面
+#### ✅ 任务 V7：整合新日记页面（部分完成）
 - **具体操作**：将上述可视化组件整合到新日记页面，替换或重构 ReportPage
 - **需读文件**：`src/features/report/ReportPage.tsx`
+- **落地**：V2/V4/V6 组件已集成到 `ReportDetailModal` Page 1；V3/V5 待完成后继续整合
 
 ---
 
@@ -269,7 +273,7 @@
 
 ### 4.4 AI 数据管线任务
 
-#### 任务 D1：增强 buildRawInput - 关联活动心情
+#### ✅ 任务 D1：增强 buildRawInput - 关联活动心情
 - **具体操作**：在 `buildRawInput()` 中，为每条活动附加 `activityMood[msg.id]` 信息
 - **需读文件**：
   - `src/store/reportActions.ts`（buildRawInput 函数）
@@ -277,32 +281,36 @@
 - **需改文件**：`src/store/reportActions.ts`
 - **完成标准**：rawInput 中每条活动带上心情标记（如果有的话）
 
-#### 任务 D2：增强 buildRawInput - 纳入每日目标
+#### ✅ 任务 D2：增强 buildRawInput - 纳入每日目标
 - **具体操作**：将 `useGrowthStore.dailyGoal` 加入 rawInput
 - **需读文件**：`src/store/useGrowthStore.ts`
 - **需改文件**：`src/store/reportActions.ts`（buildRawInput 签名需增加 dailyGoal 参数）、调用处 `runTimeshineDiary`
 - **完成标准**：rawInput 中包含 "今日目标：XXX"
 
-#### 任务 D3：增强 buildRawInput - 多语言支持审查
+#### ⚠️ 任务 D3：增强 buildRawInput - 多语言支持审查（部分完成）
 - **具体操作**：确认 buildRawInput 中所有文案都正确支持 zh/en/it，当前 `isZh` 二元判断可能遗漏意大利语
 - **需读文件**：`src/store/reportActions.ts`
 - **完成标准**：所有文案三语覆盖
+- **2026-03-25 结论**：AI 输入链路（buildRawInput/buildHistoryContext）IT 沿用 EN 可接受（AI API 处理 EN 输入）；用户可见摘要（generateActionSummary/generateMoodSummary）已通过 A7 修复为三语。`isZh` 二元判断保留，无需改动。
 
-#### 任务 D4：增强 formatForDiaryAI - 优化传递给 AI 的数据格式
+#### ✅ 任务 D4：增强 formatForDiaryAI - 优化传递给 AI 的数据格式
 - **具体操作**：审查 `formatForDiaryAI()` 是否充分利用了所有可用数据
 - **需读文件**：`src/lib/report-calculator/formatter.ts`
 - **完成标准**：确认格式化输出信息完整、清晰
+- **核实结论**：formatter.ts 已完整使用 ComputedResult 全部字段：mood_records、spectrum（含 anomaly）、light_quality、energy_log（含 mood 标注）、gravity_mismatch、history_trends，ZH/EN 两路，IT 沿用 EN（可接受）
 
-#### 任务 D5：增强历史趋势 - 纳入心情趋势
+#### ⚠️ 任务 D5：增强历史趋势 - 纳入心情趋势（部分完成）
 - **具体操作**：在 `computeHistoryTrend()` 中增加心情维度的趋势分析
 - **需读文件**：`src/lib/report-calculator/core.ts`（computeHistoryTrend）
 - **需改文件**：`src/lib/report-calculator/core.ts`、`types.ts`（可能需要 ComputedResult 增加 mood 字段）
 - **完成标准**：趋势信号中包含心情变化方向
+- **核实结论**：`computeHistoryTrend` 已追踪「能量水平」趋势（来自 energy_log，high/medium/low），但缺少 moodDistribution 中 happy/anxious 等 mood key 的跨日趋势分析。待补充：从 `ComputedResult.mood_records` 或 `ReportStats.moodDistribution` 提取主心情，加入 TrendSignal
 
-#### 任务 D6：确认分类器 API prompt 与当前数据结构对齐
+#### ✅ 任务 D6：确认分类器 API prompt 与当前数据结构对齐
 - **具体操作**：审查 `api/classify.ts` 中的 prompt 是否反映了当前所有数据字段
 - **需读文件**：`api/classify.ts`
 - **完成标准**：确认分类器输入/输出格式与 ClassifiedData 类型完全匹配
+- **核实结论**：ZH/EN/IT 三语 prompt 均已包含 D1 心情标签格式（`[心情：label]`/`[mood: label]`）、D2 每日目标格式（`今日目标：`/`Today's Goal:`）、习惯打卡/待办总览区块的处理规则；输出字段与 ClassifiedData 完全匹配（total_duration_min、items[]、todos{completed,total}、energy_log[]）
 
 ---
 

@@ -1,24 +1,51 @@
 # CURRENT TASK (Session Resume Anchor)
 
-## Current Override (2026-03-21)
+## Current Override (2026-03-25)
 
-- Status: active execution anchor for multilingual classification consolidation
+- Status: 日记功能重建 Phase 1–4 进行中
 - Scope owner: current working session
-- This section supersedes the old top snapshot below. Historical plant-system content remains valid as archive context only.
+- This section supersedes the 2026-03-21 multilingual classification mainline. That work is complete (PR0–PR4 all landed). Current focus is diary rebuild per `docs/DIARY_REBUILD_PLAN.md`.
 
 ### Current Mainline
 
-- Rebuild the multilingual classification pipeline in a controlled order: `PR0 -> PR1a -> PR1b -> PR2 -> PR3 -> PR4`.
-- Cover four related surfaces together, but in separate PRs:
-  - live input activity or mood intent
-  - activity and todo category classification
-  - Magic Pen local fallback
-  - Magic Pen todo category quality
-- Keep the architecture layered:
-  - `Lexicon`: reusable multilingual word or phrase data
-  - `Signal Extractor`: language-specific evidence extraction
-  - `Resolver`: shared scoring and final decision logic
-  - `Post-process`: store, Magic Pen, and API integration logic
+- 按 `docs/DIARY_REBUILD_PLAN.md` 执行日记功能重建，分四个 Phase：
+  - Phase 1（数据对齐 A1-A5）→ Phase 2（代码清理 A6-A7）→ Phase 3（AI 管线 D1-D6）→ Phase 4（可视化 V1-V7）
+
+### Execution Checklist (2026-03-25)
+
+- [x] A1–A3：审计 ReportStats / Message / MoodStore 字段对齐 — 已确认无断裂
+- [x] A4：审计 Todo 字段在日报管线中的消费 — 已确认对齐
+- [x] A5：审计 GrowthStore (Bottle) 在日报管线中的消费 — 已确认对齐
+- [x] A6：清除 report 组件全部硬编码中文，改为 `t()` i18n key（ZH/EN/IT）
+  - `ReportPage.tsx`、`ReportDetailModal.tsx`、`ReportStatsView.tsx`
+- [x] A7（部分）：`generateActionSummary` / `generateMoodSummary` 改为 `lang` 参数驱动，支持 ZH/EN/IT
+  - `src/store/reportHelpers.ts`、`src/store/reportActions.ts`
+- [x] D1：buildRawInput 关联活动心情 — 已确认在 reportActions.ts:298 完成
+- [x] D2：buildRawInput 纳入每日目标 — 已确认在 reportActions.ts:200 完成
+- [x] D3（部分）：AI 输入链路 IT 沿用 EN（可接受）；用户可见摘要已通过 A7 修复
+- [x] V2：`ActivityCategoryDonut` — SVG 圆环图，来源 `stats.actionAnalysis`
+- [x] V4：`SpectrumBarChart` — 8类水平条形图，来源 `stats.spectrum`
+- [x] V6：`LightQualityDashboard` — 光质读数三组对比条，来源 `stats.lightQuality`
+- [x] V7（部分）：三个新组件集成到 `ReportDetailModal` Page 1
+- [x] `ReportStats` 扩展 `spectrum` / `lightQuality` 字段，日记生成后自动写入并持久化
+
+### 待处理（下次会话入口）
+
+- [ ] V3：MoodEnergyTimeline — 需要时间戳数据，当前 moodDistribution 无时间轴信息，需要数据结构扩展
+- [ ] V5：TodoCompletionCard 独立组件优化（现有 ReportStatsView 已覆盖基本需求，可选做视觉升级）
+- [ ] D5（剩余）：历史趋势补充 mood key 维度 — 能量水平趋势已有，缺 happy/anxious 等心情分布跨日趋势
+- [ ] A7（剩余）：`getDateRange` title 字符串多语言化（存入 DB，影响 reports 表，优先级低）
+- ✅ D4：formatForDiaryAI 已完整实现，无需改动
+- ✅ D6：classify.ts prompt 已与 ClassifiedData + D1/D2 数据格式完全对齐，无需改动
+
+### Session Close Snapshot (2026-03-25)
+
+- 回环校验结果：`lint:secrets` ✅ `lint:max-lines` ✅ `lint:docs-sync` ✅ `lint:state-consistency` ✅ `tsc --noEmit` ✅
+- 新增 i18n keys：26 个（ZH/EN/IT 三语对齐）
+- 新建组件：`ActivityCategoryDonut.tsx`、`SpectrumBarChart.tsx`、`LightQualityDashboard.tsx`
+- 修改组件：`ReportPage.tsx`、`ReportDetailModal.tsx`、`ReportStatsView.tsx`
+- 修改 store：`useReportStore.ts`（ReportStats 扩展 + diary 生成后写入 spectrum/lightQuality）
+- 修改 helpers：`reportHelpers.ts`（多语言摘要）、`reportActions.ts`（传 lang 参数）
 
 ### Execution Checklist (2026-03-21)
 

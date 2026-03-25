@@ -127,7 +127,7 @@ export const ReportPage = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] overflow-y-auto pb-safe" style={{ background: '#ffffff' }}>
       <header className="p-4 sticky top-0 z-10 relative" style={{ background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-        <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>日记</h1>
+        <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>{t('report_title')}</h1>
         <button
           onClick={() => setShowCalendarModal(true)}
           className="mt-1 w-full text-center text-sm active:opacity-70 transition"
@@ -141,14 +141,14 @@ export const ReportPage = () => {
             className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
             style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
           >
-            查看日记本
+            {t('report_view_diary_book')}
           </button>
           <button
             onClick={handleGenerateDiary}
             className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
             style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
           >
-            生成日记
+            {t('report_generate_button')}
           </button>
         </div>
       </header>
@@ -160,9 +160,9 @@ export const ReportPage = () => {
       {showEarlyTip && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowEarlyTip(false)}>
           <div className="bg-white w-full max-w-xs rounded-2xl p-6 text-center animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <p className="text-sm text-gray-700 leading-relaxed">日记只可生成一次，可以在 20:00 之后再来看看哦～</p>
+            <p className="text-sm text-gray-700 leading-relaxed">{t('report_early_tip')}</p>
             <button onClick={() => setShowEarlyTip(false)} className="mt-4 text-xs text-amber-600 border border-amber-200 rounded-full px-4 py-1.5 bg-amber-50 active:opacity-70 transition">
-              知道了
+              {t('report_early_tip_ok')}
             </button>
           </div>
         </div>

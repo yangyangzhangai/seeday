@@ -88,7 +88,7 @@ export function createGeneratedReport({
       const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
       const actionAnalysis = classifyActivities(records, currentLang);
       stats.actionAnalysis = actionAnalysis;
-      stats.actionSummary = generateActionSummary(actionAnalysis);
+      stats.actionSummary = generateActionSummary(actionAnalysis, currentLang);
     }
   } else {
     const recurringGroups: Record<string, Todo[]> = {};
@@ -127,7 +127,8 @@ export function createGeneratedReport({
   stats.moodDistribution = computeMoodDistribution(messages, moodStore, start, end);
 
   if (!isToday) {
-    stats.moodSummary = generateMoodSummary(stats.moodDistribution || []);
+    const moodLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+    stats.moodSummary = generateMoodSummary(stats.moodDistribution || [], moodLang);
   }
 
   return {

@@ -8,6 +8,9 @@ import type { MoodDistributionItem } from './reportPageHelpers';
 import { ActivityRecordsView } from './ActivityRecordsView';
 import { MoodPieChart } from './MoodPieChart';
 import { ReportStatsView } from './ReportStatsView';
+import { ActivityCategoryDonut } from './ActivityCategoryDonut';
+import { SpectrumBarChart } from './SpectrumBarChart';
+import { LightQualityDashboard } from './LightQualityDashboard';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -30,7 +33,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   initialPage,
   readOnly,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language?.split('-')[0] || 'en';
   const { updateReport } = useReportStore();
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(0);
@@ -77,13 +81,13 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [selectedReport, noteValue, updateReport]);
 
   const getReportDisplayTitle = (report: Report): string => {
-    if (report.type === 'daily') return format(report.date, 'yyyy年MM月dd日');
+    if (report.type === 'daily') return format(report.date, currentLang === 'zh' ? 'yyyy年MM月dd日' : 'MMMM d, yyyy');
     if (report.type === 'weekly') {
       const start = report.startDate ? new Date(report.startDate) : new Date(report.date);
       const end = report.endDate ? new Date(report.endDate) : new Date(report.date);
       return `${format(start, 'MM-dd')} ~ ${format(end, 'MM-dd')} ${t('report_weekly')}`;
     }
-    if (report.type === 'monthly') return format(report.date, 'yyyy年MM月');
+    if (report.type === 'monthly') return format(report.date, currentLang === 'zh' ? 'yyyy年MM月' : 'MMMM yyyy');
     if (report.type === 'custom') {
       const start = report.startDate ? new Date(report.startDate) : new Date(report.date);
       const end = report.endDate ? new Date(report.endDate) : new Date(report.date);
@@ -112,7 +116,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           style={{ color: '#6b5a3e' }}
         >
           <ChevronLeft size={22} />
-          <span className="text-sm">{onBack ? '日记本' : '日记'}</span>
+          <span className="text-sm">{onBack ? t('report_back_diary_book') : t('report_title')}</span>
         </button>
         <div className="flex-1 text-center">
           <h2 className="text-base font-bold font-siyuan" style={{ color: '#4a3a2a' }}>{getReportDisplayTitle(selectedReport)}</h2>
@@ -174,10 +178,19 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             style={{ background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)', color: '#4a6a3a', border: '1px solid rgba(74,106,58,0.25)' }}
           >
             <span>🌱</span>
-            <span>生成植物</span>
+            <span>{t('report_generate_plant')}</span>
           </button>
 
           <ActivityRecordsView report={selectedReport} />
+
+          {selectedReport.stats?.actionAnalysis && selectedReport.stats.actionAnalysis.length > 0 && (
+            <div>
+              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_activity_category')}</h3>
+              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
+                <ActivityCategoryDonut data={selectedReport.stats.actionAnalysis} />
+              </div>
+            </div>
+          )}
 
           {dailyMoodDistribution.length > 0 && (
             <div>
@@ -198,8 +211,26 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             <div className="text-center py-10 text-sm" style={{ color: '#9a8878' }}>{t('no_data')}</div>
           )}
 
+          {selectedReport.stats?.spectrum && selectedReport.stats.spectrum.length > 0 && (
+            <div>
+              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_spectrum_title')}</h3>
+              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
+                <SpectrumBarChart spectrum={selectedReport.stats.spectrum} />
+              </div>
+            </div>
+          )}
+
+          {selectedReport.stats?.lightQuality && (
+            <div>
+              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_light_quality_title')}</h3>
+              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
+                <LightQualityDashboard lightQuality={selectedReport.stats.lightQuality} />
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-center gap-1 text-xs pt-1 pb-4" style={{ color: 'rgba(107,90,62,0.35)' }}>
-            <span>← 左滑查看 AI 日记 &amp; 手写日记</span>
+            <span>{t('report_swipe_hint')}</span>
           </div>
         </div>
 
@@ -260,7 +291,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           {/* 手写日记 */}
           <div>
             <h3 className="font-bold flex items-center gap-2 mb-3 text-sm" style={{ color: '#333' }}>
-              <PenLine size={15} /> 我的日记
+              <PenLine size={15} /> {t('report_my_diary')}
             </h3>
             {readOnly ? (
               <p
@@ -270,7 +301,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                {noteValue || '未留下文字…'}
+                {noteValue || t('report_diary_empty')}
               </p>
             ) : (
               <>
@@ -278,7 +309,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   value={noteValue}
                   onChange={e => setNoteValue(e.target.value)}
                   onBlur={saveNote}
-                  placeholder="写下今天的心情与感受…"
+                  placeholder={t('report_diary_placeholder')}
                   rows={9}
                   className="w-full rounded-lg p-3 text-sm resize-none focus:outline-none leading-relaxed"
                   style={{
@@ -294,7 +325,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     className="text-xs rounded-full px-3 py-1 active:opacity-70 transition"
                     style={{ background: 'rgba(107,90,62,0.1)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.25)' }}
                   >
-                    保存
+                    {t('report_save')}
                   </button>
                 </div>
               </>

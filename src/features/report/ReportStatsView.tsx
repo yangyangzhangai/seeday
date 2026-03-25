@@ -10,9 +10,9 @@ interface ReportStatsViewProps {
 }
 
 const PRIORITY_CONFIG = {
-  high:   { label: '高', bar: 'bg-red-400',    bg: 'bg-red-50',    text: 'text-red-500' },
-  medium: { label: '中', bar: 'bg-orange-400', bg: 'bg-orange-50', text: 'text-orange-500' },
-  low:    { label: '低', bar: 'bg-green-400',  bg: 'bg-green-50',  text: 'text-green-500' },
+  high:   { bar: 'bg-red-400',    bg: 'bg-red-50',    text: 'text-red-500' },
+  medium: { bar: 'bg-orange-400', bg: 'bg-orange-50', text: 'text-orange-500' },
+  low:    { bar: 'bg-green-400',  bg: 'bg-green-50',  text: 'text-green-500' },
 } as const;
 
 export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, onShowTasks }) => {
@@ -50,7 +50,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
           {/* 习惯打卡 */}
           {stats.habitCheckin && stats.habitCheckin.length > 0 && (
             <div>
-              <h3 className="font-bold mb-2 text-sm text-gray-700">习惯打卡</h3>
+              <h3 className="font-bold mb-2 text-sm text-gray-700">{t('report_habit_checkin')}</h3>
               <div className="space-y-1.5">
                 {stats.habitCheckin.map((item) => (
                   <div key={item.bottleId} className="flex items-center justify-between bg-white border border-gray-100 px-3 py-2 rounded-lg">
@@ -59,7 +59,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
                       'text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ml-2',
                       item.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
                     )}>
-                      {item.done ? '✓ 已打卡' : '✗ 未打卡'}
+                      {item.done ? `✓ ${t('report_checked')}` : `✗ ${t('report_unchecked')}`}
                     </span>
                   </div>
                 ))}
@@ -70,7 +70,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
           {/* 目标进展 */}
           {stats.goalProgress && stats.goalProgress.length > 0 && (
             <div>
-              <h3 className="font-bold mb-2 text-sm text-gray-700">目标进展</h3>
+              <h3 className="font-bold mb-2 text-sm text-gray-700">{t('report_goal_progress')}</h3>
               <div className="space-y-1.5">
                 {stats.goalProgress.map((item) => (
                   <div key={item.bottleId} className="flex items-center justify-between bg-white border border-gray-100 px-3 py-2 rounded-lg">
@@ -90,7 +90,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
                       'text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ml-3',
                       item.doneToday ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'
                     )}>
-                      {item.doneToday ? '今日推进' : '今日未动'}
+                      {item.doneToday ? t('report_goal_done_today') : t('report_goal_not_today')}
                     </span>
                   </div>
                 ))}
@@ -101,7 +101,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
           {/* 独立重复任务 */}
           {stats.independentRecurring && stats.independentRecurring.total > 0 && (
             <div className="flex items-center justify-between bg-white border border-gray-100 px-3 py-2.5 rounded-lg">
-              <span className="text-sm text-gray-600">重复任务</span>
+              <span className="text-sm text-gray-600">{t('report_recurring_tasks')}</span>
               <div className="flex items-center gap-2">
                 <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
@@ -119,7 +119,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
           {/* 一次性任务·优先级分布 */}
           {stats.oneTimeTasks && (stats.oneTimeTasks.high.total + stats.oneTimeTasks.medium.total + stats.oneTimeTasks.low.total) > 0 && (
             <div>
-              <h3 className="font-bold mb-2 text-sm text-gray-700">任务优先级</h3>
+              <h3 className="font-bold mb-2 text-sm text-gray-700">{t('report_task_priority')}</h3>
               <div className="space-y-1.5">
                 {(['high', 'medium', 'low'] as const).map((p) => {
                   const data = stats.oneTimeTasks![p];
@@ -128,7 +128,7 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
                   return (
                     <div key={p} className="flex items-center gap-2 text-xs">
                       <span className={cn('w-8 text-center py-0.5 rounded text-[10px] font-medium flex-shrink-0', cfg.bg, cfg.text)}>
-                        {cfg.label}
+                        {t(`growth_todo_priority_${p}`)}
                       </span>
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div

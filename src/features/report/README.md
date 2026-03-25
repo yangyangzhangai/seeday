@@ -54,6 +54,27 @@ Weekly/monthly reports continue to use `recurringStats` (habit rate over the per
 
 The same breakdown is serialised into plain text and passed to the Timeshine diary AI via internal helper `buildRawInput()` in `reportActions.ts` (not exported).
 
+## Visualization Components
+
+New components added in Phase 4:
+
+| Component | Data Source | Render When |
+|-----------|-------------|-------------|
+| `ActivityCategoryDonut` | `stats.actionAnalysis` | Past daily report with activity records |
+| `SpectrumBarChart` | `stats.spectrum` | After Timeshine diary generation |
+| `LightQualityDashboard` | `stats.lightQuality` | After Timeshine diary generation |
+
+`stats.spectrum` and `stats.lightQuality` are populated in `useReportStore.generateTimeshineDiary` from `ComputedResult` after the classifier + diary API calls succeed. They are persisted to Supabase via `stats` JSON column.
+
+## i18n Coverage
+
+All user-visible strings in the report feature use `t()` i18n keys (ZH/EN/IT). Keys are prefixed `report_`. Hardcoded Chinese strings have been removed from:
+- `ReportPage.tsx` — page title, action buttons, early-tip dialog
+- `ReportDetailModal.tsx` — back labels, date formats, swipe hint, diary section
+- `ReportStatsView.tsx` — section titles, status badges, priority labels
+
+Summary helpers `generateActionSummary` and `generateMoodSummary` in `reportHelpers.ts` accept a `lang` parameter and produce localized text for ZH/EN/IT.
+
 ## Downstream Impact
 
 - Report schema changes affect persisted report rows and report detail UI
