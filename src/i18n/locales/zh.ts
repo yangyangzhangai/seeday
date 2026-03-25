@@ -231,6 +231,13 @@ const zh: TranslationKeys = {
     plant_canvas_reset: '重置',
     plant_category_work_study: '学习工作',
     plant_category_exercise: '运动',
+    eco_sphere_mood_label: '心情',
+    eco_sphere_activity_label: '活动',
+    eco_sphere_empty_label: '待解锁',
+    eco_sphere_mood_energy_title: '今日心情能量曲线',
+    eco_sphere_no_mood_data: '还没有心情记录，去聊聊你的状态吧',
+    eco_sphere_no_activity_data: '还没有活动记录',
+    eco_sphere_night_hint: '数据将在生成日记后归入今日日记',
 
     // ── 认证页面 ──
     auth_welcome_back: '欢迎回来',

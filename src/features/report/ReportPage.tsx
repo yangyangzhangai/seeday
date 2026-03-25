@@ -14,6 +14,7 @@ import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
 import { getDailyMoodDistribution } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
+import { DayEcoSphere } from './plant/DayEcoSphere';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -165,7 +166,8 @@ export const ReportPage = () => {
         </div>
       </header>
 
-      <div className="p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] space-y-6">
+      <div className="p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] space-y-4">
+        <DayEcoSphere />
         <PlantRootSection />
       </div>
 

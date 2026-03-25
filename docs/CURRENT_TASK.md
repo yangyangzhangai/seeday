@@ -29,6 +29,15 @@
 - [x] V7（部分）：三个新组件集成到 `ReportDetailModal` Page 1
 - [x] `ReportStats` 扩展 `spectrum` / `lightQuality` 字段，日记生成后自动写入并持久化
 
+### 已完成（本会话追加）
+
+- [x] DayEcoSphere：日记界面植物上方三个玻璃生态球（心情/活动/待解锁），点击展开图表面板
+  - 左球：今日心情能量曲线（SVG 折线图，按时间轴排布）+ 心情分类饼图
+  - 中球：今日活动分类圆环（复用 `ActivityCategoryDonut`）
+  - 右球：空置占位
+  - 晚上 20 点后显示"数据将归入今日日记"提示
+  - 数据来源与日记报告完全一致（`computeActivityDistribution` / `computeMoodDistribution` / `computeMoodEnergyTimeline`）
+
 ### 待处理（下次会话入口）
 
 - [ ] V3：MoodEnergyTimeline — 需要时间戳数据，当前 moodDistribution 无时间轴信息，需要数据结构扩展

@@ -4,6 +4,7 @@ import type { Report } from '../../store/useReportStore';
 import type { Todo } from '../../store/useTodoStore';
 import type { ActivityRecordType } from '../../lib/activityType';
 import { ACTIVITY_RECORD_TYPES } from '../../lib/activityType';
+import { normalizeMoodKey } from '../../lib/moodOptions';
 
 export interface ActivityDistributionItem {
   type: ActivityRecordType;
@@ -107,6 +108,47 @@ export function computeActivityDistribution(messages: Message[]): ActivityDistri
     .map(([type, minutes]) => ({ type, minutes }))
     .filter((d) => d.minutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
+}
+
+export interface MoodEnergyPoint {
+  timestamp: number;
+  energy: number;
+  mood: string;
+}
+
+const MOOD_ENERGY_SCORE: Record<string, number> = {
+  happy: 5, focused: 5, calm: 4, satisfied: 4,
+  tired: 2, bored: 2, anxious: 1, down: 1,
+};
+
+/** Compute mood distribution from pre-filtered messages (no report needed). */
+export function computeMoodDistribution(
+  messages: Message[],
+  activityMood: Record<string, string>,
+): MoodDistributionItem[] {
+  const moodMinutes: Record<string, number> = {};
+  messages
+    .filter(m => m.mode === 'record' && !m.isMood && m.duration !== undefined)
+    .forEach(m => {
+      const mood = activityMood[m.id];
+      if (!mood) return;
+      moodMinutes[mood] = (moodMinutes[mood] || 0) + (m.duration || 0);
+    });
+  return Object.entries(moodMinutes).map(([mood, minutes]) => ({ mood, minutes }));
+}
+
+/** Compute chronological mood energy points for a timeline chart. */
+export function computeMoodEnergyTimeline(
+  messages: Message[],
+  activityMood: Record<string, string>,
+): MoodEnergyPoint[] {
+  return messages
+    .filter(m => m.mode === 'record' && !m.isMood && activityMood[m.id])
+    .map(m => {
+      const key = normalizeMoodKey(activityMood[m.id]) ?? 'calm';
+      return { timestamp: m.timestamp, energy: MOOD_ENERGY_SCORE[key] ?? 3, mood: activityMood[m.id] };
+    })
+    .sort((a, b) => a.timestamp - b.timestamp);
 }
 
 export function getReportTodosInRange(todos: Todo[], report: Report): Todo[] {

@@ -8,6 +8,23 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-25 - Feat: 日记界面植物上方生态球（DayEcoSphere）
+
+### Added
+
+- **DayEcoSphere 组件**：在日记页面植物根系区域上方新增三个玻璃质感生态球。
+  - 左球（🌙 心情）：点击展开今日心情能量曲线（SVG 折线图）+ 心情分类饼图，复用 `MoodPieChart`。
+  - 中球（🌿 活动）：点击展开今日活动分类圆环图，复用 `ActivityCategoryDonut`。
+  - 右球（✨ 待解锁）：暂为占位，显示为半透明禁用态。
+  - 晚上 20 点后在气泡下方显示提示文字，说明数据将归入今日日记。
+  - 数据来源与日记报告保持一致（`computeActivityDistribution`、`computeMoodDistribution`、`computeMoodEnergyTimeline` 均来自今日消息）。
+  - `src/features/report/plant/DayEcoSphere.tsx` — 新建组件（含 `MoodEnergyLine` SVG 子组件 + `GlassBubble` 子组件）。
+  - `src/features/report/reportPageHelpers.ts` — 新增 `MoodEnergyPoint` 类型、`computeMoodDistribution`、`computeMoodEnergyTimeline` 导出函数。
+  - `src/features/report/ReportPage.tsx` — 在 `<PlantRootSection />` 上方挂载 `<DayEcoSphere />`。
+  - `src/i18n/locales/{zh,en,it}.ts` — 新增 7 个 i18n key（`eco_sphere_*`）。
+
+---
+
 ## 2026-03-25 - Feat: 聊天输入框草稿持久化
 
 ### Added

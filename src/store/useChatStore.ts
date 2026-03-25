@@ -229,7 +229,7 @@ export const useChatStore = create<ChatState>()(
       fetchMessagesByDate: async (dateStr: string) => {
         const cached = get().dateCache.get(dateStr);
         if (cached) {
-          set({ messages: cached, activeViewDateStr: dateStr });
+          set({ messages: cached, activeViewDateStr: dateStr, currentDateStr: dateStr });
           return;
         }
         const session = await getSupabaseSession();
@@ -264,6 +264,7 @@ export const useChatStore = create<ChatState>()(
         set(state => ({
           messages: msgs,
           activeViewDateStr: dateStr,
+          currentDateStr: dateStr,
           dateCache: new Map(state.dateCache).set(dateStr, msgs),
         }));
       },
