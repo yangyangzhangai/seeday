@@ -11,6 +11,7 @@ import {
   type SpectrumItem,
   type TrendSignal,
 } from './types';
+import { classifyRecordActivityType, type ActivityRecordType } from '../activityType';
 
 export function parseClassifierResponse(raw: string): ClassifiedData {
   try {
@@ -59,7 +60,7 @@ export function computeSpectrum(items: ClassifiedItem[], totalMin: number): Spec
   const catTop: Record<string, ClassifiedItem> = {};
 
   for (const item of items) {
-    const cat = item.category || 'dissolved';
+    const cat: ActivityRecordType = classifyRecordActivityType(item.name).activityType;
     const dur = item.duration_min || 0;
     catDuration[cat] = (catDuration[cat] || 0) + dur;
     if (!catTop[cat] || dur > catTop[cat].duration_min) {
@@ -104,7 +105,7 @@ export function computeLightQuality(
   todosCompleted: number,
   todosTotal: number
 ): LightQuality {
-  const NEUTRAL_CATEGORIES = new Set(['body', 'necessary']);
+  const NEUTRAL_CATEGORIES = new Set(['life', 'health']);
 
   const neutralMin = spectrum
     .filter((s) => NEUTRAL_CATEGORIES.has(s.category))
@@ -113,7 +114,7 @@ export function computeLightQuality(
   const effectiveMin = Math.max(0, totalMin - neutralMin);
 
   const focusMin = spectrum
-    .filter((s) => s.category === 'deep_focus')
+    .filter((s) => s.category === 'study' || s.category === 'work')
     .reduce((sum, s) => sum + s.duration_min, 0);
 
   const focusRatio = effectiveMin > 0 ? focusMin / effectiveMin : 0;
@@ -156,8 +157,12 @@ export function detectGravityMismatch(
 
   if (lowSlots.size === 0) return null;
 
+  const focusCategories = new Set<string>(['study', 'work']);
   const mismatch = items.filter(
-    (item) => item.category === 'deep_focus' && item.time_slot && lowSlots.has(item.time_slot)
+    (item) => {
+      const cat = classifyRecordActivityType(item.name).activityType;
+      return focusCategories.has(cat) && item.time_slot && lowSlots.has(item.time_slot);
+    }
   );
 
   if (mismatch.length === 0) return null;
@@ -203,9 +208,10 @@ export function computeHistoryTrend(today: ComputedResult, history: ComputedResu
     }
   }
 
-  const todayFocus = today.spectrum.find((s) => s.category === 'deep_focus')?.duration_min || 0;
+  const focusCats = new Set(['study', 'work']);
+  const todayFocus = today.spectrum.filter((s) => focusCats.has(s.category)).reduce((sum, s) => sum + s.duration_min, 0);
   if (history.length >= 2) {
-    const histFocus = history.slice(-7).map((d) => d.spectrum.find((s) => s.category === 'deep_focus')?.duration_min || 0);
+    const histFocus = history.slice(-7).map((d) => d.spectrum.filter((s) => focusCats.has(s.category)).reduce((sum, s) => sum + s.duration_min, 0));
     const histAvgFocus = histFocus.reduce((a, b) => a + b, 0) / histFocus.length;
     const consecutiveUp = histFocus.length >= 2 && histFocus.every((val, i) => i === 0 || val >= histFocus[i - 1]);
 

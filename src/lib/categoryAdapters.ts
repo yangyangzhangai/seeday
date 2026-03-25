@@ -1,16 +1,14 @@
 import { classifyRecordActivityType, type ActivityRecordType } from './activityType';
 import { getCategoryLexicon, type SupportedLang } from '../services/input/lexicon/getLexicon';
 
+/** @deprecated Use ACTIVITY_RECORD_TYPES from activityType.ts instead */
 export const DIARY_CLASSIFIER_CATEGORIES = [
-  'deep_focus',
-  'recharge',
-  'body',
-  'necessary',
-  'social_duty',
-  'self_talk',
-  'dopamine',
-  'dissolved',
-  'unknown',
+  'study',
+  'work',
+  'social',
+  'life',
+  'entertainment',
+  'health',
 ] as const;
 
 export type DiaryClassifierCategory = (typeof DIARY_CLASSIFIER_CATEGORIES)[number];

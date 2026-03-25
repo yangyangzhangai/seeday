@@ -85,48 +85,38 @@ export interface ComputedResult {
 }
 
 export const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; desc: string }> = {
-  deep_focus: {
-    label: '深度专注',
-    emoji: '🔵',
-    desc: '冷静、沉浸、屏蔽外界',
+  study: {
+    label: '学习',
+    emoji: '📖',
+    desc: '学习、阅读、备考、课程',
   },
-  recharge: {
-    label: '灵魂充电',
-    emoji: '🟢',
-    desc: '主动滋养、生长、恢复',
+  work: {
+    label: '工作',
+    emoji: '💼',
+    desc: '编程、会议、设计、办公',
   },
-  body: {
-    label: '身体维护',
-    emoji: '🟡',
-    desc: '基础补给、躯壳照料',
+  social: {
+    label: '社交',
+    emoji: '💬',
+    desc: '聊天、聚会、社交互动',
   },
-  necessary: {
-    label: '生活运转',
-    emoji: '🟠',
-    desc: '稳定、必要、日常底色',
+  life: {
+    label: '生活',
+    emoji: '🏠',
+    desc: '家务、通勤、日常事务',
   },
-  social_duty: {
-    label: '声波交换',
-    emoji: '🟣',
-    desc: '被动或义务性的人际能量流动',
+  entertainment: {
+    label: '娱乐',
+    emoji: '🎮',
+    desc: '游戏、影视、休闲放松',
   },
-  self_talk: {
-    label: '自我整理',
-    emoji: '🟤',
-    desc: '沉淀、内敛、向内',
-  },
-  dopamine: {
-    label: '即时满足',
-    emoji: '🔴',
-    desc: '冲动、刺激、停不下来',
-  },
-  dissolved: {
-    label: '光的涣散',
-    emoji: '⚫',
-    desc: '模糊、无方向、去向不明',
+  health: {
+    label: '健康',
+    emoji: '💪',
+    desc: '运动、健身、睡眠、就医',
   },
 };
 
-export const ACTIVE_CATEGORIES = new Set(['deep_focus', 'recharge', 'self_talk']);
+export const ACTIVE_CATEGORIES = new Set(['study', 'work']);
 export const ANOMALY_THRESHOLD = 0.35;
 export const BAR_TOTAL = 12;

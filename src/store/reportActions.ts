@@ -394,9 +394,12 @@ function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
   ];
 
   recent.forEach((item, index) => {
-    const focusItem = item.spectrum.find((spectrum) => spectrum.category === 'deep_focus');
+    const focusCats = new Set(['study', 'work']);
+    const focusMin = item.spectrum.filter((s) => focusCats.has(s.category)).reduce((sum, s) => sum + s.duration_min, 0);
     const dayIndex = history.length - recent.length + index + 1;
-    const focusStr = focusItem?.duration_str || '0';
+    const focusH = Math.floor(focusMin / 60);
+    const focusM = focusMin % 60;
+    const focusStr = focusH > 0 ? (focusM > 0 ? `${focusH}h ${focusM}min` : `${focusH}h`) : `${focusM}min`;
     const { todo_completed, todo_total } = item.light_quality;
     const todoStr = todo_total > 0
       ? (isZh ? `${todo_completed}/${todo_total} 项完成` : `${todo_completed}/${todo_total} done`)

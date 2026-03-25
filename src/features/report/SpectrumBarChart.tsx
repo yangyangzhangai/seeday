@@ -7,14 +7,12 @@ interface SpectrumBarChartProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  deep_focus:   '#6366f1',
-  recharge:     '#10b981',
-  body:         '#f59e0b',
-  necessary:    '#f97316',
-  social_duty:  '#a855f7',
-  self_talk:    '#92400e',
-  dopamine:     '#ef4444',
-  dissolved:    '#6b7280',
+  study:         '#6366f1',
+  work:          '#3b82f6',
+  social:        '#ec4899',
+  life:          '#f59e0b',
+  entertainment: '#10b981',
+  health:        '#ef4444',
 };
 
 export const SpectrumBarChart: React.FC<SpectrumBarChartProps> = ({ spectrum }) => {
