@@ -5,7 +5,7 @@
 // - STRONG_PHRASES: Complete activity phrases (2+ chars), direct match.
 // - VERBS: Single-char root verbs, must be paired with an object (ZH_ACTIVITY_OBJECTS) to confirm activity.
 
-import type { ActivityLexicon } from './types';
+import type { ActivityLexicon } from './types.js';
 
 export const zhActivityLexicon: ActivityLexicon = {
   strongPhrases: [

@@ -4,7 +4,7 @@
 // Previously activityType.ts only had 3-6 English keywords per category.
 // This file extends coverage to match the activity vocabulary in liveInputRules.en.ts.
 
-import type { CategoryLexicon } from './types';
+import type { CategoryLexicon } from './types.js';
 
 export const enCategoryLexicon: CategoryLexicon = {
   keywords: {

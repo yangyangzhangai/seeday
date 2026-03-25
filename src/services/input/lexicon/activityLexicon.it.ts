@@ -3,7 +3,7 @@
 // Italian activity lexicon.
 // Extracted from liveInputRules.it.ts.
 
-import type { ActivityLexicon } from './types';
+import type { ActivityLexicon } from './types.js';
 
 export const itActivityLexicon: ActivityLexicon = {
   strongPhrases: [

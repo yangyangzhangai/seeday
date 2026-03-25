@@ -35,6 +35,7 @@ export const ReportPage = () => {
   const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(undefined);
   const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
+  const [savedDiaryBookFlippedCount, setSavedDiaryBookFlippedCount] = useState<number | undefined>(undefined);
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
@@ -51,15 +52,24 @@ export const ReportPage = () => {
     // Today: calendar cannot view or generate — use "生成日记" button instead
     if (isSameDay(value, today)) return;
 
-    // Load messages for this date into store so ActivityRecordsView & mood chart work
-    await loadMessagesForDateRange(startOfDay(value), endOfDay(value));
+    // Best-effort: load messages so ActivityRecordsView & mood chart work.
+    // Network errors are swallowed — they must not block opening the diary.
+    try {
+      await loadMessagesForDateRange(startOfDay(value), endOfDay(value));
+    } catch {
+      // ignore — diary still opens without message data
+    }
 
     // Historical dates: generate only if no report exists yet, never overwrite
-    if (existingReport) {
-      setSelectedReportId(existingReport.id);
-    } else {
-      const reportId = await generateReport('daily', value.getTime());
-      setSelectedReportId(reportId);
+    try {
+      if (existingReport) {
+        setSelectedReportId(existingReport.id);
+      } else {
+        const reportId = await generateReport('daily', value.getTime());
+        setSelectedReportId(reportId);
+      }
+    } catch {
+      // ignore — avoid silent swallow at call site
     }
   };
 
@@ -72,6 +82,7 @@ export const ReportPage = () => {
     const todayReport = reports.find(
       (report) => report.type === 'daily' && isSameDay(new Date(report.date), now)
     );
+    setDiaryInitialPage(1);
     if (todayReport) {
       setSelectedReportId(todayReport.id);
     } else {
@@ -105,9 +116,10 @@ export const ReportPage = () => {
     return () => clearTimeout(timer);
   }, [generateReport]);
 
-  const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1) => {
+  const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1, flippedCount: number) => {
     // Keep book open during async loading — close it only after modal is ready
     setSavedDiaryBookMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    setSavedDiaryBookFlippedCount(flippedCount);
     await loadMessagesForDateRange(startOfDay(date), endOfDay(date));
     const existingReport = reports.find(
       r => r.type === 'daily' && isSameDay(new Date(r.date), date)
@@ -224,10 +236,11 @@ export const ReportPage = () => {
 
       {showDiaryBook && (
         <DiaryBookShelf
-          onClose={() => { setShowDiaryBook(false); setSavedDiaryBookMonth(undefined); }}
+          onClose={() => { setShowDiaryBook(false); setSavedDiaryBookMonth(undefined); setSavedDiaryBookFlippedCount(undefined); }}
           reports={reports}
           onOpenDiaryPage={handleOpenDiaryPage}
           initialOpenMonth={savedDiaryBookMonth}
+          initialOpenFlippedCount={savedDiaryBookFlippedCount}
         />
       )}
     </div>

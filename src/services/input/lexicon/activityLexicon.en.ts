@@ -3,7 +3,7 @@
 // English activity lexicon.
 // Extracted from liveInputRules.en.ts.
 
-import type { ActivityLexicon } from './types';
+import type { ActivityLexicon } from './types.js';
 
 export const enActivityLexicon: ActivityLexicon = {
   strongPhrases: [
