@@ -427,6 +427,28 @@ export async function callLiveInputTelemetryDashboardAPI(
   return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-dashboard?${params.toString()}`, { headers });
 }
 
+interface ShortInsightRequest {
+  kind: 'activity' | 'mood';
+  summary: string;
+  lang?: 'zh' | 'en' | 'it';
+}
+
+interface ShortInsightResponse {
+  insight: string;
+}
+
+/**
+ * 调用 Short Insight API - 生成 ≤20 字的活动或心情分析
+ */
+export async function callShortInsightAPI(request: ShortInsightRequest): Promise<string> {
+  try {
+    const data = await postJson<ShortInsightRequest, ShortInsightResponse>('/short-insight', request);
+    return data.insight || '';
+  } catch {
+    return '';
+  }
+}
+
 function getCurrentAiMode(): AiCompanionMode | undefined {
   const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
   if (!aiModeEnabled) {
