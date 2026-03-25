@@ -7,7 +7,7 @@ import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import type { MoodDistributionItem, ActivityDistributionItem } from './reportPageHelpers';
-import { getDailyActivityDistribution, getDailyMoodDistribution } from './reportPageHelpers';
+import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { ActivityPieChart } from './ActivityPieChart';
 import { MoodPieChart } from './MoodPieChart';
 import { ReportStatsView } from './ReportStatsView';
@@ -49,6 +49,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const currentLang = i18n.language?.split('-')[0] || 'en';
   const { updateReport } = useReportStore();
   const chatMessages = useChatStore((state) => state.messages);
+  const dateCache = useChatStore((state) => state.dateCache);
   const activityMood = useMoodStore((state) => state.activityMood);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(0);
@@ -56,11 +57,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [activityInsight, setActivityInsight] = useState('');
   const [moodInsight, setMoodInsight] = useState('');
 
+  const reportMessages = getMessagesForReport(chatMessages, dateCache, selectedReport);
   const activityDistribution = selectedReport
-    ? getDailyActivityDistribution(chatMessages, selectedReport)
+    ? getDailyActivityDistribution(reportMessages, selectedReport)
     : [];
   const moodDistribution = selectedReport
-    ? getDailyMoodDistribution(chatMessages, activityMood, selectedReport)
+    ? getDailyMoodDistribution(reportMessages, activityMood, selectedReport)
     : dailyMoodDistribution;
 
   useEffect(() => {

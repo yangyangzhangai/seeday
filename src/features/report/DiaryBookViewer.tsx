@@ -421,12 +421,20 @@ function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () =
 export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
   const today = new Date();
   const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
-  const allMessages = useChatStore(state => state.messages);
+  const globalMessages = useChatStore(state => state.messages);
+  const dateCache = useChatStore(state => state.dateCache);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
 
   useEffect(() => {
     loadMessagesForDateRange(startOfMonth(currentMonth), endOfMonth(currentMonth));
   }, [currentMonth, loadMessagesForDateRange]);
+
+  // Use cached month messages if available, otherwise fall back to global messages
+  const monthStartStr = (() => {
+    const d = startOfMonth(currentMonth);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const allMessages = dateCache.get(monthStartStr) ?? globalMessages;
   const [flippedCount, setFlippedCount] = useState(initialFlippedCount ?? 0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');

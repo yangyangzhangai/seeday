@@ -273,14 +273,9 @@ export const useChatStore = create<ChatState>()(
         const msgs = await get().getMessagesForDateRange(start, end);
         const dateStr = getLocalDateString(start);
         set(state => {
-          const existingIds = new Set(state.messages.map(m => m.id));
-          const newMsgs = msgs.filter(m => !existingIds.has(m.id));
           const newCache = new Map(state.dateCache);
           newCache.set(dateStr, msgs);
-          return {
-            dateCache: newCache,
-            messages: newMsgs.length > 0 ? [...state.messages, ...newMsgs] : state.messages,
-          };
+          return { dateCache: newCache };
         });
       },
 

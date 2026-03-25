@@ -2,7 +2,8 @@
 
 export type RootType = 'tap' | 'fib' | 'sha' | 'bra' | 'bul';
 
-export type PlantStage = 'early' | 'mid' | 'late';
+// 植物生长阶段：只有早期和晚期，已移除 mid
+export type PlantStage = 'early' | 'late';
 
 export type DirectionIndex = 0 | 1 | 2 | 3 | 4;
 

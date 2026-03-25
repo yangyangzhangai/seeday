@@ -23,6 +23,7 @@ import type { ActivityRecordType } from '../../../lib/activityType';
 export interface ActivityLexicon {
   strongPhrases: readonly string[];
   verbs: readonly string[];
+  phrasePatterns: readonly RegExp[];
 }
 
 // ─── Mood ────────────────────────────────────────────────────────────────────

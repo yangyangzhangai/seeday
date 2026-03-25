@@ -1,0 +1,11 @@
+samples=155
+kind_accuracy=155/155=100.00%
+internal_accuracy=155/155=100.00%
+
+top_mismatch_pairs:
+
+recall_by_expected_internal:
+  standalone_mood: 155/155=100.00%
+
+accuracy_by_difficulty:
+  unknown: 155/155=100.00%

@@ -6,14 +6,16 @@ import { useChatStore } from '../../store/useChatStore';
 import type { Report } from '../../store/useReportStore';
 import { cn } from '../../lib/utils';
 import { formatDuration } from '../../lib/time';
-import { getReportRange } from './reportPageHelpers';
+import { getReportRange, getMessagesForReport } from './reportPageHelpers';
 
 interface ActivityRecordsViewProps {
   report: Report;
 }
 
 export const ActivityRecordsView: React.FC<ActivityRecordsViewProps> = ({ report }) => {
-  const messages = useChatStore((state) => state.messages);
+  const globalMessages = useChatStore((state) => state.messages);
+  const dateCache = useChatStore((state) => state.dateCache);
+  const messages = getMessagesForReport(globalMessages, dateCache, report);
   const { t } = useTranslation();
   const { start, end } = getReportRange(report);
 

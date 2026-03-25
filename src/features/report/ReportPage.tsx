@@ -12,7 +12,7 @@ import { useMoodStore } from '../../store/useMoodStore';
 import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
-import { getDailyMoodDistribution } from './reportPageHelpers';
+import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 import { DayEcoSphere } from './plant/DayEcoSphere';
 
@@ -25,6 +25,7 @@ export const ReportPage = () => {
   const { todos } = useTodoStore();
   const { t, i18n } = useTranslation();
   const chatMessages = useChatStore((state) => state.messages);
+  const dateCache = useChatStore((state) => state.dateCache);
   const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
 
@@ -40,9 +41,14 @@ export const ReportPage = () => {
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
+  const reportMessages = useMemo(
+    () => getMessagesForReport(chatMessages, dateCache, selectedReport),
+    [chatMessages, dateCache, selectedReport]
+  );
+
   const dailyMoodDistribution = useMemo(
-    () => getDailyMoodDistribution(chatMessages, activityMood, selectedReport),
-    [chatMessages, activityMood, selectedReport]
+    () => getDailyMoodDistribution(reportMessages, activityMood, selectedReport),
+    [reportMessages, activityMood, selectedReport]
   );
 
   const handleDateClick = async (value: Date) => {

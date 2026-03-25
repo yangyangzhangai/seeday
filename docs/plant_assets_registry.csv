@@ -1,0 +1,7 @@
+﻿plantId,rootType,plantStage,variantIndex,variant,fileName,fileFormat,isFallbackReady,nameCN,nameEN,nameIT,notes
+fib_early_001,fib,early,1,,fib_early_001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,已上线
+fib_early_002,fib,early,2,,fib_early_002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,已上线
+fib_late_001,fib,late,1,,fib_late_001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,已上线
+fib_late_002,fib,late,2,,fib_late_002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,已上线
+,,,,,,,,,,,
+sha_early_001,sha,early,1,,sha_early_001.png,png,FALSE,,,,全局兜底图 最高优先级
