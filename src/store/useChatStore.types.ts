@@ -67,6 +67,8 @@ export interface ChatState {
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
+  getMessagesForDateRange: (start: Date, end: Date) => Promise<Message[]>;
+  loadMessagesForDateRange: (start: Date, end: Date) => Promise<void>;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
   attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;

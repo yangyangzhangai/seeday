@@ -163,6 +163,7 @@ export function fromDbReport(row: any): Report {
     type: row.type,
     content: row.content,
     aiAnalysis: row.ai_analysis,
+    userNote: row.user_note ?? undefined,
     stats: row.stats,
     analysisStatus: row.ai_analysis ? 'success' : 'idle',
     errorMessage: null,
@@ -180,6 +181,7 @@ export function toDbReport(report: Report, userId: string): Record<string, unkno
     type: report.type,
     content: report.content,
     ai_analysis: report.aiAnalysis,
+    user_note: report.userNote,
     stats: report.stats,
   };
 }

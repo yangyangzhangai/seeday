@@ -1,8 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { format, getDaysInMonth, startOfMonth, isSameDay } from 'date-fns';
+import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
+import { useChatStore } from '../../store/useChatStore';
+import type { Message } from '../../store/useChatStore';
+import { useMoodStore } from '../../store/useMoodStore';
+import { normalizeMoodKey } from '../../lib/moodOptions';
+
+const MOOD_COLORS: Record<string, string> = {
+  happy: '#F9A8D4', calm: '#93C5FD', focused: '#86EFAC',
+  satisfied: '#FDE68A', tired: '#9CA3AF', bored: '#C7D2FE',
+  down: '#60A5FA', anxious: '#9CA3AF',
+};
 
 /* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
@@ -18,7 +28,12 @@ const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
 
 /* ──────────────────────────────── types ──────────────────────────────── */
-interface Props { onClose: () => void; reports: Report[]; initialMonth?: Date; }
+interface Props {
+  onClose: () => void;
+  reports: Report[];
+  initialMonth?: Date;
+  onOpenDiaryPage?: (date: Date, subPage: 0 | 1) => void;
+}
 
 type PageData = {
   type: 'cover' | 'day-left' | 'day-right' | 'blank' | 'back';
@@ -45,8 +60,9 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 }
 
 /* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale }: { page: PageData; scale: number }) {
+function PageContent({ page, scale, allMessages }: { page: PageData; scale: number; allMessages: Message[] }) {
   const px = (n: number) => n * scale;
+  const activityMood = useMoodStore(state => state.activityMood);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
 
   // Projective (homographic) transforms: map content rectangle corners → trapezoid corners
@@ -110,45 +126,92 @@ function PageContent({ page, scale }: { page: PageData; scale: number }) {
           </span>
         </div>
 
-        {/* Plant placeholder */}
+        {/* 生成植物 placeholder — matches sub-page 1 top button */}
         <div style={{
-          width: '100%', height: px(52), flexShrink: 0,
+          alignSelf: 'flex-start', flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: px(1.5),
+          padding: `${px(1.5)}px ${px(3)}px`,
+          borderRadius: px(4),
           background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)',
-          borderRadius: px(3), border: `${0.5}px solid rgba(120,160,100,0.2)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: px(2),
-          fontSize: px(14), color: 'rgba(80,130,60,0.4)',
+          border: `0.5px solid rgba(74,106,58,0.25)`,
+          opacity: 0.75,
         }}>
-          <span>🌱</span>
-          <span style={{ fontSize: px(5.5), letterSpacing: 0.3 }}>今日植物成长图</span>
+          <span style={{ fontSize: px(7) }}>🌱</span>
+          <span style={{ fontSize: px(5.5), color: '#4a6a3a' }}>生成植物</span>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 0.5, background: 'rgba(0,0,0,0.09)', flexShrink: 0 }} />
+        {/* Activity records + mood spectrum */}
+        {(() => {
+          const dayStart = date ? startOfDay(date).getTime() : 0;
+          const dayEnd = date ? endOfDay(date).getTime() : 0;
+          const dayMsgs = allMessages
+            .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
+            .sort((a, b) => a.timestamp - b.timestamp);
 
-        {/* Report content */}
-        {report ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: px(2.5), overflow: 'hidden', flex: 1 }}>
-            {report.stats?.actionSummary && (
-              <p style={{ margin: 0, fontSize: px(6.5), color: '#5a4a3a', lineHeight: 1.5,
-                overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-                {report.stats.actionSummary}
-              </p>
-            )}
-            {report.stats?.moodSummary && (
-              <p style={{ margin: 0, fontSize: px(6.5), color: '#7a6a5a', lineHeight: 1.5,
-                overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-                {report.stats.moodSummary}
-              </p>
-            )}
-            {report.stats && (
-              <div style={{ fontSize: px(6), color: '#aaa', marginTop: 'auto' }}>
-                ✓ {report.stats.completedTodos}/{report.stats.totalTodos} 任务完成
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ flex: 1 }} />
-        )}
+          // Compute mood distribution from messages
+          const moodMinutes: Record<string, number> = {};
+          dayMsgs.forEach(msg => {
+            if (msg.isActive) return;
+            const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
+            if (mood && msg.duration && msg.duration > 0) {
+              const key = normalizeMoodKey(mood) || mood;
+              moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration / 60;
+            }
+          });
+          const moodDist = Object.entries(moodMinutes)
+            .map(([mood, minutes]) => ({ mood, minutes }))
+            .filter(d => d.minutes > 0)
+            .sort((a, b) => b.minutes - a.minutes);
+          const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: px(2), overflow: 'hidden', flex: 1 }}>
+              {/* Activity records — all items, clipped by overflow */}
+              {dayMsgs.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), overflow: 'hidden' }}>
+                  {dayMsgs.map(msg => (
+                    <div key={msg.id} style={{ display: 'flex', alignItems: 'center', gap: px(2), padding: `${px(1)}px ${px(2)}px`, background: 'rgba(0,0,0,0.03)', borderRadius: px(2), flexShrink: 0 }}>
+                      <span style={{ flex: 1, fontSize: px(5.5), color: '#5a4a3a', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{msg.content}</span>
+                      {msg.duration != null && <span style={{ fontSize: px(4.5), color: '#8a9a7a', flexShrink: 0 }}>{Math.round(msg.duration / 60)}m</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : report?.stats?.actionSummary ? (
+                <p style={{ margin: 0, fontSize: px(6), color: '#5a4a3a', lineHeight: 1.5,
+                  overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+                  {report.stats.actionSummary}
+                </p>
+              ) : null}
+
+              {/* Mood spectrum — mini horizontal bar */}
+              {moodDist.length > 0 && (
+                <div style={{ flexShrink: 0 }}>
+                  <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>心情光谱</div>
+                  <div style={{ display: 'flex', height: px(5), borderRadius: px(2), overflow: 'hidden', width: '100%' }}>
+                    {moodDist.map(d => (
+                      <div key={d.mood} style={{ flex: d.minutes / totalMoodMins, background: MOOD_COLORS[d.mood] || '#93C5FD' }} />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: `${px(1)}px ${px(3)}px`, marginTop: px(1.5) }}>
+                    {moodDist.slice(0, 3).map(d => (
+                      <div key={d.mood} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+                        <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: MOOD_COLORS[d.mood] || '#93C5FD', flexShrink: 0 }} />
+                        <span style={{ fontSize: px(5), color: '#666' }}>{d.mood} {Math.round(d.minutes / totalMoodMins * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Task stats */}
+              {report?.stats && (
+                <div style={{ marginTop: 'auto', fontSize: px(5.5), color: '#aaa', flexShrink: 0 }}>
+                  ✓ {report.stats.completedTodos}/{report.stats.totalTodos}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {/* Page number */}
         <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
           {dayNum != null ? 2 * dayNum - 1 : ''}
@@ -171,32 +234,38 @@ function PageContent({ page, scale }: { page: PageData; scale: number }) {
           transform: rightPageTransform,
           transformOrigin: '0 0',
         }}>
-        {/* AI观察笔记 */}
-        <div style={{ fontSize: px(6.5), fontWeight: 700, color: '#3d5a8a', letterSpacing: 0.3, flexShrink: 0 }}>
-          AI 观察笔记
-        </div>
-        <div style={{ overflow: 'hidden', flex: '0 0 auto', maxHeight: px(88) }}>
+        {/* AI 观察日记 — no card background */}
+        <div style={{ flexShrink: 0, maxHeight: px(90), overflow: 'hidden' }}>
+          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+            ✦ AI 观察日记
+          </div>
           {report?.aiAnalysis ? (
-            <p style={{ margin: 0, fontSize: px(6), color: '#4a5a7a', lineHeight: 1.6,
-              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 9, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
               {report.aiAnalysis}
             </p>
           ) : (
-            <span style={{ fontSize: px(6), color: 'rgba(61,90,138,0.32)', fontStyle: 'italic' }}>
-              {report ? '分析生成中…' : ''}
+            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
+              {report ? '观察员正在整理…' : ''}
             </span>
           )}
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 0.5, background: 'rgba(0,0,0,0.09)', flexShrink: 0 }} />
-
-        {/* User diary section */}
-        <div style={{ fontSize: px(6.5), fontWeight: 700, color: '#4a3a2a', flexShrink: 0 }}>我的日记</div>
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <span style={{ fontSize: px(6), color: 'rgba(0,0,0,0.15)' }}>
-            写下今天的心情…
-          </span>
+        {/* 我的日记 — no card background */}
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+            ✎ 我的日记
+          </div>
+          {report?.userNote ? (
+            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+              {report.userNote}
+            </p>
+          ) : (
+            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
+              {report ? '未留下文字…' : ''}
+            </span>
+          )}
         </div>
         {/* Page number */}
         <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
@@ -297,12 +366,13 @@ function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () =
 
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#4a3a2a', marginBottom: 10 }}>我的日记</div>
-              <div style={{ position: 'relative', minHeight: 200, paddingTop: 4 }}>
-                {Array.from({ length: 9 }, (_, i) => (
-                  <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: i * 28 + 26, height: 0.5, background: 'rgba(0,0,0,0.08)' }} />
-                ))}
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(0,0,0,0.2)', lineHeight: '28px' }}>写下今天的心情和想法…</p>
-              </div>
+              {report?.userNote ? (
+                <p style={{ margin: 0, fontSize: 14, color: '#4a3a2a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.userNote}</p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(0,0,0,0.2)', lineHeight: '28px' }}>
+                  {report ? '未留下文字…' : '暂无日记'}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -312,9 +382,15 @@ function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () =
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
-export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth }) => {
+export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth, onOpenDiaryPage }) => {
   const today = new Date();
   const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
+  const allMessages = useChatStore(state => state.messages);
+  const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
+
+  useEffect(() => {
+    loadMessagesForDateRange(startOfMonth(currentMonth), endOfMonth(currentMonth));
+  }, [currentMonth, loadMessagesForDateRange]);
   const [flippedCount, setFlippedCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');
@@ -371,7 +447,15 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
         const rightPage = pages[2 * flippedCount];
         const p = side === 'left' ? leftPage : rightPage;
         if (p?.type === 'day-left' || p?.type === 'day-right') {
-          setExpandTarget({ side, page: p });
+          const pageDate = p.date;
+          if (!pageDate) return;
+          const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          if (pageDate.getTime() >= todayStart.getTime()) return; // today or future — blank, not clickable
+          if (onOpenDiaryPage) {
+            onOpenDiaryPage(pageDate, side === 'left' ? 0 : 1);
+          } else {
+            setExpandTarget({ side, page: p });
+          }
         }
       }
     } else {
@@ -479,11 +563,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
   /* ── scaling ── */
   const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
   const baseWrapW = BASE_PAGE_W * 2 + baseSideMargin * 2;
-  const availableW = Math.max(240, viewport.width - 24);
-  const availableH = Math.max(220, viewport.height - 220);
+  const hMargin = Math.max(20, Math.round(viewport.width * 0.05)); // ≥20px, ~5% each side
+  const availableW = Math.max(240, viewport.width - hMargin * 2);
+  const availableH = Math.max(220, viewport.height - 170); // ~90px header + ~80px footer/safe-area
   const scaleW = availableW / baseWrapW;
   const scaleH = availableH / BASE_PAGE_H;
-  const scale = Math.min(1, Math.max(0.62, Math.min(scaleW, scaleH)));
+  const scale = Math.max(0.62, Math.min(scaleW, scaleH, 1.8)); // allow up to 1.8× for large screens
 
   const pageW = BASE_PAGE_W * scale;
   pageWRef.current = pageW;
@@ -565,10 +650,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + coverShiftLeft, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip }}>
-                  <PageContent page={pages[2 * i]} scale={scale} />
+                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} />
                 </div>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip }}>
-                  <PageContent page={pages[2 * i + 1]} scale={scale} />
+                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} />
                 </div>
               </div>
             );
@@ -598,7 +683,9 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
       <div style={{ textAlign: 'center', paddingBottom: 44 }}>
         <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>{getIndicator()}</span>
         {isBookOpen && (
-          <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10, marginTop: 3 }}>双击页面可放大查看</div>
+          <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10, marginTop: 3 }}>
+            {onOpenDiaryPage ? '双击页面可进入日记' : '双击页面可放大查看'}
+          </div>
         )}
       </div>
 
