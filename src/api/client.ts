@@ -442,7 +442,7 @@ interface ShortInsightResponse {
  */
 export async function callShortInsightAPI(request: ShortInsightRequest): Promise<string> {
   try {
-    const data = await postJson<ShortInsightRequest, ShortInsightResponse>('/short-insight', request);
+    const data = await postJson<ShortInsightRequest & { action: string }, ShortInsightResponse>('/diary', { ...request, action: 'insight' });
     return data.insight || '';
   } catch {
     return '';

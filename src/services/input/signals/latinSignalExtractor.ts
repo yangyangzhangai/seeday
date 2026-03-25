@@ -6,7 +6,7 @@ import {
   EN_MOOD_WORDS,
   EN_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   EN_STRONG_COMPLETION_PATTERNS,
-} from '../liveInputRules.en';
+} from '../liveInputRules.en.js';
 import {
   IT_ACTIVITY_PATTERNS,
   IT_ACTIVITY_VERBS,
@@ -15,7 +15,7 @@ import {
   IT_MOOD_WORDS,
   IT_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   IT_STRONG_COMPLETION_PATTERNS,
-} from '../liveInputRules.it';
+} from '../liveInputRules.it.js';
 
 export type LatinLang = 'en' | 'it';
 

@@ -5,7 +5,7 @@
 // Previously IT mood words lived only in liveInputRules.it.ts (IT_MOOD_WORDS,
 // IT_MOOD_PATTERNS) with no activity→mood inference and no presence in mood.ts.
 
-import type { MoodLexicon } from './types';
+import type { MoodLexicon } from './types.js';
 
 export const itMoodLexicon: MoodLexicon = {
 

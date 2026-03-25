@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 
-import { getActivityLexicon, getMoodLexicon } from './lexicon/getLexicon';
+import { getActivityLexicon, getMoodLexicon } from './lexicon/getLexicon.js';
 
 const enActivity = getActivityLexicon('en');
 const enMood = getMoodLexicon('en');

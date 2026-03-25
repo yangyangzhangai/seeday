@@ -4,7 +4,7 @@
 // Previously activityType.ts had ZERO Italian keywords for any category.
 // This file provides full coverage matching the activity vocabulary in liveInputRules.it.ts.
 
-import type { CategoryLexicon } from './types';
+import type { CategoryLexicon } from './types.js';
 
 export const itCategoryLexicon: CategoryLexicon = {
   keywords: {
