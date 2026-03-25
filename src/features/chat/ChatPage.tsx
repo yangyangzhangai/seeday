@@ -40,7 +40,7 @@ export const ChatPage = () => {
   const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
   const fetchStardusts = useStardustStore(state => state.fetchStardusts);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => localStorage.getItem('chat_input_draft') ?? '');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingDate, setIsLoadingDate] = useState(false);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
@@ -65,6 +65,15 @@ export const ChatPage = () => {
 
   const sendingRef = useRef(false);
 
+  // ── 草稿持久化 ─────────────────────────────────────────────
+  useEffect(() => {
+    if (input) {
+      localStorage.setItem('chat_input_draft', input);
+    } else {
+      localStorage.removeItem('chat_input_draft');
+    }
+  }, [input]);
+
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
   const isDefaultCustomLabel = (label: string) =>
@@ -85,8 +94,12 @@ export const ChatPage = () => {
   // Skip re-fetch if we already have today's data in memory.
   // This prevents flicker and skeleton flash when navigating back to the chat page,
   // and preserves any optimistic messages added while on other pages (e.g. todo start).
+  // If hasInitialized is persisted but the date has changed (new day), trigger a refresh.
   useEffect(() => {
-    if (hasInitialized) return;
+    if (hasInitialized) {
+      checkAndRefreshForNewDay();
+      return;
+    }
     fetchMessages();
   }, []);
 

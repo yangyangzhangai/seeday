@@ -8,6 +8,25 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-25 - Feat: 聊天输入框草稿持久化
+
+### Added
+
+- **输入框草稿缓存**：用户在聊天输入框输入的内容现在会自动保存到 `localStorage`，切换页面或窗口后回来仍可继续编辑；发送成功后草稿自动清除。
+  - `src/features/chat/ChatPage.tsx` — `input` 初始值改为懒加载读取 `localStorage.getItem('chat_input_draft')`；新增 `useEffect` 监听 `input` 变化同步写入/删除 `chat_input_draft` key；`setInput('')` 触发空值时自动 `removeItem`，无需额外改动 `handleSend`。
+
+---
+
+## 2026-03-25 - Fix: 跨天打开网页显示昨日数据问题
+
+### Fixed
+
+- **ChatPage 初始化跳过跨天刷新的 bug**：`hasInitialized` 持久化到 localStorage，导致第二天打开网页时 init useEffect 直接 `return`，不拉取今日数据，跨天定时器最长要等 30 秒才刷新。
+  - `src/features/chat/ChatPage.tsx` — init useEffect 中当 `hasInitialized=true` 时，先调用 `checkAndRefreshForNewDay()`，若检测到日期已变更则立即触发 `fetchMessages()`。
+  - 同日内页面切换行为不变（`currentDateStr === todayStr` 时 `checkAndRefreshForNewDay` 为空操作）。
+
+---
+
 ## 2026-03-25 - Diary Rebuild Audit: D4 + D6 Already Complete
 
 ### Audit Findings (no code changes)
