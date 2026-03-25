@@ -157,8 +157,8 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
     >
       <div
         ref={canvasRef}
-        className="relative h-[280px] sm:h-[320px] overflow-hidden rounded-xl"
-        style={{ backgroundImage: 'url(/assets/soil.png)', backgroundSize: 'cover', backgroundPosition: 'center 20%' }}
+        className="relative overflow-hidden rounded-xl"
+        style={{ height: 'clamp(200px, 55vw, 360px)', backgroundImage: 'url(/assets/soil.png)', backgroundSize: 'cover', backgroundPosition: 'center 20%' }}
       >
         <div
           className="w-full h-full origin-center will-change-transform"

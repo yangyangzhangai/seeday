@@ -186,13 +186,15 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
 interface Props {
   onClose: () => void;
   reports: Report[];
+  onOpenDiaryPage?: (date: Date, subPage: 0 | 1) => void;
+  initialOpenMonth?: Date;
 }
 
-export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports }) => {
+export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth }) => {
   const user = useAuthStore(s => s.user);
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
-  const [openMonth, setOpenMonth] = useState<Date | null>(null);
+  const [openMonth, setOpenMonth] = useState<Date | null>(initialOpenMonth ?? null);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [editingIdx, setEditingIdx]   = useState<number | null>(null);
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
@@ -260,6 +262,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports }) => {
         onClose={() => setOpenMonth(null)}
         reports={reports}
         initialMonth={openMonth}
+        onOpenDiaryPage={onOpenDiaryPage}
       />
     );
   }

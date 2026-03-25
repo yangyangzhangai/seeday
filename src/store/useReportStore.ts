@@ -18,6 +18,7 @@ import {
   runTimeshineDiary,
   syncReportToSupabase,
 } from './reportActions';
+import { getDateRange } from './reportHelpers';
 
 export interface ReportStats {
   completedTodos: number;
@@ -78,6 +79,7 @@ export interface Report {
   type: 'daily' | 'weekly' | 'monthly' | 'custom';
   content: string; // JSON string or markdown
   aiAnalysis?: string | null;
+  userNote?: string;
   stats?: ReportStats;
   analysisStatus?: 'idle' | 'generating' | 'success' | 'error';
   errorMessage?: string | null;
@@ -142,6 +144,7 @@ export const useReportStore = create<ReportState>()(
           if (updates.title !== undefined) dbUpdates.title = updates.title;
           if (updates.content !== undefined) dbUpdates.content = updates.content;
           if (updates.stats !== undefined) dbUpdates.stats = updates.stats;
+          if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
 
           if (Object.keys(dbUpdates).length > 0) {
             await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
@@ -155,12 +158,16 @@ export const useReportStore = create<ReportState>()(
         const growthStore = useGrowthStore.getState();
         const existingReport = get().reports.find((report) => report.type === type && isSameDay(report.date, date));
 
+        // Fetch messages for the target date range from Supabase (not just today's in-memory messages)
+        const { start, end } = getDateRange(type, date, customEndDate);
+        const messages = await chatStore.getMessagesForDateRange(start, end);
+
         const generatedReport = createGeneratedReport({
           type,
           date,
           customEndDate,
           todos: todoStore.todos,
-          messages: chatStore.messages,
+          messages,
           moodStore,
           bottles: growthStore.bottles,
         });
@@ -216,10 +223,15 @@ export const useReportStore = create<ReportState>()(
         get().updateReport(reportId, { analysisStatus: 'generating', errorMessage: null });
 
         try {
+          // Fetch messages for this report's date range from Supabase
+          const start = new Date(report.startDate ?? report.date);
+          const end = new Date(report.endDate ?? report.date);
+          const messages = await chatStore.getMessagesForDateRange(start, end);
+
           const result = await runTimeshineDiary({
             report,
             todos: todoStore.todos,
-            messages: chatStore.messages,
+            messages,
             moodStore,
             computedHistory: state.computedHistory,
             bottles: growthStore.bottles,

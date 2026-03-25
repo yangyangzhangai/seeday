@@ -268,6 +268,47 @@ export const useChatStore = create<ChatState>()(
         }));
       },
 
+      loadMessagesForDateRange: async (start: Date, end: Date) => {
+        const msgs = await get().getMessagesForDateRange(start, end);
+        const dateStr = getLocalDateString(start);
+        set(state => {
+          const existingIds = new Set(state.messages.map(m => m.id));
+          const newMsgs = msgs.filter(m => !existingIds.has(m.id));
+          const newCache = new Map(state.dateCache);
+          newCache.set(dateStr, msgs);
+          return {
+            dateCache: newCache,
+            messages: newMsgs.length > 0 ? [...state.messages, ...newMsgs] : state.messages,
+          };
+        });
+      },
+
+      getMessagesForDateRange: async (start: Date, end: Date) => {
+        const dateStr = getLocalDateString(start);
+        const cached = get().dateCache.get(dateStr);
+        if (cached) return cached;
+
+        const session = await getSupabaseSession();
+        if (!session) {
+          return get().messages.filter(m => m.timestamp >= start.getTime() && m.timestamp <= end.getTime());
+        }
+
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('timestamp', start.getTime())
+          .lte('timestamp', end.getTime())
+          .order('timestamp', { ascending: true });
+
+        if (error) {
+          console.error('[getMessagesForDateRange] error', error);
+          return [];
+        }
+
+        return filterLegacyChatRows(data || []).map(mapDbRowToMessage);
+      },
+
       sendMessage: async (
         content: string,
         customTimestamp?: number,

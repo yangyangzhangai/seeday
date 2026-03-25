@@ -1,6 +1,6 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -24,6 +24,7 @@ export const ReportPage = () => {
   const { todos } = useTodoStore();
   const { t, i18n } = useTranslation();
   const chatMessages = useChatStore((state) => state.messages);
+  const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -31,6 +32,9 @@ export const ReportPage = () => {
   const [showTaskList, setShowTaskList] = useState<'completed' | 'total' | null>(null);
   const [showEarlyTip, setShowEarlyTip] = useState(false);
   const [showDiaryBook, setShowDiaryBook] = useState(false);
+  const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(undefined);
+  const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
+  const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
@@ -47,13 +51,15 @@ export const ReportPage = () => {
     // Today: calendar cannot view or generate — use "生成日记" button instead
     if (isSameDay(value, today)) return;
 
-    // Historical dates: generate if missing, otherwise view
-    const needRegenerate = !existingReport || !existingReport.stats?.moodDistribution;
-    if (needRegenerate) {
+    // Load messages for this date into store so ActivityRecordsView & mood chart work
+    await loadMessagesForDateRange(startOfDay(value), endOfDay(value));
+
+    // Historical dates: generate only if no report exists yet, never overwrite
+    if (existingReport) {
+      setSelectedReportId(existingReport.id);
+    } else {
       const reportId = await generateReport('daily', value.getTime());
       setSelectedReportId(reportId);
-    } else if (existingReport) {
-      setSelectedReportId(existingReport.id);
     }
   };
 
@@ -99,30 +105,48 @@ export const ReportPage = () => {
     return () => clearTimeout(timer);
   }, [generateReport]);
 
+  const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1) => {
+    // Keep book open during async loading — close it only after modal is ready
+    setSavedDiaryBookMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    await loadMessagesForDateRange(startOfDay(date), endOfDay(date));
+    const existingReport = reports.find(
+      r => r.type === 'daily' && isSameDay(new Date(r.date), date)
+    );
+    const reportId = existingReport?.id ?? await generateReport('daily', date.getTime());
+    // All four updates batch into one render: modal appears, book disappears simultaneously
+    setDiaryInitialPage(subPage);
+    setOpenedFromDiaryBook(true);
+    setSelectedReportId(reportId);
+    setShowDiaryBook(false);
+  }, [reports, generateReport, loadMessagesForDateRange]);
+
   const today = new Date();
   const currentLang = i18n.language?.split('-')[0] || 'en';
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 overflow-y-auto pb-safe">
-      <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 relative">
-        <h1 className="text-lg font-bold text-center">{t('report_title')}</h1>
+    <div className="flex flex-col h-[calc(100vh-64px)] overflow-y-auto pb-safe" style={{ background: '#ffffff' }}>
+      <header className="p-4 sticky top-0 z-10 relative" style={{ background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+        <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>日记</h1>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-1 w-full text-center text-sm text-gray-500 hover:text-gray-700 active:opacity-70 transition"
+          className="mt-1 w-full text-center text-sm active:opacity-70 transition"
+          style={{ color: '#7a6a5a' }}
         >
           {format(today, currentLang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale: calendarLocale })}
         </button>
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-1.5">
           <button
             onClick={() => setShowDiaryBook(true)}
-            className="text-xs bg-indigo-50 text-indigo-500 border border-indigo-200 rounded-full px-3 py-1 active:opacity-70 transition whitespace-nowrap"
+            className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
+            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
           >
             查看日记本
           </button>
           <button
             onClick={handleGenerateDiary}
-            className="text-xs bg-amber-50 text-amber-600 border border-amber-200 rounded-full px-3 py-1 active:opacity-70 transition whitespace-nowrap"
+            className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
+            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
           >
             生成日记
           </button>
@@ -174,9 +198,21 @@ export const ReportPage = () => {
       <ReportDetailModal
         selectedReport={selectedReport}
         dailyMoodDistribution={dailyMoodDistribution}
-        onClose={() => setSelectedReportId(null)}
+        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); }}
+        onBack={openedFromDiaryBook ? () => {
+          setSelectedReportId(null);
+          setOpenedFromDiaryBook(false);
+          setDiaryInitialPage(undefined);
+          setShowDiaryBook(true); // reopen diary book
+        } : undefined}
         onShowTaskList={setShowTaskList}
         generateTimeshineDiary={generateTimeshineDiary}
+        initialPage={diaryInitialPage}
+        readOnly={(() => {
+          if (!selectedReport) return false;
+          const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          return new Date(selectedReport.date) < todayStart;
+        })()}
       />
 
       <TaskListModal
@@ -188,8 +224,10 @@ export const ReportPage = () => {
 
       {showDiaryBook && (
         <DiaryBookShelf
-          onClose={() => setShowDiaryBook(false)}
+          onClose={() => { setShowDiaryBook(false); setSavedDiaryBookMonth(undefined); }}
           reports={reports}
+          onOpenDiaryPage={handleOpenDiaryPage}
+          initialOpenMonth={savedDiaryBookMonth}
         />
       )}
     </div>
