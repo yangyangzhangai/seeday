@@ -109,7 +109,6 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
   /* ── day-left: plant placeholder + report stats ── */
   if (page.type === 'day-left') {
     const { date, dayNum, report } = page;
-    const spineW = px(SPINE_STRIP_W);
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
         {/* Inner content wrapper — projective transform to match trapezoid shape */}
@@ -129,7 +128,7 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
           </span>
         </div>
 
-        {/* 生成植物 placeholder — matches sub-page 1 top button */}
+        {/* Plant placeholder */}
         <div style={{
           alignSelf: 'flex-start', flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: px(1.5),
@@ -140,10 +139,10 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
           opacity: 0.75,
         }}>
           <span style={{ fontSize: px(7) }}>🌱</span>
-          <span style={{ fontSize: px(5.5), color: '#4a6a3a' }}>生成植物</span>
+          <span style={{ fontSize: px(5.5), color: '#4a6a3a' }}>🌿</span>
         </div>
 
-        {/* Activity records + mood spectrum */}
+        {/* Activity categories + mood spectrum + task stats */}
         {(() => {
           const dayStart = date ? startOfDay(date).getTime() : 0;
           const dayEnd = date ? endOfDay(date).getTime() : 0;
@@ -167,60 +166,30 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
             .sort((a, b) => b.minutes - a.minutes);
           const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
 
-          // Compute activity distribution for mini pie
+          // Compute activity distribution — category list (no pie)
           const actDist = computeActivityDistribution(dayMsgs);
-          const DAY_MINS = 24 * 60;
           const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
-          // Dynamic denominator: if records exceed 24h (e.g. unclosed long-running timer),
-          // use total recorded time to prevent >100% overflow and SVG arc distortion.
-          const maxDenom = Math.max(DAY_MINS, totalActMins);
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: px(2), overflow: 'hidden', flex: 1 }}>
-              {/* Mini activity pie chart */}
-              {actDist.length > 0 ? (() => {
-                const piePx = px(28);
-                const cx = 14, cy = 14, r = 12;
-                type ActPieEntry = { type: string; minutes: number };
-                const actPieData: ActPieEntry[] = [...actDist];
-                const actRemaining = Math.max(maxDenom - totalActMins, 0);
-                if (actRemaining > 0) actPieData.push({ type: '__other', minutes: actRemaining });
-                let cur = 0;
-                const actSlices = actPieData.map(d => {
-                  const frac = d.minutes / maxDenom;
-                  const s = { type: d.type, frac, start: cur, end: cur + frac };
-                  cur += frac;
-                  return s;
-                });
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: px(3), flexShrink: 0 }}>
-                    <svg width={piePx} height={piePx} viewBox="0 0 28 28" style={{ flexShrink: 0 }}>
-                      {actSlices.map(s => {
-                        const sa = 2 * Math.PI * s.start - Math.PI / 2;
-                        const ea = 2 * Math.PI * s.end - Math.PI / 2;
-                        const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa);
-                        const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea);
-                        const la = s.frac > 0.5 ? 1 : 0;
-                        const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${la} 1 ${x2} ${y2} Z`;
-                        return <path key={`${s.type}-${s.start}`} d={d} fill={s.type === '__other' ? '#F3F4F6' : ACTIVITY_COLORS[s.type] || '#9CA3AF'} />;
-                      })}
-                    </svg>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: px(1) }}>
-                      {actDist.slice(0, 3).map(d => (
-                        <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-                          <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
-                          <span style={{ fontSize: px(5), color: '#5a4a3a' }}>{d.type} {Math.round(d.minutes / maxDenom * 100)}%</span>
+              {/* Activity category list */}
+              {actDist.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), flexShrink: 0 }}>
+                  {actDist.slice(0, 3).map(d => {
+                    const pct = totalActMins > 0 ? Math.round(d.minutes / totalActMins * 100) : 0;
+                    return (
+                      <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(2) }}>
+                        <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
+                        <span style={{ fontSize: px(5), color: '#5a4a3a', flex: 1 }}>{d.type}</span>
+                        <div style={{ flex: 2, height: px(3), borderRadius: px(1.5), background: '#f3f4f6', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', borderRadius: px(1.5), background: ACTIVITY_COLORS[d.type] || '#9CA3AF' }} />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })() : report?.stats?.actionSummary ? (
-                <p style={{ margin: 0, fontSize: px(6), color: '#5a4a3a', lineHeight: 1.5,
-                  overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-                  {report.stats.actionSummary}
-                </p>
-              ) : null}
+                        <span style={{ fontSize: px(4.5), color: '#888', minWidth: px(14), textAlign: 'right' }}>{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Mood spectrum — mini horizontal bar */}
               {moodDist.length > 0 && (

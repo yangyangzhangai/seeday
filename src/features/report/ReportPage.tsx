@@ -9,9 +9,11 @@ import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
+import { UpgradeModal } from './UpgradeModal';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 
@@ -27,12 +29,14 @@ export const ReportPage = () => {
   const dateCache = useChatStore((state) => state.dateCache);
   const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
+  const isPlus = useAuthStore((state) => state.isPlus);
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showTaskList, setShowTaskList] = useState<'completed' | 'total' | null>(null);
   const [showEarlyTip, setShowEarlyTip] = useState(false);
   const [showDiaryBook, setShowDiaryBook] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(undefined);
   const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
@@ -80,6 +84,12 @@ export const ReportPage = () => {
   };
 
   const handleGenerateDiary = async () => {
+    // Free users: show upgrade modal instead
+    if (!isPlus) {
+      setShowUpgrade(true);
+      return;
+    }
+
     const now = new Date();
     // TODO: 测试完恢复 import.meta.env.DEV &&
     const plantTestMode = localStorage.getItem('plant_test_mode') === '1';
@@ -91,11 +101,18 @@ export const ReportPage = () => {
       (report) => report.type === 'daily' && isSameDay(new Date(report.date), now)
     );
     setDiaryInitialPage(1);
+    let reportId: string;
     if (todayReport) {
-      setSelectedReportId(todayReport.id);
+      reportId = todayReport.id;
     } else {
-      const reportId = await generateReport('daily', now.getTime());
-      setSelectedReportId(reportId);
+      reportId = await generateReport('daily', now.getTime());
+    }
+    setSelectedReportId(reportId);
+
+    // PLUS: auto-trigger AI diary generation if not already done
+    const report = useReportStore.getState().reports.find(r => r.id === reportId);
+    if (report && (report.analysisStatus === 'idle' || (!report.analysisStatus && !report.aiAnalysis))) {
+      generateTimeshineDiary(reportId);
     }
   };
 
@@ -250,6 +267,10 @@ export const ReportPage = () => {
           initialOpenMonth={savedDiaryBookMonth}
           initialOpenFlippedCount={savedDiaryBookFlippedCount}
         />
+      )}
+
+      {showUpgrade && (
+        <UpgradeModal onClose={() => setShowUpgrade(false)} />
       )}
     </div>
   );

@@ -1,21 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
-import { Sparkles, ChevronLeft, ChevronRight, PenLine } from 'lucide-react';
+import { format, isSameDay } from 'date-fns';
+import { Sparkles, ChevronLeft, ChevronRight, PenLine, Bookmark } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
+import { usePlantStore } from '../../store/usePlantStore';
 import type { MoodDistributionItem, ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
-import { ActivityPieChart } from './ActivityPieChart';
 import { MoodPieChart } from './MoodPieChart';
 import { ReportStatsView } from './ReportStatsView';
 import { ActivityCategoryDonut } from './ActivityCategoryDonut';
-import { SpectrumBarChart } from './SpectrumBarChart';
-import { LightQualityDashboard } from './LightQualityDashboard';
+import { useAuthStore } from '../../store/useAuthStore';
 import { callShortInsightAPI } from '../../api/client';
 import { PlantCardModal } from './PlantCardModal';
+import { PlantImage } from './plant/PlantImage';
+import { UpgradeModal } from './UpgradeModal';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -36,6 +37,39 @@ function buildMoodSummary(dist: MoodDistributionItem[]): string {
   return dist.map(d => `${d.mood}${Math.round(d.minutes)}min`).join('、');
 }
 
+/* ── Collapsible section wrapper with bookmark toggle ── */
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = true,
+  collapseLabel,
+  expandLabel,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  collapseLabel: string;
+  expandLabel: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-sm" style={{ color: '#4a3a2a' }}>{title}</h3>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full active:opacity-60 transition"
+          style={{ background: 'rgba(107,90,62,0.08)', color: '#8a7a6a', border: '1px solid rgba(107,90,62,0.15)' }}
+        >
+          <Bookmark size={11} />
+          <span>{open ? collapseLabel : expandLabel}</span>
+        </button>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   selectedReport,
   dailyMoodDistribution,
@@ -52,12 +86,15 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const chatMessages = useChatStore((state) => state.messages);
   const dateCache = useChatStore((state) => state.dateCache);
   const activityMood = useMoodStore((state) => state.activityMood);
+  const todayPlant = usePlantStore((state) => state.todayPlant);
+  const isPlus = useAuthStore((state) => state.isPlus);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(0);
   const [noteValue, setNoteValue] = useState('');
   const [activityInsight, setActivityInsight] = useState('');
   const [moodInsight, setMoodInsight] = useState('');
   const [showPlantCard, setShowPlantCard] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const reportMessages = getMessagesForReport(chatMessages, dateCache, selectedReport);
   const activityDistribution = selectedReport
@@ -66,6 +103,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const moodDistribution = selectedReport
     ? getDailyMoodDistribution(reportMessages, activityMood, selectedReport)
     : dailyMoodDistribution;
+
+  // Check if this report is for today and a plant has been generated
+  const isToday = selectedReport ? isSameDay(new Date(selectedReport.date), new Date()) : false;
+  const hasPlant = isToday && !!todayPlant;
 
   useEffect(() => {
     if (!selectedReport) return;
@@ -120,11 +161,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const handleGenerateDiaryFromPlant = useCallback(() => {
     setShowPlantCard(false);
     if (!selectedReport) return;
-    
+
     // Switch to diary page
     const el = pagesRef.current;
     if (el) el.scrollTo({ left: el.clientWidth, behavior: 'smooth' });
-    
+
     // Only generate if not already generated
     if (selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis)) {
       generateTimeshineDiary(selectedReport.id);
@@ -153,6 +194,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   };
 
   if (!selectedReport) return null;
+
+  const collapseLabel = t('report_section_collapse');
+  const expandLabel = t('report_section_expand');
 
   return (
     <>
@@ -228,75 +272,78 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff' }}
           className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-5 pb-safe"
         >
-          {/* 生成植物 */}
-          <button
-            onClick={() => setShowPlantCard(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all active:scale-95 shadow-sm"
-            style={{ background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)', color: '#4a6a3a', border: '1px solid rgba(74,106,58,0.25)' }}
-          >
-            <span>🌱</span>
-            <span>{t('report_generate_plant')}</span>
-          </button>
+          {/* Plant: show inline card if plant exists, otherwise show generate button */}
+          {hasPlant ? (
+            <div
+              className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
+              style={{ background: 'linear-gradient(145deg, #fdfbf7 0%, #f4eee1 100%)', border: '1px solid rgba(139,115,85,0.1)' }}
+              onClick={() => setShowPlantCard(true)}
+            >
+              <PlantImage
+                plantId={todayPlant!.plantId}
+                rootType={todayPlant!.rootType}
+                plantStage={todayPlant!.plantStage}
+                imgClassName="w-full h-36 object-cover rounded-t-xl"
+              />
+              {todayPlant!.diaryText && (
+                <p
+                  className="px-3 py-2 text-xs leading-relaxed"
+                  style={{ color: '#5c4b37', fontFamily: '"LXGW WenKai", cursive', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as React.CSSProperties}
+                >
+                  {todayPlant!.diaryText}
+                </p>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowPlantCard(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all active:scale-95 shadow-sm"
+              style={{ background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)', color: '#4a6a3a', border: '1px solid rgba(74,106,58,0.25)' }}
+            >
+              <span>🌱</span>
+              <span>{t('report_generate_plant')}</span>
+            </button>
+          )}
 
+          {/* 活动分类 (category donut) — replaces old 活动分布 pie */}
           {activityDistribution.length > 0 && (
-            <div>
-              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>活动分布</h3>
+            <CollapsibleSection title={t('report_activity_category')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
               <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <ActivityPieChart distribution={activityDistribution} />
+                {selectedReport.stats?.actionAnalysis && selectedReport.stats.actionAnalysis.length > 0 ? (
+                  <ActivityCategoryDonut data={selectedReport.stats.actionAnalysis} />
+                ) : (
+                  <ActivityCategoryDonut data={activityDistribution.map(d => ({ category: d.type, totalMinutes: d.minutes, percentage: 0, subActivities: [] }))} />
+                )}
                 {activityInsight && (
                   <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{activityInsight}</p>
                 )}
               </div>
-            </div>
+            </CollapsibleSection>
           )}
 
-          {selectedReport.stats?.actionAnalysis && selectedReport.stats.actionAnalysis.length > 0 && (
-            <div>
-              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_activity_category')}</h3>
-              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <ActivityCategoryDonut data={selectedReport.stats.actionAnalysis} />
-              </div>
-            </div>
-          )}
-
+          {/* 心情光谱 */}
           {moodDistribution.length > 0 && (
-            <div>
-              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_today_mood_spectrum')}</h3>
+            <CollapsibleSection title={t('report_today_mood_spectrum')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
               <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
                 <MoodPieChart distribution={moodDistribution} />
                 {moodInsight && (
                   <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{moodInsight}</p>
                 )}
               </div>
-            </div>
+            </CollapsibleSection>
           )}
 
+          {/* 待办事项 */}
           {selectedReport.stats ? (
-            <ReportStatsView
-              stats={selectedReport.stats}
-              type={selectedReport.type}
-              onShowTasks={onShowTaskList}
-            />
+            <CollapsibleSection title={t('report_todo_section')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
+              <ReportStatsView
+                stats={selectedReport.stats}
+                type={selectedReport.type}
+                onShowTasks={onShowTaskList}
+              />
+            </CollapsibleSection>
           ) : (
             <div className="text-center py-10 text-sm" style={{ color: '#9a8878' }}>{t('no_data')}</div>
-          )}
-
-          {selectedReport.stats?.spectrum && selectedReport.stats.spectrum.length > 0 && (
-            <div>
-              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_spectrum_title')}</h3>
-              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <SpectrumBarChart spectrum={selectedReport.stats.spectrum} />
-              </div>
-            </div>
-          )}
-
-          {selectedReport.stats?.lightQuality && (
-            <div>
-              <h3 className="font-bold mb-3 text-sm" style={{ color: '#4a3a2a' }}>{t('report_light_quality_title')}</h3>
-              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <LightQualityDashboard lightQuality={selectedReport.stats.lightQuality} />
-              </div>
-            </div>
           )}
 
           <div className="flex items-center justify-center gap-1 text-xs pt-1 pb-4" style={{ color: 'rgba(107,90,62,0.35)' }}>
@@ -318,17 +365,27 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             {selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis) ? (
               <div className="text-center py-2">
                 <p className="text-sm mb-3 text-gray-500">{t('report_observer_waiting')}</p>
-                <button
-                  onClick={() => {
-                    if (window.confirm(t('report_generate_confirm'))) {
-                      generateTimeshineDiary(selectedReport.id);
-                    }
-                  }}
-                  className="px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
-                  style={{ background: '#5a7a4a', color: '#ffffff' }}
-                >
-                  {t('report_generate_diary')}
-                </button>
+                {isPlus ? (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t('report_generate_confirm'))) {
+                        generateTimeshineDiary(selectedReport.id);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
+                    style={{ background: '#5a7a4a', color: '#ffffff' }}
+                  >
+                    {t('report_generate_diary')}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowUpgrade(true)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
+                    style={{ background: 'linear-gradient(135deg, #f6c343 0%, #e6a817 100%)', color: '#ffffff' }}
+                  >
+                    {t('report_upgrade_title')}
+                  </button>
+                )}
               </div>
             ) : selectedReport.analysisStatus === 'generating' ? (
               <div className="flex flex-col items-center justify-center py-4 space-y-2">
@@ -404,12 +461,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         </div>
       </div>
     </div>
-    
+
     {showPlantCard && (
-      <PlantCardModal 
-        onClose={() => setShowPlantCard(false)} 
-        onGenerateDiary={handleGenerateDiaryFromPlant} 
+      <PlantCardModal
+        onClose={() => setShowPlantCard(false)}
+        onGenerateDiary={handleGenerateDiaryFromPlant}
       />
+    )}
+
+    {showUpgrade && (
+      <UpgradeModal onClose={() => setShowUpgrade(false)} />
     )}
     </>
   );
