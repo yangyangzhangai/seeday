@@ -303,7 +303,8 @@ export const usePlantStore = create<PlantState>()(
         const payload = getTodayDateAndRange();
         set({ isGenerating: true });
         try {
-          const devBypass = import.meta.env.DEV && localStorage.getItem('plant_test_mode') === '1';
+          // TODO: 测试完恢复 import.meta.env.DEV &&
+          const devBypass = localStorage.getItem('plant_test_mode') === '1';
           const response = await callPlantGenerateAPI({
             ...payload,
             lang: resolvePlantLang(),
