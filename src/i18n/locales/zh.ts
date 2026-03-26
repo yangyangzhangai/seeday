@@ -360,6 +360,7 @@ const zh: TranslationKeys = {
     growth_todo_due_datetime: '截止时间',
     growth_todo_start: '开始',
     growth_todo_weekly_days: '选择星期',
+    growth_todo_quick_add_placeholder: '添加待办，回车保存...',
     growth_bottle_name_duplicate: '同名瓶子已存在',
     growth_bottle_todo_prompt: '为「{{name}}」生成待办？',
 

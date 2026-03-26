@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
 import { GrowthTodoCard } from './GrowthTodoCard';
-import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
@@ -23,6 +21,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     deleteTodo,
     startTodo,
     addTodo,
+    updateTodo,
     generateRecurringTodos,
     linkMessageToTodo,
     setTodoCompletionMessage,
@@ -32,18 +31,24 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const deleteActivity = useChatStore((s) => s.deleteActivity);
-  const [showAdd, setShowAdd] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
+  const [newTitle, setNewTitle] = useState('');
 
   // Generate recurring todos on mount / day change
   useEffect(() => {
     generateRecurringTodos();
   }, [generateRecurringTodos]);
 
+  const handleQuickAdd = () => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    addTodo({ title: trimmed, priority: 'medium' });
+    setNewTitle('');
+  };
+
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
     const wasCompleted = todo?.completed ?? true;
-    // Optimistic update — toggle immediately so the UI responds without waiting for async ops
     toggleTodo(id);
     if (todo && wasCompleted) {
       const generatedMessageId = getTodoCompletionMessage(todo.id);
@@ -56,19 +61,13 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
     if (todo && !wasCompleted) {
       const now = Date.now();
-      // Increment bottle star if linked
       if (todo.bottleId) incrementBottleStar(todo.bottleId);
-      // Create a completed record card:
-      // If the todo was started before, preserve that start time; otherwise use completion time.
-      // Never fallback to dueAt/createdAt here, otherwise timeline order can be incorrect.
       const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
       });
       if (msgId) {
         setTodoCompletionMessage(todo.id, msgId);
-        // Immediately end the activity so it shows as a completed card with correct duration
-        // skipBottleStar: star was already awarded above via incrementBottleStar
         await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
       } else {
         clearTodoCompletionMessage(todo.id);
@@ -79,7 +78,6 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const handleDelete = (id: string) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
-    // If it's a recurring instance, show confirmation dialog
     if (todo.templateId) {
       setPendingDelete(todo);
     } else {
@@ -99,8 +97,6 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     navigate('/chat');
   };
 
-  // Visible todos: non-templates, sorted by dueAt (via sortOrder), completed items sink to bottom
-  // Completed once/weekly/daily todos from previous days are hidden (they reset or disappear at midnight)
   const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const visible = todos
     .filter((t) => {
@@ -115,19 +111,21 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
   return (
     <section className="mb-4 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-gray-800">{t('growth_todo_section')}</h2>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-        >
-          <Plus size={18} />
-        </button>
+      <h2 className="text-base font-bold text-gray-800 mb-3">{t('growth_todo_section')}</h2>
+
+      {/* Inline quick-add input */}
+      <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 border border-dashed border-gray-200 shadow-sm mb-2">
+        <div className="w-5 h-5 rounded-full border-2 border-gray-200 flex-shrink-0" />
+        <input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(); }}
+          placeholder={t('growth_todo_quick_add_placeholder')}
+          className="flex-1 text-sm focus:outline-none bg-transparent text-gray-700 placeholder-gray-300"
+        />
       </div>
 
-      {visible.length === 0 ? (
-        <div className="text-center text-gray-400 py-6 text-sm">{t('growth_todo_empty')}</div>
-      ) : (
+      {visible.length > 0 && (
         <div className="space-y-2">
           {visible.map((todo) => (
             <GrowthTodoCard
@@ -137,16 +135,11 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
               onFocus={onFocus}
               onStart={handleStart}
               onDelete={handleDelete}
+              onUpdate={updateTodo}
             />
           ))}
         </div>
       )}
-
-      <AddGrowthTodoModal
-        isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        onAdd={addTodo}
-      />
 
       {/* Recurring delete confirmation dialog */}
       {pendingDelete && (

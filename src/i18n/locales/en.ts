@@ -358,6 +358,7 @@ const en = {
     growth_todo_due_datetime: 'Due Date & Time',
     growth_todo_start: 'Start',
     growth_todo_weekly_days: 'Select Days',
+    growth_todo_quick_add_placeholder: 'Add a to-do, press Enter to save...',
     growth_bottle_name_duplicate: 'A bottle with this name already exists',
     growth_bottle_todo_prompt: 'Create a to-do for "{{name}}"?',
 

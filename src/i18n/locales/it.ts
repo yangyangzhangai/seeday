@@ -360,6 +360,7 @@ const it: TranslationKeys = {
     growth_todo_due_datetime: 'Data e Ora Scadenza',
     growth_todo_start: 'Inizia',
     growth_todo_weekly_days: 'Seleziona Giorni',
+    growth_todo_quick_add_placeholder: 'Aggiungi attività, Invio per salvare...',
     growth_bottle_name_duplicate: 'Esiste già una bottiglia con questo nome',
     growth_bottle_todo_prompt: 'Creare un\'attività per "{{name}}"?',
 
