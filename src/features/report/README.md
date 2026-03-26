@@ -12,7 +12,7 @@
   - Plant generation time-window gate (available after 20:00 local time) with irreversible confirmation
   - Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
   - Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
-  - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_mid_001` -> `sha_mid_001`
+  - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_001` -> `sha_early_001`
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
   - No-record fallback hint for empty-day generate attempts
   - Daily/weekly/monthly report generation

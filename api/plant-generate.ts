@@ -32,7 +32,6 @@ interface MessageRow {
 }
 
 function resolvePlantStage(): PlantStage {
-  // TODO: 目前素材只有 early/late，暂用 early 匹配现有图片
   return 'early';
 }
 

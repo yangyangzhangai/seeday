@@ -182,7 +182,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
   - `src/features/report/plant/PlantRootSection.tsx`
   - `src/features/report/plant/PlantRevealAnimation.tsx`
   - `src/features/report/plant/PlantImage.tsx`
-- Added four-level plant artwork fallback resolver (`plantId` -> `rootType+stage` -> `rootType_mid_001` -> `sha_mid_001`) in:
+- Added four-level plant artwork fallback resolver (`plantId` -> `rootType+stage` -> `rootType_early_001` -> `sha_early_001`) in:
   - `src/features/report/plant/plantImageResolver.ts`
   - `src/features/report/plant/plantImageResolver.test.ts`
 - Added special-scenario handling for air-day and entertainment-dominant reveal copy, plus empty-day fallback hint wiring in:

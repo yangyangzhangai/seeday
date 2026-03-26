@@ -567,7 +567,7 @@
 - [x] 生成按钮状态机（00:00-19:59 禁用；20:00-23:59 可用；次日首次打开自动兜底；未生成时根系可持续增长到当日 24:00）。
 - [x] 二次确认弹窗：确认后不可逆，不提供重新生成入口。
 - [x] 破土动画组件 `PlantRevealAnimation` 与 `PlantImage` 展示串联。
-- [x] 实现素材检索四级降级：`plantId` 精确 -> 同 rootType+stage -> rootType 默认 mid -> `sha_mid_001`。
+- [x] 实现素材检索四级降级：`plantId` 精确 -> 同 rootType+stage -> rootType 默认 early -> `sha_early_001`。
 - [x] 处理特殊场景：空气植物（AND 条件）、娱乐主导植物、无记录日兜底文案。
 - [x] 生成后锁定规则：当天植物生成后不再因活动变更而回刷。
 

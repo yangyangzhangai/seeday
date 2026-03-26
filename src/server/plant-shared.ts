@@ -153,7 +153,7 @@ export function isTooEarlyToGenerate(date: string, timezone: string, now: Date =
 
 export function resolvePlantId(params: {
   rootType: RootType;
-  stage: 'early' | 'mid' | 'late';
+  stage: 'early' | 'late';
   date: string;
   isSupportVariant: boolean;
   isAirDay: boolean;
@@ -205,7 +205,7 @@ export function serializePlantRecord(row: Record<string, any>): DailyPlantRecord
     },
     rootType,
     plantId: String(row.plant_id),
-    plantStage: row.plant_stage === 'early' || row.plant_stage === 'late' ? row.plant_stage : 'mid',
+    plantStage: row.plant_stage === 'late' ? 'late' : 'early',
     isSpecial: Boolean(row.is_special),
     isSupportVariant: Boolean(row.is_support_variant),
     diaryText: row.diary_text ?? undefined,
