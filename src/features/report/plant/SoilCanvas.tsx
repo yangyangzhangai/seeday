@@ -152,7 +152,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
     <div
       ref={canvasRef}
       className="relative overflow-hidden w-full h-full select-none"
-      style={{ backgroundImage: 'url(/assets/soil.png)', backgroundSize: 'cover', backgroundPosition: 'center 20%' }}
+      style={{ backgroundImage: 'url(/assets/soil.png)', backgroundSize: '100% auto', backgroundPosition: 'top center', backgroundRepeat: 'repeat-y', backgroundColor: '#c8b08a' }}
       onClick={() => setIsActive(true)}
     >
       <div

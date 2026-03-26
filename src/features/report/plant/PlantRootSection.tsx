@@ -150,9 +150,10 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
     <div className="h-full flex flex-col relative overflow-hidden">
 
       {/* ── Canvas area (flex-1, clips soil canvas) ── */}
-      <div className="flex-1 relative overflow-hidden min-h-0">
-        {/* Full-bleed soil canvas */}
-        <div className="absolute inset-0">
+      <div className="flex-1 relative overflow-hidden min-h-0"
+        style={{ background: 'linear-gradient(180deg, #e8f5e0 0%, #d4e8b8 60%, #a8c87a 100%)' }}>
+        {/* Full-bleed soil canvas — pushed down so eco-sphere bubbles float above grass */}
+        <div className="absolute inset-0" style={{ top: 130 }}>
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}
@@ -170,9 +171,9 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
           />
         </div>
 
-        {/* Plant image overlay (center of canvas) */}
+        {/* Plant image overlay (center of canvas, offset for bubble zone) */}
         {todayPlant ? (
-          <div className="absolute inset-x-8 z-10 pointer-events-none" style={{ top: '40%', transform: 'translateY(-50%)' }}>
+          <div className="absolute inset-x-8 z-10 pointer-events-none" style={{ top: 'calc(130px + 35%)', transform: 'translateY(-50%)' }}>
             <p className="text-center text-xs font-medium mb-1" style={{ color: 'rgba(245,235,210,0.9)' }}>{t('plant_reveal_title')}</p>
             <PlantRevealAnimation revealToken={revealToken}>
               <PlantImage
@@ -184,9 +185,9 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
           </div>
         ) : null}
 
-        {/* Generated badge (top-right) */}
+        {/* Generated badge (top-right, below bubble zone) */}
         {todayPlant ? (
-          <div className="absolute top-3 right-3 z-10 pointer-events-none">
+          <div className="absolute right-3 z-10 pointer-events-none" style={{ top: 140 }}>
             <span
               className="text-[11px] px-2 py-0.5 rounded-full"
               style={{ background: 'rgba(236,253,245,0.85)', color: '#059669', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(110,231,183,0.4)' }}
