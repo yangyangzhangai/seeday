@@ -32,7 +32,8 @@ interface MessageRow {
 }
 
 function resolvePlantStage(): PlantStage {
-  return 'mid';
+  // TODO: 目前素材只有 early/late，暂用 early 匹配现有图片
+  return 'early';
 }
 
 function resolveSpecialRootType(isAirDay: boolean, fallbackRootType: RootType): RootType {
