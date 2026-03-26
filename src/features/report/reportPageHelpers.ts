@@ -89,7 +89,7 @@ export function getDailyActivityDistribution(
     )
     .forEach((m) => {
       const type = normalizeActivityType(m.activityType, m.content) as ActivityRecordType;
-      typeMinutes[type] = (typeMinutes[type] || 0) + (m.duration || 0) / 60;
+      typeMinutes[type] = (typeMinutes[type] || 0) + (m.duration || 0);
     });
 
   return (Object.entries(typeMinutes) as [ActivityRecordType, number][])
@@ -118,7 +118,7 @@ export function computeActivityDistribution(messages: Message[], nowMs?: number)
         : Math.max(0, Math.round((nowMs! - m.timestamp) / (1000 * 60)));
       if (resolved <= 0) return;
       const type = normalizeActivityType(m.activityType, m.content) as ActivityRecordType;
-      typeMinutes[type] = (typeMinutes[type] || 0) + resolved / 60;
+      typeMinutes[type] = (typeMinutes[type] || 0) + resolved;
     });
   return (Object.entries(typeMinutes) as [ActivityRecordType, number][])
     .map(([type, minutes]) => ({ type, minutes }))
