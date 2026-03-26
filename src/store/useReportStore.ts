@@ -151,7 +151,10 @@ export const useReportStore = create<ReportState>()(
           if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
 
           if (Object.keys(dbUpdates).length > 0) {
-            await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
+            const { error } = await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
+            if (error) {
+              console.error('[updateReport] supabase error', error, 'columns attempted:', Object.keys(dbUpdates));
+            }
           }
         }
       },

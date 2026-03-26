@@ -111,6 +111,7 @@ with expected(table_name, column_name) as (
     ('reports', 'type'),
     ('reports', 'content'),
     ('reports', 'ai_analysis'),
+    ('reports', 'user_note'),
     ('reports', 'stats'),
 
     ('stardust_memories', 'id'),
