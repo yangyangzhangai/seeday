@@ -285,8 +285,8 @@ export const useTodoStore = create<TodoState>()(
       // ── Add todo (unified: supports growth + legacy fields) ──
       addTodo: (input) => {
         const { todos } = get();
-        const maxOrder = todos.reduce((max, t) => Math.max(max, t.sortOrder), 0);
-        const defaultSortOrder = input.dueAt ?? (maxOrder + Date.now());
+        const minOrder = todos.filter((t) => !t.isTemplate).reduce((min, t) => Math.min(min, t.sortOrder), Infinity);
+        const defaultSortOrder = input.dueAt ?? (minOrder === Infinity ? 0 : minOrder - 1);
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
         const lang = resolveLangForText(input.title);
