@@ -120,7 +120,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
           <div style={{
             ...cardStyle,
             transform: 'rotateY(180deg)',
-            background: '#140a02',
+            background: 'transparent',
             boxShadow: '0 8px 32px rgba(90,60,20,0.2)',
           }}>
             {/* Transparent overlay to capture click and flip back */}

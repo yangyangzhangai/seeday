@@ -2,10 +2,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import { renderRootSegments } from '../../../lib/rootRenderer';
-import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
+import { buildRootSegments, renderRootSegments } from '../../../lib/rootRenderer';
+import { mapSourcesToPlantActivities, toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
-import { usePlantStore } from '../../../store/usePlantStore';
+import { usePlantStore, resolvePlantDurationForMessage } from '../../../store/usePlantStore';
 import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantFlipCard } from './PlantFlipCard';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
@@ -63,6 +63,31 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
   }, [loadTodayData, refreshTodaySegments, startActivitySync, stopActivitySync]);
 
   const renderedSegments = useMemo(() => renderRootSegments(todaySegments), [todaySegments]);
+
+  // When plant is locked, the store clears todaySegments (refreshTodaySegments returns early).
+  // Recompute from messages so the flip card back can display the root system.
+  const flipCardSegments = useMemo(() => {
+    if (todaySegments.length > 0) return todaySegments;
+    if (!todayPlant) return [];
+    const now = new Date();
+    const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayStartMs + 86_400_000;
+    const nowMs = Date.now();
+    const sources = messages
+      .filter(m => m.mode === 'record' && !m.isMood && m.timestamp >= dayStartMs && m.timestamp < dayEndMs)
+      .map(m => ({ ...m, duration: resolvePlantDurationForMessage(m.duration, m.timestamp, nowMs) }));
+    const activities = mapSourcesToPlantActivities(sources);
+    const dirMap: Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> = {
+      entertainment: 0, social: 1, work_study: 2, exercise: 3, life: 4,
+    };
+    directionOrder.forEach((cat, idx) => { dirMap[cat] = idx as 0 | 1 | 2 | 3 | 4; });
+    return buildRootSegments(
+      activities.map(a => ({ activityId: a.id, direction: dirMap[a.categoryKey], minutes: a.minutes, focus: a.focus })),
+      `plant-${todayPlant.date}`,
+    );
+  }, [todayPlant, todaySegments, messages, directionOrder]);
+
   const nowHour = new Date(timeTick).getHours();
   // TODO: 测试完恢复 import.meta.env.DEV &&
   const plantTestMode = localStorage.getItem('plant_test_mode') === '1';
@@ -151,7 +176,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
       <div className="h-full flex flex-col relative overflow-hidden">
         <PlantFlipCard
           plant={todayPlant}
-          segments={todaySegments}
+          segments={flipCardSegments}
           directionOrder={directionOrder}
           onGenerateDiary={onGenerateDiary ?? (() => {})}
         />
