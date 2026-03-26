@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../../store/useChatStore';
@@ -12,19 +12,31 @@ import {
 import type { MoodEnergyPoint } from '../reportPageHelpers';
 import { MoodPieChart } from '../MoodPieChart';
 import { ActivityCategoryDonut } from '../ActivityCategoryDonut';
-import { normalizeMoodKey } from '../../../lib/moodOptions';
 import type { ActivityRecordType } from '../../../lib/activityType';
-
-const MOOD_DOT_COLORS: Record<string, string> = {
-  happy: '#F9A8D4', calm: '#93C5FD', focused: '#86EFAC',
-  satisfied: '#FDE68A', tired: '#9CA3AF', bored: '#C7D2FE',
-  down: '#60A5FA', anxious: '#9CA3AF',
-};
 
 type ActiveBubble = 'mood' | 'activity' | null;
 
 interface DayEcoSphereProps {
   onOpenDiaryBook?: () => void;
+}
+
+/** Build a smooth Catmull-Rom bezier path through pts */
+function buildSmoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return '';
+  const t = 0.35;
+  let d = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const cp1x = p1.x + (p2.x - p0.x) * t;
+    const cp1y = p1.y + (p2.y - p0.y) * t;
+    const cp2x = p2.x - (p3.x - p1.x) * t;
+    const cp2y = p2.y - (p3.y - p1.y) * t;
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 // ── Mood Energy Line SVG ──
@@ -35,29 +47,38 @@ function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   const range = dayEnd - dayStart;
   const toX = (ts: number) => ((ts - dayStart) / range) * 186 + 7;
   const toY = (e: number) => 52 - ((e - 1) / 4) * 44;
-  const polyPts = points
-    .map(p => `${toX(p.timestamp).toFixed(1)},${toY(p.energy).toFixed(1)}`)
-    .join(' ');
+
+  const pts = points.map(p => ({ x: toX(p.timestamp), y: toY(p.energy) }));
+  const curvePath = buildSmoothPath(pts);
+  const baseline = 54;
+  const fillPath = curvePath
+    ? `${curvePath} L ${pts[pts.length - 1].x.toFixed(1)},${baseline} L ${pts[0].x.toFixed(1)},${baseline} Z`
+    : '';
 
   return (
-    <svg viewBox="0 0 200 70" className="w-full" style={{ height: 70 }}>
-      {[1, 2, 3, 4, 5].map(e => (
+    <svg viewBox="0 0 200 70" className="w-full" style={{ height: 68 }}>
+      <defs>
+        <linearGradient id="eco-curve-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b08060" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#b08060" stopOpacity="0.01" />
+        </linearGradient>
+      </defs>
+      {/* subtle grid */}
+      {[1, 3, 5].map(e => (
         <line key={e} x1={5} y1={toY(e)} x2={195} y2={toY(e)}
-          stroke="rgba(0,0,0,0.06)" strokeWidth={0.5} />
+          stroke="rgba(150,110,70,0.07)" strokeWidth={0.5} />
       ))}
-      {points.length >= 2 && (
-        <polyline points={polyPts} fill="none" stroke="#c084fc"
-          strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {/* gradient fill under curve */}
+      {fillPath && <path d={fillPath} fill="url(#eco-curve-fill)" />}
+      {/* smooth curve line */}
+      {curvePath && (
+        <path d={curvePath} fill="none" stroke="#b08060"
+          strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
       )}
-      {points.map((p, i) => (
-        <circle key={i} cx={toX(p.timestamp)} cy={toY(p.energy)} r={3.5}
-          fill={MOOD_DOT_COLORS[normalizeMoodKey(p.mood) ?? ''] ?? '#c084fc'}
-          stroke="white" strokeWidth={0.8} />
-      ))}
+      {/* time labels */}
       {[6, 12, 18].map(h => (
-        <text key={h}
-          x={toX(dayStart + h * 3600000)} y={67}
-          textAnchor="middle" fontSize={7} fill="rgba(0,0,0,0.28)">
+        <text key={h} x={toX(dayStart + h * 3600_000)} y={67}
+          textAnchor="middle" fontSize={7} fill="rgba(120,90,60,0.42)">
           {`${h}:00`}
         </text>
       ))}
@@ -115,8 +136,14 @@ function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }:
 export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
+  const [timeTick, setTimeTick] = useState(() => Date.now());
   const messages = useChatStore(state => state.messages);
   const activityMood = useMoodStore(state => state.activityMood);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTimeTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const dayBounds = useMemo(() => ({
     start: startOfDay(new Date()).getTime(),
@@ -137,8 +164,8 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) =
     [todayMessages, activityMood],
   );
   const activityRaw = useMemo(
-    () => computeActivityDistribution(todayMessages),
-    [todayMessages],
+    () => computeActivityDistribution(todayMessages, timeTick),
+    [todayMessages, timeTick],
   );
   const activityData = useMemo(() => {
     const total = activityRaw.reduce((s, d) => s + d.minutes, 0);
@@ -153,11 +180,11 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) =
   const toggle = (b: ActiveBubble) => setActive(prev => prev === b ? null : b);
 
   const glassPanel: React.CSSProperties = {
-    background: 'rgba(245, 238, 224, 0.90)',
-    border: '1px solid rgba(200, 178, 138, 0.45)',
-    backdropFilter: 'blur(14px)',
-    WebkitBackdropFilter: 'blur(14px)',
-    boxShadow: '0 8px 24px rgba(100, 68, 28, 0.14)',
+    background: 'rgba(248, 242, 229, 0.94)',
+    border: '1px solid rgba(195, 168, 120, 0.38)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    boxShadow: '0 6px 20px rgba(90, 60, 20, 0.12), 0 1px 0 rgba(255,255,255,0.7) inset',
   };
 
   return (
@@ -202,21 +229,27 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) =
 
       {active === 'mood' && (
         <div className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-3" style={glassPanel}>
-          <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
-            {t('eco_sphere_mood_energy_title')}
-          </p>
-          {moodTimeline.length > 0
-            ? <MoodEnergyLine points={moodTimeline} />
-            : <p className="text-xs text-center py-3" style={{ color: '#8a7060' }}>
-                {t('eco_sphere_no_mood_data')}
-              </p>
-          }
-          {moodDist.length > 0 && (
+          {/* 心情分布（饼图 + 图例）*/}
+          {moodDist.length > 0 ? (
             <>
-              <p className="text-xs font-semibold pt-1" style={{ color: '#5a4028' }}>
+              <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
                 {t('report_today_mood_spectrum')}
               </p>
               <MoodPieChart distribution={moodDist} />
+            </>
+          ) : (
+            <p className="text-xs text-center py-1" style={{ color: '#8a7060' }}>
+              {t('eco_sphere_no_mood_data')}
+            </p>
+          )}
+          {/* 能量曲线（分隔线后）*/}
+          {moodTimeline.length > 0 && (
+            <>
+              <div style={{ height: 1, background: 'rgba(180,150,110,0.20)', margin: '0 -4px' }} />
+              <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
+                {t('eco_sphere_mood_energy_title')}
+              </p>
+              <MoodEnergyLine points={moodTimeline} />
             </>
           )}
         </div>

@@ -146,82 +146,84 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
   };
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {/* ── Full-bleed soil canvas ── */}
-      <div className="absolute inset-0">
-        <SoilCanvas
-          items={renderedSegments}
-          selectedRootId={selectedRootId}
-          onSelectRoot={setSelectedRootId}
-          directionOrder={directionOrder}
-          detailBubble={selectedSegment ? {
-            title: t('plant_detail_title'),
-            activity: `${t('plant_detail_activity')}: ${selectedMessage?.content ?? '-'}`,
-            category: `${t('plant_detail_category')}: ${t(getCategoryKey(selectedMessage?.category ?? 'life'))}`,
-            timeRange: `${t('plant_detail_time_range')}: ${selectedTimeRange}`,
-            duration: `${t('plant_detail_duration')}: ${t('duration_minutes', { mins: selectedSegment.minutes })}`,
-            focus: `${t('plant_detail_focus')}: ${selectedSegment.focus === 'high' ? t('plant_focus_high') : t('plant_focus_medium')}`,
-          } : null}
-          onCloseDetail={() => setSelectedRootId(null)}
-        />
-      </div>
+    /* Outer: flex column filling available height, bubbles overlay spans full height */
+    <div className="h-full flex flex-col relative overflow-hidden">
 
-      {/* ── Eco sphere bubbles overlay (top) ── */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        <DayEcoSphere onOpenDiaryBook={onOpenDiaryBook} />
-      </div>
-
-      {/* ── Plant image overlay (center, when generated) ── */}
-      {todayPlant ? (
-        <div className="absolute inset-x-6 z-10 pointer-events-none" style={{ top: '42%', transform: 'translateY(-50%)' }}>
-          <p className="text-center text-xs font-medium mb-1" style={{ color: 'rgba(245,235,210,0.9)' }}>{t('plant_reveal_title')}</p>
-          <PlantRevealAnimation revealToken={revealToken}>
-            <PlantImage
-              plantId={todayPlant.plantId}
-              rootType={todayPlant.rootType}
-              plantStage={todayPlant.plantStage}
-            />
-          </PlantRevealAnimation>
+      {/* ── Canvas area (flex-1, clips soil canvas) ── */}
+      <div className="flex-1 relative overflow-hidden min-h-0">
+        {/* Full-bleed soil canvas */}
+        <div className="absolute inset-0">
+          <SoilCanvas
+            items={renderedSegments}
+            selectedRootId={selectedRootId}
+            onSelectRoot={setSelectedRootId}
+            directionOrder={directionOrder}
+            detailBubble={selectedSegment ? {
+              title: t('plant_detail_title'),
+              activity: `${t('plant_detail_activity')}: ${selectedMessage?.content ?? '-'}`,
+              category: `${t('plant_detail_category')}: ${t(getCategoryKey(selectedMessage?.category ?? 'life'))}`,
+              timeRange: `${t('plant_detail_time_range')}: ${selectedTimeRange}`,
+              duration: `${t('plant_detail_duration')}: ${t('duration_minutes', { mins: selectedSegment.minutes })}`,
+              focus: `${t('plant_detail_focus')}: ${selectedSegment.focus === 'high' ? t('plant_focus_high') : t('plant_focus_medium')}`,
+            } : null}
+            onCloseDetail={() => setSelectedRootId(null)}
+          />
         </div>
-      ) : null}
 
-      {/* ── Generated badge (top-right corner) ── */}
-      {todayPlant ? (
-        <div className="absolute top-4 right-4 z-10 pointer-events-none">
-          <span
-            className="text-[11px] px-2 py-1 rounded-full"
-            style={{ background: 'rgba(236,253,245,0.85)', color: '#059669', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(110,231,183,0.4)' }}
-          >{t('plant_section_generated_badge')}</span>
-        </div>
-      ) : null}
-
-      {/* ── Empty state hint (when no segments) ── */}
-      {renderedSegments.length === 0 ? (
-        <div className="absolute inset-x-6 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)' }}>
-          <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'rgba(245,238,224,0.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(200,178,138,0.4)' }}>
-            <p className="text-xs font-medium" style={{ color: '#5a4028' }}>{t('report_root_empty_title')}</p>
-            <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
+        {/* Plant image overlay (center of canvas) */}
+        {todayPlant ? (
+          <div className="absolute inset-x-8 z-10 pointer-events-none" style={{ top: '40%', transform: 'translateY(-50%)' }}>
+            <p className="text-center text-xs font-medium mb-1" style={{ color: 'rgba(245,235,210,0.9)' }}>{t('plant_reveal_title')}</p>
+            <PlantRevealAnimation revealToken={revealToken}>
+              <PlantImage
+                plantId={todayPlant.plantId}
+                rootType={todayPlant.rootType}
+                plantStage={todayPlant.plantStage}
+              />
+            </PlantRevealAnimation>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* ── Generate button (floating bottom) ── */}
-      <div
-        className="absolute left-4 right-4 z-10 space-y-1.5"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.5rem)' }}
-      >
+        {/* Generated badge (top-right) */}
+        {todayPlant ? (
+          <div className="absolute top-3 right-3 z-10 pointer-events-none">
+            <span
+              className="text-[11px] px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(236,253,245,0.85)', color: '#059669', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(110,231,183,0.4)' }}
+            >{t('plant_section_generated_badge')}</span>
+          </div>
+        ) : null}
+
+        {/* Empty state hint (centered in canvas) */}
+        {renderedSegments.length === 0 ? (
+          <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+            <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'rgba(245,238,224,0.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(200,178,138,0.4)' }}>
+              <p className="text-xs font-medium" style={{ color: '#5a4028' }}>{t('report_root_empty_title')}</p>
+              <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* ── Generate button: in normal flow, naturally above bottom nav ── */}
+      <div className="px-4 pt-2 pb-3 space-y-1" style={{ background: 'rgba(0,0,0,0)' }}>
         <button
           type="button"
           onClick={handleGenerate}
           disabled={generateUi.disabled}
           className="w-full min-h-11 rounded-2xl text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'rgba(35, 25, 12, 0.75)', color: '#f5eedc', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.10)' }}
+          style={{ background: 'rgba(35, 25, 12, 0.80)', color: '#f5eedc', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           {t(generateUi.buttonKey)}
         </button>
-        <p className="text-center text-xs" style={{ color: 'rgba(245,235,210,0.75)' }}>
+        <p className="text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
           {statusHint ?? t(generateUi.hintKey)}
         </p>
+      </div>
+
+      {/* ── Eco sphere bubbles: absolute overlay spanning full height so popups don't clip ── */}
+      <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+        <DayEcoSphere onOpenDiaryBook={onOpenDiaryBook} />
       </div>
     </div>
   );

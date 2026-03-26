@@ -3,7 +3,7 @@ import type { Message } from '../../store/useChatStore';
 import type { Report } from '../../store/useReportStore';
 import type { Todo } from '../../store/useTodoStore';
 import type { ActivityRecordType } from '../../lib/activityType';
-import { classifyRecordActivityType } from '../../lib/activityType';
+import { normalizeActivityType } from '../../lib/activityType';
 import { normalizeMoodKey } from '../../lib/moodOptions';
 
 export interface ActivityDistributionItem {
@@ -88,7 +88,7 @@ export function getDailyActivityDistribution(
         m.duration > 0
     )
     .forEach((m) => {
-      const type = classifyRecordActivityType(m.content).activityType;
+      const type = normalizeActivityType(m.activityType, m.content) as ActivityRecordType;
       typeMinutes[type] = (typeMinutes[type] || 0) + (m.duration || 0) / 60;
     });
 
@@ -98,20 +98,27 @@ export function getDailyActivityDistribution(
     .sort((a, b) => b.minutes - a.minutes);
 }
 
-/** Compute activity distribution from pre-filtered messages (no report needed). */
-export function computeActivityDistribution(messages: Message[]): ActivityDistributionItem[] {
+/**
+ * Compute activity distribution from pre-filtered messages (no report needed).
+ * Pass `nowMs` to enable live duration estimation for the currently active message
+ * (mirrors the plant system: counts ongoing activities after ≥15 minutes).
+ */
+export function computeActivityDistribution(messages: Message[], nowMs?: number): ActivityDistributionItem[] {
   const typeMinutes: Partial<Record<ActivityRecordType, number>> = {};
   messages
     .filter(
       (m) =>
         m.mode === 'record' &&
         !m.isMood &&
-        m.duration !== undefined &&
-        m.duration > 0
+        (m.duration !== undefined ? m.duration > 0 : nowMs !== undefined)
     )
     .forEach((m) => {
-      const type = classifyRecordActivityType(m.content).activityType;
-      typeMinutes[type] = (typeMinutes[type] || 0) + (m.duration || 0) / 60;
+      const resolved = m.duration !== undefined
+        ? m.duration
+        : Math.max(0, Math.round((nowMs! - m.timestamp) / (1000 * 60)));
+      if (resolved <= 0) return;
+      const type = normalizeActivityType(m.activityType, m.content) as ActivityRecordType;
+      typeMinutes[type] = (typeMinutes[type] || 0) + resolved / 60;
     });
   return (Object.entries(typeMinutes) as [ActivityRecordType, number][])
     .map(([type, minutes]) => ({ type, minutes }))

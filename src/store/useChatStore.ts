@@ -281,7 +281,11 @@ export const useChatStore = create<ChatState>()(
 
       getMessagesForDateRange: async (start: Date, end: Date) => {
         const dateStr = getLocalDateString(start);
-        const cached = get().dateCache.get(dateStr);
+        // Only use single-day cache when the requested range is ≤ 1 day.
+        // A month-range query (DiaryBookViewer) must not be poisoned by a prior
+        // single-day cache entry stored under the same start-date key.
+        const rangeIsOneDay = end.getTime() - start.getTime() <= 24 * 60 * 60 * 1000 + 1;
+        const cached = rangeIsOneDay ? get().dateCache.get(dateStr) : undefined;
         if (cached) return cached;
 
         const session = await getSupabaseSession();

@@ -143,7 +143,7 @@ export const ReportPage = () => {
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]" style={{ background: '#ffffff' }}>
+    <div className="flex flex-col h-full" style={{ background: '#ffffff' }}>
       <header className="p-4 sticky top-0 z-10 relative" style={{ background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>{t('report_title')}</h1>
         <button

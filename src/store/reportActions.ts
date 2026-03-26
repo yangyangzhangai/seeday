@@ -83,13 +83,11 @@ export function createGeneratedReport({
     stats.independentRecurring = dailyTodoStats.independentRecurring;
     stats.oneTimeTasks = dailyTodoStats.oneTimeTasks;
 
-    if (!isToday) {
-      const records = filterActivities(messages, start, end, { requireDuration: true });
-      const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
-      const actionAnalysis = classifyActivities(records, currentLang);
-      stats.actionAnalysis = actionAnalysis;
-      stats.actionSummary = generateActionSummary(actionAnalysis, currentLang);
-    }
+    const records = filterActivities(messages, start, end, { requireDuration: true });
+    const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+    const actionAnalysis = classifyActivities(records, currentLang);
+    stats.actionAnalysis = actionAnalysis;
+    stats.actionSummary = generateActionSummary(actionAnalysis, currentLang);
   } else {
     const recurringGroups: Record<string, Todo[]> = {};
     relevantTodos

@@ -8,6 +8,16 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-26 - Fix: 日记页面布局适配手机端（按钮不再与导航重叠）
+
+### Fixed
+
+- **ReportPage**：`h-[calc(100vh-64px)]` → `h-full`，正确适配 PageOutlet 的 `pt-14 pb-16` 内边距（之前多出 56px 导致溢出）。
+- **PlantRootSection**：从 `absolute inset-0` 改为 `h-full flex flex-col` 相对流布局；画布区域 `flex-1 min-h-0 overflow-hidden`；生成按钮改为正常流底部（`px-4 py-3`），无需 `env(safe-area-inset-bottom)` 偏移，天然不与底部导航重叠；DayEcoSphere 覆盖层仍为 `absolute top-0` 但在外层容器之上，弹窗不被裁剪。
+- **DayEcoSphere 心情弹窗**：调整内容顺序为"心情分布→能量曲线"（与参考截图一致）；弹窗背景色改为 `rgba(248,242,229,0.94)` 更暖米黄；能量曲线颜色改为暖棕 `#b08060`（匹配参考截图色调）。
+
+---
+
 ## 2026-03-26 - Feat: 日记页面植物场景全屏沉浸式重构
 
 ### Changed
