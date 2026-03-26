@@ -65,7 +65,8 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
 
   const renderedSegments = useMemo(() => renderRootSegments(todaySegments), [todaySegments]);
   const nowHour = new Date(timeTick).getHours();
-  const isTooEarly = nowHour < 20;
+  const plantTestMode = import.meta.env.DEV && localStorage.getItem('plant_test_mode') === '1';
+  const isTooEarly = plantTestMode ? false : nowHour < 20;
 
   const messageMap = useMemo(() => {
     const map = new Map<string, {

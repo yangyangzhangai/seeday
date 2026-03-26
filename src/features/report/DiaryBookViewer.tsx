@@ -158,7 +158,7 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
             const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
             if (mood && msg.duration && msg.duration > 0) {
               const key = normalizeMoodKey(mood) || mood;
-              moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration / 60;
+              moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
             }
           });
           const moodDist = Object.entries(moodMinutes)
@@ -171,6 +171,9 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
           const actDist = computeActivityDistribution(dayMsgs);
           const DAY_MINS = 24 * 60;
           const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
+          // Dynamic denominator: if records exceed 24h (e.g. unclosed long-running timer),
+          // use total recorded time to prevent >100% overflow and SVG arc distortion.
+          const maxDenom = Math.max(DAY_MINS, totalActMins);
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: px(2), overflow: 'hidden', flex: 1 }}>
@@ -180,11 +183,11 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
                 const cx = 14, cy = 14, r = 12;
                 type ActPieEntry = { type: string; minutes: number };
                 const actPieData: ActPieEntry[] = [...actDist];
-                const actRemaining = Math.max(DAY_MINS - totalActMins, 0);
+                const actRemaining = Math.max(maxDenom - totalActMins, 0);
                 if (actRemaining > 0) actPieData.push({ type: '__other', minutes: actRemaining });
                 let cur = 0;
                 const actSlices = actPieData.map(d => {
-                  const frac = d.minutes / DAY_MINS;
+                  const frac = d.minutes / maxDenom;
                   const s = { type: d.type, frac, start: cur, end: cur + frac };
                   cur += frac;
                   return s;
@@ -206,7 +209,7 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
                       {actDist.slice(0, 3).map(d => (
                         <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
                           <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
-                          <span style={{ fontSize: px(5), color: '#5a4a3a' }}>{d.type} {Math.round(d.minutes / DAY_MINS * 100)}%</span>
+                          <span style={{ fontSize: px(5), color: '#5a4a3a' }}>{d.type} {Math.round(d.minutes / maxDenom * 100)}%</span>
                         </div>
                       ))}
                     </div>

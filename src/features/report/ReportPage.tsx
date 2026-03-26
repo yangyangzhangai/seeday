@@ -81,7 +81,8 @@ export const ReportPage = () => {
 
   const handleGenerateDiary = async () => {
     const now = new Date();
-    if (now.getHours() < 20) {
+    const plantTestMode = import.meta.env.DEV && localStorage.getItem('plant_test_mode') === '1';
+    if (!plantTestMode && now.getHours() < 20) {
       setShowEarlyTip(true);
       return;
     }
