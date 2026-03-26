@@ -174,7 +174,7 @@ export const ReportPage = () => {
       </header>
 
       <div className="flex-1 relative overflow-hidden">
-        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} />
+        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} onGenerateDiary={handleGenerateDiary} />
       </div>
 
       {showEarlyTip && (

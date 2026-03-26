@@ -9,9 +9,10 @@ interface PlantImageProps {
   plantId: string;
   rootType: RootType;
   plantStage: PlantStage;
+  imgClassName?: string;
 }
 
-export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plantStage }) => {
+export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plantStage, imgClassName }) => {
   const { t, i18n } = useTranslation();
   const candidates = useMemo(
     () => buildPlantAssetCandidates(plantId, rootType, plantStage),
@@ -64,7 +65,7 @@ export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plant
     <img
       src={candidates[index]}
       alt={t('plant_image_alt')}
-      className="h-44 w-full rounded-xl object-cover"
+      className={imgClassName ?? 'h-44 w-full rounded-xl object-cover'}
       loading="lazy"
       onLoad={() => {
         void emitResolvedTelemetry();

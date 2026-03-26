@@ -237,6 +237,9 @@ const en = {
     eco_sphere_no_mood_data: 'No mood data yet. Share how you feel!',
     eco_sphere_no_activity_data: 'No activity data yet.',
     eco_sphere_night_hint: 'This data will be captured in tonight\'s diary.',
+    plant_save_card: 'Save Card',
+    plant_tap_to_flip: 'Tap to flip',
+    plant_card_diary_button: 'Generate Diary',
 
     // ── Auth Page ──
     auth_welcome_back: 'Welcome Back',

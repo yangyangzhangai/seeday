@@ -239,6 +239,9 @@ const it: TranslationKeys = {
     eco_sphere_no_mood_data: 'Nessun dato umore. Condividi come ti senti!',
     eco_sphere_no_activity_data: 'Nessun dato attività.',
     eco_sphere_night_hint: 'Questi dati saranno inclusi nel diario di stasera.',
+    plant_save_card: 'Salva Biglietto',
+    plant_tap_to_flip: 'Tocca per girare',
+    plant_card_diary_button: 'Genera Diario',
 
     // ── Pagina Autenticazione ──
     auth_welcome_back: 'Bentornato',

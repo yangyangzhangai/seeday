@@ -7,8 +7,7 @@ import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
 import { usePlantStore } from '../../../store/usePlantStore';
 import type { PlantCategoryKey } from '../../../types/plant';
-import { PlantImage } from './PlantImage';
-import { PlantRevealAnimation } from './PlantRevealAnimation';
+import { PlantFlipCard } from './PlantFlipCard';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
 import { SoilCanvas } from './SoilCanvas';
 import { DayEcoSphere } from './DayEcoSphere';
@@ -30,13 +29,13 @@ function getCategoryKey(category: PlantCategoryKey): string {
 
 interface PlantRootSectionProps {
   onOpenDiaryBook?: () => void;
+  onGenerateDiary?: () => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook }) => {
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook, onGenerateDiary }) => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
-  const [revealToken, setRevealToken] = useState(0);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
@@ -129,7 +128,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
     try {
       const response = await generatePlant();
       if (response.status === 'generated') {
-        setRevealToken(prev => prev + 1);
         setStatusHint(t('plant_generate_success'));
         return;
       }
@@ -146,6 +144,20 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
       setStatusHint(t('plant_generate_failed'));
     }
   };
+
+  /* ── When plant is generated: show flip card only ── */
+  if (todayPlant) {
+    return (
+      <div className="h-full flex flex-col relative overflow-hidden">
+        <PlantFlipCard
+          plant={todayPlant}
+          segments={todaySegments}
+          directionOrder={directionOrder}
+          onGenerateDiary={onGenerateDiary ?? (() => {})}
+        />
+      </div>
+    );
+  }
 
   return (
     /* Outer: flex column filling available height, bubbles overlay spans full height */
@@ -171,30 +183,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
             onCloseDetail={() => setSelectedRootId(null)}
           />
         </div>
-
-        {/* Plant image overlay (centered within soil area) */}
-        {todayPlant ? (
-          <div className="absolute inset-x-8 z-10 pointer-events-none" style={{ top: 'calc(120px + 35%)', transform: 'translateY(-50%)' }}>
-            <p className="text-center text-xs font-medium mb-1" style={{ color: 'rgba(245,235,210,0.9)' }}>{t('plant_reveal_title')}</p>
-            <PlantRevealAnimation revealToken={revealToken}>
-              <PlantImage
-                plantId={todayPlant.plantId}
-                rootType={todayPlant.rootType}
-                plantStage={todayPlant.plantStage}
-              />
-            </PlantRevealAnimation>
-          </div>
-        ) : null}
-
-        {/* Generated badge (top-right of soil area) */}
-        {todayPlant ? (
-          <div className="absolute right-3 z-10 pointer-events-none" style={{ top: 128 }}>
-            <span
-              className="text-[11px] px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(236,253,245,0.85)', color: '#059669', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(110,231,183,0.4)' }}
-            >{t('plant_section_generated_badge')}</span>
-          </div>
-        ) : null}
 
         {/* Empty state hint (centered in canvas) */}
         {renderedSegments.length === 0 ? (
