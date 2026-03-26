@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
@@ -116,9 +115,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
       {/* Inline quick-add input */}
       <div className="flex items-center gap-2.5 bg-blue-50 rounded-xl px-3 py-3 border-2 border-blue-200 border-dashed mb-2">
-        <div className="w-5 h-5 rounded-full border-2 border-blue-300 flex items-center justify-center flex-shrink-0">
-          <Plus size={11} className="text-blue-400" />
-        </div>
+        <div className="w-5 h-5 rounded-full border-2 border-blue-300 flex-shrink-0" />
         <input
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
