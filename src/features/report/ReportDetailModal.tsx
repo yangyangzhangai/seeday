@@ -15,6 +15,7 @@ import { ActivityCategoryDonut } from './ActivityCategoryDonut';
 import { SpectrumBarChart } from './SpectrumBarChart';
 import { LightQualityDashboard } from './LightQualityDashboard';
 import { callShortInsightAPI } from '../../api/client';
+import { PlantCardModal } from './PlantCardModal';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -56,6 +57,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [noteValue, setNoteValue] = useState('');
   const [activityInsight, setActivityInsight] = useState('');
   const [moodInsight, setMoodInsight] = useState('');
+  const [showPlantCard, setShowPlantCard] = useState(false);
 
   const reportMessages = getMessagesForReport(chatMessages, dateCache, selectedReport);
   const activityDistribution = selectedReport
@@ -115,6 +117,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const handleGenerateDiaryFromPlant = useCallback(() => {
+    setShowPlantCard(false);
+    if (!selectedReport) return;
+    
+    // Switch to diary page
+    const el = pagesRef.current;
+    if (el) el.scrollTo({ left: el.clientWidth, behavior: 'smooth' });
+    
+    // Only generate if not already generated
+    if (selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis)) {
+      generateTimeshineDiary(selectedReport.id);
+    }
+  }, [selectedReport, generateTimeshineDiary]);
+
   const saveNote = useCallback(() => {
     if (!selectedReport) return;
     updateReport(selectedReport.id, { userNote: noteValue });
@@ -139,8 +155,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   if (!selectedReport) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col" style={{ top: 0, bottom: 0, background: '#ffffff' }}>
-      {/* Header — parchment cover style */}
+    <>
+      <div className="fixed inset-0 z-[60] flex flex-col" style={{ top: 0, bottom: 0, background: '#ffffff' }}>
+        {/* Header — parchment cover style */}
       <div
         className="flex items-center px-3"
         style={{
@@ -211,10 +228,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff' }}
           className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-5 pb-safe"
         >
-          {/* 生成植物占位 */}
+          {/* 生成植物 */}
           <button
-            disabled
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm opacity-50 cursor-not-allowed"
+            onClick={() => setShowPlantCard(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all active:scale-95 shadow-sm"
             style={{ background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)', color: '#4a6a3a', border: '1px solid rgba(74,106,58,0.25)' }}
           >
             <span>🌱</span>
@@ -387,5 +404,13 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         </div>
       </div>
     </div>
+    
+    {showPlantCard && (
+      <PlantCardModal 
+        onClose={() => setShowPlantCard(false)} 
+        onGenerateDiary={handleGenerateDiaryFromPlant} 
+      />
+    )}
+    </>
   );
 };
