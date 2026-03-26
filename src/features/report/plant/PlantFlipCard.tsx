@@ -35,6 +35,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   const [flipped, setFlipped] = useState(false);
   const [selectedRootId, setSelectedRootId] = useState<string | null>(null);
   const frontRef = useRef<HTMLDivElement>(null);
+  const backCaptureRef = useRef<HTMLDivElement>(null);
   const renderedSegments = useMemo(() => renderRootSegments(segments), [segments]);
   const messages = useChatStore(state => state.messages);
 
@@ -76,12 +77,13 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   }, [selectedSegment, selectedMessage, t]);
 
   const saveCard = async () => {
-    if (!frontRef.current) return;
+    const captureRef = flipped ? backCaptureRef : frontRef;
+    if (!captureRef.current) return;
     try {
-      const canvas = await html2canvas(frontRef.current, { scale: 2, backgroundColor: null });
+      const canvas = await html2canvas(captureRef.current, { scale: 2, backgroundColor: null });
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `plant-${plant.date}.png`;
+      link.download = `plant-${plant.date}-${flipped ? 'roots' : 'plant'}.png`;
       link.href = url;
       link.click();
     } catch (err) {
@@ -152,31 +154,33 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
 
           {/* ── Back: interactive root system ── */}
           <div style={{ ...cardFaceStyle, transform: 'rotateY(180deg)', boxShadow: '0 8px 32px rgba(90,60,20,0.2)' }}>
-            {/* Flip-back button */}
-            <button
-              onClick={() => { setFlipped(false); setSelectedRootId(null); }}
-              style={{
-                position: 'absolute', top: 10, left: 10, zIndex: 30,
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'rgba(245,238,224,0.88)',
-                backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-                border: '1px solid rgba(200,178,138,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <ChevronLeft size={18} color="#5a4028" />
-            </button>
+            <div ref={backCaptureRef} style={{ position: 'absolute', inset: 0 }}>
+              {/* Flip-back button */}
+              <button
+                onClick={() => { setFlipped(false); setSelectedRootId(null); }}
+                style={{
+                  position: 'absolute', top: 10, left: 10, zIndex: 30,
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: 'rgba(245,238,224,0.88)',
+                  backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(200,178,138,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <ChevronLeft size={18} color="#5a4028" />
+              </button>
 
-            {/* Fully interactive root system */}
-            <SoilCanvas
-              items={renderedSegments}
-              selectedRootId={selectedRootId}
-              onSelectRoot={setSelectedRootId}
-              directionOrder={directionOrder}
-              detailBubble={detailBubble}
-              onCloseDetail={() => setSelectedRootId(null)}
-            />
+              {/* Fully interactive root system */}
+              <SoilCanvas
+                items={renderedSegments}
+                selectedRootId={selectedRootId}
+                onSelectRoot={setSelectedRootId}
+                directionOrder={directionOrder}
+                detailBubble={detailBubble}
+                onCloseDetail={() => setSelectedRootId(null)}
+              />
+            </div>
           </div>
         </div>
       </div>
