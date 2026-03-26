@@ -14,7 +14,6 @@ import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
-import { DayEcoSphere } from './plant/DayEcoSphere';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -144,7 +143,7 @@ export const ReportPage = () => {
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-y-auto pb-safe" style={{ background: '#ffffff' }}>
+    <div className="flex flex-col h-[calc(100vh-64px)]" style={{ background: '#ffffff' }}>
       <header className="p-4 sticky top-0 z-10 relative" style={{ background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>{t('report_title')}</h1>
         <button
@@ -172,9 +171,8 @@ export const ReportPage = () => {
         </div>
       </header>
 
-      <div className="p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] space-y-4">
-        <DayEcoSphere />
-        <PlantRootSection />
+      <div className="flex-1 relative overflow-hidden">
+        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} />
       </div>
 
       {showEarlyTip && (

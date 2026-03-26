@@ -234,6 +234,7 @@ const zh: TranslationKeys = {
     eco_sphere_mood_label: '心情',
     eco_sphere_activity_label: '活动',
     eco_sphere_empty_label: '待解锁',
+    eco_sphere_diary_label: '日记本',
     eco_sphere_mood_energy_title: '今日心情能量曲线',
     eco_sphere_no_mood_data: '还没有心情记录，去聊聊你的状态吧',
     eco_sphere_no_activity_data: '还没有活动记录',

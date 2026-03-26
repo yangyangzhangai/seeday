@@ -234,6 +234,7 @@ const it: TranslationKeys = {
     eco_sphere_mood_label: 'Umore',
     eco_sphere_activity_label: 'Attività',
     eco_sphere_empty_label: 'Presto',
+    eco_sphere_diary_label: 'Diario',
     eco_sphere_mood_energy_title: "Energia dell'umore oggi",
     eco_sphere_no_mood_data: 'Nessun dato umore. Condividi come ti senti!',
     eco_sphere_no_activity_data: 'Nessun dato attività.',

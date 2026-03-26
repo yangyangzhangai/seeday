@@ -228,7 +228,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
-    const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang);
+    const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
+    const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
 
     const sanitizeMoodText = (s: string) =>
       s.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);

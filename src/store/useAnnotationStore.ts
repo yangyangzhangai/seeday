@@ -209,6 +209,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayDuration: totalDuration,
               currentHour: new Date().getHours(),
               currentMinute: new Date().getMinutes(),
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               recentMoodMessages,
               todayActivitiesList,
             },

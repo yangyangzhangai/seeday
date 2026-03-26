@@ -93,6 +93,7 @@ export interface AnnotationRequest {
     todayDuration: number;             // 今日总时长
     currentHour: number;               // 当前时间
     currentMinute?: number;            // 当前分钟
+    timezone?: string;                 // IANA 时区字符串，如 "Europe/Rome"
     recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据

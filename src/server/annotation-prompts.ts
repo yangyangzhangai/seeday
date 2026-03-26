@@ -133,7 +133,7 @@ export function getModel(_lang: string): string {
   return 'gpt-4.1-mini';
 }
 
-export function buildTodayActivitiesText(activities: any[], lang: string): string {
+export function buildTodayActivitiesText(activities: any[], lang: string, timezone?: string): string {
   if (!activities || activities.length === 0) {
     if (lang === 'en') return 'No activities recorded today';
     if (lang === 'it') return 'Nessuna attivita registrata oggi';
@@ -141,7 +141,11 @@ export function buildTodayActivitiesText(activities: any[], lang: string): strin
   }
 
   const locale = lang === 'zh' ? 'zh-CN' : lang === 'en' ? 'en-US' : 'it-IT';
-  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(timezone ? { timeZone: timezone } : {}),
+  };
   const separator = lang === 'zh' ? '；' : ' | ';
 
   return activities

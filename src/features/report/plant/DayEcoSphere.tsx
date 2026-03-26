@@ -23,6 +23,10 @@ const MOOD_DOT_COLORS: Record<string, string> = {
 
 type ActiveBubble = 'mood' | 'activity' | null;
 
+interface DayEcoSphereProps {
+  onOpenDiaryBook?: () => void;
+}
+
 // ── Mood Energy Line SVG ──
 function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   if (points.length === 0) return null;
@@ -108,7 +112,7 @@ function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }:
 }
 
 // ── Main Component ──
-export const DayEcoSphere: React.FC = () => {
+export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
   const messages = useChatStore(state => state.messages);
@@ -148,48 +152,68 @@ export const DayEcoSphere: React.FC = () => {
   const isNight = new Date().getHours() >= 20;
   const toggle = (b: ActiveBubble) => setActive(prev => prev === b ? null : b);
 
+  const glassPanel: React.CSSProperties = {
+    background: 'rgba(245, 238, 224, 0.90)',
+    border: '1px solid rgba(200, 178, 138, 0.45)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+    boxShadow: '0 8px 24px rgba(100, 68, 28, 0.14)',
+  };
+
   return (
-    <div className="mb-1">
-      <div className="flex justify-around px-4 pt-2 pb-1">
-        <GlassBubble
-          label={t('eco_sphere_mood_label')} icon="🌙" color="#c084fc"
-          active={active === 'mood'} onClick={() => toggle('mood')}
-          hasData={moodDist.length > 0}
-        />
-        <GlassBubble
-          label={t('eco_sphere_activity_label')} icon="🌿" color="#34d399"
-          active={active === 'activity'} onClick={() => toggle('activity')}
-          hasData={activityData.length > 0}
-        />
-        <GlassBubble
-          label={t('eco_sphere_empty_label')} icon="✨" color="#94a3b8"
-          active={false} onClick={() => {}} hasData={false} disabled
-        />
+    <div className="pointer-events-none">
+      {/* Arc + float layout — center bubble is the apex */}
+      <div className="pointer-events-auto relative" style={{ height: 130 }}>
+        <style>{`
+          @keyframes eco-float-a{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+          @keyframes eco-float-b{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+          @keyframes eco-float-c{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        `}</style>
+        {/* Left — mood */}
+        <div style={{ position: 'absolute', left: '8%', top: 30, animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
+          <GlassBubble
+            label={t('eco_sphere_mood_label')} icon="🌙" color="#c084fc"
+            active={active === 'mood'} onClick={() => toggle('mood')}
+            hasData={moodDist.length > 0}
+          />
+        </div>
+        {/* Center — activity (arc apex, sits highest) */}
+        <div style={{ position: 'absolute', left: '50%', marginLeft: -37, top: 10, animation: 'eco-float-b 3.8s ease-in-out infinite 0.65s' }}>
+          <GlassBubble
+            label={t('eco_sphere_activity_label')} icon="🌿" color="#34d399"
+            active={active === 'activity'} onClick={() => toggle('activity')}
+            hasData={activityData.length > 0}
+          />
+        </div>
+        {/* Right — diary */}
+        <div style={{ position: 'absolute', right: '8%', top: 30, animation: 'eco-float-c 3.2s ease-in-out infinite 1.3s' }}>
+          <GlassBubble
+            label={t('eco_sphere_diary_label')} icon="📔" color="#a78b6e"
+            active={false} onClick={() => onOpenDiaryBook?.()} hasData={false}
+          />
+        </div>
       </div>
 
       {isNight && (
-        <p className="text-center px-6 pb-1" style={{ fontSize: 10, color: 'rgba(154,136,120,0.65)' }}>
+        <p className="pointer-events-none text-center px-6 pb-1" style={{ fontSize: 10, color: 'rgba(245,235,210,0.75)' }}>
           {t('eco_sphere_night_hint')}
         </p>
       )}
 
       {active === 'mood' && (
-        <div className="mx-3 mb-2 rounded-2xl p-3 space-y-3" style={{
-          background: 'linear-gradient(135deg, rgba(192,132,252,0.07), rgba(255,255,255,0.96))',
-          border: '1px solid rgba(192,132,252,0.18)',
-        }}>
-          <p className="text-xs font-semibold" style={{ color: '#6b5a3e' }}>
+        <div className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-3" style={glassPanel}>
+          <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
             {t('eco_sphere_mood_energy_title')}
           </p>
           {moodTimeline.length > 0
             ? <MoodEnergyLine points={moodTimeline} />
-            : <p className="text-xs text-center py-3" style={{ color: '#9a8878' }}>
+            : <p className="text-xs text-center py-3" style={{ color: '#8a7060' }}>
                 {t('eco_sphere_no_mood_data')}
               </p>
           }
           {moodDist.length > 0 && (
             <>
-              <p className="text-xs font-semibold pt-1" style={{ color: '#6b5a3e' }}>
+              <p className="text-xs font-semibold pt-1" style={{ color: '#5a4028' }}>
                 {t('report_today_mood_spectrum')}
               </p>
               <MoodPieChart distribution={moodDist} />
@@ -199,16 +223,13 @@ export const DayEcoSphere: React.FC = () => {
       )}
 
       {active === 'activity' && (
-        <div className="mx-3 mb-2 rounded-2xl p-3" style={{
-          background: 'linear-gradient(135deg, rgba(52,211,153,0.07), rgba(255,255,255,0.96))',
-          border: '1px solid rgba(52,211,153,0.18)',
-        }}>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#6b5a3e' }}>
+        <div className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4" style={glassPanel}>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#5a4028' }}>
             {t('report_activity_category')}
           </p>
           {activityData.length > 0
             ? <ActivityCategoryDonut data={activityData} />
-            : <p className="text-xs text-center py-3" style={{ color: '#9a8878' }}>
+            : <p className="text-xs text-center py-3" style={{ color: '#8a7060' }}>
                 {t('eco_sphere_no_activity_data')}
               </p>
           }

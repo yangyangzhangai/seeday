@@ -8,6 +8,30 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-26 - Feat: 日记页面植物场景全屏沉浸式重构
+
+### Changed
+
+- **全屏沉浸式植物场景**：日记页面植物区域去掉所有卡片边框，土壤根系画布填满整个内容区。
+  - `ReportPage.tsx`：内容区由 `p-4 space-y-4` 改为 `flex-1 relative overflow-hidden`，不再单独渲染 `DayEcoSphere`。
+  - `PlantRootSection.tsx`：去掉 `bg-white p-4 rounded-xl shadow-sm border` 卡片样式，改为 `absolute inset-0`；新增 `onOpenDiaryBook` prop；`DayEcoSphere` 作为 `z-20` 顶部浮层嵌入；植物图片为中部绝对定位浮层；生成按钮为底部浮层（含 `safe-area-inset-bottom`）；空状态改为磨砂玻璃小卡片浮层；移除 `resolvePlantSpecialScenario` 及未使用变量。
+  - `SoilCanvas.tsx`：移除外层 `rounded-2xl border p-3` 包裹 div，画布 div 改为 `w-full h-full`（无固定高度）；图例改至 `top-3 right-3`；缩放控件改为 `absolute bottom-3 left-3` 内置浮层；合并 `wrapperRef` 与 `canvasRef` 为单一 ref。
+  - `DayEcoSphere.tsx`：外层 div 改为 `pointer-events-none`，交互元素加 `pointer-events-auto`；弹窗改为暖沙色磨砂玻璃风格（`rgba(245,238,224,0.90)` + `backdrop-blur-14px`），匹配参考设计图。
+
+---
+
+## 2026-03-26 - Feat: 生态球第三个球接入查看日记本功能
+
+### Changed
+
+- **DayEcoSphere 右球**：将原"待解锁"占位球（✨，disabled）改为可点击的"日记本"入口。
+  - 图标从 ✨ 改为 📔，颜色改为暖棕色 `#a78b6e`，移除 `disabled` 属性。
+  - 新增 `onOpenDiaryBook?: () => void` prop，由 `ReportPage` 注入 `() => setShowDiaryBook(true)`。
+  - 新增 i18n key `eco_sphere_diary_label`（zh: 日记本 / en: Diary / it: Diario）。
+  - 文件：`src/features/report/plant/DayEcoSphere.tsx`、`src/features/report/ReportPage.tsx`、`src/i18n/locales/{zh,en,it}.ts`。
+
+---
+
 ## 2026-03-25 - Feat: 日记界面植物上方生态球（DayEcoSphere）
 
 ### Added

@@ -10,8 +10,8 @@ import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantImage } from './PlantImage';
 import { PlantRevealAnimation } from './PlantRevealAnimation';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
-import { resolvePlantSpecialScenario } from './plantSpecialScenario';
 import { SoilCanvas } from './SoilCanvas';
+import { DayEcoSphere } from './DayEcoSphere';
 
 function getCategoryKey(category: PlantCategoryKey): string {
   switch (category) {
@@ -28,7 +28,11 @@ function getCategoryKey(category: PlantCategoryKey): string {
   }
 }
 
-export const PlantRootSection: React.FC = () => {
+interface PlantRootSectionProps {
+  onOpenDiaryBook?: () => void;
+}
+
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook }) => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
@@ -112,13 +116,6 @@ export const PlantRootSection: React.FC = () => {
     [isGenerating, isTooEarly, todayPlant],
   );
 
-  const specialScenario = useMemo(() => resolvePlantSpecialScenario(todayPlant), [todayPlant]);
-  const revealSubtitleKey = specialScenario === 'air'
-    ? 'plant_reveal_special_air'
-    : specialScenario === 'entertainment'
-      ? 'plant_reveal_special_entertainment'
-      : 'plant_reveal_subtitle';
-
   const handleGenerate = async () => {
     if (isTooEarly) {
       setStatusHint(t('plant_generate_locked_hint'));
@@ -149,16 +146,9 @@ export const PlantRootSection: React.FC = () => {
   };
 
   return (
-    <section className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-stone-900">{t('report_root_section_title')}</h3>
-          <p className="mt-1 text-xs text-stone-500">{t('report_root_section_subtitle')}</p>
-        </div>
-        {todayPlant ? <span className="text-[11px] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">{t('plant_section_generated_badge')}</span> : null}
-      </div>
-
-      <div className="mt-3">
+    <div className="absolute inset-0 overflow-hidden">
+      {/* ── Full-bleed soil canvas ── */}
+      <div className="absolute inset-0">
         <SoilCanvas
           items={renderedSegments}
           selectedRootId={selectedRootId}
@@ -176,50 +166,63 @@ export const PlantRootSection: React.FC = () => {
         />
       </div>
 
-      {renderedSegments.length === 0 ? (
-        <div className="mt-3 rounded-xl border border-dashed border-stone-200 bg-gradient-to-br from-stone-50 to-stone-100/80 px-3 py-3 text-xs text-stone-600">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 h-10 w-10 shrink-0 rounded-lg border border-stone-200/80 bg-white/80 p-2">
-              <div className="h-full w-full rounded-md bg-gradient-to-b from-stone-200/70 via-stone-300/65 to-stone-400/60" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-stone-700">{t('report_root_empty_title')}</p>
-              <p className="mt-1 leading-5 text-stone-600">{t('report_root_empty')}</p>
-              <p className="mt-1 leading-5 text-stone-500">{t('plant_generate_empty_day_fallback')}</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* ── Eco sphere bubbles overlay (top) ── */}
+      <div className="absolute top-0 left-0 right-0 z-20">
+        <DayEcoSphere onOpenDiaryBook={onOpenDiaryBook} />
+      </div>
 
+      {/* ── Plant image overlay (center, when generated) ── */}
       {todayPlant ? (
-        <div className="mt-3 rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50/80 to-white p-3">
-          <p className="text-xs font-medium text-amber-800">{t('plant_reveal_title')}</p>
-          <p className="mt-1 text-xs text-amber-700">{t(revealSubtitleKey)}</p>
-          <div className="mt-3">
-            <PlantRevealAnimation revealToken={revealToken}>
-              <PlantImage
-                plantId={todayPlant.plantId}
-                rootType={todayPlant.rootType}
-                plantStage={todayPlant.plantStage}
-              />
-            </PlantRevealAnimation>
+        <div className="absolute inset-x-6 z-10 pointer-events-none" style={{ top: '42%', transform: 'translateY(-50%)' }}>
+          <p className="text-center text-xs font-medium mb-1" style={{ color: 'rgba(245,235,210,0.9)' }}>{t('plant_reveal_title')}</p>
+          <PlantRevealAnimation revealToken={revealToken}>
+            <PlantImage
+              plantId={todayPlant.plantId}
+              rootType={todayPlant.rootType}
+              plantStage={todayPlant.plantStage}
+            />
+          </PlantRevealAnimation>
+        </div>
+      ) : null}
+
+      {/* ── Generated badge (top-right corner) ── */}
+      {todayPlant ? (
+        <div className="absolute top-4 right-4 z-10 pointer-events-none">
+          <span
+            className="text-[11px] px-2 py-1 rounded-full"
+            style={{ background: 'rgba(236,253,245,0.85)', color: '#059669', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(110,231,183,0.4)' }}
+          >{t('plant_section_generated_badge')}</span>
+        </div>
+      ) : null}
+
+      {/* ── Empty state hint (when no segments) ── */}
+      {renderedSegments.length === 0 ? (
+        <div className="absolute inset-x-6 z-10 pointer-events-none" style={{ top: '50%', transform: 'translateY(-50%)' }}>
+          <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'rgba(245,238,224,0.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(200,178,138,0.4)' }}>
+            <p className="text-xs font-medium" style={{ color: '#5a4028' }}>{t('report_root_empty_title')}</p>
+            <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-3 space-y-2">
+      {/* ── Generate button (floating bottom) ── */}
+      <div
+        className="absolute left-4 right-4 z-10 space-y-1.5"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.5rem)' }}
+      >
         <button
           type="button"
           onClick={handleGenerate}
           disabled={generateUi.disabled}
-          className="w-full min-h-11 rounded-xl bg-stone-800 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full min-h-11 rounded-2xl text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: 'rgba(35, 25, 12, 0.75)', color: '#f5eedc', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.10)' }}
         >
           {t(generateUi.buttonKey)}
         </button>
-        <p className="text-xs text-stone-500">
+        <p className="text-center text-xs" style={{ color: 'rgba(245,235,210,0.75)' }}>
           {statusHint ?? t(generateUi.hintKey)}
         </p>
       </div>
-    </section>
+    </div>
   );
 };

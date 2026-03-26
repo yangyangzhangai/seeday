@@ -232,6 +232,7 @@ const en = {
     eco_sphere_mood_label: 'Mood',
     eco_sphere_activity_label: 'Activity',
     eco_sphere_empty_label: 'Coming Soon',
+    eco_sphere_diary_label: 'Diary',
     eco_sphere_mood_energy_title: 'Mood Energy Today',
     eco_sphere_no_mood_data: 'No mood data yet. Share how you feel!',
     eco_sphere_no_activity_data: 'No activity data yet.',
