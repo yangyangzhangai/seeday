@@ -12,30 +12,48 @@ interface PlantImageProps {
   imgClassName?: string;
 }
 
+// Cache the resolved URL per plantId so subsequent renders skip failed attempts
+const CACHE_PREFIX = 'plant_img_v1_';
+
+function getCachedUrl(plantId: string): string | null {
+  try { return localStorage.getItem(CACHE_PREFIX + plantId); } catch { return null; }
+}
+
+function setCachedUrl(plantId: string, url: string): void {
+  try { localStorage.setItem(CACHE_PREFIX + plantId, url); } catch { /* quota exceeded, ignore */ }
+}
+
+function resolveInitialIndex(plantId: string, candidates: string[]): number {
+  const cached = getCachedUrl(plantId);
+  if (!cached) return 0;
+  const idx = candidates.indexOf(cached);
+  return idx >= 0 ? idx : 0;
+}
+
 export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plantStage, imgClassName }) => {
   const { t, i18n } = useTranslation();
   const candidates = useMemo(
     () => buildPlantAssetCandidates(plantId, rootType, plantStage),
     [plantId, plantStage, rootType],
   );
-  const [index, setIndex] = useState(0);
+
+  // Start from cached index to avoid flicker on re-open
+  const [index, setIndex] = useState(() => resolveInitialIndex(plantId, candidates));
   const [reportedKey, setReportedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setIndex(0);
+    setIndex(resolveInitialIndex(plantId, candidates));
     setReportedKey(null);
-  }, [candidates]);
+  }, [candidates, plantId]);
 
   const emitResolvedTelemetry = async (): Promise<void> => {
     const resolvedAssetUrl = candidates[index];
-    if (!resolvedAssetUrl) {
-      return;
-    }
+    if (!resolvedAssetUrl) return;
     const key = `${plantId}:${resolvedAssetUrl}`;
-    if (reportedKey === key) {
-      return;
-    }
+    if (reportedKey === key) return;
     setReportedKey(key);
+    // Persist resolved URL so next mount starts here directly (no flicker)
+    setCachedUrl(plantId, resolvedAssetUrl);
     try {
       const lang = i18n.language?.toLowerCase() ?? 'en';
       await callPlantAssetTelemetryAPI({
@@ -66,7 +84,6 @@ export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plant
       src={candidates[index]}
       alt={t('plant_image_alt')}
       className={imgClassName ?? 'h-44 w-full object-contain'}
-      loading="lazy"
       onLoad={() => {
         void emitResolvedTelemetry();
       }}

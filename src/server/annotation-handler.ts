@@ -17,7 +17,7 @@ const openai = new OpenAI();
 type AnnotationLang = 'zh' | 'en' | 'it';
 
 const MAX_REWRITE_ATTEMPTS = 1;
-const SIMILARITY_THRESHOLD = 0.2;
+const SIMILARITY_THRESHOLD = 0.15;
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
@@ -235,9 +235,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       s.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
 
     const rawRecentMoodMessages = userContext?.recentMoodMessages?.slice(-3) || [];
-    const recentMoodText =
-      rawRecentMoodMessages.map(sanitizeMoodText).filter(Boolean).join(' / ') ||
-      (resolvedLang === 'en' ? 'None' : resolvedLang === 'it' ? 'Nessuno' : '无');
+    const rawMoodConversationHistory = (userContext?.moodConversationHistory || []).slice(-6);
+    const recentMoodText = (() => {
+      if (rawMoodConversationHistory.length > 1) {
+        return rawMoodConversationHistory.map((entry: { role: string; content: string }) => {
+          const label = entry.role === 'user'
+            ? (resolvedLang === 'zh' ? '用户' : resolvedLang === 'it' ? 'Utente' : 'User')
+            : 'AI';
+          return `${label}：${sanitizeMoodText(entry.content)}`;
+        }).join('\n');
+      }
+      return rawRecentMoodMessages.map(sanitizeMoodText).filter(Boolean).join(' / ')
+        || (resolvedLang === 'en' ? 'None' : resolvedLang === 'it' ? 'Nessuno' : '无');
+    })();
 
     const rawRecentAnnotations = userContext?.recentAnnotations?.slice(-3) || [];
     const rawRecentAnnotationsForEmoji = userContext?.recentAnnotations?.slice(-5) || [];

@@ -493,8 +493,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       </div>
     </div>
 
-    {showPlantCard && (
+    {showPlantCard && todayPlant && (
       <PlantCardModal
+        plant={todayPlant}
         onClose={() => setShowPlantCard(false)}
         onGenerateDiary={handleGenerateDiaryFromPlant}
       />

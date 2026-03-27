@@ -18,6 +18,7 @@
     "eval:classification:pr0:artifact": "npx vite-node scripts/multilingual_classification_benchmark.ts --artifact-out docs/benchmarks/pr0-baseline.latest.json",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
+    "sync:plants": "node scripts/sync-plant-registry.js",
     "prepare": "node ./scripts/install-hooks.mjs"
   },
   "dependencies": {

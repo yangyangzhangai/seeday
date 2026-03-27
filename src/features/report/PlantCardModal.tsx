@@ -2,13 +2,16 @@ import React, { useRef } from 'react';
 import { X, Download, PenLine } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useTranslation } from 'react-i18next';
+import type { DailyPlantRecord } from '../../types/plant';
+import { PlantImage } from './plant/PlantImage';
 
 interface PlantCardModalProps {
+  plant: DailyPlantRecord;
   onClose: () => void;
   onGenerateDiary: () => void;
 }
 
-export const PlantCardModal: React.FC<PlantCardModalProps> = ({ onClose, onGenerateDiary }) => {
+export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, onGenerateDiary }) => {
   const { t } = useTranslation();
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -21,11 +24,11 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ onClose, onGener
       });
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `plant-diary-${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `plant-diary-${plant.date}.png`;
       link.href = url;
       link.click();
     } catch (err) {
-      console.error('Failed to save card', err);
+      if (import.meta.env.DEV) console.error('Failed to save card', err);
     }
   };
 
@@ -48,33 +51,34 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ onClose, onGener
           <div className="absolute bottom-4 right-4 w-8 h-8 opacity-20" style={{ borderBottom: '2px solid #6b5a3e', borderRight: '2px solid #6b5a3e' }} />
 
           {/* Plant Image */}
-          <div className="flex-1 flex items-center justify-center w-full">
-            <img 
-              src="/assets/plants/fib_late_001.png" 
-              alt="Plant" 
-              className="max-w-[70%] max-h-full object-contain filter drop-shadow-lg"
-              style={{ paddingBottom: '20px' }}
+          <div className="flex-1 flex items-center justify-center w-full" style={{ paddingBottom: 20 }}>
+            <PlantImage
+              plantId={plant.plantId}
+              rootType={plant.rootType}
+              plantStage={plant.plantStage}
+              imgClassName="max-w-[70%] max-h-full object-contain drop-shadow-lg"
             />
           </div>
 
-          {/* Poem/Text */}
-          <div 
-            className="text-center pb-8 px-2"
-            style={{ 
-              fontFamily: '"LXGW WenKai", cursive',
-              color: '#5c4b37',
-              fontSize: '1.125rem',
-              lineHeight: '1.8',
-              letterSpacing: '0.05em'
-            }}
-          >
-            静看一株嫩绿拔节，<br/>
-            宛如时光酿就的秘密。
-          </div>
-          
-          {/* Small stamp or date */}
+          {/* Diary text */}
+          {plant.diaryText && (
+            <div
+              className="text-center pb-8 px-2"
+              style={{
+                fontFamily: '"LXGW WenKai", cursive',
+                color: '#5c4b37',
+                fontSize: '1.125rem',
+                lineHeight: '1.8',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {plant.diaryText}
+            </div>
+          )}
+
+          {/* Date stamp */}
           <div className="absolute bottom-6 right-6 opacity-40 text-xs" style={{ fontFamily: '"LXGW WenKai", cursive', color: '#5c4b37' }}>
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
+            {new Date(plant.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
           </div>
         </div>
 
@@ -89,16 +93,16 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ onClose, onGener
             style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
           >
             <PenLine size={18} />
-            生成日记
+            {t('plant_card_diary_button')}
           </button>
-          
+
           <button
             onClick={saveCard}
             className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-medium text-[15px] active:scale-95 transition-all bg-white shadow"
             style={{ color: '#5e734b', border: '1px solid rgba(94, 115, 75, 0.2)' }}
           >
             <Download size={18} />
-            保存卡片
+            {t('plant_save_card')}
           </button>
         </div>
       </div>

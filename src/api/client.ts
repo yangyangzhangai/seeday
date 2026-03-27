@@ -194,6 +194,7 @@ interface AnnotationRequest {
     currentMinute?: number;
     recentAnnotations?: string[];
     recentMoodMessages?: string[]; // 连续心情原文（最多3条）
+    moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>; // 连续心情对话历史（含AI回复）
     todayActivitiesList?: any[];
   };
   lang?: 'zh' | 'en' | 'it';

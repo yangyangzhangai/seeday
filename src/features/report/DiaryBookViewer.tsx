@@ -9,6 +9,9 @@ import { useMoodStore } from '../../store/useMoodStore';
 import { normalizeMoodKey } from '../../lib/moodOptions';
 import { computeActivityDistribution } from './reportPageHelpers';
 import { ACTIVITY_COLORS } from './ActivityPieChart';
+import { callPlantHistoryAPI } from '../../api/client';
+import type { DailyPlantRecord } from '../../types/plant';
+import { PlantImage } from './plant/PlantImage';
 
 const MOOD_COLORS: Record<string, string> = {
   happy: '#F9A8D4', calm: '#93C5FD', focused: '#86EFAC',
@@ -63,7 +66,7 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 }
 
 /* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale, allMessages }: { page: PageData; scale: number; allMessages: Message[] }) {
+function PageContent({ page, scale, allMessages, plantRecords }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[] }) {
   const px = (n: number) => n * scale;
   const activityMood = useMoodStore(state => state.activityMood);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
@@ -106,9 +109,10 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
 
-  /* ── day-left: plant placeholder + report stats ── */
+  /* ── day-left: plant image + report stats ── */
   if (page.type === 'day-left') {
     const { date, dayNum, report } = page;
+    const dayPlant = date ? plantRecords.find(p => p.date === format(date, 'yyyy-MM-dd')) : null;
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
         {/* Inner content wrapper — projective transform to match trapezoid shape */}
@@ -128,18 +132,18 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
           </span>
         </div>
 
-        {/* Plant placeholder */}
-        <div style={{
-          alignSelf: 'flex-start', flexShrink: 0,
-          display: 'flex', alignItems: 'center', gap: px(1.5),
-          padding: `${px(1.5)}px ${px(3)}px`,
-          borderRadius: px(4),
-          background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)',
-          border: `0.5px solid rgba(74,106,58,0.25)`,
-          opacity: 0.75,
-        }}>
-          <span style={{ fontSize: px(7) }}>🌱</span>
-          <span style={{ fontSize: px(5.5), color: '#4a6a3a' }}>🌿</span>
+        {/* Plant image — no border, drawn directly into the page */}
+        <div style={{ flexShrink: 0, height: px(65), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {dayPlant ? (
+            <PlantImage
+              plantId={dayPlant.plantId}
+              rootType={dayPlant.rootType}
+              plantStage={dayPlant.plantStage}
+              imgClassName="max-h-full max-w-full object-contain"
+            />
+          ) : (
+            <span style={{ fontSize: px(14), opacity: 0.2 }}>🌱</span>
+          )}
         </div>
 
         {/* Activity categories + mood spectrum + task stats */}
@@ -290,10 +294,11 @@ function PageContent({ page, scale, allMessages }: { page: PageData; scale: numb
 /* ──────────────────────────── expanded overlay ────────────────────────── */
 type ExpandTarget = { side: 'left' | 'right'; page: PageData } | null;
 
-function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () => void }) {
+function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget; onClose: () => void; plantRecords: DailyPlantRecord[] }) {
   if (!target) return null;
   const { side, page } = target;
   const { date, report } = page;
+  const dayPlant = date ? plantRecords.find(p => p.date === format(date, 'yyyy-MM-dd')) : null;
 
   return (
     <div
@@ -317,16 +322,18 @@ function ExpandedView({ target, onClose }: { target: ExpandTarget; onClose: () =
         {side === 'left' ? (
           /* ── Left expanded: plant + full report ── */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Plant placeholder */}
-            <div style={{
-              width: '100%', height: 140,
-              background: 'linear-gradient(175deg, #eef4eb 0%, #d6eccc 100%)',
-              borderRadius: 10, border: '1px solid rgba(120,160,100,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8,
-              fontSize: 28, color: 'rgba(80,130,60,0.5)',
-            }}>
-              <span>🌱</span>
-              <span style={{ fontSize: 12, color: 'rgba(80,130,60,0.5)' }}>植物成长图（即将开放）</span>
+            {/* Plant image — no border, drawn directly into the diary */}
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+              {dayPlant ? (
+                <PlantImage
+                  plantId={dayPlant.plantId}
+                  rootType={dayPlant.rootType}
+                  plantStage={dayPlant.plantStage}
+                  imgClassName="max-h-40 max-w-full object-contain"
+                />
+              ) : (
+                <span style={{ fontSize: 36, opacity: 0.18 }}>🌱</span>
+              )}
             </div>
 
             {report ? (
@@ -396,10 +403,19 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
   const globalMessages = useChatStore(state => state.messages);
   const dateCache = useChatStore(state => state.dateCache);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
+  const [plantRecords, setPlantRecords] = useState<DailyPlantRecord[]>([]);
 
   useEffect(() => {
     loadMessagesForDateRange(startOfMonth(currentMonth), endOfMonth(currentMonth));
   }, [currentMonth, loadMessagesForDateRange]);
+
+  useEffect(() => {
+    const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
+    const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+    callPlantHistoryAPI(startDate, endDate)
+      .then(res => { if (res.success) setPlantRecords(res.records); })
+      .catch(() => {});
+  }, [currentMonth]);
 
   // Use cached month messages if available, otherwise fall back to global messages
   const monthStartStr = (() => {
@@ -669,10 +685,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + coverShiftLeft, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} />
+                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
                 </div>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} />
+                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
                 </div>
               </div>
             );
@@ -755,7 +771,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
       </div>
 
       {/* Expanded overlay */}
-      <ExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} />
+      <ExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} plantRecords={plantRecords} />
     </div>
   );
 };

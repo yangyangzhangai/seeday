@@ -154,21 +154,33 @@ export const useAnnotationStore = create<AnnotationStore>()(
             sum + (e.data?.duration || 0), 0
           );
 
-          // 仅在连续心情输入时，传最多3条连续心情原文
+          // 连续心情输入：收集本轮次从第一条心情开始的完整对话（用户输入+AI回复）
           const recentMoodMessages: string[] = [];
+          const moodConversationHistory: Array<{ role: 'user' | 'ai'; content: string }> = [];
           if (event.type === 'mood_recorded') {
-            const eventsWithoutAnnotations = todayEvents.filter(e => e.type !== 'annotation_generated');
-            for (let i = eventsWithoutAnnotations.length - 1; i >= 0 && recentMoodMessages.length < 3; i--) {
-              const currentEvent = eventsWithoutAnnotations[i];
-              if (currentEvent.type !== 'mood_recorded') {
+            const sessionEvents: AnnotationEvent[] = [];
+            for (let i = todayEvents.length - 1; i >= 0; i--) {
+              const e = todayEvents[i];
+              if (e.type === 'mood_recorded' || e.type === 'annotation_generated') {
+                sessionEvents.unshift(e);
+              } else {
                 break;
               }
-              const moodText = String(currentEvent.data?.mood || '').trim();
-              if (moodText) {
-                recentMoodMessages.push(moodText);
+            }
+            for (const e of sessionEvents) {
+              if (e.type === 'mood_recorded') {
+                const moodText = String(e.data?.mood || '').trim();
+                if (moodText) {
+                  recentMoodMessages.push(moodText);
+                  moodConversationHistory.push({ role: 'user', content: moodText });
+                }
+              } else if (e.type === 'annotation_generated') {
+                const annotationText = String(e.data?.content || '').trim();
+                if (annotationText) {
+                  moodConversationHistory.push({ role: 'ai', content: annotationText });
+                }
               }
             }
-            recentMoodMessages.reverse();
           }
 
           const moodStore = useMoodStore.getState();
@@ -201,6 +213,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           }));
 
           // 调用 AI 生成批注 (通过 Serverless Function)
+          const recentAnnotations = get().annotations.slice(-5).map(a => a.content);
           const response = await callAnnotationAPI({
             eventType: event.type,
             eventData: event.data,
@@ -210,7 +223,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
               currentHour: new Date().getHours(),
               currentMinute: new Date().getMinutes(),
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              recentAnnotations,
               recentMoodMessages,
+              moodConversationHistory,
               todayActivitiesList,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
