@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { X } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
@@ -714,9 +714,39 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
         <div style={{ width: wrapW * 0.8, height: 20, marginTop: 2, background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.25) 0%, transparent 70%)', pointerEvents: 'none', flexShrink: 0 }} />
       </div>
 
-      {/* Page indicator */}
+      {/* Page indicator + day navigation */}
       <div style={{ textAlign: 'center', paddingBottom: 44 }}>
-        <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>{getIndicator()}</span>
+        {isBookOpen ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <button
+              onClick={flipPrev}
+              disabled={flippedCount <= 1 || isAnimating}
+              style={{
+                color: flippedCount <= 1 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
+                background: 'none', border: 'none', padding: '4px 8px', borderRadius: 8,
+                cursor: flippedCount <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
+              }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, minWidth: 56, textAlign: 'center' }}>
+              {getIndicator()}
+            </span>
+            <button
+              onClick={flipNext}
+              disabled={flippedCount >= daysInMonth || isAnimating}
+              style={{
+                color: flippedCount >= daysInMonth ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
+                background: 'none', border: 'none', padding: '4px 8px', borderRadius: 8,
+                cursor: flippedCount >= daysInMonth ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
+              }}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        ) : (
+          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>{getIndicator()}</span>
+        )}
         {isBookOpen && (
           <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10, marginTop: 3 }}>
             {onOpenDiaryPage ? '双击页面可进入日记' : '双击页面可放大查看'}

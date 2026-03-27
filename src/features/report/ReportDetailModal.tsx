@@ -27,6 +27,9 @@ interface ReportDetailModalProps {
   generateTimeshineDiary: (reportId: string) => Promise<void>;
   initialPage?: 0 | 1;
   readOnly?: boolean;
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
+  canNavigateNext?: boolean;
 }
 
 function buildActivitySummary(dist: ActivityDistributionItem[]): string {
@@ -79,6 +82,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   generateTimeshineDiary,
   initialPage,
   readOnly,
+  onNavigatePrev,
+  onNavigateNext,
+  canNavigateNext,
 }) => {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language?.split('-')[0] || 'en';
@@ -197,6 +203,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   const collapseLabel = t('report_section_collapse');
   const expandLabel = t('report_section_expand');
+  const hasDayNav = !!(onNavigatePrev || onNavigateNext);
 
   return (
     <>
@@ -221,6 +228,29 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         </button>
         <div className="flex-1 text-center">
           <h2 className="text-base font-bold font-siyuan" style={{ color: '#4a3a2a' }}>{getReportDisplayTitle(selectedReport)}</h2>
+          {hasDayNav && (
+            <div className="flex items-center justify-center gap-3 mt-0.5">
+              <button
+                onClick={onNavigatePrev}
+                aria-label={t('diary_nav_prev')}
+                className="flex items-center gap-0.5 active:opacity-60 transition text-xs"
+                style={{ color: '#8a7a6a' }}
+              >
+                <ChevronLeft size={13} />
+                <span>{t('diary_nav_prev')}</span>
+              </button>
+              <button
+                onClick={onNavigateNext}
+                disabled={!canNavigateNext}
+                aria-label={t('diary_nav_next')}
+                className="flex items-center gap-0.5 active:opacity-60 transition text-xs disabled:opacity-30"
+                style={{ color: '#8a7a6a' }}
+              >
+                <span>{t('diary_nav_next')}</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          )}
         </div>
         {/* Page dots + flip button */}
         <div className="flex items-center gap-2 pl-3 py-3">
@@ -275,19 +305,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           {/* Plant: show inline card if plant exists, otherwise show generate button */}
           {hasPlant ? (
             <div
-              className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
-              style={{ background: 'linear-gradient(145deg, #fdfbf7 0%, #f4eee1 100%)', border: '1px solid rgba(139,115,85,0.1)' }}
+              className="cursor-pointer active:scale-[0.98] transition-transform"
               onClick={() => setShowPlantCard(true)}
             >
-              <PlantImage
-                plantId={todayPlant!.plantId}
-                rootType={todayPlant!.rootType}
-                plantStage={todayPlant!.plantStage}
-                imgClassName="w-full h-36 object-cover rounded-t-xl"
-              />
+              <div style={{ maxHeight: '220px', overflow: 'hidden', filter: 'drop-shadow(0 2px 12px rgba(80,120,60,0.12))' }}>
+                <PlantImage
+                  plantId={todayPlant!.plantId}
+                  rootType={todayPlant!.rootType}
+                  plantStage={todayPlant!.plantStage}
+                  imgClassName="w-full object-contain"
+                />
+              </div>
               {todayPlant!.diaryText && (
                 <p
-                  className="px-3 py-2 text-xs leading-relaxed"
+                  className="px-1 pt-1 text-xs leading-relaxed"
                   style={{ color: '#5c4b37', fontFamily: '"LXGW WenKai", cursive', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as React.CSSProperties}
                 >
                   {todayPlant!.diaryText}

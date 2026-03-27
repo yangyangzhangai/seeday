@@ -55,7 +55,7 @@ export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plant
 
   if (!candidates[index]) {
     return (
-      <div className="flex min-h-44 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 text-sm text-stone-500">
+      <div className="flex min-h-44 items-center justify-center text-sm text-stone-400">
         {t('plant_image_missing')}
       </div>
     );
@@ -65,7 +65,7 @@ export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plant
     <img
       src={candidates[index]}
       alt={t('plant_image_alt')}
-      className={imgClassName ?? 'h-44 w-full rounded-xl object-cover'}
+      className={imgClassName ?? 'h-44 w-full object-contain'}
       loading="lazy"
       onLoad={() => {
         void emitResolvedTelemetry();

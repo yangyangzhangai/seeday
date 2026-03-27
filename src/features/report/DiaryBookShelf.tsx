@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format, startOfMonth, subMonths, isSameMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { X } from 'lucide-react';
+import { X, CalendarDays } from 'lucide-react';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
@@ -180,6 +183,7 @@ interface Props {
 }
 
 export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth, initialOpenFlippedCount }) => {
+  const { t, i18n } = useTranslation();
   const user = useAuthStore(s => s.user);
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
@@ -187,6 +191,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [editingIdx, setEditingIdx]   = useState<number | null>(null);
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
+  const [showCalendar, setShowCalendar] = useState(false);
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const getBookName = (m: Date) => bookNames[m.getTime()] ?? '日记本';
@@ -272,10 +277,20 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '44px 20px 0', flexShrink: 0,
       }}>
-        <div style={{ width: 32 }} />
+        <button
+          onClick={() => setShowCalendar(true)}
+          aria-label={t('diary_shelf_open_calendar')}
+          style={{
+            width: 32, height: 32,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer',
+          }}
+        >
+          <CalendarDays size={20} />
+        </button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: 16, letterSpacing: 1 }}>
-            我的日记
+            {t('report_my_diary')}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4 }}>
             {months.length} 本
@@ -292,6 +307,39 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           <X size={20} />
         </button>
       </div>
+
+      {/* Calendar Modal */}
+      {showCalendar && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => setShowCalendar(false)}
+        >
+          <div
+            style={{ background: '#fff', borderRadius: 16, padding: 16, width: '100%', maxWidth: 320 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#4a3a2a' }}>{t('diary_shelf_open_calendar')}</span>
+              <button onClick={() => setShowCalendar(false)} style={{ color: '#9a8878', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Calendar
+                locale={i18n.language}
+                className="w-full border-none text-xs"
+                showNeighboringMonth={false}
+                maxDate={new Date()}
+                formatDay={(_, d) => String(d.getDate())}
+                onClickDay={(value) => {
+                  setShowCalendar(false);
+                  onOpenDiaryPage?.(value, 0, 0);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shelf row */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>

@@ -41,6 +41,7 @@ export const ReportPage = () => {
   const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
   const [savedDiaryBookFlippedCount, setSavedDiaryBookFlippedCount] = useState<number | undefined>(undefined);
+  const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
@@ -157,6 +158,36 @@ export const ReportPage = () => {
     setShowDiaryBook(false);
   }, [reports, generateReport, loadMessagesForDateRange]);
 
+  const openDiaryForDate = useCallback(async (targetDate: Date) => {
+    try {
+      await loadMessagesForDateRange(startOfDay(targetDate), endOfDay(targetDate));
+    } catch { /* ignore */ }
+    const existingReport = reports.find(r => r.type === 'daily' && isSameDay(new Date(r.date), targetDate));
+    const reportId = existingReport?.id ?? await generateReport('daily', targetDate.getTime());
+    setDiaryNavDate(new Date(targetDate));
+    setDiaryInitialPage(undefined);
+    setOpenedFromDiaryBook(false);
+    setSelectedReportId(reportId);
+  }, [reports, generateReport, loadMessagesForDateRange]);
+
+  const handleOpenTodayDiary = useCallback(async () => {
+    await openDiaryForDate(new Date());
+  }, [openDiaryForDate]);
+
+  const handleDiaryNavPrev = useCallback(async () => {
+    const base = diaryNavDate ?? new Date();
+    const prev = new Date(base);
+    prev.setDate(prev.getDate() - 1);
+    await openDiaryForDate(prev);
+  }, [diaryNavDate, openDiaryForDate]);
+
+  const handleDiaryNavNext = useCallback(async () => {
+    if (!diaryNavDate) return;
+    const next = new Date(diaryNavDate);
+    next.setDate(next.getDate() + 1);
+    await openDiaryForDate(next);
+  }, [diaryNavDate, openDiaryForDate]);
+
   const today = new Date();
   const currentLang = i18n.language?.split('-')[0] || 'en';
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
@@ -180,18 +211,11 @@ export const ReportPage = () => {
           >
             {t('report_view_diary_book')}
           </button>
-          <button
-            onClick={handleGenerateDiary}
-            className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
-            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
-          >
-            {t('report_generate_button')}
-          </button>
         </div>
       </header>
 
       <div className="flex-1 relative overflow-hidden">
-        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} onGenerateDiary={handleGenerateDiary} />
+        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} onOpenTodayDiary={handleOpenTodayDiary} onGenerateDiary={handleGenerateDiary} />
       </div>
 
       {showEarlyTip && (
@@ -235,11 +259,12 @@ export const ReportPage = () => {
       <ReportDetailModal
         selectedReport={selectedReport}
         dailyMoodDistribution={dailyMoodDistribution}
-        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); }}
+        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); setDiaryNavDate(null); }}
         onBack={openedFromDiaryBook ? () => {
           setSelectedReportId(null);
           setOpenedFromDiaryBook(false);
           setDiaryInitialPage(undefined);
+          setDiaryNavDate(null);
           setShowDiaryBook(true); // reopen diary book
         } : undefined}
         onShowTaskList={setShowTaskList}
@@ -250,6 +275,9 @@ export const ReportPage = () => {
           const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
           return new Date(selectedReport.date) < todayStart;
         })()}
+        onNavigatePrev={diaryNavDate ? handleDiaryNavPrev : undefined}
+        onNavigateNext={diaryNavDate ? handleDiaryNavNext : undefined}
+        canNavigateNext={diaryNavDate ? diaryNavDate.toDateString() !== today.toDateString() : false}
       />
 
       <TaskListModal

@@ -17,7 +17,7 @@ import type { ActivityRecordType } from '../../../lib/activityType';
 type ActiveBubble = 'mood' | 'activity' | null;
 
 interface DayEcoSphereProps {
-  onOpenDiaryBook?: () => void;
+  onOpenTodayDiary?: () => void;
 }
 
 /** Build a smooth Catmull-Rom bezier path through pts */
@@ -155,7 +155,7 @@ function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }:
 }
 
 // ── Main Component ──
-export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) => {
+export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenTodayDiary }) => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
   const [timeTick, setTimeTick] = useState(() => Date.now());
@@ -240,7 +240,7 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenDiaryBook }) =
             label={t('eco_sphere_diary_label')}
             icon={<DiaryBookIcon />}
             color="#a78b6e"
-            active={false} onClick={() => onOpenDiaryBook?.()} hasData={false}
+            active={false} onClick={() => onOpenTodayDiary?.()} hasData={false}
           />
         </div>
       </div>

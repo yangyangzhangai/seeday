@@ -35,15 +35,24 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const [currentMonth, setCurrentMonth] = useState(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
+  const [weekAnchor, setWeekAnchor] = useState<Date>(() => selectedDate);
+  const touchStartX = useRef<number | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
   const today       = new Date();
   const todayStr    = toLocalDateStr(today);
   const selectedStr = toLocalDateStr(selectedDate);
-  const weekDates   = getWeekDates(selectedDate);
+  const weekDates   = getWeekDates(weekAnchor);
   const DAY_LABELS  = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+  const todayWeekStartStr  = toLocalDateStr(getWeekDates(today)[0]);
+  const anchorWeekStartStr = toLocalDateStr(weekDates[0]);
+  const canGoNext = anchorWeekStartStr < todayWeekStartStr;
+
   const isFuture = (d: Date) => toLocalDateStr(d) > todayStr;
+
+  // Sync weekAnchor when selected date moves to a different week
+  useEffect(() => { setWeekAnchor(selectedDate); }, [selectedStr]); // eslint-disable-line
 
   // Close popup on outside click
   useEffect(() => {
@@ -56,6 +65,27 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [showMonthGrid]);
+
+  const goPrevWeek = useCallback(() => {
+    setWeekAnchor(d => { const p = new Date(d); p.setDate(d.getDate() - 7); return p; });
+  }, []);
+
+  const goNextWeek = useCallback(() => {
+    if (!canGoNext) return;
+    setWeekAnchor(d => { const n = new Date(d); n.setDate(d.getDate() + 7); return n; });
+  }, [canGoNext]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (delta < -40) goPrevWeek();
+    else if (delta > 40) goNextWeek();
+  }, [goPrevWeek, goNextWeek]);
 
   const handleDayClick = useCallback((d: Date) => {
     if (isFuture(d)) return;
@@ -144,37 +174,59 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         )}
       </div>
 
-      {/* Week row */}
-      <div className="flex gap-0.5 overflow-x-auto">
-        {weekDates.map((d) => {
-          const ds     = toLocalDateStr(d);
-          const future = isFuture(d);
-          return (
-            <button
-              key={ds}
-              onClick={() => handleDayClick(d)}
-              disabled={future}
-              className={cn(
-                'flex flex-col items-center justify-center min-w-[38px] h-11 rounded-xl flex-1 transition-colors',
-                ds === selectedStr ? 'bg-blue-500 text-white' : 'hover:bg-gray-50',
-                future && 'opacity-40 cursor-not-allowed',
-              )}
-            >
-              <span className="text-[9px] uppercase tracking-wide leading-none">
-                {DAY_LABELS[d.getDay()]}
-              </span>
-              <span className={cn(
-                'text-sm font-semibold leading-none mt-0.5',
-                ds === todayStr && ds !== selectedStr && 'text-blue-500',
-              )}>
-                {d.getDate()}
-              </span>
-              {ds === todayStr && (
-                <div className={cn('w-1 h-1 rounded-full mt-0.5', ds === selectedStr ? 'bg-white' : 'bg-blue-400')} />
-              )}
-            </button>
-          );
-        })}
+      {/* Week row with prev/next navigation */}
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={goPrevWeek}
+          className="p-1 rounded-lg hover:bg-gray-100 flex-shrink-0 text-gray-400"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <div
+          className="flex gap-0.5 flex-1"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {weekDates.map((d) => {
+            const ds     = toLocalDateStr(d);
+            const future = isFuture(d);
+            return (
+              <button
+                key={ds}
+                onClick={() => handleDayClick(d)}
+                disabled={future}
+                className={cn(
+                  'flex flex-col items-center justify-center min-w-[38px] h-11 rounded-xl flex-1 transition-colors',
+                  ds === selectedStr ? 'bg-blue-500 text-white' : 'hover:bg-gray-50',
+                  future && 'opacity-40 cursor-not-allowed',
+                )}
+              >
+                <span className="text-[9px] uppercase tracking-wide leading-none">
+                  {DAY_LABELS[d.getDay()]}
+                </span>
+                <span className={cn(
+                  'text-sm font-semibold leading-none mt-0.5',
+                  ds === todayStr && ds !== selectedStr && 'text-blue-500',
+                )}>
+                  {d.getDate()}
+                </span>
+                {ds === todayStr && (
+                  <div className={cn('w-1 h-1 rounded-full mt-0.5', ds === selectedStr ? 'bg-white' : 'bg-blue-400')} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={goNextWeek}
+          disabled={!canGoNext}
+          className={cn(
+            'p-1 rounded-lg flex-shrink-0 text-gray-400',
+            canGoNext ? 'hover:bg-gray-100' : 'opacity-0 pointer-events-none',
+          )}
+        >
+          <ChevronRight size={14} />
+        </button>
       </div>
     </div>
   );

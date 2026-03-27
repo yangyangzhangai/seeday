@@ -2,8 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
 import { supabase } from '../api/supabase';
-import { callClassifierAPI, callDiaryAPI, callReportAPI } from '../api/client';
-import { computeAll, formatForDiaryAI, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
+import { callDiaryAPI, callReportAPI } from '../api/client';
+import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
 import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
@@ -200,6 +200,38 @@ interface RunTimeshineDiaryInput {
   goalDate?: string;
 }
 
+function getTimeSlot(timestamp: number): 'morning' | 'afternoon' | 'evening' {
+  const hour = new Date(timestamp).getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+}
+
+function buildClassifiedData(activities: Message[], todoStats: DailyTodoStats): ClassifiedData {
+  const items = activities
+    .filter((m) => (m.duration ?? 0) > 0)
+    .map((m) => ({
+      name: m.content,
+      duration_min: m.duration!,
+      time_slot: getTimeSlot(m.timestamp),
+      category: (m.activityType && m.activityType !== 'mood') ? m.activityType : 'life',
+      flag: null as null,
+    }));
+
+  const totalMin = items.reduce((sum, i) => sum + i.duration_min, 0);
+  const { habitCheckin, goalProgress, independentRecurring, oneTimeTasks } = todoStats;
+  const completed =
+    habitCheckin.filter((h) => h.done).length +
+    goalProgress.filter((g) => g.doneToday).length +
+    independentRecurring.completed +
+    oneTimeTasks.high.completed + oneTimeTasks.medium.completed + oneTimeTasks.low.completed;
+  const total =
+    habitCheckin.length + goalProgress.length + independentRecurring.total +
+    oneTimeTasks.high.total + oneTimeTasks.medium.total + oneTimeTasks.low.total;
+
+  return { total_duration_min: totalMin, items, todos: { completed, total }, energy_log: [] };
+}
+
 export async function runTimeshineDiary({
   report,
   todos,
@@ -240,14 +272,11 @@ export async function runTimeshineDiary({
   const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
   const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);
 
-  console.log('[Timeshine] Step 1: 调用分类器...');
-  const classifyResult = await callClassifierAPI({ rawInput, lang: currentLang });
-  if (!classifyResult.success || !classifyResult.data) {
-    throw new Error('分类器返回数据失败');
-  }
+  import.meta.env.DEV && console.log('[Timeshine] Step 1: 从消息直接构建结构化数据...');
+  const classifiedData = buildClassifiedData(activities, dailyTodoStats);
 
-  console.log('[Timeshine] Step 2: 计算层处理...');
-  const computed = computeAll(classifyResult.data, computedHistory, currentLang);
+  import.meta.env.DEV && console.log('[Timeshine] Step 2: 计算层处理...');
+  const computed = computeAll(classifiedData, computedHistory, currentLang);
   computed.mood_records = moodRecords;
   const structuredData = formatForDiaryAI(computed, currentLang);
 
@@ -260,7 +289,7 @@ export async function runTimeshineDiary({
     historyContext = buildHistoryContext(computedHistory, isZh);
   }
 
-  console.log('[Timeshine] Step 3: 生成观察手记...');
+  import.meta.env.DEV && console.log('[Timeshine] Step 3: 生成观察手记...');
   const currentUser = useAuthStore.getState().user;
   const userNickname = currentUser?.user_metadata?.display_name || undefined;
 

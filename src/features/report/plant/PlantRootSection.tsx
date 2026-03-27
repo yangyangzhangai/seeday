@@ -29,10 +29,11 @@ function getCategoryKey(category: PlantCategoryKey): string {
 
 interface PlantRootSectionProps {
   onOpenDiaryBook?: () => void;
+  onOpenTodayDiary?: () => void;
   onGenerateDiary?: () => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook, onGenerateDiary }) => {
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook, onOpenTodayDiary, onGenerateDiary }) => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
@@ -238,7 +239,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
 
       {/* ── Eco sphere bubbles: absolute overlay spanning full height so popups don't clip ── */}
       <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-        <DayEcoSphere onOpenDiaryBook={onOpenDiaryBook} />
+        <DayEcoSphere onOpenTodayDiary={onOpenTodayDiary ?? onOpenDiaryBook} />
       </div>
     </div>
   );
