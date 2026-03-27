@@ -259,7 +259,7 @@ export function MagicPenSheet({
                         const next = {
                           ...draft,
                           needsUserConfirmation: false,
-                          activity: { ...draft.activity!, startAt },
+                          activity: { ...draft.activity!, startAt, timeResolution: 'exact' as const },
                         };
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
@@ -277,7 +277,7 @@ export function MagicPenSheet({
                         const next = {
                           ...draft,
                           needsUserConfirmation: false,
-                          activity: { ...draft.activity!, endAt },
+                          activity: { ...draft.activity!, endAt, timeResolution: 'exact' as const },
                         };
                         const nextDrafts = drafts.map((item) => (item.id === draft.id ? next : item));
                         revalidateAll(nextDrafts, draft.id);
