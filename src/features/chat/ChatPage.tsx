@@ -1,6 +1,8 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import imgBirdZep02 from '../../assets/zep02.png';
+import imgBirdZep03 from '../../assets/zep03.png';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -64,6 +66,7 @@ export const ChatPage = () => {
   } | null>(null);
 
   const sendingRef = useRef(false);
+  const [birdOpen, setBirdOpen] = useState(false);
 
   // ── 草稿持久化 ─────────────────────────────────────────────
   useEffect(() => {
@@ -285,126 +288,164 @@ export const ChatPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: 'rgba(252,250,247,0.95)' }}>
-      {/* Header — frosted glass */}
-      <header
-        className="sticky top-0 z-20 px-4"
-        style={{
-          paddingTop: 44,
-          paddingBottom: 0,
-          background: 'rgba(252,250,247,0.82)',
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Inter', sans-serif",
+    }}>
+      {/* Phone container */}
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: 430, height: '100dvh',
+        background: 'transparent', color: '#0f172a',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 1,
+      }}>
+        {/* Warm page background */}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(252,250,247,0.96)', zIndex: 0 }} />
+
+        {/* Bird character */}
+        <button
+          type="button"
+          onClick={() => setBirdOpen(v => !v)}
+          aria-label="toggle bird"
+          style={{
+            position: 'absolute', left: 14, bottom: 140,
+            width: 98, height: 98, border: 'none', background: 'transparent',
+            padding: 0, cursor: 'pointer', zIndex: 24,
+          }}
+        >
+          <img
+            src={birdOpen ? imgBirdZep03 : imgBirdZep02}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.96,
+              filter: 'drop-shadow(0 6px 14px rgba(148,163,184,0.14))' }}
+          />
+        </button>
+
+        {/* Header — frosted glass */}
+        <header style={{
+          position: 'sticky', top: 0, zIndex: 20,
+          paddingTop: 44, paddingLeft: 16, paddingRight: 16, paddingBottom: 8,
+          background: 'rgba(252,250,247,0.38)',
           backdropFilter: 'blur(14px) saturate(150%)',
           WebkitBackdropFilter: 'blur(14px) saturate(150%)',
-        }}
-      >
-        {/* DatePicker is rendered inside header for the reference layout */}
-        <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
-      </header>
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        </header>
 
-      {/* Timeline */}
-      <TimelineView
-        messages={messages}
-        selectedDate={selectedDate}
-        isLoading={isLoading || isLoadingDate}
-        onMoodClick={handleMoodClick}
-        onStardustSelect={handleStardustSelect}
-        onTimeClick={handleTimeClick}
-      />
-
-      {/* Input Area */}
-      <ChatInputBar
-        input={input}
-        isLoading={isLoading || isMagicPenSending}
-        isReadOnly={!isSelectedDateToday}
-        readOnlyMessage="已切换到历史日期，切换回今日可继续记录"
-        isMagicPenModeOn={isMagicPenModeOn}
-        onInputChange={setInput}
-        onSend={() => { void handleSend(); }}
-        onKeyDown={handleKeyDown}
-        onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
-      />
-
-      {/* Edit/Insert Modal */}
-      {(editingId || insertingAfterId) && (
-        <EditInsertModal
-          editingId={editingId}
-          insertingAfterId={insertingAfterId}
-          editContent={editContent}
-          editStartTime={editStartTime}
-          editEndTime={editEndTime}
-          maxDateTime={maxEditableDateTime}
-          onContentChange={setEditContent}
-          onStartTimeChange={setEditStartTime}
-          onEndTimeChange={setEditEndTime}
-          onSave={handleSave}
-          onClose={() => { setEditingId(null); setInsertingAfterId(null); }}
+        {/* Timeline */}
+        <TimelineView
+          messages={messages}
+          selectedDate={selectedDate}
+          isLoading={isLoading || isLoadingDate}
+          onMoodClick={handleMoodClick}
+          onStardustSelect={handleStardustSelect}
+          onTimeClick={handleTimeClick}
         />
-      )}
 
-      {/* Mood Picker Modal */}
-      {moodPickerFor && (
-        <MoodPickerModal
-          moodPickerFor={moodPickerFor}
-          moodPickerReadonly={moodPickerReadonly}
-          selectedMoodOpt={selectedMoodOpt}
-          customLabelInput={customLabelInput}
-          showCustomLabelInput={showCustomLabelInput}
-          customMoodLabel={customMoodLabel}
-          customMoodApplied={customMoodApplied}
-          onClose={() => setMoodPickerFor(null)}
-          onSelectMood={(msgId, opt) => {
-            setMood(msgId, opt, 'manual');
-            setCustomMoodApplied(msgId, false);
-            setShowCustomLabelInput(false);
-            setSelectedMoodOpt(opt);
-          }}
-          onCustomLabelClick={() => {
-            if (!moodPickerFor) return;
-            setShowCustomLabelInput(true);
-            const next = customMoodLabel[moodPickerFor] || customLabelInput || customLabelDefault;
-            setCustomLabelInput(next);
-            setCustomMoodLabel(moodPickerFor, next);
-            const applied = !isDefaultCustomLabel(next);
-            setCustomMoodApplied(moodPickerFor, applied);
-            if (applied) setSelectedMoodOpt('__custom__');
-          }}
-          onCustomLabelChange={(value) => {
-            setCustomLabelInput(value);
-            if (moodPickerFor) {
-              const next = value.trim() || customLabelDefault;
+        {/* Input + Nav (fixed bottom, inside phone container via portal-like fixed) */}
+        <ChatInputBar
+          input={input}
+          isLoading={isLoading || isMagicPenSending}
+          isReadOnly={!isSelectedDateToday}
+          readOnlyMessage={t('chat_history_readonly')}
+          isMagicPenModeOn={isMagicPenModeOn}
+          onInputChange={setInput}
+          onSend={() => { void handleSend(); }}
+          onKeyDown={handleKeyDown}
+          onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
+        />
+
+        {/* Edit/Insert Modal */}
+        {(editingId || insertingAfterId) && (
+          <EditInsertModal
+            editingId={editingId}
+            insertingAfterId={insertingAfterId}
+            editContent={editContent}
+            editStartTime={editStartTime}
+            editEndTime={editEndTime}
+            maxDateTime={maxEditableDateTime}
+            onContentChange={setEditContent}
+            onStartTimeChange={setEditStartTime}
+            onEndTimeChange={setEditEndTime}
+            onSave={handleSave}
+            onClose={() => { setEditingId(null); setInsertingAfterId(null); }}
+          />
+        )}
+
+        {/* Mood Picker Modal */}
+        {moodPickerFor && (
+          <MoodPickerModal
+            moodPickerFor={moodPickerFor}
+            moodPickerReadonly={moodPickerReadonly}
+            selectedMoodOpt={selectedMoodOpt}
+            customLabelInput={customLabelInput}
+            showCustomLabelInput={showCustomLabelInput}
+            customMoodLabel={customMoodLabel}
+            customMoodApplied={customMoodApplied}
+            onClose={() => setMoodPickerFor(null)}
+            onSelectMood={(msgId, opt) => {
+              setMood(msgId, opt, 'manual');
+              setCustomMoodApplied(msgId, false);
+              setShowCustomLabelInput(false);
+              setSelectedMoodOpt(opt);
+            }}
+            onCustomLabelClick={() => {
+              if (!moodPickerFor) return;
+              setShowCustomLabelInput(true);
+              const next = customMoodLabel[moodPickerFor] || customLabelInput || customLabelDefault;
+              setCustomLabelInput(next);
               setCustomMoodLabel(moodPickerFor, next);
               const applied = !isDefaultCustomLabel(next);
               setCustomMoodApplied(moodPickerFor, applied);
               if (applied) setSelectedMoodOpt('__custom__');
-            }
+            }}
+            onCustomLabelChange={(value) => {
+              setCustomLabelInput(value);
+              if (moodPickerFor) {
+                const next = value.trim() || customLabelDefault;
+                setCustomMoodLabel(moodPickerFor, next);
+                const applied = !isDefaultCustomLabel(next);
+                setCustomMoodApplied(moodPickerFor, applied);
+                if (applied) setSelectedMoodOpt('__custom__');
+              }
+            }}
+            onCustomLabelSave={saveCustomLabel}
+          />
+        )}
+
+        {/* Magic Pen */}
+        <MagicPenSheet
+          isOpen={isMagicPenOpen}
+          initialDrafts={magicPenSeedDrafts}
+          initialUnparsedSegments={magicPenSeedUnparsed}
+          initialAutoWrittenItems={magicPenSeedAutoWritten}
+          messages={messages}
+          onUndoAutoWritten={async (item: MagicPenAutoWrittenItem) => {
+            if (item.messageId) await deleteActivity(item.messageId);
           }}
-          onCustomLabelSave={saveCustomLabel}
+          onClose={handleCloseMagicPen}
         />
-      )}
 
-      {/* Magic Pen */}
-      <MagicPenSheet
-        isOpen={isMagicPenOpen}
-        initialDrafts={magicPenSeedDrafts}
-        initialUnparsedSegments={magicPenSeedUnparsed}
-        initialAutoWrittenItems={magicPenSeedAutoWritten}
-        messages={messages}
-        onUndoAutoWritten={async (item: MagicPenAutoWrittenItem) => {
-          if (item.messageId) await deleteActivity(item.messageId);
-        }}
-        onClose={handleCloseMagicPen}
-      />
+        {/* Stardust Card */}
+        <StardustCard
+          isOpen={!!selectedStardust}
+          data={selectedStardust?.data}
+          position={selectedStardust?.position}
+          onClose={() => setSelectedStardust(null)}
+        />
 
-      {/* Stardust Card */}
-      <StardustCard
-        isOpen={!!selectedStardust}
-        data={selectedStardust?.data}
-        position={selectedStardust?.position}
-        onClose={() => setSelectedStardust(null)}
-      />
+        {/* Yesterday Summary Popup */}
+        <YesterdaySummaryPopup />
+      </div>
 
-      {/* Yesterday Summary Popup */}
-      <YesterdaySummaryPopup />
+      {/* Pulse animation */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.7); }
+        }
+      `}</style>
     </div>
   );
 };

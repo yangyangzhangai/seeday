@@ -30,6 +30,7 @@ const it: TranslationKeys = {
 
     // ── Chat / Pagina Registro ──
     chat_title: 'Registro',
+    chat_history_readonly: 'Visualizzando una data passata — torna a oggi per aggiungere record',
     chat_ongoing: 'In corso',
     chat_current_activity: 'In corso: ',
     chat_date_section_hint: 'Il tempo visto oggi',

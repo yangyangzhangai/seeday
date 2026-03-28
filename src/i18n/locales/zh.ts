@@ -30,6 +30,7 @@ const zh: TranslationKeys = {
 
     // ── 聊天 / 记录页面 ──
     chat_title: '记录',
+    chat_history_readonly: '已切换到历史日期，切换回今日可继续记录',
     chat_ongoing: '进行中',
     chat_current_activity: '正在进行: ',
     chat_date_section_hint: '今天被看见的时间',

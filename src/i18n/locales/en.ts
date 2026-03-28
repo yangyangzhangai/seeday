@@ -28,6 +28,7 @@ const en = {
 
     // ── Chat / Record Page ──
     chat_title: 'Track',
+    chat_history_readonly: 'Viewing a past date — switch back to today to add records',
     chat_ongoing: 'Tracking',
     chat_current_activity: 'Tracking: ',
     chat_date_section_hint: 'Time seen today',
