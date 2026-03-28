@@ -193,13 +193,21 @@ export const ReportPage = () => {
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#ffffff' }}>
-      <header className="p-4 sticky top-0 z-10 relative" style={{ background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-        <h1 className="text-lg font-bold text-center" style={{ color: '#4a3a2a' }}>{t('report_title')}</h1>
+    <div className="flex h-full items-center justify-center bg-transparent font-['Inter',sans-serif] px-0 md:px-8">
+      <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+      <header
+        className="relative sticky top-0 z-10 px-4 pb-3 pt-11"
+        style={{
+          background: 'rgba(252,250,247,0.38)',
+          backdropFilter: 'blur(14px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+        }}
+      >
+        <h1 className="text-xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-1 w-full text-center text-sm active:opacity-70 transition"
-          style={{ color: '#7a6a5a' }}
+          className="mt-1 w-full pr-20 text-center text-sm transition active:opacity-70"
+          style={{ color: '#64748b' }}
         >
           {format(today, currentLang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale: calendarLocale })}
         </button>
@@ -207,7 +215,7 @@ export const ReportPage = () => {
           <button
             onClick={() => setShowDiaryBook(true)}
             className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
-            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(107,90,62,0.08)', color: '#6b5a3e', border: '1px solid rgba(107,90,62,0.2)' }}
+            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
           >
             {t('report_view_diary_book')}
           </button>
@@ -215,7 +223,7 @@ export const ReportPage = () => {
       </header>
 
       <div className="flex-1 relative overflow-hidden">
-        <PlantRootSection onOpenDiaryBook={() => setShowDiaryBook(true)} onOpenTodayDiary={handleOpenTodayDiary} onGenerateDiary={handleGenerateDiary} />
+        <PlantRootSection onOpenTodayDiary={handleOpenTodayDiary} onGenerateDiary={handleGenerateDiary} />
       </div>
 
       {showEarlyTip && (
@@ -300,6 +308,7 @@ export const ReportPage = () => {
       {showUpgrade && (
         <UpgradeModal onClose={() => setShowUpgrade(false)} />
       )}
+      </div>
     </div>
   );
 };

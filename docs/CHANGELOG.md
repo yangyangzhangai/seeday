@@ -8,6 +8,100 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-28 - Fix: 记录页恢复语言与登录/退出交互
+
+### Changed
+
+- `src/features/chat/components/DatePicker.tsx`
+  - 在记录页顶部恢复语言切换入口（`LanguageSwitcher`）。
+  - 恢复登录/退出交互：未登录显示登录按钮，已登录显示退出按钮并复用原确认文案。
+  - 头像区域恢复上传入口：点击头像可选择图片并调用 `updateAvatar` 更新用户头像。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- `docs/CURRENT_TASK.md` 已同步记录本次交互恢复改动。
+
+## 2026-03-28 - UI: 导航统一回到底部（移除桌面侧边导航）
+
+### Changed
+
+- `src/components/layout/BottomNav.tsx`
+  - 移除桌面侧边导航，恢复全端统一底部导航形态。
+  - 底部导航容器最大宽度调整为 `max-w-[960px]`，确保桌面端也保持底部悬浮且与主内容宽度一致。
+- `src/App.tsx`
+  - 移除桌面侧边导航预留内边距（删除 `md:pl-24`），避免主内容左侧出现空白。
+
+### Doc Sync
+
+- `docs/CURRENT_TASK.md` 已同步补充该导航回退决策。
+
+## 2026-03-28 - UI: 桌面端 + 移动端双端适配骨架
+
+### Changed
+
+- `src/components/layout/BottomNav.tsx`
+  - 保留移动端底部胶囊导航（`md` 以下），新增桌面端左侧悬浮竖向导航（`md` 及以上）。
+- `src/App.tsx`
+  - `PageOutlet` 增加桌面模式侧边导航留白（`md:pl-24`）和底部留白调整（`md:pb-8`）。
+  - 主壳背景在桌面模式切换为暖色径向渐变，移动端维持原背景。
+- `src/features/growth/GrowthPage.tsx`
+- `src/features/profile/ProfilePage.tsx`
+- `src/features/report/ReportPage.tsx`
+  - 页面主容器由固定手机宽度扩展为响应式（移动 `max-w-[430px]`、桌面 `max-w-[980px]`），桌面增加圆角边框与卡片阴影。
+- `src/features/chat/ChatPage.tsx`
+- `src/features/chat/ChatInputBar.tsx`
+  - 聊天主容器与输入区最大宽度由 `430` 调整为 `960`，确保桌面端时间线与输入区可正常拉伸。
+
+### Doc Sync
+
+- `docs/CURRENT_TASK.md` 已同步记录本次双端适配改动范围与文件清单（满足 docs-sync 约束）。
+
+## 2026-03-28 - Fix: 报告页恢复植物/根系可见性
+
+### Changed
+
+- `src/features/report/plant/PlantRootSection.tsx`
+  - 页面挂载时补充一次今日消息加载（当 chat store 为空时触发 `fetchMessages`），随后刷新根系片段，避免仅显示空白画布。
+  - 土壤画布上边距由 `120` 调整为 `40`，恢复根系主区域可见高度。
+  - 在未生成植物状态增加顶部小苗预览浮层，保留"植物 + 根系"视觉连续性。
+- `src/features/report/plant/PlantRootSection.tsx`
+  - 改为按今日时间窗调用 `loadMessagesForDateRange(...)` 预热聊天数据，再刷新根系，减少 report 首屏拿不到 messages 的情况。
+  - 生态球层移动到画布容器内并提升层级，避免被画布上层截断。
+- `src/features/report/plant/SoilCanvas.tsx`
+  - 增加土壤底色兜底（图片未命中时不再显示白板）。
+  - 无根系数据时渲染轻量静态根系占位，避免空白区域观感。
+- `src/features/report/ReportPage.tsx`
+  - 修复报告页主容器丢失 `flex-col` 导致 `PlantRootSection` 的 `flex-1` 区域塌陷问题（症状：生态球与根系整体不显示，按钮贴顶）。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-03-28 - UI: 对齐 Tshine UI 原型视觉（保留现有业务逻辑）
+
+### Changed
+
+- 统一主视觉为原型的浅暖玻璃风格，并保持现有 store/api 逻辑不变：
+  - `src/index.css`：新增 Inter + Material Symbols，统一全局基准字体与背景。
+  - `src/components/layout/BottomNav.tsx`：重做底部导航为原型同款悬浮玻璃圆角胶囊样式（图标切换态保持路由逻辑）。
+  - `src/App.tsx`：主布局移除全局 Header，改由页面自身头部承载；调整 `PageOutlet` 底部留白以配合新导航。
+- Growth / Report / Profile 三页的外层容器与头部改为原型一致的移动端卡片画布与磨砂头部视觉：
+  - `src/features/growth/GrowthPage.tsx`
+  - `src/features/report/ReportPage.tsx`
+  - `src/features/profile/ProfilePage.tsx`
+- Growth 页局部组件配色与按钮风格向原型靠齐（不改动作与数据流）：
+  - `src/features/growth/BottleList.tsx`
+  - `src/features/growth/GrowthTodoSection.tsx`
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
 ## 2026-03-28 - Feat: EN/IT Phase 1 — 词库框架升级（动词形态生成器 + 地点检测）
 
 ### Added

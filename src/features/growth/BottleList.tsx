@@ -83,21 +83,25 @@ export const BottleList = () => {
     <section className="mb-4">
       <div className="px-4 mb-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-800">{t('growth_bottle_section')}</h2>
+          <h2 className="text-[14px] font-extrabold text-[#1e293b]">{t('growth_bottle_section')}</h2>
           <button
             onClick={() => !isMaxReached && setShowAdd(true)}
             disabled={isMaxReached}
-            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-[34px] w-[34px] rounded-full text-[#5F7A63] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: 'rgba(144.67, 212.06, 122.21, 0.20)',
+              boxShadow: '0px 2px 2px #C8C8C8',
+            }}
             title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
           >
             <Plus size={18} />
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-400">{t('growth_bottle_section_hint')}</p>
+        <p className="mt-1 text-xs text-[#94a3b8]">{t('growth_bottle_section_hint')}</p>
       </div>
 
       {isMaxReached && (
-        <p className="text-xs text-orange-500 px-4 mb-2">{t('growth_bottle_max_reached')}</p>
+        <p className="mb-2 px-4 text-xs text-orange-500">{t('growth_bottle_max_reached')}</p>
       )}
 
       {activeBottles.length === 0 ? (

@@ -86,35 +86,13 @@ function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   );
 }
 
-// ── Diary Book SVG (matches iOS 📔 style, renders identically on all platforms) ──
-function DiaryBookIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Book cover */}
-      <rect x="12" y="6" width="40" height="52" rx="3" fill="#b5894e" />
-      {/* Pages (cream interior) */}
-      <rect x="18" y="8" width="32" height="48" rx="2" fill="#faf3e0" />
-      {/* Spine binding */}
-      <rect x="12" y="6" width="8" height="52" rx="3" fill="#8b6530" />
-      <rect x="14" y="6" width="2" height="52" fill="#a07840" opacity="0.5" />
-      {/* Page lines */}
-      <line x1="24" y1="20" x2="44" y2="20" stroke="#d4c4a0" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="24" y1="27" x2="44" y2="27" stroke="#d4c4a0" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="24" y1="34" x2="44" y2="34" stroke="#d4c4a0" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="24" y1="41" x2="38" y2="41" stroke="#d4c4a0" strokeWidth="1.2" strokeLinecap="round" />
-      {/* Elastic band / bookmark */}
-      <rect x="46" y="6" width="2.5" height="52" rx="1.25" fill="#c8a260" opacity="0.7" />
-    </svg>
-  );
-}
-
 // ── Glass Bubble ──
 interface BubbleProps {
   label: string;
   icon: React.ReactNode;
   color: string;
   active: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   hasData: boolean;
   disabled?: boolean;
 }
@@ -234,13 +212,15 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenTodayDiary }) 
             hasData={activityData.length > 0}
           />
         </div>
-        {/* Right — diary (SVG icon for cross-platform consistency) */}
+        {/* Right — diary */}
         <div style={{ position: 'absolute', right: '8%', top: 30, animation: 'eco-float-c 3.2s ease-in-out infinite 1.3s' }}>
           <GlassBubble
             label={t('eco_sphere_diary_label')}
-            icon={<DiaryBookIcon />}
+            icon="📔"
             color="#a78b6e"
-            active={false} onClick={() => onOpenTodayDiary?.()} hasData={false}
+            active={false}
+            onClick={onOpenTodayDiary}
+            hasData={false}
           />
         </div>
       </div>

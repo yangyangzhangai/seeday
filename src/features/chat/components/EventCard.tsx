@@ -136,26 +136,6 @@ export const EventCard: React.FC<EventCardProps> = ({
       }}
       onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
-      {/* Extra action buttons (camera / convert) — only when cardActive */}
-      {cardActive && !readonly && (
-        <div style={{ position: 'absolute', top: -10, right: -10, display: 'flex', alignItems: 'center', gap: 4, zIndex: 10 }}>
-          {canUploadImage && (
-            <button onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }} title={t('image_upload')}
-              style={{ width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Camera size={10} />
-            </button>
-          )}
-          {allowConvertToMood && (
-            <button onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }} title={t('event_to_mood')}
-              style={{ width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ArrowRightLeft size={10} />
-            </button>
-          )}
-        </div>
-      )}
-
       {/* ── Header row: title + mood tag + delete ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
         marginBottom: 6, position: 'relative', zIndex: 1 }}>
@@ -184,6 +164,20 @@ export const EventCard: React.FC<EventCardProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          {cardActive && !readonly && canUploadImage && (
+            <button onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }} title={t('image_upload')}
+              style={{ width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Camera size={10} />
+            </button>
+          )}
+          {cardActive && !readonly && allowConvertToMood && (
+            <button onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }} title={t('event_to_mood')}
+              style={{ width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowRightLeft size={10} />
+            </button>
+          )}
           {/* Mood tag */}
           {hasMoodChip ? (
             <button

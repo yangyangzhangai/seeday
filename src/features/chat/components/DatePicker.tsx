@@ -1,7 +1,11 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LogIn, LogOut } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { LanguageSwitcher } from '../../../components/layout/LanguageSwitcher';
 
 export interface DatePickerProps {
   selectedDate: Date;
@@ -32,6 +36,10 @@ const blueGlowShadow = '0 8px 18px rgba(59,130,246,0.20), inset 0 1px 1px rgba(2
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
+  const signOut = useAuthStore(s => s.signOut);
+  const updateAvatar = useAuthStore(s => s.updateAvatar);
+  const navigate = useNavigate();
+  const { t } = useTranslation();
   const today = new Date();
   const todayStr = toLocalDateStr(today);
   const selectedStr = toLocalDateStr(selectedDate);
@@ -42,6 +50,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const [weekAnchor, setWeekAnchor] = useState<Date>(() => selectedDate);
   const touchStartX = useRef<number | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const weekDays = getWeekDays(weekAnchor);
   const isFuture = (d: Date) => toLocalDateStr(d) > todayStr;
@@ -97,6 +106,45 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   }, [weekDays, today, todayStr]); // eslint-disable-line
 
   const avatarUrl = user?.user_metadata?.avatar_url;
+
+  const resizeImageToDataUrl = (file: File, maxSize = 160): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('canvas_not_supported'));
+            return;
+          }
+          const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+          const width = Math.round(img.width * scale);
+          const height = Math.round(img.height * scale);
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAuthClick = async () => {
+    if (user) {
+      if (window.confirm(t('header_confirm_logout'))) {
+        await signOut();
+        navigate('/chat');
+      }
+      return;
+    }
+    navigate('/auth');
+  };
 
   return (
     <div>
@@ -161,17 +209,90 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
           )}
         </div>
 
-        {/* Avatar */}
-        <div style={{ width: 54, height: 54, borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.90) 100%)',
-          border: '2.5px solid rgba(255,255,255,0.95)',
-          boxShadow: '0 6px 20px rgba(148,163,184,0.22), 0 2px 8px rgba(255,255,255,0.58)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, transform: 'translateY(-14px)', overflow: 'hidden' }}>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <LanguageSwitcher />
+
+          {user ? (
+            <>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.90) 100%)',
+                  border: '2.5px solid rgba(255,255,255,0.95)',
+                  boxShadow: '0 6px 20px rgba(148,163,184,0.22), 0 2px 8px rgba(255,255,255,0.58)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transform: 'translateY(-14px)',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                }}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: 30, color: SAGE_GREEN_DEEP }}>person</span>
+                )}
+              </button>
+
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const dataUrl = await resizeImageToDataUrl(file, 160);
+                  await updateAvatar(dataUrl);
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => { void handleAuthClick(); }}
+                title={t('header_confirm_logout')}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: '1px solid rgba(148,163,184,0.3)',
+                  background: 'rgba(255,255,255,0.75)',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <LogOut size={16} />
+              </button>
+            </>
           ) : (
-            <span className="material-symbols-outlined" style={{ fontSize: 30, color: SAGE_GREEN_DEEP }}>person</span>
+            <button
+              type="button"
+              onClick={() => { void handleAuthClick(); }}
+              style={{
+                height: 36,
+                borderRadius: 9999,
+                border: '1px solid rgba(148,163,184,0.3)',
+                background: 'rgba(255,255,255,0.78)',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '0 10px',
+                cursor: 'pointer',
+              }}
+            >
+              <LogIn size={15} />
+              <span style={{ fontSize: 12, fontWeight: 600 }}>{t('header_login')}</span>
+            </button>
           )}
         </div>
       </div>

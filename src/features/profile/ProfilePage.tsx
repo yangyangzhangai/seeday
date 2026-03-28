@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/useAuthStore';
 import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
@@ -9,6 +10,7 @@ import { MembershipCard } from './components/MembershipCard';
 import { SettingsList } from './components/SettingsList';
 
 export const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const { user, loading, isPlus } = useAuthStore();
   const navigate = useNavigate();
 
@@ -21,15 +23,28 @@ export const ProfilePage: React.FC = () => {
   if (loading || !user) return null;
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="px-3 py-3 space-y-2">
-        <UserInfoCard isPlus={isPlus} />
-        <AIModeSection isPlus={isPlus} />
-        <AIAnnotationDropRate isPlus={isPlus} />
-        <DailyGoalToggle />
-        <MembershipCard isPlus={isPlus} />
-        <SettingsList />
-        <div className="h-4" />
+    <div className="flex h-full items-center justify-center bg-transparent font-['Inter',sans-serif] px-0 md:px-8">
+      <div className="relative h-full w-full max-w-[430px] overflow-y-auto text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+        <header
+          className="sticky top-0 z-10 px-4 pb-3 pt-11"
+          style={{
+            background: 'rgba(252,250,247,0.38)',
+            backdropFilter: 'blur(14px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+          }}
+        >
+          <h1 className="text-xl font-extrabold text-[#1e293b]" style={{ letterSpacing: '-0.02em' }}>{t('nav_profile')}</h1>
+        </header>
+
+        <div className="space-y-2 px-3 py-3 pb-28">
+          <UserInfoCard isPlus={isPlus} />
+          <AIModeSection isPlus={isPlus} />
+          <AIAnnotationDropRate isPlus={isPlus} />
+          <DailyGoalToggle />
+          <MembershipCard isPlus={isPlus} />
+          <SettingsList />
+          <div className="h-2" />
+        </div>
       </div>
     </div>
   );

@@ -52,7 +52,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   return (
     <div style={{
       position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 430, zIndex: 30,
+      width: '100%', maxWidth: 960, zIndex: 30,
     }}>
       <div style={{
         background: 'linear-gradient(to top, rgba(252,250,247,0.58) 55%, rgba(252,250,247,0))',

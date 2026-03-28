@@ -28,12 +28,11 @@ function getCategoryKey(category: PlantCategoryKey): string {
 }
 
 interface PlantRootSectionProps {
-  onOpenDiaryBook?: () => void;
   onOpenTodayDiary?: () => void;
   onGenerateDiary?: () => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryBook, onOpenTodayDiary, onGenerateDiary }) => {
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenTodayDiary, onGenerateDiary }) => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
@@ -49,9 +48,19 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
   const generatePlant = usePlantStore(state => state.generatePlant);
   const setSelectedRootId = usePlantStore(state => state.setSelectedRootId);
   const messages = useChatStore(state => state.messages);
+  const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
 
   useEffect(() => {
-    void loadTodayData();
+    void (async () => {
+      await loadTodayData();
+      const now = new Date();
+      const dayStart = new Date(now);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(now);
+      dayEnd.setHours(23, 59, 59, 999);
+      await loadMessagesForDateRange(dayStart, dayEnd);
+      refreshTodaySegments();
+    })();
     startActivitySync();
     const timerId = window.setInterval(() => {
       setTimeTick(Date.now());
@@ -61,7 +70,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
       window.clearInterval(timerId);
       stopActivitySync();
     };
-  }, [loadTodayData, refreshTodaySegments, startActivitySync, stopActivitySync]);
+  }, [loadMessagesForDateRange, loadTodayData, refreshTodaySegments, startActivitySync, stopActivitySync]);
 
   const renderedSegments = useMemo(() => renderRootSegments(todaySegments), [todaySegments]);
 
@@ -192,7 +201,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
       {/* ── Canvas area (flex-1, clips soil canvas) ── */}
       <div className="flex-1 relative overflow-hidden min-h-0">
         {/* Soil canvas shifted down so eco-sphere bubbles float above grass */}
-        <div className="absolute inset-0" style={{ top: 120 }}>
+        <div className="absolute inset-0" style={{ top: 40 }}>
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}
@@ -208,6 +217,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
             } : null}
             onCloseDetail={() => setSelectedRootId(null)}
           />
+        </div>
+
+        {/* ── Eco sphere bubbles above canvas to avoid clipping ── */}
+        <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
+          <DayEcoSphere onOpenTodayDiary={onOpenTodayDiary} />
         </div>
 
         {/* Empty state hint (centered in canvas) */}
@@ -237,10 +251,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenDiaryB
         </p>
       </div>
 
-      {/* ── Eco sphere bubbles: absolute overlay spanning full height so popups don't clip ── */}
-      <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-        <DayEcoSphere onOpenTodayDiary={onOpenTodayDiary ?? onOpenDiaryBook} />
-      </div>
     </div>
   );
 };

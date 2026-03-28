@@ -120,7 +120,7 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
       {onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(bottle.id); }}
-          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 bg-gray-400 hover:bg-red-500 text-white rounded-full items-center justify-center transition-colors hidden group-hover:flex"
+          className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 md:hidden md:group-hover:flex"
           title={t('delete')}
         >
           <X size={10} />

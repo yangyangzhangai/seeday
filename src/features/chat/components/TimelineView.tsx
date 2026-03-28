@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, isToday } from 'date-fns';
 import { EventCard } from './EventCard';
@@ -21,36 +21,6 @@ export interface TimelineViewProps {
 }
 
 const PRIMARY = '#B2EEDA';
-
-/** Animated growing line shown below the dot of an ongoing (not-yet-ended) event */
-const OngoingGrowthLine: React.FC<{ startTimestamp: number }> = ({ startTimestamp }) => {
-  const [height, setHeight] = useState(() =>
-    Math.min(Math.floor((Date.now() - startTimestamp) / 60000) * 5, 100),
-  );
-
-  useEffect(() => {
-    const update = () =>
-      setHeight(Math.min(Math.floor((Date.now() - startTimestamp) / 60000) * 5, 100));
-    update();
-    const id = setInterval(update, 30_000);
-    return () => clearInterval(id);
-  }, [startTimestamp]);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 2 }}>
-      <div
-        style={{
-          width: 1.5,
-          background: 'linear-gradient(to bottom, rgba(178,214,128,0.84), rgba(206,228,172,0.52))',
-          transition: 'height 800ms linear',
-          height: `${Math.max(height, 8)}px`,
-        }}
-      />
-      <div style={{ width: 6, height: 6, borderRadius: '50%', background: PRIMARY, marginTop: 2,
-        animation: 'pulse 1.4s ease-in-out infinite' }} />
-    </div>
-  );
-};
 
 const SkeletonCard: React.FC = () => (
   <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -199,11 +169,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     allowConvertToMood={allowReclassify}
                     readonly={cardReadonly}
                   />
-                )}
-                {isLast && !isMoodCard && msg.isActive && msg.duration == null && (
-                  <div style={{ paddingLeft: 6 }}>
-                    <OngoingGrowthLine startTimestamp={msg.timestamp} />
-                  </div>
                 )}
               </div>
             </div>

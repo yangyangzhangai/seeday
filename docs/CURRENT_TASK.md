@@ -38,6 +38,24 @@
 
 ### 已完成（本会话追加）
 
+- [x] Web 响应式壳层增强：在不影响 iOS 套壳移动体验的前提下，补齐桌面端适配骨架
+  - `src/components/layout/BottomNav.tsx`：新增桌面侧边悬浮导航（移动端继续使用底部胶囊导航）
+  - `src/App.tsx`：`PageOutlet` 增加桌面内边距与底部留白策略，主背景增加桌面渐变层
+  - `src/features/{growth,profile,report}/*Page.tsx`：页面容器由固定手机宽度扩展为响应式卡片宽度（移动 430 / 桌面 980）
+  - `src/features/chat/ChatPage.tsx`、`src/features/chat/ChatInputBar.tsx`：聊天容器与输入区宽度由 430 扩展为 960，保持移动端布局不变
+  - 用户反馈回退：移除桌面侧边导航，恢复全端底部导航；取消 `PageOutlet` 左侧预留空白
+- [x] 记录页头部交互恢复：补回语言切换与登录/退出入口
+  - `src/features/chat/components/DatePicker.tsx`：接入 `LanguageSwitcher`、恢复登录按钮/退出按钮、头像点击上传（调用 `updateAvatar`）
+
+- [x] 报告页植物区可见性修复：恢复植物/根系展示
+  - `src/features/report/plant/PlantRootSection.tsx` 挂载时按今日时间窗预加载消息并刷新根系片段，生态球层内置到画布容器避免截断
+  - `src/features/report/plant/SoilCanvas.tsx` 增加土壤底色兜底 + 无数据静态根系占位，消除白板观感
+  - `src/features/report/ReportPage.tsx` 修复外层容器缺失 `flex-col` 导致内容区塌陷（生态球/根系不显示）
+  - 土壤画布上边距从 `120` 调整为 `40`，并增加未生成态小苗预览浮层
+- [x] UI 迁移：参考 `C:\Users\yangy\Desktop\Tshine UI\Tshine UI\Tshine UI` 原型，将主壳层视觉（底部导航/页面容器/头部）对齐到玻璃风格，同时保持既有业务逻辑与数据链路不变
+  - `src/App.tsx`、`src/components/layout/BottomNav.tsx`、`src/index.css`
+  - `src/features/growth/GrowthPage.tsx`、`src/features/report/ReportPage.tsx`、`src/features/profile/ProfilePage.tsx`
+  - `src/features/growth/BottleList.tsx`、`src/features/growth/GrowthTodoSection.tsx`
 - [x] DayEcoSphere：日记界面植物上方三个玻璃生态球（心情/活动/待解锁），点击展开图表面板
   - 左球：今日心情能量曲线（SVG 折线图，按时间轴排布）+ 心情分类饼图
   - 中球：今日活动分类圆环（复用 `ActivityCategoryDonut`）

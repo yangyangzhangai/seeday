@@ -292,10 +292,11 @@ export const ChatPage = () => {
       position: 'fixed', inset: 0, zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: "'Inter', sans-serif",
+      padding: '0 12px',
     }}>
-      {/* Phone container */}
+      {/* Chat container */}
       <div style={{
-        position: 'relative', width: '100%', maxWidth: 430, height: '100dvh',
+        position: 'relative', width: '100%', maxWidth: 960, height: '100dvh',
         background: 'transparent', color: '#0f172a',
         display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 1,
       }}>

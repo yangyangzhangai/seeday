@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
-import { Header } from './components/layout/Header';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
@@ -51,7 +50,7 @@ const PageOutlet: React.FC = () => {
   return (
     <main
       key={pathname}
-      className="flex-1 overflow-hidden pt-14 pb-16 relative animate-[pageIn_0.18s_ease-out]"
+      className="relative flex-1 overflow-hidden pb-24 animate-[pageIn_0.18s_ease-out] md:pb-8"
     >
       <Outlet />
     </main>
@@ -167,8 +166,7 @@ const MainLayout = () => {
   }, [user?.id]);
 
   return (
-    <div className="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden">
-      <Header />
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#FCFAF7] md:bg-[radial-gradient(circle_at_18%_20%,#ffffff_0%,#f4f1eb_45%,#efe9de_100%)]">
       <PageOutlet />
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}

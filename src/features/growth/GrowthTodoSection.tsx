@@ -111,17 +111,24 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
   return (
     <section className="mb-4 px-4">
-      <h2 className="text-base font-bold text-gray-800 mb-3">{t('growth_todo_section')}</h2>
+      <h2 className="mb-3 text-[14px] font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
 
       {/* Inline quick-add input */}
-      <div className="flex items-center gap-2.5 bg-blue-50 rounded-xl px-3 py-3 border-2 border-blue-200 border-dashed mb-2">
-        <div className="w-5 h-5 rounded-full border-2 border-blue-300 flex-shrink-0" />
+      <div
+        className="mb-2 flex items-center gap-2.5 rounded-xl px-3 py-3"
+        style={{
+          background: '#F7F9F8',
+          backdropFilter: 'blur(20px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        }}
+      >
+        <div className="h-5 w-5 flex-shrink-0 rounded-full border-2 border-[#8FAF92]/50" />
         <input
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(); }}
           placeholder={t('growth_todo_quick_add_placeholder')}
-          className="flex-1 text-sm focus:outline-none bg-transparent text-gray-700 placeholder-blue-300"
+          className="flex-1 bg-transparent text-sm text-[#334155] placeholder:text-[#94a3b8] focus:outline-none"
         />
       </div>
 

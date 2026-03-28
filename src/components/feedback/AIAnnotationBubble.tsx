@@ -125,13 +125,13 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           damping: 25
         }}
         data-stardust-bubble
-        className="fixed right-4 top-[20%] z-50 max-w-xs"
+        className="pointer-events-none fixed right-4 top-[20%] z-50 max-w-xs"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* 毛玻璃气泡 */}
         <div
-          className="relative bg-white/70 backdrop-blur-lg rounded-2xl p-4 shadow-xl border border-white/50"
+          className="pointer-events-auto relative rounded-2xl border border-white/50 bg-white/70 p-4 shadow-xl backdrop-blur-lg"
           style={{
             boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
           }}
@@ -229,7 +229,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
         {/* 装饰性光晕 */}
         <div
-          className="absolute -inset-1 bg-gradient-to-r from-purple-400/20 to-blue-500/20 rounded-2xl blur-xl -z-10"
+          className="pointer-events-none absolute -inset-1 -z-10 rounded-2xl bg-gradient-to-r from-purple-400/20 to-blue-500/20 blur-xl"
           style={{
             animation: 'pulse 3s ease-in-out infinite',
           }}
