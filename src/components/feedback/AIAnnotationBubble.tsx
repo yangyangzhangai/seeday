@@ -125,13 +125,17 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           damping: 25
         }}
         data-stardust-bubble
-        className="pointer-events-none fixed right-4 top-[20%] z-50 max-w-xs"
+        className="pointer-events-none fixed top-[20%] z-50"
+        style={{
+          right: 'max(12px, calc((100vw - 960px) / 2 + 12px))',
+          width: 'min(20rem, calc(100vw - 24px))',
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* 毛玻璃气泡 */}
         <div
-          className="pointer-events-auto relative rounded-2xl border border-white/50 bg-white/70 p-4 shadow-xl backdrop-blur-lg"
+          className="pointer-events-auto relative rounded-2xl border border-white/50 bg-white/70 p-4 pr-10 shadow-xl backdrop-blur-lg"
           style={{
             boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
           }}
@@ -139,7 +143,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           {/* 关闭按钮 */}
           <button
             onClick={dismissAnnotation}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-colors shadow-sm"
+            className="absolute right-2 top-2 h-6 w-6 rounded-full bg-gray-100 text-gray-500 shadow-sm transition-colors hover:bg-gray-200 flex items-center justify-center"
           >
             <X size={14} />
           </button>

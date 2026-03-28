@@ -87,7 +87,7 @@ export const BottleList = () => {
           <button
             onClick={() => !isMaxReached && setShowAdd(true)}
             disabled={isMaxReached}
-            className="h-[34px] w-[34px] rounded-full text-[#5F7A63] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-full p-0 text-[#5F7A63] disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: 'rgba(144.67, 212.06, 122.21, 0.20)',
               boxShadow: '0px 2px 2px #C8C8C8',
