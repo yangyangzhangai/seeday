@@ -1,9 +1,12 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/ACTIVITY_LEXICON.md -> src/features/chat/README.md
 import type { MoodKey } from '../../lib/moodOptions';
 import { getLexicon } from './lexicon/getLexicon';
+import { zhStandaloneActivityNouns } from './lexicon/activityLexicon.zh';
 
 const zhLexicon = getLexicon('zh');
 const { activity: zhActivity, mood: zhMood } = zhLexicon;
+
+export const ZH_STANDALONE_ACTIVITY_NOUNS = zhStandaloneActivityNouns;
 
 export const ZH_ACTIVITY_STRONG_PHRASES = [...zhActivity.strongPhrases];
 
@@ -485,6 +488,9 @@ export const ZH_ACTIVITY_OBJECTS = [
   '娃',
   '鱼',
   '车',
+  // 乐器 / 舞蹈 / 手工对象（配合 verbs 弹/拉/跳/织/绣/折 做 verb+object 组合）
+  '琴', '吉他', '钢琴', '尤克里里', '小提琴', '二胡', '笛子', '鼓', '萨克斯',
+  '舞', '毛衣', '花', '纸',
 ];
 
 export const ZH_PLACE_NOUNS = [

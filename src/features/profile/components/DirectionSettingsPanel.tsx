@@ -15,11 +15,11 @@ interface DirectionSlot {
 }
 
 const SLOTS: DirectionSlot[] = [
+  { index: 0, positionKey: 'plant_direction_left_bottom' },
+  { index: 1, positionKey: 'plant_direction_left_top' },
   { index: 2, positionKey: 'plant_direction_top' },
   { index: 3, positionKey: 'plant_direction_right_top' },
   { index: 4, positionKey: 'plant_direction_right_bottom' },
-  { index: 0, positionKey: 'plant_direction_left_bottom' },
-  { index: 1, positionKey: 'plant_direction_left_top' },
 ];
 
 const CATEGORIES: PlantCategoryKey[] = ['work_study', 'exercise', 'social', 'entertainment', 'life'];

@@ -208,3 +208,76 @@ export const itActivityLexicon: ActivityLexicon = {
     /\b(ho\s+fatto|faccio)\s+volontariato\b/i,
   ],
 };
+
+/**
+ * Verb conjugation data for auto-generating Italian activity verb forms.
+ * Generator in liveInputRules.it.ts produces: infinitive, gerundio, participio,
+ * present-1sg, "sto + gerundio", "ho + participio".
+ *
+ * Tuple: [infinitive, group, irregularParticipo?, irregularGerundio?, irregularPresent1sg?]
+ * Leave optional fields undefined to use regular form.
+ */
+export type ItVerbEntry = readonly [
+  string,
+  'are' | 'ere' | 'ire',
+  (string | undefined)?,
+  (string | undefined)?,
+  (string | undefined)?,
+];
+
+export const itActivityVerbData: readonly ItVerbEntry[] = [
+  // Eating / drinking
+  ['mangiare', 'are'],
+  ['cucinare', 'are'],
+  ['bere', 'ere', 'bevuto', 'bevendo', 'bevo'],
+  // Sleep
+  ['dormire', 'ire'],
+  // Exercise / movement
+  ['correre', 'ere', 'corso'],
+  ['camminare', 'are'],
+  ['nuotare', 'are'],
+  ['pedalare', 'are'],
+  ['sciare', 'are'],
+  // Work / study
+  ['lavorare', 'are'],
+  ['studiare', 'are'],
+  ['ripassare', 'are'],
+  ['rispondere', 'ere', 'risposto'],
+  // Reading / writing
+  ['leggere', 'ere', 'letto'],
+  ['scrivere', 'ere', 'scritto'],
+  // Media / social
+  ['guardare', 'are'],
+  ['ascoltare', 'are'],
+  ['chattare', 'are'],
+  // Games
+  ['giocare', 'are'],
+  // Creative
+  ['disegnare', 'are'],
+  ['dipingere', 'ere', 'dipinto', 'dipingendo'],
+  ['fotografare', 'are'],
+  ['ballare', 'are'],
+  ['cantare', 'are'],
+  ['suonare', 'are'],
+  // Chores / errands
+  ['pulire', 'ire'],
+  ['comprare', 'are'],
+  ['preparare', 'are'],
+  // Wellness
+  ['meditare', 'are'],
+  // General (irregular)
+  ['fare', 'are', 'fatto', 'facendo', 'faccio'],
+  ['vedere', 'ere', 'visto'],
+  ['uscire', 'ire', 'uscito', undefined, 'esco'],
+];
+
+/**
+ * Place nouns used for structural go+place activity detection.
+ * Kept separate from strongPhrases to avoid redundancy.
+ */
+export const itPlaceNouns: readonly string[] = [
+  'palestra', 'ufficio', 'supermercato', 'bar', 'caffè', 'cinema',
+  'museo', 'medico', 'dentista', 'farmacia', 'ospedale', 'stazione',
+  'aeroporto', 'università', 'scuola', 'biblioteca', 'ristorante',
+  'pizzeria', 'parco', 'piscina', 'spiaggia', 'montagna', 'negozio', 'mercato',
+];

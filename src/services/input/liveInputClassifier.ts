@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 import {
+  ZH_ACTIVITY_VERBS,
   ZH_EVALUATION_WORDS,
   ZH_LAST_ACTIVITY_REFERENCES,
   ZH_PUNCT_ONLY,
@@ -95,8 +96,15 @@ function isShortReplyLikeText(input: string): boolean {
   return /^(ok|okay|好的?|收到|嗯+|啊+|哦+|哈+|哈哈+|行|可以|知道了|明白了|是的|不是|好嘞)$/.test(input.trim().toLowerCase());
 }
 
+// 移动/方向动词：只用于短句壳检测，不放 verbs 以免 verb+object 误判（如 "去吧" → 去+吧）
+const ZH_SHORT_SHELL_MOVEMENT_VERBS = '去上下关回到进出';
+
 function hasShortActionShell(input: string): boolean {
-  return /^(去|上|下|开|关|回|到|进|出|拿|做|写|看|读|学|跑|吃|喝|打|发|洗|刷|煮|包|登).{1,5}$/.test(input.trim());
+  const trimmed = input.trim();
+  if (trimmed.length < 2 || trimmed.length > 6) return false;
+  const firstChar = trimmed[0];
+  return ZH_ACTIVITY_VERBS.some((v) => v.length === 1 && v === firstChar)
+    || ZH_SHORT_SHELL_MOVEMENT_VERBS.includes(firstChar);
 }
 
 function isShortLatinReplyLikeText(input: string, lang: 'en' | 'it'): boolean {

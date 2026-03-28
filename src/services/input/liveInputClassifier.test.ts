@@ -103,6 +103,58 @@ describe('classifyLiveInput zh seed and regression cases', () => {
   });
 });
 
+describe('classifyLiveInput hobby and standalone noun activity cases', () => {
+  it('classifies 画画 as activity (regression: was classified as mood)', () => {
+    const result = classify('画画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 绘画 as activity', () => {
+    const result = classify('绘画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 弹琴 as activity', () => {
+    const result = classify('弹琴');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 跳舞 as activity', () => {
+    const result = classify('跳舞');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 冥想 as activity', () => {
+    const result = classify('冥想');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 漫画 as activity (user implies reading manga)', () => {
+    const result = classify('漫画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 游戏 as activity', () => {
+    const result = classify('游戏');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 电影 as activity', () => {
+    const result = classify('电影');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 漫画了 as activity (with completion particle)', () => {
+    const result = classify('漫画了');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 摄影 as activity', () => {
+    const result = classify('摄影');
+    expect(result.kind).toBe('activity');
+  });
+});
+
 describe('classifyLiveInput context bias', () => {
   const contextWithEat: LiveInputContext = {
     now: Date.now(),

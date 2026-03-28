@@ -402,3 +402,154 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 });
+
+describe('classifyLiveInput EN Phase 1 — missing verbs and go+place', () => {
+  // Missing fundamental verbs
+  it('classifies "eating" as activity', () => {
+    expect(classify('eating').kind).toBe('activity');
+  });
+
+  it('classifies "ate" as activity', () => {
+    expect(classify('ate').kind).toBe('activity');
+  });
+
+  it('classifies "sleeping" as activity', () => {
+    expect(classify('sleeping').kind).toBe('activity');
+  });
+
+  it('classifies "dancing" as activity', () => {
+    expect(classify('dancing').kind).toBe('activity');
+  });
+
+  it('classifies "singing" as activity', () => {
+    expect(classify('singing').kind).toBe('activity');
+  });
+
+  it('classifies "sang" as activity', () => {
+    expect(classify('sang').kind).toBe('activity');
+  });
+
+  it('classifies "danced" as activity', () => {
+    expect(classify('danced').kind).toBe('activity');
+  });
+
+  // Go+place detection (places not in strongPhrases)
+  it('classifies "at the library" via go+place as activity', () => {
+    expect(classify('at the library').kind).toBe('activity');
+  });
+
+  it('classifies "at the park" via go+place as activity', () => {
+    expect(classify('at the park').kind).toBe('activity');
+  });
+
+  it('classifies "went to the pool" via go+place as activity', () => {
+    expect(classify('went to the pool').kind).toBe('activity');
+  });
+
+  it('classifies "got back from the cafe" via go+place as activity', () => {
+    expect(classify('got back from the cafe').kind).toBe('activity');
+  });
+
+  it('classifies "arrived at the studio" via go+place as activity', () => {
+    expect(classify('arrived at the studio').kind).toBe('activity');
+  });
+
+  // Regression: future plan must still be mood even with place noun
+  it('keeps "going to the library later" as mood (future plan)', () => {
+    const result = classify('going to the library later');
+    expect(result.kind).toBe('mood');
+  });
+});
+
+describe('classifyLiveInput IT Phase 1 — verb forms and go+place', () => {
+  // Generated verb forms: present-1sg
+  it('classifies "mangio" (I eat) as activity', () => {
+    expect(classify('mangio').kind).toBe('activity');
+  });
+
+  it('classifies "dormo" (I sleep) as activity', () => {
+    expect(classify('dormo').kind).toBe('activity');
+  });
+
+  it('classifies "corro" (I run) as activity', () => {
+    expect(classify('corro').kind).toBe('activity');
+  });
+
+  it('classifies "cucino" (I cook) as activity', () => {
+    expect(classify('cucino').kind).toBe('activity');
+  });
+
+  it('classifies "disegno" (I draw) as activity', () => {
+    expect(classify('disegno').kind).toBe('activity');
+  });
+
+  it('classifies "ballo" (I dance) as activity', () => {
+    expect(classify('ballo').kind).toBe('activity');
+  });
+
+  it('classifies "cantando" (singing) as activity', () => {
+    expect(classify('cantando').kind).toBe('activity');
+  });
+
+  it('classifies "suono" (I play an instrument) as activity', () => {
+    expect(classify('suono').kind).toBe('activity');
+  });
+
+  // Generated verb forms: gerundio standalone
+  it('classifies "mangiando" as activity', () => {
+    expect(classify('mangiando').kind).toBe('activity');
+  });
+
+  it('classifies "dormendo" as activity', () => {
+    expect(classify('dormendo').kind).toBe('activity');
+  });
+
+  // Generated verb forms: ho + participio
+  it('classifies "ho mangiato" as activity', () => {
+    expect(classify('ho mangiato').kind).toBe('activity');
+  });
+
+  it('classifies "ho dormito" as activity', () => {
+    expect(classify('ho dormito').kind).toBe('activity');
+  });
+
+  it('classifies "ho fatto" (I did) as activity', () => {
+    expect(classify('ho fatto').kind).toBe('activity');
+  });
+
+  // Generated verb forms: sto + gerundio
+  it('classifies "sto mangiando" as activity', () => {
+    expect(classify('sto mangiando').kind).toBe('activity');
+  });
+
+  it('classifies "sto dormendo" as activity', () => {
+    expect(classify('sto dormendo').kind).toBe('activity');
+  });
+
+  // Structural go+place detection
+  it('classifies "sono andato in palestra" via go+place as activity', () => {
+    expect(classify('sono andato in palestra').kind).toBe('activity');
+  });
+
+  it('classifies "vado al cinema" via go+place as activity', () => {
+    expect(classify('vado al cinema').kind).toBe('activity');
+  });
+
+  it('classifies "sono al parco" via go+place as activity', () => {
+    expect(classify('sono al parco').kind).toBe('activity');
+  });
+
+  it('classifies "sono andata in biblioteca" via go+place as activity', () => {
+    expect(classify('sono andata in biblioteca').kind).toBe('activity');
+  });
+
+  it('classifies "vado in piscina" via go+place as activity', () => {
+    expect(classify('vado in piscina').kind).toBe('activity');
+  });
+
+  // Regression: future plan must still be mood even with place noun
+  it('keeps future plan with place noun as mood: domani vado in palestra', () => {
+    const result = classify('domani vado in palestra');
+    expect(result.kind).toBe('mood');
+  });
+});

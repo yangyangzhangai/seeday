@@ -138,6 +138,11 @@ export const enActivityLexicon: ActivityLexicon = {
     'volunteer', 'volunteering', 'volunteered',
     'donate', 'donating', 'donated',
     'tutor', 'tutoring',
+    // basic verbs not covered above
+    'eat', 'eating', 'ate', 'eaten',
+    'sleep', 'sleeping',
+    'dance', 'dancing', 'danced',
+    'sing', 'singing', 'sang',
     // missing past tenses & conjugations
     'meditated', 'slept', 'napped', 'hiked', 'biked',
     // fitness extras
@@ -335,3 +340,21 @@ export const enActivityLexicon: ActivityLexicon = {
     /\b(went\s+to\s+(a\s+)?(networking\s+event|mixer|meetup|conference|workshop))\b/i,
   ],
 };
+
+/**
+ * Place nouns used for structural go+place activity detection.
+ * Only includes places NOT already covered as tokens in strongPhrases.
+ * Combined with movement-verb prefixes in latinSignalExtractor.
+ */
+export const enPlaceNouns: readonly string[] = [
+  // exercise & sport (pool/track not in strongPhrases as bare tokens)
+  'pool', 'track', 'court', 'studio', 'field',
+  // education
+  'library', 'campus',
+  // daily errands / social (cafe, bar etc. only covered by specific phrasePatterns)
+  'cafe', 'coffee shop', 'park', 'bar', 'market',
+  // health
+  'hospital', 'clinic',
+  // retail / transport
+  'supermarket', 'mall', 'store', 'station', 'airport',
+];

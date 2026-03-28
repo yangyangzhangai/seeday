@@ -5,6 +5,7 @@ import {
   EN_MOOD_PATTERNS,
   EN_MOOD_WORDS,
   EN_NEGATED_OR_NOT_OCCURRED_PATTERNS,
+  EN_PLACE_NOUNS,
   EN_STRONG_COMPLETION_PATTERNS,
 } from '../liveInputRules.en.js';
 import {
@@ -14,6 +15,7 @@ import {
   IT_MOOD_PATTERNS,
   IT_MOOD_WORDS,
   IT_NEGATED_OR_NOT_OCCURRED_PATTERNS,
+  IT_PLACE_NOUNS,
   IT_STRONG_COMPLETION_PATTERNS,
 } from '../liveInputRules.it.js';
 
@@ -176,6 +178,39 @@ export function detectLatinLanguage(input: string): LatinLang {
     'allenandomi',
     'flessioni',
     'addominali',
+    // Generated verb forms — present-1sg (unambiguous Italian)
+    'vado',
+    'faccio',
+    'mangio',
+    'dormo',
+    'corro',
+    'cucino',
+    'disegno',
+    'ballo',
+    'suono',
+    'nuoto',
+    'pedalando',
+    'sciando',
+    // Generated verb forms — gerundio (unambiguous Italian)
+    'mangiando',
+    'cucinando',
+    'dormendo',
+    'correndo',
+    'disegnando',
+    'ballando',
+    'cantando',
+    'suonando',
+    'nuotando',
+    // Generated verb forms — participio (unambiguous Italian)
+    'mangiato',
+    'dormito',
+    'cucinato',
+    'disegnato',
+    'ballato',
+    'suonato',
+    'nuotato',
+    'fatto',
+    'visto',
   ])) {
     return 'it';
   }
@@ -219,6 +254,20 @@ export function hasLatinContextKeywordOverlap(text: string, contextText: string)
   return textTokens.some((token) => contextTokens.some((contextToken) => areLatinKeywordsRelated(token, contextToken)));
 }
 
+function hasEnGoToPlace(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  const hasPlace = EN_PLACE_NOUNS.some((place) => lowerText.includes(place));
+  if (!hasPlace) return false;
+  return /\b(went\s+to|at\s+the|got\s+to|arrived\s+at|headed\s+to|got\s+back\s+from|back\s+from|just\s+got\s+to)\b/i.test(lowerText);
+}
+
+function hasItGoToPlace(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  const hasPlace = IT_PLACE_NOUNS.some((place) => lowerText.includes(place));
+  if (!hasPlace) return false;
+  return /\b(sono\s+andato|sono\s+andata|vado|sto\s+andando|sono\s+(al|alla|in)|mi\s+trovo\s+(al|alla|in))\b/i.test(lowerText);
+}
+
 export function extractLatinSignals(text: string): {
   lang: LatinLang;
   hasFuturePlan: boolean;
@@ -241,6 +290,7 @@ export function extractLatinSignals(text: string): {
   const negationPatterns = lang === 'it' ? IT_NEGATED_OR_NOT_OCCURRED_PATTERNS : EN_NEGATED_OR_NOT_OCCURRED_PATTERNS;
   const hasActivityLexicon = containsAnyLatinSignal(text, activityVerbs);
   const hasActivityPattern = activityPatterns.some((pattern) => pattern.test(text));
+  const hasGoToPlace = lang === 'it' ? hasItGoToPlace(text) : hasEnGoToPlace(text);
   const hasMoodLexicon = containsAnyLatinSignal(text, moodWords);
   const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(text));
 
@@ -250,7 +300,7 @@ export function extractLatinSignals(text: string): {
     hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)),
     hasActivityLexicon,
     hasActivityPattern,
-    hasActivity: hasActivityLexicon || hasActivityPattern,
+    hasActivity: hasActivityLexicon || hasActivityPattern || hasGoToPlace,
     hasMoodLexicon,
     hasMoodPattern,
     hasMood: hasMoodLexicon || hasMoodPattern,

@@ -8,6 +8,39 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-28 - Feat: EN/IT Phase 1 — 词库框架升级（动词形态生成器 + 地点检测）
+
+### Added
+
+- **`activityLexicon.en.ts`**: 补充缺失基础动词 `eat/eating/ate/eaten`、`sleep/sleeping`、`dance/dancing/danced`、`sing/singing/sang`；新增 `enPlaceNouns` 导出（18 个非 strongPhrases 场所名词：pool、library、park、cafe 等）。
+- **`liveInputRules.en.ts`**: 导入并导出 `EN_PLACE_NOUNS`。
+- **`activityLexicon.it.ts`**: 新增 `ItVerbEntry` 类型 + `itActivityVerbData` 表（34 个意大利语动词，含不规则变位信息）；新增 `itPlaceNouns` 导出（24 个场所名词）。
+- **`liveInputRules.it.ts`**: 新增 `generateItVerbForms()` 函数，每个动词自动生成 6 种形态（不定式、动名词、过去分词、第一人称现在时、`sto+动名词`、`ho+过去分词`）；`IT_ACTIVITY_VERBS` 合并所有生成形态（非破坏性扩展）；导出 `IT_PLACE_NOUNS`。
+- **`latinSignalExtractor.ts`**: 新增 `hasEnGoToPlace()` 和 `hasItGoToPlace()` 结构化地点检测函数，`extractLatinSignals()` 的 `hasActivity` 现同时包含地点检测结果；EN/IT 语言识别列表新增 30+ 个意大利语特有动词形态（`vado`、`faccio`、`mangio`、`dormo`、`mangiando`、`mangiato` 等），确保单词意大利语输入能被正确识别。
+- **测试**: `liveInputClassifier.i18n.test.ts` 新增 34 个回归测试（EN 13 个 + IT 21 个）；全部通过，无现有测试回归。
+
+### Why
+
+意大利语动词变位复杂，原有词表依靠手动维护所有形态，导致 `mangio`（我在吃）、`dormo`（我在睡）、`vado al cinema`（去电影院）等常见输入被误判为心情。英语缺少 `eat/sleep/dance/sing` 等基础动词，以及 `at the library`、`went to the park` 等场所类活动表达。
+
+---
+
+## 2026-03-28 - Feat: ZH 词库框架优化（动词数据驱动 + 独立名词活动识别）
+
+### Changed
+
+- **`activityLexicon.zh.ts`**: 移除 11 个与 go+place 逻辑重复的 `去+地点` strongPhrases（`去超市`、`去医院` 等，均已由动词+地点结构覆盖）；移除 11 个可由 verb+object 框架覆盖的冗余短语（`画画`、`弹琴` 等）；新增 12 个动词至 `verbs` 列表（`画`、`弹`、`唱`、`跳`、`踢`、`织`、`绣`、`折`、`喝`、`开`、`包`、`登`）；新增 `zhStandaloneActivityNouns` 导出（15 个独立名词：漫画、游戏、钢琴、象棋等）。
+- **`liveInputRules.zh.ts`**: 导入并导出 `ZH_STANDALONE_ACTIVITY_NOUNS`；新增乐器/舞蹈对象词至 `ZH_ACTIVITY_OBJECTS`（`琴`、`吉他`、`钢琴`、`舞` 等）。
+- **`zhSignalExtractor.ts`**: `hasActivitySignal` 新增短名词兜底逻辑（≤4 字纯名词匹配 `ZH_STANDALONE_ACTIVITY_NOUNS`）。
+- **`liveInputClassifier.ts`**: `hasShortActionShell` 由硬编码正则改为数据驱动（读取 `ZH_ACTIVITY_VERBS`），新增 `ZH_SHORT_SHELL_MOVEMENT_VERBS` 常量隔离方向动词避免 verb+object 误判。
+- **测试**: `liveInputClassifier.test.ts` 新增 10 个爱好/独立名词活动回归测试（画画、弹琴、漫画、游戏等）。
+
+### Why
+
+原有修复是"治标不治本"的逐条补充，词表与检测逻辑割裂。框架升级后：动词列表为唯一真相源，`hasShortActionShell` 自动感知新增动词，`去+地点` 类无需重复维护。
+
+---
+
 ## 2026-03-26 - Fix: 日记页面布局适配手机端（按钮不再与导航重叠）
 
 ### Fixed

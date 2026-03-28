@@ -1,11 +1,30 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 
 import { getActivityLexicon, getMoodLexicon } from './lexicon/getLexicon.js';
+import { itActivityVerbData, itPlaceNouns } from './lexicon/activityLexicon.it.js';
+import type { ItVerbEntry } from './lexicon/activityLexicon.it.js';
 
 const itActivity = getActivityLexicon('it');
 const itMood = getMoodLexicon('it');
 
-export const IT_ACTIVITY_VERBS = Array.from(new Set([...itActivity.strongPhrases, ...itActivity.verbs]));
+function generateItVerbForms(entry: ItVerbEntry): string[] {
+  const [infinitive, group, irregularParticipo, irregularGerundio, irregularPresent1sg] = entry;
+  const stem = infinitive.slice(0, -3);
+  const gerundio = irregularGerundio ?? (stem + (group === 'are' ? 'ando' : 'endo'));
+  const participio = irregularParticipo ?? (stem + (group === 'are' ? 'ato' : group === 'ere' ? 'uto' : 'ito'));
+  const present1sg = irregularPresent1sg ?? (stem + 'o');
+  return [infinitive, gerundio, participio, present1sg, `sto ${gerundio}`, `ho ${participio}`];
+}
+
+const IT_ACTIVITY_VERB_FORMS = itActivityVerbData.flatMap(generateItVerbForms);
+
+export const IT_PLACE_NOUNS: readonly string[] = itPlaceNouns;
+
+export const IT_ACTIVITY_VERBS = Array.from(new Set([
+  ...itActivity.strongPhrases,
+  ...itActivity.verbs,
+  ...IT_ACTIVITY_VERB_FORMS,
+]));
 
 export const IT_MOOD_WORDS = [...itMood.allMoodWords];
 

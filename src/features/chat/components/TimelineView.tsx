@@ -6,10 +6,10 @@ import { EventCard } from './EventCard';
 import { MoodCard } from './MoodCard';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useChatStore } from '../../../store/useChatStore';
-import { cn } from '../../../lib/utils';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { autoDetectMood } from '../../../lib/mood';
 import type { StardustCardData } from '../../../types/stardust';
+import imgTimelineLeaf from '../../../assets/timeline-leaf.png';
 
 export interface TimelineViewProps {
   messages: Message[];
@@ -19,6 +19,8 @@ export interface TimelineViewProps {
   onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
   onTimeClick?: (message: Message) => void;
 }
+
+const PRIMARY = '#B2EEDA';
 
 /** Animated growing line shown below the dot of an ongoing (not-yet-ended) event */
 const OngoingGrowthLine: React.FC<{ startTimestamp: number }> = ({ startTimestamp }) => {
@@ -35,26 +37,26 @@ const OngoingGrowthLine: React.FC<{ startTimestamp: number }> = ({ startTimestam
   }, [startTimestamp]);
 
   return (
-    <div className="flex flex-col items-center mt-0.5">
-      {/* Solid growing line */}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 2 }}>
       <div
-        className="w-0.5 bg-gradient-to-b from-blue-400 to-blue-200 transition-[height] duration-[800ms] ease-linear"
-        style={{ height: `${Math.max(height, 8)}px` }}
+        style={{
+          width: 1.5,
+          background: 'linear-gradient(to bottom, rgba(178,214,128,0.84), rgba(206,228,172,0.52))',
+          transition: 'height 800ms linear',
+          height: `${Math.max(height, 8)}px`,
+        }}
       />
-      {/* Pulsing tip dot — indicates "still going" */}
-      <div className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse mt-0.5" />
+      <div style={{ width: 6, height: 6, borderRadius: '50%', background: PRIMARY, marginTop: 2,
+        animation: 'pulse 1.4s ease-in-out infinite' }} />
     </div>
   );
 };
 
 const SkeletonCard: React.FC = () => (
-  <div className="flex items-stretch animate-pulse">
-    <div className="w-10 shrink-0" />
-    <div className="w-5 shrink-0 flex flex-col items-center">
-      <div className="w-0.5 h-2 bg-gray-200" />
-      <div className="w-2.5 h-2.5 rounded-full bg-gray-200 shrink-0" />
-    </div>
-    <div className="flex-1 bg-gray-100 rounded-xl h-16 ml-2 mb-5" />
+  <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+    <div style={{ width: 44, flexShrink: 0 }} />
+    <div style={{ width: 20, flexShrink: 0 }} />
+    <div style={{ flex: 1, background: '#F0F4F2', borderRadius: '2rem', height: 64, animation: 'pulse 1.5s ease-in-out infinite' }} />
   </div>
 );
 
@@ -83,8 +85,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     return { items, moodDescMap, latestRecordMessageId };
   }, [messages]);
 
-  // Backfill missing auto-mood labels for completed record events already in timeline.
-  // This covers legacy/multi-device entries that can appear without mood rows.
   useEffect(() => {
     for (const msg of items) {
       if (msg.mode !== 'record' || msg.isMood || msg.duration == null) continue;
@@ -95,7 +95,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col px-3 py-4">
+      <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: 206, paddingTop: 16 }}>
         {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
       </div>
     );
@@ -103,67 +103,80 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
-        <div className="text-4xl mb-3">✨</div>
-        <p className="text-sm font-medium">{t('new_day_start')}</p>
-        <p className="text-xs mt-1 text-gray-300">{t('record_what_you_do')}</p>
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80, opacity: 0.45 }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 52, color: PRIMARY }}>event_note</span>
+        <p style={{ fontSize: 14, color: '#64748b', margin: 0, textAlign: 'center' }}>
+          {t('new_day_start')}<br />
+          <span style={{ fontSize: 11, opacity: 0.7 }}>{t('record_what_you_do')}</span>
+        </p>
       </div>
     );
   }
 
+  const timelineLineX = 60;
+
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="px-3 py-4">
-        {items.map((msg, idx) => {
-          const isFirst = idx === 0;
-          const isLast  = idx === items.length - 1;
-          const timeLabel = format(msg.timestamp, 'HH:mm');
+    <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: 206, paddingTop: 16 }}>
+      <div style={{ position: 'relative' }}>
+        {/* Vertical timeline line */}
+        <div style={{ position: 'absolute', left: timelineLineX, top: 12, bottom: 0, width: 1.5,
+          background: 'linear-gradient(to bottom, rgba(178,214,128,0.84) 0%, rgba(206,228,172,0.52) 72%, transparent 100%)',
+          boxShadow: '0 0 9px rgba(178,214,128,0.30), 0 0 16px rgba(206,228,172,0.20)' }} />
+
+        {items.map((msg, index) => {
           const isMoodCard = msg.isMood && msg.detached;
           const allowReclassify = msg.id === latestRecordMessageId;
           const cardReadonly = !isToday(selectedDate);
+          const timeLabel = format(msg.timestamp, 'HH:mm');
+          const isLast = index === items.length - 1;
+
+          const leafSize = 18;
+          const leafMirrored = index % 2 === 0;
+          const stemRootX = leafSize * 0.18;
+          const stemRootY = leafSize * 0.94;
+          const nodeY = index === 0 ? 12 : 14;
+          const leafRotation = leafMirrored ? 8 : -8;
+          const leafDropY = 2;
 
           return (
-            /* items-stretch makes all children equal height so the bottom
-               connector fills to the row's bottom, creating a gapless line */
-            <div key={msg.id} className="flex items-stretch">
+            <div key={msg.id} style={{ display: 'flex', gap: 10, marginBottom: 14, position: 'relative', zIndex: 1 }}>
+              {/* Timeline leaf node */}
+              <img
+                src={imgTimelineLeaf}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  left: timelineLineX - stemRootX,
+                  top: nodeY - stemRootY + leafDropY,
+                  width: leafSize,
+                  height: leafSize,
+                  transform: leafMirrored ? `scaleX(-1) rotate(${leafRotation}deg)` : `rotate(${leafRotation}deg)`,
+                  transformOrigin: '18% 94%',
+                  opacity: 0.96,
+                  transition: 'all 0.3s',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                }}
+              />
 
-              {/* ── Time label (left of line) ──────────────── */}
-              <div className="w-10 shrink-0 flex flex-col items-end pr-2 pt-1">
+              {/* Time label */}
+              <div style={{ width: 44, paddingTop: 8, textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
                 <span
-                  className={cn(
-                    'text-[11px] font-medium text-gray-400 leading-none tabular-nums',
-                    !cardReadonly && onTimeClick ? 'cursor-pointer hover:text-gray-600' : '',
-                  )}
-                  onClick={() => {
-                    if (!cardReadonly && onTimeClick) onTimeClick(msg);
-                  }}
+                  style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    cursor: (!cardReadonly && onTimeClick) ? 'pointer' : 'default' }}
+                  onClick={() => { if (!cardReadonly && onTimeClick) onTimeClick(msg); }}
                 >
                   {timeLabel}
                 </span>
               </div>
 
-              {/* ── Dot + continuous vertical line ─────────── */}
-              <div className="w-5 shrink-0 flex flex-col items-center">
-                {/* Top connector: connects to previous item's bottom connector */}
-                <div className={cn(
-                  'w-0.5 shrink-0',
-                  isFirst ? 'h-1 bg-transparent' : 'h-2 bg-gray-300',
-                )} />
-                {/* Dot */}
-                <div className={cn(
-                  'w-2.5 h-2.5 rounded-full shrink-0 border-2 border-white shadow-sm',
-                  isMoodCard ? 'bg-sky-400' : 'bg-blue-500',
-                )} />
-                {/* Bottom connector: flex-1 fills to row bottom = seamless line */}
-                {!isLast && <div className="w-0.5 bg-gray-300 flex-1" />}
-                {/* Growing animated line for the last ongoing event */}
-                {isLast && !isMoodCard && msg.isActive && msg.duration == null && (
-                  <OngoingGrowthLine startTimestamp={msg.timestamp} />
-                )}
-              </div>
+              {/* Timeline column spacer */}
+              <div style={{ width: 20, flexShrink: 0 }} />
 
-              {/* ── Card ───────────────────────────────────── */}
-              <div className={cn('flex-1 min-w-0 pl-2 pt-0.5', isLast ? 'pb-2' : 'pb-5')}>
+              {/* Card */}
+              <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
                 {isMoodCard ? (
                   <MoodCard
                     message={msg}
@@ -187,12 +200,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     readonly={cardReadonly}
                   />
                 )}
+                {isLast && !isMoodCard && msg.isActive && msg.duration == null && (
+                  <div style={{ paddingLeft: 6 }}>
+                    <OngoingGrowthLine startTimestamp={msg.timestamp} />
+                  </div>
+                )}
               </div>
-
             </div>
           );
         })}
-        <div className="h-2" />
       </div>
     </div>
   );

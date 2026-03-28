@@ -1,10 +1,17 @@
 # CURRENT TASK (Session Resume Anchor)
 
-## Current Override (2026-03-25)
+## Current Override (2026-03-28)
 
-- Status: 日记功能重建 Phase 1–4 进行中
+- Status: 多语言分类框架 Phase 1 优化已完成（ZH + EN + IT）；日记功能重建暂停中
 - Scope owner: current working session
-- This section supersedes the 2026-03-21 multilingual classification mainline. That work is complete (PR0–PR4 all landed). Current focus is diary rebuild per `docs/DIARY_REBUILD_PLAN.md`.
+- 本次完成 ZH/EN/IT 词库框架升级，详见 `docs/CHANGELOG.md` 2026-03-28 两条记录。
+- 日记功能重建下次会话继续，入口：`docs/DIARY_REBUILD_PLAN.md`，待处理项见下方"待处理"清单。
+
+### Session Close Snapshot (2026-03-28)
+
+- 回环校验：`lint:secrets` ✅ `lint:max-lines` ✅ `lint:docs-sync` ✅ `tsc --noEmit` ✅ `test:unit` ✅（原有4个无关失败不变，新增 34 测试全通过）
+- 修改文件：`activityLexicon.zh/en/it.ts`、`liveInputRules.zh/en/it.ts`、`liveInputClassifier.ts`、`zhSignalExtractor.ts`、`latinSignalExtractor.ts`、`liveInputClassifier.test.ts`、`liveInputClassifier.i18n.test.ts`
+- 新增导出：`ZH_STANDALONE_ACTIVITY_NOUNS`、`IT_PLACE_NOUNS`、`EN_PLACE_NOUNS`、`itActivityVerbData`、`itPlaceNouns`、`enPlaceNouns`、`ItVerbEntry`
 
 ### Current Mainline
 

@@ -72,7 +72,15 @@ export const MoodCard: React.FC<MoodCardProps> = ({
     <div
       ref={cardRef}
       data-message-id={message.id}
-      className="bg-sky-50 border border-sky-100 px-3 py-2 rounded-xl relative"
+      className="relative"
+      style={{
+        background: 'linear-gradient(135deg, rgba(240,249,255,0.97) 0%, rgba(224,242,254,0.92) 100%)',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        borderRadius: '1.5rem',
+        border: '1px solid rgba(186,230,253,0.4)',
+        padding: '10px 13px 9px',
+      }}
       onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
       {/* Delete button — top-right, only when card is tapped and not readonly */}
@@ -97,8 +105,8 @@ export const MoodCard: React.FC<MoodCardProps> = ({
             }
           />
           <span
-            className="text-sm text-gray-800 leading-snug"
-            style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
+            className="leading-snug"
+            style={{ fontSize: 13, color: '#1e293b', fontFamily: "'Inter', sans-serif" }}
           >
             {message.content}
           </span>

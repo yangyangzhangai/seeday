@@ -285,14 +285,21 @@ export const ChatPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center sticky top-0 z-10">
-        <h1 className="text-lg font-semibold text-gray-800">{t('chat_title')}</h1>
+    <div className="flex flex-col h-full" style={{ background: 'rgba(252,250,247,0.95)' }}>
+      {/* Header — frosted glass */}
+      <header
+        className="sticky top-0 z-20 px-4"
+        style={{
+          paddingTop: 44,
+          paddingBottom: 0,
+          background: 'rgba(252,250,247,0.82)',
+          backdropFilter: 'blur(14px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+        }}
+      >
+        {/* DatePicker is rendered inside header for the reference layout */}
+        <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </header>
-
-      {/* Date Picker */}
-      <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Timeline */}
       <TimelineView

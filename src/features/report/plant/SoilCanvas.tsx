@@ -7,10 +7,6 @@ import { buildSoilLegendItems } from './soilLegend';
 import {
   clampViewportOffset,
   computeFocusOffset,
-  getNextScale,
-  MAX_SCALE,
-  MIN_SCALE,
-  SCALE_STEP,
 } from './soilCanvasViewport';
 import { RootDetailBubble } from './RootDetailBubble';
 import { RootSystem } from './RootSystem';
@@ -60,7 +56,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
   onCloseDetail,
 }) => {
   const { t } = useTranslation();
-  const [scale, setScale] = useState(1);
+  const scale = 1;
   const [viewportOffset, setViewportOffset] = useState({ x: 0, y: 0 });
   const [isActive, setIsActive] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -145,9 +141,6 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
 
   const legendItems = useMemo(() => buildSoilLegendItems(directionOrder), [directionOrder]);
 
-  const isMinScale = scale <= MIN_SCALE + 0.001;
-  const isMaxScale = scale >= MAX_SCALE - 0.001;
-
   return (
     <div
       ref={canvasRef}
@@ -200,42 +193,6 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {isActive && (
-        <div className="pointer-events-auto absolute bottom-3 left-3 z-10 flex items-center gap-2">
-          <span className="rounded-lg border border-stone-300/70 bg-white/70 px-2 py-1 text-[11px] text-stone-600">
-            x{scale.toFixed(2)}
-          </span>
-          <button
-            type="button"
-            onClick={() => setScale(prev => getNextScale(prev, -SCALE_STEP))}
-            disabled={isMinScale}
-            className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white/90 text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-            aria-label="Zoom out"
-          >
-            -
-          </button>
-          <button
-            type="button"
-            onClick={() => setScale(prev => getNextScale(prev, SCALE_STEP))}
-            disabled={isMaxScale}
-            className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white/90 text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setScale(1);
-              setViewportOffset({ x: 0, y: 0 });
-            }}
-            className="min-h-11 px-4 rounded-xl border border-stone-300 bg-white/90 text-sm text-stone-700 touch-manipulation active:scale-95 transition-transform"
-          >
-            {t('plant_canvas_reset')}
-          </button>
         </div>
       )}
     </div>

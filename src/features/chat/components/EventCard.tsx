@@ -116,270 +116,187 @@ export const EventCard: React.FC<EventCardProps> = ({
     }
   };
 
+  const moodTagBg = `${moodColor}18`;
+  const moodTagColor = moodColor;
+
   return (
     <div
       ref={cardRef}
       data-message-id={message.id}
-      className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm relative"
+      style={{
+        background: '#F7F9F8',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        borderRadius: '2rem',
+        border: 'none',
+        boxShadow: 'none',
+        position: 'relative',
+        overflow: 'hidden',
+        padding: '10px 13px 9px',
+      }}
       onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
     >
+      {/* Extra action buttons (camera / convert) — only when cardActive */}
       {cardActive && !readonly && (
-        <div className="absolute -top-2.5 -right-2.5 flex items-center gap-1 z-10">
+        <div style={{ position: 'absolute', top: -10, right: -10, display: 'flex', alignItems: 'center', gap: 4, zIndex: 10 }}>
           {canUploadImage && (
-            <button
-              onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }}
-              title={t('image_upload')}
-              className="w-6 h-6 bg-sky-500 hover:bg-sky-600 rounded-full text-white flex items-center justify-center transition-colors"
-            >
+            <button onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }} title={t('image_upload')}
+              style={{ width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Camera size={10} />
             </button>
           )}
           {allowConvertToMood && (
-            <button
-              onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }}
-              title={t('event_to_mood')}
-              className="w-6 h-6 bg-violet-500 hover:bg-violet-600 rounded-full text-white flex items-center justify-center transition-colors"
-            >
+            <button onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }} title={t('event_to_mood')}
+              style={{ width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ArrowRightLeft size={10} />
             </button>
           )}
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(message.id); }}
-            className="w-6 h-6 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors"
-          >
-            <X size={9} />
-          </button>
         </div>
       )}
 
-      {/* ── Header: dot + title + mood chip ─────────────────── */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-1.5 flex-1 min-w-0">
-          <div
-            className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-            style={
-              moodKey === 'anxious'
-                ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px)' }
-                : { backgroundColor: moodColor }
-            }
-          />
-          <span
-            className="text-xs font-semibold text-gray-900 leading-snug"
-            style={{ fontFamily: '"Source Han Serif SC","Noto Serif SC","Songti SC","SimSun","STSong",serif' }}
-          >
+      {/* ── Header row: title + mood tag + delete ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        marginBottom: 6, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: 1, minWidth: 0, paddingRight: 6 }}>
+          <h3 style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', margin: 0, flex: 1, minWidth: 0,
+            fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>
             {message.content}
-          </span>
+          </h3>
           {stardustEmoji && (
             stardust && onStardustSelect ? (
-              <button
-                type="button"
-                className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
-                aria-label="stardust-emoji"
-                onClick={(e) => {
+              <button type="button" aria-label="stardust-emoji"
+                style={{ flexShrink: 0, fontSize: 14, lineHeight: 1, borderRadius: 9999, padding: '2px 4px',
+                  background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={e => {
                   e.stopPropagation();
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  onStardustSelect(
-                    {
-                      emojiChar: stardust.emojiChar,
-                      message: stardust.message,
-                      alienName: stardust.alienName || 'T.S',
-                      createdAt: stardust.createdAt,
-                    },
-                    { x: rect.left + rect.width / 2, y: rect.top },
-                  );
-                }}
-              >
+                  onStardustSelect({ emojiChar: stardust.emojiChar, message: stardust.message,
+                    alienName: stardust.alienName || 'T.S', createdAt: stardust.createdAt },
+                    { x: rect.left + rect.width / 2, y: rect.top });
+                }}>
                 {stardustEmoji}
               </button>
             ) : (
-              <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
-                {stardustEmoji}
-              </span>
+              <span style={{ flexShrink: 0, fontSize: 14, lineHeight: 1 }} aria-label="stardust-emoji">{stardustEmoji}</span>
             )
           )}
         </div>
-
-        {/* Mood chip (right) — clickable only when not readonly */}
-        {hasMoodChip ? (
-          <div
-            role={readonly ? undefined : 'button'}
-            onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-            className={cn(
-              'shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-slate-700',
-              !readonly && 'active:opacity-80 cursor-pointer',
-              cardActive && !readonly && 'mr-20',
-            )}
-            style={
-              moodKey === 'anxious'
-                ? { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)' }
-                : { backgroundColor: moodColor }
-            }
-          >
-            <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-              {getTranslatedMood(displayLabel)}
-            </span>
-          </div>
-        ) : (
-          !readonly && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          {/* Mood tag */}
+          {hasMoodChip ? (
             <button
-              onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
-              className="shrink-0 w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              title={t('chat_unknown_mood_label')}
-            />
-          )
-        )}
-      </div>
-
-      {readonly ? (
-        <div className="flex gap-1.5 mt-1.5">
-          {hasImage1 && (
-            <div className="flex-1 min-w-0">
-              <ImageUploader
-                messageId={message.id}
-                imageUrl={message.imageUrl}
-                onUploaded={url => handleImageUploaded('imageUrl', url)}
-                onRemoved={() => handleImageRemoved('imageUrl')}
-                compact
-                hideUploadWhen
-                readonly={readonly}
-              />
-            </div>
+              onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
+              style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+                background: moodTagBg, color: moodTagColor, border: `1px solid ${moodTagColor}30`,
+                cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
+                backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                letterSpacing: '0.03em', transition: 'all 0.15s' }}
+            >
+              {getTranslatedMood(displayLabel)}
+            </button>
+          ) : (
+            !readonly && (
+              <button onClick={e => { e.stopPropagation(); onMoodClick(message.id); }}
+                style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(178,238,218,0.2)',
+                  border: 'none', cursor: 'pointer' }} />
+            )
           )}
-          {hasImage2 && (
-            <div className="flex-1 min-w-0">
-              <ImageUploader
-                messageId={`${message.id}_2`}
-                imageUrl={message.imageUrl2}
-                onUploaded={url => handleImageUploaded('imageUrl2', url)}
-                onRemoved={() => handleImageRemoved('imageUrl2')}
-                compact
-                hideUploadWhen
-                readonly={readonly}
-              />
-            </div>
+          {/* Delete */}
+          {!readonly && (
+            <button onClick={e => { e.stopPropagation(); onDelete(message.id); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: 0, display: 'flex' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+            </button>
           )}
         </div>
-      ) : (
-        <div className="flex gap-1.5 mt-1.5">
-          <div className="flex-1 min-w-0">
-            <ImageUploader
-              ref={image1UploaderRef}
-              messageId={message.id}
+      </div>
+
+      {/* ── Images ── */}
+      {(hasImage1 || hasImage2 || (!readonly && canUploadImage)) && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6, position: 'relative', zIndex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ImageUploader ref={readonly ? undefined : image1UploaderRef} messageId={message.id}
               imageUrl={message.imageUrl}
               onUploaded={url => handleImageUploaded('imageUrl', url)}
               onRemoved={() => handleImageRemoved('imageUrl')}
-              compact
-              hideUploadButton
-            />
+              compact hideUploadButton={!readonly} hideUploadWhen={readonly && !hasImage1} readonly={readonly} />
           </div>
           {hasImage1 && (
-            <div className="flex-1 min-w-0">
-              <ImageUploader
-                ref={image2UploaderRef}
-                messageId={`${message.id}_2`}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ImageUploader ref={readonly ? undefined : image2UploaderRef} messageId={`${message.id}_2`}
                 imageUrl={message.imageUrl2}
                 onUploaded={url => handleImageUploaded('imageUrl2', url)}
                 onRemoved={() => handleImageRemoved('imageUrl2')}
-                compact
-                hideUploadWhen={hasImage2}
-                hideUploadButton
-              />
+                compact hideUploadButton={!readonly} hideUploadWhen={readonly ? !hasImage2 : hasImage2} readonly={readonly} />
             </div>
           )}
         </div>
       )}
 
-      {/* ── Mood descriptions — below images ─────────────────── */}
+      {/* ── Mood notes (italic small) ── */}
       {moodDescriptions.length > 0 && (
-        <div className="mt-1.5 space-y-1 border-t border-gray-50 pt-1.5">
-          {moodDescriptions.map(desc => (
-            <div key={desc.id} className="flex items-center justify-between gap-2">
-              <span
-                className="text-xs text-gray-600 flex-1"
-                style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
-              >
-                {desc.content}
-              </span>
-              {(() => {
-                const moodStardust = stardustMemories.find((memory) => memory.messageId === desc.id);
-                if (!moodStardust?.emojiChar) return null;
-
-                if (onStardustSelect) {
-                  return (
-                    <button
-                      type="button"
-                      className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
-                      aria-label="stardust-emoji"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        onStardustSelect(
-                          {
-                            emojiChar: moodStardust.emojiChar,
-                            message: moodStardust.message,
-                            alienName: moodStardust.alienName || 'T.S',
-                            createdAt: moodStardust.createdAt,
-                          },
-                          { x: rect.left + rect.width / 2, y: rect.top },
-                        );
-                      }}
-                    >
-                      {moodStardust.emojiChar}
-                    </button>
-                  );
-                }
-
-                return (
-                  <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
+        <div style={{ position: 'relative', zIndex: 1, marginBottom: 6 }}>
+          {moodDescriptions.map(desc => {
+            const moodStardust = stardustMemories.find(mem => mem.messageId === desc.id);
+            return (
+              <div key={desc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <p style={{ fontSize: 10, color: '#64748b', margin: '0 0 3px', lineHeight: 1.45, fontStyle: 'italic', flex: 1 }}>
+                  {desc.content}
+                </p>
+                {moodStardust?.emojiChar && onStardustSelect && (
+                  <button type="button" aria-label="stardust-emoji"
+                    style={{ flexShrink: 0, fontSize: 14, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      onStardustSelect({ emojiChar: moodStardust.emojiChar, message: moodStardust.message,
+                        alienName: moodStardust.alienName || 'T.S', createdAt: moodStardust.createdAt },
+                        { x: rect.left + rect.width / 2, y: rect.top });
+                    }}>
                     {moodStardust.emojiChar}
-                  </span>
-                );
-              })()}
-              {!readonly && (
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    detachMoodFromEvent(message.id, desc.id);
-                    onConvertMood(desc.id);
-                  }}
-                  title={t('mood_convert_btn')}
-                  className="flex items-center text-sky-500 hover:text-sky-700 shrink-0 p-0.5"
-                >
-                  <ArrowRightLeft size={12} />
-                </button>
-              )}
-            </div>
-          ))}
+                  </button>
+                )}
+                {!readonly && (
+                  <button onClick={e => { e.stopPropagation(); detachMoodFromEvent(message.id, desc.id); onConvertMood(desc.id); }}
+                    title={t('mood_convert_btn')}
+                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#38BDF8', padding: 2 }}>
+                    <ArrowRightLeft size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* ── Bottom-left: end button / duration ───────────────── */}
+      {/* ── Timer row ── */}
       {(isOngoing || message.duration != null) && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          {message.duration != null ? (
-            <div className="text-[10px] text-sky-600 border border-sky-200 rounded-full px-2 py-0.5">
-              {formatDuration(message.duration)}
-            </div>
-          ) : (
-            <>
-              {!readonly && (
-                <button
-                  onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
-                  title={t('end_event_btn')}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <StopCircle size={14} />
-                </button>
-              )}
-              {/* Live elapsed time */}
-              <span className="text-[10px] text-gray-400 tabular-nums">
-                {elapsedSec < 60
-                  ? `< 1m`
-                  : elapsedSec < 3600
-                  ? `${Math.floor(elapsedSec / 60)}m`
-                  : `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}m`}
-              </span>
-            </>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, fontWeight: 700,
+            color: isOngoing ? '#B2EEDA' : 'rgba(71,85,105,0.65)' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>timer</span>
+            <span>
+              {message.duration != null
+                ? formatDuration(message.duration)
+                : elapsedSec < 60 ? '< 1m'
+                  : elapsedSec < 3600 ? `${Math.floor(elapsedSec / 60)}m`
+                    : `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}m`}
+            </span>
+            {isOngoing && (
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#B2EEDA',
+                animation: 'pulse 1s infinite', display: 'inline-block', marginLeft: 2 }} />
+            )}
+          </div>
+          {isOngoing && !readonly && (
+            <button onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
+              title={t('end_event_btn')}
+              style={{ fontSize: 9, fontWeight: 800, padding: '3px 9px', borderRadius: 9999,
+                border: '1px solid rgba(244,192,194,0.3)', background: 'rgba(244,192,194,0.10)',
+                color: '#F4C0C2', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 11 }}>stop_circle</span>
+            </button>
           )}
         </div>
       )}

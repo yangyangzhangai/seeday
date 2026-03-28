@@ -1,9 +1,12 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
 
 import { getActivityLexicon, getMoodLexicon } from './lexicon/getLexicon.js';
+import { enPlaceNouns } from './lexicon/activityLexicon.en.js';
 
 const enActivity = getActivityLexicon('en');
 const enMood = getMoodLexicon('en');
+
+export const EN_PLACE_NOUNS: readonly string[] = enPlaceNouns;
 
 export const EN_ACTIVITY_VERBS = Array.from(new Set([...enActivity.strongPhrases, ...enActivity.verbs]));
 
