@@ -287,6 +287,7 @@ const zh: TranslationKeys = {
     annotation_condense: '凝结',
     annotation_condensed: '已凝结',
     annotation_hover_pause: '悬停中，暂停消失',
+    annotation_suggestion_started: '已开始 ✓',
 
     // ── 星尘珍藏卡片 ──
     stardust_loading: '正在读取记忆...',

@@ -48,6 +48,21 @@ export const GrowthPage = () => {
   });
   const [showGoalPopup, setShowGoalPopup] = useState(false);
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
+  const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
+
+  // 监听 AI 建议待办高亮事件
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ todoId: string }>).detail;
+      if (detail?.todoId) {
+        setHighlightTodoId(detail.todoId);
+        // 3秒后清除高亮
+        setTimeout(() => setHighlightTodoId(null), 3000);
+      }
+    };
+    window.addEventListener('suggestion-highlight-todo', handler);
+    return () => window.removeEventListener('suggestion-highlight-todo', handler);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -125,7 +140,7 @@ export const GrowthPage = () => {
         <div className="flex-1 pb-28 pt-2">
           <BottleList />
           <div className="mx-4 my-2 border-t border-slate-200/70" />
-          <GrowthTodoSection onFocus={(todo) => setFocusTodo(todo)} />
+          <GrowthTodoSection onFocus={(todo) => setFocusTodo(todo)} highlightTodoId={highlightTodoId} />
         </div>
       </div>
 

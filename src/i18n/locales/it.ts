@@ -287,6 +287,7 @@ const it: TranslationKeys = {
     annotation_condense: 'Cristallizza',
     annotation_condensed: 'Cristallizzato',
     annotation_hover_pause: 'In pausa al passaggio del mouse',
+    annotation_suggestion_started: 'Iniziato ✓',
 
     // ── Scheda Stardust ──
     stardust_loading: 'Recupero memoria…',

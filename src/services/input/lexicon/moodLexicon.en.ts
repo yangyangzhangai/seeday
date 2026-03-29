@@ -11,21 +11,21 @@ export const enMoodLexicon: MoodLexicon = {
   // Note: high-ambiguity words (great, content, beat, rough, blue, sharp) are
   // intentionally excluded here and handled via moodSentencePatterns instead.
   explicitMoodMap: [
-    { pattern: /\b(happy|glad|excited|thrilled|joyful|elated|overjoyed|stoked|pumped|hyped|buzzing|vibing|ecstatic|giddy|jazzed|psyched|blessed|thriving|grinning|cheerful|delighted|in a good mood|in good spirits|upbeat|optimistic|over the moon)\b/i, mood: 'happy' },
-    { pattern: /\b(calm|relaxed|peaceful|zen|chill|serene|mellow|tranquil|unbothered|carefree|easygoing|easy-going|at ease|laid back|settled|grounded|composed|centered)\b/i, mood: 'calm' },
-    { pattern: /\b(focused|productive|motivated|driven|energized|energised|in the zone|in flow|flow state|in my element|dialed in|on a roll|locked in|laser focused|laser-focused)\b/i, mood: 'focused' },
+    { pattern: /\b(happy|glad|excited|thrilled|joyful|elated|overjoyed|stoked|pumped|hyped|buzzing|vibing|ecstatic|giddy|jazzed|psyched|blessed|thriving|grinning|cheerful|delighted|in a good mood|in good spirits|upbeat|optimistic|over the moon|hopeful)\b/i, mood: 'happy' },
+    { pattern: /\b(calm|relaxed|peaceful|zen|chill|serene|mellow|tranquil|unbothered|carefree|easygoing|easy-going|at ease|laid back|settled|grounded|composed|centered|at peace)\b/i, mood: 'calm' },
+    { pattern: /\b(focused|productive|motivated|driven|energized|energised|in the zone|in flow|flow state|in my element|dialed in|on a roll|locked in|laser focused|laser-focused|clear-headed|clear headed)\b/i, mood: 'focused' },
     { pattern: /\b(satisfied|fulfilled|accomplished|pleased|proud|chuffed|relieved|grateful)\b/i, mood: 'satisfied' },
     {
       pattern: /\b(tired|exhausted|drained|fatigued|groggy|sluggish|lethargic|dragging|burnt out|burned out|worn out|sleepy|wiped|spent|zonked|shattered|sleep deprived|knackered|worn down|dead tired|fried|sore|done for|running on empty|barely awake|half asleep|dead on my feet)\b/i,
       mood: 'tired',
     },
     {
-      pattern: /\b(anxious|nervous|stressed|stressful|worried|uneasy|overwhelmed|paranoid|rattled|worked up|flustered|keyed up|tense|on edge|panicky|frazzled|restless|jittery|freaking out|freaked out|wired|spiraling|dreading|guilty)\b/i,
+      pattern: /\b(anxious|nervous|stressed|stressful|worried|uneasy|overwhelmed|paranoid|rattled|worked up|flustered|keyed up|tense|on edge|panicky|frazzled|restless|jittery|freaking out|freaked out|wired|spiraling|dreading|guilty|under pressure|stretched thin|antsy)\b/i,
       mood: 'anxious',
     },
     { pattern: /\b(bored|tedious|dull|pointless|monotonous|mind-numbing|meh|unstimulated|zoned out|checked out|blah|so over it|can't be bothered|couldn't be bothered|going through the motions)\b/i, mood: 'bored' },
     {
-      pattern: /\b(sad|down|upset|frustrated|annoyed|angry|depressed|miserable|deflated|lousy|crappy|in a funk|down in the dumps|awful|terrible|gloomy|gutted|defeated|heartbroken|devastated|hopeless|irritated|wrecked|bummed|fed up|pissed off|emo|brutal|had enough)\b/i,
+      pattern: /\b(sad|down|upset|frustrated|annoyed|angry|depressed|miserable|deflated|lousy|crappy|in a funk|down in the dumps|awful|terrible|gloomy|gutted|defeated|heartbroken|devastated|hopeless|irritated|wrecked|bummed|fed up|pissed off|emo|brutal|had enough|lonely|isolated|left out|ashamed|embarrassed|insecure|jealous|resentful)\b/i,
       mood: 'down',
     },
   ],
@@ -76,21 +76,21 @@ export const enMoodLexicon: MoodLexicon = {
   // they only fire via moodSentencePatterns where context disambiguates them.
   allMoodWords: [
     // happy
-    'happy', 'glad', 'excited', 'thrilled', 'joyful', 'elated', 'overjoyed', 'stoked', 'pumped', 'hyped', 'buzzing', 'vibing', 'ecstatic', 'giddy', 'jazzed', 'psyched', 'blessed', 'thriving', 'grinning', 'cheerful', 'delighted', 'in a good mood', 'in good spirits', 'upbeat', 'optimistic', 'over the moon',
+    'happy', 'glad', 'excited', 'thrilled', 'joyful', 'elated', 'overjoyed', 'stoked', 'pumped', 'hyped', 'buzzing', 'vibing', 'ecstatic', 'giddy', 'jazzed', 'psyched', 'blessed', 'thriving', 'grinning', 'cheerful', 'delighted', 'in a good mood', 'in good spirits', 'upbeat', 'optimistic', 'over the moon', 'hopeful',
     // calm
-    'calm', 'relaxed', 'peaceful', 'zen', 'chill', 'serene', 'mellow', 'tranquil', 'unbothered', 'carefree', 'easygoing', 'settled', 'grounded', 'composed', 'centered',
+    'calm', 'relaxed', 'peaceful', 'zen', 'chill', 'serene', 'mellow', 'tranquil', 'unbothered', 'carefree', 'easygoing', 'settled', 'grounded', 'composed', 'centered', 'at peace',
     // focused
-    'focused', 'productive', 'motivated', 'driven', 'energized', 'energised', 'in the zone', 'in flow', 'flow state', 'in my element', 'dialed in', 'on a roll', 'locked in', 'laser focused',
+    'focused', 'productive', 'motivated', 'driven', 'energized', 'energised', 'in the zone', 'in flow', 'flow state', 'in my element', 'dialed in', 'on a roll', 'locked in', 'laser focused', 'clear-headed',
     // satisfied
     'satisfied', 'fulfilled', 'accomplished', 'pleased', 'proud', 'chuffed', 'relieved', 'grateful',
     // tired
     'tired', 'exhausted', 'drained', 'fatigued', 'groggy', 'sluggish', 'lethargic', 'dragging', 'burnt out', 'burned out', 'worn out', 'sleepy', 'wiped', 'spent', 'zonked', 'shattered', 'sleep deprived', 'knackered', 'worn down', 'dead tired', 'fried', 'sore', 'done for', 'running on empty', 'barely awake', 'dead on my feet',
     // anxious
-    'anxious', 'nervous', 'stressed', 'stressful', 'worried', 'uneasy', 'overwhelmed', 'paranoid', 'rattled', 'worked up', 'flustered', 'keyed up', 'tense', 'on edge', 'panicky', 'frazzled', 'restless', 'jittery', 'freaking out', 'freaked out', 'wired', 'spiraling', 'dreading', 'guilty',
+    'anxious', 'nervous', 'stressed', 'stressful', 'worried', 'uneasy', 'overwhelmed', 'paranoid', 'rattled', 'worked up', 'flustered', 'keyed up', 'tense', 'on edge', 'panicky', 'frazzled', 'restless', 'jittery', 'freaking out', 'freaked out', 'wired', 'spiraling', 'dreading', 'guilty', 'under pressure', 'stretched thin', 'antsy',
     // bored
     'bored', 'tedious', 'dull', 'pointless', 'monotonous', 'meh', 'unstimulated', 'zoned out', 'checked out', 'blah', 'so over it', 'going through the motions',
     // down
-    'sad', 'upset', 'frustrated', 'annoyed', 'angry', 'depressed', 'miserable', 'deflated', 'lousy', 'crappy', 'in a funk', 'down in the dumps', 'awful', 'terrible', 'gloomy', 'gutted', 'defeated', 'heartbroken', 'devastated', 'hopeless', 'irritated', 'wrecked', 'bummed', 'fed up', 'pissed off', 'emo', 'brutal',
+    'sad', 'upset', 'frustrated', 'annoyed', 'angry', 'depressed', 'miserable', 'deflated', 'lousy', 'crappy', 'in a funk', 'down in the dumps', 'awful', 'terrible', 'gloomy', 'gutted', 'defeated', 'heartbroken', 'devastated', 'hopeless', 'irritated', 'wrecked', 'bummed', 'fed up', 'pissed off', 'emo', 'brutal', 'lonely', 'isolated', 'left out', 'ashamed', 'embarrassed', 'insecure', 'jealous', 'resentful',
     // misc sentiment helpers
     'relief', 'lighter',
   ],
@@ -142,6 +142,11 @@ export const enMoodLexicon: MoodLexicon = {
     /\b(what\s+a\s+day)\b/i,
     /\b(can't\s+be\s+bothered|couldn't\s+be\s+bothered)\b/i,
     /\b(had\s+enough)\b/i,
+    /\b(i\s+am|i'm)\s+fine\b/i,
+    /\b(feel|feeling|felt)\s+(lonely|isolated|left\s+out|ashamed|embarrassed|insecure|jealous|resentful|hopeful)\b/i,
+    /\b(feeling\s+under\s+pressure|under\s+pressure|stretched\s+thin|on\s+my\s+last\s+nerve)\b/i,
+    /\b(i\s+just\s+need\s+to\s+vent|having\s+a\s+rough\s+one|not\s+in\s+a\s+good\s+place)\b/i,
+    /\b(:\)|:-\)|:\(|:-\(|:'\(|D:|T_T)\b/i,
     // more tired/energy patterns
     /\b(barely\s+(functioning|surviving|keeping\s+it\s+together))\b/i,
     /\b(need(ed)?\s+(a\s+)?coffee|need(ed)?\s+(a\s+)?nap|need(ed)?\s+(a\s+)?break)\b/i,

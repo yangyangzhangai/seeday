@@ -129,6 +129,18 @@ export const ChatPage = () => {
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
   }, [checkAndRefreshForNewDay]);
 
+  // ── AI 建议活动：监听 suggestion-accept-activity 事件 ──────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ activityName: string }>).detail;
+      if (detail?.activityName) {
+        sendAutoRecognizedInput(detail.activityName);
+      }
+    };
+    window.addEventListener('suggestion-accept-activity', handler);
+    return () => window.removeEventListener('suggestion-accept-activity', handler);
+  }, [sendAutoRecognizedInput]);
+
   // ── 日期切换加载 ───────────────────────────────────────────
   useEffect(() => {
     const dateStr = toLocalDateStr(selectedDate);

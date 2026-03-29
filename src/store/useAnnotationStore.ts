@@ -7,6 +7,7 @@ import type {
   AnnotationEvent,
   AnnotationEventType,
   AnnotationState,
+  AnnotationSuggestion,
   TodayActivity
 } from '../types/annotation';
 import { callAnnotationAPI } from '../api/client';
@@ -19,6 +20,7 @@ import { normalizeActivityType } from '../lib/activityType';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 import { useAuthStore } from './useAuthStore';
+import { useTodoStore } from './useTodoStore';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -212,6 +214,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
             completed: e.type === 'activity_completed'
           }));
 
+          // 为 overwork 建议模式准备未完成待办列表
+          const pendingTodos = event.type === 'overwork_detected'
+            ? useTodoStore.getState().todos
+                .filter(t => !t.completed && !t.isTemplate)
+                .map(t => ({ id: t.id, title: t.title, category: t.category }))
+            : undefined;
+
           // 调用 AI 生成批注 (通过 Serverless Function)
           const recentAnnotations = get().annotations.slice(-5).map(a => a.content);
           const response = await callAnnotationAPI({
@@ -227,6 +236,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               recentMoodMessages,
               moodConversationHistory,
               todayActivitiesList,
+              pendingTodos,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
             aiMode,
@@ -238,6 +248,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const annotationId = uuidv4();
 
           // 创建批注对象
+          const suggestion: AnnotationSuggestion | undefined = response.suggestion
+            ? {
+                type: response.suggestion.type,
+                actionLabel: response.suggestion.actionLabel,
+                activityName: response.suggestion.activityName,
+                todoId: response.suggestion.todoId,
+                todoTitle: response.suggestion.todoTitle,
+              }
+            : undefined;
+
           const annotation: AIAnnotation = {
             id: annotationId,
             content: response.content,
@@ -246,6 +266,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             relatedEvent: event,
             displayDuration: response.displayDuration,
             syncedToCloud: false,
+            suggestion,
           };
 
           const generatedEvent: AnnotationEvent = {

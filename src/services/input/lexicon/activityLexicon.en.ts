@@ -168,6 +168,20 @@ export const enActivityLexicon: ActivityLexicon = {
     'errands', 'admin',
     'taxes', 'tax return', 'paperwork',
     'sick day', 'mental health day',
+    // family / caregiving / pets
+    'walk the dog', 'walked the dog', 'feed the dog', 'fed the dog', 'feed the cat', 'fed the cat',
+    'pet care', 'vet', 'vet appointment',
+    'pick up kids', 'drop off kids', 'school run', 'daycare dropoff', 'daycare pickup',
+    'caregiving', 'babysitting',
+    // home / maintenance
+    'trash', 'take out recycling', 'recycling', 'declutter', 'organize closet',
+    'home repair', 'fix sink', 'fix faucet', 'assemble furniture',
+    'car wash', 'car maintenance', 'oil change', 'fuel up', 'gas up',
+    // admin / appointments / life events
+    'book appointment', 'booked appointment', 'registered', 'signed up', 'rsvp', 'attended', 'joined',
+    'rescheduled', 'postponed', 'renew license', 'renew passport', 'dmv',
+    'pay rent', 'paid rent', 'file taxes', 'filed taxes',
+    'birthday party', 'wedding', 'baby shower', 'funeral',
   ],
   verbs: [],
   phrasePatterns: [
@@ -338,6 +352,28 @@ export const enActivityLexicon: ActivityLexicon = {
     /\b(in\s+(back[\s-]?to[\s-]?back|back[\s-]?to[\s-]?back)\s+(meetings|calls|sessions))\b/i,
     /\b(said\s+yes\s+to|committed\s+to)\s+(plans?|an?\s+event)\b/i,
     /\b(went\s+to\s+(a\s+)?(networking\s+event|mixer|meetup|conference|workshop))\b/i,
+    // caregiving / pet care
+    /\b(walk(ing|ed)?\s+(my\s+)?dog|took\s+(my\s+)?dog\s+for\s+a\s+walk)\b/i,
+    /\b(feed(ing|\s+)?(my\s+)?(dog|cat)|gave\s+(my\s+)?(dog|cat)\s+food)\b/i,
+    /\b(at\s+the\s+vet|vet\s+(appointment|visit)|took\s+(my\s+)?pet\s+to\s+the\s+vet)\b/i,
+    /\b(babysitt(ing|er)?|watching\s+the\s+kids|looking\s+after\s+(my\s+)?(kid|kids|child|children))\b/i,
+    /\b(pick(ing)?\s+up|drop(ping)?\s+off)\s+(my\s+)?(kid|kids|child|children)\b/i,
+    /\b(school\s+run|daycare\s+(drop\s?off|pickup|pick\s?up))\b/i,
+    // home / maintenance
+    /\b(took\s+out\s+the\s+(trash|recycling)|trash\s+day|recycling\s+day)\b/i,
+    /\b(declutter(ing|ed)?|organizing\s+(my\s+)?closet)\b/i,
+    /\b(fix(ing|ed)?\s+(the\s+)?(sink|faucet)|home\s+repair|assembled\s+furniture)\b/i,
+    /\b(got\s+(a\s+)?(car\s+wash|oil\s+change)|did\s+car\s+maintenance)\b/i,
+    /\b(fuel(ed)?\s+up|gas(sed)?\s+up|filled\s+up\s+(the\s+)?tank)\b/i,
+    // admin / appointments / logistics
+    /\b(book(ed)?\s+(a\s+)?(doctor|dentist|therapy|vet|salon|hair|nail)?\s*appointment)\b/i,
+    /\b(register(ed)?\s+for|signed\s+up\s+for|rsvp(?:'d)?\s+to|joined|attended)\s+(an?\s+)?(class|event|workshop|meetup|conference|webinar)\b/i,
+    /\b(cancel(l)?ed|rescheduled|postponed)\s+(my\s+|the\s+)?(appointment|meeting|class|session|trip)\b/i,
+    /\b(renew(ed|ing)?\s+(my\s+)?(license|passport)|went\s+to\s+the\s+dmv)\b/i,
+    /\b(filed?\s+(my\s+)?taxes|paid\s+(my\s+)?rent)\b/i,
+    // social / life events
+    /\b(went\s+to\s+(a\s+)?(wedding|birthday\s+party|baby\s+shower|funeral))\b/i,
+    /\b(host(ed|ing)?\s+(a\s+)?(dinner|party|bbq|potluck))\b/i,
   ],
 };
 

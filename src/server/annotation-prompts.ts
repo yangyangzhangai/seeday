@@ -160,6 +160,83 @@ export function buildTodayActivitiesText(activities: any[], lang: string, timezo
     .join(separator);
 }
 
+/**
+ * 构建 overwork 建议模式的 user prompt
+ * AI 需要输出 JSON 格式的建议
+ */
+export function buildSuggestionUserPrompt(
+  lang: string,
+  todayActivitiesText: string,
+  pendingTodos: Array<{ id: string; title: string; category?: string }>,
+  currentHour?: number,
+  currentMinute?: number,
+): string {
+  const hourText = currentHour !== undefined ? (() => {
+    const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
+    const hour12 = currentHour % 12 || 12;
+    const ampm = currentHour < 12 ? 'AM' : 'PM';
+    return `${hour12}:${minuteStr} ${ampm}`;
+  })() : null;
+
+  const restCategories = ['health', 'entertainment', 'life'];
+  const restTodos = pendingTodos.filter(t => restCategories.includes(t.category || ''));
+  const otherTodos = pendingTodos.filter(t => !restCategories.includes(t.category || ''));
+  const todoListText = [...restTodos, ...otherTodos]
+    .slice(0, 5)
+    .map((t, i) => `${i + 1}. [${t.id}] ${t.title}${t.category ? ` (${t.category})` : ''}`)
+    .join('\n');
+
+  if (lang === 'en') {
+    return [
+      hourText ? `Current time: ${hourText}` : null,
+      `Today's timeline: ${todayActivitiesText}`,
+      'The user has been working/studying for a long time and needs a break suggestion.',
+      todoListText
+        ? `Pending todos (prefer health/entertainment/life ones for rest):\n${todoListText}`
+        : 'No pending todos.',
+      'Pick the best break option. Output ONLY a JSON object (no markdown, no explanation):',
+      todoListText
+        ? '- If recommending a todo: {"message":"<caring 1-sentence>","type":"todo","todoId":"<id>","todoTitle":"<title>","actionLabel":"Go <verb>"}'
+        : '',
+      '- If suggesting an activity: {"message":"<caring 1-sentence>","type":"activity","activityName":"<name>","actionLabel":"Go <verb>"}',
+      'Keep message warm and under 30 words. End message with one emoji.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  if (lang === 'it') {
+    return [
+      hourText ? `Ora corrente: ${hourText}` : null,
+      `Timeline di oggi: ${todayActivitiesText}`,
+      "L'utente lavora/studia da molto tempo e ha bisogno di una pausa.",
+      todoListText
+        ? `Todo in sospeso (preferisci salute/intrattenimento/vita per il riposo):\n${todoListText}`
+        : 'Nessun todo in sospeso.',
+      'Scegli la migliore opzione di pausa. Stampa SOLO un oggetto JSON (no markdown, no spiegazioni):',
+      todoListText
+        ? '- Per un todo: {"message":"<frase premurosa>","type":"todo","todoId":"<id>","todoTitle":"<titolo>","actionLabel":"Vai a <verbo>"}'
+        : '',
+      '- Per un\'attivita: {"message":"<frase premurosa>","type":"activity","activityName":"<nome>","actionLabel":"Vai a <verbo>"}',
+      'Mantieni il messaggio caldo e sotto 30 parole. Chiudi il messaggio con una emoji.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  // zh
+  return [
+    hourText ? `当前时间：${hourText}` : null,
+    `今日时间线：${todayActivitiesText}`,
+    '用户已经长时间工作/学习，需要休息建议。',
+    todoListText
+      ? `未完成待办（优先推荐 health/entertainment/life 类作为休息）：\n${todoListText}`
+      : '没有未完成的待办。',
+    '请选择最佳休息方案。只输出一个 JSON 对象（不要 markdown、不要解释）：',
+    todoListText
+      ? '- 推荐待办：{"message":"<关心的一句话>","type":"todo","todoId":"<id>","todoTitle":"<标题>","actionLabel":"去<动词>"}'
+      : '',
+    '- 建议活动：{"message":"<关心的一句话>","type":"activity","activityName":"<名称>","actionLabel":"去<动词>"}',
+    'message 要温暖简短，不超过25个中文字符。message 句末带一个 emoji。',
+  ].filter(Boolean).join('\n\n');
+}
+
 export function buildUserPrompt(
   lang: string,
   eventType: string,

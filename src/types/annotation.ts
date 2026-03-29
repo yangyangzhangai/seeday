@@ -31,6 +31,22 @@ export interface AnnotationEvent {
   };
 }
 
+/** AI 建议类型：活动建议 或 待办建议 */
+export type SuggestionType = 'activity' | 'todo';
+
+/** AI 建议数据 */
+export interface AnnotationSuggestion {
+  type: SuggestionType;
+  /** 按钮文字，如"去喝水"/"去跑步" */
+  actionLabel: string;
+  /** type=activity 时的活动名称 */
+  activityName?: string;
+  /** type=todo 时的待办 ID */
+  todoId?: string;
+  /** type=todo 时的待办标题（用于兜底显示） */
+  todoTitle?: string;
+}
+
 export interface AIAnnotation {
   id: string;
   content: string;           // 批注文本内容
@@ -39,6 +55,7 @@ export interface AIAnnotation {
   relatedEvent: AnnotationEvent;  // 关联的触发事件
   displayDuration: number;   // 建议显示时长（毫秒）
   syncedToCloud: boolean;    // 是否已同步到云端
+  suggestion?: AnnotationSuggestion; // AI 建议（overwork 模式）
 }
 
 export interface AnnotationState {
@@ -85,6 +102,13 @@ export interface TodayActivity {
 }
 
 // AI 请求/响应类型
+/** 待办摘要（传给 AI 用于建议选择） */
+export interface PendingTodoSummary {
+  id: string;
+  title: string;
+  category?: string;
+}
+
 export interface AnnotationRequest {
   eventType: AnnotationEventType;
   eventData: AnnotationEvent['data'];
@@ -97,6 +121,7 @@ export interface AnnotationRequest {
     recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据
+    pendingTodos?: PendingTodoSummary[];  // 未完成待办（overwork 模式用）
   };
 }
 
@@ -104,6 +129,7 @@ export interface AnnotationResponse {
   content: string;
   tone: AnnotationTone;
   displayDuration: number;
+  suggestion?: AnnotationSuggestion;
 }
 
 // Chutes API 类型

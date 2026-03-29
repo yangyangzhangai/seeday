@@ -17,6 +17,7 @@ interface Props {
   onStart?: (todo: GrowthTodo) => void;
   onDelete?: (id: string) => void;
   onUpdate?: (id: string, updates: Partial<Omit<GrowthTodo, 'id' | 'createdAt'>>) => Promise<void>;
+  isHighlighted?: boolean;
 }
 
 const priorityConfig: Record<GrowthPriority, { color: string; bg: string; border: string }> = {
@@ -39,11 +40,18 @@ function tsToDatetimeLocal(ts?: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onUpdate }: Props) => {
+export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onUpdate, isHighlighted }: Props) => {
   const { t } = useTranslation();
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [expanded, setExpanded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // AI 建议高亮：滚动到视图中心并闪烁
+  useEffect(() => {
+    if (isHighlighted && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isHighlighted]);
 
   const normalizedPriority = normalizePriority(todo.priority);
   const cfg = priorityConfig[normalizedPriority];
@@ -95,8 +103,9 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
     <div
       ref={cardRef}
       className={cn(
-        "group relative bg-white rounded-xl border border-gray-100 shadow-sm",
-        todo.completed && "opacity-50"
+        "group relative bg-white rounded-xl border border-gray-100 shadow-sm transition-all duration-300",
+        todo.completed && "opacity-50",
+        isHighlighted && "ring-2 ring-green-400 animate-[highlightPulse_0.6s_ease-in-out_3]"
       )}
     >
       {/* Delete button — appears on hover */}

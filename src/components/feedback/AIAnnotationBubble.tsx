@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Check } from 'lucide-react';
+import { X, Sparkles, Check, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useStardustStore } from '../../store/useStardustStore';
@@ -32,19 +33,22 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   const { currentAnnotation, dismissAnnotation } = useAnnotationStore();
   const { hasStardust, createStardust, isGenerating } = useStardustStore();
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(100);
   const [isCondensed, setIsCondensed] = useState(false);
+  const [isSuggestionAccepted, setIsSuggestionAccepted] = useState(false);
   const currentModeVisual = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)];
+  const suggestion = currentAnnotation?.suggestion;
 
   // 当批注变化时，重置进度
   useEffect(() => {
     if (currentAnnotation) {
       setProgress(100);
       setIsCondensed(false);
+      setIsSuggestionAccepted(false);
     } else {
-      // 批注关闭时重置进度，避免新批注因竞态条件被立即关闭
       setProgress(100);
     }
   }, [currentAnnotation?.id]);
@@ -110,6 +114,31 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
     setIsCondensed(true);
   };
 
+  // 处理建议按钮点击
+  const handleSuggestionAccept = () => {
+    if (!currentAnnotation?.suggestion || isSuggestionAccepted) return;
+
+    const { type, activityName, todoId } = currentAnnotation.suggestion;
+
+    if (type === 'activity' && activityName) {
+      // 派发事件让 ChatPage 录入活动
+      window.dispatchEvent(new CustomEvent('suggestion-accept-activity', {
+        detail: { activityName },
+      }));
+      setIsSuggestionAccepted(true);
+    } else if (type === 'todo' && todoId) {
+      // 导航到 growth 页面并高亮待办
+      navigate('/growth');
+      // 延迟派发以等待页面切换完成
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('suggestion-highlight-todo', {
+          detail: { todoId },
+        }));
+      }, 300);
+      setIsSuggestionAccepted(true);
+    }
+  };
+
   // 如果没有批注，不渲染
   if (!currentAnnotation) return null;
 
@@ -125,7 +154,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           damping: 25
         }}
         data-stardust-bubble
-        className="pointer-events-none fixed top-[20%] z-50"
+        className="pointer-events-none fixed top-[20%] z-[120]"
         style={{
           right: 'max(12px, calc((100vw - 960px) / 2 + 12px))',
           width: 'min(20rem, calc(100vw - 24px))',
@@ -166,16 +195,49 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
             </div>
           </div>
 
-          {/* 凝结按钮 */}
-          {relatedMessage && !isCondensed && (
+          {/* 建议模式按钮 */}
+          {suggestion && !isSuggestionAccepted && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              onClick={handleSuggestionAccept}
+              className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
+                         bg-gradient-to-r from-green-500 to-emerald-500
+                         hover:from-green-600 hover:to-emerald-600
+                         text-white text-sm font-medium rounded-full
+                         shadow-md hover:shadow-lg
+                         transition-all duration-300
+                         animate-pulse-slow"
+            >
+              <Play size={16} />
+              <span>{suggestion.actionLabel}</span>
+            </motion.button>
+          )}
+
+          {/* 建议已接受状态 */}
+          {suggestion && isSuggestionAccepted && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-3 flex items-center justify-center space-x-2 py-2 px-4
+                         bg-gray-100 text-gray-500 text-sm font-medium rounded-full"
+            >
+              <Check size={16} className="text-green-500" />
+              <span>{t('annotation_suggestion_started')}</span>
+            </motion.div>
+          )}
+
+          {/* 凝结按钮（非建议模式） */}
+          {!suggestion && relatedMessage && !isCondensed && (
             <motion.button
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               onClick={handleCondense}
               disabled={isGenerating}
-              className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4 
-                         bg-gradient-to-r from-purple-500 to-blue-500 
+              className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
+                         bg-gradient-to-r from-purple-500 to-blue-500
                          hover:from-purple-600 hover:to-blue-600
                          text-white text-sm font-medium rounded-full
                          shadow-md hover:shadow-lg
@@ -197,12 +259,12 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
             </motion.button>
           )}
 
-          {/* 已凝结状态 */}
-          {isCondensed && (
+          {/* 已凝结状态（非建议模式） */}
+          {!suggestion && isCondensed && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mt-3 flex items-center justify-center space-x-2 py-2 px-4 
+              className="mt-3 flex items-center justify-center space-x-2 py-2 px-4
                          bg-gray-100 text-gray-500 text-sm font-medium rounded-full"
             >
               <Check size={16} className="text-green-500" />

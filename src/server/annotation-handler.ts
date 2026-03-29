@@ -5,6 +5,7 @@ import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
 import { normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 import {
+  buildSuggestionUserPrompt,
   buildTodayActivitiesText,
   buildUserPrompt,
   getDefaultAnnotations,
@@ -218,6 +219,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       debugAiMode: resolvedAiMode || 'fallback',
     });
     return;
+  }
+
+  // ==================== 建议模式（overwork_detected） ====================
+  const isSuggestionMode = eventType === 'overwork_detected';
+
+  if (isSuggestionMode) {
+    try {
+      const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
+      const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
+      const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
+      const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
+      const currentHour = userContext?.currentHour;
+      const currentMinute = userContext?.currentMinute;
+
+      const suggestionPrompt = buildSuggestionUserPrompt(
+        resolvedLang,
+        todayActivitiesText,
+        pendingTodos,
+        currentHour,
+        currentMinute,
+      );
+      const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
+      const model = getModel(resolvedLang);
+
+      console.log('[Annotation API] Suggestion mode prompt:', suggestionPrompt);
+
+      openai.apiKey = apiKey;
+      const llmResponse = await openai.responses.create({
+        model,
+        instructions: systemPrompt,
+        input: suggestionPrompt,
+        temperature: 0.6,
+        max_output_tokens: 300,
+      });
+
+      let raw = removeThinkingTags(llmResponse.output_text || '').trim();
+      // 提取 JSON（可能被 markdown code fence 包裹）
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          const message = String(parsed.message || '').trim();
+          const suggestionType = parsed.type === 'todo' ? 'todo' : 'activity';
+
+          if (!message) throw new Error('empty message');
+
+          const suggestion: Record<string, unknown> = {
+            type: suggestionType,
+            actionLabel: String(parsed.actionLabel || '').trim(),
+          };
+
+          if (suggestionType === 'todo' && parsed.todoId) {
+            suggestion.todoId = String(parsed.todoId);
+            suggestion.todoTitle = String(parsed.todoTitle || '').trim();
+          } else {
+            suggestion.type = 'activity';
+            suggestion.activityName = String(parsed.activityName || '').trim();
+          }
+
+          // 确保 actionLabel 不为空
+          if (!suggestion.actionLabel) {
+            suggestion.actionLabel = suggestionType === 'todo'
+              ? (resolvedLang === 'zh' ? `去${suggestion.todoTitle}` : `Go ${suggestion.todoTitle}`)
+              : (resolvedLang === 'zh' ? `去${suggestion.activityName}` : `Go ${suggestion.activityName}`);
+          }
+
+          const finalContent = ensureEmoji(message, '🌿');
+
+          res.status(200).json({
+            content: finalContent,
+            tone: 'concerned',
+            displayDuration: 15000,
+            source: 'ai',
+            debugAiMode: resolvedAiMode || 'fallback',
+            suggestion,
+          });
+          return;
+        } catch (parseErr) {
+          console.warn('[Annotation API] Suggestion JSON parse failed:', parseErr);
+        }
+      }
+
+      // JSON 解析失败，回退到普通批注
+      console.warn('[Annotation API] Suggestion mode fallback to default annotation');
+    } catch (suggestionErr) {
+      console.error('[Annotation API] Suggestion mode error:', suggestionErr);
+    }
+    // 回退：走下面的普通批注流程
   }
 
   try {

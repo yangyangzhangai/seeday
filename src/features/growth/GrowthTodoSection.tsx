@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
@@ -9,9 +9,10 @@ import { GrowthTodoCard } from './GrowthTodoCard';
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
+  highlightTodoId?: string | null;
 }
 
-export const GrowthTodoSection = ({ onFocus }: Props) => {
+export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
@@ -143,6 +144,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
               onStart={handleStart}
               onDelete={handleDelete}
               onUpdate={updateTodo}
+              isHighlighted={highlightTodoId === todo.id}
             />
           ))}
         </div>

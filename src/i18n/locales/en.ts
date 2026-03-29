@@ -285,6 +285,7 @@ const en = {
     annotation_condense: 'Crystallize',
     annotation_condensed: 'Crystallized',
     annotation_hover_pause: 'Paused on hover',
+    annotation_suggestion_started: 'Started ✓',
 
     // ── Stardust Card ──
     stardust_loading: 'Retrieving memory…',
