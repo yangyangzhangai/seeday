@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LogIn, LogOut } from 'lucide-react';
@@ -18,21 +18,35 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ];
 
-function getWeekDays(centerDate: Date) {
-  const result = [];
-  const dow = centerDate.getDay();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(centerDate);
-    d.setDate(d.getDate() - dow + i);
-    result.push({ day: DAYS[d.getDay()], date: d.getDate(), dateObj: d });
+function shiftDate(base: Date, days: number) {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function listDates(startDate: Date, endDate: Date) {
+  const dates: Date[] = [];
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  while (cursor <= end) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
   }
-  return result;
+  return dates;
 }
 
 const SAGE_GREEN_DEEP = '#5F7A63';
 const blueGlowBg = 'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%)';
 const blueGlowBorder = '1px solid rgba(255,255,255,0.72)';
 const blueGlowShadow = '0 8px 18px rgba(59,130,246,0.20), inset 0 1px 1px rgba(255,255,255,0.82)';
+const DATE_PAST_PRELOAD_DAYS = 35;
+const DATE_FUTURE_DAYS = 6;
+const DATE_PREPEND_STEP_DAYS = 21;
+const DATE_ITEM_WIDTH = 38;
+const DATE_ITEM_GAP = 8;
+const DATE_PREPEND_TRIGGER_PX = 64;
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
@@ -47,17 +61,33 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [weekAnchor, setWeekAnchor] = useState<Date>(() => selectedDate);
-  const touchStartX = useRef<number | null>(null);
+  const [stripStart, setStripStart] = useState<Date>(() => shiftDate(selectedDate, -DATE_PAST_PRELOAD_DAYS));
   const popupRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const prependPendingRef = useRef<number | null>(null);
 
-  const weekDays = getWeekDays(weekAnchor);
+  const stripEnd = useMemo(() => shiftDate(today, DATE_FUTURE_DAYS), [todayStr]);
+  const stripDates = useMemo(() => listDates(stripStart, stripEnd), [stripStart, stripEnd]);
   const isFuture = (d: Date) => toLocalDateStr(d) > todayStr;
   const isSelected = (d: Date) => toLocalDateStr(d) === selectedStr;
 
-  // Sync weekAnchor when selectedDate changes
-  useEffect(() => { setWeekAnchor(selectedDate); }, [selectedStr]); // eslint-disable-line
+  useEffect(() => {
+    const selectedStart = new Date(selectedDate);
+    selectedStart.setHours(0, 0, 0, 0);
+    if (selectedStart < stripStart) {
+      setStripStart(shiftDate(selectedStart, -DATE_PAST_PRELOAD_DAYS));
+      return;
+    }
+    const target = stripRef.current?.querySelector(`[data-date="${selectedStr}"]`) as HTMLElement | null;
+    target?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [selectedDate, selectedStr, stripStart]);
+
+  useEffect(() => {
+    if (prependPendingRef.current === null || !stripRef.current) return;
+    stripRef.current.scrollLeft += prependPendingRef.current;
+    prependPendingRef.current = null;
+  }, [stripDates]);
 
   // Close month picker on outside click
   useEffect(() => {
@@ -83,27 +113,21 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const handleDayClick = useCallback((dateObj: Date) => {
     if (isFuture(dateObj)) return;
     onDateChange(dateObj);
+    setViewMonth(dateObj.getMonth());
+    setViewYear(dateObj.getFullYear());
     setShowMonthPicker(false);
   }, [onDateChange, todayStr]); // eslint-disable-line
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+  const prependPastDates = useCallback(() => {
+    const strip = stripRef.current;
+    if (!strip || strip.scrollLeft > DATE_PREPEND_TRIGGER_PX) return;
+    setStripStart(prev => shiftDate(prev, -DATE_PREPEND_STEP_DAYS));
+    prependPendingRef.current = DATE_PREPEND_STEP_DAYS * (DATE_ITEM_WIDTH + DATE_ITEM_GAP);
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (delta < -40) {
-      setWeekAnchor(d => { const p = new Date(d); p.setDate(d.getDate() - 7); return p; });
-    } else if (delta > 40) {
-      const todayWeekStart = toLocalDateStr(getWeekDays(today)[0]);
-      const anchorWeekStart = toLocalDateStr(weekDays[0].dateObj);
-      if (anchorWeekStart < todayWeekStart) {
-        setWeekAnchor(d => { const n = new Date(d); n.setDate(d.getDate() + 7); return n; });
-      }
-    }
-  }, [weekDays, today, todayStr]); // eslint-disable-line
+  const handleStripScroll = useCallback(() => {
+    prependPastDates();
+  }, [prependPastDates]);
 
   const avatarUrl = user?.user_metadata?.avatar_url;
 
@@ -297,21 +321,55 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         </div>
       </div>
 
-      {/* Week strip */}
+      {/* Date strip */}
       <div
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, marginTop: -4 }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        ref={stripRef}
+        className="date-strip"
+        onScroll={handleStripScroll}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: DATE_ITEM_GAP,
+          marginTop: -4,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          overscrollBehaviorX: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          scrollSnapType: 'x mandatory',
+          scrollPaddingInline: `calc(50% - ${DATE_ITEM_WIDTH / 2}px)`,
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          paddingBottom: 2,
+          touchAction: 'pan-x',
+        }}
       >
-        {weekDays.map(({ day, date, dateObj }, i) => {
+        {stripDates.map((dateObj, i) => {
+          const day = DAYS[dateObj.getDay()];
+          const date = dateObj.getDate();
           const sel = isSelected(dateObj);
           const fut = isFuture(dateObj);
           return (
-            <button key={i} onClick={() => handleDayClick(dateObj)}
+            <button
+              key={`${toLocalDateStr(dateObj)}-${i}`}
+              data-date={toLocalDateStr(dateObj)}
+              onClick={() => handleDayClick(dateObj)}
               disabled={fut}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 3, background: 'none', border: 'none', cursor: fut ? 'not-allowed' : 'pointer',
-                padding: '0 2px', transition: 'all 0.18s', opacity: fut ? 0.35 : 1 }}>
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 3,
+                background: 'none',
+                border: 'none',
+                cursor: fut ? 'not-allowed' : 'pointer',
+                padding: '0 2px',
+                transition: 'all 0.18s',
+                opacity: fut ? 0.35 : 1,
+                flex: `0 0 ${DATE_ITEM_WIDTH}px`,
+                minWidth: DATE_ITEM_WIDTH,
+                scrollSnapAlign: 'center',
+              }}
+            >
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
                 textTransform: 'uppercase', color: sel ? '#2563EB' : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
@@ -331,6 +389,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
           );
         })}
       </div>
+
+      <style>{`.date-strip::-webkit-scrollbar{display:none;}`}</style>
     </div>
   );
 };

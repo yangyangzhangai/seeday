@@ -330,7 +330,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `常做活动：${freqText}`,
     `待办列表：\n${todoListText}`,
     `连续纯文字批注次数：${consecutiveTextCount}`,
-    '请自然判断输出普通批注，还是给一个具体可执行的建议。',
+    '请自然判断输出普通批注，还是给一个具体可执行的建议。每天最多有3次建议机会，如果你判断过后没有偏好，请输出普通批注。',
     '如果输出普通批注：只输出一句话，句末且仅一个 emoji。',
     '如果输出建议：只输出 JSON，格式如下：',
     '{"mode":"suggestion","content":"<一句话+1个emoji>","suggestion":{"type":"activity|todo","actionLabel":"<按钮文案>","activityName":"<可选>","todoId":"<可选>","todoTitle":"<可选>"}}',

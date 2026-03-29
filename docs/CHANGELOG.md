@@ -8,6 +8,24 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-29 - UX: 记录页日期圆点支持无限左滑查看历史
+
+### Changed
+
+- `src/features/chat/components/DatePicker.tsx`
+  - 日期圆点条改为横向滚动时间轴，支持持续左滑。
+  - 当滚动接近最左侧时自动补充更早日期（按 21 天分段预加载），实现历史日期无限延展。
+  - 增加横向吸附（scroll snap），滑动停止后自动贴合到最近日期圆点，提升手感与可读性。
+  - 保留未来日期禁用策略，并在切换日期后自动滚动居中到当前选中日期。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次记录页日期交互改动）。
+
 ## 2026-03-29 - Test: AI 建议模式 P7 回环补测（窗口边界/跨日重置/自动凝结）
 
 ### Changed
