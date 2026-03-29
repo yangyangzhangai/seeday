@@ -44,14 +44,14 @@ export const SettingsList: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
       <button
         onClick={() => setIsDirectionOpen(prev => !prev)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition border-b border-gray-100"
+        className="flex w-full items-center justify-between border-b border-slate-200/60 px-4 py-3 transition hover:bg-white/70"
       >
         <div className="flex items-center space-x-2.5">
-          <Sprout size={16} className="text-gray-500" />
-          <span className="text-xs text-gray-700">{t('profile_root_direction_settings')}</span>
+          <Sprout size={16} className="text-[#5F7A63]" />
+          <span className="text-xs text-slate-700">{t('profile_root_direction_settings')}</span>
         </div>
         <ChevronRight
           size={14}
@@ -65,35 +65,35 @@ export const SettingsList: React.FC = () => {
         <button
           key={labelKey}
           onClick={action}
-          className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition ${
-            i < SETTINGS.length - 1 ? 'border-b border-gray-100' : ''
+          className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${
+            i < SETTINGS.length - 1 ? 'border-b border-slate-200/60' : ''
           }`}
         >
           <div className="flex items-center space-x-2.5">
-            <Icon size={16} className="text-gray-500" />
-            <span className="text-xs text-gray-700">{t(labelKey)}</span>
+            <Icon size={16} className="text-[#5F7A63]" />
+            <span className="text-xs text-slate-700">{t(labelKey)}</span>
           </div>
-          <ChevronRight size={14} className="text-gray-300" />
+          <ChevronRight size={14} className="text-slate-300" />
         </button>
       ))}
 
       {canSeeTelemetry ? (
         <button
           onClick={() => navigate('/telemetry/live-input')}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition border-t border-gray-100"
+          className="flex w-full items-center justify-between border-t border-slate-200/60 px-4 py-3 transition hover:bg-white/70"
         >
           <div className="flex items-center space-x-2.5">
-            <BarChart3 size={16} className="text-gray-500" />
-            <span className="text-xs text-gray-700">Live Input Telemetry</span>
+            <BarChart3 size={16} className="text-[#5F7A63]" />
+            <span className="text-xs text-slate-700">Live Input Telemetry</span>
           </div>
-          <ChevronRight size={14} className="text-gray-300" />
+          <ChevronRight size={14} className="text-slate-300" />
         </button>
       ) : null}
 
       {/* Logout */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center space-x-2.5 px-4 py-3 hover:bg-red-50 transition"
+        className="flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-rose-50/80"
       >
         <LogOut size={16} className="text-red-500" />
         <span className="text-xs text-red-500 font-medium">{t('profile_logout')}</span>

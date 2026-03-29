@@ -28,6 +28,9 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const isRunning = currentSession !== null;
   const svgRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
+  const TICKS = 60;
+  const SVG_CENTER = 130;
+  const RING_RADIUS = 120;
 
   // Convert pointer position to minutes (1–60) based on angle around circle center
   const pointerToMinutes = useCallback((clientX: number, clientY: number): number => {
@@ -112,33 +115,39 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     finishFocus();
   };
 
+  const selectedTicks = Math.max(1, Math.round((durationMinutes / 60) * TICKS));
+  const progressCircumference = 2 * Math.PI * RING_RADIUS;
+  const progressDash = progressCircumference * (durationMinutes / 60);
+  const handleAngle = (durationMinutes / 60) * 2 * Math.PI - Math.PI / 2;
+  const handleX = SVG_CENTER + RING_RADIUS * Math.cos(handleAngle);
+  const handleY = SVG_CENTER + RING_RADIUS * Math.sin(handleAngle);
+
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-b from-blue-900 to-blue-950 flex flex-col items-center justify-center">
-      {/* Close button */}
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(10,18,36,0.92)] backdrop-blur-[20px]">
       <button
         onClick={() => { if (isRunning) setShowConfirmEnd(true); else onClose(); }}
-        className="absolute top-6 right-6 text-white/60 hover:text-white"
+        className="absolute right-6 top-6 text-white/60 transition hover:text-white"
       >
         <X size={24} />
       </button>
 
-      {/* Task name */}
-      <h2 className="text-white/80 text-lg mb-8 px-6 text-center">{todo.title}</h2>
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-300/70">
+        {isRunning ? t('growth_focus_start') : t('growth_focus_set_duration')}
+      </p>
+      <h2 className="mb-5 px-6 text-center text-lg font-semibold text-white/85">{todo.title}</h2>
 
       {summary ? (
-        /* Summary view */
         <div className="flex flex-col items-center">
           <div className="text-6xl mb-6">🎉</div>
           <p className="text-white text-xl font-medium mb-8">{summary}</p>
           <button
             onClick={onClose}
-            className="px-8 py-3 bg-white text-blue-900 rounded-full text-lg font-medium"
+            className="rounded-full bg-white px-8 py-3 text-lg font-medium text-slate-900"
           >
             {t('close')}
           </button>
         </div>
       ) : isRunning ? (
-        /* Timer running */
         <>
           <FocusTimer
             setDuration={currentSession!.setDuration}
@@ -146,21 +155,20 @@ export const FocusMode = ({ todo, onClose }: Props) => {
             onEnd={handleEnd}
             onAutoComplete={finishFocus}
           />
-          {/* Confirm end dialog */}
           {showConfirmEnd && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-              <div className="bg-white rounded-2xl p-6 mx-8 max-w-sm w-full">
-                <p className="text-gray-800 text-center mb-4">{t('growth_focus_end_confirm')}</p>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
+              <div className="mx-8 w-full max-w-sm rounded-3xl bg-[#F7F9F8] p-6 shadow-2xl">
+                <p className="mb-4 text-center text-sm font-semibold text-slate-700">{t('growth_focus_end_confirm')}</p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowConfirmEnd(false)}
-                    className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-700 font-medium"
+                    className="flex-1 rounded-xl bg-slate-100 py-2 font-medium text-slate-700"
                   >
                     {t('cancel')}
                   </button>
                   <button
                     onClick={handleConfirmEnd}
-                    className="flex-1 py-2 bg-red-500 rounded-xl text-white font-medium"
+                    className="flex-1 rounded-xl bg-rose-500 py-2 font-medium text-white"
                   >
                     {t('growth_focus_end')}
                   </button>
@@ -170,13 +178,11 @@ export const FocusMode = ({ todo, onClose }: Props) => {
           )}
         </>
       ) : (
-        /* Duration picker */
         <div className="flex flex-col items-center">
-          {/* Circular duration selector — drag the ring to set time */}
-          <div className="relative w-52 h-52 sm:w-64 sm:h-64 mb-8 cursor-pointer select-none">
+          <div className="relative mb-7 h-[260px] w-[260px] cursor-pointer select-none sm:h-[290px] sm:w-[290px]">
             <svg
               ref={svgRef}
-              className="w-full h-full -rotate-90"
+              className="h-full w-full -rotate-90"
               viewBox="0 0 260 260"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -186,46 +192,98 @@ export const FocusMode = ({ todo, onClose }: Props) => {
               onTouchMove={handleTouchMoveRing}
               onTouchEnd={handleTouchEndRing}
             >
-              {/* Wide invisible hit area on the ring */}
               <circle cx="130" cy="130" r="120" fill="none" stroke="transparent" strokeWidth="40" />
-              {/* Background ring */}
-              <circle cx="130" cy="130" r="120" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-              {/* Progress arc */}
+
+              {Array.from({ length: TICKS }, (_, i) => {
+                const deg = i * 6;
+                const rad = (deg - 90) * (Math.PI / 180);
+                const active = i < selectedTicks;
+                const tickLen = i % 5 === 0 ? 12 : 7;
+                const x1 = SVG_CENTER + Math.cos(rad) * 101;
+                const y1 = SVG_CENTER + Math.sin(rad) * 101;
+                const x2 = SVG_CENTER + Math.cos(rad) * (101 + tickLen);
+                const y2 = SVG_CENTER + Math.sin(rad) * (101 + tickLen);
+
+                return (
+                  <line
+                    key={i}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={active ? 'rgba(125,211,252,0.92)' : 'rgba(255,255,255,0.18)'}
+                    strokeWidth={i % 5 === 0 ? 2.2 : 1.4}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+
               <circle
                 cx="130" cy="130" r="120"
-                fill="none" stroke="#3B82F6" strokeWidth="8" strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 120}
-                strokeDashoffset={2 * Math.PI * 120 * (1 - durationMinutes / 60)}
+                fill="none"
+                stroke="rgba(125,211,252,0.58)"
+                strokeWidth="9"
+                strokeLinecap="round"
+                strokeDasharray={`${progressDash} ${progressCircumference}`}
+                strokeDashoffset={progressCircumference / 4}
+                style={{ filter: 'drop-shadow(0 0 8px rgba(125,211,252,0.55))' }}
               />
-              {/* Drag handle dot */}
-              {(() => {
-                const angle = (durationMinutes / 60) * 2 * Math.PI - Math.PI / 2;
-                const hx = 130 + 120 * Math.cos(angle);
-                const hy = 130 + 120 * Math.sin(angle);
-                return <circle cx={hx} cy={hy} r="10" fill="#3B82F6" stroke="white" strokeWidth="2" />;
-              })()}
+
+              <circle
+                cx={handleX}
+                cy={handleY}
+                r="10"
+                fill="rgba(125,211,252,0.94)"
+                stroke="rgba(255,255,255,0.92)"
+                strokeWidth="2.2"
+                style={{ filter: 'drop-shadow(0 0 10px rgba(125,211,252,0.72))' }}
+              />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-5xl font-mono font-bold text-white tabular-nums">
+
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-mono text-5xl font-bold tabular-nums text-white [text-shadow:0_0_24px_rgba(125,211,252,0.55)]">
                 {String(durationMinutes).padStart(2, '0')}:00
               </span>
-              <span className="text-white/50 text-xs mt-1">{t('growth_focus_set_duration')}</span>
+              <span className="mt-1 text-[11px] tracking-[0.08em] text-sky-200/55">{t('growth_focus_set_duration')}</span>
             </div>
           </div>
 
+          <div className="mb-3 flex gap-2">
+            {[5, 10, 25, 45].map((preset) => {
+              const selected = durationMinutes === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setDurationMinutes(preset)}
+                  className="rounded-full border px-3 py-1 text-xs font-semibold transition"
+                  style={{
+                    borderColor: selected ? 'rgba(125,211,252,0.55)' : 'rgba(255,255,255,0.16)',
+                    background: selected ? 'rgba(125,211,252,0.28)' : 'rgba(255,255,255,0.08)',
+                    color: selected ? '#7dd3fc' : 'rgba(255,255,255,0.55)',
+                  }}
+                >
+                  {preset}m
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex gap-4">
-            {/* Start countdown */}
             <button
               onClick={() => handleStart(false)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-full text-lg font-medium hover:bg-blue-600 flex items-center gap-2 shadow-lg"
+              className="flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(125,211,252,0.95) 0%, rgba(56,189,248,0.88) 100%)',
+                boxShadow: '0 4px 22px rgba(125,211,252,0.36), inset 0 2px 7px rgba(255,255,255,0.28)',
+              }}
             >
               <Play size={20} />
               {t('growth_focus_start')}
             </button>
-            {/* Start count-up */}
             <button
               onClick={() => handleStart(true)}
-              className="px-6 py-3 bg-white/10 text-white rounded-full text-sm font-medium hover:bg-white/20 border border-white/20"
+              className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/20"
             >
               {t('growth_focus_counting_up')}
             </button>

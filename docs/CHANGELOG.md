@@ -8,6 +8,32 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-29 - UI: 同步 Tshine UI 的专注页与我的页视觉
+
+### Changed
+
+- `src/features/growth/FocusMode.tsx`
+  - 专注设时界面改为深色沉浸式环形刻度风格，支持拖拽调时、预设时长快捷按钮、玻璃风主按钮与一致的结束确认弹层。
+- `src/features/growth/FocusTimer.tsx`
+  - 运行态计时界面改为与设时界面一致的刻度环与玻璃中心盘，统一倒计时/正计时视觉反馈与结束按钮样式。
+- `src/features/profile/ProfilePage.tsx`
+- `src/features/profile/components/UserInfoCard.tsx`
+- `src/features/profile/components/AIModeSection.tsx`
+- `src/features/profile/components/AIAnnotationDropRate.tsx`
+- `src/features/profile/components/DailyGoalToggle.tsx`
+- `src/features/profile/components/MembershipCard.tsx`
+- `src/features/profile/components/SettingsList.tsx`
+  - 我的页与卡片组件统一切换为浅暖玻璃风（卡片材质、开关、标签、列表行与会员卡视觉），保留原有 store/api 行为与交互逻辑。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
+### Doc Sync
+
+- `docs/CURRENT_TASK.md` 已同步记录本次 UI 迁移范围。
+
 ## 2026-03-28 - Fix: 记录页恢复语言与登录/退出交互
 
 ### Changed

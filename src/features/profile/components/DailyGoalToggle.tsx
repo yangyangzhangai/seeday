@@ -8,16 +8,16 @@ export const DailyGoalToggle: React.FC = () => {
   const enabled = preferences.dailyGoalEnabled;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-2.5">
+    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-gray-800">{t('profile_daily_goal')}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{t('profile_daily_goal_desc')}</p>
+          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_daily_goal_desc')}</p>
         </div>
         <button
           onClick={() => updatePreferences({ dailyGoalEnabled: !enabled })}
           className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full transition-colors ${
-            enabled ? 'bg-blue-500' : 'bg-gray-300'
+            enabled ? 'bg-[#8FAF92]' : 'bg-slate-300'
           }`}
         >
           <span

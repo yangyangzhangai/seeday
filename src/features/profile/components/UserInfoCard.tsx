@@ -144,11 +144,11 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
+    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
       <div className="flex items-center space-x-3">
         {/* Avatar */}
         <div
-          className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200 cursor-pointer flex-shrink-0"
+          className="h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white shadow-[0_4px_14px_rgba(148,163,184,0.22)]"
           onClick={handleAvatarClick}
         >
           {user?.user_metadata?.avatar_url ? (
@@ -181,11 +181,11 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 onChange={(e) => setNameValue(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown}
-                className="text-sm font-semibold text-gray-800 bg-gray-100 rounded-lg px-2 py-0.5 outline-none border border-blue-400 w-36"
+                className="w-36 rounded-lg border border-[#8FAF92]/60 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 outline-none"
               />
             ) : (
               <span
-                className="text-sm font-semibold text-gray-800 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                className="cursor-pointer truncate text-sm font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]"
                 onClick={handleNameClick}
               >
                 {displayName}
@@ -198,30 +198,30 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">{user?.email}</p>
+          <p className="mt-0.5 truncate text-xs text-slate-500">{user?.email}</p>
         </div>
       </div>
 
       {/* Stats — compact */}
-      <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
+      <div className="mt-3 grid grid-cols-3 divide-x divide-slate-200/60 border-t border-slate-200/60 pt-2">
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{weeklyLoginDays}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_streak')}</span>
+          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{weeklyLoginDays}</span>
+          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
             {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_today_activities')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{todayActs}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_today_activities')}</span>
+          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{todayActs}</span>
+          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
             {t('profile_today_activities_hint', { count: todayActs })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_completed_goals')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{completedGoals}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_completed_goals')}</span>
+          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{completedGoals}</span>
+          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
             {t('profile_completed_goals_hint')}
           </span>
         </div>

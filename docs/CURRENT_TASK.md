@@ -38,6 +38,10 @@
 
 ### 已完成（本会话追加）
 
+- [x] UI 对齐：迁移 `Tshine UI` 原型中的「专注界面」和「我的界面」视觉到当前项目（保留现有业务逻辑/状态流）
+  - `src/features/growth/FocusMode.tsx`、`src/features/growth/FocusTimer.tsx`：专注页改为深色沉浸式环形刻度视觉（拖拽设时、预设时长、玻璃风按钮、结束确认弹层）
+  - `src/features/profile/ProfilePage.tsx` + `src/features/profile/components/*`：我的页改为浅暖玻璃卡片风格（统一卡片材质、开关样式、会员区与设置区视觉）
+
 - [x] Web 响应式壳层增强：在不影响 iOS 套壳移动体验的前提下，补齐桌面端适配骨架
   - `src/components/layout/BottomNav.tsx`：新增桌面侧边悬浮导航（移动端继续使用底部胶囊导航）
   - `src/App.tsx`：`PageOutlet` 增加桌面内边距与底部留白策略，主背景增加桌面渐变层

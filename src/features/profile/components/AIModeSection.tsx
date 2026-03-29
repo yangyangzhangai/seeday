@@ -35,19 +35,19 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
+    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
       {/* Header row */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center space-x-1.5">
           <span className="text-xs font-semibold text-gray-800">{t('profile_ai_mode')}</span>
-          <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
+          <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-[10px] font-semibold text-[#3f5f35]">
             {t('profile_free')}
           </span>
         </div>
         <button
           onClick={() => updatePreferences({ aiModeEnabled: !enabled })}
-          className={`relative inline-flex w-9 h-5 items-center rounded-full transition-colors flex-shrink-0 ${
-            enabled ? 'bg-blue-500' : 'bg-gray-300'
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+            enabled ? 'bg-[#8FAF92]' : 'bg-slate-300'
           }`}
         >
           <span
@@ -74,12 +74,12 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
               onClick={() => handleModeClick(modeKey, mode.free)}
               className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
                 selected
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-[#8FAF92] bg-[#B2EEDA]/20'
                   : locked
-                  ? 'border-gray-200 bg-gray-50 opacity-60'
-                  : 'border-gray-200 bg-gray-50 hover:border-blue-300'
-              }`}
-            >
+                  ? 'border-slate-200 bg-slate-100 opacity-60'
+                  : 'border-white/80 bg-white/60 hover:border-[#8FAF92]/50'
+               }`}
+             >
               <div className="w-9 h-9 mb-1 rounded-full bg-white/90 ring-1 ring-gray-200 overflow-hidden flex items-center justify-center">
                 <img
                   src={mode.avatar}
@@ -87,8 +87,8 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <span className="text-[11px] font-semibold text-gray-800 leading-tight">{mode.name}</span>
-              <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center">{mode.subtitle}</span>
+              <span className="text-[11px] font-semibold leading-tight text-slate-800">{mode.name}</span>
+              <span className="mt-0.5 text-center text-[9px] leading-tight text-slate-500">{mode.subtitle}</span>
               {locked && (
                 <Lock size={10} className="absolute top-1 right-1 text-gray-400" />
               )}
