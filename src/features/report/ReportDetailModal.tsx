@@ -10,7 +10,6 @@ import { usePlantStore } from '../../store/usePlantStore';
 import type { MoodDistributionItem, ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { MoodPieChart } from './MoodPieChart';
-import { ReportStatsView } from './ReportStatsView';
 import { ActivityCategoryDonut } from './ActivityCategoryDonut';
 import { useAuthStore } from '../../store/useAuthStore';
 import { callShortInsightAPI } from '../../api/client';
@@ -117,7 +116,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   dailyMoodDistribution,
   onClose,
   onBack,
-  onShowTaskList,
   generateTimeshineDiary,
   initialPage,
   readOnly,
@@ -403,7 +401,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         }}
         className="[&::-webkit-scrollbar]:hidden"
       >
-        {/* ── Page 1: 植物 + AI观察日记 + 待办 ── */}
+        {/* ── Page 1: 植物 + AI观察日记 ── */}
         <div
           style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff' }}
           className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-5 pb-safe"
@@ -414,12 +412,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               className="cursor-pointer active:scale-[0.98] transition-transform"
               onClick={() => setShowPlantCard(true)}
             >
-              <div style={{ maxHeight: '220px', overflow: 'hidden', filter: 'drop-shadow(0 2px 12px rgba(80,120,60,0.12))' }}>
+              <div style={{ height: '220px', overflow: 'hidden', filter: 'drop-shadow(0 2px 12px rgba(80,120,60,0.12))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <PlantImage
                   plantId={todayPlant!.plantId}
                   rootType={todayPlant!.rootType}
                   plantStage={todayPlant!.plantStage}
-                  imgClassName="w-full object-contain"
+                  imgClassName="h-full w-full object-contain"
                 />
               </div>
               {todayPlant!.diaryText && (
@@ -500,20 +498,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* 待办事项 */}
-          {selectedReport.stats ? (
-            <div>
-              <h3 className="font-bold text-sm mb-3" style={{ color: '#4a3a2a' }}>{t('report_todo_section')}</h3>
-              <ReportStatsView
-                stats={selectedReport.stats}
-                type={selectedReport.type}
-                onShowTasks={onShowTaskList}
-              />
-            </div>
-          ) : (
-            <div className="text-center py-10 text-sm" style={{ color: '#9a8878' }}>{t('no_data')}</div>
-          )}
 
           <div className="flex items-center justify-center gap-1 text-xs pt-1 pb-4" style={{ color: 'rgba(107,90,62,0.35)' }}>
             <span>{t('report_swipe_hint')}</span>

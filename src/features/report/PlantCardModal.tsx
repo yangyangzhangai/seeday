@@ -1,9 +1,12 @@
-import React, { useRef } from 'react';
-import { X, Download, PenLine } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { useTranslation } from 'react-i18next';
+import React, { useMemo } from 'react';
+import { X } from 'lucide-react';
 import type { DailyPlantRecord } from '../../types/plant';
-import { PlantImage } from './plant/PlantImage';
+import type { PlantCategoryKey } from '../../types/plant';
+import { buildRootSegments } from '../../lib/rootRenderer';
+import { mapSourcesToPlantActivities } from '../../lib/plantActivityMapper';
+import { useChatStore } from '../../store/useChatStore';
+import { usePlantStore, resolvePlantDurationForMessage } from '../../store/usePlantStore';
+import { PlantFlipCard } from './plant/PlantFlipCard';
 
 interface PlantCardModalProps {
   plant: DailyPlantRecord;
@@ -12,99 +15,61 @@ interface PlantCardModalProps {
 }
 
 export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, onGenerateDiary }) => {
-  const { t } = useTranslation();
-  const cardRef = useRef<HTMLDivElement>(null);
+  const messages = useChatStore(state => state.messages);
+  const directionOrder = usePlantStore(state => state.directionOrder);
 
-  const saveCard = async () => {
-    if (!cardRef.current) return;
-    try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        backgroundColor: null,
-      });
-      const url = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = `plant-diary-${plant.date}.png`;
-      link.href = url;
-      link.click();
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('Failed to save card', err);
-    }
-  };
+  const segments = useMemo(() => {
+    const dayStart = new Date(`${plant.date}T00:00:00`);
+    const dayStartMs = dayStart.getTime();
+    if (!Number.isFinite(dayStartMs)) return [];
+    const dayEndMs = dayStartMs + 86_400_000;
+    const nowMs = Date.now();
+    const sources = messages
+      .filter(m => m.mode === 'record' && !m.isMood && m.timestamp >= dayStartMs && m.timestamp < dayEndMs)
+      .map(m => ({
+        ...m,
+        duration: resolvePlantDurationForMessage(m.duration, m.timestamp, nowMs),
+      }));
+
+    const activities = mapSourcesToPlantActivities(sources);
+    const dirMap: Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> = {
+      entertainment: 0,
+      social: 1,
+      work_study: 2,
+      exercise: 3,
+      life: 4,
+    };
+    directionOrder.forEach((cat, idx) => {
+      dirMap[cat] = idx as 0 | 1 | 2 | 3 | 4;
+    });
+
+    return buildRootSegments(
+      activities.map(a => ({
+        activityId: a.id,
+        direction: dirMap[a.categoryKey],
+        minutes: a.minutes,
+        focus: a.focus,
+      })),
+      `plant-${plant.date}`,
+    );
+  }, [directionOrder, messages, plant.date]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in transition-all">
-      <div className="flex flex-col items-center w-full max-w-sm gap-5">
-        {/* Card */}
-        <div
-          ref={cardRef}
-          className="relative w-full aspect-[3/4] rounded-2xl p-6 flex flex-col items-center justify-center shadow-2xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(145deg, #fdfbf7 0%, #f4eee1 100%)',
-            border: '1px solid rgba(139, 115, 85, 0.1)',
-          }}
-        >
-          {/* Decorative Corner Elements */}
-          <div className="absolute top-4 left-4 w-8 h-8 opacity-20" style={{ borderTop: '2px solid #6b5a3e', borderLeft: '2px solid #6b5a3e' }} />
-          <div className="absolute top-4 right-4 w-8 h-8 opacity-20" style={{ borderTop: '2px solid #6b5a3e', borderRight: '2px solid #6b5a3e' }} />
-          <div className="absolute bottom-4 left-4 w-8 h-8 opacity-20" style={{ borderBottom: '2px solid #6b5a3e', borderLeft: '2px solid #6b5a3e' }} />
-          <div className="absolute bottom-4 right-4 w-8 h-8 opacity-20" style={{ borderBottom: '2px solid #6b5a3e', borderRight: '2px solid #6b5a3e' }} />
-
-          {/* Plant Image */}
-          <div className="flex-1 flex items-center justify-center w-full" style={{ paddingBottom: 20 }}>
-            <PlantImage
-              plantId={plant.plantId}
-              rootType={plant.rootType}
-              plantStage={plant.plantStage}
-              imgClassName="max-w-[70%] max-h-full object-contain drop-shadow-lg"
-            />
-          </div>
-
-          {/* Diary text */}
-          {plant.diaryText && (
-            <div
-              className="text-center pb-8 px-2"
-              style={{
-                fontFamily: '"LXGW WenKai", cursive',
-                color: '#5c4b37',
-                fontSize: '1.125rem',
-                lineHeight: '1.8',
-                letterSpacing: '0.05em',
-              }}
-            >
-              {plant.diaryText}
-            </div>
-          )}
-
-          {/* Date stamp */}
-          <div className="absolute bottom-6 right-6 opacity-40 text-xs" style={{ fontFamily: '"LXGW WenKai", cursive', color: '#5c4b37' }}>
-            {new Date(plant.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="w-full flex flex-col gap-3 px-2">
-          <button
-            onClick={() => {
-              onClose();
-              onGenerateDiary();
-            }}
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-white font-medium text-[15px] shadow-lg active:scale-95 transition-all"
-            style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
-          >
-            <PenLine size={18} />
-            {t('plant_card_diary_button')}
-          </button>
-
-          <button
-            onClick={saveCard}
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-medium text-[15px] active:scale-95 transition-all bg-white shadow"
-            style={{ color: '#5e734b', border: '1px solid rgba(94, 115, 75, 0.2)' }}
-          >
-            <Download size={18} />
-            {t('plant_save_card')}
-          </button>
-        </div>
+    <div
+      className="fixed inset-0 z-[100] flex items-end bg-black/40 backdrop-blur-sm animate-in fade-in transition-all"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-h-[92vh] rounded-t-2xl bg-[#f6f1e8]"
+        style={{ boxShadow: '0 -12px 28px rgba(0,0,0,0.22)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <PlantFlipCard
+          plant={plant}
+          segments={segments}
+          directionOrder={directionOrder}
+          onGenerateDiary={onGenerateDiary}
+        />
       </div>
 
       <button

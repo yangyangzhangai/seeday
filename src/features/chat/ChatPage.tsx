@@ -68,6 +68,10 @@ export const ChatPage = () => {
   const sendingRef = useRef(false);
   const [birdOpen, setBirdOpen] = useState(false);
 
+  useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
+
   // ── 草稿持久化 ─────────────────────────────────────────────
   useEffect(() => {
     if (input) {

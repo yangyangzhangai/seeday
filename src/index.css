@@ -122,3 +122,33 @@ a {
   height: 1px;
   background-color: #e5e7eb;
 }
+
+/* Diary shelf calendar: data visibility */
+.diary-shelf-calendar .react-calendar__tile {
+  position: relative;
+  border-radius: 8px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--has-data {
+  color: #2f5840;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(122, 155, 126, 0.22) 0%, rgba(122, 155, 126, 0.08) 100%);
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--has-data::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #8e6e3f;
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--no-data {
+  color: #b7b4ae;
+  font-weight: 500;
+}

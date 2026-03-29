@@ -45,6 +45,19 @@ interface DiaryStickerEventRow {
   lang?: unknown;
 }
 
+function isMissingOptionalTableError(error: { code?: string | null; message?: string | null } | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === '42P01' || error.code === 'PGRST205') {
+    return true;
+  }
+
+  const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  return message.includes('does not exist') || message.includes('schema cache');
+}
+
 function parseDays(raw: unknown): number {
   const value = typeof raw === 'string' ? Number(raw) : Number(raw);
   if (!Number.isFinite(value)) {
@@ -156,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .order('created_at', { ascending: false })
     .limit(10000);
 
-  if (plantError && plantError.code !== '42P01') {
+  if (plantError && !isMissingOptionalTableError(plantError)) {
     jsonError(res, 500, 'Failed to load plant asset telemetry dashboard', plantError.message);
     return;
   }
@@ -168,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .order('created_at', { ascending: false })
     .limit(10000);
 
-  if (diaryError && diaryError.code !== '42P01') {
+  if (diaryError && !isMissingOptionalTableError(diaryError)) {
     jsonError(res, 500, 'Failed to load diary sticker telemetry dashboard', diaryError.message);
     return;
   }

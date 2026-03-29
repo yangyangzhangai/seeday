@@ -8,6 +8,24 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-29 - Fix: Live Input Telemetry 缺表容错与提示文案修正
+
+### Changed
+
+- `api/live-input-dashboard.ts`
+  - 新增 `isMissingOptionalTableError(...)`，将 Supabase 缺表错误从仅识别 `42P01` 扩展到兼容 `PGRST205` 与常见缺表 message（`does not exist` / `schema cache`）。
+  - `plant_asset_events` 与 `telemetry_events` 查询在缺表场景下按空结果降级，不再中断整页看板。
+- `src/features/telemetry/LiveInputTelemetryPage.tsx`
+  - 修正告警文案中内联 `<code>` 前后的空白拼接，避免出现 `metadata.LIVE_INPUT_ADMIN_EMAILS` / 环境变量名称粘连显示。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次 telemetry 看板修复项）。
+
 ## 2026-03-29 - UX: 记录页日期圆点支持无限左滑查看历史
 
 ### Changed

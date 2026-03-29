@@ -103,8 +103,8 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
   const visibleCropTop = Math.max(0, Math.min(cropTopPx, displayH - boxH));
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-end justify-center sm:items-center"
-         style={{ paddingBottom: 'env(safe-area-inset-bottom,0px)' }}>
+    <div className="fixed inset-0 bg-black/80 flex items-end justify-center sm:items-center"
+         style={{ zIndex: 320, paddingBottom: 'env(safe-area-inset-bottom,0px)' }}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl overflow-hidden w-full"
            style={{ maxWidth: Math.min(displayW + 32, window.innerWidth) }}>
         {/* Header — always visible */}

@@ -224,7 +224,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
           {!likelyAdmin ? (
             <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-700">
               Current client metadata does not look like an admin account. If this page returns 403 in production,
-              add your email to <code>LIVE_INPUT_ADMIN_EMAILS</code> or set an admin role in Supabase Auth metadata.
+              {' '}add your email to <code>LIVE_INPUT_ADMIN_EMAILS</code> or set an admin role in Supabase Auth metadata.
             </p>
           ) : null}
         </div>
@@ -239,8 +239,8 @@ export const LiveInputTelemetryPage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6">
             <p className="text-sm font-medium text-red-600">{error}</p>
             <p className="mt-2 text-sm text-gray-500">
-              This page needs the new Supabase table plus server env vars like <code>SUPABASE_SERVICE_ROLE_KEY</code>
-              and <code>LIVE_INPUT_ADMIN_EMAILS</code>.
+              This page needs the new Supabase table plus server env vars like{' '}
+              <code>SUPABASE_SERVICE_ROLE_KEY</code> and <code>LIVE_INPUT_ADMIN_EMAILS</code>.
             </p>
           </div>
         ) : null}

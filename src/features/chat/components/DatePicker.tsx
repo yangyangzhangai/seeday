@@ -13,10 +13,7 @@ export interface DatePickerProps {
 }
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function shiftDate(base: Date, days: number) {
   const d = new Date(base);
@@ -36,7 +33,6 @@ function listDates(startDate: Date, endDate: Date) {
   }
   return dates;
 }
-
 const SAGE_GREEN_DEEP = '#5F7A63';
 const blueGlowBg = 'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%)';
 const blueGlowBorder = '1px solid rgba(255,255,255,0.72)';
@@ -66,6 +62,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const fileRef = useRef<HTMLInputElement | null>(null);
   const stripRef = useRef<HTMLDivElement | null>(null);
   const prependPendingRef = useRef<number | null>(null);
+  const hasInitialCenteredRef = useRef(false);
 
   const stripEnd = useMemo(() => shiftDate(today, DATE_FUTURE_DAYS), [todayStr]);
   const stripDates = useMemo(() => listDates(stripStart, stripEnd), [stripStart, stripEnd]);
@@ -79,9 +76,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
       setStripStart(shiftDate(selectedStart, -DATE_PAST_PRELOAD_DAYS));
       return;
     }
-    const target = stripRef.current?.querySelector(`[data-date="${selectedStr}"]`) as HTMLElement | null;
-    target?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  }, [selectedDate, selectedStr, stripStart]);
+    const strip = stripRef.current;
+    const target = strip?.querySelector(`[data-date="${selectedStr}"]`) as HTMLElement | null;
+    if (!strip || !target) return;
+    const stripRect = strip.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const nextLeft = strip.scrollLeft + targetRect.left - stripRect.left - (strip.clientWidth - targetRect.width) / 2;
+    strip.scrollTo({ left: Math.max(0, nextLeft), behavior: hasInitialCenteredRef.current ? 'smooth' : 'auto' });
+    hasInitialCenteredRef.current = true;
+  }, [selectedDate, selectedStr, stripStart, stripDates.length]);
 
   useEffect(() => {
     if (prependPendingRef.current === null || !stripRef.current) return;

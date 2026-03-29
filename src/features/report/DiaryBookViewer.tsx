@@ -163,12 +163,6 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           )}
         </div>
 
-        {/* Task stats */}
-        {report?.stats && (
-          <div style={{ marginTop: 'auto', fontSize: px(5.5), color: '#aaa', flexShrink: 0 }}>
-            ✓ {report.stats.completedTodos}/{report.stats.totalTodos}
-          </div>
-        )}
         {/* Page number */}
         <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
           {dayNum != null ? 2 * dayNum - 1 : ''}
@@ -341,13 +335,6 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
                 </p>
               )}
             </div>
-
-            {report?.stats && (
-              <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8a7a6a' }}>
-                任务完成率：{report.stats.completedTodos}/{report.stats.totalTodos}
-                {report.stats.completionRate !== undefined && `（${Math.round(report.stats.completionRate * 100)}%）`}
-              </div>
-            )}
 
             {!report && (
               <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 14, padding: '24px 0' }}>

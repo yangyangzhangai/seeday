@@ -48,6 +48,7 @@ Status: 主链路可用，剩余增强项待推进。
 
 ## 近期完成（保留 2 条）
 
+- [x] 修复 Live Input Telemetry 看板兼容性：`telemetry_events` / `plant_asset_events` 缺表（`PGRST205`）不再导致整页报错，并修正环境变量提示文案的内联间距
 - [x] 日记贴纸埋点主链路完成：`diary_sticker_deleted` / `diary_sticker_reordered` 已接入 telemetry 与看板聚合（`restored` 类型已预留）
 - [x] AI 建议模式 P7 自动化部分完成：新增测试 + 回环通过
 - [x] 记录页日期圆点交互增强：顶部日期条改为可持续左滑并按需扩展历史日期，且滑动停止后自动吸附到最近日期圆点，便于回看历史消息

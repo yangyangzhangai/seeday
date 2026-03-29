@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useRef, useState, useEffect, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
 import { useImageUpload } from '../../../hooks/useImageUpload';
 import { ImageCropModal } from './ImageCropModal';
@@ -32,6 +33,16 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
   const [cropFile, setCropFile]       = useState<File | null>(null);
   const [imageTapped, setImageTapped] = useState(false);
   const [lightbox, setLightbox]       = useState(false);
+  const [isClient, setIsClient]       = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const inBodyPortal = (node: React.ReactNode) => {
+    if (!isClient) return null;
+    return createPortal(node, document.body);
+  };
 
   // Dismiss image overlay on tap outside
   useEffect(() => {
@@ -132,10 +143,10 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
         </div>
 
         {/* Lightbox: full-screen image view */}
-        {lightbox && (
+        {lightbox && inBodyPortal(
           <div
-            className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50"
-            style={{ paddingTop: 'env(safe-area-inset-top,0px)', paddingBottom: 'env(safe-area-inset-bottom,0px)', paddingLeft: 'env(safe-area-inset-left,0px)', paddingRight: 'env(safe-area-inset-right,0px)' }}
+            className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center"
+            style={{ zIndex: 320, paddingTop: 'env(safe-area-inset-top,0px)', paddingBottom: 'env(safe-area-inset-bottom,0px)', paddingLeft: 'env(safe-area-inset-left,0px)', paddingRight: 'env(safe-area-inset-right,0px)' }}
             onClick={() => setLightbox(false)}
           >
             <img
@@ -150,16 +161,16 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
             >
               <X size={20} />
             </button>
-          </div>
+          </div>,
         )}
 
         {/* Crop modal — only for new uploads */}
-        {cropFile && (
+        {cropFile && inBodyPortal(
           <ImageCropModal
             file={cropFile}
             onConfirm={handleCropConfirm}
             onCancel={() => setCropFile(null)}
-          />
+          />,
         )}
       </>
     );
@@ -168,12 +179,12 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
   if (hideUploadWhen || hideUploadButton) return (
     <>
       {fileInput}
-      {cropFile && (
+      {cropFile && inBodyPortal(
         <ImageCropModal
           file={cropFile}
           onConfirm={handleCropConfirm}
           onCancel={() => setCropFile(null)}
-        />
+        />,
       )}
     </>
   );
@@ -206,12 +217,12 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
         )}
       </div>
 
-      {cropFile && (
+      {cropFile && inBodyPortal(
         <ImageCropModal
           file={cropFile}
           onConfirm={handleCropConfirm}
           onCancel={() => setCropFile(null)}
-        />
+        />,
       )}
     </>
   );

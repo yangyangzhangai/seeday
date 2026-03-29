@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { format, startOfMonth, subMonths, isSameMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { X, CalendarDays } from 'lucide-react';
@@ -194,6 +194,9 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const [showCalendar, setShowCalendar] = useState(false);
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  const toDateKey = useCallback((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, []);
+  const diaryDateSet = useMemo(() => new Set(reports.filter(report => report.type === 'daily').map(report => toDateKey(new Date(report.date)))), [reports, toDateKey]);
+
   const getBookName = (m: Date) => bookNames[m.getTime()] ?? '日记本';
   const setBookName = (m: Date, name: string) =>
     setBookNames(prev => ({ ...prev, [m.getTime()]: name }));
@@ -324,13 +327,19 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                 <X size={18} />
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="diary-shelf-calendar" style={{ display: 'flex', justifyContent: 'center' }}>
               <Calendar
                 locale={i18n.language}
                 className="w-full border-none text-xs"
                 showNeighboringMonth={false}
                 maxDate={new Date()}
                 formatDay={(_, d) => String(d.getDate())}
+                tileClassName={({ date, view }) => {
+                  if (view !== 'month') return null;
+                  return diaryDateSet.has(toDateKey(date))
+                    ? 'diary-shelf-calendar__tile--has-data'
+                    : 'diary-shelf-calendar__tile--no-data';
+                }}
                 onClickDay={(value) => {
                   setShowCalendar(false);
                   onOpenDiaryPage?.(value, 0, 0);

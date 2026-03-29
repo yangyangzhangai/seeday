@@ -99,7 +99,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const allowReclassify = msg.id === latestRecordMessageId;
           const cardReadonly = !isToday(selectedDate);
           const timeLabel = format(msg.timestamp, 'HH:mm');
-          const isLast = index === items.length - 1;
+          const hasImages = Boolean(msg.imageUrl || msg.imageUrl2);
+          const rowGap = hasImages ? 22 : 14;
 
           const leafSize = 18;
           const leafMirrored = index % 2 === 0;
@@ -110,7 +111,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const leafDropY = 2;
 
           return (
-            <div key={msg.id} style={{ display: 'flex', gap: 10, marginBottom: 14, position: 'relative', zIndex: 1 }}>
+            <div key={msg.id} style={{ display: 'flex', gap: 10, marginBottom: rowGap, position: 'relative', zIndex: 1 }}>
               {/* Timeline leaf node */}
               <img
                 src={imgTimelineLeaf}
