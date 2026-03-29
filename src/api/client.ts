@@ -196,7 +196,12 @@ interface AnnotationRequest {
     recentMoodMessages?: string[]; // 连续心情原文（最多3条）
     moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>; // 连续心情对话历史（含AI回复）
     todayActivitiesList?: any[];
-    pendingTodos?: Array<{ id: string; title: string; category?: string }>; // 未完成待办（建议模式用）
+    pendingTodos?: Array<{ id: string; title: string; category?: string; dueAt?: number }>; // 未完成待办（建议模式用）
+    statusSummary?: string;
+    contextHints?: string[];
+    frequentActivities?: string[];
+    allowSuggestion?: boolean;
+    consecutiveTextCount?: number;
   };
   lang?: 'zh' | 'en' | 'it';
   aiMode?: AiCompanionMode;

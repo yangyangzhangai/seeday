@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Check, Play } from 'lucide-react';
@@ -13,6 +13,53 @@ import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏
   onCondense?: (emojiChar?: string) => void; // 凝结按钮点击回调，传递emoji用于动画
+}
+
+interface SuggestionAcceptFlowParams {
+  annotationId: string;
+  suggestion: NonNullable<ReturnType<typeof useAnnotationStore.getState>['currentAnnotation']>['suggestion'];
+  isSuggestionAccepted: boolean;
+  navigate: (path: string) => void;
+  recordSuggestionOutcome: (annotationId: string, accepted: boolean) => Promise<void>;
+  handleCondense: () => Promise<void>;
+  markSuggestionAccepted: () => void;
+  emitEvent?: (event: Event) => boolean;
+  schedule?: (callback: () => void, delay: number) => number;
+}
+
+export async function runSuggestionAcceptFlow({
+  annotationId,
+  suggestion,
+  isSuggestionAccepted,
+  navigate,
+  recordSuggestionOutcome,
+  handleCondense,
+  markSuggestionAccepted,
+  emitEvent = (event) => window.dispatchEvent(event),
+  schedule = (callback, delay) => window.setTimeout(callback, delay),
+}: SuggestionAcceptFlowParams): Promise<boolean> {
+  if (!suggestion || isSuggestionAccepted) return false;
+
+  if (suggestion.type === 'activity' && suggestion.activityName) {
+    emitEvent(new CustomEvent('suggestion-accept-activity', {
+      detail: { activityName: suggestion.activityName },
+    }));
+    markSuggestionAccepted();
+  } else if (suggestion.type === 'todo' && suggestion.todoId) {
+    navigate('/growth');
+    schedule(() => {
+      emitEvent(new CustomEvent('suggestion-highlight-todo', {
+        detail: { todoId: suggestion.todoId },
+      }));
+    }, 300);
+    markSuggestionAccepted();
+  } else {
+    return false;
+  }
+
+  await recordSuggestionOutcome(annotationId, true);
+  await handleCondense();
+  return true;
 }
 
 /**
@@ -30,7 +77,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   relatedMessage,
   onCondense,
 }) => {
-  const { currentAnnotation, dismissAnnotation } = useAnnotationStore();
+  const { currentAnnotation, dismissAnnotation, recordSuggestionOutcome } = useAnnotationStore();
   const { hasStardust, createStardust, isGenerating } = useStardustStore();
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const navigate = useNavigate();
@@ -39,17 +86,49 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   const [progress, setProgress] = useState(100);
   const [isCondensed, setIsCondensed] = useState(false);
   const [isSuggestionAccepted, setIsSuggestionAccepted] = useState(false);
+  const lastAnnotationIdRef = useRef<string | null>(null);
+  const [supportsHover, setSupportsHover] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  });
   const currentModeVisual = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)];
   const suggestion = currentAnnotation?.suggestion;
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const syncHoverCapability = (event?: MediaQueryListEvent) => {
+      const nextSupportsHover = event?.matches ?? mediaQuery.matches;
+      setSupportsHover(nextSupportsHover);
+      if (!nextSupportsHover) {
+        setIsHovered(false);
+      }
+    };
+
+    syncHoverCapability();
+    mediaQuery.addEventListener('change', syncHoverCapability);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncHoverCapability);
+    };
+  }, []);
 
   // 当批注变化时，重置进度
   useEffect(() => {
     if (currentAnnotation) {
       setProgress(100);
       setIsCondensed(false);
-      setIsSuggestionAccepted(false);
+      setIsSuggestionAccepted(currentAnnotation.suggestionAccepted === true);
+      lastAnnotationIdRef.current = null;
     } else {
       setProgress(100);
+      setIsHovered(false);
+      lastAnnotationIdRef.current = null;
     }
   }, [currentAnnotation?.id]);
 
@@ -62,28 +141,39 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
   // 处理进度倒计时
   useEffect(() => {
-    if (!currentAnnotation || isHovered) return;
+    if (!currentAnnotation || (supportsHover && isHovered)) return;
 
     const displayDuration = currentAnnotation.displayDuration || 8000;
-    const interval = 50; // 更新频率 50ms
-    const decrement = (100 / displayDuration) * interval;
+    const isNewAnnotation = lastAnnotationIdRef.current !== currentAnnotation.id;
+    const startProgress = isNewAnnotation ? 100 : progress;
+    const remainingDuration = Math.max(0, (startProgress / 100) * displayDuration);
+    const endTime = Date.now() + remainingDuration;
+    lastAnnotationIdRef.current = currentAnnotation.id;
 
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        const newProgress = prev - decrement;
-        return newProgress <= 0 ? 0 : newProgress;
-      });
-    }, interval);
+    const updateProgress = () => {
+      const remaining = Math.max(0, endTime - Date.now());
+      setProgress((remaining / displayDuration) * 100);
+    };
+
+    updateProgress();
+    const timer = window.setInterval(updateProgress, 100);
 
     return () => clearInterval(timer);
-  }, [currentAnnotation, isHovered]);
+  }, [currentAnnotation?.id, isHovered, supportsHover]);
 
   // 当进度为 0 时关闭批注（避免在渲染过程中调用 setState）
+  const handleDismiss = useCallback(() => {
+    if (currentAnnotation?.suggestion && !isSuggestionAccepted) {
+      void recordSuggestionOutcome(currentAnnotation.id, false);
+    }
+    dismissAnnotation();
+  }, [currentAnnotation, dismissAnnotation, isSuggestionAccepted, recordSuggestionOutcome]);
+
   useEffect(() => {
     if (progress <= 0 && currentAnnotation) {
-      dismissAnnotation();
+      handleDismiss();
     }
-  }, [progress, currentAnnotation, dismissAnnotation]);
+  }, [progress, currentAnnotation, handleDismiss]);
 
   // 从批注内容中提取 emoji（覆盖组合 emoji / 旗帜 / keycap）
   const extractEmojiFromContent = (content: string): string | undefined => {
@@ -115,28 +205,17 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   };
 
   // 处理建议按钮点击
-  const handleSuggestionAccept = () => {
-    if (!currentAnnotation?.suggestion || isSuggestionAccepted) return;
-
-    const { type, activityName, todoId } = currentAnnotation.suggestion;
-
-    if (type === 'activity' && activityName) {
-      // 派发事件让 ChatPage 录入活动
-      window.dispatchEvent(new CustomEvent('suggestion-accept-activity', {
-        detail: { activityName },
-      }));
-      setIsSuggestionAccepted(true);
-    } else if (type === 'todo' && todoId) {
-      // 导航到 growth 页面并高亮待办
-      navigate('/growth');
-      // 延迟派发以等待页面切换完成
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('suggestion-highlight-todo', {
-          detail: { todoId },
-        }));
-      }, 300);
-      setIsSuggestionAccepted(true);
-    }
+  const handleSuggestionAccept = async () => {
+    if (!currentAnnotation?.suggestion) return;
+    await runSuggestionAcceptFlow({
+      annotationId: currentAnnotation.id,
+      suggestion: currentAnnotation.suggestion,
+      isSuggestionAccepted,
+      navigate,
+      recordSuggestionOutcome,
+      handleCondense,
+      markSuggestionAccepted: () => setIsSuggestionAccepted(true),
+    });
   };
 
   // 如果没有批注，不渲染
@@ -159,8 +238,8 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           right: 'max(12px, calc((100vw - 960px) / 2 + 12px))',
           width: 'min(20rem, calc(100vw - 24px))',
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => supportsHover && setIsHovered(true)}
+        onMouseLeave={() => supportsHover && setIsHovered(false)}
       >
         {/* 毛玻璃气泡 */}
         <div
@@ -171,7 +250,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
         >
           {/* 关闭按钮 */}
           <button
-            onClick={dismissAnnotation}
+            onClick={handleDismiss}
             className="absolute right-2 top-2 h-6 w-6 rounded-full bg-gray-100 text-gray-500 shadow-sm transition-colors hover:bg-gray-200 flex items-center justify-center"
           >
             <X size={14} />
@@ -201,7 +280,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              onClick={handleSuggestionAccept}
+               onClick={() => { void handleSuggestionAccept(); }}
               className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
                          bg-gradient-to-r from-green-500 to-emerald-500
                          hover:from-green-600 hover:to-emerald-600
@@ -282,7 +361,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           </div>
 
           {/* 悬停提示 */}
-          {isHovered && (
+          {supportsHover && isHovered && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}

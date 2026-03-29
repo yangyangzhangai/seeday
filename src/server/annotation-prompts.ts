@@ -237,6 +237,107 @@ export function buildSuggestionUserPrompt(
   ].filter(Boolean).join('\n\n');
 }
 
+interface SuggestionAwarePromptInput {
+  lang: string;
+  eventType: string;
+  eventSummary: string;
+  todayActivitiesText: string;
+  recentMoodText: string;
+  statusSummary?: string;
+  contextHints?: string[];
+  frequentActivities?: string[];
+  pendingTodos?: Array<{ id: string; title: string; category?: string; dueAt?: number }>;
+  currentHour?: number;
+  currentMinute?: number;
+  consecutiveTextCount?: number;
+}
+
+export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
+  const {
+    lang,
+    eventType,
+    eventSummary,
+    todayActivitiesText,
+    recentMoodText,
+    statusSummary,
+    contextHints = [],
+    frequentActivities = [],
+    pendingTodos = [],
+    currentHour,
+    currentMinute,
+    consecutiveTextCount = 0,
+  } = input;
+
+  const hourText = currentHour !== undefined
+    ? `${String(currentHour).padStart(2, '0')}:${String(currentMinute ?? 0).padStart(2, '0')}`
+    : null;
+
+  const hintsText = contextHints.length > 0
+    ? contextHints.map((hint, index) => `${index + 1}. ${hint}`).join('\n')
+    : 'none';
+
+  const freqText = frequentActivities.length > 0 ? frequentActivities.join(', ') : 'none';
+  const todoListText = pendingTodos
+    .slice(0, 6)
+    .map((todo, index) => `${index + 1}. [${todo.id}] ${todo.title}${todo.category ? ` (${todo.category})` : ''}`)
+    .join('\n') || 'none';
+
+  if (lang === 'en') {
+    return [
+      hourText ? `Current time: ${hourText}` : null,
+      `Today's timeline: ${todayActivitiesText}`,
+      `Recent mood: ${recentMoodText}`,
+      `Just happened: [${eventType}] ${eventSummary}`,
+      `Status summary:\n${statusSummary || 'none'}`,
+      `Context hints:\n${hintsText}`,
+      `Frequent activities: ${freqText}`,
+      `Pending todos:\n${todoListText}`,
+      `Consecutive text-only outputs: ${consecutiveTextCount}`,
+      'Decide naturally between plain annotation and actionable suggestion.',
+      'If plain annotation is better, output plain text only, end with exactly one emoji.',
+      'If suggestion is better, output ONLY JSON with this shape:',
+      '{"mode":"suggestion","content":"<one sentence with one emoji>","suggestion":{"type":"activity|todo","actionLabel":"<button>","activityName":"<optional>","todoId":"<optional>","todoTitle":"<optional>"}}',
+      'For todo suggestion, todoId must come from Pending todos list. Keep content concise and caring.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  if (lang === 'it') {
+    return [
+      hourText ? `Ora corrente: ${hourText}` : null,
+      `Timeline di oggi: ${todayActivitiesText}`,
+      `Umore recente: ${recentMoodText}`,
+      `Appena successo: [${eventType}] ${eventSummary}`,
+      `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
+      `Suggerimenti di contesto:\n${hintsText}`,
+      `Attivita frequenti: ${freqText}`,
+      `Todo in sospeso:\n${todoListText}`,
+      `Numero annotazioni testuali consecutive: ${consecutiveTextCount}`,
+      'Scegli in modo naturale tra annotazione normale e suggerimento operativo.',
+      'Se e meglio una normale annotazione, stampa solo testo con una sola emoji finale.',
+      'Se e meglio un suggerimento, stampa SOLO JSON con questa forma:',
+      '{"mode":"suggestion","content":"<frase breve con una emoji>","suggestion":{"type":"activity|todo","actionLabel":"<pulsante>","activityName":"<opzionale>","todoId":"<opzionale>","todoTitle":"<opzionale>"}}',
+      'Per i todo, todoId deve essere preso dalla lista Pending todos.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  return [
+    hourText ? `当前时间：${hourText}` : null,
+    `今日时间线：${todayActivitiesText}`,
+    `最近心情：${recentMoodText}`,
+    `刚刚发生：[${eventType}] ${eventSummary}`,
+    `状态摘要：\n${statusSummary || '无'}`,
+    `情境提示：\n${hintsText}`,
+    `常做活动：${freqText}`,
+    `待办列表：\n${todoListText}`,
+    `连续纯文字批注次数：${consecutiveTextCount}`,
+    '请自然判断输出普通批注，还是给一个具体可执行的建议。',
+    '如果输出普通批注：只输出一句话，句末且仅一个 emoji。',
+    '如果输出建议：只输出 JSON，格式如下：',
+    '{"mode":"suggestion","content":"<一句话+1个emoji>","suggestion":{"type":"activity|todo","actionLabel":"<按钮文案>","activityName":"<可选>","todoId":"<可选>","todoTitle":"<可选>"}}',
+    'todo 建议时，todoId 必须来自待办列表。内容要温暖、简短、具体。',
+  ].filter(Boolean).join('\n\n');
+}
+
 export function buildUserPrompt(
   lang: string,
   eventType: string,

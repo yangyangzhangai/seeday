@@ -5,7 +5,7 @@ import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
 import { normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
 import {
-  buildSuggestionUserPrompt,
+  buildSuggestionAwareUserPrompt,
   buildTodayActivitiesText,
   buildUserPrompt,
   getDefaultAnnotations,
@@ -182,6 +182,80 @@ function extractRecentEmojisFromAnnotations(list: string[]): string[] {
   return out.slice(-5);
 }
 
+function extractSuggestionPayload(raw: string): {
+  content: string;
+  suggestion?: Record<string, unknown>;
+} | null {
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(match[0]);
+
+    if (parsed && parsed.mode === 'suggestion' && parsed.suggestion) {
+      const content = String(parsed.content || '').trim();
+      if (!content) return null;
+      return {
+        content,
+        suggestion: parsed.suggestion,
+      };
+    }
+
+    if (parsed && (parsed.type === 'todo' || parsed.type === 'activity')) {
+      const content = String(parsed.message || parsed.content || '').trim();
+      if (!content) return null;
+      return {
+        content,
+        suggestion: {
+          type: parsed.type,
+          actionLabel: parsed.actionLabel,
+          activityName: parsed.activityName,
+          todoId: parsed.todoId,
+          todoTitle: parsed.todoTitle,
+        },
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function normalizeSuggestion(
+  lang: AnnotationLang,
+  suggestion: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!suggestion) return undefined;
+
+  const suggestionType = suggestion.type === 'todo' ? 'todo' : 'activity';
+  const normalized: Record<string, unknown> = {
+    type: suggestionType,
+    actionLabel: String(suggestion.actionLabel || '').trim(),
+  };
+
+  if (suggestionType === 'todo' && suggestion.todoId) {
+    normalized.todoId = String(suggestion.todoId);
+    normalized.todoTitle = String(suggestion.todoTitle || '').trim();
+  } else {
+    normalized.type = 'activity';
+    normalized.activityName = String(suggestion.activityName || '').trim();
+  }
+
+  if (!normalized.actionLabel) {
+    const title = String(normalized.todoTitle || normalized.activityName || '').trim();
+    if (lang === 'zh') {
+      normalized.actionLabel = title ? `去${title}` : '去行动';
+    } else if (lang === 'it') {
+      normalized.actionLabel = title ? `Vai ${title}` : 'Vai ora';
+    } else {
+      normalized.actionLabel = title ? `Go ${title}` : 'Take action';
+    }
+  }
+
+  return normalized;
+}
+
 // ==================== 主 Handler ====================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -221,8 +295,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // ==================== 建议模式（overwork_detected） ====================
-  const isSuggestionMode = eventType === 'overwork_detected';
+  // ==================== 建议模式（客户端门控透传） ====================
+  const isSuggestionMode = userContext?.allowSuggestion === true;
 
   if (isSuggestionMode) {
     try {
@@ -232,18 +306,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
       const currentHour = userContext?.currentHour;
       const currentMinute = userContext?.currentMinute;
+      const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
+        .replace(/\s+/g, ' ')
+        .trim();
+      const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
-      const suggestionPrompt = buildSuggestionUserPrompt(
-        resolvedLang,
+      const suggestionPrompt = buildSuggestionAwareUserPrompt({
+        lang: resolvedLang,
+        eventType,
+        eventSummary,
         todayActivitiesText,
+        recentMoodText,
+        statusSummary: userContext?.statusSummary,
+        contextHints: userContext?.contextHints,
+        frequentActivities: userContext?.frequentActivities,
         pendingTodos,
         currentHour,
         currentMinute,
-      );
+        consecutiveTextCount: userContext?.consecutiveTextCount,
+      });
       const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
       const model = getModel(resolvedLang);
-
-      console.log('[Annotation API] Suggestion mode prompt:', suggestionPrompt);
 
       openai.apiKey = apiKey;
       const llmResponse = await openai.responses.create({
@@ -254,59 +337,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         max_output_tokens: 300,
       });
 
-      let raw = removeThinkingTags(llmResponse.output_text || '').trim();
-      // 提取 JSON（可能被 markdown code fence 包裹）
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const message = String(parsed.message || '').trim();
-          const suggestionType = parsed.type === 'todo' ? 'todo' : 'activity';
+      const raw = removeThinkingTags(llmResponse.output_text || '').trim();
+      const parsedPayload = extractSuggestionPayload(raw);
 
-          if (!message) throw new Error('empty message');
+      if (parsedPayload) {
+        const finalContent = ensureEmoji(parsedPayload.content, '🌿');
+        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion);
 
-          const suggestion: Record<string, unknown> = {
-            type: suggestionType,
-            actionLabel: String(parsed.actionLabel || '').trim(),
-          };
-
-          if (suggestionType === 'todo' && parsed.todoId) {
-            suggestion.todoId = String(parsed.todoId);
-            suggestion.todoTitle = String(parsed.todoTitle || '').trim();
-          } else {
-            suggestion.type = 'activity';
-            suggestion.activityName = String(parsed.activityName || '').trim();
-          }
-
-          // 确保 actionLabel 不为空
-          if (!suggestion.actionLabel) {
-            suggestion.actionLabel = suggestionType === 'todo'
-              ? (resolvedLang === 'zh' ? `去${suggestion.todoTitle}` : `Go ${suggestion.todoTitle}`)
-              : (resolvedLang === 'zh' ? `去${suggestion.activityName}` : `Go ${suggestion.activityName}`);
-          }
-
-          const finalContent = ensureEmoji(message, '🌿');
-
-          res.status(200).json({
-            content: finalContent,
-            tone: 'concerned',
-            displayDuration: 15000,
-            source: 'ai',
-            debugAiMode: resolvedAiMode || 'fallback',
-            suggestion,
-          });
-          return;
-        } catch (parseErr) {
-          console.warn('[Annotation API] Suggestion JSON parse failed:', parseErr);
-        }
+        res.status(200).json({
+          content: finalContent,
+          tone: 'concerned',
+          displayDuration: normalizedSuggestion ? 15000 : 8000,
+          source: 'ai',
+          debugAiMode: resolvedAiMode || 'fallback',
+          suggestion: normalizedSuggestion,
+        });
+        return;
       }
 
-      // JSON 解析失败，回退到普通批注
-      console.warn('[Annotation API] Suggestion mode fallback to default annotation');
+      const extractedText = extractComment(raw, resolvedLang);
+      if (extractedText) {
+        const finalContent = ensureEmoji(extractedText, '🌿');
+        res.status(200).json({
+          content: finalContent,
+          tone: 'concerned',
+          displayDuration: 8000,
+          source: 'ai',
+          debugAiMode: resolvedAiMode || 'fallback',
+        });
+        return;
+      }
     } catch (suggestionErr) {
       console.error('[Annotation API] Suggestion mode error:', suggestionErr);
     }
-    // 回退：走下面的普通批注流程
+    // suggestion 失败时回退普通批注
   }
 
   try {

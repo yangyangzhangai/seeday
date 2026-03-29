@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, isSameDay } from 'date-fns';
-import { Sparkles, ChevronLeft, ChevronRight, PenLine, Bookmark } from 'lucide-react';
-import type { Report } from '../../store/useReportStore';
+import { Sparkles, ChevronLeft, ChevronRight, PenLine, X, GripVertical } from 'lucide-react';
+import type { Report, StickerItem } from '../../store/useReportStore';
 import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
@@ -17,6 +17,7 @@ import { callShortInsightAPI } from '../../api/client';
 import { PlantCardModal } from './PlantCardModal';
 import { PlantImage } from './plant/PlantImage';
 import { UpgradeModal } from './UpgradeModal';
+import { reportTelemetryEvent } from '../../services/input/reportTelemetryEvent';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -40,35 +41,73 @@ function buildMoodSummary(dist: MoodDistributionItem[]): string {
   return dist.map(d => `${d.mood}${Math.round(d.minutes)}min`).join('、');
 }
 
-/* ── Collapsible section wrapper with bookmark toggle ── */
-function CollapsibleSection({
+/* ── Default sticker layout ── */
+function getDefaultStickers(): StickerItem[] {
+  return [
+    { id: 'activity', visible: true, x: 0, y: 0 },
+    { id: 'mood', visible: true, x: 0, y: 0 },
+  ];
+}
+
+/* ── Sticker wrapper — draggable card with X delete ── */
+function StickerWrapper({
   title,
   children,
-  defaultOpen = true,
-  collapseLabel,
-  expandLabel,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+  translateY,
+  isDragging,
 }: {
   title: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
-  collapseLabel: string;
-  expandLabel: string;
+  onDelete: () => void;
+  onDragStart: (e: React.PointerEvent) => void;
+  onDragEnd: () => void;
+  translateY: number;
+  isDragging: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-sm" style={{ color: '#4a3a2a' }}>{title}</h3>
-        <button
-          onClick={() => setOpen(o => !o)}
-          className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full active:opacity-60 transition"
-          style={{ background: 'rgba(107,90,62,0.08)', color: '#8a7a6a', border: '1px solid rgba(107,90,62,0.15)' }}
-        >
-          <Bookmark size={11} />
-          <span>{open ? collapseLabel : expandLabel}</span>
-        </button>
+    <div
+      style={{
+        transform: `translateY(${translateY}px)`,
+        transition: isDragging ? 'none' : 'transform 0.2s ease',
+        zIndex: isDragging ? 10 : 1,
+        position: 'relative',
+      }}
+    >
+      <div
+        className="rounded-lg p-3"
+        style={{
+          background: '#faf7f2',
+          border: isDragging ? '2px solid rgba(107,90,62,0.35)' : '1px solid rgba(107,90,62,0.12)',
+          boxShadow: isDragging ? '0 4px 16px rgba(0,0,0,0.12)' : 'none',
+        }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold text-sm" style={{ color: '#4a3a2a' }}>{title}</h3>
+          <div className="flex items-center gap-1">
+            {/* Drag handle */}
+            <div
+              onPointerDown={onDragStart}
+              onPointerUp={onDragEnd}
+              className="flex items-center justify-center w-7 h-7 rounded-full cursor-grab active:cursor-grabbing"
+              style={{ color: '#8a7a6a', touchAction: 'none' }}
+            >
+              <GripVertical size={14} />
+            </div>
+            {/* Delete button */}
+            <button
+              onClick={onDelete}
+              className="flex items-center justify-center w-7 h-7 rounded-full active:opacity-60 transition"
+              style={{ background: 'rgba(180,60,60,0.08)', color: '#8a3a3a' }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+        {children}
       </div>
-      {open && children}
     </div>
   );
 }
@@ -101,6 +140,15 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [moodInsight, setMoodInsight] = useState('');
   const [showPlantCard, setShowPlantCard] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [stickers, setStickers] = useState<StickerItem[]>(() =>
+    selectedReport?.stickerLayout ?? getDefaultStickers()
+  );
+  const [dragState, setDragState] = useState<{
+    stickerId: string;
+    startY: number;
+    currentOffset: number;
+  } | null>(null);
+  const stickerContainerRef = useRef<HTMLDivElement | null>(null);
 
   const reportMessages = getMessagesForReport(chatMessages, dateCache, selectedReport);
   const activityDistribution = selectedReport
@@ -131,6 +179,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   useEffect(() => {
     setNoteValue(selectedReport?.userNote ?? '');
+    setStickers(selectedReport?.stickerLayout ?? getDefaultStickers());
     const page = initialPage ?? 0;
     setActivePage(page);
     requestAnimationFrame(() => {
@@ -183,6 +232,64 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     updateReport(selectedReport.id, { userNote: noteValue });
   }, [selectedReport, noteValue, updateReport]);
 
+  const saveStickers = useCallback((updated: StickerItem[]) => {
+    setStickers(updated);
+    if (selectedReport) {
+      updateReport(selectedReport.id, { stickerLayout: updated });
+    }
+  }, [selectedReport, updateReport]);
+
+  const handleDeleteSticker = useCallback((stickerId: string) => {
+    const updated = stickers.map(s =>
+      s.id === stickerId ? { ...s, visible: false } : s
+    );
+    saveStickers(updated);
+    if (!selectedReport) return;
+    void reportTelemetryEvent('diary_sticker_deleted', {
+      stickerId,
+      reportId: selectedReport.id,
+      date: format(selectedReport.date, 'yyyy-MM-dd'),
+      source: 'report_detail_modal',
+    });
+  }, [stickers, saveStickers, selectedReport]);
+
+  const handleDragStart = useCallback((stickerId: string, e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDragState({ stickerId, startY: e.clientY, currentOffset: 0 });
+  }, []);
+
+  const handleDragMove = useCallback((e: React.PointerEvent) => {
+    if (!dragState) return;
+    setDragState(prev => prev ? { ...prev, currentOffset: e.clientY - prev.startY } : null);
+  }, [dragState]);
+
+  const handleDragEnd = useCallback(() => {
+    if (!dragState) return;
+    const visibleStickers = stickers.filter(s => s.visible);
+    if (visibleStickers.length === 2 && Math.abs(dragState.currentOffset) > 40) {
+      const swapped = stickers.map(s => {
+        if (s.id === visibleStickers[0].id) return { ...s, y: visibleStickers[1].y };
+        if (s.id === visibleStickers[1].id) return { ...s, y: visibleStickers[0].y };
+        return s;
+      });
+      const reordered = [
+        swapped.find(s => s.id === visibleStickers[1].id)!,
+        swapped.find(s => s.id === visibleStickers[0].id)!,
+        ...swapped.filter(s => !visibleStickers.some(v => v.id === s.id)),
+      ];
+      saveStickers(reordered);
+      if (selectedReport) {
+        void reportTelemetryEvent('diary_sticker_reordered', {
+          newOrder: reordered.filter(s => s.visible).map(s => s.id),
+          reportId: selectedReport.id,
+          date: format(selectedReport.date, 'yyyy-MM-dd'),
+          source: 'report_detail_modal',
+        });
+      }
+    }
+    setDragState(null);
+  }, [dragState, stickers, saveStickers, selectedReport]);
+
   const getReportDisplayTitle = (report: Report): string => {
     if (report.type === 'daily') return format(report.date, currentLang === 'zh' ? 'yyyy年MM月dd日' : 'MMMM d, yyyy');
     if (report.type === 'weekly') {
@@ -201,8 +308,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   if (!selectedReport) return null;
 
-  const collapseLabel = t('report_section_collapse');
-  const expandLabel = t('report_section_expand');
+  const visibleStickers = stickers.filter(s => s.visible);
   const hasDayNav = !!(onNavigatePrev || onNavigateNext);
 
   return (
@@ -297,7 +403,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         }}
         className="[&::-webkit-scrollbar]:hidden"
       >
-        {/* ── Page 1: 日报统计 ── */}
+        {/* ── Page 1: 植物 + AI观察日记 + 待办 ── */}
         <div
           style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff' }}
           className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-5 pb-safe"
@@ -336,58 +442,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             </button>
           )}
 
-          {/* 活动分类 (category donut) — replaces old 活动分布 pie */}
-          {activityDistribution.length > 0 && (
-            <CollapsibleSection title={t('report_activity_category')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
-              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                {selectedReport.stats?.actionAnalysis && selectedReport.stats.actionAnalysis.length > 0 ? (
-                  <ActivityCategoryDonut data={selectedReport.stats.actionAnalysis} />
-                ) : (
-                  <ActivityCategoryDonut data={activityDistribution.map(d => ({ category: d.type, totalMinutes: d.minutes, percentage: 0, subActivities: [] }))} />
-                )}
-                {activityInsight && (
-                  <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{activityInsight}</p>
-                )}
-              </div>
-            </CollapsibleSection>
-          )}
-
-          {/* 心情光谱 */}
-          {moodDistribution.length > 0 && (
-            <CollapsibleSection title={t('report_today_mood_spectrum')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
-              <div className="rounded-lg p-3" style={{ background: '#faf7f2', border: '1px solid rgba(107,90,62,0.12)' }}>
-                <MoodPieChart distribution={moodDistribution} />
-                {moodInsight && (
-                  <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{moodInsight}</p>
-                )}
-              </div>
-            </CollapsibleSection>
-          )}
-
-          {/* 待办事项 */}
-          {selectedReport.stats ? (
-            <CollapsibleSection title={t('report_todo_section')} collapseLabel={collapseLabel} expandLabel={expandLabel}>
-              <ReportStatsView
-                stats={selectedReport.stats}
-                type={selectedReport.type}
-                onShowTasks={onShowTaskList}
-              />
-            </CollapsibleSection>
-          ) : (
-            <div className="text-center py-10 text-sm" style={{ color: '#9a8878' }}>{t('no_data')}</div>
-          )}
-
-          <div className="flex items-center justify-center gap-1 text-xs pt-1 pb-4" style={{ color: 'rgba(107,90,62,0.35)' }}>
-            <span>{t('report_swipe_hint')}</span>
-          </div>
-        </div>
-
-        {/* ── Page 2: AI日记 + 手写日记 ── */}
-        <div
-          style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff' }}
-          className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-5 pb-safe"
-        >
-          {/* AI 观察日记 */}
+          {/* AI 观察日记 — moved here below plant */}
           <div>
             <h3 className="font-bold flex items-center gap-2 mb-2 text-sm" style={{ color: '#333' }}>
               <Sparkles size={15} /> {t('report_observer_analysis')}
@@ -445,6 +500,82 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* 待办事项 */}
+          {selectedReport.stats ? (
+            <div>
+              <h3 className="font-bold text-sm mb-3" style={{ color: '#4a3a2a' }}>{t('report_todo_section')}</h3>
+              <ReportStatsView
+                stats={selectedReport.stats}
+                type={selectedReport.type}
+                onShowTasks={onShowTaskList}
+              />
+            </div>
+          ) : (
+            <div className="text-center py-10 text-sm" style={{ color: '#9a8878' }}>{t('no_data')}</div>
+          )}
+
+          <div className="flex items-center justify-center gap-1 text-xs pt-1 pb-4" style={{ color: 'rgba(107,90,62,0.35)' }}>
+            <span>{t('report_swipe_hint')}</span>
+          </div>
+        </div>
+
+        {/* ── Page 2: 贴纸(活动/心情) + 手写日记 ── */}
+        <div
+          ref={stickerContainerRef}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+          style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', overflowY: 'auto', background: '#ffffff', touchAction: dragState ? 'none' : 'auto' }}
+          className="[&::-webkit-scrollbar]:hidden px-4 py-4 space-y-4 pb-safe"
+        >
+          {/* Sticker charts — draggable & deletable */}
+          {visibleStickers.map(sticker => {
+            const isDragging = dragState?.stickerId === sticker.id;
+            const offset = isDragging ? dragState!.currentOffset : 0;
+
+            if (sticker.id === 'activity' && activityDistribution.length > 0) {
+              return (
+                <StickerWrapper
+                  key={sticker.id}
+                  title={t('report_activity_category')}
+                  onDelete={() => handleDeleteSticker(sticker.id)}
+                  onDragStart={(e) => handleDragStart(sticker.id, e)}
+                  onDragEnd={handleDragEnd}
+                  translateY={offset}
+                  isDragging={isDragging}
+                >
+                  {selectedReport.stats?.actionAnalysis && selectedReport.stats.actionAnalysis.length > 0 ? (
+                    <ActivityCategoryDonut data={selectedReport.stats.actionAnalysis} />
+                  ) : (
+                    <ActivityCategoryDonut data={activityDistribution.map(d => ({ category: d.type, totalMinutes: d.minutes, percentage: 0, subActivities: [] }))} />
+                  )}
+                  {activityInsight && (
+                    <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{activityInsight}</p>
+                  )}
+                </StickerWrapper>
+              );
+            }
+            if (sticker.id === 'mood' && moodDistribution.length > 0) {
+              return (
+                <StickerWrapper
+                  key={sticker.id}
+                  title={t('report_today_mood_spectrum')}
+                  onDelete={() => handleDeleteSticker(sticker.id)}
+                  onDragStart={(e) => handleDragStart(sticker.id, e)}
+                  onDragEnd={handleDragEnd}
+                  translateY={offset}
+                  isDragging={isDragging}
+                >
+                  <MoodPieChart distribution={moodDistribution} />
+                  {moodInsight && (
+                    <p className="mt-2 text-xs text-center" style={{ color: '#6b5a3e' }}>{moodInsight}</p>
+                  )}
+                </StickerWrapper>
+              );
+            }
+            return null;
+          })}
 
           {/* 手写日记 */}
           <div>

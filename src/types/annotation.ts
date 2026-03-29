@@ -56,6 +56,7 @@ export interface AIAnnotation {
   displayDuration: number;   // 建议显示时长（毫秒）
   syncedToCloud: boolean;    // 是否已同步到云端
   suggestion?: AnnotationSuggestion; // AI 建议（overwork 模式）
+  suggestionAccepted?: boolean; // suggestion 反馈（true/false/null）
 }
 
 export interface AnnotationState {
@@ -107,6 +108,7 @@ export interface PendingTodoSummary {
   id: string;
   title: string;
   category?: string;
+  dueAt?: number;
 }
 
 export interface AnnotationRequest {
@@ -120,8 +122,14 @@ export interface AnnotationRequest {
     timezone?: string;                 // IANA 时区字符串，如 "Europe/Rome"
     recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
+    moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>;
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据
     pendingTodos?: PendingTodoSummary[];  // 未完成待办（overwork 模式用）
+    statusSummary?: string;
+    contextHints?: string[];
+    frequentActivities?: string[];
+    allowSuggestion?: boolean;
+    consecutiveTextCount?: number;
   };
 }
 

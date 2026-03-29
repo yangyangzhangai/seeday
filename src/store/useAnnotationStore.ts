@@ -21,6 +21,8 @@ import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 import { useAuthStore } from './useAuthStore';
 import { useTodoStore } from './useTodoStore';
+import { buildStatusSummary } from '../lib/buildStatusSummary';
+import { detectSuggestionContextHints } from '../lib/suggestionDetector';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -38,12 +40,20 @@ interface AnnotationStore extends AnnotationState {
 
   // 历史批注（云端同步）
   annotations: AIAnnotation[];
+  suggestionCountByPeriod: Record<'morning' | 'afternoon' | 'night', number>;
+  dailySuggestionCount: number;
+  lastWasSuggestion: boolean;
+  lastSuggestionTime: number;
+  consecutiveTextCount: number;
+  suggestionOutcomes: Array<{ timestamp: number; accepted: boolean }>;
 
   // Actions
   triggerAnnotation: (event: AnnotationEvent) => Promise<void>;
   dismissAnnotation: () => void;
+  recordSuggestionOutcome: (annotationId: string, accepted: boolean) => Promise<void>;
   resetDailyStats: () => void;
   updateConfig: (config: Partial<AnnotationState['config']>) => void;
+  getAdaptiveMinInterval: () => number;
   getTodayStats: () => { activities: number; duration: number; events: AnnotationEvent[] };
 
   // 云端同步
@@ -61,8 +71,22 @@ function getTodayString(): string {
 /**
  * 检查是否需要重置每日统计
  */
-function shouldResetStats(lastDate: string): boolean {
+export function shouldResetStats(lastDate: string): boolean {
   return lastDate !== getTodayString();
+}
+
+export function getSuggestionPeriod(hour: number): 'morning' | 'afternoon' | 'night' {
+  if (hour >= 6 && hour < 13) return 'morning';
+  if (hour >= 13 && hour < 19) return 'afternoon';
+  return 'night';
+}
+
+function isSuggestionEligibleEvent(eventType: AnnotationEventType): boolean {
+  return eventType === 'activity_completed'
+    || eventType === 'activity_recorded'
+    || eventType === 'mood_recorded'
+    || eventType === 'idle_detected'
+    || eventType === 'overwork_detected';
 }
 
 export const useAnnotationStore = create<AnnotationStore>()(
@@ -70,6 +94,12 @@ export const useAnnotationStore = create<AnnotationStore>()(
     (set, get) => ({
       currentAnnotation: null,
       annotations: [],
+      suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+      dailySuggestionCount: 0,
+      lastWasSuggestion: false,
+      lastSuggestionTime: 0,
+      consecutiveTextCount: 0,
+      suggestionOutcomes: [],
 
       todayStats: {
         date: getTodayString(),
@@ -121,6 +151,11 @@ export const useAnnotationStore = create<AnnotationStore>()(
               lastSpeakTime: 0,
               events: appendCappedEvent([], event),
             },
+            suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+            dailySuggestionCount: 0,
+            lastWasSuggestion: false,
+            lastSuggestionTime: 0,
+            consecutiveTextCount: 0,
           });
         } else {
           // 记录事件
@@ -214,12 +249,33 @@ export const useAnnotationStore = create<AnnotationStore>()(
             completed: e.type === 'activity_completed'
           }));
 
-          // 为 overwork 建议模式准备未完成待办列表
-          const pendingTodos = event.type === 'overwork_detected'
-            ? useTodoStore.getState().todos
-                .filter(t => !t.completed && !t.isTemplate)
-                .map(t => ({ id: t.id, title: t.title, category: t.category }))
-            : undefined;
+          const pendingTodos = useTodoStore.getState().todos
+            .filter(t => !t.completed && !t.isTemplate)
+            .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt }));
+
+          const nowDate = new Date();
+          const period = getSuggestionPeriod(nowDate.getHours());
+          const adaptiveMinInterval = get().getAdaptiveMinInterval();
+          const canAttemptSuggestion = isSuggestionEligibleEvent(event.type)
+            && get().dailySuggestionCount < 4
+            && get().suggestionCountByPeriod[period] < 2
+            && !get().lastWasSuggestion
+            && (Date.now() - get().lastSuggestionTime >= adaptiveMinInterval);
+
+          const { statusSummary, frequentActivities } = buildStatusSummary({
+            now: nowDate,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            todayActivities: todayActivitiesList,
+            pendingTodos,
+            recentMoodMessages,
+          });
+
+          const contextHints = detectSuggestionContextHints({
+            now: nowDate,
+            todayActivities: todayActivitiesList,
+            pendingTodos,
+            recentMoodMessages,
+          });
 
           // 调用 AI 生成批注 (通过 Serverless Function)
           const recentAnnotations = get().annotations.slice(-5).map(a => a.content);
@@ -237,6 +293,11 @@ export const useAnnotationStore = create<AnnotationStore>()(
               moodConversationHistory,
               todayActivitiesList,
               pendingTodos,
+              statusSummary,
+              contextHints,
+              frequentActivities,
+              allowSuggestion: canAttemptSuggestion,
+              consecutiveTextCount: get().consecutiveTextCount,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
             aiMode,
@@ -267,6 +328,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             displayDuration: response.displayDuration,
             syncedToCloud: false,
             suggestion,
+            suggestionAccepted: undefined,
           };
 
           const generatedEvent: AnnotationEvent = {
@@ -276,6 +338,15 @@ export const useAnnotationStore = create<AnnotationStore>()(
           };
 
           // 更新状态
+          const isSuggestionOutput = Boolean(suggestion);
+          const outputPeriod = getSuggestionPeriod(new Date().getHours());
+          const nextPeriodCounts = isSuggestionOutput
+            ? {
+                ...get().suggestionCountByPeriod,
+                [outputPeriod]: get().suggestionCountByPeriod[outputPeriod] + 1,
+              }
+            : get().suggestionCountByPeriod;
+
           set({
             currentAnnotation: annotation,
             annotations: [...get().annotations, annotation],
@@ -285,6 +356,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
               lastSpeakTime: Date.now(),
               events: appendCappedEvent(get().todayStats.events, generatedEvent),
             },
+            suggestionCountByPeriod: nextPeriodCounts,
+            dailySuggestionCount: isSuggestionOutput
+              ? get().dailySuggestionCount + 1
+              : get().dailySuggestionCount,
+            lastWasSuggestion: isSuggestionOutput,
+            lastSuggestionTime: isSuggestionOutput ? Date.now() : get().lastSuggestionTime,
+            consecutiveTextCount: isSuggestionOutput ? 0 : get().consecutiveTextCount + 1,
           });
 
           // 异步同步到云端
@@ -328,6 +406,39 @@ export const useAnnotationStore = create<AnnotationStore>()(
         set({ currentAnnotation: null });
       },
 
+      recordSuggestionOutcome: async (annotationId: string, accepted: boolean) => {
+        const annotation = get().annotations.find((item) => item.id === annotationId);
+        if (!annotation || !annotation.suggestion) return;
+
+        if (annotation.suggestionAccepted === accepted) return;
+
+        set({
+          annotations: get().annotations.map((item) => (
+            item.id === annotationId ? { ...item, suggestionAccepted: accepted } : item
+          )),
+          currentAnnotation: get().currentAnnotation?.id === annotationId
+            ? { ...get().currentAnnotation, suggestionAccepted: accepted }
+            : get().currentAnnotation,
+          suggestionOutcomes: [
+            ...get().suggestionOutcomes,
+            { timestamp: Date.now(), accepted },
+          ].slice(-200),
+        });
+
+        const session = await getSupabaseSession();
+        if (!session) return;
+
+        const { error } = await supabase
+          .from('annotations')
+          .update({ suggestion_accepted: accepted })
+          .eq('id', annotationId)
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          console.error('[Annotation] suggestion outcome sync failed:', error);
+        }
+      },
+
       /**
        * 重置每日统计（手动）
        */
@@ -339,6 +450,11 @@ export const useAnnotationStore = create<AnnotationStore>()(
             lastSpeakTime: 0,
             events: [],
           },
+          suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+          dailySuggestionCount: 0,
+          lastWasSuggestion: false,
+          lastSuggestionTime: 0,
+          consecutiveTextCount: 0,
         });
       },
 
@@ -352,6 +468,28 @@ export const useAnnotationStore = create<AnnotationStore>()(
             ...configUpdate,
           },
         });
+      },
+
+      getAdaptiveMinInterval: () => {
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+        const settledFromAnnotations = get().annotations
+          .filter((item) => item.suggestion && typeof item.suggestionAccepted === 'boolean' && item.timestamp >= sevenDaysAgo)
+          .map((item) => ({ accepted: Boolean(item.suggestionAccepted), timestamp: item.timestamp }));
+
+        const settledFromOutcomes = get().suggestionOutcomes
+          .filter((item) => item.timestamp >= sevenDaysAgo);
+
+        const merged = [...settledFromAnnotations, ...settledFromOutcomes];
+        const shown = merged.length;
+        if (shown < 5) return 60 * 60 * 1000;
+
+        const acceptedCount = merged.filter((item) => item.accepted).length;
+        const rate = acceptedCount / shown;
+
+        if (rate > 0.7) return 30 * 60 * 1000;
+        if (rate < 0.3) return 2 * 60 * 60 * 1000;
+        return 60 * 60 * 1000;
       },
 
       /**
@@ -424,6 +562,12 @@ export const useAnnotationStore = create<AnnotationStore>()(
         config: state.config,
         currentAnnotation: state.currentAnnotation,
         annotations: state.annotations,
+        suggestionCountByPeriod: state.suggestionCountByPeriod,
+        dailySuggestionCount: state.dailySuggestionCount,
+        lastWasSuggestion: state.lastWasSuggestion,
+        lastSuggestionTime: state.lastSuggestionTime,
+        consecutiveTextCount: state.consecutiveTextCount,
+        suggestionOutcomes: state.suggestionOutcomes,
       }),
     }
   )

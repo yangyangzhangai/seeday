@@ -67,6 +67,7 @@ function SeriesTable({ items }: { items: LiveInputTelemetrySeriesPoint[] }) {
             <th className="py-2 font-medium">Classifications</th>
             <th className="py-2 font-medium">Corrections</th>
             <th className="py-2 font-medium">Plant Assets</th>
+            <th className="py-2 font-medium">Diary Stickers</th>
             <th className="py-2 font-medium">Users</th>
           </tr>
         </thead>
@@ -77,6 +78,7 @@ function SeriesTable({ items }: { items: LiveInputTelemetrySeriesPoint[] }) {
               <td className="py-2 text-gray-700">{item.classificationCount}</td>
               <td className="py-2 text-gray-700">{item.correctionCount}</td>
               <td className="py-2 text-gray-700">{item.plantAssetCount}</td>
+              <td className="py-2 text-gray-700">{item.diaryStickerCount}</td>
               <td className="py-2 text-gray-700">{item.uniqueUsers}</td>
             </tr>
           ))}
@@ -106,8 +108,16 @@ function RecentEvents({ items }: { items: LiveInputTelemetryRecentEvent[] }) {
               ? `${item.internalKind || 'unknown'} / ${item.confidence || 'unknown'}`
               : item.eventType === 'correction'
                 ? `${item.fromKind || 'unknown'} -> ${item.toKind || 'unknown'}`
+                : item.eventType === 'diary_sticker'
+                  ? `${item.eventName || 'diary_sticker_unknown'} / ${item.stickerId || 'all'}`
                 : `fallback L${item.fallbackLevel || 4} / ${item.rootType || 'unknown'}_${item.plantStage || 'unknown'}`}
           </div>
+          {item.eventType === 'diary_sticker' ? (
+            <div className="mt-2 text-xs text-gray-500 break-all">
+              report: {item.reportId || 'unknown'} / date: {item.reportDate || 'unknown'}
+              {item.newOrder && item.newOrder.length > 0 ? ` / order: ${item.newOrder.join(' > ')}` : ''}
+            </div>
+          ) : null}
           {item.eventType === 'plant_asset' ? (
             <div className="mt-2 text-xs text-gray-500 break-all">
               request: {item.requestedPlantId || 'unknown'}
@@ -190,6 +200,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
               <h1 className="text-lg font-semibold text-gray-900">Live Input Telemetry</h1>
               <p className="mt-1 text-sm text-gray-500">
                 Central telemetry dashboard for classification, correction, and plant fallback events from Supabase.
+                Diary sticker operations are also merged from <code>telemetry_events</code>.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -236,7 +247,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
 
         {!isLoading && !error && dashboard ? (
           <>
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                 <div className="text-xs uppercase tracking-wide text-gray-400">Classifications</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.classificationCount}</div>
@@ -258,6 +269,10 @@ export const LiveInputTelemetryPage: React.FC = () => {
                 <div className="mt-2 text-3xl font-semibold text-gray-900">
                   {dashboard.summary.plantAssetCount} / {formatPercent(dashboard.summary.plantExactHitRate)}
                 </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <div className="text-xs uppercase tracking-wide text-gray-400">Diary Sticker Ops</div>
+                <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.diaryStickerCount}</div>
               </div>
             </section>
 
@@ -293,6 +308,11 @@ export const LiveInputTelemetryPage: React.FC = () => {
                 title="Plant Fallback Levels"
                 items={dashboard.plantFallbackLevels}
                 emptyLabel="No plant fallback telemetry events yet."
+              />
+              <BreakdownSection
+                title="Diary Sticker Actions"
+                items={dashboard.diaryStickerActions}
+                emptyLabel="No diary sticker telemetry events yet."
               />
             </section>
 

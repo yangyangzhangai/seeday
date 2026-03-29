@@ -21,6 +21,7 @@
   - Activity records view (`ActivityRecordsView`): activity timeline with durations
   - Mood pie chart (`MoodPieChart`): mood distribution visualization
   - Timeshine diary generation and display (`DiaryBookShelf` + `DiaryBookViewer`)
+  - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
 
 ## Upstream Dependencies
 

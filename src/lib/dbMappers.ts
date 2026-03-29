@@ -222,6 +222,7 @@ export function fromDbAnnotation(row: any): AIAnnotation {
     relatedEvent: row.related_event,
     displayDuration: 8000,
     syncedToCloud: true,
+    suggestionAccepted: typeof row.suggestion_accepted === 'boolean' ? row.suggestion_accepted : undefined,
   };
 }
 
@@ -233,6 +234,7 @@ export function toDbAnnotation(annotation: AIAnnotation, userId: string): Record
     tone: annotation.tone,
     event_timestamp: annotation.timestamp,
     related_event: annotation.relatedEvent,
+    suggestion_accepted: annotation.suggestionAccepted ?? null,
     created_at: new Date(annotation.timestamp).toISOString(),
   };
 }

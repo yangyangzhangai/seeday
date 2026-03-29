@@ -74,6 +74,13 @@ export interface ReportStats {
   lightQuality?: LightQuality;
 }
 
+export interface StickerItem {
+  id: 'activity' | 'mood';
+  visible: boolean;
+  x: number;
+  y: number;
+}
+
 export interface Report {
   id: string;
   title: string;
@@ -87,6 +94,7 @@ export interface Report {
   stats?: ReportStats;
   analysisStatus?: 'idle' | 'generating' | 'success' | 'error';
   errorMessage?: string | null;
+  stickerLayout?: StickerItem[];
 }
 
 interface ReportState {

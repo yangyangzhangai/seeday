@@ -1,6 +1,6 @@
 import type { InternalLiveInputKind, LiveInputClassification, LiveInputConfidence, LiveInputKind } from './types';
 
-export type LiveInputTelemetryEventType = 'classification' | 'correction' | 'plant_asset';
+export type LiveInputTelemetryEventType = 'classification' | 'correction' | 'plant_asset' | 'diary_sticker';
 export type LiveInputTelemetryCorrectionKind = 'activity' | 'mood';
 export type LiveInputTelemetryLang = 'zh' | 'en' | 'it';
 
@@ -55,6 +55,7 @@ export interface LiveInputTelemetrySeriesPoint {
   classificationCount: number;
   correctionCount: number;
   plantAssetCount: number;
+  diaryStickerCount: number;
   uniqueUsers: number;
 }
 
@@ -74,6 +75,11 @@ export interface LiveInputTelemetryRecentEvent {
   resolvedAssetUrl?: string | null;
   rootType?: string | null;
   plantStage?: string | null;
+  eventName?: string | null;
+  reportId?: string | null;
+  reportDate?: string | null;
+  stickerId?: string | null;
+  newOrder?: string[] | null;
   lang?: string | null;
   inputLength: number;
   inputPreview?: string | null;
@@ -84,6 +90,7 @@ export interface LiveInputTelemetryDashboardSummary {
   classificationCount: number;
   correctionCount: number;
   plantAssetCount: number;
+  diaryStickerCount: number;
   correctionRate: number;
   plantExactHitRate: number;
   uniqueUsers: number;
@@ -97,6 +104,7 @@ export interface LiveInputTelemetryDashboardResponse {
   topReasons: LiveInputTelemetryBreakdownItem[];
   byLang: LiveInputTelemetryBreakdownItem[];
   plantFallbackLevels: LiveInputTelemetryBreakdownItem[];
+  diaryStickerActions: LiveInputTelemetryBreakdownItem[];
   series: LiveInputTelemetrySeriesPoint[];
   recentEvents: LiveInputTelemetryRecentEvent[];
 }

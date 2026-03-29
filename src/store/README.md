@@ -32,6 +32,11 @@
 3. 新增持久化字段要考虑清理策略，避免 localStorage 无限增长。
 4. 跨 store 调用优先使用 `useXxxStore.getState()`，避免循环依赖。
 
+## Annotation Store Notes
+
+- `useAnnotationStore.ts` 现包含 suggestion 专用频率门控（分时段配额 + 日上限 + 动态最小间隔），不会限制普通文字批注。
+- suggestion 反馈通过 `recordSuggestionOutcome(annotationId, accepted)` 记录，写回本地状态与 `annotations.suggestion_accepted`。
+
 ## 变更自检
 
 ```bash

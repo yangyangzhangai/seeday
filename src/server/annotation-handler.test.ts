@@ -72,7 +72,7 @@ describe('annotation-handler', () => {
     expect(responsesCreateMock).toHaveBeenCalledTimes(1);
 
     const request = responsesCreateMock.mock.calls[0][0];
-    expect(request.instructions).toContain('Zep - Real-Life Candor');
+    expect(request.instructions).toContain('Real-Life Candor');
     expect(request).not.toHaveProperty('previous_response_id');
     expect(res.statusCode).toBe(200);
     expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');
@@ -128,5 +128,73 @@ describe('annotation-handler', () => {
     expect(res.statusCode).toBe(200);
     expect((res.payload as { content?: string }).content).toContain('tiny trip');
     expect((res.payload as { source?: string }).source).toBe('ai');
+  });
+
+  it('parses v2 suggestion JSON when allowSuggestion is true', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_v2',
+      output_text: '{"mode":"suggestion","content":"Take a short walk to reset your focus 🌿","suggestion":{"type":"activity","actionLabel":"Go walk","activityName":"walk"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'idle_detected',
+        eventData: { content: 'No activity for 2 hours' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [],
+          recentMoodMessages: [],
+          allowSuggestion: true,
+        },
+        lang: 'en',
+        aiMode: 'zep',
+      },
+    } as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { suggestion?: { type: string } }).suggestion?.type).toBe('activity');
+    expect((res.payload as { displayDuration?: number }).displayDuration).toBe(15000);
+  });
+
+  it('parses legacy suggestion JSON message format', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_legacy',
+      output_text: '{"message":"This todo is almost due, do it now ✅","type":"todo","todoId":"todo-123","todoTitle":"run 20 minutes","actionLabel":"Go run"}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'scrolling social media' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-123', title: 'run 20 minutes' }],
+          recentMoodMessages: [],
+          allowSuggestion: true,
+        },
+        lang: 'en',
+        aiMode: 'zep',
+      },
+    } as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { suggestion?: { type: string; todoId?: string } }).suggestion?.type).toBe('todo');
+    expect((res.payload as { suggestion?: { todoId?: string } }).suggestion?.todoId).toBe('todo-123');
   });
 });

@@ -34,7 +34,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `src/server/annotation-handler.ts`, `src/server/annotation-prompts.ts`)
 - Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session；其中 `plant-history` 是当前 GET 型端点。
 - Plant asset telemetry endpoint (`/api/plant-asset-telemetry`) records which fallback level (`1-4`) was used when plant artwork resolves.
-- `/api/live-input-dashboard` is used as the consolidated telemetry dashboard endpoint for both live input events and plant fallback telemetry events.
+- `/api/live-input-dashboard` is used as the consolidated telemetry dashboard endpoint for live input events, plant fallback telemetry events, and diary sticker operations (`diary_sticker_*`) from `telemetry_events`.
 
 ## Current Notes
 
@@ -45,6 +45,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Magic Pen parse `segments[*]` now supports `timeRelation` (`realtime` / `future` / `past` / `unknown`) for parser-first direct-write gating.
 - Endpoint robustness baseline now includes `src/server/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
+- `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities` plus suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`), and response supports `suggestion` payload for actionable AI bubbles.
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.
 

@@ -146,84 +146,29 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           )}
         </div>
 
-        {/* Activity categories + mood spectrum + task stats */}
-        {(() => {
-          const dayStart = date ? startOfDay(date).getTime() : 0;
-          const dayEnd = date ? endOfDay(date).getTime() : 0;
-          const dayMsgs = allMessages
-            .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
-            .sort((a, b) => a.timestamp - b.timestamp);
+        {/* AI 观察日记 — below plant */}
+        <div style={{ flexShrink: 0, maxHeight: px(70), overflow: 'hidden' }}>
+          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+            ✦ AI 观察日记
+          </div>
+          {report?.aiAnalysis ? (
+            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+              {report.aiAnalysis}
+            </p>
+          ) : (
+            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
+              {report ? '观察员正在整理…' : ''}
+            </span>
+          )}
+        </div>
 
-          // Compute mood distribution from messages
-          const moodMinutes: Record<string, number> = {};
-          dayMsgs.forEach(msg => {
-            if (msg.isActive) return;
-            const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
-            if (mood && msg.duration && msg.duration > 0) {
-              const key = normalizeMoodKey(mood) || mood;
-              moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
-            }
-          });
-          const moodDist = Object.entries(moodMinutes)
-            .map(([mood, minutes]) => ({ mood, minutes }))
-            .filter(d => d.minutes > 0)
-            .sort((a, b) => b.minutes - a.minutes);
-          const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
-
-          // Compute activity distribution — category list (no pie)
-          const actDist = computeActivityDistribution(dayMsgs);
-          const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
-
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: px(2), overflow: 'hidden', flex: 1 }}>
-              {/* Activity category list */}
-              {actDist.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), flexShrink: 0 }}>
-                  {actDist.slice(0, 3).map(d => {
-                    const pct = totalActMins > 0 ? Math.round(d.minutes / totalActMins * 100) : 0;
-                    return (
-                      <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(2) }}>
-                        <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
-                        <span style={{ fontSize: px(5), color: '#5a4a3a', flex: 1 }}>{d.type}</span>
-                        <div style={{ flex: 2, height: px(3), borderRadius: px(1.5), background: '#f3f4f6', overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', borderRadius: px(1.5), background: ACTIVITY_COLORS[d.type] || '#9CA3AF' }} />
-                        </div>
-                        <span style={{ fontSize: px(4.5), color: '#888', minWidth: px(14), textAlign: 'right' }}>{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Mood spectrum — mini horizontal bar */}
-              {moodDist.length > 0 && (
-                <div style={{ flexShrink: 0 }}>
-                  <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>心情光谱</div>
-                  <div style={{ display: 'flex', height: px(5), borderRadius: px(2), overflow: 'hidden', width: '100%' }}>
-                    {moodDist.map(d => (
-                      <div key={d.mood} style={{ flex: d.minutes / totalMoodMins, background: MOOD_COLORS[d.mood] || '#93C5FD' }} />
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: `${px(1)}px ${px(3)}px`, marginTop: px(1.5) }}>
-                    {moodDist.slice(0, 3).map(d => (
-                      <div key={d.mood} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-                        <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: MOOD_COLORS[d.mood] || '#93C5FD', flexShrink: 0 }} />
-                        <span style={{ fontSize: px(5), color: '#666' }}>{d.mood} {Math.round(d.minutes / totalMoodMins * 100)}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Task stats */}
-              {report?.stats && (
-                <div style={{ marginTop: 'auto', fontSize: px(5.5), color: '#aaa', flexShrink: 0 }}>
-                  ✓ {report.stats.completedTodos}/{report.stats.totalTodos}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {/* Task stats */}
+        {report?.stats && (
+          <div style={{ marginTop: 'auto', fontSize: px(5.5), color: '#aaa', flexShrink: 0 }}>
+            ✓ {report.stats.completedTodos}/{report.stats.totalTodos}
+          </div>
+        )}
         {/* Page number */}
         <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
           {dayNum != null ? 2 * dayNum - 1 : ''}
@@ -233,9 +178,34 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
     );
   }
 
-  /* ── day-right: AI notes + user diary lines ── */
+  /* ── day-right: activity/mood charts + user diary lines ── */
   if (page.type === 'day-right') {
     const { date: rightDate, report } = page;
+
+    // Compute activity + mood distributions for this day
+    const dayStart = rightDate ? startOfDay(rightDate).getTime() : 0;
+    const dayEnd = rightDate ? endOfDay(rightDate).getTime() : 0;
+    const dayMsgs = allMessages
+      .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    const moodMinutes: Record<string, number> = {};
+    dayMsgs.forEach(msg => {
+      if (msg.isActive) return;
+      const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
+      if (mood && msg.duration && msg.duration > 0) {
+        const key = normalizeMoodKey(mood) || mood;
+        moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
+      }
+    });
+    const moodDist = Object.entries(moodMinutes)
+      .map(([mood, minutes]) => ({ mood, minutes }))
+      .filter(d => d.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes);
+    const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
+    const actDist = computeActivityDistribution(dayMsgs);
+    const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
+
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
         {/* Inner content wrapper — projective transform to match trapezoid shape */}
@@ -246,22 +216,46 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           transform: rightPageTransform,
           transformOrigin: '0 0',
         }}>
-        {/* AI 观察日记 — no card background */}
-        <div style={{ flexShrink: 0, maxHeight: px(90), overflow: 'hidden' }}>
-          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-            ✦ AI 观察日记
+
+        {/* Activity category list */}
+        {actDist.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), flexShrink: 0 }}>
+            <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>活动分类</div>
+            {actDist.slice(0, 3).map(d => {
+              const pct = totalActMins > 0 ? Math.round(d.minutes / totalActMins * 100) : 0;
+              return (
+                <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(2) }}>
+                  <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
+                  <span style={{ fontSize: px(5), color: '#5a4a3a', flex: 1 }}>{d.type}</span>
+                  <div style={{ flex: 2, height: px(3), borderRadius: px(1.5), background: '#f3f4f6', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', borderRadius: px(1.5), background: ACTIVITY_COLORS[d.type] || '#9CA3AF' }} />
+                  </div>
+                  <span style={{ fontSize: px(4.5), color: '#888', minWidth: px(14), textAlign: 'right' }}>{pct}%</span>
+                </div>
+              );
+            })}
           </div>
-          {report?.aiAnalysis ? (
-            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
-              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-              {report.aiAnalysis}
-            </p>
-          ) : (
-            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
-              {report ? '观察员正在整理…' : ''}
-            </span>
-          )}
-        </div>
+        )}
+
+        {/* Mood spectrum — mini horizontal bar */}
+        {moodDist.length > 0 && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>心情光谱</div>
+            <div style={{ display: 'flex', height: px(5), borderRadius: px(2), overflow: 'hidden', width: '100%' }}>
+              {moodDist.map(d => (
+                <div key={d.mood} style={{ flex: d.minutes / totalMoodMins, background: MOOD_COLORS[d.mood] || '#93C5FD' }} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: `${px(1)}px ${px(3)}px`, marginTop: px(1.5) }}>
+              {moodDist.slice(0, 3).map(d => (
+                <div key={d.mood} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
+                  <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: MOOD_COLORS[d.mood] || '#93C5FD', flexShrink: 0 }} />
+                  <span style={{ fontSize: px(5), color: '#666' }}>{d.mood} {Math.round(d.minutes / totalMoodMins * 100)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 我的日记 — no card background */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -270,7 +264,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           </div>
           {report?.userNote ? (
             <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
-              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
               {report.userNote}
             </p>
           ) : (
@@ -320,9 +314,9 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
         </div>
 
         {side === 'left' ? (
-          /* ── Left expanded: plant + full report ── */
+          /* ── Left expanded: plant + AI观察日记 + tasks ── */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Plant image — no border, drawn directly into the diary */}
+            {/* Plant image */}
             <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
               {dayPlant ? (
                 <PlantImage
@@ -336,36 +330,7 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
               )}
             </div>
 
-            {report ? (
-              <>
-                {report.stats?.actionSummary && (
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>活动记录</div>
-                    <p style={{ margin: 0, fontSize: 14, color: '#5a4a3a', lineHeight: 1.65 }}>{report.stats.actionSummary}</p>
-                  </div>
-                )}
-                {report.stats?.moodSummary && (
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>今日心情</div>
-                    <p style={{ margin: 0, fontSize: 14, color: '#7a6a5a', lineHeight: 1.65 }}>{report.stats.moodSummary}</p>
-                  </div>
-                )}
-                {report.stats && (
-                  <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8a7a6a' }}>
-                    任务完成率：{report.stats.completedTodos}/{report.stats.totalTodos}
-                    {report.stats.completionRate !== undefined && `（${Math.round(report.stats.completionRate * 100)}%）`}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 14, padding: '24px 0' }}>
-                {date && isSameDay(date, new Date()) ? '今日日记将在 20:00 后生成' : '暂无日记记录'}
-              </div>
-            )}
-          </div>
-        ) : (
-          /* ── Right expanded: AI notes + user diary ── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* AI 观察日记 */}
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#3d5a8a', marginBottom: 10 }}>AI 观察笔记</div>
               {report?.aiAnalysis ? (
@@ -376,6 +341,35 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
                 </p>
               )}
             </div>
+
+            {report?.stats && (
+              <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8a7a6a' }}>
+                任务完成率：{report.stats.completedTodos}/{report.stats.totalTodos}
+                {report.stats.completionRate !== undefined && `（${Math.round(report.stats.completionRate * 100)}%）`}
+              </div>
+            )}
+
+            {!report && (
+              <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 14, padding: '24px 0' }}>
+                {date && isSameDay(date, new Date()) ? '今日日记将在 20:00 后生成' : '暂无日记记录'}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ── Right expanded: activity/mood + user diary ── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {report?.stats?.actionSummary && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>活动分类</div>
+                <p style={{ margin: 0, fontSize: 14, color: '#5a4a3a', lineHeight: 1.65 }}>{report.stats.actionSummary}</p>
+              </div>
+            )}
+            {report?.stats?.moodSummary && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>今日心情</div>
+                <p style={{ margin: 0, fontSize: 14, color: '#7a6a5a', lineHeight: 1.65 }}>{report.stats.moodSummary}</p>
+              </div>
+            )}
 
             <div style={{ height: 1, background: 'rgba(0,0,0,0.08)' }} />
 

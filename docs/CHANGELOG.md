@@ -8,6 +8,128 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-29 - Test: AI 建议模式 P7 回环补测（窗口边界/跨日重置/自动凝结）
+
+### Changed
+
+- `src/store/useAnnotationStore.ts`
+  - 导出 `getSuggestionPeriod(...)` 与 `shouldResetStats(...)` 供单测直接校验窗口边界与跨日重置规则。
+  - 修复 `triggerAnnotation` 内同名变量 `period` 重复声明，避免构建/测试阶段编译失败。
+- `src/store/useAnnotationStore.test.ts`（新增）
+  - 新增 suggestion 时间窗口边界测试（`06:00/13:00/19:00` 分段）与 0 点跨日重置判定测试。
+- `src/components/feedback/AIAnnotationBubble.tsx`
+  - 抽离 `runSuggestionAcceptFlow(...)`，将“点击建议 -> 记录 accepted -> 自动凝结”流程函数化，便于单测覆盖。
+  - 调整 `handleDismiss` 声明顺序，避免在 effect 依赖中前置引用。
+- `src/components/feedback/AIAnnotationBubble.test.ts`（新增）
+  - 覆盖 activity/todo 建议接受分支，以及异常 suggestion 的跳过分支；验证 accepted 成功后会触发 `handleCondense()`。
+
+### Validation
+
+- `npx vitest run src/store/useAnnotationStore.test.ts src/components/feedback/AIAnnotationBubble.test.ts src/server/annotation-handler.test.ts src/lib/suggestionDetector.test.ts` ✅
+- `npm run lint:all` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（P7 子任务状态：单测补齐与 lint:all 已完成）。
+
+## 2026-03-29 - Fix: 日记贴纸埋点接入 telemetry_events + 看板聚合
+
+### Changed
+
+- `src/services/input/reportTelemetryEvent.ts`（新增）
+  - 新增 `reportTelemetryEvent(...)`，将 `diary_sticker_deleted` / `diary_sticker_reordered` / `diary_sticker_restored` 事件统一写入 Supabase `telemetry_events`。
+- `src/features/report/ReportDetailModal.tsx`
+  - 在 `handleDeleteSticker` 上报 `diary_sticker_deleted`（`stickerId/reportId/date`）。
+  - 在 `handleDragEnd` 贴纸换序成功时上报 `diary_sticker_reordered`（`newOrder/reportId/date`）。
+- `api/live-input-dashboard.ts`
+  - 聚合查询新增 `telemetry_events`，筛选 `diary_sticker_*` 事件并并入 `/api/live-input-dashboard`。
+  - `summary` 新增 `diaryStickerCount`，分布新增 `diaryStickerActions`，日序列新增 `diaryStickerCount`，`recentEvents` 新增 `diary_sticker` 事件明细字段。
+- `src/services/input/liveInputTelemetryApi.ts`
+  - Dashboard/RecentEvent 类型新增 diary sticker 字段与事件类型，保证前后端契约一致。
+- `src/features/telemetry/LiveInputTelemetryPage.tsx`
+  - 看板新增「Diary Sticker Ops」统计卡、`Diary Stickers` 日序列表头、`Diary Sticker Actions` 分布区块、Recent Events 贴纸事件详情展示。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（贴纸埋点状态由待处理改为主链路完成）。
+- 更新 `api/README.md` 与 `src/api/README.md`（补充 diary sticker 聚合字段说明）。
+
+## 2026-03-29 - Feature: 日记详情页布局重构 + 图表贴纸化
+
+### Changed
+
+- `src/store/useReportStore.ts`
+  - 新增 `StickerItem` 接口（`id` / `visible` / `x` / `y`）
+  - `Report` 接口新增 `stickerLayout?: StickerItem[]`，通过 Zustand persist 本地持久化贴纸状态
+
+- `src/features/report/ReportDetailModal.tsx`
+  - **Page 1** 重排：植物 → AI 观察日记（从 Page 2 移来）→ 待办事项
+  - **Page 2** 重排：活动图表贴纸 + 心情图表贴纸 → 手写日记
+  - 移除 `CollapsibleSection`（收起/展开按钮），改为 `StickerWrapper` 贴纸组件
+  - 贴纸支持：X 键删除（`visible: false`）、拖拽把手调换顺序，状态实时写入 `updateReport`
+  - 图标依赖：`Bookmark` → `X` + `GripVertical`（lucide-react）
+
+- `src/features/report/DiaryBookViewer.tsx`
+  - **day-left 页**：活动/心情数据移出，改为植物 → AI 观察日记 → 任务统计
+  - **day-right 页**：原 AI 观察日记移出，改为活动分类列表 + 心情光谱条 → 我的日记
+  - **ExpandedView**：左侧显示植物 + AI 观察 + 任务，右侧显示活动/心情摘要 + 我的日记
+  - 书架翻页视图与详情页布局保持一致
+
+### ⚠️ 待处理（埋点未完成）
+
+- 贴纸删除、贴纸换序等用户行为**尚未上报埋点**，详见 `docs/CURRENT_TASK.md` 中"日记贴纸埋点"待办项
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- `docs/CURRENT_TASK.md` 已补充贴纸埋点待办项
+
+## 2026-03-29 - Feat: AI 建议模式两层过滤主链路落地（P0-P6）
+
+### Changed
+
+- `src/types/annotation.ts`
+  - 扩展 suggestion 契约：`PendingTodoSummary.dueAt`、`AIAnnotation.suggestionAccepted`、`AnnotationRequest.userContext.statusSummary/contextHints/frequentActivities/allowSuggestion/consecutiveTextCount`。
+- `src/lib/buildStatusSummary.ts`（新增）
+  - 新增客户端状态摘要构建器，统一输出短摘要文本和高频活动列表。
+- `src/lib/suggestionDetector.ts`（新增）
+  - 新增情境提示器，按优先级选取最多 2 条 context hints。
+- `src/store/useAnnotationStore.ts`
+  - 新增 suggestion 专用门控状态（分时段计数、日上限、最小间隔、不可连续 suggestion）。
+  - 接入 `statusSummary/contextHints/frequentActivities` 透传。
+  - 新增 `recordSuggestionOutcome(...)` 与 `getAdaptiveMinInterval()`（7 天接受率驱动 30min/1h/2h）。
+- `src/server/annotation-prompts.ts`
+  - 新增 suggestion-aware prompt 组装，支持普通批注与 suggestion JSON 双路输出指令。
+- `src/server/annotation-handler.ts`
+  - suggestion 模式从 overwork 专属改为客户端门控驱动（`allowSuggestion`）。
+  - 新增双格式 suggestion 解析兼容：
+    - v2: `{"mode":"suggestion",...}`
+    - legacy: `{"message":...,"type":...}`
+  - suggestion 解析失败时回退普通批注。
+- `src/components/feedback/AIAnnotationBubble.tsx`
+  - 点击建议后自动记录接受结果并触发自动凝结；X 关闭/超时时记录未接受。
+- `src/lib/dbMappers.ts`
+  - `annotations` 映射新增 `suggestion_accepted` 读写支持。
+- 文档同步：`api/README.md`、`src/api/README.md`、`src/store/README.md`、`docs/CURRENT_TASK.md`。
+
+### Added Tests
+
+- `src/server/annotation-handler.test.ts`
+  - 覆盖 v2 suggestion JSON 和 legacy suggestion JSON 解析分支。
+- `src/lib/suggestionDetector.test.ts`
+  - 覆盖情境提示优先级 Top-2 选择。
+
+### Doc-sync impact
+
+- 本次改动涉及 `src/**`、`api/**`、`docs/**` 多处契约与状态文档，已同步 `docs/CURRENT_TASK.md` 与本文件。
+
 ## 2026-03-29 - UI: 同步 Tshine UI 的专注页与我的页视觉
 
 ### Changed
