@@ -137,7 +137,7 @@ const it: TranslationKeys = {
     recurrence_monthly: 'Ogni mese',
 
     // ── Pagina Rapporto ──
-    report_title: 'Rapporto Temporale',
+    report_title: 'Diario',
     report_calendar_view: 'Vista Calendario',
     report_daily: 'Giornaliero',
     report_weekly: 'Settimanale',

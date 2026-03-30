@@ -43,19 +43,19 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
             className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4"
             onClick={onClose}
         >
-            <div
-                className="bg-pink-50 w-full max-w-xs rounded-xl p-4 shadow-lg relative border border-pink-100"
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div
+            className="relative w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-5 shadow-[0_20px_60px_rgba(71,52,24,0.24)]"
+            onClick={(e) => e.stopPropagation()}
+        >
                 <button
                     type="button"
                     onClick={onClose}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-3 rounded-full bg-white/80 p-1 text-gray-500"
                 >
                     <X size={16} />
                 </button>
                 <h3
-                    className="text-sm font-light text-gray-500 mb-3 pr-6 flex items-center gap-1.5"
+                    className="mb-3 flex items-center gap-1.5 pr-6 text-sm font-medium text-[#6D5434]"
                     style={{ fontFamily: 'PingFang SC, -apple-system, system-ui, sans-serif' }}
                 >
                     <span>{t('chat_pick_mood_for_record')}</span>
@@ -74,9 +74,9 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                             }}
                             className={cn(
                                 "inline-flex items-center justify-center px-3 py-1.5 text-xs rounded-full border shadow-sm transition-colors",
-                                selectedMoodOpt === opt
-                                    ? "bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-200"
-                                    : "bg-white text-slate-700 border-gray-200 hover:bg-gray-50",
+                                 selectedMoodOpt === opt
+                                     ? "border-[#CA8A4A] bg-[#FEE6BE] text-[#7A4D1E] ring-1 ring-[#F4D7A8]"
+                                     : "border-[#E8DCC7] bg-white text-slate-700",
                                 moodPickerReadonly && "opacity-60 cursor-not-allowed hover:bg-white"
                             )}
                             style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
@@ -94,9 +94,9 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                         }}
                         className={cn(
                             "inline-flex items-center justify-center px-2.5 py-[3px] text-[10px] rounded-full border shadow-sm transition-colors",
-                            (showCustomLabelInput || customMoodApplied[moodPickerFor])
-                                ? "bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-200"
-                                : "bg-sky-50 text-sky-600 border-sky-200",
+                             (showCustomLabelInput || customMoodApplied[moodPickerFor])
+                                 ? "border-[#CA8A4A] bg-[#FEE6BE] text-[#7A4D1E] ring-1 ring-[#F4D7A8]"
+                                 : "border-[#D6C1A0] bg-[#F8F0DF] text-[#7A5A2C]",
                             moodPickerReadonly && "opacity-60 cursor-not-allowed"
                         )}
                         style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}

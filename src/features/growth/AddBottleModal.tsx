@@ -26,10 +26,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-      <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe animate-slide-up">
+      <div className="animate-slide-up w-full max-w-lg rounded-t-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 pb-safe shadow-[0_20px_60px_rgba(71,52,24,0.24)]">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold">{t('growth_add_bottle_modal_title')}</h3>
-          <button onClick={onClose} className="text-gray-400"><X size={20} /></button>
+          <h3 className="text-lg font-bold text-[#5E4120]">{t('growth_add_bottle_modal_title')}</h3>
+          <button onClick={onClose} className="rounded-full bg-white/80 p-1 text-gray-500"><X size={20} /></button>
         </div>
 
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -40,7 +40,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
           onChange={(e) => setName(e.target.value)}
           placeholder={t('growth_bottle_name_placeholder')}
           className={cn(
-            "w-full border rounded-xl p-3 text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400",
+            "mb-1 w-full rounded-2xl border p-3 text-sm text-[#5E4120] outline-none focus:ring-2 focus:ring-[#D8B37A]",
             error ? "border-red-400" : "border-gray-200"
           )}
         />
@@ -69,7 +69,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
         <button
           onClick={handleSubmit}
           disabled={!name.trim()}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full rounded-2xl bg-[#A86B2B] py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
         >
           {t('confirm')}
         </button>

@@ -111,7 +111,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               disabled={disabled}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                fontSize: 14, color: '#0f172a', fontFamily: "'Inter', sans-serif",
+                fontSize: 16, color: '#0f172a', fontFamily: "'Inter', sans-serif",
               }}
             />
 
@@ -139,7 +139,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         </div>
 
         {/* Nav bar */}
-        <div style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 34 }}>
+        <div style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
           <nav style={{
             width: '100%', height: 64, borderRadius: 9999,
             display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0 8px',

@@ -36,13 +36,30 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-  const handleModeClick = (key: AiCompanionMode, free: boolean) => {
+  const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
+    if (isUpdating) return;
     if (!free && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    updatePreferences({ aiMode: key });
+    setIsUpdating(true);
+    try {
+      await updatePreferences({ aiMode: key });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleToggleEnabled = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      await updatePreferences({ aiModeEnabled: !enabled });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -56,7 +73,8 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
           </span>
         </div>
         <button
-          onClick={() => updatePreferences({ aiModeEnabled: !enabled })}
+          onClick={() => { void handleToggleEnabled(); }}
+          disabled={isUpdating}
           className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
             enabled ? 'bg-[#8FAF92]' : 'bg-slate-300'
           }`}
@@ -72,7 +90,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
       {/* Mode cards — 4 in one row */}
       <div
         className={`grid grid-cols-4 gap-1.5 transition-opacity ${
-          !enabled ? 'opacity-40 pointer-events-none' : ''
+          !enabled || isUpdating ? 'opacity-40 pointer-events-none' : ''
         }`}
       >
         {AI_COMPANION_ORDER.map((modeKey) => {
@@ -82,7 +100,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
           return (
             <button
               key={modeKey}
-              onClick={() => handleModeClick(modeKey, mode.free)}
+              onClick={() => { void handleModeClick(modeKey, mode.free); }}
               className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
                 selected
                   ? 'border-[#8FAF92] bg-[#B2EEDA]/20'

@@ -28,11 +28,10 @@ function getCategoryKey(category: PlantCategoryKey): string {
 }
 
 interface PlantRootSectionProps {
-  onOpenTodayDiary?: () => void;
   onGenerateDiary?: () => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenTodayDiary, onGenerateDiary }) => {
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDiary }) => {
   const { t } = useTranslation();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [statusHint, setStatusHint] = useState<string | null>(null);
@@ -200,8 +199,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenTodayD
 
       {/* ── Canvas area (flex-1, clips soil canvas) ── */}
       <div className="flex-1 relative overflow-hidden min-h-0">
-        {/* Soil canvas shifted down so eco-sphere bubbles float above grass */}
-        <div className="absolute inset-0" style={{ top: 40 }}>
+        <div className="absolute inset-0" style={{ top: 124 }}>
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}
@@ -221,13 +219,13 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onOpenTodayD
 
         {/* ── Eco sphere bubbles above canvas to avoid clipping ── */}
         <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
-          <DayEcoSphere onOpenTodayDiary={onOpenTodayDiary} />
+          <DayEcoSphere />
         </div>
 
         {/* Empty state hint (centered in canvas) */}
         {renderedSegments.length === 0 ? (
           <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
-            <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'rgba(245,238,224,0.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(200,178,138,0.4)' }}>
+            <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'transparent', border: 'none' }}>
               <p className="text-xs font-medium" style={{ color: '#5a4028' }}>{t('report_root_empty_title')}</p>
               <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
             </div>

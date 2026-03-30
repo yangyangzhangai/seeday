@@ -258,7 +258,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
           {/* 外星人头像 */}
           <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white overflow-hidden shadow-lg ring-1 ring-white/80">
+            <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-white shadow-lg ring-1 ring-white/80">
               <img
                 src={currentModeVisual.avatar}
                 alt={`${currentModeVisual.name} avatar`}

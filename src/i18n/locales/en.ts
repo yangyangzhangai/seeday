@@ -135,7 +135,7 @@ const en = {
     recurrence_monthly: 'Monthly',
 
     // ── Report Page ──
-    report_title: 'Reports',
+    report_title: 'Diary',
     report_calendar_view: 'Calendar',
     report_daily: 'Daily',
     report_weekly: 'Weekly',

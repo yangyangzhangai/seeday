@@ -60,21 +60,21 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
-        className="bg-white rounded-2xl mx-6 p-6 w-full max-w-sm shadow-xl relative"
+        className="relative mx-6 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]"
         onTouchStart={handleLongPressStart}
         onTouchEnd={handleLongPressEnd}
         onMouseDown={handleLongPressStart}
         onMouseUp={handleLongPressEnd}
         onMouseLeave={handleLongPressEnd}
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400">
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-full bg-white/80 p-1 text-gray-500">
           <X size={20} />
         </button>
 
-        <h2 className="text-xl font-bold text-center text-gray-900 mb-2">
+        <h2 className="mb-2 text-center text-xl font-bold text-[#5E4120]">
           {t('growth_daily_goal_title')}
         </h2>
-        <p className="text-sm text-gray-500 text-center mb-5">
+        <p className="mb-5 text-center text-sm text-[#8E7350]">
           {t('growth_daily_goal_subtitle')}
         </p>
 
@@ -82,14 +82,14 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t('growth_daily_goal_placeholder')}
-          className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]"
+          className="min-h-[88px] w-full resize-none rounded-2xl border border-[#E4D3B5] bg-white p-3 text-sm text-[#5E4120] outline-none focus:ring-2 focus:ring-[#D8B37A]"
           rows={3}
         />
 
         <button
           onClick={() => { void handleConfirm(); }}
           disabled={isSaving}
-          className="w-full mt-4 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
+          className="mt-4 w-full rounded-2xl bg-[#A86B2B] py-2.5 font-medium text-white transition-colors disabled:opacity-60"
         >
           {isSaving ? t('loading') : t('growth_daily_goal_confirm')}
         </button>

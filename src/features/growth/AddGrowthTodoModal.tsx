@@ -90,10 +90,10 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-      <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe animate-slide-up max-h-[85vh] overflow-y-auto">
+      <div className="animate-slide-up max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 pb-safe shadow-[0_20px_60px_rgba(71,52,24,0.24)]">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold">{t('growth_todo_add')}</h3>
-          <button onClick={onClose} className="text-gray-400"><X size={20} /></button>
+          <h3 className="text-lg font-bold text-[#5E4120]">{t('growth_todo_add')}</h3>
+          <button onClick={onClose} className="rounded-full bg-white/80 p-1 text-gray-500"><X size={20} /></button>
         </div>
 
         {/* Title */}
@@ -102,7 +102,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
           onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
           placeholder={t('growth_todo_title_placeholder')}
           className={cn(
-            "w-full border rounded-xl p-3 text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400",
+            "mb-1 w-full rounded-2xl border p-3 text-sm text-[#5E4120] outline-none focus:ring-2 focus:ring-[#D8B37A]",
             titleError ? "border-red-400" : "border-gray-200"
           )}
         />
@@ -137,7 +137,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
           type="datetime-local"
           value={dueAt}
           onChange={(e) => setDueAt(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="mb-4 w-full rounded-2xl border border-[#E4D3B5] bg-white p-3 text-sm text-[#5E4120] outline-none focus:ring-2 focus:ring-[#D8B37A]"
         />
 
         {/* Recurrence */}
@@ -195,7 +195,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
             <select
               value={bottleId}
               onChange={(e) => setBottleId(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+               className="mb-4 w-full rounded-2xl border border-[#E4D3B5] bg-white p-3 text-sm text-[#5E4120] outline-none focus:ring-2 focus:ring-[#D8B37A]"
             >
               <option value="">{t('growth_todo_none')}</option>
               {bottles.map((b) => (
@@ -207,7 +207,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
 
         <button
           onClick={handleSubmit}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+          className="w-full rounded-2xl bg-[#A86B2B] py-2.5 font-medium text-white transition-colors"
         >
           {t('confirm')}
         </button>

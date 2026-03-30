@@ -26,13 +26,20 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const current = preferences.annotationDropRate;
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-  const handleClick = (key: AnnotationDropRate) => {
+  const handleClick = async (key: AnnotationDropRate) => {
+    if (isUpdating) return;
     if (key !== 'low' && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    updatePreferences({ annotationDropRate: key });
+    setIsUpdating(true);
+    try {
+      await updatePreferences({ annotationDropRate: key });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -48,7 +55,8 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
             return (
               <button
                 key={key}
-                onClick={() => handleClick(key)}
+                onClick={() => { void handleClick(key); }}
+                disabled={isUpdating}
                 className={`relative flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   selected
                     ? 'border-[#8FAF92] bg-[#B2EEDA]/30 text-[#3f5f35] font-bold'

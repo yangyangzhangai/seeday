@@ -132,18 +132,18 @@ export const BottleList = () => {
       {/* 1. New habit auto-prompt */}
       {habitPromptBottle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl p-6 mx-8 max-w-sm w-full">
+          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]">
             <p className="text-gray-800 text-center mb-2 font-medium">{t('growth_habit_todo_prompt')}</p>
             <p className="text-gray-500 text-sm text-center mb-4">
               {t('growth_habit_todo_confirm', { name: habitPromptBottle.name })}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setHabitPromptBottle(null)}
-                className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-700 font-medium">
+                className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
                 {t('growth_habit_todo_dismiss')}
               </button>
               <button onClick={handleHabitConfirm}
-                className="flex-1 py-2 bg-blue-500 rounded-xl text-white font-medium">
+                className="flex-1 rounded-xl bg-[#A86B2B] py-2 font-medium text-white">
                 {t('confirm')}
               </button>
             </div>
@@ -155,17 +155,17 @@ export const BottleList = () => {
       {todoPromptBottle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setTodoPromptBottle(null)}>
-          <div className="bg-white rounded-2xl p-6 mx-8 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]" onClick={(e) => e.stopPropagation()}>
             <p className="text-gray-800 text-center mb-4 font-medium">
               {t('growth_bottle_todo_prompt', { name: todoPromptBottle.name })}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setTodoPromptBottle(null)}
-                className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-700 font-medium">
+                className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
                 {t('cancel')}
               </button>
               <button onClick={handleTodoPromptConfirm}
-                className="flex-1 py-2 bg-blue-500 rounded-xl text-white font-medium">
+                className="flex-1 rounded-xl bg-[#A86B2B] py-2 font-medium text-white">
                 {t('confirm')}
               </button>
             </div>
@@ -177,17 +177,17 @@ export const BottleList = () => {
       {achievedBottle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setAchievedBottle(null)}>
-          <div className="bg-white rounded-2xl p-6 mx-8 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]" onClick={(e) => e.stopPropagation()}>
             {achievedBottle.type === 'habit' ? (
               <>
                 <p className="text-gray-600 text-center mb-4">{t('growth_bottle_irrigate_hint')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => setAchievedBottle(null)}
-                    className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-700 font-medium">
+                    className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
                     {t('cancel')}
                   </button>
                   <button onClick={() => handleIrrigate(achievedBottle.id)}
-                    className="flex-1 py-2 bg-green-500 rounded-xl text-white font-medium">
+                    className="flex-1 rounded-xl bg-[#6E9A58] py-2 font-medium text-white">
                     {t('growth_bottle_irrigate')}
                   </button>
                 </div>
@@ -197,11 +197,11 @@ export const BottleList = () => {
                 <p className="text-gray-600 text-center mb-4">{t('growth_bottle_goal_confirm')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => handleGoalConfirm(false)}
-                    className="flex-1 py-2 bg-gray-100 rounded-xl text-gray-700 font-medium">
+                    className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
                     {t('growth_bottle_goal_no')}
                   </button>
                   <button onClick={() => handleGoalConfirm(true)}
-                    className="flex-1 py-2 bg-green-500 rounded-xl text-white font-medium">
+                    className="flex-1 rounded-xl bg-[#6E9A58] py-2 font-medium text-white">
                     {t('growth_bottle_goal_yes')}
                   </button>
                 </div>

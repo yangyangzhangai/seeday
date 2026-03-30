@@ -170,9 +170,12 @@ export const ReportPage = () => {
     setSelectedReportId(reportId);
   }, [reports, generateReport, loadMessagesForDateRange]);
 
-  const handleOpenTodayDiary = useCallback(async () => {
-    await openDiaryForDate(new Date());
-  }, [openDiaryForDate]);
+  const handleOpenDiaryBook = useCallback(() => {
+    const now = new Date();
+    setSavedDiaryBookMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSavedDiaryBookFlippedCount(now.getDate());
+    setShowDiaryBook(true);
+  }, []);
 
   const handleDiaryNavPrev = useCallback(async () => {
     const base = diaryNavDate ?? new Date();
@@ -206,14 +209,14 @@ export const ReportPage = () => {
         <h1 className="text-xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-1 w-full pr-20 text-center text-sm transition active:opacity-70"
+          className="mt-1 text-left text-sm transition active:opacity-70"
           style={{ color: '#64748b' }}
         >
           {format(today, currentLang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale: calendarLocale })}
         </button>
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-1.5">
           <button
-            onClick={() => setShowDiaryBook(true)}
+            onClick={handleOpenDiaryBook}
             className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
             style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
           >
@@ -223,7 +226,7 @@ export const ReportPage = () => {
       </header>
 
       <div className="flex-1 relative overflow-hidden">
-        <PlantRootSection onOpenTodayDiary={handleOpenTodayDiary} onGenerateDiary={handleGenerateDiary} />
+        <PlantRootSection onGenerateDiary={handleGenerateDiary} />
       </div>
 
       {showEarlyTip && (

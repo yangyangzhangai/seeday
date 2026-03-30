@@ -16,10 +16,6 @@ import type { ActivityRecordType } from '../../../lib/activityType';
 
 type ActiveBubble = 'mood' | 'activity' | null;
 
-interface DayEcoSphereProps {
-  onOpenTodayDiary?: () => void;
-}
-
 /** Build a smooth Catmull-Rom bezier path through pts */
 function buildSmoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return '';
@@ -133,7 +129,7 @@ function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }:
 }
 
 // ── Main Component ──
-export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenTodayDiary }) => {
+export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
   const [timeTick, setTimeTick] = useState(() => Date.now());
@@ -210,17 +206,6 @@ export const DayEcoSphere: React.FC<DayEcoSphereProps> = ({ onOpenTodayDiary }) 
             label={t('eco_sphere_activity_label')} icon="🌿" color="#34d399"
             active={active === 'activity'} onClick={() => toggle('activity')}
             hasData={activityData.length > 0}
-          />
-        </div>
-        {/* Right — diary */}
-        <div style={{ position: 'absolute', right: '8%', top: 30, animation: 'eco-float-c 3.2s ease-in-out infinite 1.3s' }}>
-          <GlassBubble
-            label={t('eco_sphere_diary_label')}
-            icon="📔"
-            color="#a78b6e"
-            active={false}
-            onClick={onOpenTodayDiary}
-            hasData={false}
           />
         </div>
       </div>

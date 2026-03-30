@@ -115,7 +115,7 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
   }, [bottle.id, bottle.stars]);
 
   return (
-    <div className="group relative flex-shrink-0 w-32">
+    <div className="group relative w-20 flex-shrink-0">
       {/* Delete button — appears on hover */}
       {onDelete && (
         <button
@@ -133,16 +133,13 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className={cn(
-          'flex flex-col items-center p-3 rounded-2xl border-2 transition-all cursor-pointer select-none',
-          isAchieved
-            ? 'border-yellow-400 bg-yellow-50 shadow-md'
-            : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm',
+          className={cn(
+          'flex cursor-pointer select-none flex-col items-center transition-all',
           irrigating && 'animate-pulse opacity-0 scale-110 transition-all duration-700'
         )}
       >
         {/* Bottle visual */}
-        <div className="relative w-20 h-28 mb-2">
+        <div className="relative mb-1.5 h-14 w-10">
           {/* Stars scattered inside jar (no liquid layer) */}
           <div className="absolute left-[20%] right-[20%] top-[35%] bottom-[12%] z-[1] overflow-hidden">
             {starLayout.map((star, i) => (
@@ -150,7 +147,7 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
                 key={i}
                 src={growthStarImage}
                 alt=""
-                className="absolute w-3.5 h-3.5 object-contain pointer-events-none select-none transition-transform duration-300"
+                className="pointer-events-none absolute h-2 w-2 select-none object-contain transition-transform duration-300"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
@@ -170,23 +167,23 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
           />
 
           {isAchieved && (
-            <div className="absolute inset-0 rounded-2xl bg-yellow-300/20 animate-pulse z-[3]" />
+            <div className="absolute inset-0 z-[3] rounded-xl bg-yellow-300/20 animate-pulse" />
           )}
         </div>
 
-        <p className="text-xs font-medium text-gray-700 text-center truncate w-full">
+        <p className="w-full truncate text-center text-[11px] font-medium text-gray-700">
           {bottle.name}
         </p>
-        <p className="text-[10px] text-gray-400 mt-0.5">
+        <p className="mt-0.5 text-[9px] text-gray-400">
           {t('growth_bottle_stars', { stars: bottle.stars })}
         </p>
         {bottle.type === 'goal' && bottle.round > 1 && (
-          <span className="text-[10px] text-blue-500 mt-0.5">
+          <span className="mt-0.5 text-[9px] text-blue-500">
             {t('growth_bottle_round', { round: bottle.round })}
           </span>
         )}
         {isAchieved && (
-          <span className="mt-1 px-2 py-0.5 bg-yellow-400 text-white text-[10px] rounded-full font-medium">
+          <span className="mt-1 rounded-full bg-yellow-400 px-2 py-0.5 text-[9px] font-medium text-white">
             {t('growth_bottle_achieved')}
           </span>
         )}

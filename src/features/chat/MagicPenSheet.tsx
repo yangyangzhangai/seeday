@@ -199,18 +199,18 @@ export function MagicPenSheet({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 animate-in slide-in-from-bottom-10 fade-in max-h-[85vh] overflow-y-auto"
+        className="w-full max-w-md space-y-4 overflow-y-auto rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)] animate-in slide-in-from-bottom-10 fade-in max-h-[85vh]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Wand2 size={18} className="text-blue-600" />
+            <h2 className="flex items-center gap-2 text-lg font-bold text-[#5E4120]">
+              <Wand2 size={18} className="text-[#A86B2B]" />
               {t('chat_magic_pen_title')}
             </h2>
-            <p className="text-xs text-gray-500 mt-1">{t('chat_magic_pen_subtitle')}</p>
+            <p className="mt-1 text-xs text-[#8E7350]">{t('chat_magic_pen_subtitle')}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+          <button type="button" onClick={onClose} className="rounded-full bg-white/80 p-1 text-gray-500">
             <X size={20} />
           </button>
         </div>
@@ -422,7 +422,7 @@ export function MagicPenSheet({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700"
+            className="flex-1 rounded-xl border border-[#D4B790] py-2 text-[#6A4E2E]"
           >
             {t('chat_magic_pen_cancel')}
           </button>
@@ -430,7 +430,7 @@ export function MagicPenSheet({
             type="button"
             disabled={isConfirmDisabled}
             onClick={handleConfirm}
-            className="flex-1 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+            className="flex-1 rounded-xl bg-[#A86B2B] py-2 text-white disabled:opacity-50"
           >
             {isSubmitting
               ? t('loading')
