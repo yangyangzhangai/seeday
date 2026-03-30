@@ -109,7 +109,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const stemRootY = leafSize * 0.94;
           const nodeY = 14;
           const leafRotation = leafMirrored ? 8 : -8;
-          const leafDropY = index === 0 ? -2 : 2;
+          const leafDropY = 2;
 
           return (
             <div key={msg.id} style={{ display: 'flex', gap: 10, marginBottom: rowGap, position: 'relative', zIndex: 1 }}>

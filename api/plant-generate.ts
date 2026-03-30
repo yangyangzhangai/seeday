@@ -147,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     userName: auth.user.user_metadata?.full_name,
   });
 
-  // AI 返回的 plantId 包含了 stage 信息（如 fib_late_001）
+  // AI 返回的 plantId 包含了 stage 信息（如 fib_late_0001）
   const plantId = diary.chosenPlantId;
   const plantStage = extractStageFromPlantId(plantId);
 

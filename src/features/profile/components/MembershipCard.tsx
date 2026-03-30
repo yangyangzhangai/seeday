@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Circle } from 'lucide-react';
+import { Check, Lock, Crown } from 'lucide-react';
 
 const FEATURES = [
   { labelKey: 'membership_feat_basic_analysis', free: true },
@@ -30,33 +30,64 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-[1.5rem] border border-[#E3C778]/65 bg-[linear-gradient(145deg,#B6862A_0%,#8A6520_52%,#6D4F1A_100%)] px-4 py-3 text-[#FFF6D8] [box-shadow:inset_0_1px_1px_rgba(255,244,214,0.38),0_10px_24px_rgba(109,79,26,0.28)]">
+    <div
+      className="rounded-2xl px-5 py-4"
+      style={{
+        background: 'linear-gradient(145deg, #16100A 0%, #251A09 35%, #1C1408 60%, #0E0907 100%)',
+        border: '1px solid rgba(212,175,55,0.18)',
+      }}
+    >
+
       {/* Title + badge */}
-      <div className="relative mb-2.5 flex items-center justify-center">
-        <span className="text-sm font-bold tracking-[0.06em]">{t('profile_membership')}</span>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Crown size={14} color="#D4AF37" />
+          <span
+            className="text-[13px] font-bold"
+            style={{ color: '#F0DEB0', letterSpacing: '0.08em' }}
+          >
+            {t('profile_membership')}
+          </span>
+        </div>
         <span
-          className={`absolute right-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+          style={
             isPlus
-              ? 'bg-[#FFEC9C] text-[#7b6020]'
-              : 'bg-[#F4E4B7] text-[#7a5a1f]'
-          }`}
+              ? {
+                  background: 'linear-gradient(135deg, #C8921A 0%, #F0C830 50%, #E8B820 100%)',
+                  color: '#1A0E00',
+                  letterSpacing: '0.12em',
+                }
+              : {
+                  background: 'rgba(255,255,255,0.07)',
+                  color: '#B0A088',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  letterSpacing: '0.12em',
+                }
+          }
         >
           {isPlus ? 'PLUS' : 'FREE'}
         </span>
       </div>
 
+      {/* divider */}
+      <div className="mb-3 h-px" style={{ background: 'rgba(212,175,55,0.15)' }} />
+
       {/* Features grid */}
-      <div className="grid grid-cols-2 gap-1.5 mb-3">
+      <div className="mb-4 grid grid-cols-2 gap-x-3 gap-y-2">
         {FEATURES.map(({ labelKey, free }) => {
           const unlocked = free || isPlus;
           return (
             <div key={labelKey} className="flex items-center space-x-1.5">
               {unlocked ? (
-                <Check size={11} className="flex-shrink-0 text-[#FDE68A]" />
+                <Check size={10} style={{ color: '#D4AF37', flexShrink: 0 }} />
               ) : (
-                <Circle size={11} className="flex-shrink-0 text-[#F1DCA8]/60" />
+                <Lock size={10} style={{ color: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
               )}
-              <span className={`text-[11px] ${unlocked ? 'text-[#FFF3CC]' : 'text-[#EBD9A8]/70'}`}>
+              <span
+                className="text-[11px] leading-tight"
+                style={{ color: unlocked ? '#EDD9A8' : 'rgba(255,255,255,0.25)' }}
+              >
                 {t(labelKey)}
               </span>
             </div>
@@ -64,13 +95,26 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
         })}
       </div>
 
-      {!isPlus && (
+      {!isPlus ? (
         <button
           onClick={() => showToast(t('profile_upgrade_coming'))}
-          className="w-full rounded-[17px] bg-[#F9E3A0] py-2 text-xs font-semibold text-[#6B4B1A] shadow-[0px_2px_2px_rgba(109,79,26,0.35)] transition hover:bg-[#FFE8A8]"
+          className="relative w-full overflow-hidden rounded-xl py-2.5 text-xs font-bold transition-all active:scale-[0.97]"
+          style={{
+            background: 'linear-gradient(135deg, #C8921A 0%, #F0C830 50%, #E8B820 100%)',
+            color: '#1A0E00',
+            letterSpacing: '0.08em',
+          }}
         >
           {t('profile_upgrade')}
         </button>
+      ) : (
+        <div className="flex items-center justify-center space-x-1.5">
+          <div className="h-px flex-1" style={{ background: 'rgba(212,175,55,0.15)' }} />
+          <span className="text-[10px]" style={{ color: 'rgba(212,175,55,0.5)', letterSpacing: '0.12em' }}>
+            ACTIVE
+          </span>
+          <div className="h-px flex-1" style={{ background: 'rgba(212,175,55,0.15)' }} />
+        </div>
       )}
     </div>
   );

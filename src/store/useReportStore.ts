@@ -16,7 +16,7 @@ import {
   createGeneratedReport,
   mergeReportIntoList,
   runReportAIAnalysis,
-  runTimeshineDiary,
+  runAIDiary,
   syncReportToSupabase,
 } from './reportActions';
 import { getDateRange } from './reportHelpers';
@@ -69,7 +69,7 @@ export interface ReportStats {
     low: { completed: number; total: number };
     completedTitles: string[];
   };
-  // Populated after Timeshine diary generation
+  // Populated after AI diary generation
   spectrum?: SpectrumItem[];
   lightQuality?: LightQuality;
 }
@@ -103,8 +103,8 @@ interface ReportState {
   generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => Promise<string>;
   updateReport: (id: string, updates: Partial<Report>) => void;
   triggerAIAnalysis: (reportId: string) => Promise<void>;
-  // 三步走新流程
-  generateTimeshineDiary: (reportId: string) => Promise<void>;
+  // 日记三步流程
+  generateAIDiary: (reportId: string) => Promise<void>;
   // 存储计算结果供历史对比
   computedHistory: ComputedResult[];
 }
@@ -220,12 +220,12 @@ export const useReportStore = create<ReportState>()(
       },
 
       /**
-       * Timeshine 三步走流程 - 生成观察手记
+       * 日记三步流程
        * Step 1: 调用分类器 API 将原始输入结构化
        * Step 2: 本地计算层处理数据
-       * Step 3: 调用日记 API 生成诗意观察手记
+       * Step 3: 调用日记 API 生成 AI 日记
        */
-      generateTimeshineDiary: async (reportId) => {
+      generateAIDiary: async (reportId) => {
         const state = get();
         const report = state.reports.find((r) => r.id === reportId);
         if (!report) return;
@@ -243,7 +243,7 @@ export const useReportStore = create<ReportState>()(
           const end = new Date(report.endDate ?? report.date);
           const messages = await chatStore.getMessagesForDateRange(start, end);
 
-          const result = await runTimeshineDiary({
+          const result = await runAIDiary({
             report,
             todos: todoStore.todos,
             messages,
@@ -268,10 +268,10 @@ export const useReportStore = create<ReportState>()(
             analysisStatus: 'success',
             stats: existingStats ? { ...existingStats, ...statsUpdate } : undefined,
           });
-          console.log('[Timeshine] 观察手记生成完成');
+          console.log('[Diary] AI 日记生成完成');
 
         } catch (error) {
-          console.error('[Timeshine] 生成观察手记失败:', error);
+          console.error('[Diary] 生成 AI 日记失败:', error);
           get().updateReport(reportId, {
             analysisStatus: 'error',
             errorMessage: error instanceof Error ? error.message : i18n.t('report_error_unknown')

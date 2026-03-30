@@ -197,4 +197,38 @@ describe('annotation-handler', () => {
     expect((res.payload as { suggestion?: { type: string; todoId?: string } }).suggestion?.type).toBe('todo');
     expect((res.payload as { suggestion?: { todoId?: string } }).suggestion?.todoId).toBe('todo-123');
   });
+
+  it('forces suggestion output when forceSuggestion is true', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_forced',
+      output_text: 'Take a tiny break and restart 🌿',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'working nonstop' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-xyz', title: 'drink water' }],
+          allowSuggestion: false,
+          forceSuggestion: true,
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { suggestion?: { type?: string } }).suggestion?.type).toBeTruthy();
+    expect((res.payload as { displayDuration?: number }).displayDuration).toBe(15000);
+  });
 });

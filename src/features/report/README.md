@@ -12,7 +12,7 @@
   - Plant generation time-window gate (available after 20:00 local time) with irreversible confirmation
   - Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
   - Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
-  - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_001` -> `sha_early_001`
+  - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_0001` -> `sha_early_0001`
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
   - No-record fallback hint for empty-day generate attempts
   - Daily/weekly/monthly report generation
@@ -20,7 +20,7 @@
   - Report stats view (`ReportStatsView`): todo breakdown, habit/goal/recurring/one-time stats display
   - Activity records view (`ActivityRecordsView`): activity timeline with durations
   - Mood pie chart (`MoodPieChart`): mood distribution visualization
-  - Timeshine diary generation and display (`DiaryBookShelf` + `DiaryBookViewer`)
+  - AI diary generation and display (`DiaryBookShelf` + `DiaryBookViewer`)
   - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
 
 ## Upstream Dependencies
@@ -53,7 +53,7 @@ Template todos (`isTemplate: true`) are excluded from all counts.
 
 Weekly/monthly reports continue to use `recurringStats` (habit rate over the period) and `dailyCompletion` (day-by-day trend bar chart).
 
-The same breakdown is serialised into plain text and passed to the Timeshine diary AI via internal helper `buildRawInput()` in `reportActions.ts` (not exported).
+The same breakdown is serialised into plain text and passed to the diary AI via internal helper `buildRawInput()` in `reportActions.ts` (not exported).
 
 ## Visualization Components
 
@@ -62,10 +62,10 @@ New components added in Phase 4:
 | Component | Data Source | Render When |
 |-----------|-------------|-------------|
 | `ActivityCategoryDonut` | `stats.actionAnalysis` | Past daily report with activity records |
-| `SpectrumBarChart` | `stats.spectrum` | After Timeshine diary generation |
-| `LightQualityDashboard` | `stats.lightQuality` | After Timeshine diary generation |
+| `SpectrumBarChart` | `stats.spectrum` | After AI diary generation |
+| `LightQualityDashboard` | `stats.lightQuality` | After AI diary generation |
 
-`stats.spectrum` and `stats.lightQuality` are populated in `useReportStore.generateTimeshineDiary` from `ComputedResult` after the classifier + diary API calls succeed. They are persisted to Supabase via `stats` JSON column.
+`stats.spectrum` and `stats.lightQuality` are populated in `useReportStore.generateAIDiary` from `ComputedResult` after the classifier + diary API calls succeed. They are persisted to Supabase via `stats` JSON column.
 
 ## i18n Coverage
 

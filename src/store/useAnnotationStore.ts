@@ -23,6 +23,7 @@ import { useAuthStore } from './useAuthStore';
 import { useTodoStore } from './useTodoStore';
 import { buildStatusSummary } from '../lib/buildStatusSummary';
 import { detectSuggestionContextHints } from '../lib/suggestionDetector';
+import { isExplicitSuggestionRequest } from '../lib/suggestionIntentDetector';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -87,6 +88,10 @@ function isSuggestionEligibleEvent(eventType: AnnotationEventType): boolean {
     || eventType === 'mood_recorded'
     || eventType === 'idle_detected'
     || eventType === 'overwork_detected';
+}
+
+function extractEventTextForSuggestionIntent(event: AnnotationEvent): string {
+  return String(event.data?.content || event.data?.mood || '').trim();
 }
 
 export const useAnnotationStore = create<AnnotationStore>()(
@@ -168,13 +173,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
         }
 
         // 检查是否应该生成批注
+        const explicitSuggestionRequest = isSuggestionEligibleEvent(event.type)
+          && isExplicitSuggestionRequest(extractEventTextForSuggestionIntent(event));
+
         const shouldGenerate = shouldGenerateAnnotation(
           event,
           get().todayStats,
           config
         );
 
-        if (!shouldGenerate) {
+        if (!shouldGenerate && !explicitSuggestionRequest) {
           console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
           return;
         }
@@ -256,11 +264,14 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const nowDate = new Date();
           const period = getSuggestionPeriod(nowDate.getHours());
           const adaptiveMinInterval = get().getAdaptiveMinInterval();
-          const canAttemptSuggestion = isSuggestionEligibleEvent(event.type)
-            && get().dailySuggestionCount < 4
-            && get().suggestionCountByPeriod[period] < 2
-            && !get().lastWasSuggestion
-            && (Date.now() - get().lastSuggestionTime >= adaptiveMinInterval);
+          const canAttemptSuggestion = explicitSuggestionRequest
+            || (
+              isSuggestionEligibleEvent(event.type)
+              && get().dailySuggestionCount < 4
+              && get().suggestionCountByPeriod[period] < 2
+              && !get().lastWasSuggestion
+              && (Date.now() - get().lastSuggestionTime >= adaptiveMinInterval)
+            );
 
           const { statusSummary, frequentActivities } = buildStatusSummary({
             now: nowDate,
@@ -297,6 +308,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               contextHints,
               frequentActivities,
               allowSuggestion: canAttemptSuggestion,
+              forceSuggestion: explicitSuggestionRequest,
               consecutiveTextCount: get().consecutiveTextCount,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',

@@ -22,7 +22,7 @@ type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 export const ReportPage = () => {
   const [date, setDate] = useState<Value>(new Date());
-  const { reports, generateReport, generateTimeshineDiary } = useReportStore();
+  const { reports, generateReport, generateAIDiary } = useReportStore();
   const { todos } = useTodoStore();
   const { t, i18n } = useTranslation();
   const chatMessages = useChatStore((state) => state.messages);
@@ -113,7 +113,7 @@ export const ReportPage = () => {
     // PLUS: auto-trigger AI diary generation if not already done
     const report = useReportStore.getState().reports.find(r => r.id === reportId);
     if (report && (report.analysisStatus === 'idle' || (!report.analysisStatus && !report.aiAnalysis))) {
-      generateTimeshineDiary(reportId);
+      generateAIDiary(reportId);
     }
   };
 
@@ -279,7 +279,7 @@ export const ReportPage = () => {
           setShowDiaryBook(true); // reopen diary book
         } : undefined}
         onShowTaskList={setShowTaskList}
-        generateTimeshineDiary={generateTimeshineDiary}
+        generateAIDiary={generateAIDiary}
         initialPage={diaryInitialPage}
         readOnly={(() => {
           if (!selectedReport) return false;

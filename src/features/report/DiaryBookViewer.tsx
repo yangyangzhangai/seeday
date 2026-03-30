@@ -158,7 +158,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
             </p>
           ) : (
             <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
-              {report ? '观察员正在整理…' : ''}
+              {report ? 'AI 正在整理…' : ''}
             </span>
           )}
         </div>
@@ -331,7 +331,7 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
                 <p style={{ margin: 0, fontSize: 14, color: '#4a5a7a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.aiAnalysis}</p>
               ) : (
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(61,90,138,0.4)', fontStyle: 'italic' }}>
-                  {report ? '观察员正在整理笔记…' : '暂无观察笔记'}
+                  {report ? 'AI 正在整理笔记…' : '暂无 AI 笔记'}
                 </p>
               )}
             </div>

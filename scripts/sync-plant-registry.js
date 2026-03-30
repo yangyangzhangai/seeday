@@ -168,7 +168,7 @@ function generateTS(rows) {
 
   lines.push(
     "/** 无素材时的兜底植物 ID */",
-    "export const GLOBAL_FALLBACK_PLANT_ID = 'sha_early_001';",
+    "export const GLOBAL_FALLBACK_PLANT_ID = 'sha_early_0001';",
     '',
     '/** 获取某根系下的植物列表，无素材时降级到 sha */\n' +
     'export function getAvailablePlants(rootType: RootType): PlantEntry[] {\n' +

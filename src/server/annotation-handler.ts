@@ -256,6 +256,80 @@ function normalizeSuggestion(
   return normalized;
 }
 
+function buildForcedFallbackSuggestion(
+  lang: AnnotationLang,
+  pendingTodos: Array<{ id: string; title: string; category?: string }> = [],
+): { content: string; suggestion: Record<string, unknown> } {
+  const firstTodo = pendingTodos[0];
+
+  if (firstTodo) {
+    if (lang === 'en') {
+      return {
+        content: `Let's start small: ${firstTodo.title}, just begin now 🌿`,
+        suggestion: {
+          type: 'todo',
+          todoId: firstTodo.id,
+          todoTitle: firstTodo.title,
+          actionLabel: 'Start now',
+        },
+      };
+    }
+
+    if (lang === 'it') {
+      return {
+        content: `Partiamo in piccolo: ${firstTodo.title}, inizia ora 🌿`,
+        suggestion: {
+          type: 'todo',
+          todoId: firstTodo.id,
+          todoTitle: firstTodo.title,
+          actionLabel: 'Inizia ora',
+        },
+      };
+    }
+
+    return {
+      content: `先从小步开始：${firstTodo.title}，现在就动一下 🌿`,
+      suggestion: {
+        type: 'todo',
+        todoId: firstTodo.id,
+        todoTitle: firstTodo.title,
+        actionLabel: '现在去做',
+      },
+    };
+  }
+
+  if (lang === 'en') {
+    return {
+      content: 'Try a tiny reset: drink water and walk for two minutes 🌿',
+      suggestion: {
+        type: 'activity',
+        activityName: 'drink water and walk for two minutes',
+        actionLabel: 'Do it now',
+      },
+    };
+  }
+
+  if (lang === 'it') {
+    return {
+      content: 'Fai un reset minimo: acqua e due minuti di movimento 🌿',
+      suggestion: {
+        type: 'activity',
+        activityName: 'bevi acqua e cammina due minuti',
+        actionLabel: 'Vai ora',
+      },
+    };
+  }
+
+  return {
+    content: '先做一个两分钟的小动作：喝水并走一走 🌿',
+    suggestion: {
+      type: 'activity',
+      activityName: '喝水并走两分钟',
+      actionLabel: '去行动',
+    },
+  };
+}
+
 // ==================== 主 Handler ====================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -296,7 +370,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ==================== 建议模式（客户端门控透传） ====================
-  const isSuggestionMode = userContext?.allowSuggestion === true;
+  const forceSuggestion = userContext?.forceSuggestion === true;
+  const isSuggestionMode = userContext?.allowSuggestion === true || forceSuggestion;
 
   if (isSuggestionMode) {
     try {
@@ -324,6 +399,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currentHour,
         currentMinute,
         consecutiveTextCount: userContext?.consecutiveTextCount,
+        forceSuggestion,
       });
       const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
       const model = getModel(resolvedLang);
@@ -342,7 +418,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (parsedPayload) {
         const finalContent = ensureEmoji(parsedPayload.content, '🌿');
-        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion);
+        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion)
+          ?? (forceSuggestion
+            ? buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion
+            : undefined);
 
         res.status(200).json({
           content: finalContent,
@@ -358,6 +437,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const extractedText = extractComment(raw, resolvedLang);
       if (extractedText) {
         const finalContent = ensureEmoji(extractedText, '🌿');
+        if (forceSuggestion) {
+          const fallback = buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+          res.status(200).json({
+            content: finalContent,
+            tone: 'concerned',
+            displayDuration: 15000,
+            source: 'ai',
+            debugAiMode: resolvedAiMode || 'fallback',
+            suggestion: fallback.suggestion,
+          });
+          return;
+        }
+
         res.status(200).json({
           content: finalContent,
           tone: 'concerned',
@@ -369,6 +461,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } catch (suggestionErr) {
       console.error('[Annotation API] Suggestion mode error:', suggestionErr);
+      if (forceSuggestion) {
+        const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
+        const fallback = buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+        res.status(200).json({
+          content: fallback.content,
+          tone: 'concerned',
+          displayDuration: 15000,
+          source: 'default',
+          reason: 'suggestion_force_fallback',
+          debugAiMode: resolvedAiMode || 'fallback',
+          suggestion: fallback.suggestion,
+        });
+        return;
+      }
     }
     // suggestion 失败时回退普通批注
   }

@@ -1,8 +1,35 @@
-plantId,rootType,plantStage,variantIndex,variant,fileName,fileFormat,isFallbackReady,nameCN,nameEN,nameIT,notes
-fib_early_001,fib,early,1,,fib_early_001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,已上线
-fib_early_002,fib,early,2,,fib_early_002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,已上线
-fib_late_001,fib,late,1,,fib_late_001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,已上线
-fib_late_002,fib,late,2,,fib_late_002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,已上线
-,,,,,,,,,,,
-sha_early_001,sha,early,1,,sha_early_001.png,png,FALSE,,,,全局兜底图 最高优先级
-
+﻿plantId,rootType,plantStage,variantIndex,variant,fileName,fileFormat,isFallbackReady,nameCN,nameEN,nameIT,notes
+tap_early_0001,tap,early,1,,tap_early_0001.png,png,TRUE,虞美人,Corn Poppy,Papavero,live
+tap_early_0002,tap,early,2,,tap_early_0002.png,png,TRUE,大波斯菊,Cosmos,Cosmea,live
+tap_early_0003,tap,early,3,,tap_early_0003.png,png,TRUE,紫云英,Chinese Milk Vetch,Astragalo cinese,live
+tap_early_0004,tap,early,4,,tap_early_0004.png,png,TRUE,薰衣草,Lavender,Lavanda,live
+tap_early_0005,tap,early,5,,tap_early_0005.png,png,TRUE,飞燕草,Larkspur,Speronella,live
+tap_late_0001,tap,late,1,,tap_late_0001.png,png,TRUE,虞美人,Corn Poppy,Papavero,live
+tap_late_0002,tap,late,2,,tap_late_0002.png,png,TRUE,大波斯菊,Cosmos,Cosmea,live
+tap_late_0003,tap,late,3,,tap_late_0003.png,png,TRUE,紫云英,Chinese Milk Vetch,Astragalo cinese,live
+tap_late_0004,tap,late,4,,tap_late_0004.png,png,TRUE,薰衣草,Lavender,Lavanda,live
+tap_late_0005,tap,late,5,,tap_late_0005.png,png,TRUE,飞燕草,Larkspur,Speronella,live
+fib_early_0001,fib,early,1,,fib_early_0001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,live
+fib_early_0002,fib,early,2,,fib_early_0002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,live
+fib_early_0003,fib,early,3,,fib_early_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,live
+fib_early_0004,fib,early,4,,fib_early_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
+fib_late_0001,fib,late,1,,fib_late_0001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,live
+fib_late_0002,fib,late,2,,fib_late_0002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,live
+fib_late_0003,fib,late,3,,fib_late_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,live
+fib_late_0004,fib,late,4,,fib_late_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
+sha_early_0001,sha,early,1,,sha_early_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,global_fallback
+sha_early_0003,sha,early,3,,sha_early_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
+sha_early_0004,sha,early,4,,sha_early_0004.png,png,TRUE,栀子花,Gardenia,Gardenia,live
+sha_early_0005,sha,early,5,,sha_early_0005.png,png,TRUE,牡丹,Peony,Peonia,live
+sha_late_0001,sha,late,1,,sha_late_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,live
+sha_late_0003,sha,late,3,,sha_late_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
+sha_late_0004,sha,late,4,,sha_late_0004.png,png,TRUE,栀子花,Gardenia,Gardenia,live
+sha_late_0005,sha,late,5,,sha_late_0005.png,png,TRUE,牡丹,Peony,Peonia,live
+bul_early_0001,bul,early,1,,bul_early_0001.png,png,TRUE,郁金香,Tulip,Tulipano,live
+bul_early_0003,bul,early,3,,bul_early_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
+bul_early_0004,bul,early,4,,bul_early_0004.png,png,TRUE,仙客来,Cyclamen,Ciclamino,live
+bul_early_0005,bul,early,5,,bul_early_0005.png,png,TRUE,仙人掌,Cactus,Cactus,live
+bul_late_0001,bul,late,1,,bul_late_0001.png,png,TRUE,郁金香,Tulip,Tulipano,live
+bul_late_0003,bul,late,3,,bul_late_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
+bul_late_0004,bul,late,4,,bul_late_0004.png,png,TRUE,仙客来,Cyclamen,Ciclamino,live
+bul_late_0005,bul,late,5,,bul_late_0005.png,png,TRUE,仙人掌,Cactus,Cactus,live

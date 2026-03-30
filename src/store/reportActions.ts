@@ -184,12 +184,12 @@ export async function runReportAIAnalysis(report: Report, todos: Todo[], message
   });
 }
 
-interface TimeshineResult {
+interface AIDiaryResult {
   content: string;
   computed: ComputedResult;
 }
 
-interface RunTimeshineDiaryInput {
+interface RunAIDiaryInput {
   report: Report;
   todos: Todo[];
   messages: Message[];
@@ -232,7 +232,7 @@ function buildClassifiedData(activities: Message[], todoStats: DailyTodoStats): 
   return { total_duration_min: totalMin, items, todos: { completed, total }, energy_log: [] };
 }
 
-export async function runTimeshineDiary({
+export async function runAIDiary({
   report,
   todos,
   messages,
@@ -241,7 +241,7 @@ export async function runTimeshineDiary({
   bottles,
   dailyGoal,
   goalDate,
-}: RunTimeshineDiaryInput): Promise<TimeshineResult> {
+}: RunAIDiaryInput): Promise<AIDiaryResult> {
   const range = getDateRange(report.type, report.date, report.endDate);
   const start = report.startDate ? new Date(report.startDate) : range.start;
   const end = report.endDate ? new Date(report.endDate) : range.end;
@@ -272,10 +272,10 @@ export async function runTimeshineDiary({
   const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
   const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);
 
-  import.meta.env.DEV && console.log('[Timeshine] Step 1: 从消息直接构建结构化数据...');
+  import.meta.env.DEV && console.log('[Diary] Step 1: 从消息直接构建结构化数据...');
   const classifiedData = buildClassifiedData(activities, dailyTodoStats);
 
-  import.meta.env.DEV && console.log('[Timeshine] Step 2: 计算层处理...');
+  import.meta.env.DEV && console.log('[Diary] Step 2: 计算层处理...');
   const computed = computeAll(classifiedData, computedHistory, currentLang);
   computed.mood_records = moodRecords;
   const structuredData = formatForDiaryAI(computed, currentLang);
@@ -289,7 +289,7 @@ export async function runTimeshineDiary({
     historyContext = buildHistoryContext(computedHistory, isZh);
   }
 
-  import.meta.env.DEV && console.log('[Timeshine] Step 3: 生成观察手记...');
+  import.meta.env.DEV && console.log('[Diary] Step 3: 生成 AI 日记...');
   const currentUser = useAuthStore.getState().user;
   const userNickname = currentUser?.user_metadata?.display_name || undefined;
 

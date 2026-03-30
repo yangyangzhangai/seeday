@@ -24,7 +24,7 @@ interface ReportDetailModalProps {
   onClose: () => void;
   onBack?: () => void;
   onShowTaskList: (type: 'completed' | 'total') => void;
-  generateTimeshineDiary: (reportId: string) => Promise<void>;
+  generateAIDiary: (reportId: string) => Promise<void>;
   initialPage?: 0 | 1;
   readOnly?: boolean;
   onNavigatePrev?: () => void;
@@ -116,7 +116,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   dailyMoodDistribution,
   onClose,
   onBack,
-  generateTimeshineDiary,
+  generateAIDiary,
   initialPage,
   readOnly,
   onNavigatePrev,
@@ -221,9 +221,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
     // Only generate if not already generated
     if (selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis)) {
-      generateTimeshineDiary(selectedReport.id);
+      generateAIDiary(selectedReport.id);
     }
-  }, [selectedReport, generateTimeshineDiary]);
+  }, [selectedReport, generateAIDiary]);
 
   const saveNote = useCallback(() => {
     if (!selectedReport) return;
@@ -443,17 +443,17 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           {/* AI 观察日记 — moved here below plant */}
           <div>
             <h3 className="font-bold flex items-center gap-2 mb-2 text-sm" style={{ color: '#333' }}>
-              <Sparkles size={15} /> {t('report_observer_analysis')}
+              <Sparkles size={15} /> {t('report_ai_diary_analysis')}
             </h3>
 
             {selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis) ? (
               <div className="text-center py-2">
-                <p className="text-sm mb-3 text-gray-500">{t('report_observer_waiting')}</p>
+                <p className="text-sm mb-3 text-gray-500">{t('report_ai_diary_waiting')}</p>
                 {isPlus ? (
                   <button
                     onClick={() => {
                       if (window.confirm(t('report_generate_confirm'))) {
-                        generateTimeshineDiary(selectedReport.id);
+                        generateAIDiary(selectedReport.id);
                       }
                     }}
                     className="px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
@@ -481,7 +481,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <div className="p-3 rounded" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(180,60,60,0.2)' }}>
                 <p className="text-sm mb-2" style={{ color: '#8a3a3a' }}>{selectedReport.errorMessage}</p>
                 <button
-                  onClick={() => generateTimeshineDiary(selectedReport.id)}
+                  onClick={() => generateAIDiary(selectedReport.id)}
                   className="text-xs px-3 py-1 rounded"
                   style={{ background: 'white', border: '1px solid rgba(180,60,60,0.3)', color: '#8a3a3a' }}
                 >
@@ -492,7 +492,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <div>
                 <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                   <Sparkles size={13} style={{ color: '#888' }} />
-                  <span className="text-xs font-medium text-gray-500">{t('report_from_prism')}</span>
+                  <span className="text-xs font-medium text-gray-500">{t('report_ai_diary_header')}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-gray-700">{selectedReport.aiAnalysis}</p>
               </div>

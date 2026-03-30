@@ -250,6 +250,7 @@ interface SuggestionAwarePromptInput {
   currentHour?: number;
   currentMinute?: number;
   consecutiveTextCount?: number;
+  forceSuggestion?: boolean;
 }
 
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
@@ -266,6 +267,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     currentHour,
     currentMinute,
     consecutiveTextCount = 0,
+    forceSuggestion = false,
   } = input;
 
   const hourText = currentHour !== undefined
@@ -283,6 +285,16 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     .join('\n') || 'none';
 
   if (lang === 'en') {
+    const modeRules = forceSuggestion
+      ? [
+        'User explicitly asked for advice. You MUST output suggestion JSON only.',
+        'Never output plain text in this turn.',
+      ]
+      : [
+        'Decide naturally between plain annotation and actionable suggestion.',
+        'If plain annotation is better, output plain text only, end with exactly one emoji.',
+      ];
+
     return [
       hourText ? `Current time: ${hourText}` : null,
       `Today's timeline: ${todayActivitiesText}`,
@@ -293,8 +305,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Frequent activities: ${freqText}`,
       `Pending todos:\n${todoListText}`,
       `Consecutive text-only outputs: ${consecutiveTextCount}`,
-      'Decide naturally between plain annotation and actionable suggestion.',
-      'If plain annotation is better, output plain text only, end with exactly one emoji.',
+      ...modeRules,
       'If suggestion is better, output ONLY JSON with this shape:',
       '{"mode":"suggestion","content":"<one sentence with one emoji>","suggestion":{"type":"activity|todo","actionLabel":"<button>","activityName":"<optional>","todoId":"<optional>","todoTitle":"<optional>"}}',
       'For todo suggestion, todoId must come from Pending todos list. Keep content concise and caring.',
@@ -302,6 +313,16 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
   }
 
   if (lang === 'it') {
+    const modeRules = forceSuggestion
+      ? [
+        'L\'utente ha chiesto esplicitamente un consiglio. Devi stampare SOLO JSON di suggerimento.',
+        'Non stampare testo normale in questo turno.',
+      ]
+      : [
+        'Scegli in modo naturale tra annotazione normale e suggerimento operativo.',
+        'Se e meglio una normale annotazione, stampa solo testo con una sola emoji finale.',
+      ];
+
     return [
       hourText ? `Ora corrente: ${hourText}` : null,
       `Timeline di oggi: ${todayActivitiesText}`,
@@ -312,13 +333,21 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Attivita frequenti: ${freqText}`,
       `Todo in sospeso:\n${todoListText}`,
       `Numero annotazioni testuali consecutive: ${consecutiveTextCount}`,
-      'Scegli in modo naturale tra annotazione normale e suggerimento operativo.',
-      'Se e meglio una normale annotazione, stampa solo testo con una sola emoji finale.',
+      ...modeRules,
       'Se e meglio un suggerimento, stampa SOLO JSON con questa forma:',
       '{"mode":"suggestion","content":"<frase breve con una emoji>","suggestion":{"type":"activity|todo","actionLabel":"<pulsante>","activityName":"<opzionale>","todoId":"<opzionale>","todoTitle":"<opzionale>"}}',
       'Per i todo, todoId deve essere preso dalla lista Pending todos.',
     ].filter(Boolean).join('\n\n');
   }
+
+  const modeRules = forceSuggestion
+    ? [
+      '用户本轮明确要求建议：你必须输出建议 JSON，不允许输出普通文本。',
+    ]
+    : [
+      '请自然判断输出普通批注，还是给一个具体可执行的建议。每天最多有3次建议机会，如果你判断过后没有偏好，请输出普通批注。',
+      '如果输出普通批注：只输出一句话，句末且仅一个 emoji。',
+    ];
 
   return [
     hourText ? `当前时间：${hourText}` : null,
@@ -330,8 +359,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `常做活动：${freqText}`,
     `待办列表：\n${todoListText}`,
     `连续纯文字批注次数：${consecutiveTextCount}`,
-    '请自然判断输出普通批注，还是给一个具体可执行的建议。每天最多有3次建议机会，如果你判断过后没有偏好，请输出普通批注。',
-    '如果输出普通批注：只输出一句话，句末且仅一个 emoji。',
+    ...modeRules,
     '如果输出建议：只输出 JSON，格式如下：',
     '{"mode":"suggestion","content":"<一句话+1个emoji>","suggestion":{"type":"activity|todo","actionLabel":"<按钮文案>","activityName":"<可选>","todoId":"<可选>","todoTitle":"<可选>"}}',
     'todo 建议时，todoId 必须来自待办列表。内容要温暖、简短、具体。',

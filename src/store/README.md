@@ -11,7 +11,7 @@
 | `useTodoStore.ts` | Growth 页内的 Todo CRUD、计时、分类、消息联动 | Yes |
 | `useGrowthStore.ts` | 成长瓶（Bottle）、每日目标与弹窗状态 | Yes |
 | `useFocusStore.ts` | Focus session、活动关联、时长持久化 | Yes |
-| `useReportStore.ts` | 报告生成、报告列表、观察手记 | Yes |
+| `useReportStore.ts` | 报告生成、报告列表、AI 日记 | Yes |
 | `usePlantStore.ts` | 植物根系片段、当日植物、方向配置与历史读取 | Yes |
 | `useMoodStore.ts` | 心情映射、自定义标签（含裁剪） | Yes |
 | `useAnnotationStore.ts` | AI 批注触发与展示 | Yes |

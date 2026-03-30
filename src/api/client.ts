@@ -192,6 +192,7 @@ interface AnnotationRequest {
     todayDuration?: number;
     currentHour?: number;
     currentMinute?: number;
+    timezone?: string;
     recentAnnotations?: string[];
     recentMoodMessages?: string[]; // 连续心情原文（最多3条）
     moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>; // 连续心情对话历史（含AI回复）
@@ -201,6 +202,7 @@ interface AnnotationRequest {
     contextHints?: string[];
     frequentActivities?: string[];
     allowSuggestion?: boolean;
+    forceSuggestion?: boolean;
     consecutiveTextCount?: number;
   };
   lang?: 'zh' | 'en' | 'it';
@@ -258,7 +260,7 @@ export async function callAnnotationAPI(request: AnnotationRequest): Promise<Ann
   return response;
 }
 
-// ── Timeshine 三步走新 API ────────────────────────────────────────────────────
+// ── 日记生成三步流程 API ────────────────────────────────────────────────────────
 
 interface ClassifyRequest {
   rawInput: string;
@@ -320,7 +322,7 @@ export async function callClassifierAPI(request: ClassifyRequest): Promise<Class
 }
 
 /**
- * 步骤3: 调用日记 API - 生成诗意的观察手记
+ * 步骤3: 调用日记 API - 生成 AI 日记
  */
 export async function callDiaryAPI(request: DiaryRequest): Promise<DiaryResponse> {
   return postJson<DiaryRequest, DiaryResponse>('/diary', {

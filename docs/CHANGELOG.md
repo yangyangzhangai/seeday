@@ -8,6 +8,65 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-30 - Test/Fix: suggestion 意图识别补充自然表达覆盖
+
+### Changed
+
+- `src/lib/suggestionIntentDetector.ts`
+  - 扩展显式求建议规则，新增对自然表达的识别：
+    - "给点/给些/来点建议"
+    - "能不能/能否/可以 + 给我/给点 + 建议"
+    - "我该/我应该 + 先做哪个/选哪个"
+    - "我该...还是..." 决策句式
+    - "告诉我下一步" 与 "接下来我应该..." 句式
+
+### Added Tests
+
+- `src/lib/suggestionIntentDetector.test.ts`
+  - 新增自然表达正例、陈述句负例、非中文输入、空白与标点噪声等覆盖，测试总数从 3 增加到 7。
+
+### Validation
+
+- `npx vitest run src/lib/suggestionIntentDetector.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次 suggestion 意图识别补测与漏判修复）。
+
+## 2026-03-30 - Feat: 显式求建议直通（中文）+ 强制建议兜底
+
+### Changed
+
+- `src/lib/suggestionIntentDetector.ts`（新增）
+  - 新增中文显式求建议意图识别与打分（覆盖"帮我规划/帮我选择/该怎么办/下一步做什么"等表达）。
+- `src/store/useAnnotationStore.ts`
+  - 新增显式求建议检测：命中后可绕过批注触发门槛（冷却/概率/日限）并直通 suggestion 请求。
+  - 透传 `userContext.forceSuggestion` 到 `/api/annotation`。
+  - 保持 suggestion 记账逻辑不变：显式建议命中后仍会消耗分时段配额并刷新 suggestion 冷却（影响后续主动建议）。
+- `src/server/annotation-prompts.ts`
+  - suggestion-aware prompt 新增 `forceSuggestion` 分支：显式求建议时强制模型只输出 suggestion JSON。
+- `src/server/annotation-handler.ts`
+  - 新增 `forceSuggestion` 模式（`allowSuggestion || forceSuggestion`）。
+  - 新增强制建议兜底：当模型未返回可解析 suggestion JSON 或分支异常时，服务端构造可执行 suggestion，确保前端按钮可展示。
+- `src/types/annotation.ts` / `src/api/client.ts`
+  - 扩展 annotation userContext 契约：新增 `forceSuggestion?: boolean`，并补齐 `timezone?: string` 类型。
+
+### Added Tests
+
+- `src/lib/suggestionIntentDetector.test.ts`（新增）
+  - 覆盖中文显式求建议识别与普通记录不误触发。
+- `src/server/annotation-handler.test.ts`
+  - 新增 `forceSuggestion=true` 用例，验证在非 JSON 输出下仍返回 suggestion。
+
+### Validation
+
+- `npx vitest run src/lib/suggestionIntentDetector.test.ts src/server/annotation-handler.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充显式求建议直通与配额/冷却策略说明）。
+
 ## 2026-03-30 - UX: AI 批注头像改为半悬浮超出弹窗
 
 ### Changed

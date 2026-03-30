@@ -93,18 +93,20 @@ function buildPromptZh(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'zh');
   const modeSection = modeHint ? `陪伴风格提示：${modeHint}\n` : '';
   return [
-    '为日常生活应用选择今日植物，并写一段植物卡片诗句。',
-    '请只输出有效JSON，格式：{"plantId":"xxx","text":"诗句"}',
+    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。',
+    '请只输出有效JSON，格式：{"plantId":"xxx","text":"一句话"}',
     '',
     `可选植物（必须从列表中选一个）：\n${plantList}`,
     '',
-    '植物选择说明：',
-    '• early（早期）：今天像在播种或打基础——努力但还看不见成果，比如推进长期项目、学习新技能、付出多于收获，或者虽然专注但结果遥遥无期',
-    '• late（晚期）：今天有明显收获——完成了某件事、深度投入后能看到成果、感觉今天的努力落地了',
-    '• 同一 stage 下可能有多个编号，选最能代表今天活动特点的那个',
+    '植物选择说明（以下是参考，不是硬规则，你需要自己判断）：',
+    '• early（早期）常见于“播种/打基础”、“探索”或者“积累”的一天，或者对应平静的情绪，例如推进长期项目、学习新技能、努力多于即时回报',
+    '• late（晚期）常见于“结果更可见”的一天，或者对应情绪激烈（比如充满成就感、高光、喜悦、悲伤、愤怒等）的一天，例如完成关键事项、投入后有明显落地感',
+    '• 上述只作示例，你要有自己的判断；请根据今天活动结构、时长与重心自行判断更贴近 early 还是 late',
+    '• 同一 stage 可能有多个植物编号；请结合植物在自然界的习性、外观气质与联想意义，选最能映射用户今天状态的一株',
     '',
-    '诗句要求：',
-    '• 30-60个汉字，2-3行短诗，温暖，自然融入植物或自然意象',
+    '文案要求：',
+    '• 1-2句自然语言（20-60字），不必写成诗，语气真诚自然',
+    '• 文案要明确体现“今天的用户状态”与“所选植物特性/意象”的对应关系',
     '• JSON字符串内不使用换行符',
     modeSection,
     '今天的数据：',
@@ -122,18 +124,20 @@ function buildPromptEn(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'en');
   const modeSection = modeHint ? `Companion style: ${modeHint}\n` : '';
   return [
-    'Choose today\'s plant and write a short card poem for a daily life app.',
-    'Respond with ONLY valid JSON: {"plantId":"xxx","text":"poem here"}',
+    'Choose today\'s plant and write one line that links the user\'s day with that plant.',
+    'Respond with ONLY valid JSON: {"plantId":"xxx","text":"one line"}',
     '',
     `Available plants (choose exactly one):\n${plantList}`,
     '',
-    'Selection guide:',
-    '• "early" stage: good for days of planting seeds or laying groundwork — effort without visible results yet, e.g. advancing a long-term project, learning new skills, hard work without immediate payoff, or a focused day where results are still far off',
-    '• "late" stage: good for days with clear achievement — completing something meaningful, deep engagement where effort is visibly paying off',
-    '• If multiple numbers exist for the same stage, pick the one that best fits today\'s character',
+    'Selection guide (examples only, not rigid rules):',
+    '• "early" often fits a day of seeding, groundwork, exploration, or accumulation, and can also match calmer emotions; e.g. advancing long-term work, learning new skills, and putting in effort before visible payoff',
+    '• "late" often fits a day with more visible outcomes, or stronger emotional intensity (such as achievement, highlight moments, joy, sadness, or anger); e.g. finishing key tasks or feeling clear landing after deep effort',
+    '• Treat the above as examples, not templates; make your own judgment from today\'s activity structure, duration, and focus',
+    '• If multiple plant IDs exist in one stage, choose the one that best maps to the user\'s day by considering the plant\'s real-world traits, appearance, and symbolic associations',
     '',
-    'Poem rules:',
-    '• 20-45 words, 2-3 short lines, warm tone, use a nature/plant metaphor naturally',
+    'Text rules:',
+    '• 1-2 natural sentences (about 18-45 words), warm and grounded; it does not need to be a poem',
+    '• Make the link explicit between the selected plant\'s traits/imagery and the user\'s day',
     '• No newline characters inside the JSON string value',
     modeSection,
     "Today's data:",
@@ -151,18 +155,20 @@ function buildPromptIt(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'it');
   const modeSection = modeHint ? `Stile del compagno: ${modeHint}\n` : '';
   return [
-    'Scegli la pianta del giorno e scrivi una breve poesia per la card di una app.',
-    'Rispondi SOLO con JSON valido: {"plantId":"xxx","text":"poesia"}',
+    'Scegli la pianta del giorno e scrivi una frase che colleghi la giornata dell\'utente a quella pianta.',
+    'Rispondi SOLO con JSON valido: {"plantId":"xxx","text":"frase"}',
     '',
     `Piante disponibili (scegliere esattamente una):\n${plantList}`,
     '',
-    'Guida alla scelta:',
-    '• stadio "early" (iniziale): adatto per giornate di semina o basi gettate — sforzo senza risultati visibili, es. progetto a lungo termine, apprendimento di nuove abilità, impegno senza ritorni immediati',
-    '• stadio "late" (avanzato): adatto per giornate con risultati chiari — completamento di qualcosa, impegno profondo con frutti visibili',
-    '• Se ci sono più numeri per lo stesso stadio, scegli quello che meglio rispecchia la giornata',
+    'Guida alla scelta (solo esempi, non regole rigide):',
+    '• stadio "early" (iniziale): spesso adatto a giornate di semina, basi, esplorazione o accumulo, e può anche rispecchiare emozioni più calme; per esempio avanzare su progetti lunghi, imparare nuove abilità, investire energia prima di vedere risultati',
+    '• stadio "late" (avanzato): spesso adatto a giornate con esiti più visibili, oppure con maggiore intensità emotiva (per esempio senso di conquista, momento di picco, gioia, tristezza o rabbia); ad esempio chiudere attività chiave o sentire che lo sforzo si è concretizzato',
+    '• Questi punti sono solo riferimenti: valuta tu in autonomia in base alla struttura delle attività di oggi, alla durata e al focus',
+    '• Se ci sono più piante nello stesso stadio, scegli quella che meglio rappresenta la giornata considerando tratti naturali, aspetto e associazioni simboliche della pianta',
     '',
-    'Regole per la poesia:',
-    '• 20-45 parole, 2-3 versi brevi, tono caldo, usa metafore naturali',
+    'Regole del testo:',
+    '• 1-2 frasi naturali (circa 18-45 parole), tono caldo e concreto; non deve essere per forza poesia',
+    '• Rendi esplicito il collegamento tra le caratteristiche/immaginario della pianta scelta e la giornata dell\'utente',
     '• Nessun carattere di nuova riga nella stringa JSON',
     modeSection,
     'Dati di oggi:',
@@ -199,7 +205,7 @@ function parseAiResponse(
   raw: string,
   availablePlants: PlantEntry[],
 ): { text: string; chosenPlantId: string } {
-  const fallbackPlantId = availablePlants[0]?.id ?? 'sha_early_001';
+  const fallbackPlantId = availablePlants[0]?.id ?? 'sha_early_0001';
   const validIds = availablePlants.map(p => p.id);
   try {
     const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -226,18 +232,18 @@ async function runRequest(
   input: PlantDiaryServiceInput,
   timeoutMs: number,
 ): Promise<{ text: string; chosenPlantId: string }> {
-  const apiKey = process.env.CHUTES_API_KEY;
-  if (!apiKey) throw new Error('Missing CHUTES_API_KEY');
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('https://llm.chutes.ai/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
+        model: 'gpt-4o-mini',
         messages: buildMessages(input),
         temperature: 0.80,
         max_tokens: 280,
@@ -264,7 +270,7 @@ export async function generatePlantDiaryWithFallback(
   input: PlantDiaryServiceInput,
 ): Promise<PlantDiaryServiceResult> {
   const lang = normalizeAiCompanionLang(input.lang) as Lang;
-  const fallbackPlantId = input.availablePlants[0]?.id ?? 'sha_early_001';
+  const fallbackPlantId = input.availablePlants[0]?.id ?? 'sha_early_0001';
 
   for (const timeoutMs of [5000, 3500]) {
     try {

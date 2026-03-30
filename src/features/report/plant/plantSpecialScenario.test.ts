@@ -22,7 +22,7 @@ function buildRecord(partial: Partial<DailyPlantRecord>): DailyPlantRecord {
       },
     },
     rootType: 'tap',
-    plantId: 'tap_early_001',
+    plantId: 'tap_early_0001',
     plantStage: 'early',
     isSpecial: false,
     isSupportVariant: false,

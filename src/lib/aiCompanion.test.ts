@@ -10,9 +10,9 @@ describe('aiCompanion', () => {
   it('builds localized companion guidance for diary prompts', () => {
     const prompt = buildAiCompanionModePrompt('zh', 'agnes', 'diary');
 
-    expect(prompt).toContain('Agnes - 引领指导');
-    expect(prompt).toContain('【日记写作重点】');
-    expect(prompt).toContain('方向');
+    expect(prompt).toContain('你是 Agnes');
+    expect(prompt).toContain('正文必须 150-300 字');
+    expect(prompt).toContain('成长信号');
   });
 
   it('builds annotation guidance for spring thunder in english', () => {
@@ -48,7 +48,7 @@ describe('aiCompanion', () => {
   it('uses the dedicated chinese annotation prompt when one is defined', () => {
     const prompt = buildAiCompanionModePrompt('zh', 'van', 'annotation');
 
-    expect(prompt).toContain('# Van');
+    expect(prompt).toContain('你是 Van');
   });
 
   it('injects the selected mode into annotation system prompts', () => {

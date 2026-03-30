@@ -37,7 +37,8 @@ Live input telemetry ingest/dashboard endpoints also use `Authorization: Bearer 
 当前 provider 映射：
 
 - `/api/annotation` -> `OPENAI_API_KEY`
-- `/api/report` / `/api/diary` / `/api/stardust` / `/api/plant-diary` -> `CHUTES_API_KEY`
+- `/api/report` / `/api/stardust` / `/api/plant-diary` -> `CHUTES_API_KEY`
+- `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底
 

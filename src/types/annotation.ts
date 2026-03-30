@@ -129,6 +129,7 @@ export interface AnnotationRequest {
     contextHints?: string[];
     frequentActivities?: string[];
     allowSuggestion?: boolean;
+    forceSuggestion?: boolean;
     consecutiveTextCount?: number;
   };
 }
