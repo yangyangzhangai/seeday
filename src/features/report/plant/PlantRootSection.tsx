@@ -199,7 +199,8 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
       {/* ── Canvas area (flex-1, clips soil canvas) ── */}
       <div className="flex-1 relative overflow-hidden min-h-0">
-        <div className="absolute inset-0" style={{ top: 124 }}>
+        {/* Soil + roots: pushed down so eco-sphere bubbles (130px) are fully above soil */}
+        <div className="absolute inset-0" style={{ top: 130 }}>
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}
@@ -217,9 +218,25 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
           />
         </div>
 
-        {/* ── Eco sphere bubbles above canvas to avoid clipping ── */}
+        {/* ── Eco sphere bubbles above soil ── */}
         <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
           <DayEcoSphere />
+        </div>
+
+        {/* ── Generate button: absolute at bottom, overlapping soil ── */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-2 pb-3 space-y-1">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generateUi.disabled}
+            className="w-full min-h-11 rounded-2xl text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'rgba(35, 25, 12, 0.80)', color: '#f5eedc', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {t(generateUi.buttonKey)}
+          </button>
+          <p className="text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
+            {statusHint ?? t(generateUi.hintKey)}
+          </p>
         </div>
 
         {/* Empty state hint (centered in canvas) */}
@@ -231,22 +248,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
             </div>
           </div>
         ) : null}
-      </div>
-
-      {/* ── Generate button: in normal flow, naturally above bottom nav ── */}
-      <div className="px-4 pt-2 pb-3 space-y-1" style={{ background: 'rgba(0,0,0,0)' }}>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={generateUi.disabled}
-          className="w-full min-h-11 rounded-2xl text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'rgba(35, 25, 12, 0.80)', color: '#f5eedc', border: '1px solid rgba(255,255,255,0.08)' }}
-        >
-          {t(generateUi.buttonKey)}
-        </button>
-        <p className="text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
-          {statusHint ?? t(generateUi.hintKey)}
-        </p>
       </div>
 
     </div>

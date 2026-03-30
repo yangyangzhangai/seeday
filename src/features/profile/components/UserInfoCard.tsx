@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Crown, MoreHorizontal, X } from 'lucide-react';
+import { User, Crown, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useChatStore } from '../../../store/useChatStore';
@@ -61,7 +61,6 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [weeklyLoginDays, setWeeklyLoginDays] = useState(0);
@@ -107,7 +106,6 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     user?.user_metadata?.display_name || user?.email?.split('@')[0] || '—';
 
   const handleAvatarClick = () => {
-    setShowMenu(false);
     setShowAvatarModal(true);
   };
 
@@ -115,7 +113,6 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setShowAvatarModal(false);
-    setShowMenu(false);
     const dataUrl = await resizeImageToDataUrl(f, 160);
     await updateAvatar(dataUrl);
     // reset so same file can be re-selected
@@ -231,41 +228,22 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {showAvatarModal && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => { setShowAvatarModal(false); setShowMenu(false); }}
+          onClick={() => setShowAvatarModal(false)}
         >
           <div
-            className="relative rounded-2xl overflow-hidden shadow-2xl"
+            className="flex flex-col items-center gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close */}
             <button
-              className="absolute top-2 left-2 p-1.5 rounded-full bg-black/40 text-white z-10"
-              onClick={() => { setShowAvatarModal(false); setShowMenu(false); }}
+              className="self-end p-1.5 rounded-full bg-black/40 text-white"
+              onClick={() => setShowAvatarModal(false)}
             >
               <X size={16} />
             </button>
 
-            {/* Three-dot menu */}
-            <button
-              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/40 text-white z-10"
-              onClick={() => setShowMenu((v) => !v)}
-            >
-              <MoreHorizontal size={18} />
-            </button>
-
-            {showMenu && (
-              <div className="absolute bottom-12 right-2 bg-white rounded-xl shadow-lg overflow-hidden z-20 min-w-[120px]">
-                <button
-                  className="block w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                  onClick={() => { setShowMenu(false); fileRef.current?.click(); }}
-                >
-                  更换头像
-                </button>
-              </div>
-            )}
-
             {/* Full avatar */}
-            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] bg-gray-900 flex items-center justify-center">
+            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
@@ -276,6 +254,14 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 <User size={80} className="text-gray-500" />
               )}
             </div>
+
+            {/* Change avatar button */}
+            <button
+              className="px-6 py-2.5 rounded-full bg-white text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50 active:bg-gray-100"
+              onClick={() => { setShowAvatarModal(false); fileRef.current?.click(); }}
+            >
+              更换头像
+            </button>
           </div>
         </div>
       )}

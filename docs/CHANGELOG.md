@@ -8,6 +8,23 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-30 - UX: AI 批注头像改为半悬浮超出弹窗
+
+### Changed
+
+- `src/components/feedback/AIAnnotationBubble.tsx`
+  - 移除批注头像的圆形白色头像框（`bg-white` + `ring`）。
+  - 将 AI 人设头像放大，并改为 `absolute` 定位到卡片左上角外侧，呈现“半悬浮超出弹窗”的视觉。
+  - 批注文案区域增加左侧内边距，避免与放大头像重叠。
+
+### Validation
+
+- `npm run build` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次 AI 批注头像视觉改动）。
+
 ## 2026-03-29 - Fix: Live Input Telemetry 缺表容错与提示文案修正
 
 ### Changed

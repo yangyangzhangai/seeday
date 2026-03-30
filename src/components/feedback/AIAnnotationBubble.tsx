@@ -256,22 +256,20 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
             <X size={14} />
           </button>
 
-          {/* 外星人头像 */}
-          <div className="flex items-start space-x-3">
-            <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-white shadow-lg ring-1 ring-white/80">
-              <img
-                src={currentModeVisual.avatar}
-                alt={`${currentModeVisual.name} avatar`}
-                className="w-full h-full object-cover"
-              />
-            </div>
+          {/* 外星人头像（放大并半悬浮到气泡外） */}
+          <div className="pointer-events-none absolute -left-8 -top-8 h-16 w-16 md:h-20 md:w-20">
+            <img
+              src={currentModeVisual.avatar}
+              alt={`${currentModeVisual.name} avatar`}
+              className="h-full w-full object-contain drop-shadow-lg"
+            />
+          </div>
 
-            {/* 批注内容 */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-800 leading-relaxed">
-                {currentAnnotation.content}
-              </p>
-            </div>
+          {/* 批注内容 */}
+          <div className="min-w-0 pl-8">
+            <p className="text-sm text-gray-800 leading-relaxed">
+              {currentAnnotation.content}
+            </p>
           </div>
 
           {/* 建议模式按钮 */}

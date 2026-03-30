@@ -601,12 +601,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', background: '#7a9b7e', userSelect: 'none', touchAction: 'pan-y' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '40px 20px 12px' }}>
-        <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
+        <div style={{ width: 32 }} />
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 14, letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
-        <div style={{ width: 32 }} />
+        <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
       </div>
 
       {/* Book area */}
