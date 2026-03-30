@@ -1,13 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, LogOut, User, MoreHorizontal, X } from 'lucide-react';
+import { LogIn, User, MoreHorizontal, X } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Header = () => {
   const navigate = useNavigate();
-  const { user, signOut, updateAvatar } = useAuthStore();
+  const { user, updateAvatar } = useAuthStore();
   const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -38,12 +37,7 @@ export const Header = () => {
   };
 
   const handleAuthClick = () => {
-    if (user) {
-      if (window.confirm(t('header_confirm_logout'))) {
-        signOut();
-        navigate('/chat');
-      }
-    } else {
+    if (!user) {
       navigate('/auth');
     }
   };
@@ -53,8 +47,6 @@ export const Header = () => {
       <div className="font-bold text-lg text-blue-600">TimeShine</div>
 
       <div className="flex items-center space-x-2">
-        <LanguageSwitcher />
-
         {user ? (
           <>
             <div
@@ -84,9 +76,6 @@ export const Header = () => {
             <span className="max-w-[100px] truncate text-sm text-gray-700">
               {user.user_metadata?.display_name || user.email?.split('@')[0]}
             </span>
-            <button onClick={handleAuthClick} className="text-gray-600 hover:text-red-600">
-              <LogOut size={18} />
-            </button>
           </>
         ) : (
           <button

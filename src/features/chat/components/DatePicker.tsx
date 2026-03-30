@@ -2,10 +2,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { LanguageSwitcher } from '../../../components/layout/LanguageSwitcher';
 
 export interface DatePickerProps {
   selectedDate: Date;
@@ -46,7 +45,6 @@ const DATE_PREPEND_TRIGGER_PX = 64;
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
-  const signOut = useAuthStore(s => s.signOut);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -163,14 +161,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   };
 
   const handleAuthClick = async () => {
-    if (user) {
-      if (window.confirm(t('header_confirm_logout'))) {
-        await signOut();
-        navigate('/chat');
-      }
-      return;
+    if (!user) {
+      navigate('/auth');
     }
-    navigate('/auth');
   };
 
   return (
@@ -237,8 +230,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <LanguageSwitcher />
-
           {user ? (
             <>
               <button
@@ -279,26 +270,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   await updateAvatar(dataUrl);
                 }}
               />
-
-              <button
-                type="button"
-                onClick={() => { void handleAuthClick(); }}
-                title={t('header_confirm_logout')}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  border: '1px solid rgba(148,163,184,0.3)',
-                  background: 'rgba(255,255,255,0.75)',
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <LogOut size={16} />
-              </button>
             </>
           ) : (
             <button

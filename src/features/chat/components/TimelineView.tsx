@@ -21,6 +21,7 @@ export interface TimelineViewProps {
 }
 
 const PRIMARY = '#B2EEDA';
+const TIMELINE_BOTTOM_PADDING = 'calc(env(safe-area-inset-bottom, 0px) + 270px)';
 
 const SkeletonCard: React.FC = () => (
   <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -65,7 +66,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   if (isLoading) {
     return (
-      <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: 206, paddingTop: 16 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
         {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
       </div>
     );
@@ -87,7 +88,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const timelineLineX = 60;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: 206, paddingTop: 16 }}>
+    <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
       <div style={{ position: 'relative' }}>
         {/* Vertical timeline line */}
         <div style={{ position: 'absolute', left: timelineLineX, top: 12, bottom: 0, width: 1.5,

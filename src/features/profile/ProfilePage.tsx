@@ -8,6 +8,7 @@ import { AIAnnotationDropRate } from './components/AIAnnotationDropRate';
 import { DailyGoalToggle } from './components/DailyGoalToggle';
 import { MembershipCard } from './components/MembershipCard';
 import { SettingsList } from './components/SettingsList';
+import { LanguageSwitcher } from '../../components/layout/LanguageSwitcher';
 
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
@@ -44,6 +45,12 @@ export const ProfilePage: React.FC = () => {
           <AIModeSection isPlus={isPlus} />
           <AIAnnotationDropRate isPlus={isPlus} />
           <DailyGoalToggle />
+          <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-gray-800">{t('language_switch')}</p>
+              <LanguageSwitcher />
+            </div>
+          </div>
           <MembershipCard isPlus={isPlus} />
           <SettingsList />
           <div className="h-2" />

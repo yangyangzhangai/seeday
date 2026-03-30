@@ -7,10 +7,21 @@ import {
   AI_COMPANION_VISUALS,
 } from '../../../constants/aiCompanionVisuals';
 import type { AiCompanionMode } from '../../../lib/aiCompanion';
+import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png';
+import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
+import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
+import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
 
 interface Props {
   isPlus: boolean;
 }
+
+const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
+  van: profileVanAvatar,
+  agnes: profileAgnesAvatar,
+  zep: profileZepAvatar,
+  spring_thunder: profileMomoAvatar,
+};
 
 function showToast(msg: string) {
   const el = document.createElement('div');
@@ -80,13 +91,11 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
                   : 'border-white/80 bg-white/60 hover:border-[#8FAF92]/50'
                }`}
              >
-              <div className="w-9 h-9 mb-1 rounded-full bg-white/90 ring-1 ring-gray-200 overflow-hidden flex items-center justify-center">
-                <img
-                  src={mode.avatar}
-                  alt={`${mode.name} avatar`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <img
+                src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
+                alt={`${mode.name} avatar`}
+                className="mb-1 h-9 w-9 object-contain"
+              />
               <span className="text-[11px] font-semibold leading-tight text-slate-800">{mode.name}</span>
               <span className="mt-0.5 text-center text-[9px] leading-tight text-slate-500">{mode.subtitle}</span>
               {locked && (
