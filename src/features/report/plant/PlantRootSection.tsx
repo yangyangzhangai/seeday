@@ -98,9 +98,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   }, [todayPlant, todaySegments, messages, directionOrder]);
 
   const nowHour = new Date(timeTick).getHours();
-  // TODO: 测试完恢复 import.meta.env.DEV &&
-  const plantTestMode = localStorage.getItem('plant_test_mode') === '1';
-  const isTooEarly = plantTestMode ? false : nowHour < 20;
+  const isTooEarly = nowHour < 20;
 
   const messageMap = useMemo(() => {
     const map = new Map<string, {
@@ -150,10 +148,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     }),
     [isGenerating, isTooEarly, todayPlant],
   );
+  const generateHint = statusHint ?? (generateUi.hintKey ? t(generateUi.hintKey) : null);
 
   const handleGenerate = async () => {
     if (isTooEarly) {
-      setStatusHint(t('plant_generate_locked_hint'));
+      setStatusHint(t('plant_generate_locked_with_diary_hint'));
       return;
     }
     if (!window.confirm(t('plant_generate_confirm'))) {
@@ -224,7 +223,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         </div>
 
         {/* ── Generate button: absolute at bottom, overlapping soil ── */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-2 pb-3 space-y-1">
+        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-2 pb-1">
           <button
             type="button"
             onClick={handleGenerate}
@@ -234,9 +233,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
           >
             {t(generateUi.buttonKey)}
           </button>
-          <p className="text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
-            {statusHint ?? t(generateUi.hintKey)}
-          </p>
+          {generateHint ? (
+            <p className="mt-1 text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
+              {generateHint}
+            </p>
+          ) : null}
         </div>
 
         {/* Empty state hint (centered in canvas) */}

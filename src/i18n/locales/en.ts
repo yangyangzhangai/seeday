@@ -87,15 +87,8 @@ const en = {
     chat_magic_pen_partial_success: 'Some items failed, you can retry',
     chat_magic_pen_ai_error: 'Analysis failed, please try again',
     chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added {{todoCount}} to-dos',
-    chat_magic_pen_switch_kind: 'Switch',
-    chat_magic_pen_confidence: 'Confidence',
     chat_magic_pen_item_success: 'Saved',
     chat_magic_pen_item_error: 'Save failed',
-    chat_magic_pen_scope: 'Scope',
-    chat_magic_pen_priority: 'Priority',
-    chat_magic_pen_category: 'Category',
-    chat_magic_pen_category_auto: 'auto',
-    chat_magic_pen_due_date: 'Date',
 
     // ── Todo Page ──
     todo_title: 'Tasks',
@@ -208,6 +201,7 @@ const en = {
     plant_generate_button: 'Generate Today\'s Plant',
     plant_generate_done_button: 'Generated Today',
     plant_generate_locked_hint: 'Roots are still growing. Come back after 8 PM.',
+    plant_generate_locked_with_diary_hint: 'Roots are still growing. After 8:00 PM you can generate both today\'s plant and diary.',
     plant_generate_ready_hint: 'Your roots are ready. You can generate today\'s plant now.',
     plant_generate_confirm: 'Generate today\'s plant now? This action is irreversible for today.',
     plant_generate_success: 'Today\'s plant has been generated.',

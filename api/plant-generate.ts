@@ -52,9 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const timezone = body.timezone || 'UTC';
   const date = body.date || getDateInTimezone(timezone);
 
-  // TODO: 测试完恢复 production 检查
-  const devBypass = body._devBypassTime === true;
-  if (!devBypass && isTooEarlyToGenerate(date, timezone)) {
+  if (isTooEarlyToGenerate(date, timezone)) {
     res.status(400).json(buildTooEarlyResponse());
     return;
   }

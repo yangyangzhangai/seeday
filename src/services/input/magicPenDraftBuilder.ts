@@ -737,7 +737,7 @@ export function buildDraftsFromAIResult(
           content: normalizedActivityContent,
           sourceText,
           confidence: segment.confidence || 'low',
-          needsUserConfirmation: true,
+          needsUserConfirmation: resolvedTiming.timeResolution !== 'exact',
           errors: [],
           activity: {
             startAt,
@@ -765,7 +765,6 @@ export function buildDraftsFromAIResult(
       const normalizedActivityContent = normalizeActivityContent(content, sourceText, lang);
       const resolvedTiming = resolveActivityTimingFromSegment(segment, sourceText, content, today, lang);
       const nowMs = today.getTime();
-      const needsFallback = resolvedTiming.startAt === undefined || resolvedTiming.endAt === undefined;
       const startAt = resolvedTiming.startAt ?? (nowMs - 30 * 60 * 1000);
       const endAt = resolvedTiming.endAt ?? nowMs;
 
@@ -775,7 +774,7 @@ export function buildDraftsFromAIResult(
         content: normalizedActivityContent,
         sourceText,
         confidence: segment.confidence || 'low',
-        needsUserConfirmation: needsFallback || resolvedTiming.timeResolution !== 'missing',
+        needsUserConfirmation: resolvedTiming.timeResolution !== 'exact',
         errors: [],
         activity: {
           startAt,

@@ -80,10 +80,10 @@ export const ZH_MAGIC_PEN_CROSS_DAY_WORDS = ['昨天', '前天', '上周', '上�
 export const ZH_MAGIC_PEN_UNPARSED_HINT_WORDS = ['心情', '烦', '开心', '低落', '不错', '很多事'];
 
 export const ZH_MAGIC_PEN_PERIOD_WINDOWS: Record<string, { startHour: number; endHour: number }> = {
-  今早: { startHour: 9, endHour: 11 },
-  早上: { startHour: 9, endHour: 11 },
-  上午: { startHour: 9, endHour: 11 },
-  中午: { startHour: 12, endHour: 13 },
-  下午: { startHour: 15, endHour: 17 },
-  晚上: { startHour: 20, endHour: 21 },
+  今早: { startHour: 6, endHour: 11 },
+  早上: { startHour: 6, endHour: 11 },
+  上午: { startHour: 8, endHour: 13 },
+  中午: { startHour: 10, endHour: 14 },
+  下午: { startHour: 12, endHour: 19 },
+  晚上: { startHour: 17, endHour: 23 },
 };

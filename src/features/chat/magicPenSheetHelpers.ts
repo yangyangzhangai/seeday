@@ -34,6 +34,31 @@ export function fromDateInputValue(value: string): number | undefined {
   return date.getTime();
 }
 
+export function toTimeInput(epoch?: number): string {
+  if (!epoch) return '';
+  const date = new Date(epoch);
+  const hh = `${date.getHours()}`.padStart(2, '0');
+  const min = `${date.getMinutes()}`.padStart(2, '0');
+  return `${hh}:${min}`;
+}
+
+export function fromTimeInput(value: string, referenceEpoch?: number): number | undefined {
+  if (!value) return undefined;
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return undefined;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+  const date = referenceEpoch ? new Date(referenceEpoch) : new Date();
+  date.setHours(hour, minute, 0, 0);
+  return date.getTime();
+}
+
+export function formatTimeRange(startAt?: number, endAt?: number): string {
+  if (!startAt || !endAt) return '';
+  return `${toTimeInput(startAt)} - ${toTimeInput(endAt)}`;
+}
+
 export function errorToI18nKey(error: string): string {
   if (error === 'missing_time') return 'chat_magic_pen_missing_time';
   if (error === 'invalid_time_range') return 'chat_magic_pen_invalid_time';

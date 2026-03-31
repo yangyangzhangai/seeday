@@ -74,8 +74,6 @@ export interface PlantGenerateRequest {
   dayStartMs?: number;
   dayEndMs?: number;
   lang?: 'zh' | 'en' | 'it';
-  /** Dev-only: bypass the 20:00 time gate (ignored in production) */
-  _devBypassTime?: boolean;
 }
 
 export interface PlantDiaryRequest {

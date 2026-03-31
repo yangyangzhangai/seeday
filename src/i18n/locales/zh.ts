@@ -89,15 +89,8 @@ const zh: TranslationKeys = {
     chat_magic_pen_partial_success: '部分条目写入失败，可修改后重试',
     chat_magic_pen_ai_error: '解析失败，请重试',
     chat_magic_pen_success_summary: '已补录 {{activityCount}} 条活动，新增 {{todoCount}} 条待办',
-    chat_magic_pen_switch_kind: '切换',
-    chat_magic_pen_confidence: '置信度',
     chat_magic_pen_item_success: '写入成功',
     chat_magic_pen_item_error: '写入失败',
-    chat_magic_pen_scope: '范围',
-    chat_magic_pen_priority: '优先级',
-    chat_magic_pen_category: '分类',
-    chat_magic_pen_category_auto: '自动判定',
-    chat_magic_pen_due_date: '日期',
 
     // ── 待办页面 ──
     todo_title: '待办管理',
@@ -210,6 +203,7 @@ const zh: TranslationKeys = {
     plant_generate_button: '生成今日植物',
     plant_generate_done_button: '今日已生成',
     plant_generate_locked_hint: '根系正在生长中，晚上 8 点后可生成植物。',
+    plant_generate_locked_with_diary_hint: '根系生长中，20:00后可生成植物和今日日记',
     plant_generate_ready_hint: '根系已准备完成，现在可以生成今日植物。',
     plant_generate_confirm: '确认现在生成今日植物吗？生成后将锁定且不可修改。',
     plant_generate_success: '今日植物已生成。',

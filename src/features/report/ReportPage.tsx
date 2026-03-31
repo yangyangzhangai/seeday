@@ -92,9 +92,7 @@ export const ReportPage = () => {
     }
 
     const now = new Date();
-    // TODO: 测试完恢复 import.meta.env.DEV &&
-    const plantTestMode = localStorage.getItem('plant_test_mode') === '1';
-    if (!plantTestMode && now.getHours() < 20) {
+    if (now.getHours() < 20) {
       setShowEarlyTip(true);
       return;
     }

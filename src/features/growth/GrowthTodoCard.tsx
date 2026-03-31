@@ -44,7 +44,10 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
   const { t } = useTranslation();
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [expanded, setExpanded] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(todo.title);
   const cardRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // AI 建议高亮：滚动到视图中心并闪烁
   useEffect(() => {
@@ -52,6 +55,18 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isHighlighted]);
+
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setTitleDraft(todo.title);
+    }
+  }, [todo.title, isEditingTitle]);
+
+  useEffect(() => {
+    if (!isEditingTitle) return;
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [isEditingTitle]);
 
   const normalizedPriority = normalizePriority(todo.priority);
   const cfg = priorityConfig[normalizedPriority];
@@ -97,6 +112,28 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
     onUpdate?.(todo.id, { bottleId: bottleId || undefined });
   };
 
+  const startEditTitle = () => {
+    if (todo.completed) return;
+    setIsEditingTitle(true);
+  };
+
+  const cancelEditTitle = () => {
+    setTitleDraft(todo.title);
+    setIsEditingTitle(false);
+  };
+
+  const commitTitle = async () => {
+    const nextTitle = titleDraft.trim();
+    if (!nextTitle) {
+      cancelEditTitle();
+      return;
+    }
+    if (nextTitle !== todo.title) {
+      await onUpdate?.(todo.id, { title: nextTitle });
+    }
+    setIsEditingTitle(false);
+  };
+
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
 
   return (
@@ -125,7 +162,10 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
       {/* Main row — tap to expand */}
       <div
         className="flex items-center gap-2 p-3 cursor-pointer"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => {
+          if (isEditingTitle) return;
+          setExpanded((v) => !v);
+        }}
       >
         {/* Checkbox */}
         <button
@@ -139,10 +179,42 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
         </button>
 
         {/* Title + due date */}
-        <div className="flex-1 min-w-0">
-          <span className={cn("text-sm block truncate", todo.completed && "line-through text-gray-400")}>
-            {todo.title}
-          </span>
+        <div
+          className="flex-1 min-w-0"
+          data-no-drag="true"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            startEditTitle();
+          }}
+          title={t('todo_edit')}
+        >
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  cancelEditTitle();
+                }
+              }}
+              onBlur={() => { void commitTitle(); }}
+              placeholder={t('growth_todo_title_placeholder')}
+              className="w-full bg-transparent text-sm text-[#334155] focus:outline-none"
+            />
+          ) : (
+            <span className={cn("text-sm block truncate", todo.completed && "line-through text-gray-400")}>
+              {todo.title}
+            </span>
+          )}
           {dueStr && (
             <span className={cn("text-[10px]", isOverdue ? "text-red-500" : "text-gray-400")}>
               {dueStr}

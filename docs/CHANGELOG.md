@@ -8,6 +8,23 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-31 - UX: Growth 待办卡片支持双击标题快速编辑
+
+### Changed
+
+- `src/features/growth/GrowthTodoCard.tsx`
+  - 新增标题双击编辑：双击待办标题后进入内联输入态，可直接修改卡片文字。
+  - 新增编辑提交/取消交互：`Enter` 或失焦保存，`Esc` 取消并恢复原标题。
+  - 编辑态与长按拖拽隔离：标题区域标记为非拖拽区，避免双击改标题时误触发拖拽。
+
+### Validation
+
+- 未执行（本次为单组件交互增强）。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次待办卡片双击编辑交互记录）。
+
 ## 2026-03-31 - UX: 首页/我的头像点击逻辑统一为放大预览+右下角三点换头像
 
 ### Changed

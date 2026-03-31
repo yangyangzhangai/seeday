@@ -12,8 +12,8 @@ describe('buildPlantGenerateUiState', () => {
 
     expect(state).toEqual({
       buttonKey: 'plant_generate_button',
-      hintKey: 'plant_generate_locked_hint',
-      disabled: true,
+      hintKey: null,
+      disabled: false,
     });
   });
 
