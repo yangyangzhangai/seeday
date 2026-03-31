@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 const LANGUAGES = [
     { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -38,7 +38,6 @@ export const LanguageSwitcher = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center space-x-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200"
             >
-                <Globe size={15} />
                 <span className="text-xs font-semibold">{currentLang.flag} {currentLang.label}</span>
                 <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { type Bottle } from '../../store/useGrowthStore';
@@ -16,12 +16,30 @@ interface Props {
 export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: Props) => {
   const { t } = useTranslation();
   const [irrigating, setIrrigating] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchMovedRef = useRef(false);
 
   const isAchieved = bottle.status === 'achieved';
 
-  const handleClick = () => {
+  useEffect(() => {
+    if (!deleteVisible) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setDeleteVisible(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [deleteVisible]);
+
+  const handleBottleAction = () => {
+    setDeleteVisible(false);
     if (isAchieved) {
       onAchievedClick(bottle);
     } else {
@@ -29,11 +47,15 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
     }
   };
 
+  const handleAroundClick = () => {
+    setDeleteVisible(true);
+  };
+
   const handleTouchStart = () => {
     touchMovedRef.current = false;
     longPressRef.current = setTimeout(() => {
       if (!touchMovedRef.current) {
-        onTodoPrompt(bottle);
+        handleBottleAction();
       }
     }, 600);
   };
@@ -115,12 +137,16 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
   }, [bottle.id, bottle.stars]);
 
   return (
-    <div className="group relative w-20 flex-shrink-0">
-      {/* Delete button — appears on hover */}
+    <div ref={cardRef} className="group relative w-20 flex-shrink-0" onClick={handleAroundClick}>
+      {/* Delete button */}
       {onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(bottle.id); }}
-          className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 md:hidden md:group-hover:flex"
+          className={cn(
+            'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
+            deleteVisible ? 'flex' : 'hidden',
+            'md:hidden md:group-hover:flex'
+          )}
           title={t('delete')}
         >
           <X size={10} />
@@ -128,18 +154,23 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
       )}
 
       <div
-        onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-          className={cn(
+        className={cn(
           'flex cursor-pointer select-none flex-col items-center transition-all',
           irrigating && 'animate-pulse opacity-0 scale-110 transition-all duration-700'
         )}
       >
         {/* Bottle visual */}
-        <div className="relative mb-1.5 h-14 w-10">
+        <div
+          className="relative mb-1.5 h-14 w-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBottleAction();
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           {/* Stars scattered inside jar (no liquid layer) */}
           <div className="absolute left-[20%] right-[20%] top-[35%] bottom-[12%] z-[1] overflow-hidden">
             {starLayout.map((star, i) => (

@@ -8,6 +8,86 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-03-31 - UX: 首页/我的头像点击逻辑统一为放大预览+右下角三点换头像
+
+### Changed
+
+- `src/features/chat/components/DatePicker.tsx`
+  - 首页头像点击改为先打开放大预览弹层，不再直接触发文件选择。
+  - 放大预览新增右下角三点菜单，支持「更换头像」。
+  - 上传头像压缩参数提升为 `640px + JPEG 0.95`，放大预览更清晰。
+- `src/features/profile/components/UserInfoCard.tsx`
+  - 「我的」页头像弹层交互改为与首页一致：放大图 + 右下角三点换头像。
+  - 移除原独立底部「更换头像」按钮，统一通过三点菜单操作。
+  - 上传头像压缩参数提升为 `640px + JPEG 0.95`，优化放大图清晰度。
+- `src/lib/imageUtils.ts`
+  - `resizeImageToDataUrl` 新增 `quality` 参数（默认 `0.85`），支持高质量头像上传场景。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次头像交互统一与清晰度优化记录）。
+
+## 2026-03-31 - UX: 待办卡片支持长按拖拽换序
+
+### Changed
+
+- `src/features/growth/GrowthTodoSection.tsx`
+  - 新增长按拖拽交互：用户长按待办卡片后可上下拖动，与其他待办卡片交换顺序。
+  - 增加拖拽中的视觉反馈（卡片跟随位移与轻微放大），并在松手后提交最终顺序。
+  - 对按钮、输入框等交互控件增加拖拽排除，避免误触发长按拖拽。
+- `src/store/useTodoStore.ts`
+  - 新增 `reorderTodosByIds(orderedIds)`，按最终顺序批量更新 `sortOrder` 并同步 Supabase。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次待办长按拖拽换序交互）。
+
+## 2026-03-31 - UX: 待办卡片移除六点拖拽图标 + 删除叉仅点击后显示
+
+### Changed
+
+- `src/features/growth/GrowthTodoCard.tsx`
+  - 移除待办勾选框前的六点拖拽图标（`GripVertical`），主行信息更简洁。
+  - 待办卡片右上角删除叉改为默认不显示，仅在用户点击该卡片后显示。
+  - 卡片点击展开状态对已完成待办同样生效，以便在不显示 hover 的情况下仍可触发删除入口。
+
+### Validation
+
+- 未执行（本次为 UI 交互微调）。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次待办卡片交互微调记录）。
+
+## 2026-03-31 - UX: 成长页卡片删除叉按交互显示 + 瓶子区下移
+
+### Changed
+
+- `src/features/growth/BottleCard.tsx`
+  - 删除叉按钮改为默认隐藏，移动端仅在用户点击瓶子周围区域后显示；桌面端继续保留 hover 显示。
+  - 点击瓶子本体触发「生成待办」主动作，不再与删除态共用同一次点击。
+  - 新增卡片外点击收起逻辑，避免删除叉长期悬浮。
+- `src/features/growth/GrowthTodoCard.tsx`
+  - 删除叉按钮改为默认隐藏，移动端仅在卡片展开后显示；桌面端继续保留 hover 显示。
+- `src/features/growth/BottleList.tsx`
+  - 瓶子横向列表增加顶部间距，使整体视觉位置下移。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次 Growth 页交互与布局微调）。
+
 ## 2026-03-30 - Test/Fix: suggestion 意图识别补充自然表达覆盖
 
 ### Changed

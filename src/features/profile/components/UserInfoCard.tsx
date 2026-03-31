@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Crown, X } from 'lucide-react';
+import { User, Crown, X, MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useChatStore } from '../../../store/useChatStore';
@@ -61,6 +61,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [weeklyLoginDays, setWeeklyLoginDays] = useState(0);
@@ -107,14 +108,16 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
   const handleAvatarClick = () => {
     setShowAvatarModal(true);
+    setShowAvatarMenu(false);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setShowAvatarModal(false);
-    const dataUrl = await resizeImageToDataUrl(f, 160);
+    const dataUrl = await resizeImageToDataUrl(f, 640, 0.95);
     await updateAvatar(dataUrl);
+    setShowAvatarMenu(false);
     // reset so same file can be re-selected
     e.target.value = '';
   };
@@ -228,40 +231,58 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {showAvatarModal && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => setShowAvatarModal(false)}
+          onClick={() => {
+            setShowAvatarModal(false);
+            setShowAvatarMenu(false);
+          }}
         >
           <div
-            className="flex flex-col items-center gap-4"
+            className="relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close */}
             <button
-              className="self-end p-1.5 rounded-full bg-black/40 text-white"
-              onClick={() => setShowAvatarModal(false)}
+              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-600 shadow"
+              onClick={() => {
+                setShowAvatarModal(false);
+                setShowAvatarMenu(false);
+              }}
+              title={t('auth_close')}
             >
               <X size={16} />
             </button>
 
+            {showAvatarMenu ? (
+              <div className="absolute bottom-12 right-3 z-10 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md">
+                <button
+                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {t('auth_change_avatar')}
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              className="absolute bottom-3 right-3 z-10 rounded-full bg-white/90 p-2 text-slate-600 shadow"
+              onClick={() => setShowAvatarMenu((v) => !v)}
+              title={t('auth_more')}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+
             {/* Full avatar */}
-            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
+            <div className="h-[min(320px,88vw)] w-[min(320px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
-                  alt="avatar"
+                  alt="avatar large"
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <User size={80} className="text-gray-500" />
               )}
             </div>
-
-            {/* Change avatar button */}
-            <button
-              className="px-6 py-2.5 rounded-full bg-white text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50 active:bg-gray-100"
-              onClick={() => { setShowAvatarModal(false); fileRef.current?.click(); }}
-            >
-              更换头像
-            </button>
           </div>
         </div>
       )}

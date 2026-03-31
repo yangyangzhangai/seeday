@@ -226,6 +226,7 @@ interface TodoState {
   completeTodoWithDuration: (id: string, duration: number) => Promise<void>;
   setActiveTodoId: (id: string | null) => void;
   reorderTodos: (id: string, direction: 'up' | 'down') => void;
+  reorderTodosByIds: (orderedIds: string[]) => void;
   generateRecurringTodos: () => void;
   linkMessageToTodo: (messageId: string, todoId: string) => void;
   completeTodoByMessage: (messageId: string) => void;
@@ -527,6 +528,24 @@ export const useTodoStore = create<TodoState>()(
           bgSyncUpdate(currentTodoId, { sortOrder: thatOrder }),
           bgSyncUpdate(swapTodoId, { sortOrder: thisOrder }),
         ]).catch(console.error);
+      },
+
+      reorderTodosByIds: (orderedIds) => {
+        if (orderedIds.length <= 1) return;
+        const orderMap = new Map(orderedIds.map((todoId, index) => [todoId, index]));
+        const changed: Array<{ id: string; sortOrder: number }> = [];
+
+        set((state) => ({
+          todos: state.todos.map((todo) => {
+            const nextOrder = orderMap.get(todo.id);
+            if (nextOrder === undefined || todo.sortOrder === nextOrder) return todo;
+            changed.push({ id: todo.id, sortOrder: nextOrder });
+            return { ...todo, sortOrder: nextOrder };
+          }),
+        }));
+
+        if (changed.length === 0) return;
+        void Promise.all(changed.map((item) => bgSyncUpdate(item.id, { sortOrder: item.sortOrder }))).catch(console.error);
       },
 
       // ── Generate recurring todos for today ──

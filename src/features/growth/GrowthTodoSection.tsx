@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
@@ -23,6 +23,7 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
     startTodo,
     addTodo,
     updateTodo,
+    reorderTodosByIds,
     generateRecurringTodos,
     linkMessageToTodo,
     setTodoCompletionMessage,
@@ -34,6 +35,21 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
   const deleteActivity = useChatStore((s) => s.deleteActivity);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const dragOrderRef = useRef<string[] | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dragSessionRef = useRef<{
+    sourceId: string;
+    startY: number;
+    lastY: number;
+    activatedY: number;
+    activated: boolean;
+    pointerId: number;
+    initialOrder: string[];
+    timerId: number | null;
+  } | null>(null);
 
   // Generate recurring todos on mount / day change
   useEffect(() => {
@@ -110,6 +126,134 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
       return a.sortOrder - b.sortOrder;
     });
 
+  const visibleMap = new Map(visible.map((todo) => [todo.id, todo]));
+  const orderedVisible = (dragOrder ?? visible.map((todo) => todo.id))
+    .map((id) => visibleMap.get(id))
+    .filter((todo): todo is GrowthTodo => Boolean(todo));
+
+  useEffect(() => {
+    dragOrderRef.current = dragOrder;
+  }, [dragOrder]);
+
+  const clearDragTimer = () => {
+    const session = dragSessionRef.current;
+    if (!session?.timerId) return;
+    window.clearTimeout(session.timerId);
+    session.timerId = null;
+  };
+
+  const stopDragging = (commit: boolean) => {
+    const session = dragSessionRef.current;
+    if (!session) return;
+
+    clearDragTimer();
+    const currentOrder = dragOrderRef.current;
+    if (session.activated && commit && currentOrder) {
+      const original = session.initialOrder.join('|');
+      const next = currentOrder.join('|');
+      if (original !== next) {
+        reorderTodosByIds(currentOrder);
+      }
+    }
+
+    dragSessionRef.current = null;
+    setDraggingId(null);
+    setDragOffsetY(0);
+    setDragOrder(null);
+    document.body.style.userSelect = '';
+  };
+
+  const handleCardPointerDown = (todoId: string) => (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, select, [data-no-drag="true"]')) return;
+
+    const initialOrder = visible.map((todo) => todo.id);
+    const session = {
+      sourceId: todoId,
+      startY: e.clientY,
+      lastY: e.clientY,
+      activatedY: e.clientY,
+      activated: false,
+      pointerId: e.pointerId,
+      initialOrder,
+      timerId: window.setTimeout(() => {
+        const current = dragSessionRef.current;
+        if (!current || current.pointerId !== e.pointerId) return;
+        current.activated = true;
+        current.activatedY = current.lastY;
+        setDraggingId(todoId);
+        setDragOffsetY(0);
+        setDragOrder(current.initialOrder);
+        document.body.style.userSelect = 'none';
+      }, 320),
+    };
+    dragSessionRef.current = session;
+
+    const onPointerMove = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      current.lastY = evt.clientY;
+
+      if (!current.activated) {
+        if (Math.abs(evt.clientY - current.startY) > 8) {
+          clearDragTimer();
+          dragSessionRef.current = null;
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('pointercancel', onPointerCancel);
+        }
+        return;
+      }
+
+      evt.preventDefault();
+      setDragOffsetY(evt.clientY - current.activatedY);
+      setDragOrder((prev) => {
+        const order = prev ?? current.initialOrder;
+        const nextBase = order.filter((id) => id !== current.sourceId);
+        let insertIndex = 0;
+
+        for (const id of nextBase) {
+          const el = cardRefs.current[id];
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          if (evt.clientY > rect.top + rect.height / 2) insertIndex += 1;
+        }
+
+        const next = [...nextBase];
+        next.splice(insertIndex, 0, current.sourceId);
+        return next.join('|') === order.join('|') ? order : next;
+      });
+    };
+
+    const onPointerUp = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      stopDragging(true);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+
+    const onPointerCancel = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      stopDragging(false);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+  };
+
+  useEffect(() => () => {
+    clearDragTimer();
+    document.body.style.userSelect = '';
+  }, []);
+
   return (
     <section className="mb-4 px-4">
       <h2 className="mb-3 text-[14px] font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
@@ -135,17 +279,34 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
 
       {visible.length > 0 && (
         <div className="space-y-2">
-          {visible.map((todo) => (
-            <GrowthTodoCard
+          {orderedVisible.map((todo) => (
+            <div
               key={todo.id}
-              todo={todo}
-              onToggle={handleToggle}
-              onFocus={onFocus}
-              onStart={handleStart}
-              onDelete={handleDelete}
-              onUpdate={updateTodo}
-              isHighlighted={highlightTodoId === todo.id}
-            />
+              ref={(node) => {
+                cardRefs.current[todo.id] = node;
+              }}
+              onPointerDown={handleCardPointerDown(todo.id)}
+              className="transition-transform duration-150"
+              style={
+                draggingId === todo.id
+                  ? {
+                      transform: `translateY(${dragOffsetY}px) scale(1.02)`,
+                      zIndex: 20,
+                      position: 'relative',
+                    }
+                  : undefined
+              }
+            >
+              <GrowthTodoCard
+                todo={todo}
+                onToggle={handleToggle}
+                onFocus={onFocus}
+                onStart={handleStart}
+                onDelete={handleDelete}
+                onUpdate={updateTodo}
+                isHighlighted={highlightTodoId === todo.id}
+              />
+            </div>
           ))}
         </div>
       )}

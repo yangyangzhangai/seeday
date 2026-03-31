@@ -107,7 +107,7 @@ export const BottleList = () => {
       {activeBottles.length === 0 ? (
         <div className="text-center text-gray-400 py-6 text-sm">{t('no_data')}</div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        <div className="mt-2 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
           {activeBottles.map((bottle) => (
             <BottleCard
               key={bottle.id}

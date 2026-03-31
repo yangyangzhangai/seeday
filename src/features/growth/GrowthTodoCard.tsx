@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlarmClock, Check, Play, GripVertical, X } from 'lucide-react';
+import { AlarmClock, Check, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
@@ -103,16 +103,19 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
     <div
       ref={cardRef}
       className={cn(
-        "group relative bg-white rounded-xl border border-gray-100 shadow-sm transition-all duration-300",
+        "relative bg-white rounded-xl border border-gray-100 shadow-sm transition-all duration-300",
         todo.completed && "opacity-50",
         isHighlighted && "ring-2 ring-green-400 animate-[highlightPulse_0.6s_ease-in-out_3]"
       )}
     >
-      {/* Delete button — appears on hover */}
+      {/* Delete button — appears after card is selected */}
       {onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }}
-          className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 md:hidden md:group-hover:flex"
+          className={cn(
+            'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
+            expanded ? 'flex' : 'hidden'
+          )}
           title={t('delete')}
         >
           <X size={10} />
@@ -122,11 +125,8 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
       {/* Main row — tap to expand */}
       <div
         className="flex items-center gap-2 p-3 cursor-pointer"
-        onClick={() => !todo.completed && setExpanded((v) => !v)}
+        onClick={() => setExpanded((v) => !v)}
       >
-        {/* Drag handle */}
-        <GripVertical size={14} className="text-gray-300 flex-shrink-0 cursor-grab" onClick={(e) => e.stopPropagation()} />
-
         {/* Checkbox */}
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(todo.id); }}

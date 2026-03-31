@@ -2,9 +2,10 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn } from 'lucide-react';
+import { LogIn, MoreHorizontal, X } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { resizeImageToDataUrl } from '../../../lib/imageUtils';
 
 export interface DatePickerProps {
   selectedDate: Date;
@@ -55,6 +56,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [stripStart, setStripStart] = useState<Date>(() => shiftDate(selectedDate, -DATE_PAST_PRELOAD_DAYS));
   const popupRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -90,7 +93,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
     prependPendingRef.current = null;
   }, [stripDates]);
 
-  // Close month picker on outside click
   useEffect(() => {
     if (!showMonthPicker) return;
     const handle = (e: MouseEvent) => {
@@ -132,34 +134,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
   const avatarUrl = user?.user_metadata?.avatar_url;
 
-  const resizeImageToDataUrl = (file: File, maxSize = 160): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('canvas_not_supported'));
-            return;
-          }
-          const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-          const width = Math.round(img.width * scale);
-          const height = Math.round(img.height * scale);
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleAuthClick = async () => {
     if (!user) {
       navigate('/auth');
@@ -168,7 +142,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
   return (
     <div>
-      {/* Top row: month selector + avatar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {/* Month selector */}
         <div style={{ position: 'relative' }} ref={popupRef}>
@@ -234,7 +207,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             <>
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
+                onClick={() => {
+                  setShowAvatarModal(true);
+                  setShowAvatarMenu(false);
+                }}
                 style={{
                   width: 54,
                   height: 54,
@@ -266,8 +242,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const dataUrl = await resizeImageToDataUrl(file, 160);
+                  const dataUrl = await resizeImageToDataUrl(file, 640, 0.95);
                   await updateAvatar(dataUrl);
+                  setShowAvatarMenu(false);
+                  setShowAvatarModal(false);
+                  e.target.value = '';
                 }}
               />
             </>
@@ -295,7 +274,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         </div>
       </div>
 
-      {/* Date strip */}
       <div
         ref={stripRef}
         className="date-strip"
@@ -365,6 +343,56 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
       </div>
 
       <style>{`.date-strip::-webkit-scrollbar{display:none;}`}</style>
+
+      {showAvatarModal && user ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            setShowAvatarModal(false);
+            setShowAvatarMenu(false);
+          }}
+        >
+          <div
+            className="relative overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-600 shadow"
+              onClick={() => {
+                setShowAvatarModal(false);
+                setShowAvatarMenu(false);
+              }}
+              title={t('auth_close')}
+            >
+              <X size={16} />
+            </button>
+            {showAvatarMenu ? (
+              <div className="absolute bottom-12 right-3 z-10 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md">
+                <button
+                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {t('auth_change_avatar')}
+                </button>
+              </div>
+            ) : null}
+            <button
+              className="absolute bottom-3 right-3 z-10 rounded-full bg-white/90 p-2 text-slate-600 shadow"
+              onClick={() => setShowAvatarMenu((v) => !v)}
+              title={t('auth_more')}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            <div className="flex h-[min(320px,86vw)] w-[min(320px,86vw)] items-center justify-center bg-gray-100">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar large" className="h-full w-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-6xl text-gray-300">person</span>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

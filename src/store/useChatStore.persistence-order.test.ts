@@ -101,4 +101,15 @@ describe('useChatStore persistence ordering', () => {
     const persistedIds = persistMessageToSupabaseMock.mock.calls.map(([message]) => message.id).sort();
     expect(persistedIds).toEqual(['event-1', 'mood-1']);
   });
+
+  it('persists detached=true for first standalone mood card', async () => {
+    await useChatStore.getState().sendMood('有点累');
+
+    expect(persistMessageToSupabaseMock).toHaveBeenCalledTimes(1);
+    const [persistedMessage, userId, isMood] = persistMessageToSupabaseMock.mock.calls[0];
+    expect(persistedMessage.isMood).toBe(true);
+    expect(persistedMessage.detached).toBe(true);
+    expect(userId).toBe('user-1');
+    expect(isMood).toBe(true);
+  });
 });

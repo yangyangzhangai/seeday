@@ -726,7 +726,9 @@ export const useChatStore = create<ChatState>()(
 
         const session = await getSupabaseSession();
         if (session) {
-          await persistMessageToSupabase(newMessage, session.user.id, true);
+          const moodMessageToPersist = get().messages.find((message) => message.id === newMessage.id)
+            ?? (isCrossDay ? { ...newMessage, detached: true } : newMessage);
+          await persistMessageToSupabase(moodMessageToPersist, session.user.id, true);
           if (!isCrossDay && latestEvent) {
             const updated = get().messages.find(m => m.id === latestEvent.id);
             if (updated) await persistMessageToSupabase(updated, session.user.id);
