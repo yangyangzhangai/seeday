@@ -9,7 +9,18 @@ import { useTodoStore, type Recurrence } from '../../store/useTodoStore';
 
 export const BottleList = () => {
   const { t } = useTranslation();
-  const { bottles, addBottle, removeBottle, markBottleIrrigated, continueBottle, markBottleAchieved } = useGrowthStore();
+  const {
+    bottles,
+    addBottle,
+    removeBottle,
+    markBottleIrrigated,
+    continueBottle,
+    markBottleAchieved,
+    fetchBottles,
+    isLoading,
+    hasHydrated,
+    lastSyncError,
+  } = useGrowthStore();
   const addTodo = useTodoStore((s) => s.addTodo);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState('');
@@ -26,6 +37,10 @@ export const BottleList = () => {
 
   const activeBottles = bottles.filter((b) => b.status === 'active' || b.status === 'achieved');
   const isMaxReached = activeBottles.length >= MAX_BOTTLES;
+
+  const handleRetrySync = () => {
+    void fetchBottles();
+  };
 
   const handleAddBottle = (name: string, type: 'habit' | 'goal') => {
     const bottle = addBottle(name, type);
@@ -104,7 +119,19 @@ export const BottleList = () => {
         <p className="mb-2 px-4 text-xs text-orange-500">{t('growth_bottle_max_reached')}</p>
       )}
 
-      {activeBottles.length === 0 ? (
+      {isLoading && !hasHydrated ? (
+        <div className="py-6 text-center text-sm text-gray-400">{t('loading')}</div>
+      ) : lastSyncError && activeBottles.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-6">
+          <p className="text-center text-xs text-orange-500">{lastSyncError}</p>
+          <button
+            onClick={handleRetrySync}
+            className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white"
+          >
+            {t('retry')}
+          </button>
+        </div>
+      ) : activeBottles.length === 0 ? (
         <div className="text-center text-gray-400 py-6 text-sm">{t('no_data')}</div>
       ) : (
         <div className="mt-2 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">

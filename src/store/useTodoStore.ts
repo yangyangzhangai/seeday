@@ -200,6 +200,8 @@ interface TodoState {
   todos: Todo[];
   categories: ActivityRecordType[];
   isLoading: boolean;
+  hasHydrated: boolean;
+  lastSyncError: string | null;
   activeTodoId: string | null;
   lastGeneratedDate: string;
   activeMessageMap: Record<string, string>;
@@ -242,6 +244,8 @@ export const useTodoStore = create<TodoState>()(
       todos: [],
       categories: ['study', 'work', 'social', 'life', 'entertainment', 'health'],
       isLoading: false,
+      hasHydrated: false,
+      lastSyncError: null,
       activeTodoId: null,
       lastGeneratedDate: '',
       activeMessageMap: {},
@@ -249,36 +253,57 @@ export const useTodoStore = create<TodoState>()(
 
       // ── Fetch from Supabase (cloud is source of truth when signed in) ──
       fetchTodos: async () => {
-        const session = await getSupabaseSession();
-        if (!session) return;
-        set({ isLoading: true });
-        const { data, error } = await supabase
-          .from('todos')
-          .select('*')
-          .eq('user_id', session.user.id);
-        if (error) {
-          console.error('Error fetching todos:', error);
-          set({ isLoading: false });
-          return;
-        }
-        const cloudTodos = data.map(fromDbTodo);
-        data.forEach((row) => {
-          const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
-          if (row.category !== normalizedCategory) {
-            void bgSyncUpdate(row.id, { category: normalizedCategory });
+        set({ isLoading: true, lastSyncError: null });
+        try {
+          const session = await getSupabaseSession();
+          if (!session) {
+            set({ isLoading: false, hasHydrated: true });
+            return;
           }
-        });
-        const cloudIds = new Set(cloudTodos.map((t) => t.id));
-        const allIds = new Set(cloudIds);
-        // Migrate old todo-storage data (one-time, clears old key after)
-        const migrated = migrateOldTodoStorage(allIds);
-        const merged = [
-          ...cloudTodos,
-          ...migrated,
-        ];
-        set({ todos: merged, isLoading: false });
-        // Sync migrated todos to Supabase
-        migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+
+          const { data, error } = await supabase
+            .from('todos')
+            .select('*')
+            .eq('user_id', session.user.id);
+          if (error) {
+            console.error('Error fetching todos:', error);
+            set({
+              isLoading: false,
+              hasHydrated: true,
+              lastSyncError: error.message,
+            });
+            return;
+          }
+          const cloudTodos = data.map(fromDbTodo);
+          data.forEach((row) => {
+            const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
+            if (row.category !== normalizedCategory) {
+              void bgSyncUpdate(row.id, { category: normalizedCategory });
+            }
+          });
+          const cloudIds = new Set(cloudTodos.map((t) => t.id));
+          const allIds = new Set(cloudIds);
+          // Migrate old todo-storage data (one-time, clears old key after)
+          const migrated = migrateOldTodoStorage(allIds);
+          const merged = [
+            ...cloudTodos,
+            ...migrated,
+          ];
+          set({
+            todos: merged,
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: null,
+          });
+          // Sync migrated todos to Supabase
+          migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+        } catch (err) {
+          set({
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: err instanceof Error ? err.message : 'todo_sync_failed',
+          });
+        }
       },
 
       // ── Add todo (unified: supports growth + legacy fields) ──
@@ -653,6 +678,14 @@ export const useTodoStore = create<TodoState>()(
     }),
     {
       name: 'growth-todo-store', // keep this key to preserve existing growth data
+      partialize: (state) => ({
+        todos: state.todos,
+        categories: state.categories,
+        activeTodoId: state.activeTodoId,
+        lastGeneratedDate: state.lastGeneratedDate,
+        activeMessageMap: state.activeMessageMap,
+        todoCompletionMessageMap: state.todoCompletionMessageMap,
+      }),
     }
   )
 );

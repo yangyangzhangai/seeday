@@ -18,6 +18,10 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
   const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
   const {
     todos,
+    isLoading,
+    hasHydrated,
+    lastSyncError,
+    fetchTodos,
     toggleTodo,
     deleteTodo,
     startTodo,
@@ -61,6 +65,10 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
     if (!trimmed) return;
     addTodo({ title: trimmed, priority: 'medium' });
     setNewTitle('');
+  };
+
+  const handleRetrySync = () => {
+    void fetchTodos();
   };
 
   const handleToggle = async (id: string) => {
@@ -309,6 +317,26 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
             </div>
           ))}
         </div>
+      )}
+
+      {visible.length === 0 && (isLoading && !hasHydrated) && (
+        <div className="py-6 text-center text-sm text-gray-400">{t('loading')}</div>
+      )}
+
+      {visible.length === 0 && hasHydrated && lastSyncError && (
+        <div className="flex flex-col items-center gap-2 py-6">
+          <p className="text-center text-xs text-orange-500">{lastSyncError}</p>
+          <button
+            onClick={handleRetrySync}
+            className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white"
+          >
+            {t('retry')}
+          </button>
+        </div>
+      )}
+
+      {visible.length === 0 && hasHydrated && !lastSyncError && !isLoading && (
+        <div className="py-6 text-center text-sm text-gray-400">{t('no_data')}</div>
       )}
 
       {/* Recurring delete confirmation dialog */}

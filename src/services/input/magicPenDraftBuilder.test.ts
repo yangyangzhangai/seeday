@@ -741,6 +741,43 @@ describe('magicPenDraftBuilder', () => {
     expect(validated[0].errors).toContain('missing_time');
   });
 
+  it('marks both overlapping activity drafts with overlap_in_batch', () => {
+    const drafts: MagicPenDraftItem[] = [
+      {
+        id: 'left',
+        kind: 'activity_backfill',
+        content: '上课',
+        sourceText: '9点上课',
+        confidence: 'high',
+        needsUserConfirmation: false,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 10, 0, 0, 0).getTime(),
+          timeResolution: 'exact',
+        },
+      },
+      {
+        id: 'right',
+        kind: 'activity_backfill',
+        content: '开会',
+        sourceText: '9点半开会',
+        confidence: 'high',
+        needsUserConfirmation: false,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 30, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 10, 30, 0, 0).getTime(),
+          timeResolution: 'exact',
+        },
+      },
+    ];
+
+    const validated = validateDrafts(drafts, [], fixedNow.getTime());
+    expect(validated[0].errors).toContain('overlap_in_batch');
+    expect(validated[1].errors).toContain('overlap_in_batch');
+  });
+
   it('aligns period drafts into largest local gap before now', () => {
     const now = new Date(2026, 2, 11, 10, 30, 0, 0).getTime();
     const drafts: MagicPenDraftItem[] = [{
@@ -776,5 +813,46 @@ describe('magicPenDraftBuilder', () => {
     expect(new Date(aligned[0].activity!.startAt!).getMinutes()).toBe(0);
     expect(new Date(aligned[0].activity!.endAt!).getHours()).toBe(10);
     expect(new Date(aligned[0].activity!.endAt!).getMinutes()).toBe(30);
+  });
+
+  it('allocates period drafts without reusing same gap', () => {
+    const now = new Date(2026, 2, 11, 10, 30, 0, 0).getTime();
+    const drafts: MagicPenDraftItem[] = [
+      {
+        id: 'period-a',
+        kind: 'activity_backfill',
+        content: '开会A',
+        sourceText: '上午开会半小时',
+        confidence: 'high',
+        needsUserConfirmation: true,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 10, 30, 0, 0).getTime(),
+          timeResolution: 'period',
+          suggestedTimeLabel: '上午',
+        },
+      },
+      {
+        id: 'period-b',
+        kind: 'activity_backfill',
+        content: '开会B',
+        sourceText: '上午开会半小时',
+        confidence: 'high',
+        needsUserConfirmation: true,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 10, 30, 0, 0).getTime(),
+          timeResolution: 'period',
+          suggestedTimeLabel: '上午',
+        },
+      },
+    ];
+
+    const aligned = alignPeriodDraftsToMessageGaps(drafts, [], now);
+    expect(aligned[0].activity?.endAt).toBe(new Date(2026, 2, 11, 10, 30, 0, 0).getTime());
+    expect(aligned[1].activity?.endAt).toBe(new Date(2026, 2, 11, 10, 0, 0, 0).getTime());
+    expect(aligned[1].activity?.startAt).toBe(new Date(2026, 2, 11, 9, 30, 0, 0).getTime());
   });
 });

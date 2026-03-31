@@ -24,6 +24,9 @@ interface GrowthState {
   dailyGoal: string;
   goalDate: string;            // ISO date string (YYYY-MM-DD) of last goal entry
   popupDisabled: boolean;      // user chose "don't show again"
+  isLoading: boolean;
+  hasHydrated: boolean;
+  lastSyncError: string | null;
   addBottle: (name: string, type: BottleType) => Bottle | null;
   removeBottle: (id: string) => void;
   incrementBottleStar: (id: string) => void;
@@ -75,6 +78,9 @@ export const useGrowthStore = create<GrowthState>()(
       dailyGoal: '',
       goalDate: '',
       popupDisabled: false,
+      isLoading: false,
+      hasHydrated: false,
+      lastSyncError: null,
 
       addBottle: (name, type) => {
         const activeBottles = get().bottles.filter((b) => b.status === 'active');
@@ -231,16 +237,27 @@ export const useGrowthStore = create<GrowthState>()(
       enablePopup: () => set({ popupDisabled: false }),
 
       fetchBottles: async () => {
+        set({ isLoading: true, lastSyncError: null });
         try {
           const session = await getSupabaseSession();
-          if (!session) return;
+          if (!session) {
+            set({ isLoading: false, hasHydrated: true });
+            return;
+          }
           const { data, error } = await supabase
             .from('bottles')
             .select('*')
             .eq('user_id', session.user.id)
             .neq('status', 'irrigated')   // irrigated = archived, don't restore
             .order('created_at', { ascending: true });
-          if (error || !data) return;
+          if (error || !data) {
+            set({
+              isLoading: false,
+              hasHydrated: true,
+              lastSyncError: error?.message ?? 'growth_sync_failed',
+            });
+            return;
+          }
 
           const cloudBottles = (data as Record<string, unknown>[]).map(fromDbBottle);
 
@@ -248,13 +265,31 @@ export const useGrowthStore = create<GrowthState>()(
             // Keep any local bottles not yet synced to cloud
             const cloudIds = new Set(cloudBottles.map(b => b.id));
             const localOnly = state.bottles.filter(b => !cloudIds.has(b.id));
-            return { bottles: [...cloudBottles, ...localOnly] };
+            return {
+              bottles: [...cloudBottles, ...localOnly],
+              isLoading: false,
+              hasHydrated: true,
+              lastSyncError: null,
+            };
           });
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[GrowthStore] fetchBottles failed', err);
+          set({
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: err instanceof Error ? err.message : 'growth_sync_failed',
+          });
         }
       },
     }),
-    { name: 'growth-store' }
+    {
+      name: 'growth-store',
+      partialize: (state) => ({
+        bottles: state.bottles,
+        dailyGoal: state.dailyGoal,
+        goalDate: state.goalDate,
+        popupDisabled: state.popupDisabled,
+      }),
+    }
   )
 );

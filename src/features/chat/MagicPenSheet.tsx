@@ -288,7 +288,6 @@ export function MagicPenSheet({
                     />
                   </div>
                   {highlightTime && <p className="text-xs text-orange-600">{t('chat_magic_pen_estimated_time')}</p>}
-                  <p className="text-[11px] text-gray-500">{t('chat_magic_pen_confidence')}: {draft.confidence}</p>
                   {draft.errors.map((error) => (
                     <p key={error} className="text-xs text-red-500">
                       {t(errorToI18nKey(error))}
@@ -395,7 +394,6 @@ export function MagicPenSheet({
                       />
                     </label>
                   </div>
-                  <p className="text-[11px] text-gray-500">{t('chat_magic_pen_confidence')}: {draft.confidence}</p>
                   {commitState === 'success' && <p className="text-xs text-emerald-600">{t('chat_magic_pen_item_success')}</p>}
                   {commitState === 'error' && <p className="text-xs text-red-500">{t('chat_magic_pen_item_error')}</p>}
                 </div>

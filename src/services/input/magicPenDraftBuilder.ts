@@ -65,12 +65,15 @@ function markBatchOverlapErrors(drafts: MagicPenDraftItem[]): MagicPenDraftItem[
     .map((draft, index) => ({ draft, index }))
     .filter((item) => item.draft.kind === 'activity_backfill' && item.draft.activity?.startAt !== undefined && item.draft.activity?.endAt !== undefined)
     .sort((a, b) => {
-      const diff = getComparableStart(a.draft) - getComparableStart(b.draft);
-      if (diff !== 0) return diff;
-      return a.draft.id.localeCompare(b.draft.id);
+      const startDiff = getComparableStart(a.draft) - getComparableStart(b.draft);
+      if (startDiff !== 0) return startDiff;
+      const endDiff = (a.draft.activity?.endAt ?? Number.MAX_SAFE_INTEGER) - (b.draft.activity?.endAt ?? Number.MAX_SAFE_INTEGER);
+      if (endDiff !== 0) return endDiff;
+      return a.index - b.index;
     });
 
   const nextDrafts = [...drafts];
+  const overlapIndexes = new Set<number>();
   for (let i = 1; i < indexed.length; i += 1) {
     const previous = indexed[i - 1].draft;
     const current = indexed[i].draft;
@@ -78,11 +81,16 @@ function markBatchOverlapErrors(drafts: MagicPenDraftItem[]): MagicPenDraftItem[
     const currentStart = current.activity?.startAt;
     if (previousEnd === undefined || currentStart === undefined) continue;
     if (currentStart < previousEnd) {
-      const targetIndex = indexed[i].index;
-      const target = nextDrafts[targetIndex];
-      nextDrafts[targetIndex] = cloneDraftWithErrors(target, [...target.errors, 'overlap_in_batch']);
+      overlapIndexes.add(indexed[i - 1].index);
+      overlapIndexes.add(indexed[i].index);
     }
   }
+
+  overlapIndexes.forEach((targetIndex) => {
+    const target = nextDrafts[targetIndex];
+    nextDrafts[targetIndex] = cloneDraftWithErrors(target, [...target.errors, 'overlap_in_batch']);
+  });
+
   return nextDrafts;
 }
 
@@ -124,21 +132,12 @@ function mergeRanges(ranges: Array<{ startAt: number; endAt: number }>): Array<{
   return merged;
 }
 
-function collectPeriodGaps(
-  messages: Message[],
+function buildGapsFromOccupiedRanges(
+  occupiedRanges: Array<{ startAt: number; endAt: number }>,
   windowStart: number,
   windowEnd: number,
 ): Array<{ startAt: number; endAt: number }> {
-  const occupied = messages
-    .filter((message) => message.mode === 'record' && !message.isMood && message.duration !== undefined)
-    .map((message) => {
-      const startAt = message.timestamp;
-      const endAt = message.timestamp + message.duration! * 60 * 1000;
-      return clipRangeToWindow(startAt, endAt, windowStart, windowEnd);
-    })
-    .filter((item): item is { startAt: number; endAt: number } => !!item);
-
-  const merged = mergeRanges(occupied);
+  const merged = mergeRanges(occupiedRanges);
   const gaps: Array<{ startAt: number; endAt: number }> = [];
   let cursor = windowStart;
   for (const block of merged) {
@@ -151,6 +150,21 @@ function collectPeriodGaps(
     gaps.push({ startAt: cursor, endAt: windowEnd });
   }
   return gaps;
+}
+
+function collectMessageOccupiedRanges(
+  messages: Message[],
+  windowStart: number,
+  windowEnd: number,
+): Array<{ startAt: number; endAt: number }> {
+  return messages
+    .filter((message) => message.mode === 'record' && !message.isMood && message.duration !== undefined)
+    .map((message) => {
+      const startAt = message.timestamp;
+      const endAt = message.timestamp + message.duration! * 60 * 1000;
+      return clipRangeToWindow(startAt, endAt, windowStart, windowEnd);
+    })
+    .filter((item): item is { startAt: number; endAt: number } => !!item);
 }
 
 function chooseBestGap(gaps: Array<{ startAt: number; endAt: number }>): { startAt: number; endAt: number } | undefined {
@@ -176,54 +190,124 @@ function allocateRangeInGap(
   return { startAt, endAt };
 }
 
+function floorEpochToFiveMinutes(epoch: number): number {
+  const date = new Date(epoch);
+  const flooredMinute = Math.floor(date.getMinutes() / 5) * 5;
+  date.setMinutes(flooredMinute, 0, 0);
+  return date.getTime();
+}
+
+function normalizeEstimatedRangeToFiveMinutes(
+  range: { startAt: number; endAt: number },
+  bounds: { startAt: number; endAt: number },
+): { startAt: number; endAt: number } {
+  const normalizedStart = floorEpochToFiveMinutes(range.startAt);
+  const normalizedEnd = floorEpochToFiveMinutes(range.endAt);
+  const startAt = Math.max(bounds.startAt, normalizedStart);
+  const endAt = Math.min(bounds.endAt, normalizedEnd);
+  if (endAt > startAt) {
+    return { startAt, endAt };
+  }
+  return range;
+}
+
+function getAlignmentPriority(draft: MagicPenDraftItem): number {
+  const resolution = draft.activity?.timeResolution;
+  if (resolution === 'exact') return 0;
+  if (resolution === 'period') return 1;
+  return 2;
+}
+
 export function alignPeriodDraftsToMessageGaps(
   drafts: MagicPenDraftItem[],
   messages: Message[],
   now: number = Date.now(),
 ): MagicPenDraftItem[] {
   if (drafts.length === 0) return drafts;
+  const nextDrafts = [...drafts];
+  const indexedActivities = drafts
+    .map((draft, index) => ({ draft, index }))
+    .filter((item) => item.draft.kind === 'activity_backfill' && item.draft.activity);
 
-  return drafts.map((draft) => {
-    if (draft.kind !== 'activity_backfill') return draft;
-    if (draft.activity?.timeResolution !== 'period') return draft;
-    const label = draft.activity.suggestedTimeLabel;
-    if (!label) return draft;
+  const exactRanges = indexedActivities
+    .filter((item) => item.draft.activity?.timeResolution === 'exact')
+    .map((item) => ({
+      startAt: item.draft.activity?.startAt,
+      endAt: item.draft.activity?.endAt,
+    }))
+    .filter((item): item is { startAt: number; endAt: number } => item.startAt !== undefined && item.endAt !== undefined && item.endAt > item.startAt);
 
-    const anchorDate = new Date(draft.activity.startAt ?? now);
-    const periodRange = getPeriodRange(label, anchorDate);
-    const periodEnd = Math.min(periodRange.endAt, now);
-    if (periodEnd <= periodRange.startAt) return draft;
+  const candidates = indexedActivities
+    .filter((item) => item.draft.activity?.timeResolution === 'period' || item.draft.activity?.timeResolution === 'missing')
+    .sort((a, b) => {
+      const priorityDiff = getAlignmentPriority(a.draft) - getAlignmentPriority(b.draft);
+      if (priorityDiff !== 0) return priorityDiff;
+      const startDiff = (a.draft.activity?.startAt ?? now) - (b.draft.activity?.startAt ?? now);
+      if (startDiff !== 0) return startDiff;
+      return a.index - b.index;
+    });
+
+  for (const candidate of candidates) {
+    const draft = candidate.draft;
+    const activity = draft.activity!;
+    let windowStart: number;
+    let windowEnd: number;
+
+    if (activity.timeResolution === 'period' && activity.suggestedTimeLabel) {
+      const anchorDate = new Date(activity.startAt ?? now);
+      const periodRange = getPeriodRange(activity.suggestedTimeLabel, anchorDate);
+      windowStart = periodRange.startAt;
+      windowEnd = Math.min(periodRange.endAt, now);
+    } else {
+      const anchorDate = new Date(activity.startAt ?? now);
+      anchorDate.setHours(0, 0, 0, 0);
+      windowStart = anchorDate.getTime();
+      windowEnd = now;
+    }
+
+    if (windowEnd <= windowStart) continue;
 
     const durationMinutes = inferZhDurationMinutes(draft.sourceText || draft.content);
-    const bestGap = chooseBestGap(collectPeriodGaps(messages, periodRange.startAt, periodEnd));
+    const messageOccupied = collectMessageOccupiedRanges(messages, windowStart, windowEnd);
+    const occupiedInWindow = exactRanges
+      .filter((range) => range.endAt > windowStart && range.startAt < windowEnd)
+      .map((range) => clipRangeToWindow(range.startAt, range.endAt, windowStart, windowEnd))
+      .filter((item): item is { startAt: number; endAt: number } => !!item);
+    const availableGaps = buildGapsFromOccupiedRanges(
+      [...messageOccupied, ...occupiedInWindow],
+      windowStart,
+      windowEnd,
+    );
+    const bestGap = chooseBestGap(availableGaps);
+
+    let resolved: { startAt: number; endAt: number } | undefined;
     if (bestGap) {
-      const aligned = allocateRangeInGap(bestGap, durationMinutes);
-      if (aligned.endAt > aligned.startAt) {
-        return {
-          ...draft,
-          activity: {
-            ...draft.activity,
-            startAt: aligned.startAt,
-            endAt: aligned.endAt,
-          },
-        };
+      resolved = allocateRangeInGap(bestGap, durationMinutes);
+    } else {
+      const fallbackEnd = windowEnd;
+      const fallbackStart = durationMinutes
+        ? Math.max(windowStart, fallbackEnd - durationMinutes * 60 * 1000)
+        : windowStart;
+      if (fallbackEnd > fallbackStart) {
+        resolved = { startAt: fallbackStart, endAt: fallbackEnd };
       }
     }
 
-    const fallbackEnd = periodEnd;
-    const fallbackStart = durationMinutes
-      ? Math.max(periodRange.startAt, fallbackEnd - durationMinutes * 60 * 1000)
-      : periodRange.startAt;
-    if (fallbackEnd <= fallbackStart) return draft;
-    return {
+    if (!resolved || resolved.endAt <= resolved.startAt) continue;
+
+    const normalized = normalizeEstimatedRangeToFiveMinutes(resolved, { startAt: windowStart, endAt: windowEnd });
+    nextDrafts[candidate.index] = {
       ...draft,
       activity: {
-        ...draft.activity,
-        startAt: fallbackStart,
-        endAt: fallbackEnd,
+        ...activity,
+        startAt: normalized.startAt,
+        endAt: normalized.endAt,
       },
     };
-  });
+    exactRanges.push({ startAt: normalized.startAt, endAt: normalized.endAt });
+  }
+
+  return nextDrafts;
 }
 
 export function timeStringToEpoch(timeStr: string, date: Date): number {

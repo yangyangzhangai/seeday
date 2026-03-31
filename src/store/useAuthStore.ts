@@ -370,7 +370,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
         useChatStore.setState({ messages: [], hasInitialized: false });
-        useTodoStore.setState({ todos: [] });
+        useTodoStore.setState({
+          todos: [],
+          isLoading: false,
+          hasHydrated: false,
+          lastSyncError: null,
+        });
         useReportStore.setState({ reports: [] });
         useAnnotationStore.setState((state) => ({
           annotations: [],
@@ -387,7 +392,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           },
         }));
         useMoodStore.getState().clear();
-        useGrowthStore.setState({ bottles: [], dailyGoal: '', goalDate: '', popupDisabled: false });
+        useGrowthStore.setState({
+          bottles: [],
+          dailyGoal: '',
+          goalDate: '',
+          popupDisabled: false,
+          isLoading: false,
+          hasHydrated: false,
+          lastSyncError: null,
+        });
         useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
         useStardustStore.getState().clear();
         set({
