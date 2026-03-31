@@ -247,7 +247,7 @@ export const useTodoStore = create<TodoState>()(
       activeMessageMap: {},
       todoCompletionMessageMap: {},
 
-      // ── Fetch from Supabase (merge with local) ──
+      // ── Fetch from Supabase (cloud is source of truth when signed in) ──
       fetchTodos: async () => {
         const session = await getSupabaseSession();
         if (!session) return;
@@ -268,14 +268,12 @@ export const useTodoStore = create<TodoState>()(
             void bgSyncUpdate(row.id, { category: normalizedCategory });
           }
         });
-        const localTodos = get().todos;
         const cloudIds = new Set(cloudTodos.map((t) => t.id));
-        const allIds = new Set([...cloudIds, ...localTodos.map((t) => t.id)]);
+        const allIds = new Set(cloudIds);
         // Migrate old todo-storage data (one-time, clears old key after)
         const migrated = migrateOldTodoStorage(allIds);
         const merged = [
           ...cloudTodos,
-          ...localTodos.filter((t) => !cloudIds.has(t.id)),
           ...migrated,
         ];
         set({ todos: merged, isLoading: false });

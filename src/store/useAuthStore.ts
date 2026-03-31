@@ -286,8 +286,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
       await updateLoginStreak(session.user.id);
-      const activityStreak = await fetchActivityStreak(session.user.id);
+      // Existing session restore should also rehydrate cloud state.
+      // Otherwise persisted local caches can stay stale until next manual sign-in.
+      const [activityStreak] = await Promise.all([
+        fetchActivityStreak(session.user.id),
+        useAnnotationStore.getState().fetchAnnotations(),
+        useChatStore.getState().fetchMessages(),
+        useTodoStore.getState().fetchTodos(),
+        useReportStore.getState().fetchReports(),
+        useMoodStore.getState().fetchMoods(),
+        useGrowthStore.getState().fetchBottles(),
+        useFocusStore.getState().fetchSessions(),
+      ]);
       set({ activityStreak });
+
+      await useStardustStore.getState().syncPendingStardusts();
+      await useStardustStore.getState().fetchStardusts();
     }
 
     // Listen for changes
