@@ -162,8 +162,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: userContent },
       ],
-      temperature: 0.85,
-      max_tokens: 2040,
+      temperature: 0.75,
+      max_tokens: 1000,
     });
     let content = completion.choices?.[0]?.message?.content || '';
 

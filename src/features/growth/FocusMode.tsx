@@ -47,9 +47,9 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     return Math.max(1, Math.min(60, Math.round((angle / 360) * 60) || 1));
   }, [durationMinutes]);
 
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleHandleMouseDown = (e: React.MouseEvent<SVGCircleElement>) => {
+    e.stopPropagation();
     isDragging.current = true;
-    setDurationMinutes(pointerToMinutes(e.clientX, e.clientY));
   };
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!isDragging.current) return;
@@ -57,16 +57,17 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   };
   const handleMouseUp = () => { isDragging.current = false; };
 
-  const handleTouchStartRing = (e: React.TouchEvent<SVGSVGElement>) => {
+  const handleHandleTouchStart = (e: React.TouchEvent<SVGCircleElement>) => {
+    e.stopPropagation();
     isDragging.current = true;
-    const t = e.touches[0];
-    setDurationMinutes(pointerToMinutes(t.clientX, t.clientY));
+    const touch = e.touches[0];
+    setDurationMinutes(pointerToMinutes(touch.clientX, touch.clientY));
   };
   const handleTouchMoveRing = (e: React.TouchEvent<SVGSVGElement>) => {
     if (!isDragging.current) return;
     e.preventDefault();
-    const t = e.touches[0];
-    setDurationMinutes(pointerToMinutes(t.clientX, t.clientY));
+    const touch = e.touches[0];
+    setDurationMinutes(pointerToMinutes(touch.clientX, touch.clientY));
   };
   const handleTouchEndRing = () => { isDragging.current = false; };
 
@@ -179,16 +180,14 @@ export const FocusMode = ({ todo, onClose }: Props) => {
         </>
       ) : (
         <div className="flex flex-col items-center">
-          <div className="relative mb-7 h-[260px] w-[260px] cursor-pointer select-none sm:h-[290px] sm:w-[290px]">
+          <div className="relative mb-7 h-[260px] w-[260px] select-none sm:h-[290px] sm:w-[290px]">
             <svg
               ref={svgRef}
               className="h-full w-full -rotate-90"
               viewBox="0 0 260 260"
-              onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStartRing}
               onTouchMove={handleTouchMoveRing}
               onTouchEnd={handleTouchEndRing}
             >
@@ -236,7 +235,9 @@ export const FocusMode = ({ todo, onClose }: Props) => {
                 fill="rgba(125,211,252,0.94)"
                 stroke="rgba(255,255,255,0.92)"
                 strokeWidth="2.2"
-                style={{ filter: 'drop-shadow(0 0 10px rgba(125,211,252,0.72))' }}
+                style={{ filter: 'drop-shadow(0 0 10px rgba(125,211,252,0.72))', cursor: 'grab' }}
+                onMouseDown={handleHandleMouseDown}
+                onTouchStart={handleHandleTouchStart}
               />
             </svg>
 

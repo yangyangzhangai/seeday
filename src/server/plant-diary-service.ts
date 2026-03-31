@@ -93,20 +93,19 @@ function buildPromptZh(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'zh');
   const modeSection = modeHint ? `陪伴风格提示：${modeHint}\n` : '';
   return [
-    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。',
+    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。请结合植物在自然界的习性、外观气质与联想意义（如花语等）来写文案。',
     '请只输出有效JSON，格式：{"plantId":"xxx","text":"一句话"}',
     '',
     `可选植物（必须从列表中选一个）：\n${plantList}`,
     '',
-    '植物选择说明（以下是参考，不是硬规则，你需要自己判断）：',
-    '• early（早期）常见于“播种/打基础”、“探索”或者“积累”的一天，或者对应平静的情绪，例如推进长期项目、学习新技能、努力多于即时回报',
-    '• late（晚期）常见于“结果更可见”的一天，或者对应情绪激烈（比如充满成就感、高光、喜悦、悲伤、愤怒等）的一天，例如完成关键事项、投入后有明显落地感',
-    '• 上述只作示例，你要有自己的判断；请根据今天活动结构、时长与重心自行判断更贴近 early 还是 late',
-    '• 同一 stage 可能有多个植物编号；请结合植物在自然界的习性、外观气质与联想意义，选最能映射用户今天状态的一株',
+    '植物选择说明：',
+    '• early（早期）更安静、内敛，常见于“播种/打基础”、“探索”或者“积累”的一天，或者对应平静的情绪，或对应少社交的独处。',
+    '• late（晚期）更热烈、外放，常见于“结果更可见”的一天，或对应情绪激烈（激动、大喜大悲等）的一天，或者对应社会活动频繁，自我展现多的一天',
+    '• 请根据用户今天的活动结构、时长、心情与生活重心，结合植物在自然界的习性、外观气质与联想意义，选最能映射用户今天状态或时间特点的一株。然后请你自行判断更贴近 early 还是 late。',
     '',
     '文案要求：',
-    '• 1-2句自然语言（20-60字），不必写成诗，语气真诚自然',
-    '• 文案要明确体现“今天的用户状态”与“所选植物特性/意象”的对应关系',
+    '• 1-2句自然语言（20-60字），语气优美、诗意、自然',
+    '• 文案要明确体现“用户今日特征”与“所选植物特性/意象”的对应关系，找到用户状态和植物之间最贴切或有趣或意外的那个交叉点，只说那一处。',
     '• JSON字符串内不使用换行符',
     modeSection,
     '今天的数据：',
@@ -124,21 +123,20 @@ function buildPromptEn(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'en');
   const modeSection = modeHint ? `Companion style: ${modeHint}\n` : '';
   return [
-    'Choose today\'s plant and write one line that links the user\'s day with that plant.',
-    'Respond with ONLY valid JSON: {"plantId":"xxx","text":"one line"}',
+    'Choose today\'s plant for a daily-life app, and write one sentence that links the user\'s state today with that plant. Ground the copy in the plant\'s natural habits, visual temperament, and symbolic associations (such as floriography).',
+    'Output ONLY valid JSON in this format: {"plantId":"xxx","text":"one sentence"}',
     '',
-    `Available plants (choose exactly one):\n${plantList}`,
+    `Available plants (must choose one from this list):\n${plantList}`,
     '',
-    'Selection guide (examples only, not rigid rules):',
-    '• "early" often fits a day of seeding, groundwork, exploration, or accumulation, and can also match calmer emotions; e.g. advancing long-term work, learning new skills, and putting in effort before visible payoff',
-    '• "late" often fits a day with more visible outcomes, or stronger emotional intensity (such as achievement, highlight moments, joy, sadness, or anger); e.g. finishing key tasks or feeling clear landing after deep effort',
-    '• Treat the above as examples, not templates; make your own judgment from today\'s activity structure, duration, and focus',
-    '• If multiple plant IDs exist in one stage, choose the one that best maps to the user\'s day by considering the plant\'s real-world traits, appearance, and symbolic associations',
+    'Plant selection notes:',
+    '• early: quieter and more inward; often fits a day of seeding/building foundations, exploring, or accumulating, and can also match calm emotions or low-social solo time',
+    '• late: more intense and outward; often fits a day with more visible outcomes, strong emotions (excitement, emotional highs/lows), frequent social activity, and stronger self-expression',
+    '• Based on today\'s activity structure, durations, mood, and life focus, choose the single plant that best mirrors the user\'s state or temporal character through its natural habits, visual temperament, and symbolic associations. Then decide whether it is closer to early or late.',
     '',
     'Text rules:',
-    '• 1-2 natural sentences (about 18-45 words), warm and grounded; it does not need to be a poem',
-    '• Make the link explicit between the selected plant\'s traits/imagery and the user\'s day',
-    '• No newline characters inside the JSON string value',
+    '• 1-2 natural-language sentences (about 10-35 words), with a beautiful, poetic, and natural tone',
+    '• Clearly show the correspondence between the user\'s key trait today and the selected plant\'s traits/imagery; find the single most fitting (or interesting, or unexpected) intersection and speak only to that one point',
+    '• Do not use newline characters inside JSON string values',
     modeSection,
     "Today's data:",
     `Date: ${input.date}`,
@@ -155,21 +153,20 @@ function buildPromptIt(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'it');
   const modeSection = modeHint ? `Stile del compagno: ${modeHint}\n` : '';
   return [
-    'Scegli la pianta del giorno e scrivi una frase che colleghi la giornata dell\'utente a quella pianta.',
-    'Rispondi SOLO con JSON valido: {"plantId":"xxx","text":"frase"}',
+    'Scegli la pianta di oggi per un\'app della vita quotidiana e scrivi una frase che colleghi lo stato odierno dell\'utente a quella pianta. Basa il testo sulle abitudini naturali della pianta, sul suo carattere visivo e sulle sue associazioni simboliche (per esempio il linguaggio dei fiori).',
+    'Fornisci SOLO JSON valido in questo formato: {"plantId":"xxx","text":"una frase"}',
     '',
-    `Piante disponibili (scegliere esattamente una):\n${plantList}`,
+    `Piante disponibili (devi sceglierne una dalla lista):\n${plantList}`,
     '',
-    'Guida alla scelta (solo esempi, non regole rigide):',
-    '• stadio "early" (iniziale): spesso adatto a giornate di semina, basi, esplorazione o accumulo, e può anche rispecchiare emozioni più calme; per esempio avanzare su progetti lunghi, imparare nuove abilità, investire energia prima di vedere risultati',
-    '• stadio "late" (avanzato): spesso adatto a giornate con esiti più visibili, oppure con maggiore intensità emotiva (per esempio senso di conquista, momento di picco, gioia, tristezza o rabbia); ad esempio chiudere attività chiave o sentire che lo sforzo si è concretizzato',
-    '• Questi punti sono solo riferimenti: valuta tu in autonomia in base alla struttura delle attività di oggi, alla durata e al focus',
-    '• Se ci sono più piante nello stesso stadio, scegli quella che meglio rappresenta la giornata considerando tratti naturali, aspetto e associazioni simboliche della pianta',
+    'Indicazioni per la scelta della pianta:',
+    '• early (iniziale): più quieta e introspettiva; tipica di giornate di semina/fondamenta, esplorazione o accumulo, oppure di emozioni calme o momenti più solitari e poco sociali',
+    '• late (avanzata): più intensa ed estroversa; tipica di giornate con risultati più visibili, emozioni forti (eccitazione, grandi alti e bassi), attività sociali frequenti e maggiore auto-espressione',
+    '• In base alla struttura delle attività di oggi, alla durata, all\'umore e al baricentro della vita quotidiana, scegli la singola pianta che rispecchia meglio lo stato o la qualità temporale della giornata, unendo abitudini naturali, carattere visivo e associazioni simboliche. Poi valuta autonomamente se è più vicina a early o late.',
     '',
     'Regole del testo:',
-    '• 1-2 frasi naturali (circa 18-45 parole), tono caldo e concreto; non deve essere per forza poesia',
-    '• Rendi esplicito il collegamento tra le caratteristiche/immaginario della pianta scelta e la giornata dell\'utente',
-    '• Nessun carattere di nuova riga nella stringa JSON',
+    '• 1-2 frasi in linguaggio naturale (circa 10-35 parole), con tono elegante, poetico e naturale',
+    '• Il testo deve mostrare chiaramente la corrispondenza tra la caratteristica principale della giornata dell\'utente e i tratti/immaginario della pianta scelta; trova il punto d\'incrocio più adatto (o interessante, o inatteso) e parla solo di quello',
+    '• Non usare caratteri di nuova riga nelle stringhe JSON',
     modeSection,
     'Dati di oggi:',
     `Data: ${input.date}`,
@@ -232,18 +229,18 @@ async function runRequest(
   input: PlantDiaryServiceInput,
   timeoutMs: number,
 ): Promise<{ text: string; chosenPlantId: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
+  const apiKey = process.env.CHUTES_API_KEY;
+  if (!apiKey) throw new Error('Missing CHUTES_API_KEY');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://llm.chutes.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
         messages: buildMessages(input),
         temperature: 0.80,
         max_tokens: 280,
