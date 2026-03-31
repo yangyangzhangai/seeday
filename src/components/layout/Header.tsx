@@ -16,7 +16,7 @@ export const Header = () => {
     const f = e.target.files?.[0];
     if (!f) return;
     setShowAvatarModal(false);
-    const dataUrl = await resizeImageToDataUrl(f, 160);
+    const dataUrl = await resizeImageToDataUrl(f, 640, 0.95);
     await updateAvatar(dataUrl);
     e.target.value = '';
   };

@@ -20,7 +20,7 @@ export const AuthPage = () => {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
-  const resizeImageToDataUrl = (file: File, maxSize = 160): Promise<string> => {
+  const resizeImageToDataUrl = (file: File, maxSize = 640, quality = 0.95): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -34,7 +34,7 @@ export const AuthPage = () => {
           canvas.width = w;
           canvas.height = h;
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = reject;
         img.src = reader.result as string;
@@ -141,7 +141,7 @@ export const AuthPage = () => {
                     onChange={async (e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
-                      const dataUrl = await resizeImageToDataUrl(f, 160);
+                      const dataUrl = await resizeImageToDataUrl(f, 640, 0.95);
                       setAvatarPreview(dataUrl);
                       setShowAvatarMenu(false);
                       setShowAvatarModal(false);
