@@ -275,6 +275,9 @@ const it: TranslationKeys = {
     auth_close: 'Chiudi',
     auth_more: 'Altro',
     auth_change_avatar: 'Cambia avatar',
+    auth_google_signin: 'Continua con Google',
+    auth_apple_signin: 'Continua con Apple',
+    auth_or_divider: 'oppure',
 
     // ── Bolla Annotazione AI ──
     annotation_condensing: 'Cristallizzando…',

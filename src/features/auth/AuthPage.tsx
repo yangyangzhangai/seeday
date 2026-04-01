@@ -6,13 +6,15 @@ import { ArrowLeft, Mail, Lock, Loader2, User, MoreHorizontal, X } from 'lucide-
 
 export const AuthPage = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, updateAvatar } = useAuthStore();
+  const { signIn, signInWithGoogle, signInWithApple, signUp, updateAvatar } = useAuthStore();
   const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -55,6 +57,26 @@ export const AuthPage = () => {
     if (msg.includes('Password should be at least')) return t('auth_error_password_short');
     if (msg.includes('invalid_grant')) return t('auth_error_invalid_grant');
     return t('auth_error_generic') + msg;
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    setError(null);
+    const { error } = await signInWithApple();
+    if (error) {
+      setError(getErrorMessage(error.message || t('auth_error_generic')));
+      setAppleLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setError(getErrorMessage(error.message || t('auth_error_generic')));
+      setGoogleLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,6 +255,47 @@ export const AuthPage = () => {
               </button>
             </div>
           </form>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400 font-medium">{t('auth_or_divider')}</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            {googleLoading ? (
+              <Loader2 className="animate-spin h-5 w-5 text-gray-500" />
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+              </svg>
+            )}
+            <span className="text-sm font-medium text-gray-700">{t('auth_google_signin')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleAppleSignIn}
+            disabled={appleLoading || loading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg bg-black hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            {appleLoading ? (
+              <Loader2 className="animate-spin h-5 w-5 text-white" />
+            ) : (
+              <svg width="17" height="20" viewBox="0 0 17 20" fill="white" aria-hidden="true">
+                <path d="M13.805 10.566c-.02-2.184 1.786-3.237 1.867-3.29-1.018-1.49-2.602-1.694-3.166-1.716-1.347-.136-2.632.796-3.315.796-.683 0-1.74-.776-2.86-.754-1.464.022-2.818.854-3.573 2.165C1.08 10.22 2.16 14.37 3.797 16.62c.795 1.15 1.742 2.44 2.984 2.394 1.198-.048 1.649-.77 3.096-.77 1.447 0 1.854.77 3.12.746 1.29-.022 2.103-1.166 2.893-2.32a11.3 11.3 0 0 0 1.317-2.688c-.03-.013-2.52-.967-2.542-3.416zM11.537 3.724c.657-.8 1.1-1.91.977-3.018-.943.04-2.085.63-2.763 1.43-.607.7-1.138 1.823-.994 2.9 1.051.08 2.124-.535 2.78-1.312z"/>
+              </svg>
+            )}
+            <span className="text-sm font-medium text-white">{t('auth_apple_signin')}</span>
+          </button>
 
           <div className="text-center">
             <button

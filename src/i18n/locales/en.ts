@@ -273,6 +273,9 @@ const en = {
     auth_close: 'Close',
     auth_more: 'More',
     auth_change_avatar: 'Change avatar',
+    auth_google_signin: 'Continue with Google',
+    auth_apple_signin: 'Continue with Apple',
+    auth_or_divider: 'or',
 
     // ── AI Annotation Bubble ──
     annotation_condensing: 'Crystallizing…',

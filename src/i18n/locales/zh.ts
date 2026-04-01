@@ -275,6 +275,9 @@ const zh: TranslationKeys = {
     auth_close: '关闭',
     auth_more: '更多',
     auth_change_avatar: '更换头像',
+    auth_google_signin: '使用 Google 继续',
+    auth_apple_signin: '使用 Apple 继续',
+    auth_or_divider: '或',
 
     // ── AI 批注气泡 ──
     annotation_condensing: '凝结中...',
