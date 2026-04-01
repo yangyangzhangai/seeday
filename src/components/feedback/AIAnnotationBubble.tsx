@@ -9,6 +9,7 @@ import type { Message } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { AI_COMPANION_VISUALS } from '../../constants/aiCompanionVisuals';
 import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
+import momoBubbleAvatar from '../../assets/ai-companions/momo-bubble.png';
 
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏
@@ -94,6 +95,9 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
     return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   });
   const currentModeVisual = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)];
+  const bubbleAvatar = normalizeAiCompanionMode(aiMode) === 'spring_thunder'
+    ? momoBubbleAvatar
+    : currentModeVisual.avatar;
   const suggestion = currentAnnotation?.suggestion;
 
   useEffect(() => {
@@ -259,7 +263,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           {/* 外星人头像（放大并半悬浮到气泡外） */}
           <div className="pointer-events-none absolute -left-8 -top-8 h-16 w-16 md:h-20 md:w-20">
             <img
-              src={currentModeVisual.avatar}
+              src={bubbleAvatar}
               alt={`${currentModeVisual.name} avatar`}
               className="h-full w-full object-contain drop-shadow-lg"
             />

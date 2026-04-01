@@ -3,6 +3,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import imgBirdZep02 from '../../assets/zep02.png';
 import imgBirdZep03 from '../../assets/zep03.png';
+import imgVan01 from '../../assets/morning-glory-01.png';
+import imgVan02 from '../../assets/morning-glory-02.png';
+import imgAgnes01 from '../../assets/dragon-blood-tree-01.png';
+import imgAgnes02 from '../../assets/dragon-blood-tree-02.png';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -65,8 +70,20 @@ export const ChatPage = () => {
     data: StardustCardData; position: { x: number; y: number };
   } | null>(null);
 
+  const aiMode = useAuthStore(state => state.preferences.aiMode);
+
+  const personaImages: Record<string, [string, string]> = {
+    van: [imgVan01, imgVan02],
+    agnes: [imgAgnes01, imgAgnes02],
+    zep: [imgBirdZep02, imgBirdZep03],
+    spring_thunder: [imgBirdZep02, imgBirdZep03],
+  };
+  const [personaImg1, personaImg2] = personaImages[aiMode] ?? [imgBirdZep02, imgBirdZep03];
+
   const sendingRef = useRef(false);
   const [birdOpen, setBirdOpen] = useState(false);
+
+  useEffect(() => { setBirdOpen(false); }, [aiMode]);
 
   useEffect(() => {
     setSelectedDate(new Date());
@@ -331,7 +348,7 @@ export const ChatPage = () => {
           }}
         >
           <img
-            src={birdOpen ? imgBirdZep03 : imgBirdZep02}
+            src={birdOpen ? personaImg2 : personaImg1}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.96,
               filter: 'drop-shadow(0 6px 14px rgba(148,163,184,0.14))' }}
