@@ -342,7 +342,7 @@ export const ChatPage = () => {
           onClick={() => setBirdOpen(v => !v)}
           aria-label="toggle bird"
           style={{
-            position: 'absolute', left: 14, bottom: 84,
+            position: 'absolute', left: 14, bottom: 132,
             width: 98, height: 98, border: 'none', background: 'transparent',
             padding: 0, cursor: 'pointer', zIndex: 24,
           }}
