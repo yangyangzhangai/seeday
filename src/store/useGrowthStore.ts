@@ -250,11 +250,11 @@ export const useGrowthStore = create<GrowthState>()(
             .eq('user_id', session.user.id)
             .neq('status', 'irrigated')   // irrigated = archived, don't restore
             .order('created_at', { ascending: true });
-          if (error || !data) {
+          if (error) {
             set({
               isLoading: false,
               hasHydrated: true,
-              lastSyncError: error?.message ?? 'growth_sync_failed',
+              lastSyncError: error.message,
             });
             return;
           }
