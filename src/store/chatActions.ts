@@ -399,7 +399,12 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   }
 
   const moodStore = useMoodStore.getState();
-  moodStore.setMood(lastMessage.id, autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)));
+  if (!moodStore.getMood(lastMessage.id)) {
+    moodStore.setMood(
+      lastMessage.id,
+      autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)),
+    );
+  }
 
   return updatedMessages;
 }
