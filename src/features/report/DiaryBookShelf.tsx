@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
+import { cn } from '../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 
 /* ──────────────────────────── constants ──────────────────────────── */
 const COVER_BG = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
@@ -314,16 +316,16 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       {/* Calendar Modal */}
       {showCalendar && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          className={cn('fixed inset-0 z-[60] flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => setShowCalendar(false)}
         >
           <div
-            style={{ background: '#fff', borderRadius: 16, padding: 16, width: '100%', maxWidth: 320 }}
+            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-[320px] rounded-3xl p-4')}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#4a3a2a' }}>{t('diary_shelf_open_calendar')}</span>
-              <button onClick={() => setShowCalendar(false)} style={{ color: '#9a8878', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>{t('diary_shelf_open_calendar')}</span>
+              <button onClick={() => setShowCalendar(false)} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')} style={{ cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>

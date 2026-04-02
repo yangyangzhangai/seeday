@@ -100,9 +100,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     const insightLang = lang || 'zh';
-    const systemMsg = insightLang === 'zh'
-      ? `你是一位简洁的生活教练。根据用户提供的${kind === 'activity' ? '活动分布' : '心情分布'}数据，用不超过20个中文字给出一句简短的洞察或感悟。只输出这句话，不加任何多余内容。`
-      : `You are a concise life coach. Based on the user's ${kind === 'activity' ? 'activity distribution' : 'mood distribution'}, provide a single insightful sentence in under 20 words. Output only the sentence.`;
+    const normalizedLang = normalizeAiCompanionLang(insightLang);
+    const modePrompt = buildAiCompanionModePrompt(normalizedLang, normalizeAiCompanionMode(aiMode), 'annotation');
+    const zhTopicMap: Record<string, string> = {
+      activity: '活动分布',
+      mood: '心情分布',
+      todo: '待办完成内容与完成度',
+      habit: '习惯/目标完成情况',
+    };
+    const enTopicMap: Record<string, string> = {
+      activity: 'activity distribution',
+      mood: 'mood distribution',
+      todo: 'todo completion and pacing',
+      habit: 'habit and goal completion',
+    };
+    const topicZh = zhTopicMap[kind] || '今日数据';
+    const topicEn = enTopicMap[kind] || 'today data';
+    const behaviorRule = kind === 'todo'
+      ? (normalizedLang === 'zh'
+        ? '需覆盖完成内容、完成度和时间安排是否合理。'
+        : 'Cover completion content, completion rate, and whether time planning looks reasonable.')
+      : kind === 'habit'
+        ? (normalizedLang === 'zh'
+          ? '需概括习惯/目标整体完成度并给出一个微建议。'
+          : 'Summarize overall habit/goal completion and give one tiny suggestion.')
+        : (normalizedLang === 'zh' ? '给出一句具体洞察。' : 'Give one specific insight.');
+    const systemMsg = normalizedLang === 'zh'
+      ? `${modePrompt}\n\n你是一位简洁的生活教练。根据用户提供的${topicZh}数据，输出一句不超过20个中文字的洞察。${behaviorRule}只输出这句话，不加任何多余内容。`
+      : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one short insight sentence (about 20 words max). ${behaviorRule} Output only that sentence.`;
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',

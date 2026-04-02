@@ -34,7 +34,7 @@ export const AI_COMPANION_VISUALS: Record<AiCompanionMode, AiCompanionVisual> = 
   },
   spring_thunder: {
     name: 'Momo',
-    subtitle: '秩序催化',
+    subtitle: '从容温吞',
     avatar: momoAvatar,
     free: false,
   },

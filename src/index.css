@@ -114,13 +114,37 @@ a {
   font-weight: 700;
 }
 
-.calendar-wrapper .react-calendar__tile--active::after {
-  content: '';
-  display: block;
-  margin: 0.1rem auto 0;
-  width: 0.75rem;
-  height: 1px;
-  background-color: #e5e7eb;
+.calendar-wrapper .react-calendar__tile--active abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.95rem;
+  height: 1.95rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.9) 45%, rgba(147, 197, 253, 0.72) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.82);
+}
+
+.diary-shelf-calendar .react-calendar__tile--active {
+  background: transparent !important;
+  color: #111827;
+}
+
+.diary-shelf-calendar .react-calendar__tile--active abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.95rem;
+  height: 1.95rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.9) 45%, rgba(147, 197, 253, 0.72) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.82);
 }
 
 /* Diary shelf calendar: data visibility */

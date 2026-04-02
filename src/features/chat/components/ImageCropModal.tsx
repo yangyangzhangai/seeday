@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, X } from 'lucide-react';
+import { cn } from '../../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 
 const OUTPUT_W  = 600;   // final output width px
 const ASPECT_W  = 3;
@@ -103,17 +105,17 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
   const visibleCropTop = Math.max(0, Math.min(cropTopPx, displayH - boxH));
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-end justify-center sm:items-center"
+    <div className={cn('fixed inset-0 flex items-end justify-center sm:items-center', APP_MODAL_OVERLAY_CLASS)}
          style={{ zIndex: 320, paddingBottom: 'env(safe-area-inset-bottom,0px)' }}>
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl overflow-hidden w-full"
+      <div className={cn(APP_MODAL_CARD_CLASS, 'rounded-t-3xl sm:rounded-3xl overflow-hidden w-full')}
            style={{ maxWidth: Math.min(displayW + 32, window.innerWidth) }}>
         {/* Header — always visible */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 touch-manipulation">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/70">
+          <button onClick={onCancel} className={cn(APP_MODAL_CLOSE_CLASS, 'p-2 touch-manipulation')}>
             <X size={20} />
           </button>
-          <span className="text-sm font-medium text-gray-800">{t('image_crop_title')}</span>
-          <button onClick={confirm} className="p-2 text-sky-500 hover:text-sky-700 font-semibold touch-manipulation">
+          <span className="text-sm font-medium text-slate-800">{t('image_crop_title')}</span>
+          <button onClick={confirm} className="p-2 text-[#2F3E33] hover:text-[#243129] font-semibold touch-manipulation">
             <Check size={20} />
           </button>
         </div>
@@ -176,7 +178,7 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 py-3">{t('image_crop_hint')}</p>
+        <p className="text-center text-xs text-slate-400 py-3">{t('image_crop_hint')}</p>
       </div>
     </div>
   );

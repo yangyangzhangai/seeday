@@ -62,27 +62,26 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
             {isPlus ? 'PLUS' : 'FREE'}
           </span>
         </div>
-
-      <div className="mb-4 grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
-        {FEATURES.map(({ labelKey, free }) => {
-          const unlocked = free || isPlus;
-          return (
-            <div key={labelKey} className="flex items-center justify-center gap-1.5">
-              {unlocked ? (
-                <Check size={12} style={{ color: '#5F7A63', flexShrink: 0 }} />
-              ) : (
-                <Lock size={12} style={{ color: 'rgba(95,122,99,0.45)', flexShrink: 0 }} />
-              )}
-              <span
-                className="text-[11px] leading-tight"
-                style={{ color: unlocked ? '#334155' : 'rgba(100,116,139,0.7)' }}
-              >
-                {t(labelKey)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+        <div className="mb-4 grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
+          {FEATURES.map(({ labelKey, free }) => {
+            const unlocked = free || isPlus;
+            return (
+              <div key={labelKey} className="flex items-center justify-center gap-1.5">
+                {unlocked ? (
+                  <Check size={12} style={{ color: '#5F7A63', flexShrink: 0 }} />
+                ) : (
+                  <Lock size={12} style={{ color: 'rgba(95,122,99,0.45)', flexShrink: 0 }} />
+                )}
+                <span
+                  className="text-[11px] leading-tight"
+                  style={{ color: unlocked ? '#334155' : 'rgba(100,116,139,0.7)' }}
+                >
+                  {t(labelKey)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
         {!isPlus ? (
           <button

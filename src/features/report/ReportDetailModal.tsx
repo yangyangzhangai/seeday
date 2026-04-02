@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format, isSameDay } from 'date-fns';
-import { zhCN, enUS, it } from 'date-fns/locale';
+import { format } from 'date-fns';
+import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
-import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
-import { usePlantStore } from '../../store/usePlantStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import type { MoodDistributionItem, ActivityDistributionItem } from './reportPageHelpers';
+import type { DailyPlantRecord } from '../../types/plant';
+import type { MoodDistributionItem } from './reportPageHelpers';
+import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
+import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
+import { ACTIVITY_COLORS } from './ActivityPieChart';
+import { getMoodDisplayLabel, normalizeMoodKey } from '../../lib/moodOptions';
 import { PlantImage } from './plant/PlantImage';
-import starImage from '../../assets/growth/growth-star.png';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -28,413 +29,934 @@ interface ReportDetailModalProps {
   canNavigateNext?: boolean;
 }
 
-type PieItem = { name: string; value: number; color: string };
+type Lang = 'zh' | 'en' | 'it';
 
-const ACTIVITY_COLOR_MAP: Record<string, string> = {
-  work: '#D5E8CE',
-  health: '#AACBA4',
-  study: '#85AD80',
-  social: '#6A9464',
-  life: '#4E7549',
-  entertainment: '#93B28D',
+type DonutSegment = {
+  color: string;
+  value: number;
+  showLabel?: boolean;
 };
 
-const MOOD_COLOR_MAP: Record<string, string> = {
-  happy: '#F8D0DC',
-  calm: '#F0AABE',
-  satisfied: '#DE8BA2',
-  focused: '#C46E86',
-  anxious: '#DFA7B8',
-  tired: '#BC7286',
-  down: '#9E4E64',
-  bored: '#E0B8C4',
+const COPY: Record<Lang, {
+  pageTitle: string;
+  sectionActivity: string;
+  sectionMood: string;
+  sectionTodo: string;
+  sectionHabits: string;
+  sectionObservation: string;
+  sectionMyDiary: string;
+  activityLine1: string;
+  moodLine1: string;
+  todoFallback: string;
+  habitsFallback: string;
+  observationFallback: string;
+  diaryPlaceholder: string;
+}> = {
+  zh: {
+    pageTitle: '日记',
+    sectionActivity: '活动',
+    sectionMood: '情绪',
+    sectionTodo: '待办',
+    sectionHabits: '习惯',
+    sectionObservation: '观察日记',
+    sectionMyDiary: '我的日记',
+    activityLine1: '今天主要精力投入在工作上',
+    moodLine1: '整体情绪比较轻松愉快',
+    todoFallback: '你今天做得很好',
+    habitsFallback: '继续保持，进度很稳',
+    observationFallback:
+      '今天看着这株植物，叶片舒展而有层次，光线落在叶面上很温柔。它安静地生长，也像你今天的状态一样，慢慢变得更稳。愿你继续保持这份耐心与柔软，在自己的节奏里往前走。',
+    diaryPlaceholder: '今天还没有写下内容。',
+  },
+  en: {
+    pageTitle: 'diary',
+    sectionActivity: 'activity',
+    sectionMood: 'mood',
+    sectionTodo: 'to-do',
+    sectionHabits: 'habits',
+    sectionObservation: 'observation',
+    sectionMyDiary: 'my diary',
+    activityLine1: 'Mostly working today',
+    moodLine1: 'Feeling joyful most of the day',
+    todoFallback: 'You did great today',
+    habitsFallback: 'Nice rhythm, keep going',
+    observationFallback:
+      'Dear friend, I came to your little room today and was drawn to the photos on the windowsill. Its lush green leaves spread out in layers, each one clear and tender under the light. Looking at this plant, I feel your life is quietly growing too, just like it. I hope you always keep this patience and tenderness, with your plants and with yourself.',
+    diaryPlaceholder: 'No diary content yet.',
+  },
+  it: {
+    pageTitle: 'diario',
+    sectionActivity: 'attivita',
+    sectionMood: 'umore',
+    sectionTodo: 'to-do',
+    sectionHabits: 'abitudini',
+    sectionObservation: 'osservazione',
+    sectionMyDiary: 'il mio diario',
+    activityLine1: 'Oggi soprattutto lavoro',
+    moodLine1: 'Umore positivo per gran parte della giornata',
+    todoFallback: 'Hai fatto un ottimo lavoro oggi',
+    habitsFallback: 'Continua cosi, ottimo passo',
+    observationFallback:
+      'Oggi, guardando questa pianta, ho visto foglie aperte e piene di vita, illuminate da una luce morbida. Cresce in silenzio, con costanza, proprio come stai facendo tu. Ti auguro di mantenere sempre questa pazienza e questa gentilezza, con le tue piante e con te stessa.',
+    diaryPlaceholder: 'Nessun contenuto del diario per ora.',
+  },
 };
 
-const LINE_H = 18;
+const ACTIVITY_I18N_KEYS: Record<string, string> = {
+  study: 'category_study',
+  work: 'category_work',
+  social: 'category_social',
+  life: 'category_life',
+  entertainment: 'category_entertainment',
+  health: 'category_health',
+};
 
-function lightenHex(hex: string, amount: number): string {
-  const clean = hex.replace('#', '');
-  const num = Number.parseInt(clean, 16);
-  const r = Math.min(255, (num >> 16) + Math.round(255 * amount));
-  const g = Math.min(255, ((num >> 8) & 0xff) + Math.round(255 * amount));
-  const b = Math.min(255, (num & 0xff) + Math.round(255 * amount));
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+const MOOD_COLORS: Record<string, string> = {
+  happy: '#f2c8d6',
+  calm: '#efb7cb',
+  focused: '#e79db8',
+  satisfied: '#f6dce5',
+  tired: '#c8cfda',
+  anxious: '#d5d5d5',
+  bored: '#d9def4',
+  down: '#b9c5f0',
+};
+
+const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
+const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
+const DIARY_BG = 'rgba(252,250,247,0.96)';
+
+function buildActivitySummary(dist: ActivityDistributionItem[]): string {
+  return dist.map((d) => `${d.type}${Math.round(d.minutes)}min`).join('、');
 }
 
-function DonutChart({
-  data,
-  maxIndex,
-  chartId,
-  labelColor,
-  size = 110,
-  innerRadius = 20,
-  outerRadius = 44,
+function buildMoodSummary(dist: MoodDistributionItem[]): string {
+  return dist.map((d) => `${d.mood}${Math.round(d.minutes)}min`).join('、');
+}
+
+function clampInsightText(raw: string, maxChars = 20): string {
+  const text = raw.trim().replace(/\s+/g, ' ');
+  if (!text) return '';
+  const chars = Array.from(text);
+  if (chars.length <= maxChars) return text;
+  return `${chars.slice(0, maxChars).join('')}…`;
+}
+
+function toPercent(rate: number): number {
+  if (!Number.isFinite(rate)) return 0;
+  return Math.max(0, Math.min(100, Math.round(rate * 100)));
+}
+
+function buildTodoSummary(params: {
+  lang: Lang;
+  completed: number;
+  total: number;
+  completionRate: number;
+  completedTitles: string[];
+  dominantActivity?: { type: string; percent: number };
+}): string {
+  const {
+    lang,
+    completed,
+    total,
+    completionRate,
+    completedTitles,
+    dominantActivity,
+  } = params;
+  const rate = toPercent(completionRate);
+  const topType = dominantActivity?.type || (lang === 'zh' ? '无' : lang === 'it' ? 'nessuna' : 'none');
+  const topPercent = Math.max(0, Math.min(100, Math.round(dominantActivity?.percent ?? 0)));
+
+  if (lang === 'zh') {
+    const tasks = completedTitles.slice(0, 3).join('、') || '无';
+    return `待办完成${completed}/${total}(${rate}%)；完成项:${tasks}；时间重心:${topType}${topPercent}%`;
+  }
+  if (lang === 'it') {
+    const tasks = completedTitles.slice(0, 3).join(', ') || 'nessuna';
+    return `Todo ${completed}/${total} (${rate}%). Svolte: ${tasks}. Tempo su ${topType} ${topPercent}%.`;
+  }
+  const tasks = completedTitles.slice(0, 3).join(', ') || 'none';
+  return `Todo ${completed}/${total} (${rate}%). Done: ${tasks}. Time focus: ${topType} ${topPercent}%.`;
+}
+
+function buildHabitSummary(params: {
+  lang: Lang;
+  habitDone: number;
+  habitTotal: number;
+  goalDone: number;
+  goalTotal: number;
+  starsToday: number;
+}): string {
+  const { lang, habitDone, habitTotal, goalDone, goalTotal, starsToday } = params;
+  const total = habitTotal + goalTotal;
+  const done = habitDone + goalDone;
+  const rate = total > 0 ? toPercent(done / total) : 0;
+
+  if (lang === 'zh') {
+    return `习惯${habitDone}/${habitTotal}，目标${goalDone}/${goalTotal}，今日星星${starsToday}颗，总体完成${rate}%`;
+  }
+  if (lang === 'it') {
+    return `Abitudini ${habitDone}/${habitTotal}, obiettivi ${goalDone}/${goalTotal}, stelle oggi ${starsToday}, completamento ${rate}%.`;
+  }
+  return `Habits ${habitDone}/${habitTotal}, goals ${goalDone}/${goalTotal}, stars today ${starsToday}, completion ${rate}%.`;
+}
+
+function MiniDonut({
+  segments,
+  holeColor,
+  emptyLabel,
 }: {
-  data: PieItem[];
-  maxIndex: number;
-  chartId: string;
-  labelColor: string;
-  size?: number;
-  innerRadius?: number;
-  outerRadius?: number;
+  segments: Array<DonutSegment & { label: string }>;
+  holeColor: string;
+  emptyLabel: string;
 }) {
+  const safeSegments = segments.length > 0
+    ? segments
+    : [{ color: '#d9dde2', value: 100, label: '', showLabel: false }];
+  const total = safeSegments.reduce((sum, segment) => sum + segment.value, 0) || 1;
+
+  const size = 122;
   const cx = size / 2;
   const cy = size / 2;
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (total <= 0) {
-    return <div style={{ width: size, height: size }} />;
+  const outerR = 56;
+  const innerR = 22;
+  const labelR = 38;
+
+  if (safeSegments.length === 1) {
+    const only = safeSegments[0];
+    const percent = Math.round((only.value / total) * 100);
+    const showPercent = only.label.trim().length > 0 && only.label !== emptyLabel;
+    return (
+      <div style={{ width: 'min(34vw, 122px)', height: 'min(34vw, 122px)' }}>
+        <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%">
+          <circle cx={cx} cy={cy} r={outerR} fill={only.color} />
+          <circle cx={cx} cy={cy} r={innerR} fill={holeColor} />
+          {only.showLabel !== false ? (
+            <text
+              x={cx}
+              y={cy}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="7.2"
+              fill="rgba(40,40,40,0.74)"
+              fontWeight="600"
+              style={{ pointerEvents: 'none' }}
+            >
+              <tspan x={cx} dy={showPercent ? '-0.35em' : '0'}>{only.label}</tspan>
+              {showPercent ? <tspan x={cx} dy="1.1em">{percent}%</tspan> : null}
+            </text>
+          ) : null}
+        </svg>
+      </div>
+    );
   }
 
-  const halfSize = size / 2;
-  const maxOuter = outerRadius + 10;
-  const innerRatio = `${((innerRadius / halfSize) * 100).toFixed(1)}%`;
-  const outerRatio = `${((maxOuter / halfSize) * 100).toFixed(1)}%`;
-
-  const polar = (r: number, deg: number) => ({
-    x: cx + r * Math.cos((deg * Math.PI) / 180),
-    y: cy + r * Math.sin((deg * Math.PI) / 180),
-  });
-
-  let cursor = -90;
-  const segments = data.map((item, index) => {
-    const start = cursor;
-    const sweep = (item.value / total) * 360;
-    cursor += sweep;
-    const end = cursor;
-    const mid = (start + end) / 2;
-    const isMax = index === maxIndex;
-    const adjustedOuter = isMax ? outerRadius + 6 : outerRadius;
-    const midRad = (mid * Math.PI) / 180;
-    const ox = isMax ? Math.cos(midRad) * 3 : 0;
-    const oy = isMax ? Math.sin(midRad) * 3 : 0;
-    const large = sweep > 180 ? 1 : 0;
-    const o1 = polar(adjustedOuter, start);
-    const o2 = polar(adjustedOuter, end);
-    const i1 = polar(innerRadius, end);
-    const i2 = polar(innerRadius, start);
-    const pathD = [
-      `M ${o1.x + ox} ${o1.y + oy}`,
-      `A ${adjustedOuter} ${adjustedOuter} 0 ${large} 1 ${o2.x + ox} ${o2.y + oy}`,
-      `L ${i1.x + ox} ${i1.y + oy}`,
-      `A ${innerRadius} ${innerRadius} 0 ${large} 0 ${i2.x + ox} ${i2.y + oy}`,
-      'Z',
-    ].join(' ');
-    const midR = (innerRadius + adjustedOuter) / 2;
-    return {
-      ...item,
-      pathD,
-      textX: cx + ox + midR * Math.cos(midRad),
-      textY: cy + oy + midR * Math.sin(midRad),
-      sweep,
-      isMax,
+  let startAngle = -90;
+  const items = safeSegments.map((segment, idx) => {
+    const sweep = (segment.value / total) * 360;
+    const endAngle = startAngle + sweep;
+    const midAngle = startAngle + sweep / 2;
+    const midRad = (midAngle * Math.PI) / 180;
+    const ox1 = cx + outerR * Math.cos((startAngle * Math.PI) / 180);
+    const oy1 = cy + outerR * Math.sin((startAngle * Math.PI) / 180);
+    const ox2 = cx + outerR * Math.cos((endAngle * Math.PI) / 180);
+    const oy2 = cy + outerR * Math.sin((endAngle * Math.PI) / 180);
+    const ix1 = cx + innerR * Math.cos((startAngle * Math.PI) / 180);
+    const iy1 = cy + innerR * Math.sin((startAngle * Math.PI) / 180);
+    const ix2 = cx + innerR * Math.cos((endAngle * Math.PI) / 180);
+    const iy2 = cy + innerR * Math.sin((endAngle * Math.PI) / 180);
+    const largeArc = sweep > 180 ? 1 : 0;
+    const lx = cx + labelR * Math.cos(midRad);
+    const ly = cy + labelR * Math.sin(midRad);
+    const percent = Math.round((segment.value / total) * 100);
+    const result = {
+      key: `${segment.label}-${idx}`,
+      path: [
+        `M ${ox1} ${oy1}`,
+        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`,
+        `L ${ix2} ${iy2}`,
+        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`,
+        'Z',
+      ].join(' '),
+      color: segment.color,
+      label: segment.label,
+      percent,
+      lx,
+      ly,
+      showLabel: segment.showLabel !== false,
     };
+    startAngle = endAngle;
+    return result;
   });
 
   return (
-    <svg width={size} height={size} style={{ overflow: 'visible' }}>
-      <defs>
-        {segments.map((seg, idx) => (
-          <radialGradient key={idx} id={`${chartId}-rg-${idx}`} cx="50%" cy="50%" r={outerRatio} fx="50%" fy="50%" gradientUnits="objectBoundingBox">
-            <stop offset={innerRatio} stopColor={seg.color} stopOpacity="1" />
-            <stop offset="100%" stopColor={lightenHex(seg.color, 0.18)} stopOpacity="1" />
-          </radialGradient>
+    <div style={{ width: 'min(34vw, 122px)', height: 'min(34vw, 122px)' }}>
+      <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%">
+        {items.map((item) => (
+          <path key={item.key} d={item.path} fill={item.color} />
         ))}
-      </defs>
-      {segments.map((seg, idx) => (
-        <path key={idx} d={seg.pathD} fill={`url(#${chartId}-rg-${idx})`} stroke={seg.isMax ? '#ffffff' : 'none'} strokeWidth={seg.isMax ? 1.5 : 0} />
-      ))}
-      {segments.map((seg, idx) =>
-        seg.sweep < 25 ? null : (
-          <text key={idx} x={seg.textX} y={seg.textY} textAnchor="middle" fill={labelColor} style={{ fontSize: '8px', fontWeight: 700, pointerEvents: 'none' }}>
-            <tspan x={seg.textX} dy="-0.55em">{seg.name}</tspan>
-            <tspan x={seg.textX} dy="1.2em">{seg.value}%</tspan>
-          </text>
-        )
-      )}
-    </svg>
+        <circle cx={cx} cy={cy} r={innerR} fill={holeColor} />
+        {items.map((item) => (
+          item.showLabel ? (
+            <text
+              key={`txt-${item.key}`}
+              x={item.lx}
+              y={item.ly}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="7.2"
+              fill="rgba(40,40,40,0.74)"
+              fontWeight="600"
+              style={{ pointerEvents: 'none' }}
+            >
+              <tspan x={item.lx} dy="-0.35em">{item.label}</tspan>
+              <tspan x={item.lx} dy="1.1em">{item.percent}%</tspan>
+            </text>
+          ) : null
+        ))}
+      </svg>
+    </div>
   );
 }
 
-function WaveDivider() {
+function Header({
+  title,
+  dateLabel,
+  onPrev,
+  onNext,
+  nextDisabled,
+}: {
+  title: string;
+  dateLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
+  nextDisabled: boolean;
+}) {
   return (
-    <div
+    <div className="sticky top-0 z-10" style={{ background: DIARY_BG }}>
+      <div className="relative flex items-center justify-center px-2 pt-5">
+        <button
+          onClick={onPrev}
+          className="absolute left-1 flex h-8 w-8 items-center justify-center rounded-full active:opacity-60"
+          style={{ color: '#2d2d2d' }}
+          aria-label="previous"
+        >
+          <ChevronLeft size={21} strokeWidth={2.3} />
+        </button>
+
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 33,
+            lineHeight: 1,
+            fontWeight: 700,
+            color: '#202020',
+            fontFamily: 'Georgia, "Times New Roman", serif',
+          }}
+        >
+          {title}
+        </h2>
+
+        <button
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="absolute right-1 flex h-8 w-8 items-center justify-center rounded-full active:opacity-60 disabled:opacity-35"
+          style={{ color: '#2d2d2d' }}
+          aria-label="next"
+        >
+          <ChevronRight size={21} strokeWidth={2.3} />
+        </button>
+      </div>
+
+      <p
+        style={{
+          margin: '8px 0 0 0',
+          textAlign: 'center',
+          fontSize: 18,
+          lineHeight: 1.2,
+          fontWeight: 700,
+          color: '#333',
+          fontFamily: 'Georgia, "Times New Roman", serif',
+        }}
+      >
+        {dateLabel}
+      </p>
+
+      <div style={{ marginTop: 10, borderBottom: DIARY_LINE_SOLID }} />
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3
       style={{
-        flexShrink: 0,
-        height: 1,
-        backgroundImage: 'repeating-linear-gradient(90deg, #D0D0D0 0, #D0D0D0 3px, transparent 0, transparent 7px)',
-        margin: '2px 0',
+        margin: 0,
+        fontSize: 17,
+        lineHeight: 1.2,
+        fontWeight: 700,
+        color: '#232323',
+        fontFamily: 'Georgia, "Times New Roman", serif',
       }}
-    />
+    >
+      {children}
+    </h3>
   );
 }
 
-function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] }) {
+function SectionDivider() {
+  return <div style={{ margin: '14px 0 12px', borderTop: DIARY_LINE_DASHED }} />;
+}
+
+function Row({
+  left,
+  line1,
+  line2,
+}: {
+  left: React.ReactNode;
+  line1: string;
+  line2?: string;
+}) {
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 8px 1fr' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{left}</div>
-      <div />
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, overflow: 'hidden' }}>
-        {lines.map((line, idx) => (
-          <div key={idx} style={{ fontSize: 12, color: '#1A1A1A', lineHeight: `${LINE_H}px` }}>{line}</div>
-        ))}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 108 }}>
+      <div style={{ flex: '1 1 0', display: 'flex', justifyContent: 'center' }}>{left}</div>
+      <div style={{ flex: '1 1 0' }}>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif' }}>
+          {line1}
+        </p>
+        {line2 ? (
+          <p style={{ margin: '10px 0 0 0', fontSize: 15, lineHeight: 1.5, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif' }}>
+            {line2}
+          </p>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function toPercentDist(data: ActivityDistributionItem[] | MoodDistributionItem[], colorMap: Record<string, string>, keyField: 'type' | 'mood'): PieItem[] {
-  const total = data.reduce((sum, item) => sum + item.minutes, 0);
-  if (total <= 0) return [];
-  return data.slice(0, 5).map((item) => {
-    const key = String(item[keyField]);
-    const value = Math.max(1, Math.round((item.minutes / total) * 100));
-    return { name: key, value, color: colorMap[key] || '#C7C7C7' };
-  });
-}
-
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   selectedReport,
-  dailyMoodDistribution,
+  dailyMoodDistribution: _dailyMoodDistribution,
   onClose,
   onBack,
-  onShowTaskList,
-  generateAIDiary,
+  onShowTaskList: _onShowTaskList,
+  generateAIDiary: _generateAIDiary,
   initialPage,
-  readOnly,
+  readOnly: _readOnly,
   onNavigatePrev,
   onNavigateNext,
   canNavigateNext,
 }) => {
   const { t, i18n } = useTranslation();
-  const { updateReport } = useReportStore();
-  const messages = useChatStore((state) => state.messages);
+  const chatMessages = useChatStore((state) => state.messages);
   const dateCache = useChatStore((state) => state.dateCache);
   const activityMood = useMoodStore((state) => state.activityMood);
-  const todayPlant = usePlantStore((state) => state.todayPlant);
-  const isPlus = useAuthStore((state) => state.isPlus);
-  const [activePage, setActivePage] = useState<0 | 1>(0);
-  const [noteValue, setNoteValue] = useState('');
+  const pagesRef = useRef<HTMLDivElement | null>(null);
+  const [activePage, setActivePage] = useState(initialPage ?? 0);
+  const [activityInsight, setActivityInsight] = useState('');
+  const [moodInsight, setMoodInsight] = useState('');
+  const [todoInsight, setTodoInsight] = useState('');
+  const [habitInsight, setHabitInsight] = useState('');
+  const [dayPlant, setDayPlant] = useState<DailyPlantRecord | null>(null);
+  const plantAutoAttemptedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setActivePage(initialPage ?? 0);
-    setNoteValue(selectedReport?.userNote ?? '');
+    const page = initialPage ?? 0;
+    setActivePage(page);
+    requestAnimationFrame(() => {
+      if (!pagesRef.current) return;
+      pagesRef.current.scrollLeft = page === 1 ? pagesRef.current.clientWidth : 0;
+    });
   }, [selectedReport?.id, initialPage]);
 
-  const locale = i18n.language?.startsWith('zh') ? zhCN : i18n.language?.startsWith('it') ? it : enUS;
+  const lang = useMemo<Lang>(() => {
+    const raw = i18n.language?.split('-')[0] ?? 'en';
+    if (raw === 'zh' || raw === 'it') return raw;
+    return 'en';
+  }, [i18n.language]);
+
+  const copy = COPY[lang];
 
   const reportMessages = useMemo(
-    () => getMessagesForReport(messages, dateCache, selectedReport),
-    [messages, dateCache, selectedReport]
+    () => getMessagesForReport(chatMessages, dateCache, selectedReport),
+    [chatMessages, dateCache, selectedReport],
+  );
+  const activityDistribution = useMemo(
+    () => getDailyActivityDistribution(reportMessages, selectedReport),
+    [reportMessages, selectedReport],
+  );
+  const moodDistribution = useMemo(
+    () => getDailyMoodDistribution(reportMessages, activityMood, selectedReport),
+    [reportMessages, activityMood, selectedReport],
+  );
+  const activitySummary = useMemo(
+    () => buildActivitySummary(activityDistribution),
+    [activityDistribution],
+  );
+  const moodSummary = useMemo(
+    () => buildMoodSummary(moodDistribution),
+    [moodDistribution],
+  );
+  const dayMinutes = 24 * 60;
+  const todoCompleted = selectedReport?.stats?.completedTodos ?? 0;
+  const todoTotal = selectedReport?.stats?.totalTodos ?? 0;
+  const todoCompletionRate = todoTotal > 0
+    ? todoCompleted / todoTotal
+    : Math.max(0, Math.min(1, selectedReport?.stats?.completionRate ?? 0));
+  const todoCompletedTitles = selectedReport?.stats?.oneTimeTasks?.completedTitles ?? [];
+  const dominantActivity = useMemo(() => {
+    if (activityDistribution.length === 0) return undefined;
+    const top = activityDistribution.reduce((best, current) => (
+      current.minutes > best.minutes ? current : best
+    ), activityDistribution[0]);
+    return {
+      type: t(ACTIVITY_I18N_KEYS[top.type] || top.type),
+      percent: dayMinutes > 0 ? (top.minutes / dayMinutes) * 100 : 0,
+    };
+  }, [activityDistribution, t]);
+
+  const habitDoneCount = selectedReport?.stats?.habitCheckin?.filter((item) => item.done).length ?? 0;
+  const habitTotalCount = selectedReport?.stats?.habitCheckin?.length ?? 0;
+  const goalDoneCount = selectedReport?.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0;
+  const goalTotalCount = selectedReport?.stats?.goalProgress?.length ?? 0;
+  const todayStars = habitDoneCount + goalDoneCount;
+
+  const todoInsightSummary = useMemo(() => {
+    if (todoTotal <= 0) return '';
+    return buildTodoSummary({
+      lang,
+      completed: todoCompleted,
+      total: todoTotal,
+      completionRate: todoCompletionRate,
+      completedTitles: todoCompletedTitles,
+      dominantActivity,
+    });
+  }, [lang, todoCompleted, todoTotal, todoCompletionRate, todoCompletedTitles, dominantActivity]);
+
+  const habitInsightSummary = useMemo(() => {
+    if (habitTotalCount + goalTotalCount <= 0) return '';
+    return buildHabitSummary({
+      lang,
+      habitDone: habitDoneCount,
+      habitTotal: habitTotalCount,
+      goalDone: goalDoneCount,
+      goalTotal: goalTotalCount,
+      starsToday: todayStars,
+    });
+  }, [lang, habitDoneCount, habitTotalCount, goalDoneCount, goalTotalCount, todayStars]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActivityInsight('');
+    setMoodInsight('');
+    setTodoInsight('');
+    setHabitInsight('');
+
+    if (activitySummary) {
+      void callShortInsightAPI({ kind: 'activity', summary: activitySummary, lang }).then((text) => {
+        if (!cancelled && text) setActivityInsight(clampInsightText(text, 20));
+      });
+    }
+    if (moodSummary) {
+      void callShortInsightAPI({ kind: 'mood', summary: moodSummary, lang }).then((text) => {
+        if (!cancelled && text) setMoodInsight(clampInsightText(text, 20));
+      });
+    }
+    if (todoInsightSummary) {
+      void callShortInsightAPI({ kind: 'todo', summary: todoInsightSummary, lang }).then((text) => {
+        if (!cancelled && text) setTodoInsight(clampInsightText(text, 20));
+      });
+    }
+    if (habitInsightSummary) {
+      void callShortInsightAPI({ kind: 'habit', summary: habitInsightSummary, lang }).then((text) => {
+        if (!cancelled && text) setHabitInsight(clampInsightText(text, 20));
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedReport?.id, activitySummary, moodSummary, todoInsightSummary, habitInsightSummary, lang]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDayPlant(null);
+
+    const date = selectedReport?.date;
+    if (!date) return () => { cancelled = true; };
+
+    const dayDate = new Date(date);
+    const dayStr = format(dayDate, 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const isPastDay = dayStr < todayStr;
+    const langRaw = i18n.language?.toLowerCase() ?? 'en';
+    const plantLang: 'zh' | 'en' | 'it' = langRaw.startsWith('zh')
+      ? 'zh'
+      : langRaw.startsWith('it')
+        ? 'it'
+        : 'en';
+
+    void callPlantHistoryAPI(dayStr, dayStr)
+      .then(async (res) => {
+        if (cancelled) return;
+        if (res.success && res.records.length > 0) {
+          setDayPlant(res.records[0]);
+          return;
+        }
+        if (!isPastDay) return;
+        if (plantAutoAttemptedRef.current.has(dayStr)) return;
+
+        plantAutoAttemptedRef.current.add(dayStr);
+        try {
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+          const generated = await callPlantGenerateAPI({
+            date: dayStr,
+            timezone,
+            lang: plantLang,
+          });
+          if (cancelled) return;
+          if (generated.plant) {
+            setDayPlant(generated.plant);
+            return;
+          }
+          if (generated.status === 'generated' || generated.status === 'already_generated') {
+            const refreshed = await callPlantHistoryAPI(dayStr, dayStr);
+            if (!cancelled && refreshed.success && refreshed.records.length > 0) {
+              setDayPlant(refreshed.records[0]);
+            }
+          }
+        } catch {
+          // keep placeholder when generation fails or empty day
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDayPlant(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedReport?.id, selectedReport?.date, i18n.language]);
+
+  const dateLabel = useMemo(() => {
+    const date = selectedReport?.date ? new Date(selectedReport.date) : new Date();
+    const locale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
+    const pattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
+    return format(date, pattern, { locale });
+  }, [selectedReport?.date, lang]);
+
+  const scrollToPage = useCallback((page: 0 | 1) => {
+    const el = pagesRef.current;
+    if (!el) return;
+    el.scrollTo({ left: page === 1 ? el.clientWidth : 0, behavior: 'smooth' });
+    setActivePage(page);
+  }, []);
+
+  const onScroll = useCallback(() => {
+    const el = pagesRef.current;
+    if (!el) return;
+    setActivePage(Math.round(el.scrollLeft / el.clientWidth));
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    if (onNavigatePrev) {
+      onNavigatePrev();
+      return;
+    }
+    if (activePage === 1) {
+      scrollToPage(0);
+      return;
+    }
+    (onBack ?? onClose)();
+  }, [onNavigatePrev, activePage, scrollToPage, onBack, onClose]);
+
+  const handleNext = useCallback(() => {
+    if (onNavigateNext) {
+      if (canNavigateNext !== false) onNavigateNext();
+      return;
+    }
+    if (activePage === 0) scrollToPage(1);
+  }, [onNavigateNext, canNavigateNext, activePage, scrollToPage]);
+
+  const nextDisabled = useMemo(() => {
+    if (onNavigateNext) return canNavigateNext === false;
+    return activePage === 1;
+  }, [onNavigateNext, canNavigateNext, activePage]);
+
+  const observationText = useMemo(() => {
+    const raw = selectedReport?.aiAnalysis?.trim();
+    const text = raw && raw.length > 0 ? raw : copy.observationFallback;
+    return text.replace(/\s+/g, ' ');
+  }, [selectedReport?.aiAnalysis, copy.observationFallback]);
+
+  const myDiaryText = useMemo(() => {
+    const raw = selectedReport?.userNote?.trim();
+    return raw && raw.length > 0 ? raw : copy.diaryPlaceholder;
+  }, [selectedReport?.userNote, copy.diaryPlaceholder]);
+
+  const activityDonutSegments = useMemo(
+    () => {
+      if (activityDistribution.length === 0) {
+        return [{ value: dayMinutes, color: '#e5e7eb', label: '', showLabel: false }];
+      }
+      const base = activityDistribution.map((d) => ({
+        value: d.minutes,
+        color: ACTIVITY_COLORS[d.type] || '#9ca3af',
+        label: t(ACTIVITY_I18N_KEYS[d.type] || d.type),
+      }));
+      const used = activityDistribution.reduce((sum, d) => sum + d.minutes, 0);
+      const remaining = Math.max(dayMinutes - used, 0);
+      if (remaining > 0) {
+        base.push({
+          value: remaining,
+          color: '#e5e7eb',
+          label: '',
+          showLabel: false,
+        });
+      }
+      return base;
+    },
+    [activityDistribution, t],
+  );
+  const moodDonutSegments = useMemo(
+    () => {
+      if (moodDistribution.length === 0) {
+        return [{ value: dayMinutes, color: '#e5e7eb', label: '', showLabel: false }];
+      }
+      const base = moodDistribution.map((d) => {
+        const key = normalizeMoodKey(d.mood) || d.mood;
+        return {
+          value: d.minutes,
+          color: MOOD_COLORS[key] || '#c5ccda',
+          label: getMoodDisplayLabel(d.mood, t),
+        };
+      });
+      const used = moodDistribution.reduce((sum, d) => sum + d.minutes, 0);
+      const remaining = Math.max(dayMinutes - used, 0);
+      if (remaining > 0) {
+        base.push({
+          value: remaining,
+          color: '#e5e7eb',
+          label: '',
+          showLabel: false,
+        });
+      }
+      return base;
+    },
+    [moodDistribution, t],
   );
 
-  const activityDistribution = selectedReport
-    ? getDailyActivityDistribution(reportMessages, selectedReport)
-    : [];
+  const actionSummaryText = typeof selectedReport?.stats?.actionSummary === 'string'
+    ? selectedReport.stats.actionSummary.trim()
+    : '';
+  const moodSummaryText = typeof selectedReport?.stats?.moodSummary === 'string'
+    ? selectedReport.stats.moodSummary.trim()
+    : '';
 
-  const moodDistribution = selectedReport
-    ? getDailyMoodDistribution(reportMessages, activityMood, selectedReport)
-    : dailyMoodDistribution;
-
-  const activityData = toPercentDist(activityDistribution, ACTIVITY_COLOR_MAP, 'type');
-  const moodData = toPercentDist(moodDistribution, MOOD_COLOR_MAP, 'mood');
-  const maxAct = activityData.length > 0 ? activityData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0) : 0;
-  const maxMood = moodData.length > 0 ? moodData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0) : 0;
-
-  const completedTodos = selectedReport?.stats?.completedTodos ?? 0;
-  const totalTodos = selectedReport?.stats?.totalTodos ?? 0;
-  const todoRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
-  const remainingTodos = Math.max(0, totalTodos - completedTodos);
-
-  const stars = Math.min(10, (selectedReport?.stats?.goalProgress?.reduce((sum, item) => sum + item.currentStars, 0) ?? 0) || completedTodos);
-  const starRows = [0, 1].map((row) => Array.from({ length: 5 }).map((_, col) => row * 5 + col));
-
-  const isToday = selectedReport ? isSameDay(new Date(selectedReport.date), new Date()) : false;
+  const activityAnalysisLine1 = actionSummaryText || copy.activityLine1;
+  const activityAnalysisLine2 = activityInsight;
+  const moodAnalysisLine1 = moodSummaryText || copy.moodLine1;
+  const moodAnalysisLine2 = moodInsight;
+  const todoSegments = 10;
+  const todoLitCount = todoTotal > 0
+    ? Math.min(
+      todoSegments,
+      Math.max(todoCompletionRate > 0 ? 1 : 0, Math.round(todoCompletionRate * todoSegments)),
+    )
+    : 0;
+  const todoAnalysisLine1 = todoInsight || copy.todoFallback;
+  const habitAnalysisLine1 = habitInsight || copy.habitsFallback;
+  const starSlots = Math.max(10, todayStars);
 
   if (!selectedReport) return null;
 
-  const saveNote = () => updateReport(selectedReport.id, { userNote: noteValue });
-
   return (
-    <div className="fixed inset-0 z-[60]" style={{ background: '#ffffff' }}>
-      <div className="h-full flex justify-center items-start" style={{ background: '#ffffff' }}>
-        <div className="w-full max-w-[430px] h-full relative flex flex-col overflow-hidden" style={{ background: '#ffffff' }}>
-          <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: 16, paddingRight: 16, marginTop: 'env(safe-area-inset-top)' }}>
-            <button className="p-1" onClick={onBack ?? onClose}>
-              <ChevronLeft className="w-6 h-6" style={{ color: '#1A1A1A' }} />
-            </button>
-            <h2 style={{ color: '#1A1A1A', fontSize: 22, fontWeight: 700 }}>{t('report_my_diary')}</h2>
-            <button className="p-1" onClick={() => setActivePage(activePage === 0 ? 1 : 0)}>
-              {activePage === 0 ? (
-                <ChevronRight className="w-6 h-6" style={{ color: '#1A1A1A' }} />
-              ) : (
-                <ChevronLeft className="w-6 h-6" style={{ color: '#1A1A1A' }} />
-              )}
-            </button>
+    <div
+      className="fixed inset-0 z-[60]"
+      style={{
+        background: DIARY_BG,
+        backdropFilter: 'blur(8px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
+    >
+      <div className="h-full w-full">
+        <div
+          ref={pagesRef}
+          onScroll={onScroll}
+          className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
+          style={{ scrollSnapType: 'x mandatory' }}
+        >
+          {/* Page 1 */}
+          <div className="h-full w-full shrink-0 overflow-y-auto px-4 pb-16" style={{ scrollSnapAlign: 'start' }}>
+            <Header title={copy.pageTitle} dateLabel={dateLabel} onPrev={handlePrev} onNext={handleNext} nextDisabled={nextDisabled} />
+
+            <div style={{ paddingTop: 12 }}>
+              <SectionTitle>{copy.sectionActivity}</SectionTitle>
+              <Row
+                left={(
+                  <MiniDonut
+                    segments={activityDonutSegments}
+                    holeColor={DIARY_BG}
+                    emptyLabel={t('no_data')}
+                  />
+                )}
+                line1={activityAnalysisLine1}
+                line2={activityAnalysisLine2}
+              />
+
+              <SectionDivider />
+
+              <SectionTitle>{copy.sectionMood}</SectionTitle>
+              <Row
+                left={(
+                  <MiniDonut
+                    segments={moodDonutSegments}
+                    holeColor={DIARY_BG}
+                    emptyLabel={t('no_data')}
+                  />
+                )}
+                line1={moodAnalysisLine1}
+                line2={moodAnalysisLine2}
+              />
+
+              <SectionDivider />
+
+              <SectionTitle>{copy.sectionTodo}</SectionTitle>
+              <Row
+                left={(
+                  <div
+                    style={{
+                      width: 'min(38vw, 160px)',
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`,
+                      gap: 4,
+                    }}
+                  >
+                    {Array.from({ length: todoSegments }).map((_, idx) => {
+                      const lit = idx < todoLitCount;
+                      return (
+                        <span
+                          key={`todo-seg-${idx}`}
+                          style={{
+                            display: 'block',
+                            height: 6,
+                            borderRadius: 999,
+                            background: lit ? '#deb540' : 'rgba(108,108,108,0.45)',
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                line1={todoAnalysisLine1}
+              />
+
+              <SectionDivider />
+
+              <SectionTitle>{copy.sectionHabits}</SectionTitle>
+              <Row
+                left={(
+                  <div
+                    style={{
+                      width: 'min(36vw, 140px)',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                      gap: 6,
+                    }}
+                  >
+                    {Array.from({ length: starSlots }).map((_, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: 18,
+                          textAlign: 'center',
+                          color: idx < todayStars ? '#d1ab3f' : 'rgba(139,139,139,0.45)',
+                          opacity: idx < todayStars ? 0.95 : 0.55,
+                        }}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                )}
+                line1={habitAnalysisLine1}
+              />
+
+              <div style={{ marginTop: 18, borderTop: DIARY_LINE_SOLID }} />
+            </div>
           </div>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, overflow: 'hidden', minHeight: 0 }}>
-            <div style={{ flexShrink: 0, marginBottom: 8 }}>
-              <h1 style={{ color: '#1A1A1A', marginBottom: 8, fontSize: 16, fontWeight: 700, textAlign: 'center' }}>
-                {format(new Date(selectedReport.date), i18n.language?.startsWith('zh') ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale })}
-              </h1>
-              <div style={{ borderTop: '0.5px solid #AEAABF' }} />
-            </div>
+          {/* Page 2 */}
+          <div className="h-full w-full shrink-0 overflow-y-auto px-4 pb-16" style={{ scrollSnapAlign: 'start' }}>
+            <Header title={copy.pageTitle} dateLabel={dateLabel} onPrev={handlePrev} onNext={handleNext} nextDisabled={nextDisabled} />
 
-            {activePage === 0 ? (
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: 13, fontWeight: 700, padding: '1px 6px' }}>{t('report_activity_category')}</div>
-                  <SectionRow
-                    left={<DonutChart data={activityData} maxIndex={maxAct} chartId="activity" labelColor="#2D5A30" />}
-                    lines={activityData.length > 0 ? [`${activityData[0].name} ${activityData[0].value}%`, t('report_swipe_hint')] : [t('report_no_data'), t('report_no_data')]}
-                  />
-                </div>
+            <div style={{ paddingTop: 12 }}>
+              <div style={{ minHeight: '64vh', display: 'flex', flexDirection: 'column' }}>
+                <SectionTitle>{copy.sectionObservation}</SectionTitle>
 
-                <WaveDivider />
-
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: 13, fontWeight: 700, padding: '1px 6px' }}>{t('report_today_mood_spectrum')}</div>
-                  <SectionRow
-                    left={<DonutChart data={moodData} maxIndex={maxMood} chartId="mood" labelColor="#A0304A" />}
-                    lines={moodData.length > 0 ? [`${moodData[0].name} ${moodData[0].value}%`, t('report_swipe_hint')] : [t('report_no_data'), t('report_no_data')]}
-                  />
-                </div>
-
-                <WaveDivider />
-
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: 13, fontWeight: 700, padding: '1px 6px' }}>{t('report_task_completion_rate')}</div>
-                  <SectionRow
-                    left={
-                      <button onClick={() => onShowTaskList('total')} style={{ display: 'flex', gap: 5, background: 'transparent', border: 'none', padding: 0 }}>
-                        {Array.from({ length: 12 }).map((_, idx) => (
-                          <div key={idx} style={{ width: 6, height: 3, borderRadius: 1, backgroundColor: idx < Math.round((todoRate / 100) * 12) ? '#F5C842' : '#EDE0B0' }} />
-                        ))}
-                      </button>
-                    }
-                    lines={[`${todoRate}% ${t('report_completed')}`, `${remainingTodos} ${t('report_pending')}`]}
-                  />
-                </div>
-
-                <WaveDivider />
-
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: 13, fontWeight: 700, padding: '1px 6px' }}>{t('growth_habits')}</div>
-                  <SectionRow
-                    left={
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                        {starRows.map((row, rowIdx) => (
-                          <div key={rowIdx} style={{ display: 'flex', gap: 4 }}>
-                            {row.map((idx) => (
-                              <img key={idx} src={starImage} alt="star" style={{ width: 20, height: 20, objectFit: 'contain', opacity: idx < stars ? 1 : 0.25 }} />
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    }
-                    lines={[t('report_habit_goal_streak'), `${stars}/10`]} 
-                  />
-                </div>
-              </div>
-            ) : (
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, fontSize: 13, fontWeight: 700, padding: '1px 0' }}>{t('report_ai_diary_analysis')}</div>
-                  <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
-                    {isToday && todayPlant ? (
-                      <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
-                        <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <PlantImage
-                            plantId={todayPlant.plantId}
-                            rootType={todayPlant.rootType}
-                            plantStage={todayPlant.plantStage}
-                            imgClassName="h-full w-full object-contain"
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {selectedReport.analysisStatus === 'idle' || (!selectedReport.analysisStatus && !selectedReport.aiAnalysis) ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <p style={{ margin: 0, fontSize: 12, lineHeight: '18px', color: '#1A1A1A' }}>{t('report_ai_diary_waiting')}</p>
-                        <button
-                          onClick={() => {
-                            if (!isPlus) return;
-                            generateAIDiary(selectedReport.id);
-                          }}
-                          disabled={!isPlus}
-                          style={{
-                            width: 'fit-content',
-                            background: isPlus ? '#5a7a4a' : '#c8c8c8',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 8,
-                            padding: '6px 10px',
-                            fontSize: 12,
-                          }}
-                        >
-                          {isPlus ? t('report_generate_diary') : t('report_upgrade_title')}
-                        </button>
-                      </div>
-                    ) : selectedReport.analysisStatus === 'generating' ? (
-                      <p style={{ margin: 0, fontSize: 12, lineHeight: '18px', color: '#1A1A1A' }}>{t('report_generating')}</p>
+                <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.85, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', flex: 1 }}>
+                  <div
+                    style={{
+                      float: 'left',
+                      width: 'clamp(150px, 44vw, 220px)',
+                      height: 'clamp(150px, 44vw, 220px)',
+                      margin: '2px 14px 8px 0',
+                      opacity: 0.92,
+                    }}
+                  >
+                    {dayPlant ? (
+                      <PlantImage
+                        plantId={dayPlant.plantId}
+                        rootType={dayPlant.rootType}
+                        plantStage={dayPlant.plantStage}
+                        imgClassName="h-full w-full object-contain"
+                      />
                     ) : (
-                      <p style={{ margin: 0, padding: 0, fontSize: 12, lineHeight: '18px', color: '#1A1A1A', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {selectedReport.aiAnalysis || t('report_no_data')}
-                      </p>
+                      <div style={{ width: '100%', height: '100%' }} />
                     )}
                   </div>
-                </div>
-
-                <WaveDivider />
-
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, fontSize: 13, fontWeight: 700, padding: '1px 0' }}>{t('report_my_diary')}</div>
-                  {readOnly ? (
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', fontSize: 12, lineHeight: '18px', color: '#1A1A1A', whiteSpace: 'pre-wrap' }}>
-                      {noteValue || t('report_diary_empty')}
-                    </div>
-                  ) : (
-                    <textarea
-                      placeholder={t('report_diary_placeholder')}
-                      value={noteValue}
-                      onChange={(e) => setNoteValue(e.target.value)}
-                      onBlur={saveNote}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        outline: 'none',
-                        resize: 'none',
-                        background: 'transparent',
-                        lineHeight: `${LINE_H}px`,
-                        fontSize: 12,
-                        color: '#1A1A1A',
-                        padding: 0,
-                        margin: 0,
-                        fontFamily: 'inherit',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  )}
+                  {observationText}
+                  <div style={{ clear: 'both' }} />
                 </div>
               </div>
-            )}
 
-            <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: 4 }} />
+              <div style={{ margin: '8px 0 8px', borderTop: DIARY_LINE_DASHED }} />
 
-            {(onNavigatePrev || onNavigateNext) && (
-              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 12 }}>
-                <button onClick={onNavigatePrev} style={{ border: 'none', background: 'transparent', color: '#6b5a3e', fontSize: 12 }}>
-                  {t('diary_nav_prev')}
-                </button>
-                <button onClick={onNavigateNext} disabled={!canNavigateNext} style={{ border: 'none', background: 'transparent', color: canNavigateNext ? '#6b5a3e' : '#bdbdbd', fontSize: 12 }}>
-                  {t('diary_nav_next')}
-                </button>
+              <SectionTitle>{copy.sectionMyDiary}</SectionTitle>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  minHeight: 180,
+                  fontSize: 15,
+                  lineHeight: 1.8,
+                  color: selectedReport.userNote?.trim() ? '#2f2f2f' : 'rgba(95,95,95,0.56)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {myDiaryText}
               </div>
-            )}
+
+              <div style={{ marginTop: 24, borderTop: DIARY_LINE_SOLID }} />
+            </div>
           </div>
         </div>
+
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 96,
+            height: 8,
+            borderRadius: 999,
+            background: 'rgba(92,92,92,0.4)',
+          }}
+        />
       </div>
     </div>
   );

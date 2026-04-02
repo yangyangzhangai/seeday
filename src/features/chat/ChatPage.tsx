@@ -7,6 +7,8 @@ import imgVan01 from '../../assets/morning-glory-01.png';
 import imgVan02 from '../../assets/morning-glory-02.png';
 import imgAgnes01 from '../../assets/dragon-blood-tree-01.png';
 import imgAgnes02 from '../../assets/dragon-blood-tree-02.png';
+import imgMomo01 from '../../assets/momo-chat-01.png';
+import imgMomo02 from '../../assets/momo-chat-02.png';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
@@ -76,7 +78,7 @@ export const ChatPage = () => {
     van: [imgVan01, imgVan02],
     agnes: [imgAgnes01, imgAgnes02],
     zep: [imgBirdZep02, imgBirdZep03],
-    spring_thunder: [imgBirdZep02, imgBirdZep03],
+    spring_thunder: [imgMomo01, imgMomo02],
   };
   const [personaImg1, personaImg2] = personaImages[aiMode] ?? [imgBirdZep02, imgBirdZep03];
 
@@ -342,7 +344,7 @@ export const ChatPage = () => {
           onClick={() => setBirdOpen(v => !v)}
           aria-label="toggle bird"
           style={{
-            position: 'absolute', left: 14, bottom: 140,
+            position: 'absolute', left: 14, bottom: 132,
             width: 98, height: 98, border: 'none', background: 'transparent',
             padding: 0, cursor: 'pointer', zIndex: 24,
           }}
