@@ -20,19 +20,25 @@ fib_late_0003,fib,late,3,,fib_late_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,
 fib_late_0004,fib,late,4,,fib_late_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
 fib_late_0005,fib,late,5,,fib_late_0005.png,png,TRUE,海妖女狸藻,Utricularia,Utricularia,live
 sha_early_0001,sha,early,1,,sha_early_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,global_fallback
+sha_early_0002,sha,early,2,,sha_early_0002.png,png,TRUE,山茶花,Japanese Camellia,Camelia del Giappone,live
 sha_early_0003,sha,early,3,,sha_early_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
 sha_early_0004,sha,early,4,,sha_early_0004.png,png,TRUE,栀子花,Gardenia,Gardenia,live
 sha_early_0005,sha,early,5,,sha_early_0005.png,png,TRUE,牡丹,Peony,Peonia,live
 sha_late_0001,sha,late,1,,sha_late_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,live
+sha_late_0002,sha,late,2,,sha_late_0002.png,png,TRUE,山茶花,Japanese Camellia,Camelia del Giappone,live
 sha_late_0003,sha,late,3,,sha_late_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
 sha_late_0004,sha,late,4,,sha_late_0004.png,png,TRUE,栀子花,Gardenia,Gardenia,live
 sha_late_0005,sha,late,5,,sha_late_0005.png,png,TRUE,牡丹,Peony,Peonia,live
+bra_early_0001,bra,early,1,,bra_early_0001.png,png,TRUE,牵牛花,Morning Glory,Convolvolo,live
+bra_late_0001,bra,late,1,,bra_late_0001.png,png,TRUE,牵牛花,Morning Glory,Convolvolo,live
 bra_early_0002,bra,early,2,,bra_early_0002.png,png,TRUE,铁线莲,Clematis,Clematide,live
 bra_late_0002,bra,late,2,,bra_late_0002.png,png,TRUE,铁线莲,Clematis,Clematide,live
 bra_early_0003,bra,early,3,,bra_early_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live
 bra_late_0003,bra,late,3,,bra_late_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live
 bra_early_0004,bra,early,4,,bra_early_0004.png,png,TRUE,紫藤,Wisteria sinensis,Glicine cinese,live
 bra_late_0004,bra,late,4,,bra_late_0004.png,png,TRUE,紫藤,Wisteria sinensis,Glicine cinese,live
+bra_early_0005,bra,early,5,,bra_early_0005.png,png,TRUE,垂吊风铃,Trailing Fuchsia,Fucsia pendula,live
+bra_late_0005,bra,late,5,,bra_late_0005.png,png,TRUE,垂吊风铃,Trailing Fuchsia,Fucsia pendula,live
 bul_early_0001,bul,early,1,,bul_early_0001.png,png,TRUE,郁金香,Tulip,Tulipano,live
 bul_early_0002,bul,early,2,,bul_early_0002.png,png,TRUE,风信子,Hyacinth,Giacinto,live
 bul_early_0003,bul,early,3,,bul_early_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live

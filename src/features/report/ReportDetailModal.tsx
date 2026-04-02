@@ -14,6 +14,7 @@ import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '
 import { ACTIVITY_COLORS } from './ActivityPieChart';
 import { getMoodDisplayLabel, normalizeMoodKey } from '../../lib/moodOptions';
 import { PlantImage } from './plant/PlantImage';
+import growthStarImage from '../../assets/growth/growth-star.png';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -31,10 +32,10 @@ interface ReportDetailModalProps {
 
 type Lang = 'zh' | 'en' | 'it';
 
-type DonutSegment = {
-  color: string;
+type DataItem = {
+  name: string;
   value: number;
-  showLabel?: boolean;
+  color: string;
 };
 
 const COPY: Record<Lang, {
@@ -201,234 +202,165 @@ function buildHabitSummary(params: {
   return `Habits ${habitDone}/${habitTotal}, goals ${goalDone}/${goalTotal}, stars today ${starsToday}, completion ${rate}%.`;
 }
 
-function MiniDonut({
-  segments,
-  holeColor,
-  emptyLabel,
-}: {
-  segments: Array<DonutSegment & { label: string }>;
-  holeColor: string;
-  emptyLabel: string;
-}) {
-  const safeSegments = segments.length > 0
-    ? segments
-    : [{ color: '#d9dde2', value: 100, label: '', showLabel: false }];
-  const total = safeSegments.reduce((sum, segment) => sum + segment.value, 0) || 1;
+function lightenHex(hex: string, amount: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (num >> 16) + Math.round(255 * amount));
+  const g = Math.min(255, ((num >> 8) & 0xff) + Math.round(255 * amount));
+  const b = Math.min(255, (num & 0xff) + Math.round(255 * amount));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
 
-  const size = 122;
+function DonutChart({
+  data,
+  maxIndex,
+  chartId,
+  labelColor,
+  size = 110,
+  innerRadius = 20,
+  outerRadius = 44,
+}: {
+  data: DataItem[];
+  maxIndex: number;
+  chartId: string;
+  labelColor: string;
+  size?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+}) {
   const cx = size / 2;
   const cy = size / 2;
-  const outerR = 56;
-  const innerR = 22;
-  const labelR = 38;
+  const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
+  const halfSize = size / 2;
+  const maxOuter = outerRadius + 10;
+  const innerRatio = `${((innerRadius / halfSize) * 100).toFixed(1)}%`;
+  const outerRatio = `${((maxOuter / halfSize) * 100).toFixed(1)}%`;
 
-  if (safeSegments.length === 1) {
-    const only = safeSegments[0];
-    const percent = Math.round((only.value / total) * 100);
-    const showPercent = only.label.trim().length > 0 && only.label !== emptyLabel;
-    return (
-      <div style={{ width: 'min(34vw, 122px)', height: 'min(34vw, 122px)' }}>
-        <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%">
-          <circle cx={cx} cy={cy} r={outerR} fill={only.color} />
-          <circle cx={cx} cy={cy} r={innerR} fill={holeColor} />
-          {only.showLabel !== false ? (
-            <text
-              x={cx}
-              y={cy}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="7.2"
-              fill="rgba(40,40,40,0.74)"
-              fontWeight="600"
-              style={{ pointerEvents: 'none' }}
-            >
-              <tspan x={cx} dy={showPercent ? '-0.35em' : '0'}>{only.label}</tspan>
-              {showPercent ? <tspan x={cx} dy="1.1em">{percent}%</tspan> : null}
-            </text>
-          ) : null}
-        </svg>
-      </div>
-    );
-  }
+  const polar = (r: number, deg: number) => ({
+    x: cx + r * Math.cos((deg * Math.PI) / 180),
+    y: cy + r * Math.sin((deg * Math.PI) / 180),
+  });
 
-  let startAngle = -90;
-  const items = safeSegments.map((segment, idx) => {
-    const sweep = (segment.value / total) * 360;
-    const endAngle = startAngle + sweep;
-    const midAngle = startAngle + sweep / 2;
-    const midRad = (midAngle * Math.PI) / 180;
-    const ox1 = cx + outerR * Math.cos((startAngle * Math.PI) / 180);
-    const oy1 = cy + outerR * Math.sin((startAngle * Math.PI) / 180);
-    const ox2 = cx + outerR * Math.cos((endAngle * Math.PI) / 180);
-    const oy2 = cy + outerR * Math.sin((endAngle * Math.PI) / 180);
-    const ix1 = cx + innerR * Math.cos((startAngle * Math.PI) / 180);
-    const iy1 = cy + innerR * Math.sin((startAngle * Math.PI) / 180);
-    const ix2 = cx + innerR * Math.cos((endAngle * Math.PI) / 180);
-    const iy2 = cy + innerR * Math.sin((endAngle * Math.PI) / 180);
+  let current = -90;
+  const segments = data.map((item, index) => {
+    const start = current;
+    const sweep = (item.value / total) * 360;
+    current += sweep;
+    const end = current;
+    const mid = (start + end) / 2;
+    const isMax = index === maxIndex;
+    const adjustOuter = isMax ? outerRadius + 6 : outerRadius;
+    const midRad = (mid * Math.PI) / 180;
+    const offsetX = isMax ? Math.cos(midRad) * 3 : 0;
+    const offsetY = isMax ? Math.sin(midRad) * 3 : 0;
     const largeArc = sweep > 180 ? 1 : 0;
-    const lx = cx + labelR * Math.cos(midRad);
-    const ly = cy + labelR * Math.sin(midRad);
-    const percent = Math.round((segment.value / total) * 100);
-    const result = {
-      key: `${segment.label}-${idx}`,
-      path: [
-        `M ${ox1} ${oy1}`,
-        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${ox2} ${oy2}`,
-        `L ${ix2} ${iy2}`,
-        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}`,
-        'Z',
-      ].join(' '),
-      color: segment.color,
-      label: segment.label,
-      percent,
-      lx,
-      ly,
-      showLabel: segment.showLabel !== false,
+    const o1 = polar(adjustOuter, start);
+    const o2 = polar(adjustOuter, end);
+    const i1 = polar(innerRadius, end);
+    const i2 = polar(innerRadius, start);
+    const pathD = [
+      `M ${o1.x + offsetX} ${o1.y + offsetY}`,
+      `A ${adjustOuter} ${adjustOuter} 0 ${largeArc} 1 ${o2.x + offsetX} ${o2.y + offsetY}`,
+      `L ${i1.x + offsetX} ${i1.y + offsetY}`,
+      `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${i2.x + offsetX} ${i2.y + offsetY}`,
+      'Z',
+    ].join(' ');
+    const midR = (innerRadius + adjustOuter) / 2;
+    return {
+      ...item,
+      pathD,
+      textX: cx + offsetX + midR * Math.cos(midRad),
+      textY: cy + offsetY + midR * Math.sin(midRad),
+      sweep,
+      isMax,
     };
-    startAngle = endAngle;
-    return result;
   });
 
   return (
-    <div style={{ width: 'min(34vw, 122px)', height: 'min(34vw, 122px)' }}>
-      <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%">
-        {items.map((item) => (
-          <path key={item.key} d={item.path} fill={item.color} />
+    <svg width={size} height={size} style={{ overflow: 'visible' }}>
+      <defs>
+        {segments.map((segment, index) => (
+          <radialGradient key={index} id={`${chartId}-rg-${index}`} cx="50%" cy="50%" r={outerRatio} fx="50%" fy="50%" gradientUnits="objectBoundingBox">
+            <stop offset={innerRatio} stopColor={segment.color} stopOpacity="1" />
+            <stop offset="100%" stopColor={lightenHex(segment.color, 0.18)} stopOpacity="1" />
+          </radialGradient>
         ))}
-        <circle cx={cx} cy={cy} r={innerR} fill={holeColor} />
-        {items.map((item) => (
-          item.showLabel ? (
-            <text
-              key={`txt-${item.key}`}
-              x={item.lx}
-              y={item.ly}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="7.2"
-              fill="rgba(40,40,40,0.74)"
-              fontWeight="600"
-              style={{ pointerEvents: 'none' }}
-            >
-              <tspan x={item.lx} dy="-0.35em">{item.label}</tspan>
-              <tspan x={item.lx} dy="1.1em">{item.percent}%</tspan>
-            </text>
-          ) : null
-        ))}
-      </svg>
-    </div>
+      </defs>
+      {segments.map((segment, index) => (
+        <path
+          key={index}
+          d={segment.pathD}
+          fill={`url(#${chartId}-rg-${index})`}
+          stroke={segment.isMax ? 'white' : 'none'}
+          strokeWidth={segment.isMax ? 1.5 : 0}
+        />
+      ))}
+      {segments.map((segment, index) => (segment.sweep < 25 ? null : (
+        <text key={index} x={segment.textX} y={segment.textY} textAnchor="middle" fill={labelColor} style={{ fontSize: '8px', fontWeight: 700, pointerEvents: 'none' }}>
+          <tspan x={segment.textX} dy="-0.55em">{segment.name}</tspan>
+          <tspan x={segment.textX} dy="1.2em">{segment.value}%</tspan>
+        </text>
+      )))}
+    </svg>
   );
 }
 
-function Header({
+function NavBar({
   title,
-  dateLabel,
-  onPrev,
-  onNext,
-  nextDisabled,
+  onLeft,
+  onRight,
+  rightDisabled,
 }: {
   title: string;
-  dateLabel: string;
-  onPrev: () => void;
-  onNext: () => void;
-  nextDisabled: boolean;
+  onLeft: () => void;
+  onRight: () => void;
+  rightDisabled: boolean;
 }) {
   return (
-    <div className="sticky top-0 z-10" style={{ background: DIARY_BG }}>
-      <div className="relative flex items-center justify-center px-2 pt-5">
-        <button
-          onClick={onPrev}
-          className="absolute left-1 flex h-8 w-8 items-center justify-center rounded-full active:opacity-60"
-          style={{ color: '#2d2d2d' }}
-          aria-label="previous"
-        >
-          <ChevronLeft size={21} strokeWidth={2.3} />
-        </button>
-
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 33,
-            lineHeight: 1,
-            fontWeight: 700,
-            color: '#202020',
-            fontFamily: 'Georgia, "Times New Roman", serif',
-          }}
-        >
-          {title}
-        </h2>
-
-        <button
-          onClick={onNext}
-          disabled={nextDisabled}
-          className="absolute right-1 flex h-8 w-8 items-center justify-center rounded-full active:opacity-60 disabled:opacity-35"
-          style={{ color: '#2d2d2d' }}
-          aria-label="next"
-        >
-          <ChevronRight size={21} strokeWidth={2.3} />
-        </button>
-      </div>
-
-      <p
-        style={{
-          margin: '8px 0 0 0',
-          textAlign: 'center',
-          fontSize: 18,
-          lineHeight: 1.2,
-          fontWeight: 700,
-          color: '#333',
-          fontFamily: 'Georgia, "Times New Roman", serif',
-        }}
-      >
-        {dateLabel}
-      </p>
-
-      <div style={{ marginTop: 10, borderBottom: DIARY_LINE_SOLID }} />
+    <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+      <button className="p-1" onClick={onLeft}>
+        <ChevronLeft className="w-6 h-6" style={{ color: '#1A1A1A' }} />
+      </button>
+      <h2 style={{ color: '#1A1A1A', fontSize: '22px', fontWeight: 700 }}>{title}</h2>
+      <button className="p-1" onClick={onRight} disabled={rightDisabled} style={{ opacity: rightDisabled ? 0.35 : 1 }}>
+        <ChevronRight className="w-6 h-6" style={{ color: '#1A1A1A' }} />
+      </button>
     </div>
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function DateHeader({ date }: { date: string }) {
   return (
-    <h3
-      style={{
-        margin: 0,
-        fontSize: 17,
-        lineHeight: 1.2,
-        fontWeight: 700,
-        color: '#232323',
-        fontFamily: 'Georgia, "Times New Roman", serif',
-      }}
-    >
-      {children}
-    </h3>
+    <div style={{ flexShrink: 0, marginBottom: '8px' }}>
+      <h1 style={{ color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif', fontSize: '16px', fontWeight: 700, textAlign: 'center' }}>
+        {date}
+      </h1>
+      <div style={{ borderTop: '0.5px solid #AEAABF' }} />
+    </div>
   );
 }
 
-function SectionDivider() {
-  return <div style={{ margin: '14px 0 12px', borderTop: DIARY_LINE_DASHED }} />;
+function WaveDivider() {
+  return (
+    <div
+      style={{
+        flexShrink: 0,
+        height: '1px',
+        backgroundImage: 'repeating-linear-gradient(90deg, #D0D0D0 0, #D0D0D0 3px, transparent 0, transparent 7px)',
+        margin: '2px 0',
+      }}
+    />
+  );
 }
 
-function Row({
-  left,
-  line1,
-  line2,
-}: {
-  left: React.ReactNode;
-  line1: string;
-  line2?: string;
-}) {
+function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 108 }}>
-      <div style={{ flex: '1 1 0', display: 'flex', justifyContent: 'center' }}>{left}</div>
-      <div style={{ flex: '1 1 0' }}>
-        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif' }}>
-          {line1}
-        </p>
-        {line2 ? (
-          <p style={{ margin: '10px 0 0 0', fontSize: 15, lineHeight: 1.5, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif' }}>
-            {line2}
-          </p>
-        ) : null}
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 8px 1fr' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{left}</div>
+      <div />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', overflow: 'hidden' }}>
+        {lines.map((line, index) => (
+          <div key={index} style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: '18px' }}>{line}</div>
+        ))}
       </div>
     </div>
   );
@@ -694,57 +626,36 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     return raw && raw.length > 0 ? raw : copy.diaryPlaceholder;
   }, [selectedReport?.userNote, copy.diaryPlaceholder]);
 
-  const activityDonutSegments = useMemo(
-    () => {
-      if (activityDistribution.length === 0) {
-        return [{ value: dayMinutes, color: '#e5e7eb', label: '', showLabel: false }];
-      }
-      const base = activityDistribution.map((d) => ({
-        value: d.minutes,
-        color: ACTIVITY_COLORS[d.type] || '#9ca3af',
-        label: t(ACTIVITY_I18N_KEYS[d.type] || d.type),
-      }));
-      const used = activityDistribution.reduce((sum, d) => sum + d.minutes, 0);
-      const remaining = Math.max(dayMinutes - used, 0);
-      if (remaining > 0) {
-        base.push({
-          value: remaining,
-          color: '#e5e7eb',
-          label: '',
-          showLabel: false,
-        });
-      }
-      return base;
-    },
-    [activityDistribution, t],
-  );
-  const moodDonutSegments = useMemo(
-    () => {
-      if (moodDistribution.length === 0) {
-        return [{ value: dayMinutes, color: '#e5e7eb', label: '', showLabel: false }];
-      }
-      const base = moodDistribution.map((d) => {
-        const key = normalizeMoodKey(d.mood) || d.mood;
-        return {
-          value: d.minutes,
-          color: MOOD_COLORS[key] || '#c5ccda',
-          label: getMoodDisplayLabel(d.mood, t),
-        };
-      });
-      const used = moodDistribution.reduce((sum, d) => sum + d.minutes, 0);
-      const remaining = Math.max(dayMinutes - used, 0);
-      if (remaining > 0) {
-        base.push({
-          value: remaining,
-          color: '#e5e7eb',
-          label: '',
-          showLabel: false,
-        });
-      }
-      return base;
-    },
-    [moodDistribution, t],
-  );
+  const activityChartData = useMemo<DataItem[]>(() => {
+    if (activityDistribution.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
+    const top = activityDistribution.slice(0, 5);
+    const total = top.reduce((sum, item) => sum + item.minutes, 0) || 1;
+    const withPercent = top.map((item) => ({
+      name: t(ACTIVITY_I18N_KEYS[item.type] || item.type).toLowerCase(),
+      value: Math.max(1, Math.round((item.minutes / total) * 100)),
+      color: ACTIVITY_COLORS[item.type] || '#9CA3AF',
+    }));
+    const sumPercent = withPercent.reduce((sum, item) => sum + item.value, 0);
+    if (sumPercent !== 100 && withPercent.length > 0) withPercent[0].value += (100 - sumPercent);
+    return withPercent;
+  }, [activityDistribution, t]);
+
+  const moodChartData = useMemo<DataItem[]>(() => {
+    if (moodDistribution.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
+    const top = moodDistribution.slice(0, 4);
+    const total = top.reduce((sum, item) => sum + item.minutes, 0) || 1;
+    const withPercent = top.map((item) => {
+      const key = normalizeMoodKey(item.mood) || item.mood;
+      return {
+        name: getMoodDisplayLabel(item.mood, t).toLowerCase(),
+        value: Math.max(1, Math.round((item.minutes / total) * 100)),
+        color: MOOD_COLORS[key] || '#C5CCDA',
+      };
+    });
+    const sumPercent = withPercent.reduce((sum, item) => sum + item.value, 0);
+    if (sumPercent !== 100 && withPercent.length > 0) withPercent[0].value += (100 - sumPercent);
+    return withPercent;
+  }, [moodDistribution, t]);
 
   const actionSummaryText = typeof selectedReport?.stats?.actionSummary === 'string'
     ? selectedReport.stats.actionSummary.trim()
@@ -757,7 +668,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const activityAnalysisLine2 = activityInsight;
   const moodAnalysisLine1 = moodSummaryText || copy.moodLine1;
   const moodAnalysisLine2 = moodInsight;
-  const todoSegments = 10;
+  const maxAct = activityChartData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
+  const maxMood = moodChartData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
+  const todoSegments = 12;
   const todoLitCount = todoTotal > 0
     ? Math.min(
       todoSegments,
@@ -765,8 +678,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     )
     : 0;
   const todoAnalysisLine1 = todoInsight || copy.todoFallback;
+  const todoAnalysisLine2 = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : '';
   const habitAnalysisLine1 = habitInsight || copy.habitsFallback;
-  const starSlots = Math.max(10, todayStars);
+  const habitAnalysisLine2 = `${todayStars} stars`;
 
   if (!selectedReport) return null;
 
@@ -774,189 +688,155 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     <div
       className="fixed inset-0 z-[60]"
       style={{
-        background: DIARY_BG,
-        backdropFilter: 'blur(8px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+        background: '#FFFFFF',
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="h-full w-full">
-        <div
-          ref={pagesRef}
-          onScroll={onScroll}
-          className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
-          {/* Page 1 */}
-          <div className="h-full w-full shrink-0 overflow-y-auto px-4 pb-16" style={{ scrollSnapAlign: 'start' }}>
-            <Header title={copy.pageTitle} dateLabel={dateLabel} onPrev={handlePrev} onNext={handleNext} nextDisabled={nextDisabled} />
+      <div
+        ref={pagesRef}
+        onScroll={onScroll}
+        className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
+        style={{ scrollSnapType: 'x mandatory' }}
+      >
+        <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
+          <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
 
-            <div style={{ paddingTop: 12 }}>
-              <SectionTitle>{copy.sectionActivity}</SectionTitle>
-              <Row
-                left={(
-                  <MiniDonut
-                    segments={activityDonutSegments}
-                    holeColor={DIARY_BG}
-                    emptyLabel={t('no_data')}
-                  />
-                )}
-                line1={activityAnalysisLine1}
-                line2={activityAnalysisLine2}
-              />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
+            <DateHeader date={dateLabel} />
 
-              <SectionDivider />
-
-              <SectionTitle>{copy.sectionMood}</SectionTitle>
-              <Row
-                left={(
-                  <MiniDonut
-                    segments={moodDonutSegments}
-                    holeColor={DIARY_BG}
-                    emptyLabel={t('no_data')}
-                  />
-                )}
-                line1={moodAnalysisLine1}
-                line2={moodAnalysisLine2}
-              />
-
-              <SectionDivider />
-
-              <SectionTitle>{copy.sectionTodo}</SectionTitle>
-              <Row
-                left={(
-                  <div
-                    style={{
-                      width: 'min(38vw, 160px)',
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`,
-                      gap: 4,
-                    }}
-                  >
-                    {Array.from({ length: todoSegments }).map((_, idx) => {
-                      const lit = idx < todoLitCount;
-                      return (
-                        <span
-                          key={`todo-seg-${idx}`}
-                          style={{
-                            display: 'block',
-                            height: 6,
-                            borderRadius: 999,
-                            background: lit ? '#deb540' : 'rgba(108,108,108,0.45)',
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-                line1={todoAnalysisLine1}
-              />
-
-              <SectionDivider />
-
-              <SectionTitle>{copy.sectionHabits}</SectionTitle>
-              <Row
-                left={(
-                  <div
-                    style={{
-                      width: 'min(36vw, 140px)',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-                      gap: 6,
-                    }}
-                  >
-                    {Array.from({ length: starSlots }).map((_, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: 18,
-                          textAlign: 'center',
-                          color: idx < todayStars ? '#d1ab3f' : 'rgba(139,139,139,0.45)',
-                          opacity: idx < todayStars ? 0.95 : 0.55,
-                        }}
-                      >
-                        ★
-                      </span>
-                    ))}
-                  </div>
-                )}
-                line1={habitAnalysisLine1}
-              />
-
-              <div style={{ marginTop: 18, borderTop: DIARY_LINE_SOLID }} />
-            </div>
-          </div>
-
-          {/* Page 2 */}
-          <div className="h-full w-full shrink-0 overflow-y-auto px-4 pb-16" style={{ scrollSnapAlign: 'start' }}>
-            <Header title={copy.pageTitle} dateLabel={dateLabel} onPrev={handlePrev} onNext={handleNext} nextDisabled={nextDisabled} />
-
-            <div style={{ paddingTop: 12 }}>
-              <div style={{ minHeight: '64vh', display: 'flex', flexDirection: 'column' }}>
-                <SectionTitle>{copy.sectionObservation}</SectionTitle>
-
-                <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.85, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', flex: 1 }}>
-                  <div
-                    style={{
-                      float: 'left',
-                      width: 'clamp(150px, 44vw, 220px)',
-                      height: 'clamp(150px, 44vw, 220px)',
-                      margin: '2px 14px 8px 0',
-                      opacity: 0.92,
-                    }}
-                  >
-                    {dayPlant ? (
-                      <PlantImage
-                        plantId={dayPlant.plantId}
-                        rootType={dayPlant.rootType}
-                        plantStage={dayPlant.plantStage}
-                        imgClassName="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%' }} />
-                    )}
-                  </div>
-                  {observationText}
-                  <div style={{ clear: 'both' }} />
-                </div>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionActivity}</div>
+                <SectionRow
+                  left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
+                  lines={[activityAnalysisLine1, activityAnalysisLine2].filter(Boolean)}
+                />
               </div>
 
-              <div style={{ margin: '8px 0 8px', borderTop: DIARY_LINE_DASHED }} />
+              <WaveDivider />
 
-              <SectionTitle>{copy.sectionMyDiary}</SectionTitle>
-
-              <div
-                style={{
-                  marginTop: 8,
-                  minHeight: 180,
-                  fontSize: 15,
-                  lineHeight: 1.8,
-                  color: selectedReport.userNote?.trim() ? '#2f2f2f' : 'rgba(95,95,95,0.56)',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {myDiaryText}
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionMood}</div>
+                <SectionRow
+                  left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
+                  lines={[moodAnalysisLine1, moodAnalysisLine2].filter(Boolean)}
+                />
               </div>
 
-              <div style={{ marginTop: 24, borderTop: DIARY_LINE_SOLID }} />
+              <WaveDivider />
+
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionTodo}</div>
+                <SectionRow
+                  left={(
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      {Array.from({ length: todoSegments }).map((_, index) => (
+                        <div key={index} style={{ width: '6px', height: '3px', borderRadius: '1px', backgroundColor: index < todoLitCount ? '#F5C842' : '#EDE0B0' }} />
+                      ))}
+                    </div>
+                  )}
+                  lines={[todoAnalysisLine1, todoAnalysisLine2].filter(Boolean)}
+                />
+              </div>
+
+              <WaveDivider />
+
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionHabits}</div>
+                <SectionRow
+                  left={(
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                      {[0, 1].map((row) => (
+                        <div key={row} style={{ display: 'flex', gap: '4px' }}>
+                          {Array.from({ length: 5 }).map((_, col) => {
+                            const index = row * 5 + col;
+                            return (
+                              <img
+                                key={col}
+                                src={growthStarImage}
+                                alt="star"
+                                style={{ width: '20px', height: '20px', objectFit: 'contain', opacity: index < todayStars ? 1 : 0.25 }}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  lines={[habitAnalysisLine1, habitAnalysisLine2].filter(Boolean)}
+                />
+              </div>
             </div>
+
+            <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
           </div>
         </div>
 
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 96,
-            height: 8,
-            borderRadius: 999,
-            background: 'rgba(92,92,92,0.4)',
-          }}
-        />
+        <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
+          <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
+
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
+            <DateHeader date={dateLabel} />
+
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+              <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionObservation}</div>
+
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
+                  <div style={{ height: '100%', overflow: 'hidden' }}>
+                    <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
+                      {dayPlant ? (
+                        <PlantImage
+                          plantId={dayPlant.plantId}
+                          rootType={dayPlant.rootType}
+                          plantStage={dayPlant.plantStage}
+                          imgClassName="w-full h-auto"
+                        />
+                      ) : (
+                        <div style={{ width: '100%', height: 150 }} />
+                      )}
+                    </div>
+                    <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                      {observationText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <WaveDivider />
+
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionMyDiary}</div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+                  <textarea
+                    readOnly
+                    value={myDiaryText}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      outline: 'none',
+                      resize: 'none',
+                      background: 'transparent',
+                      lineHeight: '18px',
+                      fontSize: '12px',
+                      color: selectedReport.userNote?.trim() ? '#1A1A1A' : '#C8C8C0',
+                      padding: '0 4px 0 2px',
+                      margin: 0,
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
+          </div>
+        </div>
       </div>
     </div>
   );
