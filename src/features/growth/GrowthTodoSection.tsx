@@ -5,6 +5,12 @@ import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
+import { cn } from '../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 import { GrowthTodoCard } from './GrowthTodoCard';
 
 interface Props {
@@ -342,19 +348,19 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
       {/* Recurring delete confirmation dialog */}
       {pendingDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+          className={cn('fixed inset-0 z-50 flex items-end justify-center', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => setPendingDelete(null)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl p-5 pb-8 space-y-3"
+            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-md rounded-t-3xl p-5 pb-8 space-y-3')}
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-semibold text-gray-800 text-center">
+            <p className="text-sm font-semibold text-slate-800 text-center">
               {t('todo_delete_recurring_title')}
             </p>
-            <p className="text-xs text-gray-400 text-center">{t('todo_delete_recurring_desc')}</p>
+            <p className="text-xs text-slate-400 text-center">{t('todo_delete_recurring_desc')}</p>
             <button
-              className="w-full py-3 rounded-xl bg-orange-50 text-orange-600 font-medium text-sm"
+              className="w-full py-3 rounded-xl bg-orange-50/80 text-orange-600 font-medium text-sm border border-orange-100"
               onClick={() => {
                 deleteTodo(pendingDelete.id);
                 setPendingDelete(null);
@@ -363,7 +369,7 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
               {t('todo_delete_today_only')}
             </button>
             <button
-              className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm"
+              className="w-full py-3 rounded-xl bg-red-50/80 text-red-600 font-medium text-sm border border-red-100"
               onClick={() => {
                 if (pendingDelete.templateId) deleteTodo(pendingDelete.templateId);
                 setPendingDelete(null);
@@ -372,7 +378,7 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
               {t('todo_delete_all_future')}
             </button>
             <button
-              className="w-full py-3 rounded-xl bg-gray-50 text-gray-500 font-medium text-sm"
+              className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'w-full py-3 text-sm')}
               onClick={() => setPendingDelete(null)}
             >
               {t('cancel')}

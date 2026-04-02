@@ -10,6 +10,14 @@ import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { callPlantGenerateAPI } from '../../api/client';
+import { cn } from '../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_CLOSE_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_PRIMARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
@@ -133,12 +141,30 @@ export const ReportPage = () => {
         if (!existing) {
           await generateReport('daily', todayNow.getTime());
         }
+        const yesterday = new Date(todayNow);
+        yesterday.setDate(yesterday.getDate() - 1);
+        try {
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+          const langRaw = i18n.language?.toLowerCase() ?? 'en';
+          const plantLang: 'zh' | 'en' | 'it' = langRaw.startsWith('zh')
+            ? 'zh'
+            : langRaw.startsWith('it')
+              ? 'it'
+              : 'en';
+          await callPlantGenerateAPI({
+            date: format(yesterday, 'yyyy-MM-dd'),
+            timezone,
+            lang: plantLang,
+          });
+        } catch {
+          // best-effort auto generation, ignore network failures
+        }
         schedule(); // reschedule for next midnight
       }, midnight.getTime() - now.getTime());
     };
     schedule();
     return () => clearTimeout(timer);
-  }, [generateReport]);
+  }, [generateReport, i18n.language]);
 
   const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1, flippedCount: number) => {
     // Keep book open during async loading — close it only after modal is ready
@@ -228,10 +254,10 @@ export const ReportPage = () => {
       </div>
 
       {showEarlyTip && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowEarlyTip(false)}>
-          <div className="bg-white w-full max-w-xs rounded-2xl p-6 text-center animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <p className="text-sm text-gray-700 leading-relaxed">{t('report_early_tip')}</p>
-            <button onClick={() => setShowEarlyTip(false)} className="mt-4 text-xs text-amber-600 border border-amber-200 rounded-full px-4 py-1.5 bg-amber-50 active:opacity-70 transition">
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={() => setShowEarlyTip(false)}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-3xl p-6 text-center animate-in fade-in zoom-in-95')} onClick={e => e.stopPropagation()}>
+            <p className="text-sm text-slate-700 leading-relaxed">{t('report_early_tip')}</p>
+            <button onClick={() => setShowEarlyTip(false)} className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'mt-4 text-xs px-4 py-1.5 rounded-full active:opacity-70')}>
               {t('report_early_tip_ok')}
             </button>
           </div>
@@ -239,11 +265,11 @@ export const ReportPage = () => {
       )}
 
       {showCalendarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowCalendarModal(false)}>
-          <div className="bg-white w-full max-w-xs rounded-2xl p-4 animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={() => setShowCalendarModal(false)}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-3xl p-4 animate-in fade-in zoom-in-95')} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-gray-700">{t('report_calendar_view')}</span>
-              <button onClick={() => setShowCalendarModal(false)} className="text-gray-400 hover:text-gray-600">
+              <span className="text-sm font-semibold text-slate-700">{t('report_calendar_view')}</span>
+              <button onClick={() => setShowCalendarModal(false)} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
                 <X size={18} />
               </button>
             </div>

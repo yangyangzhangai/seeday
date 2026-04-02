@@ -444,9 +444,10 @@ export async function callLiveInputTelemetryDashboardAPI(
 }
 
 interface ShortInsightRequest {
-  kind: 'activity' | 'mood';
+  kind: 'activity' | 'mood' | 'todo' | 'habit';
   summary: string;
   lang?: 'zh' | 'en' | 'it';
+  aiMode?: AiCompanionMode;
 }
 
 interface ShortInsightResponse {
@@ -457,8 +458,17 @@ interface ShortInsightResponse {
  * 调用 Short Insight API - 生成 ≤20 字的活动或心情分析
  */
 export async function callShortInsightAPI(request: ShortInsightRequest): Promise<string> {
+  const { aiModeEnabled } = useAuthStore.getState().preferences;
+  if (!aiModeEnabled && !request.aiMode) {
+    return '';
+  }
+
   try {
-    const data = await postJson<ShortInsightRequest & { action: string }, ShortInsightResponse>('/diary', { ...request, action: 'insight' });
+    const data = await postJson<ShortInsightRequest & { action: string }, ShortInsightResponse>('/diary', {
+      ...request,
+      action: 'insight',
+      aiMode: request.aiMode ?? getCurrentAiMode(),
+    });
     return data.insight || '';
   } catch {
     return '';

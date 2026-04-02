@@ -5,6 +5,8 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { useGrowthStore } from '../../../store/useGrowthStore';
 import { resizeImageToDataUrl } from '../../../lib/imageUtils';
+import { cn } from '../../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 import { supabase } from '../../../api/supabase';
 
 interface Props {
@@ -230,7 +232,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       {/* Avatar modal */}
       {showAvatarModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          className={cn('fixed inset-0 flex items-center justify-center z-50', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
             setShowAvatarModal(false);
             setShowAvatarMenu(false);
@@ -242,7 +244,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
           >
             {/* Close */}
             <button
-              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 z-10 p-1.5')}
               onClick={() => {
                 setShowAvatarModal(false);
                 setShowAvatarMenu(false);
@@ -253,9 +255,9 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             </button>
 
             {showAvatarMenu ? (
-              <div className="absolute bottom-12 right-3 z-10 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md">
+              <div className={cn(APP_MODAL_CARD_CLASS, 'absolute bottom-12 right-3 z-10 overflow-hidden rounded-xl')}>
                 <button
-                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-white/70"
                   onClick={() => fileRef.current?.click()}
                 >
                   {t('auth_change_avatar')}
@@ -264,7 +266,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             ) : null}
 
             <button
-              className="absolute bottom-3 right-3 z-10 rounded-full bg-white/90 p-2 text-slate-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute bottom-3 right-3 z-10 p-2')}
               onClick={() => setShowAvatarMenu((v) => !v)}
               title={t('auth_more')}
             >

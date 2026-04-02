@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ArrowLeft, Mail, Lock, Loader2, User, MoreHorizontal, X } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 
 export const AuthPage = () => {
   const navigate = useNavigate();
@@ -314,18 +316,18 @@ export const AuthPage = () => {
 
       {showAvatarModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className={cn('fixed inset-0 flex items-center justify-center z-50 p-4', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
             setShowAvatarModal(false);
             setShowAvatarMenu(false);
           }}
         >
           <div
-            className="relative bg-white rounded-xl overflow-hidden shadow-2xl"
+            className={cn(APP_MODAL_CARD_CLASS, 'relative rounded-2xl overflow-hidden')}
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="absolute right-2 top-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-2 top-2 p-1.5')}
               onClick={() => {
                 setShowAvatarModal(false);
                 setShowAvatarMenu(false);
@@ -335,16 +337,16 @@ export const AuthPage = () => {
               <X size={16} />
             </button>
             <button
-              className="absolute right-10 top-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-10 top-2 p-1.5')}
               onClick={() => setShowAvatarMenu((v) => !v)}
               title={t('auth_more')}
             >
               <MoreHorizontal size={16} />
             </button>
             {showAvatarMenu && (
-              <div className="absolute right-2 top-10 bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden">
+              <div className={cn(APP_MODAL_CARD_CLASS, 'absolute right-2 top-10 rounded-lg overflow-hidden')}>
                 <button
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                  className="block px-4 py-2 text-sm text-slate-700 hover:bg-white/70 w-full text-left"
                   onClick={() => avatarInputRef.current?.click()}
                 >
                   {t('auth_change_avatar')}

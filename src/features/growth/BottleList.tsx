@@ -6,6 +6,13 @@ import { BottleCard } from './BottleCard';
 import { AddBottleModal } from './AddBottleModal';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 import { useTodoStore, type Recurrence } from '../../store/useTodoStore';
+import { cn } from '../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_PRIMARY_BUTTON_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 
 export const BottleList = () => {
   const { t } = useTranslation();
@@ -158,19 +165,19 @@ export const BottleList = () => {
 
       {/* 1. New habit auto-prompt */}
       {habitPromptBottle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]">
-            <p className="text-gray-800 text-center mb-2 font-medium">{t('growth_habit_todo_prompt')}</p>
-            <p className="text-gray-500 text-sm text-center mb-4">
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')}>
+            <p className="text-slate-800 text-center mb-2 font-medium">{t('growth_habit_todo_prompt')}</p>
+            <p className="text-slate-500 text-sm text-center mb-4">
               {t('growth_habit_todo_confirm', { name: habitPromptBottle.name })}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setHabitPromptBottle(null)}
-                className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
+                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
                 {t('growth_habit_todo_dismiss')}
               </button>
               <button onClick={handleHabitConfirm}
-                className="flex-1 rounded-xl bg-[#A86B2B] py-2 font-medium text-white">
+                className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
                 {t('confirm')}
               </button>
             </div>
@@ -180,19 +187,19 @@ export const BottleList = () => {
 
       {/* 2. Click/long-press "Generate todo?" prompt */}
       {todoPromptBottle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => setTodoPromptBottle(null)}>
-          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]" onClick={(e) => e.stopPropagation()}>
-            <p className="text-gray-800 text-center mb-4 font-medium">
+          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')} onClick={(e) => e.stopPropagation()}>
+            <p className="text-slate-800 text-center mb-4 font-medium">
               {t('growth_bottle_todo_prompt', { name: todoPromptBottle.name })}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setTodoPromptBottle(null)}
-                className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
+                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
                 {t('cancel')}
               </button>
               <button onClick={handleTodoPromptConfirm}
-                className="flex-1 rounded-xl bg-[#A86B2B] py-2 font-medium text-white">
+                className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
                 {t('confirm')}
               </button>
             </div>
@@ -202,33 +209,33 @@ export const BottleList = () => {
 
       {/* 3. Achieved bottle popup */}
       {achievedBottle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => setAchievedBottle(null)}>
-          <div className="mx-8 w-full max-w-sm rounded-3xl border border-[#EBDCC2] bg-[#FFF9EE] p-6 shadow-[0_20px_60px_rgba(71,52,24,0.24)]" onClick={(e) => e.stopPropagation()}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')} onClick={(e) => e.stopPropagation()}>
             {achievedBottle.type === 'habit' ? (
               <>
-                <p className="text-gray-600 text-center mb-4">{t('growth_bottle_irrigate_hint')}</p>
+                <p className="text-slate-600 text-center mb-4">{t('growth_bottle_irrigate_hint')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => setAchievedBottle(null)}
-                    className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
+                    className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
                     {t('cancel')}
                   </button>
                   <button onClick={() => handleIrrigate(achievedBottle.id)}
-                    className="flex-1 rounded-xl bg-[#6E9A58] py-2 font-medium text-white">
+                    className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
                     {t('growth_bottle_irrigate')}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <p className="text-gray-600 text-center mb-4">{t('growth_bottle_goal_confirm')}</p>
+                <p className="text-slate-600 text-center mb-4">{t('growth_bottle_goal_confirm')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => handleGoalConfirm(false)}
-                    className="flex-1 rounded-xl border border-[#D4B790] py-2 font-medium text-[#6A4E2E]">
+                    className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
                     {t('growth_bottle_goal_no')}
                   </button>
                   <button onClick={() => handleGoalConfirm(true)}
-                    className="flex-1 rounded-xl bg-[#6E9A58] py-2 font-medium text-white">
+                    className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
                     {t('growth_bottle_goal_yes')}
                   </button>
                 </div>

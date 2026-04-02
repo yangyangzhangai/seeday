@@ -13,6 +13,14 @@ import { alignPeriodDraftsToMessageGaps, validateDrafts } from '../../services/i
 import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/input/magicPenTypes';
 import type { Message } from '../../store/useChatStore';
 import { commitMagicPenDrafts } from '../../store/magicPenActions';
+import { cn } from '../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_CLOSE_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_PRIMARY_BUTTON_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 
 type CommitState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -162,26 +170,26 @@ export function MagicPenSheet({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center"
+      className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md overflow-y-auto rounded-t-2xl bg-[#FFFBF5] shadow-[0_-8px_40px_rgba(71,52,24,0.18)] animate-in slide-in-from-bottom-10 fade-in max-h-[80vh]"
+        className={cn(APP_MODAL_CARD_CLASS, 'w-[min(92vw,420px)] overflow-y-auto rounded-3xl animate-in zoom-in-95 fade-in max-h-[86vh]')}
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#FFFBF5] px-5 pt-5 pb-3 border-b border-[#F0E6D6]">
+        <div className="sticky top-0 z-10 bg-white px-5 pt-5 pb-3 border-b border-[rgba(255,255,255,0.82)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F5E6D0]">
-                <Wand2 size={16} className="text-[#A86B2B]" />
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#DBEAFE] border border-[#BFDBFE]">
+                <Wand2 size={16} className="text-[#2563EB]" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-[#4A3520]">{t('chat_magic_pen_title')}</h2>
-                <p className="text-[11px] text-[#9C8567]">{t('chat_magic_pen_subtitle')}</p>
+                <h2 className="text-base font-semibold text-slate-800">{t('chat_magic_pen_title')}</h2>
+                <p className="text-[11px] text-slate-500">{t('chat_magic_pen_subtitle')}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5 text-[#9C8567]">
+            <button type="button" onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1.5')}>
               <X size={18} />
             </button>
           </div>
@@ -206,7 +214,7 @@ export function MagicPenSheet({
                     key={draft.id}
                     className={`rounded-xl p-3 space-y-2 transition-colors ${
                       commitState === 'success'
-                        ? 'bg-emerald-50 border border-emerald-200'
+                        ? 'bg-sky-50 border border-sky-200'
                         : hasError
                           ? 'bg-red-50/50 border border-red-200'
                           : 'bg-white border border-[#EDE5D8]'
@@ -280,7 +288,7 @@ export function MagicPenSheet({
                       <p key={error} className="text-[11px] text-red-500">{t(errorToI18nKey(error))}</p>
                     ))}
                     {commitState === 'success' && (
-                      <p className="text-[11px] text-emerald-600">{t('chat_magic_pen_item_success')}</p>
+                      <p className="text-[11px] text-sky-600">{t('chat_magic_pen_item_success')}</p>
                     )}
                     {commitState === 'error' && (
                       <p className="text-[11px] text-red-500">{t('chat_magic_pen_item_error')}</p>
@@ -306,7 +314,7 @@ export function MagicPenSheet({
                     key={draft.id}
                     className={`rounded-xl p-3 space-y-2 transition-colors ${
                       commitState === 'success'
-                        ? 'bg-emerald-50 border border-emerald-200'
+                        ? 'bg-sky-50 border border-sky-200'
                         : 'bg-white border border-[#EDE5D8]'
                     }`}
                   >
@@ -349,7 +357,7 @@ export function MagicPenSheet({
                       </div>
                     )}
                     {commitState === 'success' && (
-                      <p className="text-[11px] text-emerald-600">{t('chat_magic_pen_item_success')}</p>
+                      <p className="text-[11px] text-sky-600">{t('chat_magic_pen_item_success')}</p>
                     )}
                     {commitState === 'error' && (
                       <p className="text-[11px] text-red-500">{t('chat_magic_pen_item_error')}</p>
@@ -369,15 +377,15 @@ export function MagicPenSheet({
               {autoWrittenItems.map((item) => {
                 const isUndoing = undoingAutoWriteIds.has(item.id);
                 return (
-                  <div key={item.id} className="rounded-xl bg-emerald-50/70 border border-emerald-200/60 p-3">
+                  <div key={item.id} className="rounded-xl bg-sky-50/80 border border-sky-200/70 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm text-emerald-800 flex-1">{item.content}</p>
+                      <p className="text-sm text-sky-800 flex-1">{item.content}</p>
                       {item.messageId && (
                         <button
                           type="button"
                           disabled={isUndoing}
                           onClick={() => handleUndoAutoWrite(item)}
-                          className="p-1 rounded hover:bg-emerald-100 text-emerald-600 disabled:opacity-50 transition-colors"
+                          className="p-1 rounded hover:bg-sky-100 text-sky-600 disabled:opacity-50 transition-colors"
                         >
                           <Undo2 size={14} />
                         </button>
@@ -401,13 +409,13 @@ export function MagicPenSheet({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-[#FFFBF5] px-5 pb-5 pt-3 border-t border-[#F0E6D6]">
-          {statusText && <p className="text-xs text-center text-[#A86B2B] mb-2">{statusText}</p>}
+        <div className="sticky bottom-0 bg-white px-5 pb-5 pt-3 border-t border-[rgba(255,255,255,0.82)]">
+          {statusText && <p className="text-xs text-center text-[#2563EB] mb-2">{statusText}</p>}
           <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-[#DDD2C2] py-2.5 text-sm text-[#7A6B55] hover:bg-[#F5EFE6] transition-colors"
+              className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2.5 text-sm')}
             >
               {t('chat_magic_pen_cancel')}
             </button>
@@ -415,7 +423,7 @@ export function MagicPenSheet({
               type="button"
               disabled={isConfirmDisabled}
               onClick={handleConfirm}
-              className="flex-1 rounded-xl bg-[#A86B2B] py-2.5 text-sm text-white font-medium disabled:opacity-40 hover:bg-[#96601F] transition-colors"
+              className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2.5 text-sm font-medium disabled:opacity-40')}
             >
               {isSubmitting
                 ? t('loading')

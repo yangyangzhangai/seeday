@@ -1,6 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import {
+    APP_SELECTED_GLOW_BG,
+    APP_SELECTED_GLOW_BORDER,
+    APP_SELECTED_GLOW_SHADOW,
+    APP_SELECTED_GLOW_TEXT,
+} from '../../lib/modalTheme';
 
 const LANGUAGES = [
     { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -15,6 +21,12 @@ export const LanguageSwitcher = () => {
 
     const current = i18n.language?.split('-')[0] ?? 'en';
     const currentLang = LANGUAGES.find(l => l.code === current) || LANGUAGES[0];
+    const selectedGlowStyle: React.CSSProperties = {
+        background: APP_SELECTED_GLOW_BG,
+        border: APP_SELECTED_GLOW_BORDER,
+        boxShadow: APP_SELECTED_GLOW_SHADOW,
+        color: APP_SELECTED_GLOW_TEXT,
+    };
 
     // Close on outside click
     useEffect(() => {
@@ -48,10 +60,11 @@ export const LanguageSwitcher = () => {
                         <button
                             key={lang.code}
                             onClick={() => selectLanguage(lang.code)}
-                            className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors ${lang.code === current
-                                    ? 'bg-blue-50 text-blue-600 font-medium'
+                            className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors border ${lang.code === current
+                                    ? 'font-medium'
                                     : 'text-gray-700 hover:bg-gray-50'
                                 }`}
+                            style={lang.code === current ? selectedGlowStyle : { borderColor: 'transparent' }}
                         >
                             <span>{lang.flag}</span>
                             <span>{lang.label}</span>

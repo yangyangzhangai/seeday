@@ -4,6 +4,8 @@ import type { DailyPlantRecord } from '../../types/plant';
 import type { PlantCategoryKey } from '../../types/plant';
 import { buildRootSegments } from '../../lib/rootRenderer';
 import { mapSourcesToPlantActivities } from '../../lib/plantActivityMapper';
+import { cn } from '../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { useChatStore } from '../../store/useChatStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../store/usePlantStore';
 import { PlantFlipCard } from './plant/PlantFlipCard';
@@ -56,12 +58,11 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end bg-black/40 backdrop-blur-sm animate-in fade-in transition-all"
+      className={cn('fixed inset-0 z-[100] flex items-end animate-in fade-in transition-all', APP_MODAL_OVERLAY_CLASS)}
       onClick={onClose}
     >
       <div
-        className="w-full max-h-[92vh] rounded-t-2xl bg-[#f6f1e8]"
-        style={{ boxShadow: '0 -12px 28px rgba(0,0,0,0.22)' }}
+        className={cn(APP_MODAL_CARD_CLASS, 'w-full max-h-[92vh] rounded-t-3xl overflow-hidden')}
         onClick={e => e.stopPropagation()}
       >
         <PlantFlipCard
@@ -74,7 +75,7 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, 
 
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/40 transition-colors"
+        className={cn(APP_MODAL_CLOSE_CLASS, 'absolute top-6 right-6 w-10 h-10 flex items-center justify-center')}
       >
         <X size={20} />
       </button>

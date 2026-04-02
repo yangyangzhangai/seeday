@@ -11,6 +11,12 @@ import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png'
 import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
 import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
 import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
+import {
+  APP_SELECTED_GLOW_BG,
+  APP_SELECTED_GLOW_BORDER,
+  APP_SELECTED_GLOW_SHADOW,
+  APP_SELECTED_GLOW_TEXT,
+} from '../../../lib/modalTheme';
 
 interface Props {
   isPlus: boolean;
@@ -37,6 +43,11 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const selectedGlowStyle: React.CSSProperties = {
+    background: APP_SELECTED_GLOW_BG,
+    border: APP_SELECTED_GLOW_BORDER,
+    boxShadow: APP_SELECTED_GLOW_SHADOW,
+  };
 
   const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
     if (isUpdating) return;
@@ -75,9 +86,10 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
         <button
           onClick={() => { void handleToggleEnabled(); }}
           disabled={isUpdating}
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-            enabled ? 'bg-[#8FAF92]' : 'bg-slate-300'
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors ${
+            enabled ? '' : 'border-transparent bg-slate-300'
           }`}
+          style={enabled ? selectedGlowStyle : undefined}
         >
           <span
             className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
@@ -101,21 +113,32 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
             <button
               key={modeKey}
               onClick={() => { void handleModeClick(modeKey, mode.free); }}
-              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
+              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border transition-all ${
                 selected
-                  ? 'border-[#8FAF92] bg-[#B2EEDA]/20'
+                  ? ''
                   : locked
                   ? 'border-slate-200 bg-slate-100 opacity-60'
-                  : 'border-white/80 bg-white/60 hover:border-[#8FAF92]/50'
+                  : 'border-white/80 bg-white/60 hover:border-[#93C5FD]/60'
                }`}
+              style={selected ? selectedGlowStyle : undefined}
              >
               <img
                 src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
                 alt={`${mode.name} avatar`}
                 className="mb-1 h-9 w-9 object-contain"
               />
-              <span className="text-[11px] font-semibold leading-tight text-slate-800">{mode.name}</span>
-              <span className="mt-0.5 text-center text-[9px] leading-tight text-slate-500">{mode.subtitle}</span>
+              <span
+                className="text-[11px] font-semibold leading-tight"
+                style={{ color: selected ? APP_SELECTED_GLOW_TEXT : '#1e293b' }}
+              >
+                {mode.name}
+              </span>
+              <span
+                className="mt-0.5 text-center text-[9px] leading-tight"
+                style={{ color: selected ? 'rgba(29,78,216,0.82)' : '#64748b' }}
+              >
+                {mode.subtitle}
+              </span>
               {locked && (
                 <Lock size={10} className="absolute top-1 right-1 text-gray-400" />
               )}
