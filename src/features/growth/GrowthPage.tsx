@@ -141,6 +141,7 @@ export const GrowthPage = () => {
             <button
               onClick={handleManualSync}
               disabled={isSyncing}
+              title={growthSyncError || todoSyncError || ''}
               className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSyncing ? t('loading') : t('retry')}

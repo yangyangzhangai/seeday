@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LogIn, MoreHorizontal, X } from 'lucide-react';
@@ -352,9 +353,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
       <style>{`.date-strip::-webkit-scrollbar{display:none;}`}</style>
 
-      {showAvatarModal && user ? (
+      {showAvatarModal && user ? createPortal(
         <div
-          className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
+          className={cn('fixed inset-0 z-[200] flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
             setShowAvatarModal(false);
             setShowAvatarMenu(false);
@@ -400,7 +401,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             </div>
           </div>
         </div>
-      ) : null}
+      , document.body) : null}
     </div>
   );
 };
