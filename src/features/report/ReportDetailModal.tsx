@@ -11,8 +11,7 @@ import type { MoodDistributionItem } from './reportPageHelpers';
 import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
-import { ACTIVITY_COLORS } from './ActivityPieChart';
-import { getMoodDisplayLabel, normalizeMoodKey } from '../../lib/moodOptions';
+import { getMoodDisplayLabel } from '../../lib/moodOptions';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
 
@@ -112,20 +111,8 @@ const ACTIVITY_I18N_KEYS: Record<string, string> = {
   health: 'category_health',
 };
 
-const MOOD_COLORS: Record<string, string> = {
-  happy: '#f2c8d6',
-  calm: '#efb7cb',
-  focused: '#e79db8',
-  satisfied: '#f6dce5',
-  tired: '#c8cfda',
-  anxious: '#d5d5d5',
-  bored: '#d9def4',
-  down: '#b9c5f0',
-};
-
-const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
-const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
-const DIARY_BG = 'rgba(252,250,247,0.96)';
+const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
+const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
 
 function buildActivitySummary(dist: ActivityDistributionItem[]): string {
   return dist.map((d) => `${d.type}${Math.round(d.minutes)}min`).join('、');
@@ -630,10 +617,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     if (activityDistribution.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
     const top = activityDistribution.slice(0, 5);
     const total = top.reduce((sum, item) => sum + item.minutes, 0) || 1;
-    const withPercent = top.map((item) => ({
+    const withPercent = top.map((item, index) => ({
       name: t(ACTIVITY_I18N_KEYS[item.type] || item.type).toLowerCase(),
       value: Math.max(1, Math.round((item.minutes / total) * 100)),
-      color: ACTIVITY_COLORS[item.type] || '#9CA3AF',
+      color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
     }));
     const sumPercent = withPercent.reduce((sum, item) => sum + item.value, 0);
     if (sumPercent !== 100 && withPercent.length > 0) withPercent[0].value += (100 - sumPercent);
@@ -644,14 +631,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     if (moodDistribution.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
     const top = moodDistribution.slice(0, 4);
     const total = top.reduce((sum, item) => sum + item.minutes, 0) || 1;
-    const withPercent = top.map((item) => {
-      const key = normalizeMoodKey(item.mood) || item.mood;
-      return {
-        name: getMoodDisplayLabel(item.mood, t).toLowerCase(),
-        value: Math.max(1, Math.round((item.minutes / total) * 100)),
-        color: MOOD_COLORS[key] || '#C5CCDA',
-      };
-    });
+    const withPercent = top.map((item, index) => ({
+      name: getMoodDisplayLabel(item.mood, t).toLowerCase(),
+      value: Math.max(1, Math.round((item.minutes / total) * 100)),
+      color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
+    }));
     const sumPercent = withPercent.reduce((sum, item) => sum + item.value, 0);
     if (sumPercent !== 100 && withPercent.length > 0) withPercent[0].value += (100 - sumPercent);
     return withPercent;

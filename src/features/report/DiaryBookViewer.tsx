@@ -10,21 +10,12 @@ import { normalizeMoodKey } from '../../lib/moodOptions';
 import { cn } from '../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { computeActivityDistribution } from './reportPageHelpers';
-import { ACTIVITY_COLORS } from './ActivityPieChart';
 import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
 import { PlantImage } from './plant/PlantImage';
 
-const MOOD_COLORS: Record<string, string> = {
-  happy: '#f2c8d6',
-  calm: '#efb7cb',
-  focused: '#e79db8',
-  satisfied: '#f6dce5',
-  tired: '#c8cfda',
-  anxious: '#d5d5d5',
-  bored: '#d9def4',
-  down: '#b9c5f0',
-};
+const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
+const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
 const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
 const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
 
@@ -149,10 +140,16 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
     .sort((a, b) => b.minutes - a.minutes);
 
   const activitySlices = actDist.length > 0
-    ? actDist.map(d => ({ color: ACTIVITY_COLORS[d.type] || '#9CA3AF', value: d.minutes }))
+    ? actDist.slice(0, 5).map((d, index) => ({
+      color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
+      value: d.minutes,
+    }))
     : [{ color: '#E5E7EB', value: 1 }];
   const moodSlices = moodDist.length > 0
-    ? moodDist.map(d => ({ color: MOOD_COLORS[d.mood] || '#C5CCDA', value: d.minutes }))
+    ? moodDist.slice(0, 4).map((d, index) => ({
+      color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
+      value: d.minutes,
+    }))
     : [{ color: '#E5E7EB', value: 1 }];
   const buildConic = (slices: Array<{ color: string; value: number }>) => {
     const total = slices.reduce((sum, item) => sum + item.value, 0) || 1;
@@ -169,7 +166,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   const todoCompleted = report?.stats?.completedTodos ?? 0;
   const todoTotal = report?.stats?.totalTodos ?? 0;
   const todoRate = todoTotal > 0 ? (todoCompleted / todoTotal) : 0;
-  const todoSegments = 8;
+  const todoSegments = 12;
   const todoLitCount = todoTotal > 0 ? Math.max(1, Math.round(todoRate * todoSegments)) : 0;
 
   const habitDone = report?.stats?.habitCheckin?.filter(item => item.done).length ?? 0;
@@ -252,7 +249,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(18) }}>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`, gap: px(0.8) }}>
               {Array.from({ length: todoSegments }).map((_, idx) => (
-                <span key={idx} style={{ display: 'block', height: px(1.8), borderRadius: 999, background: idx < todoLitCount ? '#DEB540' : 'rgba(108,108,108,0.45)' }} />
+                <span key={idx} style={{ display: 'block', height: px(1.8), borderRadius: 999, background: idx < todoLitCount ? '#F5C842' : '#EDE0B0' }} />
               ))}
             </div>
             <p style={bodyStyle}>{todoSummary}</p>

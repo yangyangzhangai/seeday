@@ -66,7 +66,7 @@ export interface RootSegment {
   parentRootId?: string;
 }
 
-export type PlantApiStatus = 'too_early' | 'empty_day' | 'generated' | 'already_generated';
+export type PlantApiStatus = 'too_early' | 'empty_day' | 'generated' | 'already_generated' | 'monthly_exhausted';
 
 export interface PlantGenerateRequest {
   date: string;

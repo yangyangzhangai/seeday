@@ -8,6 +8,99 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-02 - Prompt: suggestion 场景规则补强（zh/en/it）
+
+### Changed
+
+- `src/server/annotation-prompts.ts`
+  - 在 `buildSuggestionAwareUserPrompt(...)` 的三语分支中新增两条场景规则：
+    - 用户生病/身体不适时，优先给出具体可执行的休息建议（含动作+时长），并避免推荐工作/学习任务。
+    - 用户难过/低落时，先简短共情，再基于用户常做活动给出低负担、可立即开始的小建议。
+
+### Validation
+
+- 未执行（本次为 prompt 文案策略调整）。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次 suggestion prompt 多语言规则补强）。
+
+## 2026-04-02 - UX: 我的页 AI 选中态小幅回调（鼠尾草+淡金）
+
+### Changed
+
+- `src/features/profile/components/AIModeSection.tsx`
+  - 将 AI 陪伴模式选中态从过淡绿微调回更有层次的鼠尾草玻璃感（仅小幅增加深度）。
+  - 同步细调开关开启态与选中文字颜色，保持清透但不发白。
+- `src/features/profile/components/AIAnnotationDropRate.tsx`
+  - 将陪伴频率选中金色做轻微降饱和和提亮处理，保留暖感但减轻厚重感。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次鼠尾草/淡金小幅回调）。
+
+## 2026-04-02 - UX: 我的页 AI 模式绿色选中态清透化微调
+
+### Changed
+
+- `src/features/profile/components/AIModeSection.tsx`
+  - AI 陪伴模式选中卡片由偏实的绿色改为低饱和玻璃感绿色渐变，增强清透与轻盈感。
+  - 同步降低选中文字对比度，并弱化开关开启态阴影，避免视觉过重。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次绿色选中态清透化微调）。
+
+## 2026-04-02 - Plant: 本月同根系植物候选去重
+
+### Changed
+
+- `api/plant-generate.ts`
+  - 新增按生成日期计算当月区间并查询 `daily_plant_records.plant_id` 的逻辑。
+  - 对当前根系候选池按 `plantId` 做「本月去重」过滤，AI 仅从当月未使用候选中选择。
+  - 当候选池耗尽时返回新状态 `monthly_exhausted`（含 message），不再继续生成。
+- `src/types/plant.ts`
+  - 扩展 `PlantApiStatus`：新增 `monthly_exhausted`。
+- `src/features/report/plant/PlantRootSection.tsx`
+  - 生成按钮反馈增加 `monthly_exhausted` 分支提示。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增 `plant_generate_monthly_exhausted` 文案。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `api/README.md` 与 `src/api/README.md`（同步 plant-generate 新状态契约）。
+- 更新 `docs/CURRENT_TASK.md`（记录本次植物月内去重改动）。
+
+## 2026-04-02 - UX: 我的页 AI 选中态恢复上一版绿色风格
+
+### Changed
+
+- `src/features/profile/components/AIModeSection.tsx`
+  - AI 陪伴模式开关开启态从新版蓝色发光恢复为旧版绿色底色。
+  - 角色卡选中态恢复为绿色描边 + 浅绿色背景，移除蓝色文本/发光样式。
+- `src/features/profile/components/AIAnnotationDropRate.tsx`
+  - 陪伴频率选中按钮恢复为旧版绿色选中态（绿色描边、浅绿色底、绿色文字）。
+
+### Validation
+
+- 未执行（本次为样式回退，未改业务逻辑）。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次 profile 选中态 UI 回退）。
+
 ## 2026-04-02 - UX: 日记详情页切换为 notebook 双页视觉
 
 ### Changed

@@ -210,6 +210,7 @@ const zh: TranslationKeys = {
     plant_generate_already: '今日植物已生成，请明天再来。',
     plant_generate_empty_day: '今天还没有活动记录，土壤正在等待。',
     plant_generate_empty_day_fallback: '今天还没有可生成植物的活动记录，先记录一段时光，今晚再来看看。',
+    plant_generate_monthly_exhausted: '这个根系类型本月的植物都已经生成过了，下个月会重置候选池。',
     plant_generate_failed: '生成失败，请稍后重试。',
     plant_reveal_title: '今日植物揭晓',
     plant_reveal_subtitle: '根系已封存为今日植物，明天会继续从新的记录生长。',

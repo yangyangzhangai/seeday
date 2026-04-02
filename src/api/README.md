@@ -33,6 +33,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Any new endpoint must be reflected in both `src/api/client.ts` and `api/*`
 - `/api/annotation` internals are split as entry + handler + prompt templates (`api/annotation.ts`, `src/server/annotation-handler.ts`, `src/server/annotation-prompts.ts`)
 - Plant endpoints (`/api/plant-generate`, `/api/plant-diary`, `/api/plant-history`) require Supabase Bearer token from current session；其中 `plant-history` 是当前 GET 型端点。
+- Plant generate response status includes `monthly_exhausted` when the current month has no unused candidate plant IDs left for the computed root type.
 - Plant asset telemetry endpoint (`/api/plant-asset-telemetry`) records which fallback level (`1-4`) was used when plant artwork resolves.
 - `/api/live-input-dashboard` is used as the consolidated telemetry dashboard endpoint for live input events, plant fallback telemetry events, and diary sticker operations (`diary_sticker_*`) from `telemetry_events`.
 

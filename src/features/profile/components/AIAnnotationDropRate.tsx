@@ -2,12 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
-import {
-  APP_SELECTED_GLOW_BG,
-  APP_SELECTED_GLOW_BORDER,
-  APP_SELECTED_GLOW_SHADOW,
-  APP_SELECTED_GLOW_TEXT,
-} from '../../../lib/modalTheme';
 
 const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
   { key: 'low', labelKey: 'profile_drop_low' },
@@ -33,10 +27,11 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
   const { preferences, updatePreferences } = useAuthStore();
   const current = preferences.annotationDropRate;
   const [isUpdating, setIsUpdating] = React.useState(false);
-  const selectedGlowStyle: React.CSSProperties = {
-    background: APP_SELECTED_GLOW_BG,
-    border: APP_SELECTED_GLOW_BORDER,
-    boxShadow: APP_SELECTED_GLOW_SHADOW,
+  const selectedRateStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, #FBF5E8 0%, #F4E6C7 100%)',
+    borderColor: '#E8D8AF',
+    boxShadow: '0 8px 20px rgba(163,130,72,0.14), inset 0 1px 0 rgba(255,255,255,0.68)',
+    color: '#725B2D',
   };
 
   const handleClick = async (key: AnnotationDropRate) => {
@@ -70,12 +65,12 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
                 disabled={isUpdating}
                 className={`relative flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   selected
-                    ? 'font-bold text-[#1D4ED8]'
+                    ? 'font-bold'
                     : locked
                     ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
-                    : 'border-[#B2EEDA]/60 bg-white/75 text-[#2F3E33]'
+                    : 'border-[#B2EEDA]/60 bg-white/75 text-[#5F7A63]'
                 }`}
-                style={selected ? { ...selectedGlowStyle, color: APP_SELECTED_GLOW_TEXT } : undefined}
+                style={selected ? selectedRateStyle : undefined}
               >
                 {t(labelKey)}
                 {locked && (

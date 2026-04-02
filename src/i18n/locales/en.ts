@@ -208,6 +208,7 @@ const en = {
     plant_generate_already: 'Today\'s plant is already generated.',
     plant_generate_empty_day: 'No activity recorded today. The soil is waiting.',
     plant_generate_empty_day_fallback: 'No eligible activity record yet. Log one moment first, then come back tonight.',
+    plant_generate_monthly_exhausted: 'All plants for this root type have already been generated this month. The candidate pool resets next month.',
     plant_generate_failed: 'Generation failed. Please try again later.',
     plant_reveal_title: 'Today\'s Plant Reveal',
     plant_reveal_subtitle: 'Today\'s roots are now sealed into a plant. Tomorrow starts a new growth cycle.',

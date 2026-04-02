@@ -210,6 +210,7 @@ const it: TranslationKeys = {
     plant_generate_already: 'La pianta di oggi è già stata generata.',
     plant_generate_empty_day: 'Nessuna attività registrata oggi. Il terreno è in attesa.',
     plant_generate_empty_day_fallback: 'Non ci sono ancora attività valide per la generazione. Registra un momento e riprova stasera.',
+    plant_generate_monthly_exhausted: 'Tutte le piante di questo tipo di radice sono già state generate questo mese. Il pool si azzera il mese prossimo.',
     plant_generate_failed: 'Generazione non riuscita. Riprova più tardi.',
     plant_reveal_title: 'Rivelazione della Pianta di Oggi',
     plant_reveal_subtitle: 'Le radici di oggi sono ora fissate in una pianta. Domani inizierà un nuovo ciclo di crescita.',

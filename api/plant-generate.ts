@@ -31,6 +31,20 @@ interface MessageRow {
   timestamp: number;
 }
 
+function resolveMonthRange(date: string): { startDate: string; endDate: string } {
+  const [yearRaw, monthRaw] = date.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return { startDate: date, endDate: date };
+  }
+
+  const startDate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { startDate, endDate };
+}
+
 function buildTooEarlyResponse(): PlantGenerateResponse {
   return {
     success: false,
@@ -125,6 +139,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // ── 查询该根系可用植物，交由 AI 选择 ──────────────────────────────────────
   const availablePlants = getAvailablePlants(rootType);
+  const { startDate: monthStartDate, endDate: monthEndDate } = resolveMonthRange(date);
+  const { data: monthlyRows, error: monthlyRowsError } = await auth.db
+    .from('daily_plant_records')
+    .select('plant_id')
+    .eq('user_id', auth.user.id)
+    .gte('date', monthStartDate)
+    .lte('date', monthEndDate);
+
+  if (monthlyRowsError) {
+    jsonError(res, 500, 'Failed to read monthly plant history', monthlyRowsError.message);
+    return;
+  }
+
+  const usedPlantIds = new Set((monthlyRows ?? []).map(row => String(row.plant_id ?? '')));
+  const monthlyCandidates = availablePlants.filter(plant => !usedPlantIds.has(plant.id));
+
+  if (monthlyCandidates.length === 0) {
+    res.status(200).json({
+      success: true,
+      status: 'monthly_exhausted',
+      plant: null,
+      message: 'All plant candidates for this root type have been used this month.',
+    } satisfies PlantGenerateResponse);
+    return;
+  }
 
   const diary = await generatePlantDiaryWithFallback({
     date,
@@ -139,7 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     plantStage: 'early',
     isSpecial: isAirDay || isEntertainmentDay,
     isSupportVariant,
-    availablePlants,
+    availablePlants: monthlyCandidates,
     lang: body.lang,
     aiMode: auth.user.user_metadata?.ai_mode,
     userName: auth.user.user_metadata?.full_name,

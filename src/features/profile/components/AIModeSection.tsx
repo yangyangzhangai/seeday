@@ -11,12 +11,6 @@ import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png'
 import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
 import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
 import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
-import {
-  APP_SELECTED_GLOW_BG,
-  APP_SELECTED_GLOW_BORDER,
-  APP_SELECTED_GLOW_SHADOW,
-  APP_SELECTED_GLOW_TEXT,
-} from '../../../lib/modalTheme';
 
 interface Props {
   isPlus: boolean;
@@ -43,10 +37,14 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
   const [isUpdating, setIsUpdating] = React.useState(false);
-  const selectedGlowStyle: React.CSSProperties = {
-    background: APP_SELECTED_GLOW_BG,
-    border: APP_SELECTED_GLOW_BORDER,
-    boxShadow: APP_SELECTED_GLOW_SHADOW,
+  const selectedModeStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, rgba(236,248,241,0.95) 0%, rgba(213,236,222,0.90) 100%)',
+    borderColor: '#C4E0CF',
+    boxShadow: '0 7px 18px rgba(103,154,121,0.14), inset 0 1px 0 rgba(255,255,255,0.80)',
+  };
+  const enabledSwitchStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
+    boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
   };
 
   const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
@@ -87,9 +85,9 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
           onClick={() => { void handleToggleEnabled(); }}
           disabled={isUpdating}
           className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors ${
-            enabled ? '' : 'border-transparent bg-slate-300'
+            enabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}
-          style={enabled ? selectedGlowStyle : undefined}
+          style={enabled ? enabledSwitchStyle : undefined}
         >
           <span
             className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
@@ -113,14 +111,14 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
             <button
               key={modeKey}
               onClick={() => { void handleModeClick(modeKey, mode.free); }}
-              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border transition-all ${
+              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
                 selected
                   ? ''
                   : locked
                   ? 'border-slate-200 bg-slate-100 opacity-60'
-                  : 'border-white/80 bg-white/60 hover:border-[#93C5FD]/60'
+                  : 'border-white/80 bg-white/60 hover:border-[#CBE7D7]'
                }`}
-              style={selected ? selectedGlowStyle : undefined}
+              style={selected ? selectedModeStyle : undefined}
              >
               <img
                 src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
@@ -129,13 +127,13 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
               />
               <span
                 className="text-[11px] font-semibold leading-tight"
-                style={{ color: selected ? APP_SELECTED_GLOW_TEXT : '#1e293b' }}
+                style={{ color: selected ? '#426D56' : '#1e293b' }}
               >
                 {mode.name}
               </span>
               <span
                 className="mt-0.5 text-center text-[9px] leading-tight"
-                style={{ color: selected ? 'rgba(29,78,216,0.82)' : '#64748b' }}
+                style={{ color: selected ? '#6F9580' : '#64748b' }}
               >
                 {mode.subtitle}
               </span>

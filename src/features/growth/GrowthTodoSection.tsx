@@ -18,6 +18,12 @@ interface Props {
   highlightTodoId?: string | null;
 }
 
+function getPriorityRank(priority: GrowthTodo['priority']): number {
+  if (priority === 'high' || priority === 'urgent-important') return 0;
+  if (priority === 'medium' || priority === 'urgent-not-important' || priority === 'important-not-urgent') return 1;
+  return 2;
+}
+
 export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -137,7 +143,12 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
     })
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return a.sortOrder - b.sortOrder;
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+
+      const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      return a.createdAt - b.createdAt;
     });
 
   const visibleMap = new Map(visible.map((todo) => [todo.id, todo]));

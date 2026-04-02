@@ -172,6 +172,10 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         setStatusHint(t('plant_generate_empty_day_fallback'));
         return;
       }
+      if (response.status === 'monthly_exhausted') {
+        setStatusHint(t('plant_generate_monthly_exhausted'));
+        return;
+      }
       setStatusHint(response.message ?? t('plant_generate_locked_hint'));
     } catch {
       setStatusHint(t('plant_generate_failed'));
