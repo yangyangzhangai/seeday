@@ -8,6 +8,24 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-02 - UX: 日记详情页切换为 notebook 双页视觉
+
+### Changed
+
+- `src/features/report/ReportDetailModal.tsx`
+  - 以 `日记页UI 0401` 为参考重建日记详情页视觉：顶部 notebook 导航 + 日期抬头 + 虚线分隔结构。
+  - 第 1 页改为 `activity / mood / to-do / habits` 四段分栏，含环形图、进度条与星标展示。
+  - 第 2 页改为 `AI 观察 + my diary` 上下结构，保留 AI 日记生成入口、植物图展示与手写日记保存。
+  - 保留原有日切换入口（上一天/下一天）与只读模式下的历史日记展示。
+
+### Validation
+
+- `npm run build` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（补充本次 notebook 风格日记页 UI 对齐记录）。
+
 ## 2026-03-31 - UX: Growth 待办卡片支持双击标题快速编辑
 
 ### Changed

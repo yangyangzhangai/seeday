@@ -13,11 +13,11 @@ fib_early_0001,fib,early,1,,fib_early_0001.png,png,TRUE,狼尾草,Fountain Grass
 fib_early_0002,fib,early,2,,fib_early_0002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,live
 fib_early_0003,fib,early,3,,fib_early_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,live
 fib_early_0004,fib,early,4,,fib_early_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
+fib_early_0005,fib,early,5,,fib_early_0005.png,png,TRUE,海妖女狸藻,Utricularia,Utricularia,live
 fib_late_0001,fib,late,1,,fib_late_0001.png,png,TRUE,狼尾草,Fountain Grass,Penniseto,live
 fib_late_0002,fib,late,2,,fib_late_0002.png,png,TRUE,麦穗,Wheat Ear,Spiga di grano,live
 fib_late_0003,fib,late,3,,fib_late_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,live
 fib_late_0004,fib,late,4,,fib_late_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
-fib_early_0005,fib,early,5,,fib_early_0005.png,png,TRUE,海妖女狸藻,Utricularia,Utricularia,live
 fib_late_0005,fib,late,5,,fib_late_0005.png,png,TRUE,海妖女狸藻,Utricularia,Utricularia,live
 sha_early_0001,sha,early,1,,sha_early_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,global_fallback
 sha_early_0003,sha,early,3,,sha_early_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
@@ -29,6 +29,10 @@ sha_late_0004,sha,late,4,,sha_late_0004.png,png,TRUE,栀子花,Gardenia,Gardenia
 sha_late_0005,sha,late,5,,sha_late_0005.png,png,TRUE,牡丹,Peony,Peonia,live
 bra_early_0002,bra,early,2,,bra_early_0002.png,png,TRUE,铁线莲,Clematis,Clematide,live
 bra_late_0002,bra,late,2,,bra_late_0002.png,png,TRUE,铁线莲,Clematis,Clematide,live
+bra_early_0003,bra,early,3,,bra_early_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live
+bra_late_0003,bra,late,3,,bra_late_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live
+bra_early_0004,bra,early,4,,bra_early_0004.png,png,TRUE,紫藤,Wisteria sinensis,Glicine cinese,live
+bra_late_0004,bra,late,4,,bra_late_0004.png,png,TRUE,紫藤,Wisteria sinensis,Glicine cinese,live
 bul_early_0001,bul,early,1,,bul_early_0001.png,png,TRUE,郁金香,Tulip,Tulipano,live
 bul_early_0002,bul,early,2,,bul_early_0002.png,png,TRUE,风信子,Hyacinth,Giacinto,live
 bul_early_0003,bul,early,3,,bul_early_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
@@ -39,5 +43,3 @@ bul_late_0002,bul,late,2,,bul_late_0002.png,png,TRUE,风信子,Hyacinth,Giacinto
 bul_late_0003,bul,late,3,,bul_late_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
 bul_late_0004,bul,late,4,,bul_late_0004.png,png,TRUE,仙客来,Cyclamen,Ciclamino,live
 bul_late_0005,bul,late,5,,bul_late_0005.png,png,TRUE,仙人掌,Cactus,Cactus,live
-bra_early_0003,bra,early,3,,bra_early_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live
-bra_late_0003,bra,late,3,,bra_late_0003.png,png,TRUE,凌霄花,Trumpet Vine,Bignonia rampicante,live

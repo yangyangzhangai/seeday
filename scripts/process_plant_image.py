@@ -36,14 +36,31 @@ def main():
     plants_dir = os.path.join(project_root, "public", "assets", "plants")
     csv_path = os.path.join(project_root, "docs", "plant_assets_registry.csv")
 
+    def resize_to_square(panel, size=450):
+        # Trim transparent margins using alpha channel bounding box
+        if panel.mode == "RGBA":
+            bbox = panel.split()[3].getbbox()  # alpha channel bbox
+            if bbox:
+                panel = panel.crop(bbox)
+
+        pw, ph = panel.size
+        ratio = pw / ph
+        distortion = abs(ratio - 1.0)
+        if distortion > 0.1:
+            stretch = max(ratio, 1/ratio)
+            print(f"  [!] distortion warning: {pw}x{ph} (ratio {ratio:.2f}), resizing to {size}x{size} will stretch ~{(stretch-1)*100:.0f}%, consider regenerating")
+        else:
+            print(f"  [ok] {pw}x{ph} (ratio {ratio:.2f}) -> no visible distortion")
+        return panel.resize((size, size), Image.LANCZOS)
+
     # Open and crop
-    img = Image.open(source)
+    img = Image.open(source).convert("RGBA")
     w, h = img.size
     mid = w // 2
 
     # Horizontal: left=full bloom(late), right=buds(early)
-    left = img.crop((0, 0, mid, h)).resize((450, 450), Image.LANCZOS)
-    right = img.crop((mid, 0, w, h)).resize((450, 450), Image.LANCZOS)
+    left = resize_to_square(img.crop((0, 0, mid, h)))
+    right = resize_to_square(img.crop((mid, 0, w, h)))
 
     # File names
     idx = f"{variant_index:04d}"

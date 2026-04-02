@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-03-30
+Last Updated: 2026-04-02
 Owner: current working session
 
 ---
@@ -60,6 +60,7 @@ Status: 主链路可用，剩余增强项待推进。
 - [x] AI 批注气泡头像视觉更新：移除圆形头像框，放大人设头像并改为半悬浮超出弹窗的呈现
 - [x] 首页与我的页头像交互统一：点击头像先放大预览，右下角三点菜单更换头像，并提升放大图清晰度（640px/0.95）
 - [x] Growth 待办卡片支持双击标题快速编辑：双击标题进入输入态，Enter/失焦保存，Esc 取消
+- [x] 日记详情页 UI 对齐新稿：`ReportDetailModal` 改为双页 notebook 版式（第 1 页 activity/mood/to-do/habits，第 2 页 AI 观察 + my diary），并保留生成与保存主链路
 
 ---
 
