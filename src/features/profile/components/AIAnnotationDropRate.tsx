@@ -2,6 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
+import {
+  APP_SELECTED_GLOW_BG,
+  APP_SELECTED_GLOW_BORDER,
+  APP_SELECTED_GLOW_SHADOW,
+  APP_SELECTED_GLOW_TEXT,
+} from '../../../lib/modalTheme';
 
 const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
   { key: 'low', labelKey: 'profile_drop_low' },
@@ -27,6 +33,11 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
   const { preferences, updatePreferences } = useAuthStore();
   const current = preferences.annotationDropRate;
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const selectedGlowStyle: React.CSSProperties = {
+    background: APP_SELECTED_GLOW_BG,
+    border: APP_SELECTED_GLOW_BORDER,
+    boxShadow: APP_SELECTED_GLOW_SHADOW,
+  };
 
   const handleClick = async (key: AnnotationDropRate) => {
     if (isUpdating) return;
@@ -59,11 +70,12 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
                 disabled={isUpdating}
                 className={`relative flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   selected
-                    ? 'border-[#8FAF92] bg-[#B2EEDA]/30 text-[#3f5f35] font-bold'
+                    ? 'font-bold text-[#1D4ED8]'
                     : locked
                     ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
-                    : 'border-[#B2EEDA]/60 bg-white/75 text-[#5F7A63]'
+                    : 'border-[#B2EEDA]/60 bg-white/75 text-[#2F3E33]'
                 }`}
+                style={selected ? { ...selectedGlowStyle, color: APP_SELECTED_GLOW_TEXT } : undefined}
               >
                 {t(labelKey)}
                 {locked && (

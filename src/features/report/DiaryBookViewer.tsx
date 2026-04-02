@@ -7,6 +7,8 @@ import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { normalizeMoodKey } from '../../lib/moodOptions';
+import { cn } from '../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { computeActivityDistribution } from './reportPageHelpers';
 import { ACTIVITY_COLORS } from './ActivityPieChart';
 import { callPlantHistoryAPI } from '../../api/client';
@@ -14,10 +16,17 @@ import type { DailyPlantRecord } from '../../types/plant';
 import { PlantImage } from './plant/PlantImage';
 
 const MOOD_COLORS: Record<string, string> = {
-  happy: '#F9A8D4', calm: '#93C5FD', focused: '#86EFAC',
-  satisfied: '#FDE68A', tired: '#9CA3AF', bored: '#C7D2FE',
-  down: '#60A5FA', anxious: '#9CA3AF',
+  happy: '#f2c8d6',
+  calm: '#efb7cb',
+  focused: '#e79db8',
+  satisfied: '#f6dce5',
+  tired: '#c8cfda',
+  anxious: '#d5d5d5',
+  bored: '#d9def4',
+  down: '#b9c5f0',
 };
+const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
+const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
 
 /* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
@@ -49,7 +58,7 @@ type PageData = {
 };
 
 /* ──────────────────────────────── data ───────────────────────────────── */
-/** Each day occupies TWO pages: day-left (plant + report) and day-right (AI notes + diary). */
+/** Each day occupies TWO pages: day-left (diary page 1) and day-right (diary page 2). */
 function buildPages(month: Date, reports: Report[]): PageData[] {
   const days = getDaysInMonth(month);
   const pages: PageData[] = [];
@@ -109,169 +118,224 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
 
-  /* ── day-left: plant image + report stats ── */
+  const dayDate = page.date;
+  const dayPlant = dayDate ? plantRecords.find(p => p.date === format(dayDate, 'yyyy-MM-dd')) : null;
+  const todayStart = startOfDay(new Date()).getTime();
+  const isFutureDay = dayDate ? dayDate.getTime() > todayStart : false;
+  if (isFutureDay) {
+    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
+  }
+
+  const report = page.report;
+  const dayStart = dayDate ? startOfDay(dayDate).getTime() : 0;
+  const dayEnd = dayDate ? endOfDay(dayDate).getTime() : 0;
+  const dayMsgs = allMessages
+    .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const actDist = computeActivityDistribution(dayMsgs);
+
+  const moodMinutes: Record<string, number> = {};
+  dayMsgs.forEach(msg => {
+    if (msg.isActive) return;
+    const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
+    if (mood && msg.duration && msg.duration > 0) {
+      const key = normalizeMoodKey(mood) || mood;
+      moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
+    }
+  });
+  const moodDist = Object.entries(moodMinutes)
+    .map(([mood, minutes]) => ({ mood, minutes }))
+    .filter(d => d.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
+
+  const activitySlices = actDist.length > 0
+    ? actDist.map(d => ({ color: ACTIVITY_COLORS[d.type] || '#9CA3AF', value: d.minutes }))
+    : [{ color: '#E5E7EB', value: 1 }];
+  const moodSlices = moodDist.length > 0
+    ? moodDist.map(d => ({ color: MOOD_COLORS[d.mood] || '#C5CCDA', value: d.minutes }))
+    : [{ color: '#E5E7EB', value: 1 }];
+  const buildConic = (slices: Array<{ color: string; value: number }>) => {
+    const total = slices.reduce((sum, item) => sum + item.value, 0) || 1;
+    let acc = 0;
+    const stops = slices.map((item) => {
+      const start = (acc / total) * 100;
+      acc += item.value;
+      const end = (acc / total) * 100;
+      return `${item.color} ${start}% ${end}%`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  };
+
+  const todoCompleted = report?.stats?.completedTodos ?? 0;
+  const todoTotal = report?.stats?.totalTodos ?? 0;
+  const todoRate = todoTotal > 0 ? (todoCompleted / todoTotal) : 0;
+  const todoSegments = 8;
+  const todoLitCount = todoTotal > 0 ? Math.max(1, Math.round(todoRate * todoSegments)) : 0;
+
+  const habitDone = report?.stats?.habitCheckin?.filter(item => item.done).length ?? 0;
+  const goalDone = report?.stats?.goalProgress?.filter(item => item.doneToday).length ?? 0;
+  const starsToday = habitDone + goalDone;
+  const starSlots = Math.max(8, starsToday);
+
+  const headerDate = dayDate ? format(dayDate, 'M月d日', { locale: zhCN }) : '';
+  const observationText = report?.aiAnalysis?.trim() || '今天也在慢慢生长。';
+  const myDiary = report?.userNote?.trim() || '今天还没有写下内容。';
+
+  const sectionTitleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: px(5.8),
+    lineHeight: 1.2,
+    fontWeight: 700,
+    color: '#232323',
+    fontFamily: 'Georgia, "Times New Roman", serif',
+  };
+  const bodyStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: px(5.2),
+    lineHeight: 1.45,
+    color: '#2f2f2f',
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+  };
+  const donutSize = px(26);
+
+  /* ── day-left: same structure as diary page first screen ── */
   if (page.type === 'day-left') {
-    const { date, dayNum, report } = page;
-    const dayPlant = date ? plantRecords.find(p => p.date === format(date, 'yyyy-MM-dd')) : null;
+    const activitySummary = report?.stats?.actionSummary?.trim() || '今天主要精力投入在工作上';
+    const moodSummary = report?.stats?.moodSummary?.trim() || '整体情绪比较轻松愉快';
+    const todoSummary = todoTotal > 0 ? `待办完成${todoCompleted}/${todoTotal}` : '你今天做得很好';
+    const habitSummary = starsToday > 0 ? `今日新增${starsToday}颗星` : '继续保持，进度很稳';
+
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
-        {/* Inner content wrapper — projective transform to match trapezoid shape */}
         <div style={{
-          position: 'absolute', inset: 0, boxSizing: 'border-box',
-          padding: `${px(10)}px ${px(10)}px ${px(16)}px ${px(10)}px`,
-          display: 'flex', flexDirection: 'column', gap: px(3),
+          position: 'absolute',
+          inset: 0,
+          boxSizing: 'border-box',
+          padding: `${px(8)}px ${px(8)}px ${px(14)}px ${px(8)}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: px(3),
           transform: leftPageTransform,
           transformOrigin: '0 0',
         }}>
-
-        {/* Date */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: px(3), flexShrink: 0 }}>
-          <span style={{ fontSize: px(13), fontWeight: 700, color: '#4a3a2a', lineHeight: 1 }}>{dayNum}</span>
-          <span style={{ fontSize: px(6.5), color: '#9a8878' }}>
-            {date && format(date, 'M月d日', { locale: zhCN })}
-          </span>
-        </div>
-
-        {/* Plant image — no border, drawn directly into the page */}
-        <div style={{ flexShrink: 0, height: px(65), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {dayPlant ? (
-            <PlantImage
-              plantId={dayPlant.plantId}
-              rootType={dayPlant.rootType}
-              plantStage={dayPlant.plantStage}
-              imgClassName="max-h-full max-w-full object-contain"
-            />
-          ) : (
-            <span style={{ fontSize: px(14), opacity: 0.2 }}>🌱</span>
-          )}
-        </div>
-
-        {/* AI 观察日记 — below plant */}
-        <div style={{ flexShrink: 0, maxHeight: px(70), overflow: 'hidden' }}>
-          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-            ✦ AI 观察日记
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>diary</div>
+            <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
           </div>
-          {report?.aiAnalysis ? (
-            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
-              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-              {report.aiAnalysis}
-            </p>
-          ) : (
-            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
-              {report ? 'AI 正在整理…' : ''}
-            </span>
-          )}
-        </div>
+          <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
-        {/* Page number */}
-        <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
-          {dayNum != null ? 2 * dayNum - 1 : ''}
+          <h3 style={sectionTitleStyle}>activity</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
+            <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(activitySlices), margin: '0 auto', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
+            </div>
+            <p style={bodyStyle}>{activitySummary}</p>
+          </div>
+
+          <div style={{ borderTop: DIARY_LINE_DASHED }} />
+
+          <h3 style={sectionTitleStyle}>mood</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
+            <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(moodSlices), margin: '0 auto', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
+            </div>
+            <p style={bodyStyle}>{moodSummary}</p>
+          </div>
+
+          <div style={{ borderTop: DIARY_LINE_DASHED }} />
+
+          <h3 style={sectionTitleStyle}>to-do</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(18) }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`, gap: px(0.8) }}>
+              {Array.from({ length: todoSegments }).map((_, idx) => (
+                <span key={idx} style={{ display: 'block', height: px(1.8), borderRadius: 999, background: idx < todoLitCount ? '#DEB540' : 'rgba(108,108,108,0.45)' }} />
+              ))}
+            </div>
+            <p style={bodyStyle}>{todoSummary}</p>
+          </div>
+
+          <div style={{ borderTop: DIARY_LINE_DASHED }} />
+
+          <h3 style={sectionTitleStyle}>habits</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(20) }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: px(0.8) }}>
+              {Array.from({ length: starSlots }).map((_, idx) => (
+                <span key={idx} style={{ fontSize: px(5.4), textAlign: 'center', color: idx < starsToday ? '#D1AB3F' : 'rgba(139,139,139,0.45)' }}>★</span>
+              ))}
+            </div>
+            <p style={bodyStyle}>{habitSummary}</p>
+          </div>
+
+          <div style={{ position: 'absolute', bottom: px(5), left: 0, right: 0, textAlign: 'center', fontSize: px(5.2), color: 'rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
+            {page.dayNum != null ? 2 * page.dayNum - 1 : ''}
+          </div>
         </div>
-        </div>{/* end inner skewed wrapper */}
       </div>
     );
   }
 
-  /* ── day-right: activity/mood charts + user diary lines ── */
+  /* ── day-right: same structure as diary page second screen ── */
   if (page.type === 'day-right') {
-    const { date: rightDate, report } = page;
-
-    // Compute activity + mood distributions for this day
-    const dayStart = rightDate ? startOfDay(rightDate).getTime() : 0;
-    const dayEnd = rightDate ? endOfDay(rightDate).getTime() : 0;
-    const dayMsgs = allMessages
-      .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
-      .sort((a, b) => a.timestamp - b.timestamp);
-
-    const moodMinutes: Record<string, number> = {};
-    dayMsgs.forEach(msg => {
-      if (msg.isActive) return;
-      const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
-      if (mood && msg.duration && msg.duration > 0) {
-        const key = normalizeMoodKey(mood) || mood;
-        moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
-      }
-    });
-    const moodDist = Object.entries(moodMinutes)
-      .map(([mood, minutes]) => ({ mood, minutes }))
-      .filter(d => d.minutes > 0)
-      .sort((a, b) => b.minutes - a.minutes);
-    const totalMoodMins = moodDist.reduce((s, d) => s + d.minutes, 0);
-    const actDist = computeActivityDistribution(dayMsgs);
-    const totalActMins = actDist.reduce((s, d) => s + d.minutes, 0);
-
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
-        {/* Inner content wrapper — projective transform to match trapezoid shape */}
         <div style={{
-          position: 'absolute', inset: 0, boxSizing: 'border-box',
-          padding: `${px(10)}px ${px(10)}px ${px(16)}px ${px(10)}px`,
-          display: 'flex', flexDirection: 'column', gap: px(3),
+          position: 'absolute',
+          inset: 0,
+          boxSizing: 'border-box',
+          padding: `${px(8)}px ${px(8)}px ${px(14)}px ${px(8)}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: px(3),
           transform: rightPageTransform,
           transformOrigin: '0 0',
         }}>
-
-        {/* Activity category list */}
-        {actDist.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: px(1), flexShrink: 0 }}>
-            <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>活动分类</div>
-            {actDist.slice(0, 3).map(d => {
-              const pct = totalActMins > 0 ? Math.round(d.minutes / totalActMins * 100) : 0;
-              return (
-                <div key={d.type} style={{ display: 'flex', alignItems: 'center', gap: px(2) }}>
-                  <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: ACTIVITY_COLORS[d.type] || '#9CA3AF', flexShrink: 0 }} />
-                  <span style={{ fontSize: px(5), color: '#5a4a3a', flex: 1 }}>{d.type}</span>
-                  <div style={{ flex: 2, height: px(3), borderRadius: px(1.5), background: '#f3f4f6', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', borderRadius: px(1.5), background: ACTIVITY_COLORS[d.type] || '#9CA3AF' }} />
-                  </div>
-                  <span style={{ fontSize: px(4.5), color: '#888', minWidth: px(14), textAlign: 'right' }}>{pct}%</span>
-                </div>
-              );
-            })}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>diary</div>
+            <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
           </div>
-        )}
+          <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
-        {/* Mood spectrum — mini horizontal bar */}
-        {moodDist.length > 0 && (
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: px(5), color: '#888', marginBottom: px(1) }}>心情光谱</div>
-            <div style={{ display: 'flex', height: px(5), borderRadius: px(2), overflow: 'hidden', width: '100%' }}>
-              {moodDist.map(d => (
-                <div key={d.mood} style={{ flex: d.minutes / totalMoodMins, background: MOOD_COLORS[d.mood] || '#93C5FD' }} />
-              ))}
+          <h3 style={sectionTitleStyle}>observation</h3>
+          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflow: 'hidden' }}>
+            <div
+              style={{
+                float: 'left',
+                width: px(64),
+                height: px(64),
+                margin: `0 ${px(3)}px ${px(2)}px 0`,
+                opacity: 0.92,
+              }}
+            >
+              {dayPlant ? (
+                <PlantImage
+                  plantId={dayPlant.plantId}
+                  rootType={dayPlant.rootType}
+                  plantStage={dayPlant.plantStage}
+                  imgClassName="h-full w-full object-contain"
+                />
+              ) : (
+                <div style={{ width: '100%', height: '100%' }} />
+              )}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: `${px(1)}px ${px(3)}px`, marginTop: px(1.5) }}>
-              {moodDist.slice(0, 3).map(d => (
-                <div key={d.mood} style={{ display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-                  <div style={{ width: px(3.5), height: px(3.5), borderRadius: '50%', background: MOOD_COLORS[d.mood] || '#93C5FD', flexShrink: 0 }} />
-                  <span style={{ fontSize: px(5), color: '#666' }}>{d.mood} {Math.round(d.minutes / totalMoodMins * 100)}%</span>
-                </div>
-              ))}
-            </div>
+            {observationText}
+            <div style={{ clear: 'both' }} />
           </div>
-        )}
 
-        {/* 我的日记 — no card background */}
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <div style={{ fontSize: px(5.5), fontWeight: 700, color: '#333', marginBottom: px(2), display: 'flex', alignItems: 'center', gap: px(1.5) }}>
-            ✎ 我的日记
+          <div style={{ borderTop: DIARY_LINE_DASHED }} />
+
+          <h3 style={sectionTitleStyle}>my diary</h3>
+          <div style={{ fontSize: px(5.2), lineHeight: 1.45, color: report?.userNote?.trim() ? '#2f2f2f' : 'rgba(95,95,95,0.56)', fontFamily: 'Georgia, "Times New Roman", serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
+            {myDiary}
           </div>
-          {report?.userNote ? (
-            <p style={{ margin: 0, fontSize: px(5.5), color: '#444', lineHeight: 1.55,
-              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-              {report.userNote}
-            </p>
-          ) : (
-            <span style={{ fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', fontStyle: 'italic' }}>
-              {report ? '未留下文字…' : ''}
-            </span>
-          )}
+
+          <div style={{ position: 'absolute', bottom: px(5), left: 0, right: 0, textAlign: 'center', fontSize: px(5.2), color: 'rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
+            {page.dayNum != null ? 2 * page.dayNum : ''}
+          </div>
         </div>
-        {/* Page number */}
-        <div style={{ position: 'absolute', bottom: px(6), left: 0, right: 0, textAlign: 'center', fontSize: px(5.5), color: 'rgba(0,0,0,0.25)', letterSpacing: 0.5, pointerEvents: 'none' }}>
-          {page.dayNum != null ? 2 * page.dayNum : ''}
-        </div>
-        </div>{/* end inner skewed wrapper */}
       </div>
     );
   }
@@ -290,11 +354,12 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end' }}
+      className={cn('fixed inset-0 z-[200] flex items-end', APP_MODAL_OVERLAY_CLASS)}
       onClick={onClose}
     >
       <div
-        style={{ width: '100%', maxHeight: '88vh', background: PAPER_COLOR, borderRadius: '16px 16px 0 0', overflowY: 'auto', padding: '20px 20px 48px', boxSizing: 'border-box' }}
+        className={cn(APP_MODAL_CARD_CLASS, 'w-full max-h-[88vh] rounded-t-3xl overflow-y-auto')}
+        style={{ padding: '20px 20px 48px', boxSizing: 'border-box' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -302,7 +367,7 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
           <span style={{ fontSize: 15, fontWeight: 700, color: '#4a3a2a' }}>
             {date && format(date, 'yyyy年M月d日 EEEE', { locale: zhCN })}
           </span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8a7a6a', padding: 4 }}>
+          <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')} style={{ cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>

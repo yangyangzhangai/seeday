@@ -6,6 +6,16 @@ import { LogIn, MoreHorizontal, X } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { resizeImageToDataUrl } from '../../../lib/imageUtils';
+import { cn } from '../../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_CLOSE_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_SELECTED_GLOW_BG,
+  APP_SELECTED_GLOW_BORDER,
+  APP_SELECTED_GLOW_SHADOW,
+  APP_SELECTED_GLOW_TEXT,
+} from '../../../lib/modalTheme';
 
 export interface DatePickerProps {
   selectedDate: Date;
@@ -34,9 +44,6 @@ function listDates(startDate: Date, endDate: Date) {
   return dates;
 }
 const SAGE_GREEN_DEEP = '#5F7A63';
-const blueGlowBg = 'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%)';
-const blueGlowBorder = '1px solid rgba(255,255,255,0.72)';
-const blueGlowShadow = '0 8px 18px rgba(59,130,246,0.20), inset 0 1px 1px rgba(255,255,255,0.82)';
 const DATE_PAST_PRELOAD_DAYS = 35;
 const DATE_FUTURE_DAYS = 6;
 const DATE_PREPEND_STEP_DAYS = 21;
@@ -189,9 +196,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   return (
                     <button key={m} onClick={() => { setViewMonth(idx); setShowMonthPicker(false); }}
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
-                        border: 'none',
-                        background: isCur ? '#FCE7F3' : '#F8FAFC',
-                        color: isCur ? '#DB2777' : '#475569', fontSize: 10,
+                        border: isCur ? APP_SELECTED_GLOW_BORDER : '1px solid rgba(0,0,0,0.05)',
+                        background: isCur ? APP_SELECTED_GLOW_BG : '#F8FAFC',
+                        boxShadow: isCur ? APP_SELECTED_GLOW_SHADOW : 'none',
+                        color: isCur ? APP_SELECTED_GLOW_TEXT : '#475569', fontSize: 10,
                         fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
                       {m.slice(0, 3)}
                     </button>
@@ -323,17 +331,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               }}
             >
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
-                textTransform: 'uppercase', color: sel ? '#2563EB' : '#94a3b8', transition: 'color 0.18s' }}>
+                textTransform: 'uppercase', color: sel ? APP_SELECTED_GLOW_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
               <div style={{ width: 34, height: 34, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: sel ? blueGlowBg : '#F8FAFC',
-                border: sel ? blueGlowBorder : '1px solid rgba(0,0,0,0.05)',
-                boxShadow: sel ? blueGlowShadow : 'none',
+                background: sel ? APP_SELECTED_GLOW_BG : '#F8FAFC',
+                border: sel ? APP_SELECTED_GLOW_BORDER : '1px solid rgba(0,0,0,0.05)',
+                boxShadow: sel ? APP_SELECTED_GLOW_SHADOW : 'none',
                 transition: 'all 0.18s' }}>
                 <span style={{ fontSize: 12, fontWeight: sel ? 700 : 500,
-                  color: sel ? '#1D4ED8' : '#94a3b8', transition: 'all 0.18s' }}>
+                  color: sel ? APP_SELECTED_GLOW_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
                   {date}
                 </span>
               </div>
@@ -346,18 +354,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
       {showAvatarModal && user ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
             setShowAvatarModal(false);
             setShowAvatarMenu(false);
           }}
         >
           <div
-            className="relative overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className={cn(APP_MODAL_CARD_CLASS, 'relative overflow-hidden rounded-3xl')}
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 z-10 p-1.5')}
               onClick={() => {
                 setShowAvatarModal(false);
                 setShowAvatarMenu(false);
@@ -367,9 +375,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               <X size={16} />
             </button>
             {showAvatarMenu ? (
-              <div className="absolute bottom-12 right-3 z-10 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md">
+              <div className={cn(APP_MODAL_CARD_CLASS, 'absolute bottom-12 right-3 z-10 overflow-hidden rounded-xl')}>
                 <button
-                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="block w-full px-4 py-2 text-left text-sm text-[#2F3E33] hover:bg-white/70"
                   onClick={() => fileRef.current?.click()}
                 >
                   {t('auth_change_avatar')}
@@ -377,7 +385,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               </div>
             ) : null}
             <button
-              className="absolute bottom-3 right-3 z-10 rounded-full bg-white/90 p-2 text-slate-600 shadow"
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute bottom-3 right-3 z-10 p-2')}
               onClick={() => setShowAvatarMenu((v) => !v)}
               title={t('auth_more')}
             >

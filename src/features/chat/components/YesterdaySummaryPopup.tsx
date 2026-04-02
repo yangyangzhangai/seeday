@@ -7,6 +7,8 @@ import { supabase } from '../../../api/supabase';
 import { getSupabaseSession } from '../../../lib/supabase-utils';
 import { toLocalDateStr, getYesterdayStr } from '../../../lib/dateUtils';
 import { isLegacyChatActivityType } from '../../../lib/activityType';
+import { cn } from '../../../lib/utils';
+import { APP_MODAL_CARD_CLASS } from '../../../lib/modalTheme';
 import type { Message } from '../../../store/useChatStore';
 import { mapDbRowToMessage } from '../../../store/chatHelpers';
 
@@ -66,20 +68,20 @@ export const YesterdaySummaryPopup: React.FC = () => {
           className="fixed top-16 left-4 right-4 z-30 pointer-events-auto"
           onPointerDown={() => setUserInteracted(true)}
         >
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl px-4 py-3 shadow-lg flex items-start gap-3">
+          <div className={cn(APP_MODAL_CARD_CLASS, 'rounded-2xl px-4 py-3 flex items-start gap-3')}>
             <div className="text-2xl mt-0.5">🌙</div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-indigo-700 mb-0.5">{t('yesterday_popup')}</p>
-              <p className="text-sm text-indigo-900 truncate font-medium">{event.content}</p>
+              <p className="text-xs font-semibold text-slate-700 mb-0.5">{t('yesterday_popup')}</p>
+              <p className="text-sm text-slate-800 truncate font-medium">{event.content}</p>
               {event.duration != null && (
-                <p className="text-[10px] text-indigo-400 mt-0.5">
+                <p className="text-[10px] text-slate-400 mt-0.5">
                   {Math.round(event.duration)} min
                 </p>
               )}
             </div>
             <button
               onClick={() => setEvent(null)}
-              className="p-1 text-indigo-400 hover:text-indigo-600 mt-0.5"
+              className="p-1 text-slate-400 hover:text-slate-600 mt-0.5"
             >
               <X size={14} />
             </button>
