@@ -39,8 +39,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
     >
 
       {/* Title + badge */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="mb-3 flex items-center justify-center gap-2">
           <Crown size={14} color="#D4AF37" />
           <span
             className="text-[13px] font-bold"
@@ -48,7 +47,6 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
           >
             {t('profile_membership')}
           </span>
-        </div>
         <span
           className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
           style={
