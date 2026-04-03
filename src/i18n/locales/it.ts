@@ -445,6 +445,12 @@ const it: TranslationKeys = {
     yesterday_tap_to_view: 'Tocca per vedere i record di quel giorno',
     new_day_start: 'Inizia la tua giornata con un nuovo record',
     record_what_you_do: 'Registra ciò che stai facendo',
+
+    // ── Promemoria serale ──
+    night_reminder_title: 'Ancora da completare oggi',
+    night_reminder_body: 'La pianta e il diario non sono ancora stati generati. Prenditi un momento questa sera per registrare la tua giornata~',
+    night_reminder_go: 'Genera ora',
+    night_reminder_dismiss: 'Più tardi',
 };
 
 export default it;

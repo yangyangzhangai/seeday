@@ -9,7 +9,7 @@
 - Route: `/profile`
 - Main user flows:
   - User identity: avatar upload (resized to 160px), display name editing
-  - AI companion selection: 4 personas (`van`, `agnes`, `zep`, `spring_thunder`) with free/PLUS tiers
+  - AI companion selection: 4 personas (`van`, `agnes`, `zep`, `momo`) with free/PLUS tiers
   - AI annotation sensitivity: 3-level drop-rate selector (low/medium/high)
   - Daily goal toggle: enable/disable daily goal popup in `/growth`
   - Plant direction customization: 5-slot mapping of activity categories to plant root positions
@@ -43,7 +43,7 @@ ProfilePage
 
 ## Key Business Logic
 
-- **AI personas**: van (free), agnes (free), zep (PLUS), spring_thunder (PLUS); selection stored in `preferences.aiMode`
+- **AI personas**: van (free), agnes (free), zep (PLUS), momo (PLUS); selection stored in `preferences.aiMode`
 - **Annotation drop-rate**: controls AI extraction aggressiveness; medium/high gated behind PLUS
 - **Weekly streak**: calculated from Supabase messages table (7-day login history)
 - **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()`

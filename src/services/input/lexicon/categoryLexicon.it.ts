@@ -31,6 +31,12 @@ export const itCategoryLexicon: CategoryLexicon = {
       'email', 'mail', 'messaggio', 'rispondo', 'rispondendo',
       'chiamata', 'telefonata', 'videochiamata',
       'revisiono', 'revisionando',
+      // azioni operative di lavoro
+      'cercare log', 'cercare dati', 'filtrare risultati', 'affinare ricerca',
+      'modificare configurazione', 'modificare documento', 'aggiornare profilo', 'correggere testo',
+      'inviare ticket', 'inviare richiesta', 'inviare pr', 'inviare per revisione',
+      'verificare identita', 'verifica identita', 'autenticazione a due fattori',
+      'caricare file', 'esportare report', 'importare dati',
     ],
 
     social: [
@@ -69,6 +75,9 @@ export const itCategoryLexicon: CategoryLexicon = {
       'pendolare', 'pendolando', 'metro', 'autobus', 'treno', 'guidando',
       'shopping', 'comprato', 'ho comprato',
       'bollette', 'pagare bollette',
+      // operazioni account / ordini in contesto quotidiano
+      'cercare ordine', 'tracciare pacco', 'fare accesso', 'disconnettersi',
+      'reimpostare password', 'associare numero di telefono', 'scollegare dispositivo',
     ],
 
     entertainment: [

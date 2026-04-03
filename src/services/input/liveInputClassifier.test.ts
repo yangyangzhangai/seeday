@@ -155,6 +155,26 @@ describe('classifyLiveInput hobby and standalone noun activity cases', () => {
   });
 });
 
+describe('classifyLiveInput zh operational lexicon additions', () => {
+  it('classifies 查询日志 as activity', () => {
+    const result = classify('查询日志');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 查询快递 as activity', () => {
+    const result = classify('查询快递');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 重置密码 as activity', () => {
+    const result = classify('重置密码');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+});
+
 describe('classifyLiveInput context bias', () => {
   const contextWithEat: LiveInputContext = {
     now: Date.now(),

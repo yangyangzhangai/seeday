@@ -445,6 +445,12 @@ const zh: TranslationKeys = {
     yesterday_tap_to_view: '点击查看该日记录',
     new_day_start: '新的一天，从一条记录开始',
     record_what_you_do: '记录你正在做的事情',
+
+    // ── 晚间提醒 ──
+    night_reminder_title: '今日还没完成哦',
+    night_reminder_body: '植物和日记还没有生成，趁着晚上去记录一下今天吧～',
+    night_reminder_go: '去生成',
+    night_reminder_dismiss: '稍后再说',
 };
 
 export default zh;

@@ -21,7 +21,7 @@ const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
   van: profileVanAvatar,
   agnes: profileAgnesAvatar,
   zep: profileZepAvatar,
-  spring_thunder: profileMomoAvatar,
+  momo: profileMomoAvatar,
 };
 
 function showToast(msg: string) {

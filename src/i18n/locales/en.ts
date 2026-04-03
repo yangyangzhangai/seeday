@@ -443,6 +443,12 @@ const en = {
     yesterday_tap_to_view: 'Tap to view that day\'s entries',
     new_day_start: 'Start your day with a new record',
     record_what_you_do: "Record what you're doing",
+
+    // ── Night Reminder ──
+    night_reminder_title: "Today isn't complete yet",
+    night_reminder_body: "Your plant and diary haven't been generated. Take a moment tonight to capture your day~",
+    night_reminder_go: 'Generate now',
+    night_reminder_dismiss: 'Maybe later',
 } as const;
 
 // Key-set type: zh.ts must have the same keys, but values can be any string

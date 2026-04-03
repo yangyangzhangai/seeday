@@ -182,6 +182,12 @@ export const enActivityLexicon: ActivityLexicon = {
     'rescheduled', 'postponed', 'renew license', 'renew passport', 'dmv',
     'pay rent', 'paid rent', 'file taxes', 'filed taxes',
     'birthday party', 'wedding', 'baby shower', 'funeral',
+    // Query / edit / submit / auth operational phrases
+    'query logs', 'query data', 'search records', 'look up order', 'track package', 'filter results', 'refine query',
+    'edit document', 'modify config', 'update profile', 'revise copy',
+    'submit ticket', 'submit request', 'submit pr', 'submit for review',
+    'verify identity', 'identity verification', 'two-factor authentication', 'sign in', 'sign out', 'reset password',
+    'bind phone number', 'unlink device', 'upload file', 'export report',
   ],
   verbs: [],
   phrasePatterns: [
