@@ -266,32 +266,16 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 50,
-      background: 'rgba(15, 23, 42, 0.24)',
-      paddingTop: 'var(--app-modal-gutter-top)',
-      paddingBottom: 'var(--app-modal-gutter-bottom)',
-      paddingLeft: 'var(--app-modal-gutter-x)',
-      paddingRight: 'var(--app-modal-gutter-x-right)',
-      userSelect: 'none',
-      touchAction: 'pan-x pan-y',
+      position: 'fixed', inset: 0, zIndex: 50,
+      background: SHELF_BG,
+      display: 'flex', flexDirection: 'column',
+      userSelect: 'none', touchAction: 'pan-x pan-y',
     }}>
-      <div style={{
-        width: '100%',
-        height: '100%',
-        background: SHELF_BG,
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 26,
-        overflow: 'hidden',
-        boxShadow: '0 0 12px rgba(255,255,255,0.20), 0 24px 64px rgba(15,23,42,0.22)',
-      }}>
 
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '28px 20px 0', flexShrink: 0,
+        padding: `calc(env(safe-area-inset-top, 0px) + 16px) 20px 0`, flexShrink: 0,
       }}>
         <div style={{ width: 32, height: 32 }} />
         <div style={{ textAlign: 'center' }}>
@@ -355,7 +339,6 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
             ))}
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

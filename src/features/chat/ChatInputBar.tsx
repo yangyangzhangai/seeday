@@ -76,7 +76,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             border: inputError ? '2px solid #EF4444' : '1px solid rgba(0,0,0,0.05)',
             boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
             display: 'flex', alignItems: 'center', gap: 10, padding: '7px 7px 7px 14px',
-          }}>
+          }}
+          data-chat-input-box
+          >
             {/* Magic pen toggle */}
             <button
               type="button"
