@@ -1,8 +1,8 @@
 export const APP_MODAL_OVERLAY_CLASS =
-  'bg-[rgba(15,23,42,0.42)] backdrop-blur-[10px]';
+  'app-modal-overlay bg-[rgba(15,23,42,0.42)] backdrop-blur-[10px]';
 
 export const APP_MODAL_CARD_CLASS =
-  'border border-[rgba(255,255,255,0.82)] bg-white [box-shadow:0_0_12px_rgba(255,255,255,0.20),inset_0_1px_1px_rgba(255,255,255,0.72),0_24px_64px_rgba(15,23,42,0.16)]';
+  'app-modal-card border border-[rgba(255,255,255,0.82)] bg-white [box-shadow:0_0_12px_rgba(255,255,255,0.20),inset_0_1px_1px_rgba(255,255,255,0.72),0_24px_64px_rgba(15,23,42,0.16)]';
 
 export const APP_MODAL_CLOSE_CLASS =
   'rounded-full border border-white/70 bg-white/80 text-[#2F3E33] shadow-[inset_0_1px_1px_rgba(255,255,255,0.72),0_8px_18px_rgba(148,163,184,0.2)] transition-colors hover:text-[#243129]';

@@ -672,153 +672,157 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     <div
       className="fixed inset-0 z-[60]"
       style={{
-        background: '#FFFFFF',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: 'rgba(15, 23, 42, 0.22)',
+        paddingTop: 'var(--app-modal-gutter-top)',
+        paddingBottom: 'var(--app-modal-gutter-bottom)',
+        paddingLeft: 'var(--app-modal-gutter-x)',
+        paddingRight: 'var(--app-modal-gutter-x-right)',
       }}
     >
-      <div
-        ref={pagesRef}
-        onScroll={onScroll}
-        className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
-        style={{ scrollSnapType: 'x mandatory' }}
-      >
-        <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-          <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
+      <div className="h-full w-full overflow-hidden rounded-[26px] border border-white/80 bg-white shadow-[0_0_12px_rgba(255,255,255,0.2),0_24px_64px_rgba(15,23,42,0.22)]">
+        <div
+          ref={pagesRef}
+          onScroll={onScroll}
+          className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
+          style={{ scrollSnapType: 'x mandatory' }}
+        >
+          <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
+            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
-            <DateHeader date={dateLabel} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
+              <DateHeader date={dateLabel} />
 
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionActivity}</div>
-                <SectionRow
-                  left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
-                  lines={[activityAnalysisLine1, activityAnalysisLine2].filter(Boolean)}
-                />
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionActivity}</div>
+                  <SectionRow
+                    left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
+                    lines={[activityAnalysisLine1, activityAnalysisLine2].filter(Boolean)}
+                  />
+                </div>
+
+                <WaveDivider />
+
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionMood}</div>
+                  <SectionRow
+                    left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
+                    lines={[moodAnalysisLine1, moodAnalysisLine2].filter(Boolean)}
+                  />
+                </div>
+
+                <WaveDivider />
+
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionTodo}</div>
+                  <SectionRow
+                    left={(
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {Array.from({ length: todoSegments }).map((_, index) => (
+                          <div key={index} style={{ width: '6px', height: '3px', borderRadius: '1px', backgroundColor: index < todoLitCount ? '#F5C842' : '#EDE0B0' }} />
+                        ))}
+                      </div>
+                    )}
+                    lines={[todoAnalysisLine1, todoAnalysisLine2].filter(Boolean)}
+                  />
+                </div>
+
+                <WaveDivider />
+
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionHabits}</div>
+                  <SectionRow
+                    left={(
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                        {[0, 1].map((row) => (
+                          <div key={row} style={{ display: 'flex', gap: '4px' }}>
+                            {Array.from({ length: 5 }).map((_, col) => {
+                              const index = row * 5 + col;
+                              return (
+                                <img
+                                  key={col}
+                                  src={growthStarImage}
+                                  alt="star"
+                                  style={{ width: '20px', height: '20px', objectFit: 'contain', opacity: index < todayStars ? 1 : 0.25 }}
+                                />
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    lines={[habitAnalysisLine1, habitAnalysisLine2].filter(Boolean)}
+                  />
+                </div>
               </div>
 
-              <WaveDivider />
-
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionMood}</div>
-                <SectionRow
-                  left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
-                  lines={[moodAnalysisLine1, moodAnalysisLine2].filter(Boolean)}
-                />
-              </div>
-
-              <WaveDivider />
-
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionTodo}</div>
-                <SectionRow
-                  left={(
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      {Array.from({ length: todoSegments }).map((_, index) => (
-                        <div key={index} style={{ width: '6px', height: '3px', borderRadius: '1px', backgroundColor: index < todoLitCount ? '#F5C842' : '#EDE0B0' }} />
-                      ))}
-                    </div>
-                  )}
-                  lines={[todoAnalysisLine1, todoAnalysisLine2].filter(Boolean)}
-                />
-              </div>
-
-              <WaveDivider />
-
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionHabits}</div>
-                <SectionRow
-                  left={(
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                      {[0, 1].map((row) => (
-                        <div key={row} style={{ display: 'flex', gap: '4px' }}>
-                          {Array.from({ length: 5 }).map((_, col) => {
-                            const index = row * 5 + col;
-                            return (
-                              <img
-                                key={col}
-                                src={growthStarImage}
-                                alt="star"
-                                style={{ width: '20px', height: '20px', objectFit: 'contain', opacity: index < todayStars ? 1 : 0.25 }}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  lines={[habitAnalysisLine1, habitAnalysisLine2].filter(Boolean)}
-                />
-              </div>
+              <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
             </div>
-
-            <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
           </div>
-        </div>
 
-        <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-          <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
+          <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
+            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
-            <DateHeader date={dateLabel} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
+              <DateHeader date={dateLabel} />
 
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-              <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionObservation}</div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionObservation}</div>
 
-                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
-                  <div style={{ height: '100%', overflow: 'hidden' }}>
-                    <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
-                      {dayPlant ? (
-                        <PlantImage
-                          plantId={dayPlant.plantId}
-                          rootType={dayPlant.rootType}
-                          plantStage={dayPlant.plantStage}
-                          imgClassName="w-full h-auto"
-                        />
-                      ) : (
-                        <div style={{ width: '100%', height: 150 }} />
-                      )}
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
+                    <div style={{ height: '100%', overflow: 'hidden' }}>
+                      <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
+                        {dayPlant ? (
+                          <PlantImage
+                            plantId={dayPlant.plantId}
+                            rootType={dayPlant.rootType}
+                            plantStage={dayPlant.plantStage}
+                            imgClassName="w-full h-auto"
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: 150 }} />
+                        )}
+                      </div>
+                      <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        {observationText}
+                      </p>
                     </div>
-                    <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
-                      {observationText}
-                    </p>
+                  </div>
+                </div>
+
+                <WaveDivider />
+
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionMyDiary}</div>
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+                    <textarea
+                      readOnly
+                      value={myDiaryText}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        outline: 'none',
+                        resize: 'none',
+                        background: 'transparent',
+                        lineHeight: '18px',
+                        fontSize: '12px',
+                        color: selectedReport.userNote?.trim() ? '#1A1A1A' : '#C8C8C0',
+                        padding: '0 4px 0 2px',
+                        margin: 0,
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
                   </div>
                 </div>
               </div>
 
-              <WaveDivider />
-
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionMyDiary}</div>
-                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-                  <textarea
-                    readOnly
-                    value={myDiaryText}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      outline: 'none',
-                      resize: 'none',
-                      background: 'transparent',
-                      lineHeight: '18px',
-                      fontSize: '12px',
-                      color: selectedReport.userNote?.trim() ? '#1A1A1A' : '#C8C8C0',
-                      padding: '0 4px 0 2px',
-                      margin: 0,
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
+              <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
             </div>
-
-            <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
           </div>
         </div>
       </div>
