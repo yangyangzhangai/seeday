@@ -38,13 +38,15 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
   const enabled = preferences.aiModeEnabled;
   const [isUpdating, setIsUpdating] = React.useState(false);
   const selectedModeStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, rgba(236,248,241,0.95) 0%, rgba(213,236,222,0.90) 100%)',
-    borderColor: '#C4E0CF',
-    boxShadow: '0 7px 18px rgba(103,154,121,0.14), inset 0 1px 0 rgba(255,255,255,0.80)',
+    background:
+      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
   };
   const enabledSwitchStyle: React.CSSProperties = {
     background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
     boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
+    border: 'none',
   };
 
   const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
@@ -111,12 +113,12 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
             <button
               key={modeKey}
               onClick={() => { void handleModeClick(modeKey, mode.free); }}
-              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
+              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border transition-all ${
                 selected
                   ? ''
                   : locked
                   ? 'border-slate-200 bg-slate-100 opacity-60'
-                  : 'border-white/80 bg-white/60 hover:border-[#CBE7D7]'
+                  : 'border-transparent bg-white/60 hover:border-[#CBE7D7]'
                }`}
               style={selected ? selectedModeStyle : undefined}
              >

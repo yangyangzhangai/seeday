@@ -124,6 +124,11 @@ export const ChatPage = () => {
   useEffect(() => {
     if (hasInitialized) {
       checkAndRefreshForNewDay();
+      if (messages.length === 0) {
+        // Fallback: persisted state may be marked initialized but contain no
+        // usable timeline rows after hydration/recovery.
+        fetchMessages();
+      }
       return;
     }
     fetchMessages();
@@ -323,20 +328,9 @@ export const ChatPage = () => {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Inter', sans-serif",
-      padding: '0 12px',
-    }}>
+    <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
       {/* Chat container */}
-      <div style={{
-        position: 'relative', width: '100%', maxWidth: 960, height: '100dvh',
-        background: 'transparent', color: '#0f172a',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 1,
-      }}>
-        {/* Warm page background */}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(252,250,247,0.96)', zIndex: 0 }} />
+      <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
 
         {/* Bird character */}
         <button
@@ -344,7 +338,7 @@ export const ChatPage = () => {
           onClick={() => setBirdOpen(v => !v)}
           aria-label="toggle bird"
           style={{
-            position: 'absolute', left: 14, bottom: 132,
+            position: 'absolute', left: 14, bottom: 110,
             width: 98, height: 98, border: 'none', background: 'transparent',
             padding: 0, cursor: 'pointer', zIndex: 24,
           }}
@@ -358,14 +352,17 @@ export const ChatPage = () => {
         </button>
 
         {/* Header — frosted glass */}
-        <header style={{
-          position: 'sticky', top: 0, zIndex: 20,
-          paddingTop: 44, paddingLeft: 16, paddingRight: 16, paddingBottom: 8,
-          background: 'rgba(252,250,247,0.38)',
-          backdropFilter: 'blur(14px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(14px) saturate(150%)',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
+        <header
+          className="sticky top-0 z-20 px-4 pb-2 pt-11"
+          style={{
+            background: 'rgba(252,250,247,0.38)',
+            backdropFilter: 'blur(14px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </header>
 
@@ -384,7 +381,6 @@ export const ChatPage = () => {
           input={input}
           isLoading={isLoading || isMagicPenSending}
           isReadOnly={!isSelectedDateToday}
-          readOnlyMessage={t('chat_history_readonly')}
           isMagicPenModeOn={isMagicPenModeOn}
           onInputChange={setInput}
           onSend={() => { void handleSend(); }}

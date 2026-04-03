@@ -17,12 +17,12 @@ export const APP_MODAL_SECONDARY_BUTTON_CLASS =
   'rounded-2xl border border-white/70 bg-white/80 font-medium text-[#2F3E33] transition-colors hover:bg-white hover:text-[#243129]';
 
 export const APP_SELECTED_GLOW_BG =
-  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%)';
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
 
 export const APP_SELECTED_GLOW_BORDER =
-  '1px solid rgba(255,255,255,0.72)';
+  '0.5px solid transparent';
 
 export const APP_SELECTED_GLOW_SHADOW =
-  '0 8px 18px rgba(59,130,246,0.20), inset 0 1px 1px rgba(255,255,255,0.82)';
+  '0 6px 14px rgba(59,130,246,0.14)';
 
 export const APP_SELECTED_GLOW_TEXT = '#1D4ED8';

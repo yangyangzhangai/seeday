@@ -1,20 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
-import {
-  APP_SELECTED_GLOW_BG,
-  APP_SELECTED_GLOW_BORDER,
-  APP_SELECTED_GLOW_SHADOW,
-} from '../../../lib/modalTheme';
 
 export const DailyGoalToggle: React.FC = () => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.dailyGoalEnabled;
-  const selectedGlowStyle: React.CSSProperties = {
-    background: APP_SELECTED_GLOW_BG,
-    border: APP_SELECTED_GLOW_BORDER,
-    boxShadow: APP_SELECTED_GLOW_SHADOW,
+  const enabledSwitchStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
+    boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
+    border: 'none',
   };
 
   return (
@@ -27,9 +22,9 @@ export const DailyGoalToggle: React.FC = () => {
         <button
           onClick={() => updatePreferences({ dailyGoalEnabled: !enabled })}
           className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full border transition-colors ${
-            enabled ? '' : 'border-transparent bg-slate-300'
+            enabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}
-          style={enabled ? selectedGlowStyle : undefined}
+          style={enabled ? enabledSwitchStyle : undefined}
         >
           <span
             className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${

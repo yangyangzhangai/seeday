@@ -9,9 +9,6 @@ import {
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
   APP_MODAL_PRIMARY_BUTTON_CLASS,
-  APP_SELECTED_GLOW_BG,
-  APP_SELECTED_GLOW_BORDER,
-  APP_SELECTED_GLOW_SHADOW,
 } from '../../lib/modalTheme';
 
 interface Props {
@@ -26,9 +23,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<BottleType>('habit');
   const selectedGlowStyle = {
-    background: APP_SELECTED_GLOW_BG,
-    border: APP_SELECTED_GLOW_BORDER,
-    boxShadow: APP_SELECTED_GLOW_SHADOW,
+    background:
+      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
   };
 
   if (!isOpen) return null;
@@ -73,8 +71,8 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
               className={cn(
                 'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
                 type === bt
-                  ? 'text-[#1D4ED8]'
-                  : 'border-white/80 bg-white/70 text-[#2F3E33]'
+                  ? 'text-[#426D56]'
+                  : 'border-transparent bg-white/70 text-[#2F3E33]'
               )}
               style={type === bt ? selectedGlowStyle : undefined}
             >

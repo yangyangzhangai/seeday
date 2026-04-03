@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { format, startOfMonth, subMonths, isSameMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { X, CalendarDays } from 'lucide-react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
-import { cn } from '../../lib/utils';
-import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 
 /* ──────────────────────────── constants ──────────────────────────── */
 const COVER_BG = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
@@ -185,7 +181,7 @@ interface Props {
 }
 
 export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth, initialOpenFlippedCount }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const user = useAuthStore(s => s.user);
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
@@ -193,7 +189,6 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [editingIdx, setEditingIdx]   = useState<number | null>(null);
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
-  const [showCalendar, setShowCalendar] = useState(false);
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const toDateKey = useCallback((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, []);
@@ -282,17 +277,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '44px 20px 0', flexShrink: 0,
       }}>
-        <button
-          onClick={() => setShowCalendar(true)}
-          aria-label={t('diary_shelf_open_calendar')}
-          style={{
-            width: 32, height: 32,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer',
-          }}
-        >
-          <CalendarDays size={20} />
-        </button>
+        <div style={{ width: 32, height: 32 }} />
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: 16, letterSpacing: 1 }}>
             {t('report_my_diary')}
@@ -312,45 +297,6 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           <X size={20} />
         </button>
       </div>
-
-      {/* Calendar Modal */}
-      {showCalendar && (
-        <div
-          className={cn('fixed inset-0 z-[60] flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)}
-          onClick={() => setShowCalendar(false)}
-        >
-          <div
-            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-[320px] rounded-3xl p-4')}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>{t('diary_shelf_open_calendar')}</span>
-              <button onClick={() => setShowCalendar(false)} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')} style={{ cursor: 'pointer' }}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="diary-shelf-calendar" style={{ display: 'flex', justifyContent: 'center' }}>
-              <Calendar
-                locale={i18n.language}
-                className="w-full border-none text-xs"
-                showNeighboringMonth={false}
-                maxDate={new Date()}
-                formatDay={(_, d) => String(d.getDate())}
-                tileClassName={({ date, view }) => {
-                  if (view !== 'month') return null;
-                  return diaryDateSet.has(toDateKey(date))
-                    ? 'diary-shelf-calendar__tile--has-data'
-                    : 'diary-shelf-calendar__tile--no-data';
-                }}
-                onClickDay={(value) => {
-                  setShowCalendar(false);
-                  onOpenDiaryPage?.(value, 0, 0);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Shelf row */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>

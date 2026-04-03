@@ -18,6 +18,18 @@ const PRIORITY_CONFIG = {
 export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, onShowTasks }) => {
   const { t } = useTranslation();
   const isDaily = type === 'daily';
+  const completedSelectStyle = {
+    background:
+      'linear-gradient(135deg, rgba(239,246,255,0.96) 0%, rgba(219,234,254,0.92) 55%, rgba(191,219,254,0.80) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.50) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(59,130,246,0.12)',
+  } as const;
+  const totalSelectStyle = {
+    background:
+      'linear-gradient(135deg, rgba(249,250,251,0.96) 0%, rgba(241,245,249,0.92) 55%, rgba(226,232,240,0.78) 100%) padding-box, linear-gradient(140deg, rgba(203,213,225,0.46) 0%, rgba(248,250,252,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(100,116,139,0.10)',
+  } as const;
 
   return (
     <div className="space-y-5">
@@ -25,14 +37,16 @@ export const ReportStatsView: React.FC<ReportStatsViewProps> = ({ stats, type, o
       {/* ── 总览卡 ── */}
       <div className="grid grid-cols-3 gap-3 text-center">
         <div
-          className="bg-blue-50 p-3 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+          className="rounded-lg p-3 cursor-pointer transition-all active:opacity-80"
+          style={completedSelectStyle}
           onClick={() => onShowTasks('completed')}
         >
           <div className="text-2xl font-bold text-blue-600">{stats.completedTodos}</div>
           <div className="text-xs text-blue-400">{t('report_completed')}</div>
         </div>
         <div
-          className="bg-gray-50 p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+          className="rounded-lg p-3 cursor-pointer transition-all active:opacity-80"
+          style={totalSelectStyle}
           onClick={() => onShowTasks('total')}
         >
           <div className="text-2xl font-bold text-gray-600">{stats.totalTodos}</div>

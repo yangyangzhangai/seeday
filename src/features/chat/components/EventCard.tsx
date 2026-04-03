@@ -141,7 +141,7 @@ export const EventCard: React.FC<EventCardProps> = ({
         marginBottom: 6, position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: 1, minWidth: 0, paddingRight: 6 }}>
           <h3 style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', margin: 0, flex: 1, minWidth: 0,
-            fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>
+            lineHeight: 1.4 }}>
             {message.content}
           </h3>
           {stardustEmoji && (

@@ -220,7 +220,7 @@ export const ReportPage = () => {
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
-    <div className="flex h-full items-center justify-center bg-transparent font-['Inter',sans-serif] px-0 md:px-8">
+    <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
       <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
       <header
         className="relative sticky top-0 z-10 px-4 pb-3 pt-11"

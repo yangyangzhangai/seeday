@@ -12,10 +12,6 @@ import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
   APP_MODAL_OVERLAY_CLASS,
-  APP_SELECTED_GLOW_BG,
-  APP_SELECTED_GLOW_BORDER,
-  APP_SELECTED_GLOW_SHADOW,
-  APP_SELECTED_GLOW_TEXT,
 } from '../../../lib/modalTheme';
 
 export interface DatePickerProps {
@@ -51,6 +47,11 @@ const DATE_PREPEND_STEP_DAYS = 21;
 const DATE_ITEM_WIDTH = 38;
 const DATE_ITEM_GAP = 8;
 const DATE_PREPEND_TRIGGER_PX = 64;
+const BLUE_SELECTED_BG =
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
+const BLUE_SELECTED_BORDER = '0.5px solid transparent';
+const BLUE_SELECTED_SHADOW = '0 6px 14px rgba(59,130,246,0.14)';
+const BLUE_SELECTED_TEXT = '#1D4ED8';
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
@@ -197,10 +198,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   return (
                     <button key={m} onClick={() => { setViewMonth(idx); setShowMonthPicker(false); }}
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
-                        border: isCur ? APP_SELECTED_GLOW_BORDER : '1px solid rgba(0,0,0,0.05)',
-                        background: isCur ? APP_SELECTED_GLOW_BG : '#F8FAFC',
-                        boxShadow: isCur ? APP_SELECTED_GLOW_SHADOW : 'none',
-                        color: isCur ? APP_SELECTED_GLOW_TEXT : '#475569', fontSize: 10,
+                        border: isCur ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
+                        background: isCur ? BLUE_SELECTED_BG : '#F8FAFC',
+                        boxShadow: isCur ? BLUE_SELECTED_SHADOW : 'none',
+                        color: isCur ? BLUE_SELECTED_TEXT : '#475569', fontSize: 10,
                         fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
                       {m.slice(0, 3)}
                     </button>
@@ -332,17 +333,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               }}
             >
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
-                textTransform: 'uppercase', color: sel ? APP_SELECTED_GLOW_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
+                textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
               <div style={{ width: 34, height: 34, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: sel ? APP_SELECTED_GLOW_BG : '#F8FAFC',
-                border: sel ? APP_SELECTED_GLOW_BORDER : '1px solid rgba(0,0,0,0.05)',
-                boxShadow: sel ? APP_SELECTED_GLOW_SHADOW : 'none',
+                background: sel ? BLUE_SELECTED_BG : '#F8FAFC',
+                border: sel ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
+                boxShadow: sel ? BLUE_SELECTED_SHADOW : 'none',
                 transition: 'all 0.18s' }}>
                 <span style={{ fontSize: 12, fontWeight: sel ? 700 : 500,
-                  color: sel ? APP_SELECTED_GLOW_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
+                  color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
                   {date}
                 </span>
               </div>

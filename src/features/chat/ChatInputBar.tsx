@@ -7,9 +7,10 @@ const SAGE_GREEN_DEEP = '#5F7A63';
 const SAGE_GREEN = '#8FAF92';
 const NAV_CARD_BG = 'rgba(255,255,255,0.30)';
 
-const blueGlowBg = 'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%)';
-const blueGlowBorder = '1px solid rgba(255,255,255,0.72)';
-const blueGlowShadow = '0 8px 18px rgba(59,130,246,0.20), inset 0 1px 1px rgba(255,255,255,0.82)';
+const blueGlowBg =
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
+const blueGlowBorder = '0.5px solid transparent';
+const blueGlowShadow = '0 6px 14px rgba(59,130,246,0.14)';
 
 const NAV_ITEMS = [
   { icon: 'chat_bubble',  path: '/chat'    },
@@ -85,7 +86,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               title={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
               style={{
                 width: 34, height: 34, borderRadius: '50%',
-                background: isMagicPenModeOn ? blueGlowBg : 'rgba(178,238,218,0.15)',
+                background: isMagicPenModeOn ? blueGlowBg : 'rgba(219,234,254,0.32)',
                 border: isMagicPenModeOn ? blueGlowBorder : 'none',
                 boxShadow: isMagicPenModeOn ? blueGlowShadow : 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -95,7 +96,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             >
               <span className="material-symbols-outlined" style={{
                 fontSize: 18,
-                color: isMagicPenModeOn ? '#2563EB' : '#94A3B8',
+                color: isMagicPenModeOn ? '#1D4ED8' : '#94A3B8',
                 transition: 'color 0.2s',
               }}>
                 auto_fix_high
@@ -111,7 +112,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               disabled={disabled}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                fontSize: 16, color: '#0f172a', fontFamily: "'Inter', sans-serif",
+                fontSize: 16, color: '#0f172a',
               }}
             />
 

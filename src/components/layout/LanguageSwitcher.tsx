@@ -1,17 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
-import {
-    APP_SELECTED_GLOW_BG,
-    APP_SELECTED_GLOW_BORDER,
-    APP_SELECTED_GLOW_SHADOW,
-    APP_SELECTED_GLOW_TEXT,
-} from '../../lib/modalTheme';
 
 const LANGUAGES = [
-    { code: 'en', label: 'English', flag: '🇬🇧' },
-    { code: 'zh', label: '中文', flag: '🇨🇳' },
-    { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+    { code: 'en', label: 'English' },
+    { code: 'zh', label: '中文' },
+    { code: 'it', label: 'Italiano' },
 ] as const;
 
 export const LanguageSwitcher = () => {
@@ -21,11 +15,19 @@ export const LanguageSwitcher = () => {
 
     const current = i18n.language?.split('-')[0] ?? 'en';
     const currentLang = LANGUAGES.find(l => l.code === current) || LANGUAGES[0];
-    const selectedGlowStyle: React.CSSProperties = {
-        background: APP_SELECTED_GLOW_BG,
-        border: APP_SELECTED_GLOW_BORDER,
-        boxShadow: APP_SELECTED_GLOW_SHADOW,
-        color: APP_SELECTED_GLOW_TEXT,
+    const selectedModeStyle: React.CSSProperties = {
+        background:
+            'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+        border: '0.5px solid transparent',
+        boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+        color: '#426D56',
+    };
+    const triggerStyle: React.CSSProperties = {
+        background:
+            'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+        border: '0.5px solid transparent',
+        boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+        color: '#426D56',
     };
 
     // Close on outside click
@@ -48,25 +50,25 @@ export const LanguageSwitcher = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center space-x-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200"
+                className="flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all"
+                style={triggerStyle}
             >
-                <span className="text-xs font-semibold">{currentLang.flag} {currentLang.label}</span>
+                <span className="text-xs font-semibold">{currentLang.label}</span>
                 <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 z-50 mt-1 w-40 rounded-lg border border-white/75 bg-[#F7F9F8] py-1 shadow-[0_10px_24px_rgba(148,163,184,0.16)] animate-in fade-in slide-in-from-top-2">
                     {LANGUAGES.map((lang) => (
                         <button
                             key={lang.code}
                             onClick={() => selectLanguage(lang.code)}
                             className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors border ${lang.code === current
                                     ? 'font-medium'
-                                    : 'text-gray-700 hover:bg-gray-50'
+                                    : 'text-[#355643] hover:bg-white/60'
                                 }`}
-                            style={lang.code === current ? selectedGlowStyle : { borderColor: 'transparent' }}
+                            style={lang.code === current ? selectedModeStyle : { borderColor: 'transparent' }}
                         >
-                            <span>{lang.flag}</span>
                             <span>{lang.label}</span>
                         </button>
                     ))}
