@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { triggerLightHaptic } from '../../../lib/haptics';
 
 export const DailyGoalToggle: React.FC = () => {
   const { t } = useTranslation();
@@ -20,7 +21,10 @@ export const DailyGoalToggle: React.FC = () => {
           <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_daily_goal_desc')}</p>
         </div>
         <button
-          onClick={() => updatePreferences({ dailyGoalEnabled: !enabled })}
+          onClick={() => {
+            triggerLightHaptic();
+            updatePreferences({ dailyGoalEnabled: !enabled });
+          }}
           className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full border transition-colors ${
             enabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}

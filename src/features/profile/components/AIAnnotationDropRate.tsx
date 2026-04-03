@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
+import { triggerLightHaptic } from '../../../lib/haptics';
 
 const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
   { key: 'low', labelKey: 'profile_drop_low' },
@@ -37,6 +38,7 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
 
   const handleClick = async (key: AnnotationDropRate) => {
     if (isUpdating) return;
+    triggerLightHaptic();
     if (key !== 'low' && !isPlus) {
       showToast(t('profile_plus_only'));
       return;

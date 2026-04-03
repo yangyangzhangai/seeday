@@ -10,6 +10,7 @@ import {
   APP_MODAL_OVERLAY_CLASS,
   APP_MODAL_PRIMARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 interface Props {
   isOpen: boolean;
@@ -67,7 +68,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
           {(['habit', 'goal'] as const).map((bt) => (
             <button
               key={bt}
-              onClick={() => setType(bt)}
+              onClick={() => {
+                triggerLightHaptic();
+                setType(bt);
+              }}
               className={cn(
                 'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
                 type === bt
@@ -82,7 +86,11 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
         </div>
 
         <button
-          onClick={handleSubmit}
+          onClick={() => {
+            if (!name.trim()) return;
+            triggerLightHaptic();
+            handleSubmit();
+          }}
           disabled={!name.trim()}
           className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5 disabled:cursor-not-allowed disabled:opacity-40')}
         >

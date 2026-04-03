@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 export const BottomNav = () => {
   const navItems = [
@@ -33,6 +34,7 @@ export const BottomNav = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => triggerLightHaptic()}
               className={({ isActive }) =>
                 cn(
                   'h-[52px] w-[52px] rounded-full flex items-center justify-center transition-all duration-200',

@@ -8,6 +8,7 @@ import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { resizeImageToDataUrl } from '../../../lib/imageUtils';
 import { cn } from '../../../lib/utils';
+import { triggerLightHaptic } from '../../../lib/haptics';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
@@ -155,7 +156,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         {/* Month selector */}
         <div style={{ position: 'relative' }} ref={popupRef}>
           <button
-            onClick={() => setShowMonthPicker(p => !p)}
+            onClick={() => {
+              triggerLightHaptic();
+              setShowMonthPicker(p => !p);
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
           >
@@ -180,13 +184,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginBottom: 7, padding: '0 2px' }}>
-                <button onClick={prevMonth} style={{ background: '#F1F5F9',
+                <button onClick={() => { triggerLightHaptic(); prevMonth(); }} style={{ background: '#F1F5F9',
                   border: 'none', borderRadius: '50%',
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_left</span>
                 </button>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{viewYear}</span>
-                <button onClick={nextMonth} style={{ background: '#F1F5F9',
+                <button onClick={() => { triggerLightHaptic(); nextMonth(); }} style={{ background: '#F1F5F9',
                   border: 'none', borderRadius: '50%',
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_right</span>
@@ -196,7 +200,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 {MONTHS.map((m, idx) => {
                   const isCur = idx === viewMonth;
                   return (
-                    <button key={m} onClick={() => { setViewMonth(idx); setShowMonthPicker(false); }}
+                    <button key={m} onClick={() => { triggerLightHaptic(); setViewMonth(idx); setShowMonthPicker(false); }}
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
                         border: isCur ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
                         background: isCur ? BLUE_SELECTED_BG : '#F8FAFC',
@@ -218,6 +222,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               <button
                 type="button"
                 onClick={() => {
+                  triggerLightHaptic();
                   setShowAvatarModal(true);
                   setShowAvatarMenu(false);
                 }}
@@ -263,7 +268,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
           ) : (
             <button
               type="button"
-              onClick={() => { void handleAuthClick(); }}
+              onClick={() => {
+                triggerLightHaptic();
+                void handleAuthClick();
+              }}
               style={{
                 height: 36,
                 borderRadius: 9999,
@@ -314,7 +322,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             <button
               key={`${toLocalDateStr(dateObj)}-${i}`}
               data-date={toLocalDateStr(dateObj)}
-              onClick={() => handleDayClick(dateObj)}
+              onClick={() => {
+                if (fut) return;
+                triggerLightHaptic();
+                handleDayClick(dateObj);
+              }}
               disabled={fut}
               style={{
                 display: 'flex',
@@ -358,6 +370,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
         <div
           className={cn('fixed inset-0 z-[200] flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
+            triggerLightHaptic();
             setShowAvatarModal(false);
             setShowAvatarMenu(false);
           }}
@@ -369,6 +382,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             <button
               className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 z-10 p-1.5')}
               onClick={() => {
+                triggerLightHaptic();
                 setShowAvatarModal(false);
                 setShowAvatarMenu(false);
               }}
@@ -380,7 +394,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               <div className={cn(APP_MODAL_CARD_CLASS, 'absolute bottom-12 right-3 z-10 overflow-hidden rounded-xl')}>
                 <button
                   className="block w-full px-4 py-2 text-left text-sm text-[#2F3E33] hover:bg-white/70"
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => {
+                    triggerLightHaptic();
+                    fileRef.current?.click();
+                  }}
                 >
                   {t('auth_change_avatar')}
                 </button>
@@ -388,7 +405,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             ) : null}
             <button
               className={cn(APP_MODAL_CLOSE_CLASS, 'absolute bottom-3 right-3 z-10 p-2')}
-              onClick={() => setShowAvatarMenu((v) => !v)}
+              onClick={() => {
+                triggerLightHaptic();
+                setShowAvatarMenu((v) => !v);
+              }}
               title={t('auth_more')}
             >
               <MoreHorizontal size={16} />

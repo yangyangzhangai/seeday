@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 const SAGE_GREEN_DEEP = '#5F7A63';
 const SAGE_GREEN = '#8FAF92';
@@ -82,7 +83,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             {/* Magic pen toggle */}
             <button
               type="button"
-              onClick={() => { if (!disabled) onToggleMagicPenMode(); }}
+              onClick={() => {
+                if (disabled) return;
+                triggerLightHaptic();
+                onToggleMagicPenMode();
+              }}
               disabled={disabled}
               aria-label={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
               title={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
@@ -119,7 +124,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             />
 
             <button
-              onClick={onSend}
+              onClick={() => {
+                if (!hasInput || disabled) return;
+                triggerLightHaptic();
+                onSend();
+              }}
               disabled={!hasInput || disabled}
               style={{
                 width: 34, height: 34, borderRadius: 17,
@@ -157,7 +166,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               return (
                 <button
                   key={item.path}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    triggerLightHaptic();
+                    navigate(item.path);
+                  }}
                   style={{
                     width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',

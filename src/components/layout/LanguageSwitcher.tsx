@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 const LANGUAGES = [
     { code: 'en', label: 'English' },
@@ -42,6 +43,7 @@ export const LanguageSwitcher = () => {
     }, []);
 
     const selectLanguage = (code: string) => {
+        triggerLightHaptic();
         i18n.changeLanguage(code);
         setIsOpen(false);
     };
@@ -49,7 +51,10 @@ export const LanguageSwitcher = () => {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    triggerLightHaptic();
+                    setIsOpen(!isOpen);
+                }}
                 className="flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all"
                 style={triggerStyle}
             >
