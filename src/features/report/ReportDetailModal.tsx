@@ -672,20 +672,17 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     <div
       className="fixed inset-0 z-[60]"
       style={{
-        background: 'rgba(15, 23, 42, 0.22)',
-        paddingTop: 'var(--app-modal-gutter-top)',
-        paddingBottom: 'var(--app-modal-gutter-bottom)',
-        paddingLeft: 'var(--app-modal-gutter-x)',
-        paddingRight: 'var(--app-modal-gutter-x-right)',
+        background: '#FFFFFF',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="h-full w-full overflow-hidden rounded-[26px] border border-white/80 bg-white shadow-[0_0_12px_rgba(255,255,255,0.2),0_24px_64px_rgba(15,23,42,0.22)]">
-        <div
-          ref={pagesRef}
-          onScroll={onScroll}
-          className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
+      <div
+        ref={pagesRef}
+        onScroll={onScroll}
+        className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
+        style={{ scrollSnapType: 'x mandatory' }}
+      >
           <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
             <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
 
@@ -824,7 +821,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

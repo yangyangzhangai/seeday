@@ -34,8 +34,6 @@ import { handleMagicPenModeSend, handleLatestMessageReclassify } from './chatPag
 import { toLocalDateStr } from '../../lib/dateUtils';
 import { format } from 'date-fns';
 
-const INPUT_TOP_OFFSET_FROM_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 84px)';
-
 export const ChatPage = () => {
   const todayStr = toLocalDateStr(new Date());
   const {
@@ -85,9 +83,40 @@ export const ChatPage = () => {
   const [personaImg1, personaImg2] = personaImages[aiMode] ?? [imgBirdZep02, imgBirdZep03];
 
   const sendingRef = useRef(false);
+  const chatFrameRef = useRef<HTMLDivElement | null>(null);
   const [birdOpen, setBirdOpen] = useState(false);
+  const [birdAnchor, setBirdAnchor] = useState<{ left: number; bottom: number }>({
+    left: 16,
+    bottom: 124,
+  });
 
   useEffect(() => { setBirdOpen(false); }, [aiMode]);
+
+  useEffect(() => {
+    const updateBirdAnchor = () => {
+      const frame = chatFrameRef.current;
+      const inputBox = document.querySelector<HTMLElement>('[data-chat-input-box]');
+      if (!frame || !inputBox) return;
+
+      const frameRect = frame.getBoundingClientRect();
+      const inputRect = inputBox.getBoundingClientRect();
+      const bottom = Math.max(96, window.innerHeight - inputRect.top);
+      const left = frameRect.left + 14;
+
+      setBirdAnchor({ left, bottom });
+    };
+
+    updateBirdAnchor();
+    const rafId = window.requestAnimationFrame(updateBirdAnchor);
+    window.addEventListener('resize', updateBirdAnchor);
+    window.addEventListener('orientationchange', updateBirdAnchor);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateBirdAnchor);
+      window.removeEventListener('orientationchange', updateBirdAnchor);
+    };
+  }, [selectedDate, isLoading, isLoadingDate, isMagicPenOpen]);
 
   useEffect(() => {
     setSelectedDate(new Date());
@@ -332,7 +361,10 @@ export const ChatPage = () => {
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
       {/* Chat container */}
-      <div className="app-mobile-page-frame relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+      <div
+        ref={chatFrameRef}
+        className="app-mobile-page-frame relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]"
+      >
 
         {/* Bird character */}
         <button
@@ -340,15 +372,20 @@ export const ChatPage = () => {
           onClick={() => setBirdOpen(v => !v)}
           aria-label="toggle bird"
           style={{
-            position: 'absolute', left: 14, bottom: INPUT_TOP_OFFSET_FROM_BOTTOM,
+            position: 'fixed',
+            left: birdAnchor.left,
+            bottom: birdAnchor.bottom,
             width: 98, height: 98, border: 'none', background: 'transparent',
             padding: 0, cursor: 'pointer', zIndex: 24,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
           }}
         >
           <img
             src={birdOpen ? personaImg2 : personaImg1}
             alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.96,
+            style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', opacity: 0.96,
               filter: 'drop-shadow(0 6px 14px rgba(148,163,184,0.14))' }}
           />
         </button>
