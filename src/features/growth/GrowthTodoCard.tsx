@@ -171,6 +171,13 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
     } as const;
   };
 
+  const handleTogglePress = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerLightHaptic();
+    onToggle(todo.id);
+  };
+
   return (
     <div
       ref={cardRef}
@@ -209,15 +216,18 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
       >
         {/* Checkbox */}
         <button
+          onPointerUp={handleTogglePress}
           onClick={(e) => {
+            // iOS WebView may dispatch a delayed synthetic click after pointer events.
+            // We consume it to avoid triggering a nearby card when layout updates.
+            e.preventDefault();
             e.stopPropagation();
-            triggerLightHaptic();
-            onToggle(todo.id);
           }}
           className={cn(
-            "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+            "w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors touch-manipulation",
             todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
           )}
+          aria-label={t('growth_todo_complete')}
         >
           {todo.completed && <Check size={12} className="text-white" />}
         </button>
