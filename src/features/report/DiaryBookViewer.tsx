@@ -660,9 +660,21 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
   const spineX = sideMargin + pageW;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', background: '#7a9b7e', userSelect: 'none', touchAction: 'pan-y' }}>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 50,
+      background: 'rgba(15, 23, 42, 0.24)',
+      paddingTop: 'var(--app-modal-gutter-top)',
+      paddingBottom: 'var(--app-modal-gutter-bottom)',
+      paddingLeft: 'var(--app-modal-gutter-x)',
+      paddingRight: 'var(--app-modal-gutter-x-right)',
+      userSelect: 'none',
+      touchAction: 'pan-y',
+    }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#7a9b7e', borderRadius: 26, overflow: 'hidden', boxShadow: '0 0 12px rgba(255,255,255,0.20), 0 24px 64px rgba(15,23,42,0.22)' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '40px 20px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 20px 12px' }}>
         <div style={{ width: 32 }} />
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 14, letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
@@ -774,7 +786,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
       </div>
 
       {/* Page indicator + day navigation */}
-      <div style={{ textAlign: 'center', paddingBottom: 44 }}>
+      <div style={{ textAlign: 'center', paddingBottom: 28 }}>
         {isBookOpen ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
             <button
@@ -815,6 +827,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
 
       {/* Expanded overlay */}
       <ExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} plantRecords={plantRecords} />
+      </div>
     </div>
   );
 };

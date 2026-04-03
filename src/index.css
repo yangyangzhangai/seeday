@@ -12,6 +12,17 @@ body,
   background: #fcfaf7;
 }
 
+:root {
+  --app-page-gutter-x: max(12px, calc(env(safe-area-inset-left, 0px) + 10px));
+  --app-page-gutter-x-right: max(12px, calc(env(safe-area-inset-right, 0px) + 10px));
+  --app-page-gutter-top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
+  --app-page-gutter-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  --app-modal-gutter-x: max(14px, calc(env(safe-area-inset-left, 0px) + 10px));
+  --app-modal-gutter-x-right: max(14px, calc(env(safe-area-inset-right, 0px) + 10px));
+  --app-modal-gutter-top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
+  --app-modal-gutter-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   line-height: 1;
@@ -37,6 +48,60 @@ body,
 
 .font-siyuan {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+}
+
+.app-mobile-page-frame {
+  border-radius: 0;
+}
+
+.app-mobile-page-header {
+  padding-top: 2.75rem;
+}
+
+.app-modal-overlay {
+  padding-left: var(--app-modal-gutter-x);
+  padding-right: var(--app-modal-gutter-x-right);
+  padding-top: var(--app-modal-gutter-top);
+  padding-bottom: var(--app-modal-gutter-bottom);
+}
+
+.app-modal-card {
+  max-height: calc(100dvh - var(--app-modal-gutter-top) - var(--app-modal-gutter-bottom));
+  overflow: auto;
+}
+
+@media (max-width: 767px) {
+  .app-mobile-page-frame {
+    width: calc(100% - var(--app-page-gutter-x) - var(--app-page-gutter-x-right)) !important;
+    max-width: none !important;
+    height: calc(100% - var(--app-page-gutter-top) - var(--app-page-gutter-bottom)) !important;
+    margin-top: var(--app-page-gutter-top);
+    margin-bottom: var(--app-page-gutter-bottom);
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    background: rgba(252, 250, 247, 0.9);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45), 0 24px 64px rgba(15, 23, 42, 0.12);
+  }
+
+  .app-mobile-page-header {
+    padding-top: 14px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* iOS: prevent focus-zoom on small form controls in popups */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 767px) {
+    .app-modal-overlay input,
+    .app-modal-overlay textarea,
+    .app-modal-overlay select,
+    .app-mobile-page-frame input,
+    .app-mobile-page-frame textarea,
+    .app-mobile-page-frame select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* 隐藏滚动条但保留滚动能力（日报等内部容器使用） */
