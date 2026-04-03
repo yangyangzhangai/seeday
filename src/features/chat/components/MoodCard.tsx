@@ -92,7 +92,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
           <div style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 5, flexShrink: 0,
             background: moodColor }} />
           <h3 style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', margin: 0, flex: 1, minWidth: 0,
-            fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>
+            lineHeight: 1.4 }}>
             {message.content}
           </h3>
           {stardustEmoji && (

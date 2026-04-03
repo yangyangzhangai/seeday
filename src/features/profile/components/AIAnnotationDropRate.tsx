@@ -28,10 +28,11 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
   const current = preferences.annotationDropRate;
   const [isUpdating, setIsUpdating] = React.useState(false);
   const selectedRateStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, #FBF5E8 0%, #F4E6C7 100%)',
-    borderColor: '#E8D8AF',
-    boxShadow: '0 8px 20px rgba(163,130,72,0.14), inset 0 1px 0 rgba(255,255,255,0.68)',
-    color: '#725B2D',
+    background:
+      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+    color: '#426D56',
   };
 
   const handleClick = async (key: AnnotationDropRate) => {
@@ -68,7 +69,7 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
                     ? 'font-bold'
                     : locked
                     ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
-                    : 'border-[#B2EEDA]/60 bg-white/75 text-[#5F7A63]'
+                    : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'
                 }`}
                 style={selected ? selectedRateStyle : undefined}
               >

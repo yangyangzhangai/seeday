@@ -9,6 +9,12 @@ import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../sto
 export type { GrowthTodo, GrowthPriority };
 
 const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+const BLUE_SELECTED_STYLE = {
+  background:
+    'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+  border: '0.5px solid transparent',
+  boxShadow: '0 6px 14px rgba(59,130,246,0.14)',
+} as const;
 
 interface Props {
   todo: GrowthTodo;
@@ -135,6 +141,30 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
   };
 
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
+  const getPrioritySelectedStyle = (priority: GrowthPriority) => {
+    if (priority === 'high') {
+      return {
+        background:
+          'linear-gradient(135deg, rgba(254,226,226,0.96) 0%, rgba(254,202,202,0.92) 50%, rgba(252,165,165,0.72) 100%) padding-box, linear-gradient(140deg, rgba(252,165,165,0.55) 0%, rgba(254,242,242,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+        border: '0.5px solid transparent',
+        boxShadow: '0 6px 14px rgba(239,68,68,0.12)',
+      } as const;
+    }
+    if (priority === 'medium') {
+      return {
+        background:
+          'linear-gradient(135deg, rgba(255,237,213,0.96) 0%, rgba(254,215,170,0.92) 50%, rgba(251,191,36,0.66) 100%) padding-box, linear-gradient(140deg, rgba(251,191,36,0.50) 0%, rgba(255,247,237,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+        border: '0.5px solid transparent',
+        boxShadow: '0 6px 14px rgba(245,158,11,0.12)',
+      } as const;
+    }
+    return {
+      background:
+        'linear-gradient(135deg, rgba(220,252,231,0.96) 0%, rgba(187,247,208,0.92) 50%, rgba(134,239,172,0.68) 100%) padding-box, linear-gradient(140deg, rgba(134,239,172,0.50) 0%, rgba(240,253,244,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+      border: '0.5px solid transparent',
+      boxShadow: '0 6px 14px rgba(34,197,94,0.12)',
+    } as const;
+  };
 
   return (
     <div
@@ -223,7 +253,10 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
         </div>
 
         {/* Priority badge */}
-        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}>
+        <span
+          className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}
+          onClick={(e) => e.stopPropagation()}
+        >
           {t(`growth_todo_priority_${normalizedPriority}`)}
         </span>
 
@@ -261,11 +294,12 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
                   key={p}
                   onClick={() => handlePriority(p)}
                   className={cn(
-                    "flex-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-all",
+                    "flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all",
                     normalizedPriority === p
-                      ? `${priorityConfig[p].color} ${priorityConfig[p].bg} ${priorityConfig[p].border}`
-                      : "border-gray-200 text-gray-400"
+                      ? `${priorityConfig[p].color}`
+                      : "border-gray-200 bg-white text-gray-400"
                   )}
+                  style={normalizedPriority === p ? getPrioritySelectedStyle(p) : undefined}
                 >
                   {t(`growth_todo_priority_${p}`)}
                 </button>
@@ -293,11 +327,12 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
                   key={r}
                   onClick={() => handleRecurrence(r)}
                   className={cn(
-                    "flex-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-all",
+                    "flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all",
                     (todo.recurrence ?? 'once') === r
-                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                      : "border-gray-200 text-gray-400"
+                      ? "text-blue-600"
+                      : "border-gray-200 bg-white text-gray-400"
                   )}
+                  style={(todo.recurrence ?? 'once') === r ? BLUE_SELECTED_STYLE : undefined}
                 >
                   {t(`growth_todo_recurrence_${r}`)}
                 </button>
@@ -310,11 +345,12 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
                     key={i}
                     onClick={() => handleToggleDay(i)}
                     className={cn(
-                      "w-8 h-8 rounded-full text-xs font-medium transition-all",
+                      "w-8 h-8 rounded-full border text-xs font-medium transition-all",
                       (todo.recurrenceDays ?? []).includes(i)
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-500"
+                        ? "text-blue-600"
+                        : "border-gray-200 bg-gray-100 text-gray-500"
                     )}
+                    style={(todo.recurrenceDays ?? []).includes(i) ? BLUE_SELECTED_STYLE : undefined}
                   >
                     {label}
                   </button>

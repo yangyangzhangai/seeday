@@ -24,7 +24,7 @@ export const ProfilePage: React.FC = () => {
   if (loading || !user) return null;
 
   return (
-    <div className="relative flex h-full items-center justify-center bg-transparent px-0 font-['Inter',sans-serif] md:px-8">
+    <div className="relative flex h-full items-center justify-center bg-transparent px-0 md:px-8">
       <div className="pointer-events-none fixed right-0 top-0 h-[280px] w-[280px] rounded-full bg-[#B2EEDA]/10 blur-[90px]" />
       <div className="pointer-events-none fixed bottom-[120px] left-0 h-[200px] w-[200px] rounded-full bg-rose-200/20 blur-[70px]" />
 

@@ -26,6 +26,7 @@ import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
+import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -61,6 +62,69 @@ function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows:
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 }
 
+async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: number): Promise<void> {
+  const todayStart = new Date(nowMs);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime();
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id,timestamp')
+    .eq('user_id', userId)
+    .eq('is_mood', false)
+    .is('duration', null)
+    .lt('timestamp', todayStartMs);
+
+  if (error) throw error;
+  if (!data || data.length === 0) return;
+
+  await Promise.all(
+    data.map(async (row) => {
+      const startedAt = Number(row.timestamp);
+      if (!Number.isFinite(startedAt)) return;
+      const duration = resolveAutoActivityDurationMinutes(startedAt, nowMs);
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ duration, is_active: false })
+        .eq('id', row.id)
+        .eq('user_id', userId);
+      if (updateError) throw updateError;
+    }),
+  );
+}
+
+function mergePersistedChatState(
+  persistedState: unknown,
+  currentState: ChatState,
+): ChatState {
+  const persisted = (persistedState ?? {}) as Partial<ChatState>;
+  const merged = { ...currentState, ...persisted } as ChatState;
+
+  const nowMs = Date.now();
+  const todayStr = getLocalDateString(new Date(nowMs));
+  const sameDay = persisted.currentDateStr != null && persisted.currentDateStr === todayStr;
+
+  const incomingMessages = Array.isArray(persisted.messages)
+    ? persisted.messages
+    : [];
+  const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(incomingMessages, nowMs);
+
+  if (!sameDay) {
+    merged.messages = [];
+    merged.currentDateStr = null;
+    merged.activeViewDateStr = null;
+    merged.hasInitialized = false;
+    return merged;
+  }
+
+  merged.messages = finalizedMessages;
+  merged.currentDateStr = persisted.currentDateStr ?? todayStr;
+  merged.activeViewDateStr = persisted.activeViewDateStr ?? merged.currentDateStr;
+  merged.hasInitialized = Boolean(persisted.hasInitialized);
+
+  return merged;
+}
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -79,17 +143,28 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set(state => ({
-            messages: state.messages.filter(
-              (m) => !isLegacyChatActivityType(m.activityType)
-            ),
+          const nowMs = Date.now();
+          const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(
+            get().messages.filter((m) => !isLegacyChatActivityType(m.activityType)),
+            nowMs,
+          );
+          set({
+            messages: finalizedMessages,
+            currentDateStr: getLocalDateString(new Date(nowMs)),
             hasInitialized: true,
-          }));
+          });
           return;
         }
 
         set({ isLoading: true });
         try {
+          const nowMs = Date.now();
+          try {
+            await closeCrossDayActiveMessagesInDb(session.user.id, nowMs);
+          } catch (closeError) {
+            console.warn('[fetchMessages] closeCrossDayActiveMessagesInDb failed, continue fetching:', closeError);
+          }
+
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const todayStartMs = todayStart.getTime();
@@ -218,17 +293,23 @@ export const useChatStore = create<ChatState>()(
       },
 
       checkAndRefreshForNewDay: () => {
+        const nowMs = Date.now();
         const state = get();
-        const todayStr = getLocalDateString(new Date());
-        if (state.currentDateStr && state.currentDateStr !== todayStr) {
+        const { messages: finalizedMessages, finalized } = finalizeCrossDayOngoingMessages(state.messages, nowMs);
+        if (finalized.length > 0) {
+          set({ messages: finalizedMessages });
+        }
+
+        const todayStr = getLocalDateString(new Date(nowMs));
+        if (!state.currentDateStr || state.currentDateStr !== todayStr) {
           import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
-          state.fetchMessages();
+          void state.fetchMessages();
         }
       },
 
       fetchMessagesByDate: async (dateStr: string) => {
         const cached = get().dateCache.get(dateStr);
-        if (cached) {
+        if (cached && cached.length > 0) {
           set({ messages: cached, activeViewDateStr: dateStr, currentDateStr: dateStr });
           return;
         }
@@ -530,7 +611,7 @@ export const useChatStore = create<ChatState>()(
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
 
-        const duration = Math.max(0, Math.round((Date.now() - target.timestamp) / (1000 * 60)));
+        const duration = resolveAutoActivityDurationMinutes(target.timestamp, Date.now());
 
         set(state => ({
           messages: state.messages.map(m =>
@@ -756,6 +837,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'chat-storage',
+      merge: (persistedState, currentState) => mergePersistedChatState(persistedState, currentState as ChatState),
       // dateCache 是 Map，不能 JSON 序列化，排除持久化
       partialize: (state) => ({
         messages: state.messages,
