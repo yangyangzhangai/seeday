@@ -1,66 +1,47 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 type HapticLevel = 'light' | 'medium' | 'heavy';
 
-const CAPACITOR_IMPACT_STYLE: Record<HapticLevel, 'LIGHT' | 'MEDIUM' | 'HEAVY'> = {
-  light: 'LIGHT',
-  medium: 'MEDIUM',
-  heavy: 'HEAVY',
+const IMPACT_STYLE: Record<HapticLevel, ImpactStyle> = {
+  light: ImpactStyle.Light,
+  medium: ImpactStyle.Medium,
+  heavy: ImpactStyle.Heavy,
+};
+
+const VIBRATION_MS: Record<HapticLevel, number> = {
+  light: 8,
+  medium: 12,
+  heavy: 18,
 };
 
 export function triggerHaptic(level: HapticLevel = 'light'): void {
   if (typeof window === 'undefined') return;
 
-  const w = window as typeof window & {
-    Capacitor?: {
-      Plugins?: {
-        Haptics?: {
-          impact?: (opts: { style: 'LIGHT' | 'MEDIUM' | 'HEAVY' }) => void;
-          vibrate?: (opts: { duration: number }) => void;
-        };
-      };
-    };
-    TapticEngine?: {
-      impact?: (opts: { style: HapticLevel }) => void;
-    };
-    webkit?: {
-      messageHandlers?: {
-        haptic?: {
-          postMessage?: (payload: HapticLevel) => void;
-        };
-      };
-    };
-  };
+  void (async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        // Shift one level softer globally:
+        // light -> selection pulse, medium -> light impact, heavy -> medium impact
+        if (level === 'light') {
+          await Haptics.selectionChanged();
+          return;
+        }
+        const softenedLevel = level === 'heavy' ? 'medium' : 'light';
+        await Haptics.impact({ style: IMPACT_STYLE[softenedLevel] });
+        return;
+      }
 
-  try {
-    const haptics = w.Capacitor?.Plugins?.Haptics;
-    if (haptics?.impact) {
-      haptics.impact({ style: CAPACITOR_IMPACT_STYLE[level] });
-      return;
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        const softenedLevel = level === 'heavy' ? 'medium' : level === 'medium' ? 'light' : 'light';
+        navigator.vibrate(Math.max(4, VIBRATION_MS[softenedLevel] - 2));
+      }
+    } catch {
+      // Ignore haptic failures because UI actions should never be blocked.
     }
-
-    if (haptics?.vibrate) {
-      haptics.vibrate({ duration: level === 'light' ? 8 : level === 'medium' ? 12 : 18 });
-      return;
-    }
-
-    if (w.TapticEngine?.impact) {
-      w.TapticEngine.impact({ style: level });
-      return;
-    }
-
-    if (w.webkit?.messageHandlers?.haptic?.postMessage) {
-      w.webkit.messageHandlers.haptic.postMessage(level);
-      return;
-    }
-
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(level === 'light' ? 8 : level === 'medium' ? 12 : 18);
-    }
-  } catch {
-    // Ignore haptic failures because UI actions should never be blocked.
-  }
+  })();
 }
 
 export function triggerLightHaptic(): void {
   triggerHaptic('light');
 }
-

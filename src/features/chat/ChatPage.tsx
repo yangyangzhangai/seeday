@@ -101,7 +101,7 @@ export const ChatPage = () => {
       const frameRect = frame.getBoundingClientRect();
       const inputRect = inputBox.getBoundingClientRect();
       const bottom = Math.max(96, window.innerHeight - inputRect.top);
-      const left = frameRect.left + 14;
+      const left = frameRect.left + 10;
 
       setBirdAnchor({ left, bottom });
     };

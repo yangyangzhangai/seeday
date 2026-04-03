@@ -96,7 +96,7 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   }
 
   .app-mobile-page-header {
-    padding-top: 14px !important;
+    padding-top: max(40px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
