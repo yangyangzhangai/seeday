@@ -15,18 +15,21 @@ const VIBRATION_MS: Record<HapticLevel, number> = {
   heavy: 18,
 };
 
+let lastHapticAt = 0;
+const LIGHT_HAPTIC_COOLDOWN_MS = 150;
+
 export function triggerHaptic(level: HapticLevel = 'light'): void {
   if (typeof window === 'undefined') return;
 
   void (async () => {
     try {
+      const now = Date.now();
+      if (level === 'light' && now - lastHapticAt < LIGHT_HAPTIC_COOLDOWN_MS) return;
+      lastHapticAt = now;
+
       if (Capacitor.isNativePlatform()) {
-        // Shift one level softer globally:
-        // light -> selection pulse, medium -> light impact, heavy -> medium impact
-        if (level === 'light') {
-          await Haptics.selectionChanged();
-          return;
-        }
+        // Slightly softened global touch feel:
+        // light -> light impact, medium -> light impact, heavy -> medium impact
         const softenedLevel = level === 'heavy' ? 'medium' : 'light';
         await Haptics.impact({ style: IMPACT_STYLE[softenedLevel] });
         return;
