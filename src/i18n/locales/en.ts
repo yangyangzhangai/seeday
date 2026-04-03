@@ -374,6 +374,8 @@ const en = {
     growth_todo_quick_add_placeholder: 'Add a to-do, press Enter to save...',
     growth_bottle_name_duplicate: 'A bottle with this name already exists',
     growth_bottle_todo_prompt: 'Create a to-do for "{{name}}"?',
+    growth_bottle_sync_pending: 'Syncing',
+    growth_bottle_sync_failed: 'Sync failed',
 
     // ── Profile Page ──
     profile_title: 'Profile',

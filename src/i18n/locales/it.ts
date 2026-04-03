@@ -376,6 +376,8 @@ const it: TranslationKeys = {
     growth_todo_quick_add_placeholder: 'Aggiungi attività, Invio per salvare...',
     growth_bottle_name_duplicate: 'Esiste già una bottiglia con questo nome',
     growth_bottle_todo_prompt: 'Creare un\'attività per "{{name}}"?',
+    growth_bottle_sync_pending: 'Sincronizzazione in corso',
+    growth_bottle_sync_failed: 'Sincronizzazione non riuscita',
 
     // ── Pagina Profilo ──
     profile_title: 'Profilo',

@@ -24,7 +24,7 @@ import {
   ZEP_DIARY_PROMPT_EN,
   ZEP_DIARY_PROMPT_IT,
   ZEP_DIARY_PROMPT_ZH,
-} from './aiCompanion/prompts';
+} from './aiCompanion/prompts/index.js';
 
 export type AiCompanionMode = 'van' | 'agnes' | 'zep' | 'momo';
 export type AiCompanionLang = 'zh' | 'en' | 'it';

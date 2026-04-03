@@ -376,6 +376,8 @@ const zh: TranslationKeys = {
     growth_todo_quick_add_placeholder: '添加待办，回车保存...',
     growth_bottle_name_duplicate: '同名瓶子已存在',
     growth_bottle_todo_prompt: '为「{{name}}」生成待办？',
+    growth_bottle_sync_pending: '同步中',
+    growth_bottle_sync_failed: '同步失败',
 
     // ── 我的页面 ──
     profile_title: '个人中心',
