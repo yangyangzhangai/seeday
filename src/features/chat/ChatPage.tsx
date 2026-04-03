@@ -34,6 +34,8 @@ import { handleMagicPenModeSend, handleLatestMessageReclassify } from './chatPag
 import { toLocalDateStr } from '../../lib/dateUtils';
 import { format } from 'date-fns';
 
+const INPUT_TOP_OFFSET_FROM_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 84px)';
+
 export const ChatPage = () => {
   const todayStr = toLocalDateStr(new Date());
   const {
@@ -338,7 +340,7 @@ export const ChatPage = () => {
           onClick={() => setBirdOpen(v => !v)}
           aria-label="toggle bird"
           style={{
-            position: 'absolute', left: 14, bottom: 110,
+            position: 'absolute', left: 14, bottom: INPUT_TOP_OFFSET_FROM_BOTTOM,
             width: 98, height: 98, border: 'none', background: 'transparent',
             padding: 0, cursor: 'pointer', zIndex: 24,
           }}
