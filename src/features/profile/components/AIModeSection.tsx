@@ -11,6 +11,7 @@ import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png'
 import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
 import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
 import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
+import { triggerLightHaptic } from '../../../lib/haptics';
 
 interface Props {
   isPlus: boolean;
@@ -51,6 +52,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
 
   const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
     if (isUpdating) return;
+    triggerLightHaptic();
     if (!free && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
@@ -65,6 +67,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
 
   const handleToggleEnabled = async () => {
     if (isUpdating) return;
+    triggerLightHaptic();
     setIsUpdating(true);
     try {
       await updatePreferences({ aiModeEnabled: !enabled });

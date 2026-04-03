@@ -4,6 +4,7 @@ import { AlarmClock, Check, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 // Re-export for consumers
 export type { GrowthTodo, GrowthPriority };
@@ -97,6 +98,7 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
   }, [expanded]);
 
   const handlePriority = (p: GrowthPriority) => {
+    triggerLightHaptic();
     onUpdate?.(todo.id, { priority: p });
   };
 
@@ -105,16 +107,19 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
   };
 
   const handleRecurrence = (r: Recurrence) => {
+    triggerLightHaptic();
     onUpdate?.(todo.id, { recurrence: r });
   };
 
   const handleToggleDay = (day: number) => {
+    triggerLightHaptic();
     const days = todo.recurrenceDays ?? [];
     const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
     onUpdate?.(todo.id, { recurrenceDays: next });
   };
 
   const handleBottle = (bottleId: string) => {
+    triggerLightHaptic();
     onUpdate?.(todo.id, { bottleId: bottleId || undefined });
   };
 
@@ -178,7 +183,11 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
       {/* Delete button — appears after card is selected */}
       {onDelete && (
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerLightHaptic();
+            onDelete(todo.id);
+          }}
           className={cn(
             'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
             expanded ? 'flex' : 'hidden'
@@ -194,12 +203,17 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
         className="flex items-center gap-2 p-3 cursor-pointer"
         onClick={() => {
           if (isEditingTitle) return;
+          triggerLightHaptic();
           setExpanded((v) => !v);
         }}
       >
         {/* Checkbox */}
         <button
-          onClick={(e) => { e.stopPropagation(); onToggle(todo.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerLightHaptic();
+            onToggle(todo.id);
+          }}
           className={cn(
             "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
             todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
@@ -212,9 +226,9 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
         <div
           className="flex-1 min-w-0"
           data-no-drag="true"
-          onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => {
             e.stopPropagation();
+            triggerLightHaptic();
             startEditTitle();
           }}
           title={t('todo_edit')}
@@ -265,7 +279,11 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
           <>
             {onStart && (
               <button
-                onClick={(e) => { e.stopPropagation(); onStart(todo); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerLightHaptic();
+                  onStart(todo);
+                }}
                 className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
                 title={t('growth_todo_start')}
               >
@@ -273,7 +291,11 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
               </button>
             )}
             <button
-              onClick={(e) => { e.stopPropagation(); onFocus(todo); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerLightHaptic();
+                onFocus(todo);
+              }}
               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
             >
               <AlarmClock size={16} />

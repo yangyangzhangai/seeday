@@ -14,6 +14,7 @@ import {
   APP_SELECTED_GLOW_BORDER,
   APP_SELECTED_GLOW_SHADOW,
 } from '../../lib/modalTheme';
+import { triggerLightHaptic } from '../../lib/haptics';
 
 interface DefaultValues {
   title?: string;
@@ -128,7 +129,10 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
           {priorities.map((p) => (
             <button
               key={p}
-              onClick={() => setPriority(p)}
+              onClick={() => {
+                triggerLightHaptic();
+                setPriority(p);
+              }}
               className={cn(
                 'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
                 priority === p ? 'text-[#1D4ED8]' : 'border-white/80 bg-white/70 text-[#2F3E33]'
@@ -159,7 +163,10 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
           {recurrences.map((r) => (
             <button
               key={r}
-              onClick={() => setRecurrence(r)}
+              onClick={() => {
+                triggerLightHaptic();
+                setRecurrence(r);
+              }}
               className={cn(
                 'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
                 recurrence === r
@@ -183,7 +190,10 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
               {DAY_LABELS.map((label, i) => (
                 <button
                   key={i}
-                  onClick={() => toggleDay(i)}
+                  onClick={() => {
+                    triggerLightHaptic();
+                    toggleDay(i);
+                  }}
                   className={cn(
                     'h-9 w-9 rounded-full border text-xs font-medium transition-all',
                     recurrenceDays.includes(i)
@@ -219,7 +229,14 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
         )}
 
         <button
-          onClick={handleSubmit}
+          onClick={() => {
+            if (!title.trim()) {
+              handleSubmit();
+              return;
+            }
+            triggerLightHaptic();
+            handleSubmit();
+          }}
           className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}
         >
           {t('confirm')}
