@@ -40,6 +40,7 @@ export const ReportPage = () => {
   const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
   const isPlus = useAuthStore((state) => state.isPlus);
+  const user = useAuthStore((state) => state.user);
   const todayPlant = usePlantStore((state) => state.todayPlant);
   const isPlantGenerating = usePlantStore((state) => state.isGenerating);
   const generatePlant = usePlantStore((state) => state.generatePlant);
@@ -268,20 +269,39 @@ export const ReportPage = () => {
 
   const handleOpenDiaryBook = useCallback(() => {
     const open = async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const dayKey = (value: Date) => (
+        `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+      );
+      const startOfLocalDay = (value: Date) => (
+        new Date(value.getFullYear(), value.getMonth(), value.getDate())
+      );
+      const now = new Date();
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yesterdayKey = dayKey(yesterday);
+      const createdAtSource = user?.created_at ? new Date(user.created_at) : null;
+      const createdAtDay = createdAtSource && !Number.isNaN(createdAtSource.getTime())
+        ? startOfLocalDay(createdAtSource)
+        : null;
+      const backfillStart = createdAtDay && createdAtDay.getTime() <= yesterday.getTime()
+        ? createdAtDay
+        : yesterday;
 
-      const existingYesterday = useReportStore.getState().reports.find(
-        (report) => report.type === 'daily' && isSameDay(new Date(report.date), yesterday),
+      const dailyReports = useReportStore.getState().reports.filter((report) => report.type === 'daily');
+      const existingKeys = new Set(
+        dailyReports
+          .map((report) => startOfLocalDay(new Date(report.date)))
+          .filter((date) => dayKey(date) <= yesterdayKey)
+          .map(dayKey),
       );
 
-      if (!existingYesterday) {
-        try {
-          await loadMessagesForDateRange(startOfDay(yesterday), endOfDay(yesterday));
-        } catch {
-          // best-effort preload; generation still proceeds if this fails
+      let cursor = new Date(backfillStart);
+      while (dayKey(cursor) <= yesterdayKey) {
+        const key = dayKey(cursor);
+        if (!existingKeys.has(key)) {
+          await generateReport('daily', cursor.getTime());
+          existingKeys.add(key);
         }
-        await generateReport('daily', yesterday.getTime());
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
       }
 
       setSavedDiaryBookMonth(new Date(yesterday.getFullYear(), yesterday.getMonth(), 1));
@@ -289,7 +309,7 @@ export const ReportPage = () => {
       setShowDiaryBook(true);
     };
     void open();
-  }, [generateReport, loadMessagesForDateRange]);
+  }, [generateReport, user?.created_at]);
 
   const handleDiaryNavPrev = useCallback(async () => {
     const base = diaryNavDate ?? new Date();
