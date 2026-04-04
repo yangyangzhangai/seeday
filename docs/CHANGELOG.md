@@ -8,6 +8,21 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-04 - Fix: AI companion prompts ESM import resolution on Vercel
+
+### Changed
+
+- `src/lib/aiCompanion/prompts/index.ts`
+  - 将四个 re-export 改为显式 `.js` 后缀（`./van.js` / `./agnes.js` / `./zep.js` / `./momo.js`），避免 Node ESM 在 serverless 运行时把无后缀路径解析为不存在模块。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次 Vercel `ERR_MODULE_NOT_FOUND` 修复）。
+
 ## 2026-04-03 - Feat: 活动词库补强（zh/en/it 操作型表达扩展）
 
 ### Changed

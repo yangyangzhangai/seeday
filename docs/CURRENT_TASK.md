@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-02
+Last Updated: 2026-04-04
 Owner: current working session
 
 ---
@@ -51,6 +51,7 @@ Status: 主链路可用，剩余增强项待推进。
 
 ## 近期完成（保留 2 条）
 
+- [x] 修复 AI companion prompts 在 Node ESM 下的模块解析：`src/lib/aiCompanion/prompts/index.ts` 改为显式 `.js` 后缀导出，解决 Vercel `ERR_MODULE_NOT_FOUND`（`/prompts/van`）
 - [x] 活动词库补强（zh/en/it）：新增查询/修改/提交/认证等 50+ 实用表达，并补充中英意分类与回归测试
 - [x] 植物生成新增「本月同根系 plantId 不重复」约束：当月候选耗尽返回 `monthly_exhausted`，并在生成区提示下月重置。
 - [x] 我的页 AI 选中态细调：绿色从过淡回调至轻鼠尾草质感，频率按钮金色同步微降饱和度
