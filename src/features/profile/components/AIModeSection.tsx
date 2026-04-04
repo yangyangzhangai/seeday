@@ -15,6 +15,7 @@ import { triggerLightHaptic } from '../../../lib/haptics';
 
 interface Props {
   isPlus: boolean;
+  plain?: boolean;
 }
 
 const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
@@ -33,11 +34,10 @@ function showToast(msg: string) {
   setTimeout(() => el.remove(), 2000);
 }
 
-export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
+export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
-  const [isUpdating, setIsUpdating] = React.useState(false);
   const selectedModeStyle: React.CSSProperties = {
     background:
       'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
@@ -50,45 +50,32 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
     border: 'none',
   };
 
-  const handleModeClick = async (key: AiCompanionMode, free: boolean) => {
-    if (isUpdating) return;
+  const handleModeClick = (key: AiCompanionMode, free: boolean) => {
     triggerLightHaptic();
     if (!free && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    setIsUpdating(true);
-    try {
-      await updatePreferences({ aiMode: key });
-    } finally {
-      setIsUpdating(false);
-    }
+    void updatePreferences({ aiMode: key });
   };
 
-  const handleToggleEnabled = async () => {
-    if (isUpdating) return;
+  const handleToggleEnabled = () => {
     triggerLightHaptic();
-    setIsUpdating(true);
-    try {
-      await updatePreferences({ aiModeEnabled: !enabled });
-    } finally {
-      setIsUpdating(false);
-    }
+    void updatePreferences({ aiModeEnabled: !enabled });
   };
 
   return (
-    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
+    <div className={plain ? 'px-4 py-3' : 'rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       {/* Header row */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center space-x-1.5">
-          <span className="text-xs font-semibold text-gray-800">{t('profile_ai_mode')}</span>
+          <span className="text-xs text-slate-700">{t('profile_ai_mode')}</span>
           <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-[10px] font-semibold text-[#3f5f35]">
             {t('profile_free')}
           </span>
         </div>
         <button
           onClick={() => { void handleToggleEnabled(); }}
-          disabled={isUpdating}
           className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors ${
             enabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}
@@ -105,7 +92,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
       {/* Mode cards — 4 in one row */}
       <div
         className={`grid grid-cols-4 gap-1.5 transition-opacity ${
-          !enabled || isUpdating ? 'opacity-40 pointer-events-none' : ''
+          !enabled ? 'opacity-40 pointer-events-none' : ''
         }`}
       >
         {AI_COMPANION_ORDER.map((modeKey) => {

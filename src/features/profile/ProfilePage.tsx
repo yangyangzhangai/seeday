@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Languages } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
@@ -40,19 +41,36 @@ export const ProfilePage: React.FC = () => {
           <h1 className="text-xl font-extrabold text-[#1e293b]" style={{ letterSpacing: '-0.02em' }}>{t('nav_profile')}</h1>
         </header>
 
-        <div className="space-y-2 px-3 py-3 pb-28">
+        <div className="space-y-3 px-3 py-3 pb-28">
           <UserInfoCard isPlus={isPlus} />
-          <AIModeSection isPlus={isPlus} />
-          <AIAnnotationDropRate isPlus={isPlus} />
-          <DailyGoalToggle />
-          <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-gray-800">{t('language_switch')}</p>
-              <LanguageSwitcher />
+          <div className="overflow-hidden">
+            <div>
+              <AIModeSection isPlus={isPlus} plain />
+            </div>
+            <div>
+              <AIAnnotationDropRate isPlus={isPlus} plain />
+            </div>
+            <div>
+              <DailyGoalToggle plain />
+            </div>
+            {!isPlus ? (
+              <div className="px-0 py-2">
+                <MembershipCard isPlus={isPlus} />
+              </div>
+            ) : null}
+            <div className="px-4 py-3 transition hover:bg-white/70">
+              <div className="flex w-full items-center justify-between gap-3">
+                <div className="flex items-center space-x-2.5">
+                  <Languages size={16} className="text-[#5F7A63]" />
+                  <span className="text-xs text-slate-700">{t('language_switch')}</span>
+                </div>
+                <LanguageSwitcher variant="list" />
+              </div>
+            </div>
+            <div>
+              <SettingsList plain />
             </div>
           </div>
-          <MembershipCard isPlus={isPlus} />
-          <SettingsList />
           <div className="h-2" />
         </div>
       </div>

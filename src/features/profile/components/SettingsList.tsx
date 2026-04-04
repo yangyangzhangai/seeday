@@ -23,7 +23,11 @@ function isLikelyAdmin(user: any): boolean {
   ));
 }
 
-export const SettingsList: React.FC = () => {
+interface Props {
+  plain?: boolean;
+}
+
+export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { signOut, user } = useAuthStore();
@@ -44,10 +48,10 @@ export const SettingsList: React.FC = () => {
   ];
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
+    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <button
         onClick={() => setIsDirectionOpen(prev => !prev)}
-        className="flex w-full items-center justify-between border-b border-slate-200/60 px-4 py-3 transition hover:bg-white/70"
+        className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}
       >
         <div className="flex items-center space-x-2.5">
           <Sprout size={16} className="text-[#5F7A63]" />
@@ -66,7 +70,7 @@ export const SettingsList: React.FC = () => {
           key={labelKey}
           onClick={action}
           className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${
-            i < SETTINGS.length - 1 ? 'border-b border-slate-200/60' : ''
+            i < SETTINGS.length - 1 && !plain ? 'border-b border-slate-200/60' : ''
           }`}
         >
           <div className="flex items-center space-x-2.5">
@@ -80,7 +84,7 @@ export const SettingsList: React.FC = () => {
       {canSeeTelemetry ? (
         <button
           onClick={() => navigate('/telemetry/live-input')}
-          className="flex w-full items-center justify-between border-t border-slate-200/60 px-4 py-3 transition hover:bg-white/70"
+          className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-t border-slate-200/60'}`}
         >
           <div className="flex items-center space-x-2.5">
             <BarChart3 size={16} className="text-[#5F7A63]" />
@@ -93,10 +97,10 @@ export const SettingsList: React.FC = () => {
       {/* Logout */}
       <button
         onClick={handleLogout}
-        className="flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-rose-50/80"
+        className="flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-white/70"
       >
-        <LogOut size={16} className="text-red-500" />
-        <span className="text-xs text-red-500 font-medium">{t('profile_logout')}</span>
+        <LogOut size={16} className="text-[#5F7A63]" />
+        <span className="text-xs text-slate-700">{t('profile_logout')}</span>
       </button>
     </div>
   );

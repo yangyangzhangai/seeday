@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
+import { Gauge, Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
 import { triggerLightHaptic } from '../../../lib/haptics';
 
@@ -12,6 +12,7 @@ const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
 
 interface Props {
   isPlus: boolean;
+  plain?: boolean;
 }
 
 function showToast(msg: string) {
@@ -23,11 +24,11 @@ function showToast(msg: string) {
   setTimeout(() => el.remove(), 2000);
 }
 
-export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
+export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const current = preferences.annotationDropRate;
-  const [isUpdating, setIsUpdating] = React.useState(false);
+  const aiModeEnabled = preferences.aiModeEnabled;
   const selectedRateStyle: React.CSSProperties = {
     background:
       'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
@@ -36,28 +37,26 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
     color: '#426D56',
   };
 
-  const handleClick = async (key: AnnotationDropRate) => {
-    if (isUpdating) return;
+  const handleClick = (key: AnnotationDropRate) => {
     triggerLightHaptic();
+    if (!aiModeEnabled) return;
     if (key !== 'low' && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    setIsUpdating(true);
-    try {
-      await updatePreferences({ annotationDropRate: key });
-    } finally {
-      setIsUpdating(false);
-    }
+    void updatePreferences({ annotationDropRate: key });
   };
 
   return (
-    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
+    <div className={plain ? 'px-4 py-2.5' : 'rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">
-          {t('profile_annotation_drop')}
-        </span>
-        <div className="flex gap-1.5 flex-1">
+        <div className="flex items-center space-x-2.5 whitespace-nowrap flex-shrink-0">
+          <Gauge size={16} className="text-[#5F7A63]" />
+          <span className="text-xs text-slate-700">
+            {t('profile_annotation_drop')}
+          </span>
+        </div>
+        <div className={`flex gap-1.5 flex-1 transition-opacity ${aiModeEnabled ? '' : 'opacity-45 pointer-events-none'}`}>
           {DROP_RATES.map(({ key, labelKey }) => {
             const locked = key !== 'low' && !isPlus;
             const selected = current === key;
@@ -65,7 +64,6 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
               <button
                 key={key}
                 onClick={() => { void handleClick(key); }}
-                disabled={isUpdating}
                 className={`relative flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   selected
                     ? 'font-bold'

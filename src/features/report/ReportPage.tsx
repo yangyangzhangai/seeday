@@ -10,6 +10,7 @@ import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePlantStore } from '../../store/usePlantStore';
 import { callPlantGenerateAPI } from '../../api/client';
 import { cn } from '../../lib/utils';
 import {
@@ -24,13 +25,14 @@ import { DiaryBookShelf } from './DiaryBookShelf';
 import { UpgradeModal } from './UpgradeModal';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
+import { buildPlantGenerateUiState } from './plant/plantGenerateUi';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 export const ReportPage = () => {
   const [date, setDate] = useState<Value>(new Date());
-  const { reports, generateReport, generateAIDiary } = useReportStore();
+  const { reports, generateReport, generateAIDiary, updateReport } = useReportStore();
   const { todos } = useTodoStore();
   const { t, i18n } = useTranslation();
   const chatMessages = useChatStore((state) => state.messages);
@@ -38,6 +40,9 @@ export const ReportPage = () => {
   const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
   const isPlus = useAuthStore((state) => state.isPlus);
+  const todayPlant = usePlantStore((state) => state.todayPlant);
+  const isPlantGenerating = usePlantStore((state) => state.isGenerating);
+  const generatePlant = usePlantStore((state) => state.generatePlant);
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -50,6 +55,10 @@ export const ReportPage = () => {
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
   const [savedDiaryBookFlippedCount, setSavedDiaryBookFlippedCount] = useState<number | undefined>(undefined);
   const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
+  const [plantStatusHint, setPlantStatusHint] = useState<string | null>(null);
+  const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
+  const plantActionsRef = useRef<HTMLDivElement | null>(null);
+  const currentLang = i18n.language?.split('-')[0] || 'en';
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
@@ -114,6 +123,13 @@ export const ReportPage = () => {
     } else {
       reportId = await generateReport('daily', now.getTime());
     }
+
+    // Keep page-2 "我的日记" synced with the latest draft from root page before opening.
+    const latest = useReportStore.getState().reports.find(r => r.id === reportId);
+    if ((latest?.userNote ?? '') !== todayDiaryDraft) {
+      updateReport(reportId, { userNote: todayDiaryDraft });
+    }
+
     setSelectedReportId(reportId);
 
     // PLUS: auto-trigger AI diary generation if not already done
@@ -122,6 +138,63 @@ export const ReportPage = () => {
       generateAIDiary(reportId);
     }
   };
+
+  const plantIsTooEarly = new Date().getHours() < 20;
+  const plantGenerateUi = buildPlantGenerateUiState({
+    hasTodayPlant: Boolean(todayPlant),
+    isGenerating: isPlantGenerating,
+    isTooEarly: plantIsTooEarly,
+  });
+
+  const handleGeneratePlant = useCallback(async () => {
+    if (plantIsTooEarly) {
+      setPlantStatusHint((prev) => (
+        prev
+          ? null
+          : (currentLang === 'zh' ? '根系生长中，可在20:00后生成植物和日记' : t('plant_generate_locked_with_diary_hint'))
+      ));
+      return;
+    }
+    if (!window.confirm(t('plant_generate_confirm'))) {
+      return;
+    }
+    try {
+      const response = await generatePlant();
+      if (response.status === 'generated') {
+        setPlantStatusHint(t('plant_generate_success'));
+        return;
+      }
+      if (response.status === 'already_generated') {
+        setPlantStatusHint(t('plant_generate_already'));
+        return;
+      }
+      if (response.status === 'empty_day') {
+        setPlantStatusHint(t('plant_generate_empty_day_fallback'));
+        return;
+      }
+      if (response.status === 'monthly_exhausted') {
+        setPlantStatusHint(t('plant_generate_monthly_exhausted'));
+        return;
+      }
+      setPlantStatusHint(response.message ?? t('plant_generate_locked_hint'));
+    } catch {
+      setPlantStatusHint(t('plant_generate_failed'));
+    }
+  }, [currentLang, generatePlant, plantIsTooEarly, t]);
+
+  useEffect(() => {
+    if (!plantStatusHint) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (plantActionsRef.current?.contains(target)) return;
+      setPlantStatusHint(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [plantStatusHint]);
 
   // Keep a ref so the midnight timer can read latest reports without re-scheduling
   const reportsRef = useRef(reports);
@@ -134,15 +207,14 @@ export const ReportPage = () => {
       const now = new Date();
       const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
       timer = setTimeout(async () => {
-        const todayNow = new Date();
-        const existing = reportsRef.current.find(
-          r => r.type === 'daily' && isSameDay(new Date(r.date), todayNow)
-        );
-        if (!existing) {
-          await generateReport('daily', todayNow.getTime());
-        }
-        const yesterday = new Date(todayNow);
+        const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
+        const existingYesterday = reportsRef.current.find(
+          r => r.type === 'daily' && isSameDay(new Date(r.date), yesterday)
+        );
+        if (!existingYesterday) {
+          await generateReport('daily', yesterday.getTime());
+        }
         try {
           const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
           const langRaw = i18n.language?.toLowerCase() ?? 'en';
@@ -195,11 +267,29 @@ export const ReportPage = () => {
   }, [reports, generateReport, loadMessagesForDateRange]);
 
   const handleOpenDiaryBook = useCallback(() => {
-    const now = new Date();
-    setSavedDiaryBookMonth(new Date(now.getFullYear(), now.getMonth(), 1));
-    setSavedDiaryBookFlippedCount(now.getDate());
-    setShowDiaryBook(true);
-  }, []);
+    const open = async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const existingYesterday = useReportStore.getState().reports.find(
+        (report) => report.type === 'daily' && isSameDay(new Date(report.date), yesterday),
+      );
+
+      if (!existingYesterday) {
+        try {
+          await loadMessagesForDateRange(startOfDay(yesterday), endOfDay(yesterday));
+        } catch {
+          // best-effort preload; generation still proceeds if this fails
+        }
+        await generateReport('daily', yesterday.getTime());
+      }
+
+      setSavedDiaryBookMonth(new Date(yesterday.getFullYear(), yesterday.getMonth(), 1));
+      setSavedDiaryBookFlippedCount(yesterday.getDate());
+      setShowDiaryBook(true);
+    };
+    void open();
+  }, [generateReport, loadMessagesForDateRange]);
 
   const handleDiaryNavPrev = useCallback(async () => {
     const base = diaryNavDate ?? new Date();
@@ -216,7 +306,6 @@ export const ReportPage = () => {
   }, [diaryNavDate, openDiaryForDate]);
 
   const today = new Date();
-  const currentLang = i18n.language?.split('-')[0] || 'en';
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
 
   return (
@@ -230,27 +319,45 @@ export const ReportPage = () => {
           WebkitBackdropFilter: 'blur(14px) saturate(150%)',
         }}
       >
-        <h1 className="text-xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
+        <div className="grid grid-cols-[1fr_auto] items-start gap-x-3">
+          <h1 className="text-xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
+          <div ref={plantActionsRef} className="relative mt-[1px] flex flex-col items-end gap-1.5 flex-shrink-0">
+            <button
+              onClick={handleOpenDiaryBook}
+              className="rounded-full px-2 py-1 active:opacity-70 transition whitespace-nowrap"
+              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.15rem' }}
+            >
+              {t('report_view_diary_book')}
+            </button>
+            <button
+              onClick={handleGeneratePlant}
+              disabled={plantGenerateUi.disabled}
+              className="rounded-full px-2 py-1 transition whitespace-nowrap disabled:opacity-55 disabled:cursor-not-allowed active:opacity-70"
+              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.15rem' }}
+            >
+              {t(plantGenerateUi.buttonKey)}
+            </button>
+            {plantStatusHint ? (
+              <p className="pointer-events-none absolute right-0 top-full mt-1 text-right text-[10px] font-medium whitespace-nowrap" style={{ color: '#5f6f65' }}>
+                {plantStatusHint}
+              </p>
+            ) : null}
+          </div>
+        </div>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-1 text-left text-sm transition active:opacity-70"
+          className="mt-2 text-left text-sm transition active:opacity-70"
           style={{ color: '#64748b' }}
         >
           {format(today, currentLang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale: calendarLocale })}
         </button>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-end gap-1.5">
-          <button
-            onClick={handleOpenDiaryBook}
-            className="rounded-full px-2 py-0.5 active:opacity-70 transition whitespace-nowrap"
-            style={{ fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
-          >
-            {t('report_view_diary_book')}
-          </button>
-        </div>
       </header>
 
       <div className="flex-1 relative overflow-hidden">
-        <PlantRootSection onGenerateDiary={handleGenerateDiary} />
+        <PlantRootSection
+          onGenerateDiary={handleGenerateDiary}
+          onDiaryDraftChange={setTodayDiaryDraft}
+        />
       </div>
 
       {showEarlyTip && (

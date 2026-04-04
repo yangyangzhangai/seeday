@@ -1,13 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Lock, Crown } from 'lucide-react';
+import { Check, Crown } from 'lucide-react';
 
 const FEATURES = [
   { labelKey: 'membership_feat_basic_analysis', free: true },
   { labelKey: 'membership_feat_ai_chat', free: true },
+  { labelKey: 'membership_feat_daily_plant', free: true },
   { labelKey: 'membership_feat_daily_report', free: false },
   { labelKey: 'membership_feat_monthly_report', free: false },
-  { labelKey: 'membership_feat_daily_plant', free: true },
   { labelKey: 'membership_feat_advanced_analysis', free: false },
   { labelKey: 'membership_feat_weekly_report', free: false },
   { labelKey: 'membership_feat_yearly_report', free: false },
@@ -115,11 +115,11 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                     }}
                   />
                 ) : (
-                  <Lock size={12} style={{ color: 'rgba(95,102,157,0.45)', flexShrink: 0 }} />
+                  <span aria-hidden style={{ width: 12, height: 12, display: 'inline-block', flexShrink: 0 }} />
                 )}
                 <span
                   className="text-[11px] leading-tight"
-                  style={{ color: unlocked ? '#3d4f9f' : 'rgba(98,107,147,0.72)' }}
+                  style={{ color: unlocked ? '#3d4f9f' : '#545f78' }}
                 >
                   {t(labelKey)}
                 </span>
@@ -134,9 +134,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
             className="relative w-full overflow-hidden rounded-[17px] py-[11px] text-[13px] font-extrabold transition-all active:scale-[0.97]"
             style={{
               background: 'linear-gradient(130deg, rgba(132,117,255,0.22) 0%, rgba(131,209,255,0.34) 100%)',
-              boxShadow: '0 6px 18px rgba(90,116,199,0.24), inset 0 1px 1px rgba(255,255,255,0.78)',
+              boxShadow: '0 6px 18px rgba(90,116,199,0.24)',
               color: '#3746b0',
-              border: '1px solid rgba(255,255,255,0.82)',
+              border: '0.5px solid rgba(255,255,255,0.88)',
             }}
           >
             {t('profile_upgrade')}

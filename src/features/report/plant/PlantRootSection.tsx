@@ -1,14 +1,14 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { format, isSameDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { buildRootSegments, renderRootSegments } from '../../../lib/rootRenderer';
 import { mapSourcesToPlantActivities, toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
+import { useReportStore } from '../../../store/useReportStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../../store/usePlantStore';
 import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantFlipCard } from './PlantFlipCard';
-import { buildPlantGenerateUiState } from './plantGenerateUi';
 import { SoilCanvas } from './SoilCanvas';
 import { DayEcoSphere } from './DayEcoSphere';
 
@@ -29,25 +29,59 @@ function getCategoryKey(category: PlantCategoryKey): string {
 
 interface PlantRootSectionProps {
   onGenerateDiary?: () => void;
+  onDiaryDraftChange?: (text: string) => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDiary }) => {
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDiary, onDiaryDraftChange }) => {
   const { t } = useTranslation();
-  const [timeTick, setTimeTick] = useState(() => Date.now());
-  const [statusHint, setStatusHint] = useState<string | null>(null);
+  const reports = useReportStore(state => state.reports);
+  const updateReport = useReportStore(state => state.updateReport);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
   const directionOrder = usePlantStore(state => state.directionOrder);
-  const isGenerating = usePlantStore(state => state.isGenerating);
   const loadTodayData = usePlantStore(state => state.loadTodayData);
   const refreshTodaySegments = usePlantStore(state => state.refreshTodaySegments);
   const startActivitySync = usePlantStore(state => state.startActivitySync);
   const stopActivitySync = usePlantStore(state => state.stopActivitySync);
-  const generatePlant = usePlantStore(state => state.generatePlant);
   const setSelectedRootId = usePlantStore(state => state.setSelectedRootId);
   const messages = useChatStore(state => state.messages);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
+  const [myDiaryText, setMyDiaryText] = useState('');
+  const activeDiaryReportIdRef = useRef<string | null>(null);
+
+  const todayDailyReport = useMemo(
+    () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
+    [reports],
+  );
+
+  useEffect(() => {
+    const reportId = todayDailyReport?.id ?? null;
+    if (activeDiaryReportIdRef.current === reportId) return;
+    activeDiaryReportIdRef.current = reportId;
+    const nextNote = todayDailyReport?.userNote ?? '';
+    setMyDiaryText(nextNote);
+    onDiaryDraftChange?.(nextNote);
+  }, [todayDailyReport?.id, todayDailyReport?.userNote]);
+
+  useEffect(() => {
+    onDiaryDraftChange?.(myDiaryText);
+  }, [myDiaryText, onDiaryDraftChange]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      const reportId = todayDailyReport?.id;
+      // Before explicit generation, keep draft local only — do not create today's report early.
+      if (!reportId) return;
+
+      const nextNote = myDiaryText;
+      const latest = useReportStore.getState().reports.find(report => report.id === reportId);
+      if ((latest?.userNote ?? '') === nextNote) return;
+      updateReport(reportId, { userNote: nextNote });
+    }, 600);
+
+    return () => window.clearTimeout(timerId);
+  }, [myDiaryText, todayDailyReport?.id, updateReport]);
 
   useEffect(() => {
     void (async () => {
@@ -62,7 +96,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     })();
     startActivitySync();
     const timerId = window.setInterval(() => {
-      setTimeTick(Date.now());
       refreshTodaySegments();
     }, 30_000);
     return () => {
@@ -96,9 +129,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
       `plant-${todayPlant.date}`,
     );
   }, [todayPlant, todaySegments, messages, directionOrder]);
-
-  const nowHour = new Date(timeTick).getHours();
-  const isTooEarly = nowHour < 20;
 
   const messageMap = useMemo(() => {
     const map = new Map<string, {
@@ -140,48 +170,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     return `${format(startTs, 'HH:mm')}-${format(endTs, 'HH:mm')}`;
   }, [selectedMessage, selectedSegment]);
 
-  const generateUi = useMemo(
-    () => buildPlantGenerateUiState({
-      hasTodayPlant: Boolean(todayPlant),
-      isGenerating,
-      isTooEarly,
-    }),
-    [isGenerating, isTooEarly, todayPlant],
-  );
-  const generateHint = statusHint ?? (generateUi.hintKey ? t(generateUi.hintKey) : null);
-
-  const handleGenerate = async () => {
-    if (isTooEarly) {
-      setStatusHint(t('plant_generate_locked_with_diary_hint'));
-      return;
-    }
-    if (!window.confirm(t('plant_generate_confirm'))) {
-      return;
-    }
-    try {
-      const response = await generatePlant();
-      if (response.status === 'generated') {
-        setStatusHint(t('plant_generate_success'));
-        return;
-      }
-      if (response.status === 'already_generated') {
-        setStatusHint(t('plant_generate_already'));
-        return;
-      }
-      if (response.status === 'empty_day') {
-        setStatusHint(t('plant_generate_empty_day_fallback'));
-        return;
-      }
-      if (response.status === 'monthly_exhausted') {
-        setStatusHint(t('plant_generate_monthly_exhausted'));
-        return;
-      }
-      setStatusHint(response.message ?? t('plant_generate_locked_hint'));
-    } catch {
-      setStatusHint(t('plant_generate_failed'));
-    }
-  };
-
   /* ── When plant is generated: show flip card only ── */
   if (todayPlant) {
     return (
@@ -197,11 +185,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   }
 
   return (
-    /* Outer: flex column filling available height, bubbles overlay spans full height */
-    <div className="h-full flex flex-col relative overflow-hidden">
+    /* Keep root visualization full-size; diary area is reachable by scrolling down. */
+    <div className="h-full relative overflow-y-auto overflow-x-hidden">
 
-      {/* ── Canvas area (flex-1, clips soil canvas) ── */}
-      <div className="flex-1 relative overflow-hidden min-h-0">
+      {/* ── Large canvas area; diary sits right below with a small gap ── */}
+      <div className="relative h-[max(460px,62vh)] overflow-hidden">
         {/* Soil + roots: pushed down so eco-sphere bubbles (130px) are fully above soil */}
         <div className="absolute inset-0" style={{ top: 130 }}>
           <SoilCanvas
@@ -225,25 +213,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
           <DayEcoSphere />
         </div>
-
-        {/* ── Generate button: absolute at bottom, overlapping soil ── */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-2 pb-1">
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={generateUi.disabled}
-            className="w-full min-h-11 rounded-2xl text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'rgba(35, 25, 12, 0.80)', color: '#f5eedc', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            {t(generateUi.buttonKey)}
-          </button>
-          {generateHint ? (
-            <p className="mt-1 text-center text-xs" style={{ color: 'rgba(90,64,40,0.70)' }}>
-              {generateHint}
-            </p>
-          ) : null}
-        </div>
-
         {/* Empty state hint (centered in canvas) */}
         {renderedSegments.length === 0 ? (
           <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
@@ -255,6 +224,16 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         ) : null}
       </div>
 
+      <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+92px)] pt-2">
+        <h3 className="text-sm font-bold" style={{ color: '#334155' }}>{t('report_my_diary')}</h3>
+        <textarea
+          value={myDiaryText}
+          onChange={(event) => setMyDiaryText(event.target.value)}
+          placeholder={t('report_diary_placeholder')}
+          className="mt-2 w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
+          style={{ minHeight: 128, color: '#334155' }}
+        />
+      </div>
     </div>
   );
 };

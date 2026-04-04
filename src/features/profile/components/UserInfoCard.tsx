@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Crown, X, MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -145,12 +146,63 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     if (e.key === 'Escape') setEditingName(false);
   };
 
+  const plusCardStyle: React.CSSProperties = isPlus
+    ? {
+      background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #dff0ff 100%)',
+      backdropFilter: 'blur(22px) saturate(145%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+      border: 'none',
+      boxShadow: '0 8px 22px rgba(90,116,199,0.14)',
+    }
+    : {};
+
   return (
-    <div className="rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]">
-      <div className="flex items-center space-x-3">
+    <div
+      className={isPlus
+        ? 'relative overflow-hidden rounded-[1.5rem] px-4 py-3'
+        : 'rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}
+      style={plusCardStyle}
+    >
+      {isPlus ? (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: -26,
+              right: -22,
+              width: 132,
+              height: 132,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(124,101,255,0.42) 0%, rgba(124,101,255,0.12) 45%, rgba(124,101,255,0) 76%)',
+              filter: 'blur(0.5px)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 22,
+              bottom: -30,
+              width: 180,
+              height: 100,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(129,180,255,0.34) 0%, rgba(129,180,255,0.08) 48%, rgba(129,180,255,0) 78%)',
+              pointerEvents: 'none',
+            }}
+          />
+        </>
+      ) : null}
+
+      <div className={isPlus ? 'relative z-[1] flex items-center space-x-3' : 'flex items-center space-x-3'}>
         {/* Avatar */}
-        <div
-          className="h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white shadow-[0_4px_14px_rgba(148,163,184,0.22)]"
+        <button
+          type="button"
+          aria-label="Open avatar preview"
+          className={isPlus
+            ? 'relative z-[2] h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
+            : 'h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
           onClick={handleAvatarClick}
         >
           {user?.user_metadata?.avatar_url ? (
@@ -164,7 +216,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               <User size={22} className="text-gray-400" />
             </div>
           )}
-        </div>
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -187,50 +239,122 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               />
             ) : (
               <span
-                className="cursor-pointer truncate text-sm font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]"
+                className={isPlus
+                  ? 'cursor-pointer truncate text-sm font-semibold text-[#3f43aa] transition-colors hover:text-[#3246a8]'
+                  : 'cursor-pointer truncate text-sm font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]'}
                 onClick={handleNameClick}
               >
                 {displayName}
               </span>
             )}
             {isPlus && (
-              <span className="flex items-center space-x-0.5 bg-yellow-100 text-yellow-600 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span
+                className="flex items-center space-x-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, #5242de 0%, #4156da 56%, #4f8fff 100%)',
+                  color: '#f4f8ff',
+                  boxShadow: '0 5px 12px rgba(75,96,223,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
+                }}
+              >
                 <Crown size={10} />
                 <span>PLUS</span>
               </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-slate-500">{user?.email}</p>
+          <p className={isPlus ? 'mt-0.5 truncate text-xs text-[#5e65b2]' : 'mt-0.5 truncate text-xs text-slate-500'}>{user?.email}</p>
         </div>
       </div>
 
       {/* Stats — compact */}
-      <div className="mt-3 grid grid-cols-3 divide-x divide-slate-200/60 border-t border-slate-200/60 pt-2">
+      <div className={isPlus ? 'relative z-[1] mt-3 pt-3' : 'relative mt-3 pt-2'}>
+        {isPlus ? (
+          <>
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 1,
+                background: 'linear-gradient(90deg, rgba(140,160,245,0.08) 0%, rgba(118,136,235,0.82) 50%, rgba(140,160,245,0.08) 100%)',
+                boxShadow: '0 0 8px rgba(118,136,235,0.45)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: '33.333%',
+                top: 6,
+                bottom: 6,
+                width: 1,
+                background: 'linear-gradient(180deg, rgba(149,166,245,0.08) 0%, rgba(122,140,234,0.76) 50%, rgba(149,166,245,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(124,142,236,0.36)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: '66.666%',
+                top: 6,
+                bottom: 6,
+                width: 1,
+                background: 'linear-gradient(180deg, rgba(149,166,245,0.08) 0%, rgba(122,140,234,0.76) 50%, rgba(149,166,245,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(124,142,236,0.36)',
+                pointerEvents: 'none',
+              }}
+            />
+          </>
+        ) : null}
+        {!isPlus ? (
+          <>
+            <div
+              aria-hidden
+              className="absolute left-0 right-0 top-0 h-px bg-slate-200/80"
+            />
+            <div
+              aria-hidden
+              className="absolute bottom-1 top-3 w-px bg-slate-200/80"
+              style={{ left: '33.333%' }}
+            />
+            <div
+              aria-hidden
+              className="absolute bottom-1 top-3 w-px bg-slate-200/80"
+              style={{ left: '66.666%' }}
+            />
+          </>
+        ) : null}
+        <div className={isPlus ? 'grid grid-cols-3' : 'grid grid-cols-3'}>
         <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_streak')}</span>
-          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{weeklyLoginDays}</span>
-          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
+          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_streak')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{weeklyLoginDays}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
             {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_today_activities')}</span>
-          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{todayActs}</span>
-          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
+          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_today_activities')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{todayActs}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
             {t('profile_today_activities_hint', { count: todayActs })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[10px] text-slate-500">{t('profile_completed_goals')}</span>
-          <span className="mt-0.5 text-base font-bold text-[#5F7A63]">{completedGoals}</span>
-          <span className="mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400">
+          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_completed_goals')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{completedGoals}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
             {t('profile_completed_goals_hint')}
           </span>
+        </div>
         </div>
       </div>
 
       {/* Avatar modal */}
-      {showAvatarModal && (
+      {showAvatarModal ? createPortal(
         <div
           className={cn('fixed inset-0 flex items-center justify-center z-50', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => {
@@ -287,7 +411,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             </div>
           </div>
         </div>
-      )}
+      , document.body) : null}
     </div>
   );
 };
