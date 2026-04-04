@@ -36,6 +36,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const { t } = useTranslation();
   const reports = useReportStore(state => state.reports);
   const updateReport = useReportStore(state => state.updateReport);
+  const generateReport = useReportStore(state => state.generateReport);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
@@ -49,6 +50,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
   const [myDiaryText, setMyDiaryText] = useState('');
   const activeDiaryReportIdRef = useRef<string | null>(null);
+  const pendingDiaryReportIdRef = useRef<string | null>(null);
 
   const todayDailyReport = useMemo(
     () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
@@ -59,9 +61,12 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     const reportId = todayDailyReport?.id ?? null;
     if (activeDiaryReportIdRef.current === reportId) return;
     activeDiaryReportIdRef.current = reportId;
-    const nextNote = todayDailyReport?.userNote ?? '';
-    setMyDiaryText(nextNote);
-    onDiaryDraftChange?.(nextNote);
+    if (reportId) pendingDiaryReportIdRef.current = reportId;
+    const reportNote = todayDailyReport?.userNote ?? '';
+    setMyDiaryText((prev) => {
+      if (prev.trim().length > 0 && reportNote.trim().length === 0) return prev;
+      return reportNote;
+    });
   }, [todayDailyReport?.id, todayDailyReport?.userNote]);
 
   useEffect(() => {
@@ -70,18 +75,25 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      const reportId = todayDailyReport?.id;
-      // Before explicit generation, keep draft local only — do not create today's report early.
-      if (!reportId) return;
+      void (async () => {
+        const nextNote = myDiaryText;
+        const nextTrimmed = nextNote.trim();
+        let reportId = todayDailyReport?.id ?? pendingDiaryReportIdRef.current;
 
-      const nextNote = myDiaryText;
-      const latest = useReportStore.getState().reports.find(report => report.id === reportId);
-      if ((latest?.userNote ?? '') === nextNote) return;
-      updateReport(reportId, { userNote: nextNote });
+        if (!reportId) {
+          if (!nextTrimmed) return;
+          reportId = await generateReport('daily', Date.now());
+          pendingDiaryReportIdRef.current = reportId;
+        }
+
+        const latest = useReportStore.getState().reports.find(report => report.id === reportId);
+        if ((latest?.userNote ?? '') === nextNote) return;
+        updateReport(reportId, { userNote: nextNote });
+      })();
     }, 600);
 
     return () => window.clearTimeout(timerId);
-  }, [myDiaryText, todayDailyReport?.id, updateReport]);
+  }, [generateReport, myDiaryText, todayDailyReport?.id, updateReport]);
 
   useEffect(() => {
     void (async () => {
