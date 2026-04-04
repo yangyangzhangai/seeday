@@ -63,26 +63,37 @@ export const YesterdaySummaryPopup: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-auto fixed left-4 right-4 z-10"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 136px)' }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.25 }}
+          className="fixed left-4 right-4 z-30 pointer-events-auto"
+          style={{ top: 'max(12px, calc(env(safe-area-inset-top, 0px) + 8px))' }}
           onPointerDown={() => setUserInteracted(true)}
         >
-          <div className={cn(APP_MODAL_CARD_CLASS, 'rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5')}>
-            <div className="text-lg leading-none flex-shrink-0">🌙</div>
+          <div
+            className={cn(APP_MODAL_CARD_CLASS, 'rounded-2xl px-4 py-3 flex items-start gap-3')}
+            style={{
+              background:
+                'linear-gradient(140deg, rgba(168,85,247,0.38) 0%, rgba(139,92,246,0.30) 45%, rgba(217,70,239,0.24) 100%)',
+              border: '1px solid rgba(255,255,255,0.38)',
+              backdropFilter: 'blur(18px) saturate(155%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(155%)',
+              boxShadow: '0 10px 30px rgba(88,28,135,0.26), inset 0 1px 1px rgba(255,255,255,0.35)',
+            }}
+          >
+            <div className="text-2xl mt-0.5">🌙</div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold text-slate-500 leading-none mb-1">{t('yesterday_popup')}</p>
-              <p className="text-sm text-slate-800 font-medium leading-snug line-clamp-2">{event.content}</p>
+              <p className="text-xs font-semibold text-violet-50/95 mb-0.5">{t('yesterday_popup')}</p>
+              <p className="text-sm text-white/95 truncate font-medium">{event.content}</p>
               {event.duration != null && (
-                <p className="text-[10px] text-slate-400 mt-0.5 leading-none">
+                <p className="text-[10px] text-violet-100/80 mt-0.5">
                   {Math.round(event.duration)} min
                 </p>
               )}
             </div>
             <button
               onClick={() => setEvent(null)}
-              className="flex-shrink-0 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100/60 transition-colors"
+              className="mt-0.5 rounded-full p-1 text-violet-50/85 transition-colors hover:text-white"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
             >
               <X size={13} />
             </button>
