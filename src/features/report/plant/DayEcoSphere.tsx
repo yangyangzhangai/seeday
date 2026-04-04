@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../../store/useChatStore';
@@ -133,6 +133,7 @@ export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
   const [timeTick, setTimeTick] = useState(() => Date.now());
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const messages = useChatStore(state => state.messages);
   const activityMood = useMoodStore(state => state.activityMood);
 
@@ -175,6 +176,21 @@ export const DayEcoSphere: React.FC = () => {
   const isNight = new Date().getHours() >= 20;
   const toggle = (b: ActiveBubble) => setActive(prev => prev === b ? null : b);
 
+  useEffect(() => {
+    if (!active) return;
+
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (!containerRef.current?.contains(target)) {
+        setActive(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDownOutside, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDownOutside, true);
+  }, [active]);
+
   const glassPanel: React.CSSProperties = {
     background: 'rgba(248, 242, 229, 0.94)',
     border: '1px solid rgba(195, 168, 120, 0.38)',
@@ -184,7 +200,7 @@ export const DayEcoSphere: React.FC = () => {
   };
 
   return (
-    <div className="pointer-events-none">
+    <div ref={containerRef} className="pointer-events-none">
       {/* Arc + float layout — center bubble is the apex */}
       <div className="pointer-events-auto relative" style={{ height: 130 }}>
         <style>{`
