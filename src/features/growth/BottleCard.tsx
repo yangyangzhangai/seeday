@@ -22,6 +22,7 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
   const touchMovedRef = useRef(false);
 
   const isAchieved = bottle.status === 'achieved';
+  const syncState = bottle.syncState ?? 'synced';
 
   useEffect(() => {
     if (!deleteVisible) return;
@@ -189,6 +190,16 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
               />
             ))}
           </div>
+
+          {syncState !== 'synced' && (
+            <div
+              className={cn(
+                'absolute -right-0.5 top-0 z-[4] h-2.5 w-2.5 rounded-full border border-white/90',
+                syncState === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-red-500'
+              )}
+              title={syncState === 'pending' ? t('growth_bottle_sync_pending') : t('growth_bottle_sync_failed')}
+            />
+          )}
 
           <img
             src={glassBottleImage}

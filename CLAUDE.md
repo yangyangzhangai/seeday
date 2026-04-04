@@ -8,7 +8,7 @@
 
 ## 🧭 项目一句话简介
 
-**Tshine** 是一款 iOS 优先的 AI 陪伴日记应用，用户通过聊天输入日常记录，AI 自动提取活动/心情/待办，生成日报，并以 4 个个性化 AI 人格（`van`、`agnes`、`zep`、`spring_thunder`）提供回应。技术栈：React 18 + TypeScript + Vite + Zustand + Supabase + Vercel Serverless + Capacitor（iOS 套壳）。
+**Tshine** 是一款 iOS 优先的 AI 陪伴日记应用，用户通过聊天输入日常记录，AI 自动提取活动/心情/待办，生成日报，并以 4 个个性化 AI 人格（`van`、`agnes`、`zep`、`momo`）提供回应。技术栈：React 18 + TypeScript + Vite + Zustand + Supabase + Vercel Serverless + Capacitor（iOS 套壳）。
 
 ---
 

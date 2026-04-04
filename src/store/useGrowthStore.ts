@@ -6,6 +6,7 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 
 export type BottleType = 'habit' | 'goal';
 export type BottleStatus = 'active' | 'achieved' | 'irrigated';
+export type BottleSyncState = 'synced' | 'pending' | 'failed';
 
 export const MAX_BOTTLES = 10;
 
@@ -17,6 +18,8 @@ export interface Bottle {
   round: number;       // current round (goal bottles track multiple rounds)
   status: BottleStatus;
   createdAt: number;
+  syncState?: BottleSyncState;
+  syncError?: string | null;
 }
 
 interface GrowthState {
@@ -68,6 +71,16 @@ function fromDbBottle(row: Record<string, unknown>): Bottle {
     round: row.round as number,
     status: row.status as BottleStatus,
     createdAt: new Date(row.created_at as string).getTime(),
+    syncState: 'synced',
+    syncError: null,
+  };
+}
+
+function withDefaultSyncState(bottle: Bottle): Bottle {
+  return {
+    ...bottle,
+    syncState: bottle.syncState ?? 'synced',
+    syncError: bottle.syncError ?? null,
   };
 }
 
@@ -98,6 +111,8 @@ export const useGrowthStore = create<GrowthState>()(
           round: 1,
           status: 'active',
           createdAt: Date.now(),
+          syncState: 'pending',
+          syncError: null,
         };
         set((s) => ({ bottles: [...s.bottles, bottle] }));
 
@@ -105,9 +120,29 @@ export const useGrowthStore = create<GrowthState>()(
           try {
             const session = await getSupabaseSession();
             if (!session) return;
-            await supabase.from('bottles').insert([toDbBottle(bottle, session.user.id)]);
+            const { error } = await supabase.from('bottles').insert([toDbBottle(bottle, session.user.id)]);
+            if (error) throw error;
+            set((s) => ({
+              bottles: s.bottles.map((b) =>
+                b.id === bottle.id
+                  ? { ...b, syncState: 'synced', syncError: null }
+                  : b
+              ),
+            }));
           } catch (err) {
             if (import.meta.env.DEV) console.warn('[GrowthStore] insert bottle failed', err);
+            set((s) => ({
+              bottles: s.bottles.map((b) =>
+                b.id === bottle.id
+                  ? {
+                    ...b,
+                    syncState: 'failed',
+                    syncError: err instanceof Error ? err.message : 'growth_sync_failed',
+                  }
+                  : b
+              ),
+              lastSyncError: err instanceof Error ? err.message : 'growth_sync_failed',
+            }));
           }
         })();
 
@@ -260,18 +295,40 @@ export const useGrowthStore = create<GrowthState>()(
           }
 
           const cloudBottles = (data as Record<string, unknown>[]).map(fromDbBottle);
+          const cloudIds = new Set(cloudBottles.map((b) => b.id));
+          const localBottles = get().bottles.map(withDefaultSyncState);
+          const localOnly = localBottles.filter((b) => !cloudIds.has(b.id));
 
-          set(state => {
-            // Keep any local bottles not yet synced to cloud
-            const cloudIds = new Set(cloudBottles.map(b => b.id));
-            const localOnly = state.bottles.filter(b => !cloudIds.has(b.id));
-            return {
-              bottles: [...cloudBottles, ...localOnly],
-              isLoading: false,
-              hasHydrated: true,
-              lastSyncError: null,
-            };
-          });
+          let reconciledLocalOnly = localOnly;
+          let reconcileError: string | null = null;
+
+          if (localOnly.length > 0) {
+            const { error: reconcileWriteError } = await supabase
+              .from('bottles')
+              .upsert(localOnly.map((b) => toDbBottle(b, session.user.id)), { onConflict: 'id' });
+
+            if (reconcileWriteError) {
+              reconcileError = reconcileWriteError.message;
+              reconciledLocalOnly = localOnly.map((b) => ({
+                ...b,
+                syncState: 'failed',
+                syncError: reconcileWriteError.message,
+              }));
+            } else {
+              reconciledLocalOnly = localOnly.map((b) => ({
+                ...b,
+                syncState: 'synced',
+                syncError: null,
+              }));
+            }
+          }
+
+          set(() => ({
+            bottles: [...cloudBottles, ...reconciledLocalOnly],
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: reconcileError,
+          }));
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[GrowthStore] fetchBottles failed', err);
           set({

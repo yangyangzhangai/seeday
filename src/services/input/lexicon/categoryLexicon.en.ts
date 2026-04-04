@@ -34,6 +34,12 @@ export const enCategoryLexicon: CategoryLexicon = {
       'email', 'emails', 'mail', 'message', 'messages',
       'call', 'phone call', 'video call',
       'review', 'reviewing',
+      // operational work actions
+      'query logs', 'query data', 'search records', 'filter results', 'refine query',
+      'edit document', 'modify config', 'update profile', 'revise copy',
+      'submit ticket', 'submit request', 'submit pr', 'submit for review',
+      'verify identity', 'identity verification', 'two-factor authentication',
+      'upload file', 'export report',
     ],
 
     social: [
@@ -73,6 +79,9 @@ export const enCategoryLexicon: CategoryLexicon = {
       'shower', 'bath', 'skincare',
       'package', 'parcel', 'errand',
       'pay bills', 'paying bills',
+      // account / order operations in daily life contexts
+      'look up order', 'track package', 'sign in', 'sign out', 'reset password',
+      'bind phone number', 'unlink device',
     ],
 
     entertainment: [

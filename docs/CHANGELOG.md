@@ -8,6 +8,37 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-03 - Feat: 活动词库补强（zh/en/it 操作型表达扩展）
+
+### Changed
+
+- `src/services/input/lexicon/activityLexicon.zh.ts`
+  - 新增 24 条中文操作型活动短语，覆盖查询/修改/提交/认证/账号操作（如 `查询日志`、`提交审核`、`重置密码`）。
+- `src/services/input/lexicon/activityLexicon.en.ts`
+  - 新增 26 条英文操作型活动短语，覆盖 query/edit/submit/auth/account 场景（如 `query logs`、`submit ticket`、`two-factor authentication`）。
+- `src/services/input/lexicon/activityLexicon.it.ts`
+  - 新增 25 条意大利语操作型活动短语，覆盖查询/修改/提交/认证/账号场景（如 `cercare log`、`inviare richiesta`、`reimpostare password`）。
+- `src/services/input/lexicon/categoryLexicon.zh.ts`
+  - 补充中午/工作语境分流关键词：数据/日志/工单/提交流程归 `work`；订单/快递/账号操作归 `life`。
+- `src/services/input/lexicon/categoryLexicon.en.ts`
+  - 增补 EN 语境分流关键词：query/submit/review/auth 归 `work`；order/package/account 操作归 `life`。
+- `src/services/input/lexicon/categoryLexicon.it.ts`
+  - 增补 IT 语境分流关键词：operational work actions 归 `work`；ordine/pacco/account 操作归 `life`。
+- `src/services/input/signals/latinSignalExtractor.ts`
+  - 扩展 Italian 语言信号词，新增 `cercare/tracciare/reimpostare/disconnettersi/identita/autenticazione`，确保新增 IT 操作词不会误判为英语语句。
+- `src/services/input/liveInputClassifier.test.ts`
+  - 新增中文回归用例：`查询日志`、`查询快递`、`重置密码`。
+- `src/services/input/liveInputClassifier.i18n.test.ts`
+  - 新增英语与意大利语回归用例：`query logs/look up order/reset password`、`cercare log/tracciare pacco/reimpostare password`。
+
+### Validation
+
+- `npx vitest run src/services/input/liveInputClassifier.test.ts src/services/input/liveInputClassifier.i18n.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次词库补强完成项）。
+
 ## 2026-04-02 - Prompt: suggestion 场景规则补强（zh/en/it）
 
 ### Changed
@@ -887,7 +918,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 ### Changed
 
-- Added shared companion persona definitions in `src/lib/aiCompanion.ts` for the four supported modes: `van`, `agnes`, `zep`, and `spring_thunder`.
+- Added shared companion persona definitions in `src/lib/aiCompanion.ts` for the four supported modes: `van`, `agnes`, `zep`, and `momo`.
 - Updated `src/api/client.ts` to auto-attach the active `aiMode` when calling:
   - `callAnnotationAPI(...)`
   - `callDiaryAPI(...)`

@@ -293,6 +293,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       : [
         'Decide naturally between plain annotation and actionable suggestion.',
         'If plain annotation is better, output plain text only, end with exactly one emoji.',
+        'If you include an actionable next step (do/start/try/go), you MUST use suggestion mode JSON instead of plain text.',
       ];
     const sceneRules = [
       'If the user shows physical illness or discomfort, give one concrete rest action with duration and do not recommend work or study tasks.',
@@ -326,6 +327,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       : [
         'Scegli in modo naturale tra annotazione normale e suggerimento operativo.',
         'Se e meglio una normale annotazione, stampa solo testo con una sola emoji finale.',
+        'Se includi un prossimo passo operativo (fare/iniziare/provare/andare), devi usare il JSON di suggerimento invece del testo normale.',
       ];
     const sceneRules = [
       'Se l\'utente mostra malessere fisico, dai un suggerimento di riposo concreto con durata ed evita task di lavoro o studio.',
@@ -355,8 +357,9 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       '用户本轮明确要求建议：你必须输出建议 JSON，不允许输出普通文本。',
     ]
     : [
-      '请自然判断输出普通批注，还是给一个具体可执行的建议。每天最多有3次建议机会，如果你判断过后没有偏好，请输出普通批注。',
+      '请自然判断输出普通批注，还是给一个具体可执行的建议。每天最多有3次建议机会。',
       '如果输出普通批注：只输出一句话，句末且仅一个 emoji。',
+      '如果你要给出可执行的下一步（如去做、开始、试试、现在就做），必须使用建议模式 JSON，不能输出普通文本。',
     ];
   const sceneRules = [
     '若用户表达身体不适（如生病、头痛、发烧、咳嗽、很难受），请优先给出一个可立即执行的具体休息建议（动作+时长），不要推荐工作或学习任务。',

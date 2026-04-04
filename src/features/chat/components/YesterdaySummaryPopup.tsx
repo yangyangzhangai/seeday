@@ -61,7 +61,7 @@ export const YesterdaySummaryPopup: React.FC = () => {
     <AnimatePresence>
       {event && (
         <motion.div
-          initial={{ opacity: 0, y: -16 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
@@ -95,7 +95,7 @@ export const YesterdaySummaryPopup: React.FC = () => {
               className="mt-0.5 rounded-full p-1 text-violet-50/85 transition-colors hover:text-white"
               style={{ background: 'rgba(255,255,255,0.12)' }}
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           </div>
         </motion.div>

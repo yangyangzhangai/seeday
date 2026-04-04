@@ -72,7 +72,7 @@ describe('annotation-handler', () => {
     expect(responsesCreateMock).toHaveBeenCalledTimes(1);
 
     const request = responsesCreateMock.mock.calls[0][0];
-    expect(request.instructions).toContain('Real-Life Candor');
+    expect(request.instructions).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
     expect(request).not.toHaveProperty('previous_response_id');
     expect(res.statusCode).toBe(200);
     expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');

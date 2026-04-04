@@ -135,6 +135,13 @@ export const itActivityLexicon: ActivityLexicon = {
     'visita', 'visita di controllo', 'analisi', 'esami del sangue',
     'fisioterapia', 'fisioterapista',
     'farmacia', 'ho preso le medicine',
+    // Query / modifica / invio / autenticazione / account
+    'cercare log', 'cercare dati', 'cercare ordine', 'tracciare pacco', 'filtrare risultati', 'affinare ricerca',
+    'modificare configurazione', 'modificare documento', 'aggiornare profilo', 'correggere testo',
+    'inviare ticket', 'inviare richiesta', 'inviare pr', 'inviare per revisione',
+    'verificare identita', 'verifica identita', 'autenticazione a due fattori',
+    'fare accesso', 'disconnettersi', 'reimpostare password', 'associare numero di telefono', 'scollegare dispositivo',
+    'caricare file', 'esportare report', 'importare dati',
   ],
   verbs: [],
   phrasePatterns: [

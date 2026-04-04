@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
@@ -16,6 +16,16 @@ import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { useNightReminder } from './hooks/useNightReminder';
+import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
+import { useTranslation } from 'react-i18next';
+import { cn } from './lib/utils';
+import {
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_PRIMARY_BUTTON_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
+} from './lib/modalTheme';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
@@ -62,6 +72,10 @@ const MainLayout = () => {
   const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { showReminder, dismiss } = useNightReminder();
+  useMidnightAutoGenerate();
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;
@@ -184,6 +198,29 @@ const MainLayout = () => {
         emojiChar={animationState.emojiChar}
         onComplete={handleAnimationComplete}
       />
+      {/* 晚间生成提醒 */}
+      {showReminder && (
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={dismiss}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-3xl p-6 text-center animate-in fade-in zoom-in-95')} onClick={e => e.stopPropagation()}>
+            <p className="text-base font-semibold text-slate-800 mb-2">{t('night_reminder_title')}</p>
+            <p className="text-sm text-slate-600 leading-relaxed mb-5">{t('night_reminder_body')}</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={dismiss}
+                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'px-4 py-2 text-sm rounded-full active:opacity-70')}
+              >
+                {t('night_reminder_dismiss')}
+              </button>
+              <button
+                onClick={() => { dismiss(); navigate('/report'); }}
+                className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'px-4 py-2 text-sm rounded-full active:opacity-70')}
+              >
+                {t('night_reminder_go')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

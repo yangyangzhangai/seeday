@@ -78,7 +78,7 @@ export const ChatPage = () => {
     van: [imgVan01, imgVan02],
     agnes: [imgAgnes01, imgAgnes02],
     zep: [imgBirdZep02, imgBirdZep03],
-    spring_thunder: [imgMomo01, imgMomo02],
+    momo: [imgMomo01, imgMomo02],
   };
   const [personaImg1, personaImg2] = personaImages[aiMode] ?? [imgBirdZep02, imgBirdZep03];
 

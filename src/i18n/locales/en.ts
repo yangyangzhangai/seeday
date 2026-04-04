@@ -374,6 +374,8 @@ const en = {
     growth_todo_quick_add_placeholder: 'Add a to-do, press Enter to save...',
     growth_bottle_name_duplicate: 'A bottle with this name already exists',
     growth_bottle_todo_prompt: 'Create a to-do for "{{name}}"?',
+    growth_bottle_sync_pending: 'Syncing',
+    growth_bottle_sync_failed: 'Sync failed',
 
     // ── Profile Page ──
     profile_title: 'Profile',
@@ -443,6 +445,12 @@ const en = {
     yesterday_tap_to_view: 'Tap to view that day\'s entries',
     new_day_start: 'Start your day with a new record',
     record_what_you_do: "Record what you're doing",
+
+    // ── Night Reminder ──
+    night_reminder_title: "Today isn't complete yet",
+    night_reminder_body: "Your plant and diary haven't been generated. Take a moment tonight to capture your day~",
+    night_reminder_go: 'Generate now',
+    night_reminder_dismiss: 'Maybe later',
 } as const;
 
 // Key-set type: zh.ts must have the same keys, but values can be any string

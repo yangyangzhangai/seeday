@@ -95,7 +95,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
     return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   });
   const currentModeVisual = AI_COMPANION_VISUALS[normalizeAiCompanionMode(aiMode)];
-  const bubbleAvatar = normalizeAiCompanionMode(aiMode) === 'spring_thunder'
+  const bubbleAvatar = normalizeAiCompanionMode(aiMode) === 'momo'
     ? momoBubbleAvatar
     : currentModeVisual.avatar;
   const suggestion = currentAnnotation?.suggestion;

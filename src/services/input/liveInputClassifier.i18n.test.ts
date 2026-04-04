@@ -553,3 +553,41 @@ describe('classifyLiveInput IT Phase 1 — verb forms and go+place', () => {
     expect(result.kind).toBe('mood');
   });
 });
+
+describe('classifyLiveInput operational lexicon additions (en/it)', () => {
+  it('classifies English operational work phrase: query logs', () => {
+    const result = classify('query logs');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English operational life phrase: look up order', () => {
+    const result = classify('look up order');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English auth phrase: reset password', () => {
+    const result = classify('reset password');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian operational work phrase: cercare log', () => {
+    const result = classify('cercare log');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian operational life phrase: tracciare pacco', () => {
+    const result = classify('tracciare pacco');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian auth phrase: reimpostare password', () => {
+    const result = classify('reimpostare password');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+});
