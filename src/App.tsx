@@ -1,7 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
-import { isSameDay } from 'date-fns';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
@@ -152,31 +150,68 @@ const MainLayout = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    const ensurePreviousDayReport = () => {
-      const previousDay = new Date();
-      previousDay.setDate(previousDay.getDate() - 1);
-      const reportState = useReportStore.getState();
-      const hasPreviousDayReport = reportState.reports.some(
-        (report) => report.type === 'daily' && isSameDay(new Date(report.date), previousDay),
-      );
-      if (!hasPreviousDayReport) {
-        reportState.generateReport('daily', previousDay.getTime());
+    let cancelled = false;
+    let running = false;
+
+    const dayKey = (value: Date) => (
+      `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+    );
+
+    const startOfLocalDay = (value: Date) => (
+      new Date(value.getFullYear(), value.getMonth(), value.getDate())
+    );
+
+    const ensureDailyBackfill = async () => {
+      if (running || cancelled) return;
+      running = true;
+      try {
+        const now = new Date();
+        const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        const yesterdayKey = dayKey(yesterday);
+        const createdAtSource = user?.created_at ? new Date(user.created_at) : null;
+        const createdAtDay = createdAtSource && !Number.isNaN(createdAtSource.getTime())
+          ? startOfLocalDay(createdAtSource)
+          : null;
+        const backfillStart = createdAtDay && createdAtDay.getTime() <= yesterday.getTime()
+          ? createdAtDay
+          : yesterday;
+        const reportState = useReportStore.getState();
+        const dailyReports = reportState.reports.filter((report) => report.type === 'daily');
+
+        const reportDates = dailyReports
+          .map((report) => startOfLocalDay(new Date(report.date)))
+          .filter((date) => dayKey(date) <= yesterdayKey);
+        const existingKeys = new Set(reportDates.map(dayKey));
+        let cursor = new Date(backfillStart);
+        while (!cancelled && dayKey(cursor) <= yesterdayKey) {
+          const key = dayKey(cursor);
+          if (!existingKeys.has(key)) {
+            await reportState.generateReport('daily', cursor.getTime());
+            existingKeys.add(key);
+          }
+          cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+        }
+      } finally {
+        running = false;
       }
     };
 
-    // Catch up when app cold-starts (if user wasn't active exactly at midnight).
-    ensurePreviousDayReport();
+    // Catch up when app cold-starts: auto-fill all missing daily diaries up to yesterday.
+    void ensureDailyBackfill();
 
-    const intervalId = setInterval(ensurePreviousDayReport, 60_000);
+    const intervalId = setInterval(() => {
+      void ensureDailyBackfill();
+    }, 60_000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        ensurePreviousDayReport();
+        void ensureDailyBackfill();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      cancelled = true;
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
