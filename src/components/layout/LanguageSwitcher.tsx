@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { triggerLightHaptic } from '../../lib/haptics';
 
 const LANGUAGES = [
@@ -9,7 +9,11 @@ const LANGUAGES = [
     { code: 'it', label: 'Italiano' },
 ] as const;
 
-export const LanguageSwitcher = () => {
+interface Props {
+    variant?: 'pill' | 'list';
+}
+
+export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
     const { i18n } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -48,6 +52,8 @@ export const LanguageSwitcher = () => {
         setIsOpen(false);
     };
 
+    const isList = variant === 'list';
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -55,11 +61,15 @@ export const LanguageSwitcher = () => {
                     triggerLightHaptic();
                     setIsOpen(!isOpen);
                 }}
-                className="flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all"
-                style={triggerStyle}
+                className={isList ? 'flex items-center gap-1 text-xs text-slate-700 transition-all' : 'flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all'}
+                style={isList ? undefined : triggerStyle}
             >
-                <span className="text-xs font-semibold">{currentLang.label}</span>
-                <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <span className={isList ? 'text-xs text-slate-600' : 'text-xs font-semibold'}>{currentLang.label}</span>
+                {isList ? (
+                    <ChevronRight size={14} className={`text-gray-300 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                ) : (
+                    <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                )}
             </button>
 
             {isOpen && (

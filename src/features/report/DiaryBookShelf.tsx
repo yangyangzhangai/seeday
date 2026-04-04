@@ -253,7 +253,8 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   if (openMonth) {
     return (
       <DiaryBookViewer
-        onClose={() => setOpenMonth(null)}
+        onClose={onClose}
+        onBackToShelf={() => setOpenMonth(null)}
         reports={reports}
         initialMonth={openMonth}
         initialFlippedCount={initialOpenFlippedCount}

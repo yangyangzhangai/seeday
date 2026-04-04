@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../../store/useChatStore';
@@ -96,6 +96,7 @@ interface BubbleProps {
 function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }: BubbleProps) {
   return (
     <button
+      data-eco-bubble="true"
       onClick={onClick}
       disabled={disabled}
       className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
@@ -133,7 +134,6 @@ export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveBubble>(null);
   const [timeTick, setTimeTick] = useState(() => Date.now());
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const messages = useChatStore(state => state.messages);
   const activityMood = useMoodStore(state => state.activityMood);
 
@@ -180,11 +180,11 @@ export const DayEcoSphere: React.FC = () => {
     if (!active) return;
 
     const handlePointerDownOutside = (event: PointerEvent) => {
-      const target = event.target as Node | null;
+      const target = event.target as Element | null;
       if (!target) return;
-      if (!containerRef.current?.contains(target)) {
-        setActive(null);
-      }
+      if (target.closest('[data-eco-bubble="true"]')) return;
+      if (target.closest('[data-eco-panel="true"]')) return;
+      setActive(null);
     };
 
     document.addEventListener('pointerdown', handlePointerDownOutside, true);
@@ -200,7 +200,7 @@ export const DayEcoSphere: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="pointer-events-none">
+    <div className="pointer-events-none">
       {/* Arc + float layout — center bubble is the apex */}
       <div className="pointer-events-auto relative" style={{ height: 130 }}>
         <style>{`
@@ -233,7 +233,7 @@ export const DayEcoSphere: React.FC = () => {
       )}
 
       {active === 'mood' && (
-        <div className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-3" style={glassPanel}>
+        <div data-eco-panel="true" className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-3" style={glassPanel}>
           {/* 心情分布（饼图 + 图例）*/}
           {moodDist.length > 0 ? (
             <>
@@ -261,7 +261,7 @@ export const DayEcoSphere: React.FC = () => {
       )}
 
       {active === 'activity' && (
-        <div className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4" style={glassPanel}>
+        <div data-eco-panel="true" className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4" style={glassPanel}>
           <p className="text-xs font-semibold mb-2" style={{ color: '#5a4028' }}>
             {t('report_activity_category')}
           </p>

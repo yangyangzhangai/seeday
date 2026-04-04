@@ -53,6 +53,36 @@ const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_EN
   ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' }
   : { plan: 'free', isPlus: false, source: 'default_free' };
 
+let queuedPreferenceSnapshot: UserPreferences | null = null;
+let isFlushingPreferenceSnapshot = false;
+
+async function flushQueuedPreferences(): Promise<void> {
+  if (isFlushingPreferenceSnapshot) return;
+  isFlushingPreferenceSnapshot = true;
+  try {
+    while (queuedPreferenceSnapshot) {
+      const snapshot = queuedPreferenceSnapshot;
+      queuedPreferenceSnapshot = null;
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ai_mode: snapshot.aiMode,
+          ai_mode_enabled: snapshot.aiModeEnabled,
+          daily_goal_enabled: snapshot.dailyGoalEnabled,
+          annotation_drop_rate: snapshot.annotationDropRate,
+        },
+      });
+      if (error) {
+        console.error('[updatePreferences] supabase error:', error);
+      }
+    }
+  } finally {
+    isFlushingPreferenceSnapshot = false;
+    if (queuedPreferenceSnapshot) {
+      void flushQueuedPreferences();
+    }
+  }
+}
+
 interface AuthState {
   user: any | null;
   loading: boolean;
@@ -469,14 +499,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const merged = { ...get().preferences, ...partial };
     set({ preferences: merged });
     syncAnnotationStateWithPreferences(merged, get().isPlus);
-    await supabase.auth.updateUser({
-      data: {
-        ai_mode: merged.aiMode,
-        ai_mode_enabled: merged.aiModeEnabled,
-        daily_goal_enabled: merged.dailyGoalEnabled,
-        annotation_drop_rate: merged.annotationDropRate,
-      },
-    });
+    queuedPreferenceSnapshot = merged;
+    void flushQueuedPreferences();
   },
 
   refreshActivityStreak: async () => {

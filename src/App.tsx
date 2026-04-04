@@ -1,5 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
+import { isSameDay } from 'date-fns';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
@@ -150,24 +152,25 @@ const MainLayout = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-
-    const reportStore = useReportStore.getState();
-    let lastDay = new Date().toDateString();
-
-    const generatePreviousDayReport = () => {
-      const nowStr = new Date().toDateString();
-      if (nowStr !== lastDay) {
-        const previousDay = new Date();
-        previousDay.setDate(previousDay.getDate() - 1);
-        reportStore.generateReport('daily', previousDay.getTime());
-        lastDay = nowStr;
+    const ensurePreviousDayReport = () => {
+      const previousDay = new Date();
+      previousDay.setDate(previousDay.getDate() - 1);
+      const reportState = useReportStore.getState();
+      const hasPreviousDayReport = reportState.reports.some(
+        (report) => report.type === 'daily' && isSameDay(new Date(report.date), previousDay),
+      );
+      if (!hasPreviousDayReport) {
+        reportState.generateReport('daily', previousDay.getTime());
       }
     };
 
-    const intervalId = setInterval(generatePreviousDayReport, 60_000);
+    // Catch up when app cold-starts (if user wasn't active exactly at midnight).
+    ensurePreviousDayReport();
+
+    const intervalId = setInterval(ensurePreviousDayReport, 60_000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        generatePreviousDayReport();
+        ensurePreviousDayReport();
       }
     };
 

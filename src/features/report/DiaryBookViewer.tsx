@@ -35,6 +35,7 @@ const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * 
 /* ──────────────────────────────── types ──────────────────────────────── */
 interface Props {
   onClose: () => void;
+  onBackToShelf?: () => void;
   reports: Report[];
   initialMonth?: Date;
   initialFlippedCount?: number;
@@ -116,8 +117,17 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   if (isFutureDay) {
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
+  const isTodayPage = dayDate ? isSameDay(dayDate, new Date()) : false;
+  if (isTodayPage && !dayPlant) {
+    // Today stays blank until user explicitly generates (plant record exists).
+    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
+  }
 
   const report = page.report;
+  if (!report) {
+    // Un-generated day should stay blank in diary book.
+    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
+  }
   const dayStart = dayDate ? startOfDay(dayDate).getTime() : 0;
   const dayEnd = dayDate ? endOfDay(dayDate).getTime() : 0;
   const dayMsgs = allMessages
@@ -440,7 +450,7 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
-export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
+export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
   const today = new Date();
   const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
   const globalMessages = useChatStore(state => state.messages);
@@ -666,12 +676,23 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, reports, initialMont
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `calc(env(safe-area-inset-top, 0px) + 12px) 20px 12px` }}>
-        <div style={{ width: 32 }} />
+        <div style={{ width: 72, display: 'flex', justifyContent: 'flex-start' }}>
+          {onBackToShelf ? (
+            <button
+              onClick={onBackToShelf}
+              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', color: 'rgba(255,255,255,0.78)', background: 'none', border: 'none', padding: 0 }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+          ) : null}
+        </div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 14, letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
-        <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
+        <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
+        </div>
       </div>
 
       {/* Book area */}
