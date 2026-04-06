@@ -244,6 +244,7 @@ Persisted to `annotations`:
 - `tone`
 - `event_timestamp`
 - `related_event`
+- `today_context`
 - `created_at`
 
 Local-only:

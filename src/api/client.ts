@@ -201,6 +201,19 @@ interface AnnotationRequest {
     statusSummary?: string;
     contextHints?: string[];
     frequentActivities?: string[];
+    todayContext?: {
+      date: string;
+      version: 'v1';
+      items: Array<{
+        id: string;
+        category: 'health' | 'special_day' | 'major_event';
+        summary: string;
+        sourceText: string;
+        confidence: number;
+        detectedAt: number;
+        expiresAt: number;
+      }>;
+    };
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
     consecutiveTextCount?: number;

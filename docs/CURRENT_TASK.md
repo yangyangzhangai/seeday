@@ -11,11 +11,16 @@ Status: P0-P6 已完成；P7 仅剩联调、事件漏斗和库字段核对。
 
 ### 本轮已完成
 
+- [x] Today Context（今日上下文）P0 最小闭环：关键词识别（health/special_day/major_event）→ 当日缓存 → annotation/suggestion 双链路 prompt 注入
+- [x] Today Context 云端落库：`AIAnnotation.todayContext` 映射到 `annotations.today_context`，补充 Supabase SQL 与索引，支持回放和分析
 - [x] 单测补齐：门控窗口边界、0 点重置、suggestion 自动凝结分支
 - [x] 全量回环：`npm run lint:all`
 - [x] 显式求建议直通：中文意图识别（如"帮我规划/帮我选择/该怎么办"）可绕过触发门槛并强制 suggestion 输出；命中后仍计入 suggestion 配额与冷却
 - [x] suggestion 意图识别补充自然表达覆盖：新增"能不能给点建议/我该先 A 还是 B/请直接告诉我下一步/接下来我应该先做哪个"等用例，并修正规则漏判
 - [x] suggestion prompt 多语言补强：新增「生病/难受 -> 具体休息建议且不推工作学习任务」与「难过/低落 -> 先共情再给低负担建议」规则（zh/en/it 同步）
+- [x] today context 词库多语言补强（zh/en/it）：补充生病与重大事件表达、否定句拦截（如“没感冒” / “not sick”）、并降低歧义词误判（如 `cold plunge`）
+- [x] today context 追加高频自然表达与女性经期语义：支持“来例假/经期/痛经”及 `on my period` / `ho il ciclo` 等跨语言命中
+- [x] today context 补充细粒度生活病症场景：牙痛/智齿发炎/口腔溃疡/肠胃不适/反酸等，并按各语言自然表达覆盖（非直译）
 
 ### 当前待办（按优先级）
 
