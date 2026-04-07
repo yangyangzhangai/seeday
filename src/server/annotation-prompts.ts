@@ -1,4 +1,7 @@
-import { buildAiCompanionModePrompt, normalizeAiCompanionLang } from '../lib/aiCompanion.js';
+import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../lib/aiCompanion.js';
+import { getVanDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/van.js';
+import { getAgnesDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/agnes.js';
+import { getZepDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/zep.js';
 
 interface AnnotationTemplate {
   content: string;
@@ -117,6 +120,16 @@ export function getSystemPrompt(lang: string, aiMode?: string): string {
   const normalizedLang = normalizeAiCompanionLang(lang);
 
   if (aiMode) {
+    const normalizedMode = normalizeAiCompanionMode(aiMode);
+    if (normalizedMode === 'van' && normalizedLang === 'zh') {
+      return getVanDailyAnnotationPromptZH();
+    }
+    if (normalizedMode === 'agnes' && normalizedLang === 'zh') {
+      return getAgnesDailyAnnotationPromptZH();
+    }
+    if (normalizedMode === 'zep' && normalizedLang === 'zh') {
+      return getZepDailyAnnotationPromptZH();
+    }
     return buildAiCompanionModePrompt(normalizedLang, aiMode, 'annotation');
   }
 
