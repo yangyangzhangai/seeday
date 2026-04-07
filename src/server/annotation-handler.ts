@@ -7,6 +7,7 @@ import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js'
 import {
   buildSuggestionAwareUserPrompt,
   buildTodayActivitiesText,
+  buildTodayContextText,
   buildUserPrompt,
   getDefaultAnnotations,
   getModel,
@@ -381,6 +382,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
       const currentHour = userContext?.currentHour;
       const currentMinute = userContext?.currentMinute;
+      const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
       const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
         .replace(/\s+/g, ' ')
         .trim();
@@ -392,6 +394,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         eventSummary,
         todayActivitiesText,
         recentMoodText,
+        todayContextText,
         statusSummary: userContext?.statusSummary,
         contextHints: userContext?.contextHints,
         frequentActivities: userContext?.frequentActivities,
@@ -515,12 +518,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 构建提示词
     const currentHour = userContext?.currentHour;
     const currentMinute = userContext?.currentMinute;
+    const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
     const userPrompt = buildUserPrompt(
       resolvedLang,
       eventType,
       eventSummary,
       todayActivitiesText,
       recentMoodText,
+      todayContextText,
       currentHour,
       currentMinute
     );

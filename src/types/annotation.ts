@@ -53,6 +53,7 @@ export interface AIAnnotation {
   tone: AnnotationTone;      // 语气标签
   timestamp: number;         // 生成时间
   relatedEvent: AnnotationEvent;  // 关联的触发事件
+  todayContext?: TodayContextSnapshot; // 生成时的今日上下文快照（便于回放/分析）
   displayDuration: number;   // 建议显示时长（毫秒）
   syncedToCloud: boolean;    // 是否已同步到云端
   suggestion?: AnnotationSuggestion; // AI 建议（overwork 模式）
@@ -111,6 +112,24 @@ export interface PendingTodoSummary {
   dueAt?: number;
 }
 
+export type TodayContextCategory = 'health' | 'special_day' | 'major_event';
+
+export interface TodayContextItem {
+  id: string;
+  category: TodayContextCategory;
+  summary: string;
+  sourceText: string;
+  confidence: number;
+  detectedAt: number;
+  expiresAt: number;
+}
+
+export interface TodayContextSnapshot {
+  date: string;
+  items: TodayContextItem[];
+  version: 'v1';
+}
+
 export interface AnnotationRequest {
   eventType: AnnotationEventType;
   eventData: AnnotationEvent['data'];
@@ -128,6 +147,7 @@ export interface AnnotationRequest {
     statusSummary?: string;
     contextHints?: string[];
     frequentActivities?: string[];
+    todayContext?: TodayContextSnapshot;
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
     consecutiveTextCount?: number;

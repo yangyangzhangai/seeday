@@ -8,6 +8,109 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-06 - Feat: Today Context 词库增强（zh/en/it）与误判抑制
+
+### Changed
+
+- `src/lib/todayContext.ts`
+  - 将 today context 识别从简单关键词 includes 升级为规则化匹配（regex patterns + excludes）。
+  - 扩充 `health/special_day/major_event` 三类多语言词库，覆盖感冒生病、升学/求职、关系变化、搬家、孕育、丧亲等关键事件表达。
+  - 追加女性经期语义识别（如“来例假/痛经”、`on my period`、`ho il ciclo`）并纳入 health 类。
+  - 继续扩充细粒度生活病症词库：牙痛/智齿发炎/口腔溃疡/反酸/落枕等，并采用英语/意大利语常用表达（如 `my tooth is killing me`、`dente del giudizio infiammato`、`afte`）。
+  - 医疗就诊补充牙科场景（看牙医、根管、拔牙、补牙及对应 en/it 表达）。
+  - 新增健康类否定拦截（如“我没有感冒”/`not sick`/`non sto male`）避免误命中。
+  - 对高歧义词增加排除规则（如 `cold plunge`）降低非疾病场景误报。
+- `src/lib/todayContext.test.ts`
+  - 新增多语言回归：英文疾病命中与误判拦截、意大利语重大事件、否定句不命中、同类单条保留、special_day+major_event 同时命中。
+  - 补充经期健康信号与婚恋重大事件命中用例。
+  - 新增牙痛/溃疡多语言命中与牙科就诊命中回归。
+
+### Validation
+
+- `npx vitest run src/lib/todayContext.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录 today context 词库补强与误判抑制已完成）。
+
+## 2026-04-06 - Feat: Today Context 同步到 Supabase annotations
+
+### Changed
+
+- `src/types/annotation.ts`
+  - `AIAnnotation` 新增 `todayContext?: TodayContextSnapshot` 字段，保存生成时上下文快照。
+- `src/store/useAnnotationStore.ts`
+  - 批注对象创建时挂载 `todayContext`，并随 `toDbAnnotation(...)` 进入云端。
+- `src/lib/dbMappers.ts`
+  - `toDbAnnotation` 新增 `today_context` 写入。
+  - `fromDbAnnotation` 新增 `today_context` 回读。
+- `docs/SUPABASE_TODAY_CONTEXT_SQL.md`
+  - 新增迁移 SQL：`annotations.today_context jsonb` + GIN/日期表达式索引 + 校验语句。
+- `docs/SUPABASE_PERSISTENCE_INVENTORY.md`
+  - Annotations 持久化字段清单新增 `today_context`。
+- `src/api/README.md`
+  - 标注 annotation `userContext` 契约新增 `todayContext`。
+- `api/README.md`
+  - 标注 `/api/annotation` `userContext` 支持 `todayContext`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/lib/todayContext.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录 today context 云端落库完成）。
+- 新增 `docs/SUPABASE_TODAY_CONTEXT_SQL.md`（可直接复制到 Supabase SQL Editor 执行）。
+
+## 2026-04-06 - Feat: Today Context（今日上下文）最小闭环接入 annotation 链路
+
+### Changed
+
+- `src/lib/todayContext.ts`
+  - 新增 today context 关键词识别与日级缓存合并逻辑（`health` / `special_day` / `major_event`）。
+  - 新增跨天自动失效、同类去重、最多 5 条保留策略。
+- `src/store/useAnnotationStore.ts`
+  - 新增 `todayContextSnapshot` 状态并持久化。
+  - 在 `triggerAnnotation` 中接入“事件文本识别 -> 当日缓存更新 -> `userContext.todayContext` 透传”。
+  - 在日重置动作中同步清空 today context。
+- `src/types/annotation.ts`
+  - 新增 `TodayContextCategory` / `TodayContextItem` / `TodayContextSnapshot` 类型。
+  - 扩展 `AnnotationRequest.userContext.todayContext`。
+- `src/api/client.ts`
+  - 扩展 annotation 请求契约，支持 `userContext.todayContext`。
+- `src/server/annotation-prompts.ts`
+  - 新增 `buildTodayContextText(...)`。
+  - 在普通批注与 suggestion prompt 中注入 `today context` 段落（zh/en/it）。
+- `src/server/annotation-handler.ts`
+  - 在 API handler 中构建并透传 `todayContextText` 到两条 prompt 组装路径。
+- `src/lib/todayContext.test.ts`
+  - 新增识别、跨天失效、去重排序 3 个单测用例。
+
+### Validation
+
+- `npx vitest run src/lib/todayContext.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录 today context P0 最小闭环完成）。
+
+## 2026-04-04 - Fix: AI companion prompts ESM import resolution on Vercel
+
+### Changed
+
+- `src/lib/aiCompanion/prompts/index.ts`
+  - 将四个 re-export 改为显式 `.js` 后缀（`./van.js` / `./agnes.js` / `./zep.js` / `./momo.js`），避免 Node ESM 在 serverless 运行时把无后缀路径解析为不存在模块。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次 Vercel `ERR_MODULE_NOT_FOUND` 修复）。
+
 ## 2026-04-03 - Feat: 活动词库补强（zh/en/it 操作型表达扩展）
 
 ### Changed

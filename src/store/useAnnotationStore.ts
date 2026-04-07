@@ -8,6 +8,7 @@ import type {
   AnnotationEventType,
   AnnotationState,
   AnnotationSuggestion,
+  TodayContextSnapshot,
   TodayActivity
 } from '../types/annotation';
 import { callAnnotationAPI } from '../api/client';
@@ -24,6 +25,12 @@ import { useTodoStore } from './useTodoStore';
 import { buildStatusSummary } from '../lib/buildStatusSummary';
 import { detectSuggestionContextHints } from '../lib/suggestionDetector';
 import { isExplicitSuggestionRequest } from '../lib/suggestionIntentDetector';
+import {
+  createEmptyTodayContextSnapshot,
+  detectTodayContextItems,
+  extractTodayContextSourceText,
+  mergeTodayContextSnapshot,
+} from '../lib/todayContext';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -47,6 +54,7 @@ interface AnnotationStore extends AnnotationState {
   lastSuggestionTime: number;
   consecutiveTextCount: number;
   suggestionOutcomes: Array<{ timestamp: number; accepted: boolean }>;
+  todayContextSnapshot: TodayContextSnapshot;
 
   // Actions
   triggerAnnotation: (event: AnnotationEvent) => Promise<void>;
@@ -105,6 +113,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
       lastSuggestionTime: 0,
       consecutiveTextCount: 0,
       suggestionOutcomes: [],
+      todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
 
       todayStats: {
         date: getTodayString(),
@@ -146,6 +155,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
         }
 
         const now = Date.now();
+        const nowDate = new Date(now);
+        const todayContextIncoming = detectTodayContextItems(extractTodayContextSourceText(event), nowDate);
+        const nextTodayContextSnapshot = mergeTodayContextSnapshot(
+          get().todayContextSnapshot,
+          todayContextIncoming,
+          nowDate,
+        );
 
         // 检查是否需要重置每日统计
         if (shouldResetStats(todayStats.date)) {
@@ -161,6 +177,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             lastWasSuggestion: false,
             lastSuggestionTime: 0,
             consecutiveTextCount: 0,
+            todayContextSnapshot: nextTodayContextSnapshot,
           });
         } else {
           // 记录事件
@@ -169,6 +186,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               ...todayStats,
               events: appendCappedEvent(todayStats.events, event),
             },
+            todayContextSnapshot: nextTodayContextSnapshot,
           });
         }
 
@@ -261,7 +279,6 @@ export const useAnnotationStore = create<AnnotationStore>()(
             .filter(t => !t.completed && !t.isTemplate)
             .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt }));
 
-          const nowDate = new Date();
           const period = getSuggestionPeriod(nowDate.getHours());
           const adaptiveMinInterval = get().getAdaptiveMinInterval();
           const canAttemptSuggestion = explicitSuggestionRequest
@@ -296,8 +313,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
             userContext: {
               todayActivities: activities.length,
               todayDuration: totalDuration,
-              currentHour: new Date().getHours(),
-              currentMinute: new Date().getMinutes(),
+              currentHour: nowDate.getHours(),
+              currentMinute: nowDate.getMinutes(),
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               recentAnnotations,
               recentMoodMessages,
@@ -307,6 +324,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
               statusSummary,
               contextHints,
               frequentActivities,
+              todayContext: get().todayContextSnapshot.items.length > 0
+                ? get().todayContextSnapshot
+                : undefined,
               allowSuggestion: canAttemptSuggestion,
               forceSuggestion: explicitSuggestionRequest,
               consecutiveTextCount: get().consecutiveTextCount,
@@ -337,6 +357,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
             tone: response.tone,
             timestamp: Date.now(),
             relatedEvent: event,
+            todayContext: get().todayContextSnapshot.items.length > 0
+              ? get().todayContextSnapshot
+              : undefined,
             displayDuration: response.displayDuration,
             syncedToCloud: false,
             suggestion,
@@ -351,7 +374,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
           // 更新状态
           const isSuggestionOutput = Boolean(suggestion);
-          const outputPeriod = getSuggestionPeriod(new Date().getHours());
+          const outputPeriod = getSuggestionPeriod(nowDate.getHours());
           const nextPeriodCounts = isSuggestionOutput
             ? {
                 ...get().suggestionCountByPeriod,
@@ -467,6 +490,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           lastWasSuggestion: false,
           lastSuggestionTime: 0,
           consecutiveTextCount: 0,
+          todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
         });
       },
 
@@ -580,6 +604,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
         lastSuggestionTime: state.lastSuggestionTime,
         consecutiveTextCount: state.consecutiveTextCount,
         suggestionOutcomes: state.suggestionOutcomes,
+        todayContextSnapshot: state.todayContextSnapshot,
       }),
     }
   )

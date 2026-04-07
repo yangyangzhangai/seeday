@@ -114,14 +114,6 @@ const ACTIVITY_I18N_KEYS: Record<string, string> = {
 const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
 const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
 
-function buildActivitySummary(dist: ActivityDistributionItem[]): string {
-  return dist.map((d) => `${d.type}${Math.round(d.minutes)}min`).join('、');
-}
-
-function buildMoodSummary(dist: MoodDistributionItem[]): string {
-  return dist.map((d) => `${d.mood}${Math.round(d.minutes)}min`).join('、');
-}
-
 function clampInsightText(raw: string, maxChars = 20): string {
   const text = raw.trim().replace(/\s+/g, ' ');
   if (!text) return '';
@@ -372,8 +364,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const activityMood = useMoodStore((state) => state.activityMood);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(initialPage ?? 0);
-  const [activityInsight, setActivityInsight] = useState('');
-  const [moodInsight, setMoodInsight] = useState('');
   const [todoInsight, setTodoInsight] = useState('');
   const [habitInsight, setHabitInsight] = useState('');
   const [dayPlant, setDayPlant] = useState<DailyPlantRecord | null>(null);
@@ -407,14 +397,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const moodDistribution = useMemo(
     () => getDailyMoodDistribution(reportMessages, activityMood, selectedReport),
     [reportMessages, activityMood, selectedReport],
-  );
-  const activitySummary = useMemo(
-    () => buildActivitySummary(activityDistribution),
-    [activityDistribution],
-  );
-  const moodSummary = useMemo(
-    () => buildMoodSummary(moodDistribution),
-    [moodDistribution],
   );
   const dayMinutes = 24 * 60;
   const todoCompleted = selectedReport?.stats?.completedTodos ?? 0;
@@ -466,21 +448,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    setActivityInsight('');
-    setMoodInsight('');
     setTodoInsight('');
     setHabitInsight('');
 
-    if (activitySummary) {
-      void callShortInsightAPI({ kind: 'activity', summary: activitySummary, lang }).then((text) => {
-        if (!cancelled && text) setActivityInsight(clampInsightText(text, 20));
-      });
-    }
-    if (moodSummary) {
-      void callShortInsightAPI({ kind: 'mood', summary: moodSummary, lang }).then((text) => {
-        if (!cancelled && text) setMoodInsight(clampInsightText(text, 20));
-      });
-    }
     if (todoInsightSummary) {
       void callShortInsightAPI({ kind: 'todo', summary: todoInsightSummary, lang }).then((text) => {
         if (!cancelled && text) setTodoInsight(clampInsightText(text, 20));
@@ -495,7 +465,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedReport?.id, activitySummary, moodSummary, todoInsightSummary, habitInsightSummary, lang]);
+  }, [selectedReport?.id, todoInsightSummary, habitInsightSummary, lang]);
 
   useEffect(() => {
     let cancelled = false;
@@ -649,9 +619,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     : '';
 
   const activityAnalysisLine1 = actionSummaryText || copy.activityLine1;
-  const activityAnalysisLine2 = activityInsight;
   const moodAnalysisLine1 = moodSummaryText || copy.moodLine1;
-  const moodAnalysisLine2 = moodInsight;
   const maxAct = activityChartData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   const maxMood = moodChartData.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   const todoSegments = 12;
@@ -694,7 +662,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionActivity}</div>
                   <SectionRow
                     left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
-                    lines={[activityAnalysisLine1, activityAnalysisLine2].filter(Boolean)}
+                    lines={[activityAnalysisLine1]}
                   />
                 </div>
 
@@ -704,7 +672,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionMood}</div>
                   <SectionRow
                     left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
-                    lines={[moodAnalysisLine1, moodAnalysisLine2].filter(Boolean)}
+                    lines={[moodAnalysisLine1]}
                   />
                 </div>
 

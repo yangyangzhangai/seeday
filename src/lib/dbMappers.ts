@@ -220,6 +220,7 @@ export function fromDbAnnotation(row: any): AIAnnotation {
     tone: row.tone,
     timestamp: row.event_timestamp,
     relatedEvent: row.related_event,
+    todayContext: row.today_context ?? undefined,
     displayDuration: 8000,
     syncedToCloud: true,
     suggestionAccepted: typeof row.suggestion_accepted === 'boolean' ? row.suggestion_accepted : undefined,
@@ -234,6 +235,7 @@ export function toDbAnnotation(annotation: AIAnnotation, userId: string): Record
     tone: annotation.tone,
     event_timestamp: annotation.timestamp,
     related_event: annotation.relatedEvent,
+    today_context: annotation.todayContext ?? null,
     suggestion_accepted: annotation.suggestionAccepted ?? null,
     created_at: new Date(annotation.timestamp).toISOString(),
   };

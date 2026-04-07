@@ -15,7 +15,11 @@
       "Bash(pwd:*)",
       "Skill(update-config)",
       "Bash(npm run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(pip install:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(python -c ':*)",
+      "Bash(python:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

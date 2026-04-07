@@ -173,6 +173,26 @@ export function buildTodayActivitiesText(activities: any[], lang: string, timezo
     .join(separator);
 }
 
+export function buildTodayContextText(todayContext: TodayContextSnapshot | undefined, lang: string): string {
+  if (!todayContext || todayContext.items.length === 0) {
+    if (lang === 'en') return 'none';
+    if (lang === 'it') return 'nessuno';
+    return '无';
+  }
+
+  const lines = todayContext.items.slice(0, 3).map((item, index) => {
+    if (lang === 'en') {
+      return `${index + 1}. [${item.category}] ${item.summary}`;
+    }
+    if (lang === 'it') {
+      return `${index + 1}. [${item.category}] ${item.summary}`;
+    }
+    return `${index + 1}. [${item.category}] ${item.summary}`;
+  });
+
+  return lines.join('\n');
+}
+
 /**
  * 构建 overwork 建议模式的 user prompt
  * AI 需要输出 JSON 格式的建议
@@ -256,6 +276,7 @@ interface SuggestionAwarePromptInput {
   eventSummary: string;
   todayActivitiesText: string;
   recentMoodText: string;
+  todayContextText?: string;
   statusSummary?: string;
   contextHints?: string[];
   frequentActivities?: string[];
@@ -273,6 +294,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     eventSummary,
     todayActivitiesText,
     recentMoodText,
+    todayContextText,
     statusSummary,
     contextHints = [],
     frequentActivities = [],
@@ -317,6 +339,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       hourText ? `Current time: ${hourText}` : null,
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
+      `Today context:\n${todayContextText || 'none'}`,
       `Just happened: [${eventType}] ${eventSummary}`,
       `Status summary:\n${statusSummary || 'none'}`,
       `Context hints:\n${hintsText}`,
@@ -351,6 +374,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       hourText ? `Ora corrente: ${hourText}` : null,
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
+      `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Appena successo: [${eventType}] ${eventSummary}`,
       `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
       `Suggerimenti di contesto:\n${hintsText}`,
@@ -383,6 +407,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     hourText ? `当前时间：${hourText}` : null,
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
+    `今日上下文：\n${todayContextText || '无'}`,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     `状态摘要：\n${statusSummary || '无'}`,
     `情境提示：\n${hintsText}`,
@@ -403,6 +428,7 @@ export function buildUserPrompt(
   eventSummary: string,
   todayActivitiesText: string,
   recentMoodText: string,
+  todayContextText?: string,
   currentHour?: number,
   currentMinute?: number,
 ): string {
@@ -418,6 +444,7 @@ export function buildUserPrompt(
       hourText ? `Current time: ${hourText}` : null,
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
+      `Today context:\n${todayContextText || 'none'}`,
       `Just happened: [${eventType}] ${eventSummary}`,
       'Please write one annotation about the activity or mood that just happened, in your current voice.',
       'Use exactly one emoji at the end.',
@@ -431,6 +458,7 @@ export function buildUserPrompt(
       hourText ? `Ora corrente: ${hourText}` : null,
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
+      `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Appena successo: [${eventType}] ${eventSummary}`,
       "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
       'Usa esattamente una emoji alla fine.',
@@ -443,6 +471,7 @@ export function buildUserPrompt(
     hourText ? `当前时间：${hourText}` : null,
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
+    `今日上下文：\n${todayContextText || '无'}`,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',
     '句末必须只有一个 emoji。',

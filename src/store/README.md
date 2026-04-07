@@ -36,6 +36,7 @@
 
 - `useAnnotationStore.ts` 现包含 suggestion 专用频率门控（分时段配额 + 日上限 + 动态最小间隔），不会限制普通文字批注。
 - suggestion 反馈通过 `recordSuggestionOutcome(annotationId, accepted)` 记录，写回本地状态与 `annotations.suggestion_accepted`。
+- today context（今日上下文）已接入：基于关键词识别 `health/special_day/major_event` 写入日级缓存，并在 annotation 请求时透传 `userContext.todayContext`；批注落库时同步写入 `annotations.today_context` 便于回放和分析。
 
 ## 变更自检
 

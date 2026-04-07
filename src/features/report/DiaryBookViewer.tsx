@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
@@ -49,6 +50,70 @@ type PageData = {
   report?: Report;
 };
 
+type DiaryLang = 'zh' | 'en' | 'it';
+
+const DIARY_COPY: Record<DiaryLang, {
+  pageTitle: string;
+  sectionActivity: string;
+  sectionMood: string;
+  sectionTodo: string;
+  sectionHabits: string;
+  sectionObservation: string;
+  sectionMyDiary: string;
+  activityFallback: string;
+  moodFallback: string;
+  todoFallback: string;
+  habitsFallback: string;
+  observationFallback: string;
+  diaryPlaceholder: string;
+}> = {
+  zh: {
+    pageTitle: '日记',
+    sectionActivity: '活动',
+    sectionMood: '情绪',
+    sectionTodo: '待办',
+    sectionHabits: '习惯',
+    sectionObservation: '观察日记',
+    sectionMyDiary: '我的日记',
+    activityFallback: '今天主要精力投入在工作上',
+    moodFallback: '整体情绪比较轻松愉快',
+    todoFallback: '你今天做得很好',
+    habitsFallback: '继续保持，进度很稳',
+    observationFallback: '今天也在慢慢生长。',
+    diaryPlaceholder: '今天还没有写下内容。',
+  },
+  en: {
+    pageTitle: 'diary',
+    sectionActivity: 'activity',
+    sectionMood: 'mood',
+    sectionTodo: 'to-do',
+    sectionHabits: 'habits',
+    sectionObservation: 'observation',
+    sectionMyDiary: 'my diary',
+    activityFallback: 'Mostly working today',
+    moodFallback: 'Feeling joyful most of the day',
+    todoFallback: 'You did great today',
+    habitsFallback: 'Nice rhythm, keep going',
+    observationFallback: 'Growing slowly and steadily today.',
+    diaryPlaceholder: 'No diary content yet.',
+  },
+  it: {
+    pageTitle: 'diario',
+    sectionActivity: 'attivita',
+    sectionMood: 'umore',
+    sectionTodo: 'to-do',
+    sectionHabits: 'abitudini',
+    sectionObservation: 'osservazione',
+    sectionMyDiary: 'il mio diario',
+    activityFallback: 'Oggi soprattutto lavoro',
+    moodFallback: 'Umore positivo per gran parte della giornata',
+    todoFallback: 'Hai fatto un ottimo lavoro oggi',
+    habitsFallback: 'Continua cosi, ottimo passo',
+    observationFallback: 'Anche oggi stai crescendo con calma.',
+    diaryPlaceholder: 'Nessun contenuto del diario per ora.',
+  },
+};
+
 /* ──────────────────────────────── data ───────────────────────────────── */
 /** Each day occupies TWO pages: day-left (diary page 1) and day-right (diary page 2). */
 function buildPages(month: Date, reports: Report[]): PageData[] {
@@ -69,8 +134,12 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 /* ──────────────────────────── page content ───────────────────────────── */
 function PageContent({ page, scale, allMessages, plantRecords }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[] }) {
   const px = (n: number) => n * scale;
+  const { i18n } = useTranslation();
   const activityMood = useMoodStore(state => state.activityMood);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
+  const langRaw = i18n.language?.split('-')[0] ?? 'en';
+  const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
+  const copy = DIARY_COPY[lang];
 
   // Projective (homographic) transforms: map content rectangle corners → trapezoid corners
   // Left page (back face): outer(left) edge tall, spine(right) edge short
@@ -184,9 +253,11 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   const starsToday = habitDone + goalDone;
   const starSlots = Math.max(8, starsToday);
 
-  const headerDate = dayDate ? format(dayDate, 'M月d日', { locale: zhCN }) : '';
-  const observationText = report?.aiAnalysis?.trim() || '今天也在慢慢生长。';
-  const myDiary = report?.userNote?.trim() || '今天还没有写下内容。';
+  const dateLocale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
+  const datePattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
+  const headerDate = dayDate ? format(dayDate, datePattern, { locale: dateLocale }) : '';
+  const observationText = report?.aiAnalysis?.trim() || copy.observationFallback;
+  const myDiary = report?.userNote?.trim() || copy.diaryPlaceholder;
 
   const sectionTitleStyle: React.CSSProperties = {
     margin: 0,
@@ -211,10 +282,10 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
 
   /* ── day-left: same structure as diary page first screen ── */
   if (page.type === 'day-left') {
-    const activitySummary = report?.stats?.actionSummary?.trim() || '今天主要精力投入在工作上';
-    const moodSummary = report?.stats?.moodSummary?.trim() || '整体情绪比较轻松愉快';
-    const todoSummary = todoTotal > 0 ? `待办完成${todoCompleted}/${todoTotal}` : '你今天做得很好';
-    const habitSummary = starsToday > 0 ? `今日新增${starsToday}颗星` : '继续保持，进度很稳';
+    const activitySummary = report?.stats?.actionSummary?.trim() || copy.activityFallback;
+    const moodSummary = report?.stats?.moodSummary?.trim() || copy.moodFallback;
+    const todoSummary = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : copy.todoFallback;
+    const habitSummary = starsToday > 0 ? `${starsToday} stars` : copy.habitsFallback;
 
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
@@ -230,12 +301,12 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           transformOrigin: '0 0',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>diary</div>
+            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>{copy.pageTitle}</div>
             <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
           </div>
           <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
-          <h3 style={sectionTitleStyle}>activity</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionActivity}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
             <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(activitySlices), margin: '0 auto', position: 'relative' }}>
               <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
@@ -245,7 +316,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
 
-          <h3 style={sectionTitleStyle}>mood</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionMood}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
             <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(moodSlices), margin: '0 auto', position: 'relative' }}>
               <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
@@ -255,7 +326,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
 
-          <h3 style={sectionTitleStyle}>to-do</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionTodo}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(18) }}>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`, gap: px(0.8) }}>
               {Array.from({ length: todoSegments }).map((_, idx) => (
@@ -267,7 +338,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
 
-          <h3 style={sectionTitleStyle}>habits</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionHabits}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(20) }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: px(0.8) }}>
               {Array.from({ length: starSlots }).map((_, idx) => (
@@ -301,12 +372,12 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           transformOrigin: '0 0',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>diary</div>
+            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>{copy.pageTitle}</div>
             <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
           </div>
           <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
-          <h3 style={sectionTitleStyle}>observation</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionObservation}</h3>
           <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflow: 'hidden' }}>
             <div
               style={{
@@ -334,7 +405,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
 
-          <h3 style={sectionTitleStyle}>my diary</h3>
+          <h3 style={sectionTitleStyle}>{copy.sectionMyDiary}</h3>
           <div style={{ fontSize: px(5.2), lineHeight: 1.45, color: report?.userNote?.trim() ? '#2f2f2f' : 'rgba(95,95,95,0.56)', fontFamily: 'Georgia, "Times New Roman", serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
             {myDiary}
           </div>
@@ -702,14 +773,14 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
         <div style={{ position: 'relative', width: wrapW, height: pageH, transformStyle: 'preserve-3d', transform: 'rotateX(0deg)' }}>
 
           {/* Fixed spine bars */}
-          {(isBookOpen || isAnimating || !!liveFlip) && (
+          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount > 0 && (
             isAnimating && lastFlipDir === 'prev'
               ? flippedCount < numSheets - 1
               : flippedCount < numSheets
           ) && (
             <div style={{ position: 'absolute', left: spineX, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
-          {(isBookOpen || isAnimating || !!liveFlip) && (
+          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount < numSheets && (
             isAnimating && lastFlipDir === 'next'
               ? flippedCount > 1
               : flippedCount > 0
@@ -724,8 +795,8 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             const vis = Math.min(dist, MAX_VIS);
             const isOnCover = flippedCount === 0;
             const isOnBackCover = flippedCount >= numSheets;
-            const isFullyClosedCover = isOnCover && !isAnimating && liveFlip?.sheetIdx !== i;
-            const isFullyClosedBack = isOnBackCover && !isAnimating && liveFlip?.sheetIdx !== i;
+            const isFullyClosedCover = isOnCover && liveFlip?.sheetIdx !== i;
+            const isFullyClosedBack = isOnBackCover && liveFlip?.sheetIdx !== i;
             if ((isFullyClosedCover || isFullyClosedBack) && dist > 0) return null;
             if (dist > MAX_VIS) return null;
 

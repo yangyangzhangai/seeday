@@ -229,18 +229,18 @@ async function runRequest(
   input: PlantDiaryServiceInput,
   timeoutMs: number,
 ): Promise<{ text: string; chosenPlantId: string }> {
-  const apiKey = process.env.CHUTES_API_KEY;
-  if (!apiKey) throw new Error('Missing CHUTES_API_KEY');
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('https://llm.chutes.ai/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
+        model: 'gpt-4.1-mini',
         messages: buildMessages(input),
         temperature: 0.80,
         max_tokens: 280,
@@ -269,7 +269,7 @@ export async function generatePlantDiaryWithFallback(
   const lang = normalizeAiCompanionLang(input.lang) as Lang;
   const fallbackPlantId = input.availablePlants[0]?.id ?? 'sha_early_0001';
 
-  for (const timeoutMs of [5000, 3500]) {
+  for (const timeoutMs of [6000, 4000]) {
     try {
       const { text, chosenPlantId } = await runRequest(input, timeoutMs);
       return { diaryText: text, chosenPlantId, diaryStatus: 'ready' };
