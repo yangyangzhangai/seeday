@@ -13,6 +13,7 @@ import {
   getModel,
   getSystemPrompt,
 } from './annotation-prompts.js';
+import type { RecoveryNudgeContext } from '../types/annotation';
 
 const openai = new OpenAI();
 
@@ -226,6 +227,7 @@ function extractSuggestionPayload(raw: string): {
 function normalizeSuggestion(
   lang: AnnotationLang,
   suggestion: Record<string, unknown> | undefined,
+  recoveryNudge?: RecoveryNudgeContext,
 ): Record<string, unknown> | undefined {
   if (!suggestion) return undefined;
 
@@ -254,7 +256,70 @@ function normalizeSuggestion(
     }
   }
 
+  const rewardStarsFromPayload = Number(suggestion.rewardStars);
+  if (Number.isFinite(rewardStarsFromPayload) && rewardStarsFromPayload > 1) {
+    normalized.rewardStars = Math.floor(rewardStarsFromPayload);
+  }
+
+  if (typeof suggestion.rewardBottleId === 'string' && suggestion.rewardBottleId.trim()) {
+    normalized.rewardBottleId = suggestion.rewardBottleId.trim();
+  }
+
+  if (typeof suggestion.recoveryKey === 'string' && suggestion.recoveryKey.trim()) {
+    normalized.recoveryKey = suggestion.recoveryKey.trim();
+  }
+
+  if (recoveryNudge) {
+    normalized.rewardStars = 2;
+    normalized.recoveryKey = recoveryNudge.key;
+    if (recoveryNudge.bottleId) {
+      normalized.rewardBottleId = recoveryNudge.bottleId;
+    }
+    if (recoveryNudge.todoId) {
+      normalized.type = 'todo';
+      normalized.todoId = recoveryNudge.todoId;
+      if (recoveryNudge.todoTitle) {
+        normalized.todoTitle = recoveryNudge.todoTitle;
+      }
+    } else if (recoveryNudge.activityName) {
+      normalized.type = 'activity';
+      normalized.activityName = recoveryNudge.activityName;
+    }
+  }
+
   return normalized;
+}
+
+function buildRecoveryFallbackSuggestion(
+  lang: AnnotationLang,
+  recoveryNudge: RecoveryNudgeContext,
+): { content: string; suggestion: Record<string, unknown> } {
+  const actionLabel = lang === 'en'
+    ? 'Start now'
+    : lang === 'it'
+      ? 'Inizia ora'
+      : '现在开始';
+
+  const title = recoveryNudge.todoTitle || recoveryNudge.bottleName || recoveryNudge.activityName || '';
+  const content = lang === 'en'
+    ? `You can bounce back today - finish ${title || 'one small step'} and earn two stars ⭐`
+    : lang === 'it'
+      ? `Puoi ripartire oggi: completa ${title || 'un piccolo passo'} e ottieni due stelle ⭐`
+      : `你今天补回来就能拿到两颗星，先完成${title || '一个小步骤'} ⭐`;
+
+  return {
+    content,
+    suggestion: {
+      type: recoveryNudge.todoId ? 'todo' : 'activity',
+      actionLabel,
+      todoId: recoveryNudge.todoId,
+      todoTitle: recoveryNudge.todoTitle,
+      activityName: recoveryNudge.activityName,
+      rewardStars: 2,
+      rewardBottleId: recoveryNudge.bottleId,
+      recoveryKey: recoveryNudge.key,
+    },
+  };
 }
 
 function buildForcedFallbackSuggestion(
@@ -380,6 +445,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
       const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
       const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
+      const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
       const currentHour = userContext?.currentHour;
       const currentMinute = userContext?.currentMinute;
       const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
@@ -403,6 +469,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currentMinute,
         consecutiveTextCount: userContext?.consecutiveTextCount,
         forceSuggestion,
+        recoveryNudge,
       });
       const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
       const model = getModel(resolvedLang);
@@ -421,9 +488,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (parsedPayload) {
         const finalContent = ensureEmoji(parsedPayload.content, '🌿');
-        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion)
+        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
           ?? (forceSuggestion
-            ? buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion
+            ? (recoveryNudge
+              ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).suggestion
+              : buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion)
             : undefined);
 
         res.status(200).json({
@@ -441,7 +510,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (extractedText) {
         const finalContent = ensureEmoji(extractedText, '🌿');
         if (forceSuggestion) {
-          const fallback = buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+          const fallback = recoveryNudge
+            ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
+            : buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
           res.status(200).json({
             content: finalContent,
             tone: 'concerned',
@@ -466,7 +537,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[Annotation API] Suggestion mode error:', suggestionErr);
       if (forceSuggestion) {
         const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
-        const fallback = buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+        const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
+        const fallback = recoveryNudge
+          ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
+          : buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
         res.status(200).json({
           content: fallback.content,
           tone: 'concerned',

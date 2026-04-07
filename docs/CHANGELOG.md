@@ -8,6 +8,107 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-07 - Feat: 建议模式新增中断挽回提醒与 2 星一次性奖励
+
+### Changed
+
+- `src/lib/recoverySuggestion.ts`（新增）
+  - 新增中断检测器：
+    - 识别 active 瓶子连续 3 天未完成；
+    - 识别 daily/weekly 重复待办“昨日断档”；
+    - 产出 `recoveryNudge`（包含 `key/reason/rewardStars/todoId|bottleId`）。
+  - 新增提醒时机控制：
+    - 优先按目标历史完成时间计算提醒时段；
+    - 无历史统一采用中午 12 点窗口（±2h）；
+    - 同一 key 每日最多提醒 2 次，二次提醒最小间隔 4h。
+- `src/store/useAnnotationStore.ts`
+  - 在 suggestion 上下文注入 `userContext.recoveryNudge`，并在命中时强制建议输出。
+  - 新增当日提醒去重（`shownRecoverySuggestionKeys`）与一次性奖励状态（`activeRecoveryBonus`）。
+  - 新增 `consumeRecoveryBonusForCompletion()`：完成匹配 todo/bottle 时消费奖励并返回星数（默认 1，奖励 2）。
+- `src/server/annotation-prompts.ts` / `src/server/annotation-handler.ts`
+  - suggestion prompt 新增 recovery nudge 规则（要求“今天完成可得两颗星”）。
+  - 解析 suggestion JSON 时支持并透传奖励字段：`rewardStars`、`rewardBottleId`、`recoveryKey`。
+  - 新增强制兜底：当 recovery nudge 存在时，即使模型输出异常也返回可执行建议和 2 星奖励元数据。
+- `src/features/growth/GrowthTodoSection.tsx` / `src/features/growth/FocusMode.tsx` / `src/store/useChatStore.ts` / `src/store/useGrowthStore.ts`
+  - 统一星星发放路径支持倍率（`incrementBottleStars`）。
+  - 在 todo 完成、focus 完成、活动匹配瓶子完成时优先消费 recovery bonus，实现“建议并开始后完成得 2 星”。
+- `src/types/annotation.ts` / `src/api/client.ts`
+  - 扩展 annotation 契约：新增 `RecoveryNudgeContext` 与 suggestion 奖励字段类型。
+- 测试
+  - 新增 `src/lib/recoverySuggestion.test.ts`（3 天断档、昨日断档、当日去重）。
+  - 扩展 `src/server/annotation-handler.test.ts`（验证 recovery nudge 注入 2 星字段）。
+
+### Validation
+
+- `npx vitest run src/lib/recoverySuggestion.test.ts src/server/annotation-handler.test.ts src/components/feedback/AIAnnotationBubble.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录中断挽回提醒与 2 星奖励落地）。
+- 更新 `src/store/README.md`、`src/api/README.md`、`api/README.md`（同步 annotation 新契约与奖励元数据）。
+
+## 2026-04-07 - Chore: 魔法笔 EN/IT 提示词对齐最新中文规则
+
+### Changed
+
+- `src/server/magic-pen-prompts.ts`
+  - 同步更新 `MAGIC_PEN_PROMPT_EN` 与 `MAGIC_PEN_PROMPT_IT`，对齐当前中文提示词的意图边界：
+    - `activity` 语义收敛为“当前进行中，通常不超过一件”；
+    - `activity_backfill` 扩展为“已完成/前置/常识上已发生”的事件；
+    - 混合句新增硬规则：同输入最多保留一个 `activity`，其余活动片段默认转 `activity_backfill`，仅明确并行表达时允许并行活动；
+    - 补充“已识别当前活动 + 更早明确时间活动 -> backfill”的判定说明。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次魔法笔多语言 prompt 对齐）。
+
+## 2026-04-07 - UX: 日记详情页植物图支持打开植物翻转卡
+
+### Changed
+
+- `src/features/report/ReportDetailModal.tsx`
+  - 新增 `onOpenPlantCard` 回调接口。
+  - 在日记第 2 页（观察日记区）将植物图片改为可点击入口；有当日植物记录时点击可触发外层打开植物卡片。
+- `src/features/report/ReportPage.tsx`
+  - 新增 `openedPlantCard` 状态，用于承接 `ReportDetailModal` 点击事件并展示 `PlantCardModal`。
+  - 挂载 `PlantCardModal`，复用现有 `PlantFlipCard`（含背面根系交互）与关闭逻辑。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/features/report/reportPage.integration.test.tsx` ⚠️ 失败（现有测试 mock 缺少 `initReactI18next` 导出，与本次改动无关）
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次日记植物图到植物卡片入口接入）。
+
+## 2026-04-07 - Fix: 魔法笔自动写入改为直接执行 AI kind（移除二次分类漂移）
+
+### Changed
+
+- `src/features/chat/chatPageActions.ts`
+  - mode-on parser 路径下，`autoWriteItems` 不再走 `sendAutoRecognizedInput(...)` 二次分类，改为调用新的 `writeMagicPenAutoItem(...)` 直接按 AI `kind` 执行写入。
+  - 删除 `unparsedSegments` 的本地二次重分类与“提升自动写入”逻辑，未识别片段统一留在 Sheet review。
+  - active todo 自动完成判定改为基于本次实际写入 `kind`，避免依赖二次分类结果。
+- `src/features/chat/ChatPage.tsx`
+  - 为魔法笔新增 `writeMagicPenAutoItem` 注入：`kind=mood` 直写 `sendMood`，`kind=activity` 直写 `sendMessage`；若存在 `linkedMoodContent`，补发关联心情。
+- `src/features/chat/chatPageActions.test.ts`
+  - 回归测试更新：验证 parser auto-write 使用 AI kind 直写、unparsed 不再自动提升、以及 mixed 场景仍正确打开 review。
+
+### Validation
+
+- `npm run test:unit -- src/features/chat/chatPageActions.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`（记录本次魔法笔“移除二次分类”修复）。
+
 ## 2026-04-06 - Feat: Today Context 词库增强（zh/en/it）与误判抑制
 
 ### Changed

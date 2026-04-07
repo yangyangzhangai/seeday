@@ -20,6 +20,7 @@ interface AutoWriteExecutionResult {
 }
 
 type SendAutoRecognizedInputFn = (content: string) => Promise<AutoWriteExecutionResult>;
+type WriteMagicPenAutoItemFn = (item: MagicPenAutoWriteItem) => Promise<{ messageId?: string }>;
 type CompleteActiveTodoFn = () => Promise<void>;
 type UpdateMessageDurationFn = (content: string, timestamp: number, durationMinutes: number) => Promise<void>;
 type ParseMagicPenFn = (rawText: string, options: { lang: 'zh' | 'en' | 'it' }) => Promise<{
@@ -50,6 +51,7 @@ interface HandleMagicPenModeSendParams {
   activeTodoId: string | null;
   todos: ActiveTodoSnapshot[];
   sendAutoRecognizedInput: SendAutoRecognizedInputFn;
+  writeMagicPenAutoItem: WriteMagicPenAutoItemFn;
   completeActiveTodo: CompleteActiveTodoFn;
   updateMessageDuration: UpdateMessageDurationFn;
   parseMagicPenInput: ParseMagicPenFn;
@@ -86,14 +88,14 @@ function toSupportedLang(inputLang: string): 'zh' | 'en' | 'it' {
 }
 
 async function completeActiveTodoAfterRealtimeIfNeeded(
-  classifications: Array<LiveInputClassification | null>,
+  writtenKinds: Array<'activity' | 'mood' | null>,
   activeTodoId: string | null,
   todos: ActiveTodoSnapshot[],
   completeActiveTodo: CompleteActiveTodoFn,
   updateMessageDuration: UpdateMessageDurationFn,
 ): Promise<void> {
   if (!activeTodoId) return;
-  const hasActivity = classifications.some((item) => item?.kind === 'activity');
+  const hasActivity = writtenKinds.some((kind) => kind === 'activity');
   if (!hasActivity) return;
 
   const todoToComplete = todos.find((todo) => todo.id === activeTodoId);
@@ -151,26 +153,6 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     || classification.internalKind === 'activity_with_mood';
 }
 
-function shouldPromoteUnparsedToAutoWrite(
-  input: string,
-  classification: LiveInputClassification,
-): boolean {
-  const semanticLength = input
-    .replace(/\s+/g, '')
-    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
-    .length;
-  const isTimeOnlySegment = /^(今天|明天|后天|昨[天日]|今早|早上|上午|中午|下午|晚上|今晚|今夜|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?)$/.test(input.trim());
-  const hasMoodSignal = /(累|疲惫|难过|伤心|烦|崩溃|焦虑|开心|高兴|沮丧|郁闷|委屈|想哭)/.test(input);
-
-  if (classification.confidence === 'low') {
-    return classification.kind === 'mood' && semanticLength > 0 && semanticLength <= 6 && !isTimeOnlySegment;
-  }
-  if (classification.kind === 'mood' && hasMoodSignal && !isTimeOnlySegment) {
-    return true;
-  }
-  return shouldUseLocalFastPath(input, classification);
-}
-
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {
   const trimmed = params.input.trim();
   if (!trimmed || params.isMagicPenSending) {
@@ -213,7 +195,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       });
       const localWriteResult = await params.sendAutoRecognizedInput(trimmed);
       await completeActiveTodoAfterRealtimeIfNeeded(
-        [localWriteResult.classification],
+        [localWriteResult.classification?.kind ?? null],
         params.activeTodoId,
         params.todos,
         params.completeActiveTodo,
@@ -246,41 +228,9 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       ...item,
       source: 'ai' as const,
     }));
-    const remainingUnparsed: string[] = [];
-
-    for (let index = 0; index < parsed.unparsedSegments.length; index += 1) {
-      const segment = parsed.unparsedSegments[index].trim();
-      if (!segment) continue;
-      const segmentClassification = classifyLiveInput(segment, getLiveInputContext(params.messages));
-      logMagicPenFlow('send.unparsed_reclassify', {
-        sendSeq,
-        index,
-        segment,
-        kind: segmentClassification.kind,
-        internalKind: segmentClassification.internalKind,
-        confidence: segmentClassification.confidence,
-      });
-      const shouldPromote = shouldPromoteUnparsedToAutoWrite(segment, segmentClassification);
-      logMagicPenFlow('send.unparsed_decision', {
-        sendSeq,
-        index,
-        promoted: shouldPromote,
-        targetKind: segmentClassification.kind,
-        confidence: segmentClassification.confidence,
-      });
-      if (shouldPromote) {
-        recoveredAutoWriteItems.push({
-          id: `local-unparsed-${index}`,
-          kind: segmentClassification.kind,
-          content: segment,
-          sourceText: segment,
-          confidence: segmentClassification.confidence,
-          source: 'unparsed_promoted',
-        });
-        continue;
-      }
-      remainingUnparsed.push(segment);
-    }
+    const remainingUnparsed = parsed.unparsedSegments
+      .map((segment) => segment.trim())
+      .filter((segment) => Boolean(segment));
 
     logMagicPenFlow('send.autowrite_candidates', {
       sendSeq,
@@ -293,15 +243,15 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       })),
     });
 
-    const autoWriteResults: Array<LiveInputClassification | null> = [];
+    const autoWriteKinds: Array<'activity' | 'mood' | null> = [];
     const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
 
     for (const autoWriteItem of recoveredAutoWriteItems) {
       if (!autoWriteItem.content.trim()) {
         continue;
       }
-      const writeResult = await params.sendAutoRecognizedInput(autoWriteItem.content);
-      autoWriteResults.push(writeResult.classification);
+      const writeResult = await params.writeMagicPenAutoItem(autoWriteItem);
+      autoWriteKinds.push(autoWriteItem.kind);
       autoWrittenItems.push({
         id: autoWriteItem.id,
         kind: autoWriteItem.kind,
@@ -314,10 +264,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
         sendSeq,
         id: autoWriteItem.id,
         source: autoWriteItem.source,
-        expectedKind: autoWriteItem.kind,
-        actualKind: writeResult.classification?.kind,
-        actualInternalKind: writeResult.classification?.internalKind,
-        confidence: writeResult.classification?.confidence,
+        kind: autoWriteItem.kind,
         contentPreview: previewMagicPenText(autoWriteItem.content),
       });
     }
@@ -331,7 +278,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
     });
 
     await completeActiveTodoAfterRealtimeIfNeeded(
-      autoWriteResults,
+      autoWriteKinds,
       params.activeTodoId,
       params.todos,
       params.completeActiveTodo,

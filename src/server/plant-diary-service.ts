@@ -93,7 +93,7 @@ function buildPromptZh(input: PlantDiaryServiceInput, modeHint: string): string 
   const plantList = fmtPlantList(input.availablePlants, 'zh');
   const modeSection = modeHint ? `陪伴风格提示：${modeHint}\n` : '';
   return [
-    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。请结合植物在自然界的习性、外观气质与联想意义（如花语等）来写文案。',
+    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。请结合植物的自然习性、外观气质与社会联想意义（如花语等）来写文案，必须写出植物的哪个或哪些特性和用户今日的特点一致。',
     '请只输出有效JSON，格式：{"plantId":"xxx","text":"一句话"}',
     '',
     `可选植物（必须从列表中选一个）：\n${plantList}`,

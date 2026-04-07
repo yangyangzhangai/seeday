@@ -47,6 +47,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Endpoint robustness baseline now includes `src/server/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
 - `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities/todayContext` plus suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`), and response supports `suggestion` payload for actionable AI bubbles.
+- `callAnnotationAPI()` `userContext` now supports `recoveryNudge` (missed-streak reminder context), and suggestion payload supports reward metadata (`rewardStars`, `rewardBottleId`, `recoveryKey`) for one-time bonus awarding on completion.
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.
 

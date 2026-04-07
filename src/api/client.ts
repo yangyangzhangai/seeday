@@ -217,6 +217,16 @@ interface AnnotationRequest {
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
     consecutiveTextCount?: number;
+    recoveryNudge?: {
+      key: string;
+      reason: 'bottle_missed_3_days' | 'recurring_missed_yesterday';
+      rewardStars: number;
+      todoId?: string;
+      todoTitle?: string;
+      bottleId?: string;
+      bottleName?: string;
+      activityName?: string;
+    };
   };
   lang?: 'zh' | 'en' | 'it';
   aiMode?: AiCompanionMode;
@@ -235,6 +245,9 @@ interface AnnotationResponse {
     activityName?: string;
     todoId?: string;
     todoTitle?: string;
+    rewardStars?: number;
+    rewardBottleId?: string;
+    recoveryKey?: string;
   };
 }
 

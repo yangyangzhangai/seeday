@@ -22,9 +22,11 @@ import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 import { useAuthStore } from './useAuthStore';
 import { useTodoStore } from './useTodoStore';
+import { useGrowthStore } from './useGrowthStore';
 import { buildStatusSummary } from '../lib/buildStatusSummary';
 import { detectSuggestionContextHints } from '../lib/suggestionDetector';
 import { isExplicitSuggestionRequest } from '../lib/suggestionIntentDetector';
+import { detectRecoveryNudge } from '../lib/recoverySuggestion';
 import {
   createEmptyTodayContextSnapshot,
   detectTodayContextItems,
@@ -54,6 +56,15 @@ interface AnnotationStore extends AnnotationState {
   lastSuggestionTime: number;
   consecutiveTextCount: number;
   suggestionOutcomes: Array<{ timestamp: number; accepted: boolean }>;
+  recoverySuggestionAttempts: Array<{ date: string; key: string; timestamp: number }>;
+  activeRecoveryBonus: {
+    key: string;
+    stars: number;
+    todoId?: string;
+    bottleId?: string;
+    activatedAt: number;
+    expiresAt: number;
+  } | null;
   todayContextSnapshot: TodayContextSnapshot;
 
   // Actions
@@ -64,6 +75,7 @@ interface AnnotationStore extends AnnotationState {
   updateConfig: (config: Partial<AnnotationState['config']>) => void;
   getAdaptiveMinInterval: () => number;
   getTodayStats: () => { activities: number; duration: number; events: AnnotationEvent[] };
+  consumeRecoveryBonusForCompletion: (params: { todoId?: string; bottleId?: string }) => number;
 
   // 云端同步
   fetchAnnotations: () => Promise<void>;
@@ -113,6 +125,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
       lastSuggestionTime: 0,
       consecutiveTextCount: 0,
       suggestionOutcomes: [],
+      recoverySuggestionAttempts: [],
+      activeRecoveryBonus: null,
       todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
 
       todayStats: {
@@ -177,6 +191,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             lastWasSuggestion: false,
             lastSuggestionTime: 0,
             consecutiveTextCount: 0,
+            recoverySuggestionAttempts: [],
             todayContextSnapshot: nextTodayContextSnapshot,
           });
         } else {
@@ -277,11 +292,24 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
           const pendingTodos = useTodoStore.getState().todos
             .filter(t => !t.completed && !t.isTemplate)
-            .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt }));
+            .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt, bottleId: t.bottleId }));
+
+          const nowDateKey = getLocalDateString(nowDate);
+          const attemptsToday = get().recoverySuggestionAttempts
+            .filter((item) => item.date === nowDateKey)
+            .map((item) => ({ key: item.key, timestamp: item.timestamp }));
+
+          const recoveryNudge = detectRecoveryNudge({
+            now: nowDate,
+            todos: useTodoStore.getState().todos,
+            bottles: useGrowthStore.getState().bottles,
+            attemptsToday,
+          });
 
           const period = getSuggestionPeriod(nowDate.getHours());
           const adaptiveMinInterval = get().getAdaptiveMinInterval();
           const canAttemptSuggestion = explicitSuggestionRequest
+            || Boolean(recoveryNudge)
             || (
               isSuggestionEligibleEvent(event.type)
               && get().dailySuggestionCount < 4
@@ -328,8 +356,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
                 ? get().todayContextSnapshot
                 : undefined,
               allowSuggestion: canAttemptSuggestion,
-              forceSuggestion: explicitSuggestionRequest,
+              forceSuggestion: explicitSuggestionRequest || Boolean(recoveryNudge),
               consecutiveTextCount: get().consecutiveTextCount,
+              recoveryNudge: recoveryNudge || undefined,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
             aiMode,
@@ -348,6 +377,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
                 activityName: response.suggestion.activityName,
                 todoId: response.suggestion.todoId,
                 todoTitle: response.suggestion.todoTitle,
+                rewardStars: response.suggestion.rewardStars,
+                rewardBottleId: response.suggestion.rewardBottleId,
+                recoveryKey: response.suggestion.recoveryKey,
               }
             : undefined;
 
@@ -398,6 +430,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
             lastWasSuggestion: isSuggestionOutput,
             lastSuggestionTime: isSuggestionOutput ? Date.now() : get().lastSuggestionTime,
             consecutiveTextCount: isSuggestionOutput ? 0 : get().consecutiveTextCount + 1,
+            recoverySuggestionAttempts: suggestion?.recoveryKey
+              ? [
+                ...get().recoverySuggestionAttempts,
+                {
+                  date: nowDateKey,
+                  key: suggestion.recoveryKey,
+                  timestamp: now,
+                },
+              ].slice(-300)
+              : get().recoverySuggestionAttempts,
           });
 
           // 异步同步到云端
@@ -447,6 +489,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
         if (annotation.suggestionAccepted === accepted) return;
 
+        const bonusStars = Number(annotation.suggestion.rewardStars || 0);
+        const canActivateBonus = accepted
+          && bonusStars > 1
+          && (annotation.suggestion.todoId || annotation.suggestion.rewardBottleId);
+        const endOfToday = (() => {
+          const end = new Date();
+          end.setHours(23, 59, 59, 999);
+          return end.getTime();
+        })();
+
         set({
           annotations: get().annotations.map((item) => (
             item.id === annotationId ? { ...item, suggestionAccepted: accepted } : item
@@ -458,6 +510,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
             ...get().suggestionOutcomes,
             { timestamp: Date.now(), accepted },
           ].slice(-200),
+          activeRecoveryBonus: canActivateBonus
+            ? {
+              key: annotation.suggestion.recoveryKey || annotationId,
+              stars: Math.floor(bonusStars),
+              todoId: annotation.suggestion.todoId,
+              bottleId: annotation.suggestion.rewardBottleId,
+              activatedAt: Date.now(),
+              expiresAt: endOfToday,
+            }
+            : get().activeRecoveryBonus,
         });
 
         const session = await getSupabaseSession();
@@ -472,6 +534,24 @@ export const useAnnotationStore = create<AnnotationStore>()(
         if (error) {
           console.error('[Annotation] suggestion outcome sync failed:', error);
         }
+      },
+
+      consumeRecoveryBonusForCompletion: ({ todoId, bottleId }) => {
+        const bonus = get().activeRecoveryBonus;
+        if (!bonus) return 1;
+
+        const now = Date.now();
+        if (bonus.expiresAt <= now) {
+          set({ activeRecoveryBonus: null });
+          return 1;
+        }
+
+        const todoMatched = Boolean(todoId && bonus.todoId && todoId === bonus.todoId);
+        const bottleMatched = Boolean(bottleId && bonus.bottleId && bottleId === bonus.bottleId);
+        if (!todoMatched && !bottleMatched) return 1;
+
+        set({ activeRecoveryBonus: null });
+        return Math.max(1, Math.floor(bonus.stars || 1));
       },
 
       /**
@@ -490,6 +570,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
           lastWasSuggestion: false,
           lastSuggestionTime: 0,
           consecutiveTextCount: 0,
+          recoverySuggestionAttempts: [],
+          activeRecoveryBonus: null,
           todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
         });
       },
@@ -604,6 +686,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
         lastSuggestionTime: state.lastSuggestionTime,
         consecutiveTextCount: state.consecutiveTextCount,
         suggestionOutcomes: state.suggestionOutcomes,
+        recoverySuggestionAttempts: state.recoverySuggestionAttempts,
+        activeRecoveryBonus: state.activeRecoveryBonus,
         todayContextSnapshot: state.todayContextSnapshot,
       }),
     }

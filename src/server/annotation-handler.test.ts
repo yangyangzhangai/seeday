@@ -231,4 +231,48 @@ describe('annotation-handler', () => {
     expect((res.payload as { suggestion?: { type?: string } }).suggestion?.type).toBeTruthy();
     expect((res.payload as { displayDuration?: number }).displayDuration).toBe(15000);
   });
+
+  it('injects two-star reward fields for recovery nudge suggestions', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_recovery',
+      output_text: '{"mode":"suggestion","content":"Let\'s restart gently today ⭐","suggestion":{"type":"todo","actionLabel":"Start now","todoId":"todo-1","todoTitle":"Run 20 minutes"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'opened app again' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-1', title: 'Run 20 minutes' }],
+          allowSuggestion: true,
+          forceSuggestion: true,
+          recoveryNudge: {
+            key: 'recurring:tpl-1:miss1d',
+            reason: 'recurring_missed_yesterday',
+            rewardStars: 2,
+            todoId: 'todo-1',
+            todoTitle: 'Run 20 minutes',
+            bottleId: 'bottle-1',
+          },
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    const suggestion = (res.payload as { suggestion?: Record<string, unknown> }).suggestion;
+    expect(res.statusCode).toBe(200);
+    expect(suggestion?.rewardStars).toBe(2);
+    expect(suggestion?.rewardBottleId).toBe('bottle-1');
+    expect(suggestion?.recoveryKey).toBe('recurring:tpl-1:miss1d');
+  });
 });

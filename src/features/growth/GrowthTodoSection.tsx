@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
 import { cn } from '../../lib/utils';
 import {
@@ -27,7 +28,7 @@ function getPriorityRank(priority: GrowthTodo['priority']): number {
 export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
+  const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const {
     todos,
     isLoading,
@@ -98,7 +99,13 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
 
     if (todo && !wasCompleted) {
       const now = Date.now();
-      if (todo.bottleId) incrementBottleStar(todo.bottleId);
+      if (todo.bottleId) {
+        const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
+          todoId: todo.id,
+          bottleId: todo.bottleId,
+        });
+        incrementBottleStars(todo.bottleId, stars);
+      }
       const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),

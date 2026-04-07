@@ -1,5 +1,5 @@
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang } from '../lib/aiCompanion.js';
-import type { TodayContextSnapshot } from '../types/annotation';
+import type { RecoveryNudgeContext, TodayContextSnapshot } from '../types/annotation';
 
 interface AnnotationTemplate {
   content: string;
@@ -273,6 +273,7 @@ interface SuggestionAwarePromptInput {
   currentMinute?: number;
   consecutiveTextCount?: number;
   forceSuggestion?: boolean;
+  recoveryNudge?: RecoveryNudgeContext;
 }
 
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
@@ -291,6 +292,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     currentMinute,
     consecutiveTextCount = 0,
     forceSuggestion = false,
+    recoveryNudge,
   } = input;
 
   const hourText = currentHour !== undefined
@@ -322,6 +324,13 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       'If the user shows physical illness or discomfort, give one concrete rest action with duration and do not recommend work or study tasks.',
       'If the user expresses sadness or low mood, first acknowledge briefly, then suggest one low-effort activity based on frequent activities to help them feel better.',
     ];
+    const recoveryRules = recoveryNudge
+      ? [
+        `Recovery nudge is active: ${JSON.stringify(recoveryNudge)}`,
+        'You must return suggestion JSON and include rewardStars=2 and recoveryKey exactly as provided.',
+        'Content must clearly say completing today gives two stars.',
+      ]
+      : [];
 
     return [
       hourText ? `Current time: ${hourText}` : null,
@@ -334,10 +343,11 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Frequent activities: ${freqText}`,
       `Pending todos:\n${todoListText}`,
       `Consecutive text-only outputs: ${consecutiveTextCount}`,
+      ...recoveryRules,
       ...modeRules,
       ...sceneRules,
       'If suggestion is better, output ONLY JSON with this shape:',
-      '{"mode":"suggestion","content":"<one sentence with one emoji>","suggestion":{"type":"activity|todo","actionLabel":"<button>","activityName":"<optional>","todoId":"<optional>","todoTitle":"<optional>"}}',
+      '{"mode":"suggestion","content":"<one sentence with one emoji>","suggestion":{"type":"activity|todo","actionLabel":"<button>","activityName":"<optional>","todoId":"<optional>","todoTitle":"<optional>","rewardStars":"<optional number>","rewardBottleId":"<optional>","recoveryKey":"<optional>"}}',
       'For todo suggestion, todoId must come from Pending todos list. Keep content concise and caring.',
     ].filter(Boolean).join('\n\n');
   }
@@ -357,6 +367,13 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       'Se l\'utente mostra malessere fisico, dai un suggerimento di riposo concreto con durata ed evita task di lavoro o studio.',
       'Se l\'utente e triste o giu, fai prima una breve empatia e poi proponi una attivita leggera basata sulle attivita frequenti che puo aiutare il suo umore.',
     ];
+    const recoveryRules = recoveryNudge
+      ? [
+        `Recovery nudge attivo: ${JSON.stringify(recoveryNudge)}`,
+        'Devi restituire JSON suggestion con rewardStars=2 e recoveryKey esattamente forniti.',
+        'Nel contenuto indica chiaramente che completando oggi ottiene due stelle.',
+      ]
+      : [];
 
     return [
       hourText ? `Ora corrente: ${hourText}` : null,
@@ -369,10 +386,11 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Attivita frequenti: ${freqText}`,
       `Todo in sospeso:\n${todoListText}`,
       `Numero annotazioni testuali consecutive: ${consecutiveTextCount}`,
+      ...recoveryRules,
       ...modeRules,
       ...sceneRules,
       'Se e meglio un suggerimento, stampa SOLO JSON con questa forma:',
-      '{"mode":"suggestion","content":"<frase breve con una emoji>","suggestion":{"type":"activity|todo","actionLabel":"<pulsante>","activityName":"<opzionale>","todoId":"<opzionale>","todoTitle":"<opzionale>"}}',
+      '{"mode":"suggestion","content":"<frase breve con una emoji>","suggestion":{"type":"activity|todo","actionLabel":"<pulsante>","activityName":"<opzionale>","todoId":"<opzionale>","todoTitle":"<opzionale>","rewardStars":"<numero opzionale>","rewardBottleId":"<opzionale>","recoveryKey":"<opzionale>"}}',
       'Per i todo, todoId deve essere preso dalla lista Pending todos.',
     ].filter(Boolean).join('\n\n');
   }
@@ -390,6 +408,13 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     '若用户表达身体不适（如生病、头痛、发烧、咳嗽、很难受），请优先给出一个可立即执行的具体休息建议（动作+时长），不要推荐工作或学习任务。',
     '若用户表达难过或低落，请先简短共情，再结合用户常做活动给出一个具体、低负担、可马上开始的小建议。',
   ];
+  const recoveryRules = recoveryNudge
+    ? [
+      `恢复提醒上下文：${JSON.stringify(recoveryNudge)}`,
+      '你必须输出 suggestion JSON，并且 suggestion 内必须包含 rewardStars=2 与 recoveryKey（按上下文原样返回）。',
+      'content 里必须明确表达：今天完成可获得两颗星。',
+    ]
+    : [];
 
   return [
     hourText ? `当前时间：${hourText}` : null,
@@ -402,10 +427,11 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `常做活动：${freqText}`,
     `待办列表：\n${todoListText}`,
     `连续纯文字批注次数：${consecutiveTextCount}`,
+    ...recoveryRules,
     ...modeRules,
     ...sceneRules,
     '如果输出建议：只输出 JSON，格式如下：',
-    '{"mode":"suggestion","content":"<一句话+1个emoji>","suggestion":{"type":"activity|todo","actionLabel":"<按钮文案>","activityName":"<可选>","todoId":"<可选>","todoTitle":"<可选>"}}',
+    '{"mode":"suggestion","content":"<一句话+1个emoji>","suggestion":{"type":"activity|todo","actionLabel":"<按钮文案>","activityName":"<可选>","todoId":"<可选>","todoTitle":"<可选>","rewardStars":"<可选数字>","rewardBottleId":"<可选>","recoveryKey":"<可选>"}}',
     'todo 建议时，todoId 必须来自待办列表。内容要温暖、简短、具体。',
   ].filter(Boolean).join('\n\n');
 }

@@ -33,6 +33,7 @@ interface GrowthState {
   addBottle: (name: string, type: BottleType) => Bottle | null;
   removeBottle: (id: string) => void;
   incrementBottleStar: (id: string) => void;
+  incrementBottleStars: (id: string, amount: number) => void;
   markBottleAchieved: (id: string) => void;
   markBottleIrrigated: (id: string) => void;
   continueBottle: (id: string) => void;
@@ -164,10 +165,15 @@ export const useGrowthStore = create<GrowthState>()(
       },
 
       incrementBottleStar: (id) => {
+        get().incrementBottleStars(id, 1);
+      },
+
+      incrementBottleStars: (id, amount) => {
+        const starsToAdd = Math.max(1, Math.floor(amount || 1));
         set((s) => ({
           bottles: s.bottles.map((b) => {
             if (b.id !== id || b.status !== 'active') return b;
-            const newStars = b.stars + 1;
+            const newStars = b.stars + starsToAdd;
             if (newStars >= 21) {
               return { ...b, stars: 21, status: 'achieved' as BottleStatus };
             }

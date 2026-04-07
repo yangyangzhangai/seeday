@@ -37,6 +37,9 @@
 - `useAnnotationStore.ts` 现包含 suggestion 专用频率门控（分时段配额 + 日上限 + 动态最小间隔），不会限制普通文字批注。
 - suggestion 反馈通过 `recordSuggestionOutcome(annotationId, accepted)` 记录，写回本地状态与 `annotations.suggestion_accepted`。
 - today context（今日上下文）已接入：基于关键词识别 `health/special_day/major_event` 写入日级缓存，并在 annotation 请求时透传 `userContext.todayContext`；批注落库时同步写入 `annotations.today_context` 便于回放和分析。
+- 新增 recovery nudge（中断挽回提醒）：当瓶子连续 3 天无完成，或 daily/weekly 重复待办昨日断档时，`useAnnotationStore` 会透传 `userContext.recoveryNudge` 强制建议。
+- recovery nudge 触发时段：优先使用目标历史完成时段；无历史时默认中午 12 点窗口（±2h）；同一 key 每天最多提醒 2 次，二次提醒最小间隔 4 小时。
+- 新增一次性 2 星奖励状态：点击中断挽回建议后激活，完成匹配 todo/bottle 时由 `consumeRecoveryBonusForCompletion()` 消费并返回奖励星数。
 
 ## 变更自检
 

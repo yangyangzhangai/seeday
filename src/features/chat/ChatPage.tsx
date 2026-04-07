@@ -37,7 +37,7 @@ import { format } from 'date-fns';
 export const ChatPage = () => {
   const todayStr = toLocalDateStr(new Date());
   const {
-    messages, sendAutoRecognizedInput, fetchMessages, fetchMessagesByDate,
+    messages, sendAutoRecognizedInput, sendMessage, sendMood, fetchMessages, fetchMessagesByDate,
     checkAndRefreshForNewDay, updateActivity, insertActivity, deleteActivity,
     endActivity, reclassifyRecentInput, isLoading,
     hasInitialized, setHasInitialized, updateMessageDuration, dateCache,
@@ -324,6 +324,18 @@ export const ChatPage = () => {
             const after = useChatStore.getState().messages;
             const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
             return { classification, messageId: createdMessage?.id };
+          },
+          writeMagicPenAutoItem: async (item) => {
+            if (item.kind === 'mood') {
+              const messageId = await sendMood(item.content);
+              return { messageId: messageId ?? undefined };
+            }
+
+            const messageId = await sendMessage(item.content);
+            if (item.linkedMoodContent && messageId) {
+              await sendMood(item.linkedMoodContent, { relatedActivityId: messageId });
+            }
+            return { messageId: messageId ?? undefined };
           },
           completeActiveTodo, updateMessageDuration, parseMagicPenInput,
           setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,

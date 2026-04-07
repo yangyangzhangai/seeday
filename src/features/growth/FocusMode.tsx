@@ -5,6 +5,7 @@ import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
 import { FocusTimer } from './FocusTimer';
 import { type GrowthTodo } from './GrowthTodoCard';
@@ -20,7 +21,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
-  const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
+  const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -93,7 +94,13 @@ export const FocusMode = ({ todo, onClose }: Props) => {
     // Auto-complete the todo and award bottle star
     if (!todo.completed) {
       toggleTodo(todo.id);
-      if (todo.bottleId) incrementBottleStar(todo.bottleId);
+      if (todo.bottleId) {
+        const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
+          todoId: todo.id,
+          bottleId: todo.bottleId,
+        });
+        incrementBottleStars(todo.bottleId, stars);
+      }
     }
     if (session?.actualDuration) {
       const mins = Math.floor(session.actualDuration / 60);
@@ -102,7 +109,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
       setSummary(t('growth_focus_summary', { duration: durStr }));
     }
     setShowConfirmEnd(false);
-  }, [activeMessageId, endActivity, endFocus, todo, toggleTodo, incrementBottleStar, t]);
+  }, [activeMessageId, endActivity, endFocus, todo, toggleTodo, incrementBottleStars, t]);
 
   const handleEnd = useCallback(() => {
     if (!showConfirmEnd && isRunning) {

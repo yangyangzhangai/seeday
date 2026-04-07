@@ -20,6 +20,7 @@ interface ReportDetailModalProps {
   dailyMoodDistribution: MoodDistributionItem[];
   onClose: () => void;
   onBack?: () => void;
+  onOpenPlantCard?: (plant: DailyPlantRecord) => void;
   onShowTaskList: (type: 'completed' | 'total') => void;
   generateAIDiary: (reportId: string) => Promise<void>;
   initialPage?: 0 | 1;
@@ -350,6 +351,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   dailyMoodDistribution: _dailyMoodDistribution,
   onClose,
   onBack,
+  onOpenPlantCard,
   onShowTaskList: _onShowTaskList,
   generateAIDiary: _generateAIDiary,
   initialPage,
@@ -739,12 +741,18 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     <div style={{ height: '100%', overflow: 'hidden' }}>
                       <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
                         {dayPlant ? (
-                          <PlantImage
-                            plantId={dayPlant.plantId}
-                            rootType={dayPlant.rootType}
-                            plantStage={dayPlant.plantStage}
-                            imgClassName="w-full h-auto"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => onOpenPlantCard?.(dayPlant)}
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                          >
+                            <PlantImage
+                              plantId={dayPlant.plantId}
+                              rootType={dayPlant.rootType}
+                              plantStage={dayPlant.plantStage}
+                              imgClassName="w-full h-auto"
+                            />
+                          </button>
                         ) : (
                           <div style={{ width: '100%', height: 150 }} />
                         )}

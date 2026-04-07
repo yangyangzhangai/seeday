@@ -11,6 +11,7 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePlantStore } from '../../store/usePlantStore';
+import type { DailyPlantRecord } from '../../types/plant';
 import { callPlantGenerateAPI } from '../../api/client';
 import { cn } from '../../lib/utils';
 import {
@@ -23,6 +24,7 @@ import { ReportDetailModal } from './ReportDetailModal';
 import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
 import { UpgradeModal } from './UpgradeModal';
+import { PlantCardModal } from './PlantCardModal';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 import { buildPlantGenerateUiState } from './plant/plantGenerateUi';
@@ -58,6 +60,7 @@ export const ReportPage = () => {
   const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
   const [plantStatusHint, setPlantStatusHint] = useState<string | null>(null);
   const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
+  const [openedPlantCard, setOpenedPlantCard] = useState<DailyPlantRecord | null>(null);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
   const currentLang = i18n.language?.split('-')[0] || 'en';
 
@@ -429,6 +432,7 @@ export const ReportPage = () => {
           setDiaryNavDate(null);
           setShowDiaryBook(true); // reopen diary book
         } : undefined}
+        onOpenPlantCard={(plant) => setOpenedPlantCard(plant)}
         onShowTaskList={setShowTaskList}
         generateAIDiary={generateAIDiary}
         initialPage={diaryInitialPage}
@@ -461,6 +465,14 @@ export const ReportPage = () => {
 
       {showUpgrade && (
         <UpgradeModal onClose={() => setShowUpgrade(false)} />
+      )}
+
+      {openedPlantCard && (
+        <PlantCardModal
+          plant={openedPlantCard}
+          onClose={() => setOpenedPlantCard(null)}
+          onGenerateDiary={handleGenerateDiary}
+        />
       )}
       </div>
     </div>

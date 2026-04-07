@@ -632,6 +632,10 @@ export const useChatStore = create<ChatState>()(
         useTodoStore.getState().completeTodoByMessage(id);
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
+        const grantBottleStars = (bottleId: string) => {
+          const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({ bottleId });
+          growthStore.incrementBottleStars(bottleId, stars);
+        };
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
@@ -651,31 +655,31 @@ export const useChatStore = create<ChatState>()(
 
           callClassifierAPI({ rawInput: target.content, lang, habits, goals })
             .then((result) => {
-              if (!result.success || !result.data?.items) {
-                // API failed — use keyword fallback
-                const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) growthStore.incrementBottleStar(matched);
-                return;
-              }
-              let aiMatched = false;
-              for (const item of result.data.items) {
-                if (item.matched_bottle?.id) {
-                  growthStore.incrementBottleStar(item.matched_bottle.id);
-                  aiMatched = true;
-                  break; // max one star per activity
+                if (!result.success || !result.data?.items) {
+                  // API failed — use keyword fallback
+                  const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) grantBottleStars(matched);
+                  return;
                 }
-              }
-              // AI returned no match — try keyword fallback
-              if (!aiMatched) {
+                let aiMatched = false;
+                for (const item of result.data.items) {
+                  if (item.matched_bottle?.id) {
+                  grantBottleStars(item.matched_bottle.id);
+                    aiMatched = true;
+                    break; // max one star per activity
+                  }
+                }
+                // AI returned no match — try keyword fallback
+                if (!aiMatched) {
+                  const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) grantBottleStars(matched);
+                }
+              })
+              .catch(() => {
+                // API error — use keyword fallback
                 const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) growthStore.incrementBottleStar(matched);
-              }
-            })
-            .catch(() => {
-              // API error — use keyword fallback
-              const matched = keywordMatch(target.content, [...habits, ...goals]);
-              if (matched) growthStore.incrementBottleStar(matched);
-            });
+              if (matched) grantBottleStars(matched);
+              });
         }
       },
 

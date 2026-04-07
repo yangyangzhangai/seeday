@@ -45,6 +45,25 @@ export interface AnnotationSuggestion {
   todoId?: string;
   /** type=todo 时的待办标题（用于兜底显示） */
   todoTitle?: string;
+  /** 奖励星星数（建议激活后生效） */
+  rewardStars?: number;
+  /** 奖励目标瓶子（可选） */
+  rewardBottleId?: string;
+  /** 奖励目标 key（用于去重） */
+  recoveryKey?: string;
+}
+
+export type RecoveryNudgeReason = 'bottle_missed_3_days' | 'recurring_missed_yesterday';
+
+export interface RecoveryNudgeContext {
+  key: string;
+  reason: RecoveryNudgeReason;
+  rewardStars: number;
+  todoId?: string;
+  todoTitle?: string;
+  bottleId?: string;
+  bottleName?: string;
+  activityName?: string;
 }
 
 export interface AIAnnotation {
@@ -151,6 +170,7 @@ export interface AnnotationRequest {
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
     consecutiveTextCount?: number;
+    recoveryNudge?: RecoveryNudgeContext;
   };
 }
 

@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-04
+Last Updated: 2026-04-07
 Owner: current working session
 
 ---
@@ -56,6 +56,8 @@ Status: 主链路可用，剩余增强项待推进。
 
 ## 近期完成（保留 2 条）
 
+- [x] 魔法笔提示词多语言对齐：已将 EN/IT prompt 同步到最新中文口径（activity 通常不超过一件；其余活动默认 activity_backfill；仅明确并行表达允许并行）
+- [x] 魔法笔 mode-on 自动写入去二次分类：parser 返回的 `autoWriteItems.kind` 直接执行写入（activity->sendMessage / mood->sendMood），并移除 unparsed 本地提升自动写入，避免“活动被写成心情/补录漂移”为待办的二次判定误差
 - [x] 修复 AI companion prompts 在 Node ESM 下的模块解析：`src/lib/aiCompanion/prompts/index.ts` 改为显式 `.js` 后缀导出，解决 Vercel `ERR_MODULE_NOT_FOUND`（`/prompts/van`）
 - [x] 活动词库补强（zh/en/it）：新增查询/修改/提交/认证等 50+ 实用表达，并补充中英意分类与回归测试
 - [x] 植物生成新增「本月同根系 plantId 不重复」约束：当月候选耗尽返回 `monthly_exhausted`，并在生成区提示下月重置。
@@ -70,9 +72,11 @@ Status: 主链路可用，剩余增强项待推进。
 - [x] AI 建议模式 P7 自动化部分完成：新增测试 + 回环通过
 - [x] 记录页日期圆点交互增强：顶部日期条改为可持续左滑并按需扩展历史日期，且滑动停止后自动吸附到最近日期圆点，便于回看历史消息
 - [x] AI 批注气泡头像视觉更新：移除圆形头像框，放大人设头像并改为半悬浮超出弹窗的呈现
+- [x] AI 建议模式新增「中断挽回」提醒：瓶子连续 3 天未完成或重复待办昨日断档时触发强提醒；提醒时间改为“按历史完成时段”窗口触发，若无历史统一中午 12 点窗口，且同一目标每天最多两次（间隔 >=4h）；用户点击建议并完成对应任务可获 2 颗星（一次性奖励）
 - [x] 首页与我的页头像交互统一：点击头像先放大预览，右下角三点菜单更换头像，并提升放大图清晰度（640px/0.95）
 - [x] Growth 待办卡片支持双击标题快速编辑：双击标题进入输入态，Enter/失焦保存，Esc 取消
 - [x] 日记详情页 UI 对齐新稿：`ReportDetailModal` 改为双页 notebook 版式（第 1 页 activity/mood/to-do/habits，第 2 页 AI 观察 + my diary），并保留生成与保存主链路
+- [x] 日记详情页植物图点击可打开植物翻转卡：在 `ReportDetailModal` 接入点击回调，`ReportPage` 挂载 `PlantCardModal`，可查看背面根系卡片
 
 ---
 
