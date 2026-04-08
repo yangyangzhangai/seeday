@@ -10,13 +10,22 @@ import {
   computeActivityDistribution,
 } from '../reportPageHelpers';
 import type { MoodEnergyPoint } from '../reportPageHelpers';
-import { MoodPieChart } from '../MoodPieChart';
-import { ActivityCategoryDonut } from '../ActivityCategoryDonut';
-import type { ActivityRecordType } from '../../../lib/activityType';
+import {
+  DonutChart, type DataItem,
+  ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
+} from '../DiaryDonutChart';
+import { getMoodDisplayLabel } from '../../../lib/moodOptions';
 
-type ActiveBubble = 'mood' | 'activity' | null;
+type ActiveChart = 'mood' | 'activity' | null;
 
-/** Build a smooth Catmull-Rom bezier path through pts */
+// ── helpers ──
+function normalizeChartPercents(items: DataItem[]): DataItem[] {
+  const sum = items.reduce((s, d) => s + d.value, 0);
+  if (sum !== 100 && items.length > 0) items[0].value += (100 - sum);
+  return items;
+}
+
+// ── Mood Energy Line SVG ──
 function buildSmoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return '';
   const t = 0.35;
@@ -35,7 +44,6 @@ function buildSmoothPath(pts: { x: number; y: number }[]): string {
   return d;
 }
 
-// ── Mood Energy Line SVG ──
 function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   if (points.length === 0) return null;
   const dayStart = startOfDay(new Date()).getTime();
@@ -43,14 +51,12 @@ function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   const range = dayEnd - dayStart;
   const toX = (ts: number) => ((ts - dayStart) / range) * 186 + 7;
   const toY = (e: number) => 52 - ((e - 1) / 4) * 44;
-
   const pts = points.map(p => ({ x: toX(p.timestamp), y: toY(p.energy) }));
   const curvePath = buildSmoothPath(pts);
   const baseline = 54;
   const fillPath = curvePath
     ? `${curvePath} L ${pts[pts.length - 1].x.toFixed(1)},${baseline} L ${pts[0].x.toFixed(1)},${baseline} Z`
     : '';
-
   return (
     <svg viewBox="0 0 200 70" className="w-full" style={{ height: 68 }}>
       <defs>
@@ -59,19 +65,15 @@ function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
           <stop offset="100%" stopColor="#b08060" stopOpacity="0.01" />
         </linearGradient>
       </defs>
-      {/* subtle grid */}
       {[1, 3, 5].map(e => (
         <line key={e} x1={5} y1={toY(e)} x2={195} y2={toY(e)}
           stroke="rgba(150,110,70,0.07)" strokeWidth={0.5} />
       ))}
-      {/* gradient fill under curve */}
       {fillPath && <path d={fillPath} fill="url(#eco-curve-fill)" />}
-      {/* smooth curve line */}
       {curvePath && (
         <path d={curvePath} fill="none" stroke="#b08060"
           strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
       )}
-      {/* time labels */}
       {[6, 12, 18].map(h => (
         <text key={h} x={toX(dayStart + h * 3600_000)} y={67}
           textAnchor="middle" fontSize={7} fill="rgba(120,90,60,0.42)">
@@ -82,49 +84,45 @@ function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
   );
 }
 
-// ── Glass Bubble ──
-interface BubbleProps {
-  label: string;
-  icon: React.ReactNode;
-  color: string;
+// ── Floating DonutChart card ──
+interface FloatingChartProps {
+  data: DataItem[];
+  chartId: string;
+  labelColor: string;
   active: boolean;
-  onClick?: () => void;
-  hasData: boolean;
-  disabled?: boolean;
+  onClick: () => void;
 }
 
-function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }: BubbleProps) {
+function FloatingChart({ data, chartId, labelColor, active, onClick }: FloatingChartProps) {
+  const maxIndex = data.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   return (
     <button
       data-eco-bubble="true"
       onClick={onClick}
-      disabled={disabled}
-      className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
-      style={{ flex: 1, opacity: disabled ? 0.4 : 1 }}
+      className="active:scale-95 transition-transform"
+      style={{ WebkitTapHighlightColor: 'transparent', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
     >
       <div style={{
-        width: 74, height: 74, borderRadius: '50%',
-        background: active
-          ? `radial-gradient(circle at 35% 32%, ${color}55, ${color}22)`
-          : 'radial-gradient(circle at 35% 32%, rgba(255,255,255,0.72), rgba(230,235,255,0.28))',
-        border: active ? `2px solid ${color}90` : '1.5px solid rgba(255,255,255,0.78)',
-        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+        background: active ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.82)',
+        borderRadius: 18,
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         boxShadow: active
-          ? `0 0 0 4px ${color}1a, 0 6px 18px ${color}28`
-          : '0 2px 10px rgba(0,0,0,0.07), inset 0 1.5px 0 rgba(255,255,255,0.88)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        position: 'relative', transition: 'all 0.22s ease',
+          ? '0 6px 22px rgba(0,0,0,0.16), 0 0 0 1.5px rgba(160,200,160,0.55)'
+          : '0 2px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(255,255,255,0.55)',
+        padding: '6px 6px 5px',
+        transition: 'all 0.22s ease',
       }}>
-        <span style={{ fontSize: 30, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>
-        {hasData && (
-          <span style={{
-            position: 'absolute', bottom: 7, right: 7,
-            width: 8, height: 8, borderRadius: '50%',
-            background: color, border: '1.5px solid white',
-          }} />
-        )}
+        <DonutChart
+          data={data}
+          maxIndex={maxIndex}
+          chartId={chartId}
+          labelColor={labelColor}
+          size={80}
+          innerRadius={14}
+          outerRadius={30}
+        />
       </div>
-      <span style={{ fontSize: 10, color: '#9a8878' }}>{label}</span>
     </button>
   );
 }
@@ -132,7 +130,7 @@ function GlassBubble({ label, icon, color, active, onClick, hasData, disabled }:
 // ── Main Component ──
 export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
-  const [active, setActive] = useState<ActiveBubble>(null);
+  const [active, setActive] = useState<ActiveChart>(null);
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const messages = useChatStore(state => state.messages);
   const activityMood = useMoodStore(state => state.activityMood);
@@ -164,113 +162,105 @@ export const DayEcoSphere: React.FC = () => {
     () => computeActivityDistribution(todayMessages, timeTick),
     [todayMessages, timeTick],
   );
-  const activityData = useMemo(() => {
-    const total = activityRaw.reduce((s, d) => s + d.minutes, 0);
-    return activityRaw.map(d => ({
-      category: d.type as ActivityRecordType,
-      minutes: d.minutes,
-      percent: total > 0 ? d.minutes / total : 0,
+
+  // Build DataItem[] in the same format as the diary page DonutChart
+  const moodChartData = useMemo<DataItem[]>(() => {
+    if (moodDist.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
+    const top = moodDist.slice(0, 4);
+    const total = top.reduce((s, d) => s + d.minutes, 0) || 1;
+    const items = top.map((item, i) => ({
+      name: getMoodDisplayLabel(item.mood, t).toLowerCase(),
+      value: Math.max(1, Math.round((item.minutes / total) * 100)),
+      color: MOOD_UI_COLORS[i] ?? MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
     }));
-  }, [activityRaw]);
+    return normalizeChartPercents(items);
+  }, [moodDist, t]);
+
+  const activityChartData = useMemo<DataItem[]>(() => {
+    if (activityRaw.length === 0) return [{ name: t('no_data'), value: 100, color: '#E5E7EB' }];
+    const top = activityRaw.slice(0, 5);
+    const total = top.reduce((s, d) => s + d.minutes, 0) || 1;
+    const items = top.map((item, i) => ({
+      name: t(ACTIVITY_I18N_KEYS[item.type] ?? item.type).toLowerCase(),
+      value: Math.max(1, Math.round((item.minutes / total) * 100)),
+      color: ACTIVITY_UI_COLORS[i] ?? ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
+    }));
+    return normalizeChartPercents(items);
+  }, [activityRaw, t]);
 
   const isNight = new Date().getHours() >= 20;
-  const toggle = (b: ActiveBubble) => setActive(prev => prev === b ? null : b);
+  const toggle = (b: ActiveChart) => setActive(prev => prev === b ? null : b);
 
   useEffect(() => {
     if (!active) return;
-
-    const handlePointerDownOutside = (event: PointerEvent) => {
-      const target = event.target as Element | null;
-      if (!target) return;
-      if (target.closest('[data-eco-bubble="true"]')) return;
-      if (target.closest('[data-eco-panel="true"]')) return;
+    const handle = (e: PointerEvent) => {
+      const el = e.target as Element | null;
+      if (!el) return;
+      if (el.closest('[data-eco-bubble="true"]')) return;
+      if (el.closest('[data-eco-panel="true"]')) return;
       setActive(null);
     };
-
-    document.addEventListener('pointerdown', handlePointerDownOutside, true);
-    return () => document.removeEventListener('pointerdown', handlePointerDownOutside, true);
+    document.addEventListener('pointerdown', handle, true);
+    return () => document.removeEventListener('pointerdown', handle, true);
   }, [active]);
 
   const glassPanel: React.CSSProperties = {
-    background: 'rgba(248, 242, 229, 0.94)',
-    border: '1px solid rgba(195, 168, 120, 0.38)',
+    background: 'rgba(248,242,229,0.94)',
+    border: '1px solid rgba(195,168,120,0.38)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
-    boxShadow: '0 6px 20px rgba(90, 60, 20, 0.12), 0 1px 0 rgba(255,255,255,0.7) inset',
+    boxShadow: '0 6px 20px rgba(90,60,20,0.12), 0 1px 0 rgba(255,255,255,0.7) inset',
   };
 
   return (
     <div className="pointer-events-none">
-      {/* Arc + float layout — center bubble is the apex */}
       <div className="pointer-events-auto relative" style={{ height: 130 }}>
         <style>{`
           @keyframes eco-float-a{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-          @keyframes eco-float-b{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-          @keyframes eco-float-c{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+          @keyframes eco-float-b{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
         `}</style>
-        {/* Left — mood */}
-        <div style={{ position: 'absolute', left: '8%', top: 30, animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
-          <GlassBubble
-            label={t('eco_sphere_mood_label')} icon="🌙" color="#c084fc"
-            active={active === 'mood'} onClick={() => toggle('mood')}
-            hasData={moodDist.length > 0}
+
+        {/* Left — mood donut chart */}
+        <div style={{ position: 'absolute', left: '5%', top: 16,
+          animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
+          <FloatingChart
+            data={moodChartData}
+            chartId="eco-mood"
+            labelColor="#A0304A"
+            active={active === 'mood'}
+            onClick={() => toggle('mood')}
           />
         </div>
-        {/* Center — activity (arc apex, sits highest) */}
-        <div style={{ position: 'absolute', left: '50%', marginLeft: -37, top: 10, animation: 'eco-float-b 3.8s ease-in-out infinite 0.65s' }}>
-          <GlassBubble
-            label={t('eco_sphere_activity_label')} icon="🌿" color="#34d399"
-            active={active === 'activity'} onClick={() => toggle('activity')}
-            hasData={activityData.length > 0}
+
+        {/* Right — activity donut chart */}
+        <div style={{ position: 'absolute', left: '52%', top: 10,
+          animation: 'eco-float-b 3.8s ease-in-out infinite 0.65s' }}>
+          <FloatingChart
+            data={activityChartData}
+            chartId="eco-activity"
+            labelColor="#2D5A30"
+            active={active === 'activity'}
+            onClick={() => toggle('activity')}
           />
         </div>
       </div>
 
       {isNight && (
-        <p className="pointer-events-none text-center px-6 pb-1" style={{ fontSize: 10, color: 'rgba(245,235,210,0.75)' }}>
+        <p className="pointer-events-none text-center px-6 pb-1"
+          style={{ fontSize: 10, color: 'rgba(245,235,210,0.75)' }}>
           {t('eco_sphere_night_hint')}
         </p>
       )}
 
-      {active === 'mood' && (
-        <div data-eco-panel="true" className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-3" style={glassPanel}>
-          {/* 心情分布（饼图 + 图例）*/}
-          {moodDist.length > 0 ? (
-            <>
-              <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
-                {t('report_today_mood_spectrum')}
-              </p>
-              <MoodPieChart distribution={moodDist} />
-            </>
-          ) : (
-            <p className="text-xs text-center py-1" style={{ color: '#8a7060' }}>
-              {t('eco_sphere_no_mood_data')}
-            </p>
-          )}
-          {/* 能量曲线（分隔线后）*/}
-          {moodTimeline.length > 0 && (
-            <>
-              <div style={{ height: 1, background: 'rgba(180,150,110,0.20)', margin: '0 -4px' }} />
-              <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
-                {t('eco_sphere_mood_energy_title')}
-              </p>
-              <MoodEnergyLine points={moodTimeline} />
-            </>
-          )}
-        </div>
-      )}
-
-      {active === 'activity' && (
-        <div data-eco-panel="true" className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4" style={glassPanel}>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#5a4028' }}>
-            {t('report_activity_category')}
+      {/* Mood expanded panel — energy timeline */}
+      {active === 'mood' && moodTimeline.length > 0 && (
+        <div data-eco-panel="true"
+          className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-2"
+          style={glassPanel}>
+          <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
+            {t('eco_sphere_mood_energy_title')}
           </p>
-          {activityData.length > 0
-            ? <ActivityCategoryDonut data={activityData} />
-            : <p className="text-xs text-center py-3" style={{ color: '#8a7060' }}>
-                {t('eco_sphere_no_activity_data')}
-              </p>
-          }
+          <MoodEnergyLine points={moodTimeline} />
         </div>
       )}
     </div>
