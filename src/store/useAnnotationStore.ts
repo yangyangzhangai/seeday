@@ -34,6 +34,11 @@ import {
   extractTodayContextSourceText,
   mergeTodayContextSnapshot,
 } from '../lib/todayContext';
+import {
+  buildCharacterState,
+  createEmptyCharacterStateTracker,
+  type CharacterStateTracker,
+} from '../lib/characterState';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -67,6 +72,7 @@ interface AnnotationStore extends AnnotationState {
     expiresAt: number;
   } | null;
   todayContextSnapshot: TodayContextSnapshot;
+  characterStateTracker: CharacterStateTracker;
   pendingSuggestionIntent: PendingSuggestionIntent | null;
 
   // Actions
@@ -135,6 +141,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
       recoverySuggestionAttempts: [],
       activeRecoveryBonus: null,
       todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
+      characterStateTracker: createEmptyCharacterStateTracker(),
       pendingSuggestionIntent: null,
 
       todayStats: {
@@ -368,6 +375,22 @@ export const useAnnotationStore = create<AnnotationStore>()(
             recentMoodMessages,
           });
 
+          const characterStateEnabled = String(import.meta.env.VITE_ANNOTATION_CHARACTER_STATE_ENABLED ?? 'true') === 'true';
+          const behaviorSourceText = `${String(event.data?.content || '')} ${String(event.data?.mood || '')}`.trim();
+          const characterStateResult = characterStateEnabled
+            ? buildCharacterState({
+              text: behaviorSourceText,
+              durationMinutes: typeof event.data?.duration === 'number' ? event.data.duration : undefined,
+              aiMode,
+              now: nowDate,
+              tracker: get().characterStateTracker,
+            })
+            : null;
+
+          if (characterStateResult) {
+            set({ characterStateTracker: characterStateResult.tracker });
+          }
+
           // 调用 AI 生成批注 (通过 Serverless Function)
           const recentAnnotations = get().annotations.slice(-5).map(a => a.content);
           const response = await callAnnotationAPI({
@@ -394,6 +417,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
               todayContext: get().todayContextSnapshot.items.length > 0
                 ? get().todayContextSnapshot
                 : undefined,
+              characterStateText: characterStateResult?.text || undefined,
+              characterStateMeta: characterStateResult?.meta,
               allowSuggestion: canAttemptSuggestion,
               forceSuggestion: explicitSuggestionRequest || Boolean(recoveryNudge),
               consecutiveTextCount: get().consecutiveTextCount,
@@ -482,6 +507,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
                 },
               ].slice(-300)
               : get().recoverySuggestionAttempts,
+            characterStateTracker: characterStateResult?.tracker || get().characterStateTracker,
           });
 
           // 异步同步到云端
@@ -753,6 +779,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
         recoverySuggestionAttempts: state.recoverySuggestionAttempts,
         activeRecoveryBonus: state.activeRecoveryBonus,
         todayContextSnapshot: state.todayContextSnapshot,
+        characterStateTracker: state.characterStateTracker,
         pendingSuggestionIntent: state.pendingSuggestionIntent,
       }),
     }

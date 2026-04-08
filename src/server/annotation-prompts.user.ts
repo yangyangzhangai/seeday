@@ -50,6 +50,13 @@ export function buildTodayContextText(todayContext: TodayContextSnapshot | undef
   return lines.join('\n');
 }
 
+function buildCharacterStateText(characterStateText: string | undefined, lang: string): string {
+  if (characterStateText && characterStateText.trim()) return characterStateText.trim();
+  if (lang === 'en') return 'none';
+  if (lang === 'it') return 'nessuno';
+  return '无';
+}
+
 function buildCurrentDateText(currentDate: AnnotationCurrentDate | undefined, lang: string): string {
   if (!currentDate) {
     if (lang === 'en') return 'unknown';
@@ -217,6 +224,7 @@ interface SuggestionAwarePromptInput {
   todayActivitiesText: string;
   recentMoodText: string;
   todayContextText?: string;
+  characterStateText?: string;
   statusSummary?: string;
   contextHints?: string[];
   frequentActivities?: string[];
@@ -241,6 +249,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     todayActivitiesText,
     recentMoodText,
     todayContextText,
+    characterStateText,
     statusSummary,
     contextHints = [],
     frequentActivities = [],
@@ -302,6 +311,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
+      `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Just happened: [${eventType}] ${eventSummary}`,
       `Status summary:\n${statusSummary || 'none'}`,
       `Context hints:\n${hintsText}`,
@@ -348,6 +358,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
+      `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Appena successo: [${eventType}] ${eventSummary}`,
       `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
       `Suggerimenti di contesto:\n${hintsText}`,
@@ -392,6 +403,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
+    `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     `状态摘要：\n${statusSummary || '无'}`,
     `情境提示：\n${hintsText}`,
@@ -414,6 +426,7 @@ export function buildUserPrompt(
   todayActivitiesText: string,
   recentMoodText: string,
   todayContextText?: string,
+  characterStateText?: string,
   currentDate?: AnnotationCurrentDate,
   holiday?: AnnotationHolidayContext,
   currentHour?: number,
@@ -438,6 +451,7 @@ export function buildUserPrompt(
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
+      `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Just happened: [${eventType}] ${eventSummary}`,
       'Please write one annotation about the activity or mood that just happened, in your current voice.',
       'Use exactly one emoji at the end.',
@@ -455,6 +469,7 @@ export function buildUserPrompt(
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
+      `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Appena successo: [${eventType}] ${eventSummary}`,
       "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
       'Usa esattamente una emoji alla fine.',
@@ -471,6 +486,7 @@ export function buildUserPrompt(
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
+    `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',
     '句末必须只有一个 emoji。',

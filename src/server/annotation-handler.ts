@@ -39,6 +39,7 @@ type AnnotationLang = 'zh' | 'en' | 'it';
 const MAX_REWRITE_ATTEMPTS = 1;
 const SIMILARITY_THRESHOLD = 0.15;
 const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
+const ENABLE_CHARACTER_STATE = process.env.ANNOTATION_CHARACTER_STATE_ENABLED !== 'false';
 
 const STALE_TODO_DAYS_THRESHOLD = 3;
 const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -201,6 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         todayActivitiesText,
         recentMoodText,
         todayContextText,
+        characterStateText: ENABLE_CHARACTER_STATE ? userContext?.characterStateText : undefined,
         statusSummary: userContext?.statusSummary,
         contextHints: userContext?.contextHints,
         frequentActivities: userContext?.frequentActivities,
@@ -370,6 +372,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       todayActivitiesText,
       recentMoodText,
       todayContextText,
+      characterStateText: ENABLE_CHARACTER_STATE ? userContext?.characterStateText : undefined,
       currentDate: userContext?.currentDate,
       holiday,
       currentHour,

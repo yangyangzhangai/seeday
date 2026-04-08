@@ -243,6 +243,13 @@ export interface AnnotationRequest {
     contextHints?: string[];
     frequentActivities?: string[];
     todayContext?: TodayContextSnapshot;
+    characterStateText?: string;
+    characterStateMeta?: {
+      matchedBehaviorIds: string[];
+      injectedBehaviorIds: string[];
+      usedTrendIds: string[];
+      usedLiteIds: string[];
+    };
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
     consecutiveTextCount?: number;

@@ -8,6 +8,32 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-08 - Feat: annotation 行为-角色状态映射（B01-B21）接入 U3
+
+### Changed
+
+- `src/lib/characterState/*`（新增）
+  - 新增行为状态模块：`behavior-map` / `behavior-matcher` / `event-tracker` / `character-state-builder` / `index`。
+  - 支持 B01-B21 关键词匹配（zh/en/it）、B05 时长阈值、B06 茶种路由、延迟触发、活跃日 streak、7 天密度衰减、同日去重、并发上限 2 条。
+- `src/store/useAnnotationStore.ts`
+  - 新增 `characterStateTracker` 持久化状态。
+  - 在 annotation 触发前构建 `characterStateText` 与 `characterStateMeta`，并透传到 `/api/annotation`。
+  - 新增前端开关 `VITE_ANNOTATION_CHARACTER_STATE_ENABLED`（默认 `true`）。
+- `src/types/annotation.ts`
+  - 扩展 `AnnotationRequest.userContext`：新增 `characterStateText` 与 `characterStateMeta`。
+- `src/server/annotation-prompt-builder.ts` / `src/server/annotation-prompts.user.ts` / `src/server/annotation-handler.ts`
+  - 在 annotation 与 suggestion 双路径 prompt 中注入 U3 段（`Character current state` / `角色当前状态` / `Stato attuale del personaggio`）。
+  - `characterStateText` 为空时按语言回退到 `none/无/nessuno`。
+  - 新增 server 侧总开关：`ANNOTATION_CHARACTER_STATE_ENABLED=false` 时不注入行为状态正文（仅保留回退占位）。
+- 测试新增/更新
+  - 新增 `src/lib/characterState/behavior-matcher.test.ts`、`src/lib/characterState/event-tracker.test.ts`、`src/lib/characterState/character-state-builder.test.ts`。
+  - 更新 `src/server/annotation-prompts.user.test.ts`、`src/server/annotation-handler.test.ts` 覆盖 U3 注入与 server 开关禁用场景。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录“行为-角色状态映射”开发落地完成。
+- 更新 `src/store/README.md`、`src/api/README.md`、`api/README.md`：同步 annotation 上下文字段扩展。
+
 ## 2026-04-08 - Feat: suggestion 长期待办“先拆解后建议”落地
 
 ### Changed

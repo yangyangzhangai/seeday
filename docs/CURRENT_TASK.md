@@ -22,6 +22,7 @@ Status: P0-P6 已完成；P7 仅剩联调、事件漏斗和库字段核对。
 - [x] today context 追加高频自然表达与女性经期语义：支持“来例假/经期/痛经”及 `on my period` / `ho il ciclo` 等跨语言命中
 - [x] today context 补充细粒度生活病症场景：牙痛/智齿发炎/口腔溃疡/肠胃不适/反酸等，并按各语言自然表达覆盖（非直译）
 - [x] 天气与季节最小上下文接入（v2）：注入 `temperatureC + conditions[] + season`，支持复合天气（如 rain+wind）与业务预警（strong_wind_watch/haze_watch）
+- [x] 行为-角色状态映射（B01-B21）接入 annotation：新增 matcher/tracker/builder，透传 `userContext.characterStateText/meta`，并在 annotation/suggestion prompt 注入 U3 角色状态段
 
 ### 当前待办（按优先级）
 

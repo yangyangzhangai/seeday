@@ -70,6 +70,8 @@
   - `convertMoodToEvent(moodMsgId)` returns early unless `moodMsgId` is the latest `record + text` message
 - Timeline disappearance fix after event->mood conversion:
   - converted message now sets `detached: true` so it remains visible as a mood card in timeline
+- Timeline rendering context note (2026-04-08):
+  - `TimelineView.tsx` remains the single presentation entry for event/mood cards and is the UI side integration point for annotation-side context enrichment.
 
 ## Store Refactor Update (2026-03-21)
 

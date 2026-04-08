@@ -25,6 +25,7 @@ interface BasePromptInput {
   todayActivitiesText: string;
   recentMoodText: string;
   todayContextText?: string;
+  characterStateText?: string;
   currentDate?: AnnotationCurrentDate;
   holiday?: AnnotationHolidayContext;
   currentHour?: number;
@@ -67,6 +68,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
       todayActivitiesText: payload.todayActivitiesText,
       recentMoodText: payload.recentMoodText,
       todayContextText: payload.todayContextText,
+      characterStateText: payload.characterStateText,
       statusSummary: payload.statusSummary,
       contextHints: payload.contextHints,
       frequentActivities: payload.frequentActivities,
@@ -91,6 +93,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
     payload.todayActivitiesText,
     payload.recentMoodText,
     payload.todayContextText,
+    payload.characterStateText,
     payload.currentDate,
     payload.holiday,
     payload.currentHour,

@@ -56,6 +56,7 @@ describe('annotation-handler', () => {
       choices: [{ message: { content: '{"steps":[]}' } }],
     });
     process.env.OPENAI_API_KEY = 'test-key';
+    process.env.ANNOTATION_CHARACTER_STATE_ENABLED = 'true';
   });
 
   it('passes the selected ai mode without reusing a previous response id', async () => {
@@ -87,6 +88,7 @@ describe('annotation-handler', () => {
     expect(request.input).not.toContain('Current holiday:');
     expect(request.input).toContain('Season: unknown');
     expect(request.input).toContain('Weather: unknown, unknown');
+    expect(request.input).toContain('Character current state:');
     expect(request).not.toHaveProperty('previous_response_id');
     expect(res.statusCode).toBe(200);
     expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');
@@ -332,5 +334,36 @@ describe('annotation-handler', () => {
     expect(suggestion?.rewardStars).toBe(2);
     expect(suggestion?.rewardBottleId).toBe('bottle-1');
     expect(suggestion?.recoveryKey).toBe('recurring:tpl-1:miss1d');
+  });
+
+  it('disables character state injection when server switch is off', async () => {
+    process.env.ANNOTATION_CHARACTER_STATE_ENABLED = 'false';
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_switch_off',
+      output_text: 'Short note 🌿',
+      usage: { prompt_cache_hits: 0, prompt_cache_misses: 1 },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'test event' },
+        userContext: {
+          todayActivitiesList: [],
+          recentMoodMessages: [],
+          characterStateText: 'THIS_SHOULD_NOT_APPEAR',
+        },
+        lang: 'en',
+      },
+    } as any, res as any);
+
+    const request = responsesCreateMock.mock.calls[0][0];
+    expect(request.input).toContain('Character current state:\nnone');
+    expect(request.input).not.toContain('THIS_SHOULD_NOT_APPEAR');
+    expect(res.statusCode).toBe(200);
   });
 });
