@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { buildRootSegments, renderRootSegments } from '../../../lib/rootRenderer';
@@ -49,8 +49,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const messages = useChatStore(state => state.messages);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
   const [myDiaryText, setMyDiaryText] = useState('');
+  const [isDiaryEditing, setIsDiaryEditing] = useState(false);
+  const [isDiarySaving, setIsDiarySaving] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
+  const diaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const todayDailyReport = useMemo(
     () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
@@ -67,33 +70,61 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
       if (prev.trim().length > 0 && reportNote.trim().length === 0) return prev;
       return reportNote;
     });
+    setIsDiaryEditing(false);
+    setIsDiarySaving(false);
   }, [todayDailyReport?.id, todayDailyReport?.userNote]);
 
   useEffect(() => {
     onDiaryDraftChange?.(myDiaryText);
   }, [myDiaryText, onDiaryDraftChange]);
 
+  const persistDiaryNote = useCallback(async () => {
+    const nextNote = myDiaryText;
+    const nextTrimmed = nextNote.trim();
+    let reportId = todayDailyReport?.id ?? pendingDiaryReportIdRef.current;
+
+    if (!reportId) {
+      if (!nextTrimmed) return;
+      reportId = await generateReport('daily', Date.now());
+      pendingDiaryReportIdRef.current = reportId;
+    }
+
+    const latest = useReportStore.getState().reports.find(report => report.id === reportId);
+    if ((latest?.userNote ?? '') === nextNote) return;
+    await updateReport(reportId, { userNote: nextNote });
+  }, [generateReport, myDiaryText, todayDailyReport?.id, updateReport]);
+
   useEffect(() => {
+    if (!isDiaryEditing) return;
     const timerId = window.setTimeout(() => {
-      void (async () => {
-        const nextNote = myDiaryText;
-        const nextTrimmed = nextNote.trim();
-        let reportId = todayDailyReport?.id ?? pendingDiaryReportIdRef.current;
-
-        if (!reportId) {
-          if (!nextTrimmed) return;
-          reportId = await generateReport('daily', Date.now());
-          pendingDiaryReportIdRef.current = reportId;
-        }
-
-        const latest = useReportStore.getState().reports.find(report => report.id === reportId);
-        if ((latest?.userNote ?? '') === nextNote) return;
-        updateReport(reportId, { userNote: nextNote });
-      })();
+      void persistDiaryNote();
     }, 600);
 
     return () => window.clearTimeout(timerId);
-  }, [generateReport, myDiaryText, todayDailyReport?.id, updateReport]);
+  }, [isDiaryEditing, persistDiaryNote]);
+
+  const handleDiarySave = useCallback(async () => {
+    setIsDiarySaving(true);
+    try {
+      await persistDiaryNote();
+    } finally {
+      setIsDiarySaving(false);
+      setIsDiaryEditing(false);
+      diaryTextareaRef.current?.blur();
+    }
+  }, [persistDiaryNote]);
+
+  const enterDiaryEditMode = useCallback(() => {
+    if (isDiaryEditing) return;
+    setIsDiaryEditing(true);
+    window.requestAnimationFrame(() => {
+      const textarea = diaryTextareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      const len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    });
+  }, [isDiaryEditing]);
 
   useEffect(() => {
     void (async () => {
@@ -238,13 +269,36 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
       <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+92px)] pt-2">
         <h3 className="text-sm font-bold" style={{ color: '#334155' }}>{t('report_my_diary')}</h3>
-        <textarea
-          value={myDiaryText}
-          onChange={(event) => setMyDiaryText(event.target.value)}
-          placeholder={t('report_diary_placeholder')}
-          className="mt-2 w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
-          style={{ minHeight: 128, color: '#334155' }}
-        />
+        <div className="relative mt-2">
+          {isDiaryEditing ? (
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { void handleDiarySave(); }}
+              disabled={isDiarySaving}
+              className="absolute bottom-2 right-0 z-10 rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-70"
+              style={{ color: '#4E7549', background: 'rgba(144, 212, 122, 0.24)' }}
+            >
+              {isDiarySaving ? `${t('report_save')}...` : t('report_save')}
+            </button>
+          ) : null}
+          <textarea
+            ref={diaryTextareaRef}
+            value={myDiaryText}
+            onChange={(event) => setMyDiaryText(event.target.value)}
+            onFocus={enterDiaryEditMode}
+            onClick={enterDiaryEditMode}
+            onBlur={() => {
+              if (!isDiaryEditing) return;
+              void persistDiaryNote();
+              setIsDiaryEditing(false);
+            }}
+            readOnly={!isDiaryEditing}
+            placeholder={t('report_diary_placeholder')}
+            className="w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 pr-16 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
+            style={{ minHeight: 128, color: '#334155' }}
+          />
+        </div>
       </div>
     </div>
   );
