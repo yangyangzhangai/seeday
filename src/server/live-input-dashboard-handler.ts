@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
-import { isLiveInputAdminUser, requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
+import { jsonError } from './http.js';
+import { isLiveInputAdminUser, requireSupabaseRequestAuth } from './supabase-request-auth.js';
 import type {
   LiveInputTelemetryBreakdownItem,
   LiveInputTelemetryDashboardResponse,
   LiveInputTelemetryRecentEvent,
   LiveInputTelemetrySeriesPoint,
-} from '../src/services/input/liveInputTelemetryApi.js';
+} from '../services/input/liveInputTelemetryApi.js';
 
 interface LiveInputEventRow {
   id: string;
@@ -126,12 +126,7 @@ function createDateSeries(days: number): LiveInputTelemetrySeriesPoint[] {
   return points;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(res, ['GET']);
-
-  if (handlePreflight(req, res)) return;
-  if (!requireMethod(req, res, 'GET')) return;
-
+export async function handleLiveInputDashboard(req: VercelRequest, res: VercelResponse): Promise<void> {
   const auth = await requireSupabaseRequestAuth(req, res);
   if (!auth) {
     return;
@@ -187,7 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const events = (rows || []) as LiveInputEventRow[];
-  const plantAssetEvents = ((plantRows || []) as PlantAssetEventRow[]);
+  const plantAssetEvents = (plantRows || []) as PlantAssetEventRow[];
   const byInternalKind = new Map<string, number>();
   const correctionPaths = new Map<string, number>();
   const topReasons = new Map<string, number>();

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
+import { handleLiveInputDashboard } from '../src/server/live-input-dashboard-handler.js';
 import type { LiveInputTelemetryIngestRequest } from '../src/services/input/liveInputTelemetryApi.js';
 
 function normalizeReasons(raw: unknown): string[] {
@@ -40,9 +41,13 @@ function normalizeInputLength(raw: unknown, fallbackText?: string): number {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(res, ['POST']);
+  applyCors(res, ['GET', 'POST']);
 
   if (handlePreflight(req, res)) return;
+  if (req.method === 'GET') {
+    await handleLiveInputDashboard(req, res);
+    return;
+  }
   if (!requireMethod(req, res, 'POST')) return;
 
   const auth = await requireSupabaseRequestAuth(req, res);

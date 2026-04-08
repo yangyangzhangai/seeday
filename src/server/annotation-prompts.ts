@@ -1,5 +1,5 @@
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../lib/aiCompanion.js';
-import type { RecoveryNudgeContext, TodayContextSnapshot } from '../types/annotation';
+import type { RecoveryNudgeContext, TodayContextSnapshot } from '../types/annotation.js';
 import { getVanDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/van.js';
 import { getAgnesDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/agnes.js';
 import { getZepDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/zep.js';

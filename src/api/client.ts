@@ -11,8 +11,6 @@ import { useAuthStore } from '../store/useAuthStore';
 import type {
   PlantAssetTelemetryRequest,
   PlantAssetTelemetryResponse,
-  PlantDiaryRequest,
-  PlantDiaryResponse,
   PlantGenerateRequest,
   PlantGenerateResponse,
   PlantHistoryResponse,
@@ -421,11 +419,6 @@ export async function callPlantGenerateAPI(request: PlantGenerateRequest): Promi
   return postJson<PlantGenerateRequest, PlantGenerateResponse>('/plant-generate', request, { headers });
 }
 
-export async function callPlantDiaryAPI(request: PlantDiaryRequest): Promise<PlantDiaryResponse> {
-  const headers = await getAuthHeaders();
-  return postJson<PlantDiaryRequest, PlantDiaryResponse>('/plant-diary', request, { headers });
-}
-
 export async function callPlantHistoryAPI(startDate: string, endDate: string): Promise<PlantHistoryResponse> {
   const headers = await getAuthHeaders();
   const params = new URLSearchParams({ startDate, endDate });
@@ -466,7 +459,7 @@ export async function callLiveInputTelemetryDashboardAPI(
   }
 
   const params = new URLSearchParams({ days: String(days) });
-  return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-dashboard?${params.toString()}`, { headers });
+  return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 interface ShortInsightRequest {

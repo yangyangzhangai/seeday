@@ -13,7 +13,7 @@ import {
   getModel,
   getSystemPrompt,
 } from './annotation-prompts.js';
-import type { RecoveryNudgeContext } from '../types/annotation';
+import type { RecoveryNudgeContext } from '../types/annotation.js';
 
 const openai = new OpenAI();
 
