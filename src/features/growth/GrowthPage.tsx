@@ -53,6 +53,8 @@ export const GrowthPage = () => {
   const [focusQueue, setFocusQueue] = useState<GrowthTodo[] | undefined>(undefined);
   const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
   const consumePendingSuggestionIntent = useAnnotationStore((s) => s.consumePendingSuggestionIntent);
+  const todos = useTodoStore((s) => s.todos);
+  const addSubTodos = useTodoStore((s) => s.addSubTodos);
   const fetchBottles = useGrowthStore((s) => s.fetchBottles);
   const growthLoading = useGrowthStore((s) => s.isLoading);
   const growthSyncError = useGrowthStore((s) => s.lastSyncError);
@@ -71,10 +73,17 @@ export const GrowthPage = () => {
   useEffect(() => {
     const pendingIntent = consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
     if (pendingIntent?.todoId) {
+      const steps = pendingIntent.decomposeSteps ?? [];
+      if (steps.length > 0) {
+        const existingSubTodos = todos.filter((todo) => todo.parentId === pendingIntent.todoId);
+        if (existingSubTodos.length === 0) {
+          addSubTodos(pendingIntent.todoId, steps);
+        }
+      }
       setHighlightTodoId(pendingIntent.todoId);
       setTimeout(() => setHighlightTodoId(null), 3000);
     }
-  }, [consumePendingSuggestionIntent]);
+  }, [addSubTodos, consumePendingSuggestionIntent, todos]);
 
   useEffect(() => {
     const handler = (e: Event) => {

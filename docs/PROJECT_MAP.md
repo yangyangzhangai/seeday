@@ -81,6 +81,7 @@ src/
 - `src/server/annotation-suggestion.ts` -> suggestion JSON 解析（schema 约束）与兜底
 - `src/server/annotation-similarity.ts` -> 相似度/emoji 检测与重写 prompt
 - `src/server/magic-pen-prompts.ts` -> magic-pen prompt 模板
+- `src/server/todo-decompose-service.ts` -> 待办拆解共享服务（供 `/api/todo-decompose` 与 annotation 预拆解复用）
 - `src/server/plant-shared.ts` -> 植物接口鉴权/序列化/日期窗口工具
 - `src/server/plant-diary-service.ts` -> 植物日记生成服务
 

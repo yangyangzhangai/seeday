@@ -41,6 +41,7 @@
 - 新增 recovery nudge（中断挽回提醒）：当瓶子连续 3 天无完成，或 daily/weekly 重复待办昨日断档时，`useAnnotationStore` 会透传 `userContext.recoveryNudge` 强制建议。
 - recovery nudge 触发时段：优先使用目标历史完成时段；无历史时默认中午 12 点窗口（±2h）；同一 key 每天最多提醒 2 次，二次提醒最小间隔 4 小时。
 - 新增一次性 2 星奖励状态：点击中断挽回建议后激活，完成匹配 todo/bottle 时由 `consumeRecoveryBonusForCompletion()` 消费并返回奖励星数。
+- 新增“长期未完成待办预拆解”透传：suggestion 命中 stale todo 时，payload 可携带 `decomposeSteps`；点击建议后通过 `pendingSuggestionIntent` 跨页传递给 Growth 页并落地子待办（已存在子待办时跳过重复创建）。
 - 待办完成事件已与普通记录分流：`GrowthTodoSection`/`FocusMode` 在完成待办时触发 `activity_completed`，普通输入仍走 `activity_recorded`。
 - 待办完成会透传 `eventData.todoCompletionContext`（importance/recurrence/createdAt/ageDays/bottle/threeMonth），用于让 annotation 感知“这是待办完成”。
 - token 控制策略：仅“特殊待办”附加 `eventData.summary`（单行摘要 + 近 90 天统计）。特殊判定为任一命中：关联瓶子、重复任务（daily/weekly/monthly）、创建 >= 3 天；其余一次性新建轻量待办不附加 summary。

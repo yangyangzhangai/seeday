@@ -47,12 +47,21 @@ export async function runSuggestionAcceptFlow({
     }));
     markSuggestionAccepted();
   } else if (suggestion.type === 'todo' && suggestion.todoId) {
+    const decomposeSteps = Array.isArray(suggestion.decomposeSteps)
+      ? suggestion.decomposeSteps
+        .map((step) => ({
+          title: String(step.title || '').trim(),
+          suggestedDuration: Math.min(90, Math.max(5, Number(step.durationMinutes) || 15)),
+        }))
+        .filter((step) => step.title)
+      : undefined;
     setPendingSuggestionIntent({
       type: 'todo',
       annotationId,
       todoId: suggestion.todoId,
       todoTitle: suggestion.todoTitle,
       createdAt: Date.now(),
+      decomposeSteps: decomposeSteps && decomposeSteps.length > 0 ? decomposeSteps : undefined,
     });
     navigate('/growth');
     emitEvent(new CustomEvent('suggestion-highlight-todo', {

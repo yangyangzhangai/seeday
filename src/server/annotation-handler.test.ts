@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const responsesCreateMock = vi.fn();
+const chatCompletionsCreateMock = vi.fn();
 
 vi.mock('openai', () => ({
   default: class OpenAI {
@@ -8,6 +9,12 @@ vi.mock('openai', () => ({
 
     responses = {
       create: responsesCreateMock,
+    };
+
+    chat = {
+      completions: {
+        create: chatCompletionsCreateMock,
+      },
     };
   },
 }));
@@ -36,6 +43,7 @@ describe('annotation-handler', () => {
   beforeEach(() => {
     vi.resetModules();
     responsesCreateMock.mockReset();
+    chatCompletionsCreateMock.mockReset();
     responsesCreateMock.mockResolvedValue({
       id: 'resp_test',
       output_text: 'You actually did the thing today, and it counts',
@@ -43,6 +51,9 @@ describe('annotation-handler', () => {
         prompt_cache_hits: 0,
         prompt_cache_misses: 1,
       },
+    });
+    chatCompletionsCreateMock.mockResolvedValue({
+      choices: [{ message: { content: '{"steps":[]}' } }],
     });
     process.env.OPENAI_API_KEY = 'test-key';
   });
@@ -233,6 +244,50 @@ describe('annotation-handler', () => {
     expect(res.statusCode).toBe(200);
     expect((res.payload as { suggestion?: { type?: string } }).suggestion?.type).toBeTruthy();
     expect((res.payload as { displayDuration?: number }).displayDuration).toBe(15000);
+  });
+
+  it('pre-decomposes stale todo before returning suggestion', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_stale',
+      output_text: '{"mode":"suggestion","content":"Try this todo now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-stale","todoTitle":"Prepare project brief"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+    chatCompletionsCreateMock.mockResolvedValueOnce({
+      choices: [{ message: { content: '{"steps":[{"title":"Collect requirements","durationMinutes":20},{"title":"Draft outline","durationMinutes":30},{"title":"Review and finalize","durationMinutes":25}]}' } }],
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'still procrastinating' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{
+            id: 'todo-stale',
+            title: 'Prepare project brief',
+            ageDays: 5,
+          }],
+          recentMoodMessages: [],
+          allowSuggestion: true,
+        },
+        lang: 'en',
+      },
+    } as any, res as any);
+
+    const suggestion = (res.payload as { suggestion?: Record<string, unknown> }).suggestion;
+    expect(chatCompletionsCreateMock).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(200);
+    expect(suggestion?.decomposeReady).toBe(true);
+    expect(suggestion?.decomposeSourceTodoId).toBe('todo-stale');
+    expect((suggestion?.decomposeSteps as Array<{ title: string }>)[0]?.title).toBe('Collect requirements');
+    expect((suggestion?.actionLabel as string)).toBe('Start step 1');
   });
 
   it('injects two-star reward fields for recovery nudge suggestions', async () => {

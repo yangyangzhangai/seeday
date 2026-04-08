@@ -52,6 +52,15 @@ export interface AnnotationSuggestion {
   rewardBottleId?: string;
   /** 奖励目标 key（用于去重） */
   recoveryKey?: string;
+  /** 是否已在服务端完成预拆解 */
+  decomposeReady?: boolean;
+  /** 预拆解来源 todoId */
+  decomposeSourceTodoId?: string;
+  /** 预拆解出的子步骤 */
+  decomposeSteps?: Array<{
+    title: string;
+    durationMinutes: number;
+  }>;
 }
 
 export interface PendingSuggestionIntent {
@@ -61,6 +70,10 @@ export interface PendingSuggestionIntent {
   activityName?: string;
   todoId?: string;
   todoTitle?: string;
+  decomposeSteps?: Array<{
+    title: string;
+    suggestedDuration: number;
+  }>;
 }
 
 export type RecoveryNudgeReason = 'bottle_missed_3_days' | 'recurring_missed_yesterday';
@@ -139,6 +152,8 @@ export interface PendingTodoSummary {
   title: string;
   category?: string;
   dueAt?: number;
+  createdAt?: number;
+  ageDays?: number;
 }
 
 export type TodayContextCategory = 'health' | 'special_day' | 'major_event';

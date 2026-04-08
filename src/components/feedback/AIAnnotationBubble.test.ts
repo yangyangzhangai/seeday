@@ -41,6 +41,12 @@ describe('runSuggestionAcceptFlow', () => {
       actionLabel: 'Go do',
       todoId: 'todo-1',
       todoTitle: 'Run 20 minutes',
+      decomposeReady: true,
+      decomposeSourceTodoId: 'todo-1',
+      decomposeSteps: [
+        { title: 'Put on shoes', durationMinutes: 10 },
+        { title: 'Warm up', durationMinutes: 8 },
+      ],
     });
 
     const accepted = await runSuggestionAcceptFlow(params);
@@ -48,6 +54,12 @@ describe('runSuggestionAcceptFlow', () => {
     expect(accepted).toBe(true);
     expect(params.navigate).toHaveBeenCalledWith('/growth');
     expect(params.setPendingSuggestionIntent).toHaveBeenCalledTimes(1);
+    expect(params.setPendingSuggestionIntent).toHaveBeenCalledWith(expect.objectContaining({
+      decomposeSteps: [
+        { title: 'Put on shoes', suggestedDuration: 10 },
+        { title: 'Warm up', suggestedDuration: 8 },
+      ],
+    }));
     expect(params.emitEvent).toHaveBeenCalledTimes(1);
     expect(params.recordSuggestionOutcome).toHaveBeenCalledWith('anno-1', true);
     expect(params.handleCondense).toHaveBeenCalledTimes(1);

@@ -30,6 +30,7 @@ import { buildWeatherContext } from './weather-context.js';
 import { fetchAirQualitySnapshot } from './air-quality-provider.js';
 import { buildWeatherAlerts } from './weather-alerts.js';
 import { buildAnnotationPromptPackage } from './annotation-prompt-builder.js';
+import { decomposeTodoWithAI } from './todo-decompose-service.js';
 
 const openai = new OpenAI();
 
@@ -38,6 +39,39 @@ type AnnotationLang = 'zh' | 'en' | 'it';
 const MAX_REWRITE_ATTEMPTS = 1;
 const SIMILARITY_THRESHOLD = 0.15;
 const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
+
+const STALE_TODO_DAYS_THRESHOLD = 3;
+const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
+
+type PendingTodoLite = {
+  id: string;
+  title: string;
+  dueAt?: number;
+  ageDays?: number;
+};
+
+function shouldPreDecomposeTodo(todo: PendingTodoLite | undefined, nowMs: number): boolean {
+  if (!todo) return false;
+  if (typeof todo.ageDays === 'number' && todo.ageDays >= STALE_TODO_DAYS_THRESHOLD) return true;
+  if (typeof todo.dueAt === 'number' && nowMs - todo.dueAt >= OVERDUE_TODO_MS_THRESHOLD) return true;
+  return false;
+}
+
+function buildDecomposeReadyContent(lang: AnnotationLang, todoTitle: string, stepCount: number): string {
+  if (lang === 'en') {
+    return `I've already split "${todoTitle}" into ${stepCount} small steps. Tap start and begin step 1 🌿`;
+  }
+  if (lang === 'it') {
+    return `Ho gia diviso "${todoTitle}" in ${stepCount} piccoli passi. Tocca avvia e inizia dal primo 🌿`;
+  }
+  return `我已经把「${todoTitle}」拆成${stepCount}个小步骤了，点开始就先做第一步 🌿`;
+}
+
+function buildDecomposeReadyActionLabel(lang: AnnotationLang): string {
+  if (lang === 'en') return 'Start step 1';
+  if (lang === 'it') return 'Inizia dal passo 1';
+  return '开始第一步';
+}
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
@@ -196,13 +230,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
-        const finalContent = ensureEmoji(parsedPayload.content, '🌿');
+        let finalContent = ensureEmoji(parsedPayload.content, '🌿');
         const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
           ?? (forceSuggestion
             ? (recoveryNudge
               ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).suggestion
               : buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion)
             : undefined);
+
+        if (normalizedSuggestion?.type === 'todo' && typeof normalizedSuggestion.todoId === 'string') {
+          const targetTodo = pendingTodos.find((todo) => todo.id === normalizedSuggestion.todoId) as PendingTodoLite | undefined;
+          const canPreDecompose = shouldPreDecomposeTodo(targetTodo, Date.now());
+          if (canPreDecompose && targetTodo?.title) {
+            try {
+              const steps = await decomposeTodoWithAI({
+                title: targetTodo.title,
+                lang: resolvedLang,
+                apiKey,
+                model: process.env.TODO_DECOMPOSE_MODEL,
+              });
+              if (steps.length > 0) {
+                normalizedSuggestion.decomposeReady = true;
+                normalizedSuggestion.decomposeSourceTodoId = targetTodo.id;
+                normalizedSuggestion.decomposeSteps = steps;
+                normalizedSuggestion.actionLabel = buildDecomposeReadyActionLabel(resolvedLang);
+                finalContent = buildDecomposeReadyContent(resolvedLang, targetTodo.title, steps.length);
+              }
+            } catch (decomposeError) {
+              if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+                console.warn('[Annotation API] pre-decompose failed, fallback to normal suggestion', decomposeError);
+              }
+            }
+          }
+        }
 
         res.status(200).json({
           content: finalContent,

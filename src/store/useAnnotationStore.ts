@@ -300,7 +300,18 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
           const pendingTodos = useTodoStore.getState().todos
             .filter(t => !t.completed && !t.isTemplate)
-            .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt, bottleId: t.bottleId }));
+            .map((t) => {
+              const ageDays = Math.max(0, Math.floor((now - t.createdAt) / (24 * 60 * 60 * 1000)));
+              return {
+                id: t.id,
+                title: t.title,
+                category: t.category,
+                dueAt: t.dueAt,
+                bottleId: t.bottleId,
+                createdAt: t.createdAt,
+                ageDays,
+              };
+            });
 
           const currentDate = {
             year: nowDate.getFullYear(),
@@ -408,6 +419,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
                 rewardStars: response.suggestion.rewardStars,
                 rewardBottleId: response.suggestion.rewardBottleId,
                 recoveryKey: response.suggestion.recoveryKey,
+                decomposeReady: response.suggestion.decomposeReady,
+                decomposeSourceTodoId: response.suggestion.decomposeSourceTodoId,
+                decomposeSteps: response.suggestion.decomposeSteps,
               }
             : undefined;
 

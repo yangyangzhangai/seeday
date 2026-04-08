@@ -13,6 +13,12 @@ const rawSuggestionSchema = z.object({
   rewardStars: z.union([z.number(), z.string()]).optional(),
   rewardBottleId: z.string().trim().optional(),
   recoveryKey: z.string().trim().optional(),
+  decomposeReady: z.boolean().optional(),
+  decomposeSourceTodoId: z.string().trim().optional(),
+  decomposeSteps: z.array(z.object({
+    title: z.string().trim().min(1),
+    durationMinutes: z.union([z.number(), z.string()]),
+  })).optional(),
 });
 
 const suggestionModeSchema = z.object({
@@ -153,6 +159,23 @@ export function normalizeSuggestion(
 
   if (typeof source.recoveryKey === 'string' && source.recoveryKey.trim()) {
     normalized.recoveryKey = source.recoveryKey.trim();
+  }
+
+  if (source.decomposeReady === true) {
+    normalized.decomposeReady = true;
+  }
+
+  if (typeof source.decomposeSourceTodoId === 'string' && source.decomposeSourceTodoId.trim()) {
+    normalized.decomposeSourceTodoId = source.decomposeSourceTodoId.trim();
+  }
+
+  if (Array.isArray(source.decomposeSteps) && source.decomposeSteps.length > 0) {
+    normalized.decomposeSteps = source.decomposeSteps
+      .slice(0, 6)
+      .map((step) => ({
+        title: step.title,
+        durationMinutes: Math.min(90, Math.max(5, Number(step.durationMinutes) || 15)),
+      }));
   }
 
   if (recoveryNudge) {

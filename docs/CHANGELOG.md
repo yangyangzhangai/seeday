@@ -8,6 +8,38 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-08 - Feat: suggestion 长期待办“先拆解后建议”落地
+
+### Changed
+
+- `src/server/todo-decompose-service.ts`（新增）
+  - 提取待办拆解共享服务 `decomposeTodoWithAI(...)`，统一 3-6 步拆解规则与 JSON 解析归一化。
+- `api/todo-decompose.ts`
+  - 改为复用 `todo-decompose-service`，避免与 suggestion 预拆解链路双份实现漂移。
+- `src/server/annotation-handler.ts`
+  - suggestion 命中 `todo` 且识别为长期未完成（`ageDays>=3` 或逾期 >=24h）时，先调用拆解服务生成子步骤，再返回建议。
+  - suggestion payload 新增预拆解透传：`decomposeReady` / `decomposeSourceTodoId` / `decomposeSteps[]`。
+  - 建议文案与按钮在预拆解命中时改为“已拆好 + 开始第一步”语义。
+- `src/types/annotation.ts` / `src/server/annotation-suggestion.ts`
+  - 扩展 suggestion 与 pending intent 类型，支持预拆解字段；`PendingTodoSummary` 增加 `createdAt/ageDays`。
+- `src/store/useAnnotationStore.ts`
+  - 透传 pending todo `createdAt/ageDays` 到 annotation 请求。
+  - 接收 suggestion 预拆解字段并写入本地 annotation 状态。
+- `src/components/feedback/AIAnnotationBubble.tsx`
+  - 接受 todo suggestion 时将 `decomposeSteps` 写入 `pendingSuggestionIntent`，用于跨页落地。
+- `src/features/growth/GrowthPage.tsx`
+  - 消费 `pendingSuggestionIntent` 时若携带 `decomposeSteps` 且父待办尚无子待办，则自动创建子待办并高亮。
+
+### Validation
+
+- `npx vitest run src/server/annotation-handler.test.ts src/components/feedback/AIAnnotationBubble.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录“先拆解后建议”主链路完成。
+- 更新 `docs/PROJECT_MAP.md`：补充 `src/server/todo-decompose-service.ts` 共享职责。
+- 更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`：同步预拆解契约与跨页落地行为。
+
 ## 2026-04-08 - Refactor: annotation prompt 统一拼装入口（build prompt package）
 
 ### Changed
