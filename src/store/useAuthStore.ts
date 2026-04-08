@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/auth/README.md
 import { create } from 'zustand';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from './useChatStore';
@@ -46,6 +47,7 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
 
 const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = true;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
+const IOS_OAUTH_REDIRECT_URL = import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.tshine.app://auth/callback';
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
 
@@ -159,6 +161,13 @@ function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
   if (PLUS_PLAN_ALIASES.has(normalized)) return 'plus';
   if (FREE_PLAN_ALIASES.has(normalized)) return 'free';
   return null;
+}
+
+function resolveOAuthRedirectUrl(): string {
+  if (Capacitor.isNativePlatform()) {
+    return IOS_OAUTH_REDIRECT_URL;
+  }
+  return window.location.origin;
 }
 
 export function resolveMembershipState(
@@ -454,7 +463,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: resolveOAuthRedirectUrl() },
     });
     return { error };
   },
@@ -462,7 +471,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithApple: async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: resolveOAuthRedirectUrl() },
     });
     return { error };
   },

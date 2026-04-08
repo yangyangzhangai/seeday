@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-07
+Last Updated: 2026-04-08
 Owner: current working session
 
 ---
@@ -24,9 +24,15 @@ Status: P0-P6 已完成；P7 仅剩联调、事件漏斗和库字段核对。
 
 ### 当前待办（按优先级）
 
+- [x] P0：suggestion 接受链路可靠性改造（主链路改为 store 持久化待消费意图；`window` 事件仅保留 fallback）
+- [x] P0：文档对齐（`docs/PROJECT_MAP.md` / `docs/ARCHITECTURE.md` / `api/README.md` / `src/api/README.md` 与真实路由、真实端点保持一致）
 - [ ] 联调验收：真实走通「建议出现 -> 点击去做 -> 自动凝结 -> 超时/X 不凝结」
 - [ ] 事件级埋点扩展：从 `annotations.suggestion_accepted` 最小闭环升级为 show/click/close/timeout 四事件漏斗
 - [ ] 数据库核对：确认目标环境存在 `annotations.suggestion_accepted`，缺失则补 migration
+- [x] P1：suggestion JSON 解析改为 schema 强约束（zod `safeParse`），替换脆弱正则解析
+- [x] P1：annotation 模块分拆（`annotation-prompts.ts` 按 defaults/user 分拆；handler 下沉 suggestion/similarity 子模块）
+- [x] P1：AnnotationRequest/Response 收敛为 `src/types/annotation.ts` 单一来源，`src/api/client.ts` 复用类型
+- [x] P2：日志与隐私收敛（移除 prompt 明文日志与提取后正文日志，新增 `ANNOTATION_VERBOSE_LOGS=true` 才输出详细元数据）
 
 ### 冻结决策（继续沿用）
 
@@ -54,6 +60,41 @@ Status: 主链路可用，剩余增强项待推进。
 
 ---
 
+## 当前主线 3：iOS 套壳登录与输入修复（CAPACITOR_IOS_AUTH_INPUT_FIX）
+
+Status: 问题已复现并完成根因定位，进入修复实施阶段。
+
+### 已确认现象
+
+- [x] 套壳 iOS 点击 Google 登录后，跳到网页端 app 链接而非 Google 账号选择页
+- [x] 从外部页面返回 app 后，登录按钮长期 loading（无兜底回收）
+- [x] 日记区输入在 iOS 套壳内存在“不弹键盘”场景
+- [x] 部分输入框聚焦时页面被 iOS 自动放大，缩回体验差
+
+### 根因判断（当前结论）
+
+- [x] 当前 OAuth 使用 `redirectTo: window.location.origin`，未使用 iOS deep link 回跳链路
+- [x] iOS 工程未完成 scheme + Supabase Redirect URLs + `appUrlOpen` 的闭环
+- [x] 当手机浏览器已存在 Google 登录态时，Google 可能静默 SSO，直接跳转到 `redirectTo`（因此会看到网页 app 链接，而非 Google 登录页）
+- [x] 日记输入存在 `readOnly` + 异步 `focus()` 模式，在 iOS WebView 下可能丢失键盘触发
+- [x] iOS 防缩放 CSS 仅覆盖局部容器，未覆盖页面级输入元素
+
+### 当前待办（按优先级）
+
+- [ ] OAuth 回跳链路修复：补齐 iOS scheme、Supabase Redirect URLs、前端 `appUrlOpen` 监听与会话恢复
+- [ ] 登录 loading 兜底：Google/Apple 登录增加取消/超时/回跳失败复位
+- [ ] 日记输入修复：移除“先只读再异步聚焦”路径，改为同手势链路进入可编辑
+- [ ] 输入放大修复：iOS 下页面级 `input/textarea/select` 统一 `font-size >= 16px`
+- [ ] 回归验收：真机验证「OAuth 自动回 app」「不再无限转圈」「日记必弹键盘」「输入不异常放大」
+
+### 环境配置核对清单（执行前）
+
+- [ ] Google Cloud OAuth（Web Client）redirect URI 包含 `https://<supabase-ref>.supabase.co/auth/v1/callback`
+- [ ] Supabase Auth Redirect URLs 包含 `com.tshine.app://auth/callback`
+- [ ] iOS `Info.plist` 已配置 `CFBundleURLTypes`（scheme: `com.tshine.app`）
+
+---
+
 ## 近期完成（保留 2 条）
 
 - [x] 魔法笔提示词多语言对齐：已将 EN/IT prompt 同步到最新中文口径（activity 通常不超过一件；其余活动默认 activity_backfill；仅明确并行表达允许并行）
@@ -77,6 +118,7 @@ Status: 主链路可用，剩余增强项待推进。
 - [x] Growth 待办卡片支持双击标题快速编辑：双击标题进入输入态，Enter/失焦保存，Esc 取消
 - [x] 日记详情页 UI 对齐新稿：`ReportDetailModal` 改为双页 notebook 版式（第 1 页 activity/mood/to-do/habits，第 2 页 AI 观察 + my diary），并保留生成与保存主链路
 - [x] 日记详情页植物图点击可打开植物翻转卡：在 `ReportDetailModal` 接入点击回调，`ReportPage` 挂载 `PlantCardModal`，可查看背面根系卡片
+- [x] 待办拆解链路修正：`/api/todo-decompose` 改为 OpenAI (`gpt-4o-mini` 默认)，修复子步骤时长映射（`durationMinutes -> suggestedDuration`），并将按钮文案改为“分步完成 / Step by Step / Passo dopo passo”
 
 ---
 

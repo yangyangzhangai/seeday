@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useTodoStore } from '../../store/useTodoStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../api/supabase';
 import { DailyGoalPopup } from './DailyGoalPopup';
@@ -51,6 +52,7 @@ export const GrowthPage = () => {
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
   const [focusQueue, setFocusQueue] = useState<GrowthTodo[] | undefined>(undefined);
   const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
+  const consumePendingSuggestionIntent = useAnnotationStore((s) => s.consumePendingSuggestionIntent);
   const fetchBottles = useGrowthStore((s) => s.fetchBottles);
   const growthLoading = useGrowthStore((s) => s.isLoading);
   const growthSyncError = useGrowthStore((s) => s.lastSyncError);
@@ -66,6 +68,14 @@ export const GrowthPage = () => {
   };
 
   // 监听 AI 建议待办高亮事件
+  useEffect(() => {
+    const pendingIntent = consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
+    if (pendingIntent?.todoId) {
+      setHighlightTodoId(pendingIntent.todoId);
+      setTimeout(() => setHighlightTodoId(null), 3000);
+    }
+  }, [consumePendingSuggestionIntent]);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ todoId: string }>).detail;

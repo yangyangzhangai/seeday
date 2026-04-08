@@ -104,6 +104,9 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
 /* iOS: prevent focus-zoom on small form controls in popups */
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 767px) {
+    input,
+    textarea,
+    select,
     .app-modal-overlay input,
     .app-modal-overlay textarea,
     .app-modal-overlay select,

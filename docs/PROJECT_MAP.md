@@ -1,7 +1,7 @@
 # Tshine 全局地图（唯一版本）
 
-- 版本: v2.1
-- 更新: 2026-03-22
+- 版本: v2.2
+- 更新: 2026-04-08
 - 说明: 本文件是当前仓库目录与边界的唯一地图来源（as-is），不描述愿景结构。
 
 ## 1) 仓库顶层
@@ -35,7 +35,8 @@ src/
 │   ├── chat/
 │   ├── growth/
 │   ├── report/
-│   └── profile/
+│   ├── profile/
+│   └── telemetry/
 ├── hooks/              # RealtimeSync / image upload hooks
 ├── i18n/               # 国际化初始化与词条
 ├── lib/                # 纯函数与映射工具
@@ -56,16 +57,22 @@ src/
 - `diary.ts` -> `POST /api/diary`
 - `stardust.ts` -> `POST /api/stardust`
 - `magic-pen-parse.ts` -> `POST /api/magic-pen-parse`
+- `todo-decompose.ts` -> `POST /api/todo-decompose`
 - `plant-generate.ts` -> `POST /api/plant-generate`
 - `plant-diary.ts` -> `POST /api/plant-diary`
 - `plant-history.ts` -> `GET /api/plant-history`
 - `plant-asset-telemetry.ts` -> `POST /api/plant-asset-telemetry`
+- `live-input-telemetry.ts` -> `POST /api/live-input-telemetry` and `GET /api/live-input-telemetry`
 
 ## 3.1) 服务端共享模块 `src/server/`
 
 - `src/server/http.ts` -> 通用 CORS/method/error 包装
 - `src/server/annotation-handler.ts` -> `/api/annotation` 共享处理逻辑
-- `src/server/annotation-prompts.ts` -> annotation prompt 模板
+- `src/server/annotation-prompts.ts` -> annotation prompt 出口（按 defaults/user 分拆）
+- `src/server/annotation-prompts.defaults.ts` -> 默认批注与 system prompt
+- `src/server/annotation-prompts.user.ts` -> user prompt 构建
+- `src/server/annotation-suggestion.ts` -> suggestion JSON 解析（schema 约束）与兜底
+- `src/server/annotation-similarity.ts` -> 相似度/emoji 检测与重写 prompt
 - `src/server/magic-pen-prompts.ts` -> magic-pen prompt 模板
 - `src/server/plant-shared.ts` -> 植物接口鉴权/序列化/日期窗口工具
 - `src/server/plant-diary-service.ts` -> 植物日记生成服务
@@ -89,6 +96,7 @@ src/
 - `src/features/growth`
 - `src/features/report`
 - `src/features/profile`
+- `src/features/telemetry`
 - `src/store/`
 - `src/services/`
 - `src/server/`

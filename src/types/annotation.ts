@@ -1,4 +1,5 @@
 import type { ActivityType } from '../lib/activityType';
+import type { AiCompanionMode } from '../lib/aiCompanion';
 /**
  * AI 批注系统类型定义
  * 
@@ -51,6 +52,15 @@ export interface AnnotationSuggestion {
   rewardBottleId?: string;
   /** 奖励目标 key（用于去重） */
   recoveryKey?: string;
+}
+
+export interface PendingSuggestionIntent {
+  type: 'activity' | 'todo';
+  annotationId: string;
+  createdAt: number;
+  activityName?: string;
+  todoId?: string;
+  todoTitle?: string;
 }
 
 export type RecoveryNudgeReason = 'bottle_missed_3_days' | 'recurring_missed_yesterday';
@@ -172,6 +182,8 @@ export interface AnnotationRequest {
     consecutiveTextCount?: number;
     recoveryNudge?: RecoveryNudgeContext;
   };
+  lang?: 'zh' | 'en' | 'it';
+  aiMode?: AiCompanionMode;
 }
 
 export interface AnnotationResponse {
@@ -179,6 +191,17 @@ export interface AnnotationResponse {
   tone: AnnotationTone;
   displayDuration: number;
   suggestion?: AnnotationSuggestion;
+  source?: 'ai' | 'default';
+  reason?:
+    | 'no_key'
+    | 'fetch_failed'
+    | 'empty_response'
+    | 'empty_content'
+    | 'extract_failed'
+    | 'exception'
+    | 'suggestion_force_fallback'
+    | 'duplicate_or_emoji_repeated';
+  debugAiMode?: string;
 }
 
 // Chutes API 类型

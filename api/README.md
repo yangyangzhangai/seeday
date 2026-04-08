@@ -19,12 +19,13 @@
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `POST` | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
+| `POST` | `/api/todo-decompose` | `todo-decompose.ts` | `{ success: true, steps }` |
 | `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus?, message? }` |
 | `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
 | `GET` | `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
 | `POST` | `/api/plant-asset-telemetry` | `plant-asset-telemetry.ts` | `{ success, id }` (`{ success: false, skipped: true }` when table not provisioned) |
 | `POST` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | `{ success, id }` |
-| `GET` | `/api/live-input-dashboard` | `live-input-dashboard.ts` | `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }` |
+| `GET` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
@@ -34,11 +35,12 @@ Plant endpoints require `Authorization: Bearer <supabase access token>` and vali
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders.
 Annotation suggestion payload may include reward metadata (`rewardStars`, `rewardBottleId`, `recoveryKey`) so frontend can grant one-time bonus stars after completion.
-Live input telemetry ingest/dashboard endpoints also use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates `live_input_events`, `plant_asset_events`, and `telemetry_events` (`diary_sticker_*`) as a unified telemetry view.
+Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-input-telemetry`) and use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates `live_input_events`, `plant_asset_events`, and `telemetry_events` (`diary_sticker_*`) as a unified telemetry view.
 
 当前 provider 映射：
 
 - `/api/annotation` -> `OPENAI_API_KEY`
+- `/api/todo-decompose` -> `OPENAI_API_KEY`（可选 `TODO_DECOMPOSE_MODEL`，默认 `gpt-4o-mini`）
 - `/api/report` / `/api/stardust` / `/api/plant-diary` -> `CHUTES_API_KEY`
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）

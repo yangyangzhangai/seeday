@@ -53,7 +53,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const [isDiarySaving, setIsDiarySaving] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
-  const diaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const todayDailyReport = useMemo(
     () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
@@ -110,21 +109,8 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     } finally {
       setIsDiarySaving(false);
       setIsDiaryEditing(false);
-      diaryTextareaRef.current?.blur();
     }
   }, [persistDiaryNote]);
-
-  const enterDiaryEditMode = useCallback(() => {
-    if (isDiaryEditing) return;
-    setIsDiaryEditing(true);
-    window.requestAnimationFrame(() => {
-      const textarea = diaryTextareaRef.current;
-      if (!textarea) return;
-      textarea.focus();
-      const len = textarea.value.length;
-      textarea.setSelectionRange(len, len);
-    });
-  }, [isDiaryEditing]);
 
   useEffect(() => {
     void (async () => {
@@ -283,17 +269,14 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
             </button>
           ) : null}
           <textarea
-            ref={diaryTextareaRef}
             value={myDiaryText}
             onChange={(event) => setMyDiaryText(event.target.value)}
-            onFocus={enterDiaryEditMode}
-            onClick={enterDiaryEditMode}
+            onFocus={() => setIsDiaryEditing(true)}
             onBlur={() => {
               if (!isDiaryEditing) return;
               void persistDiaryNote();
               setIsDiaryEditing(false);
             }}
-            readOnly={!isDiaryEditing}
             placeholder={t('report_diary_placeholder')}
             className="w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 pr-16 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
             style={{ minHeight: 128, color: '#334155' }}

@@ -21,11 +21,11 @@ interface SuggestionAcceptFlowParams {
   suggestion: NonNullable<ReturnType<typeof useAnnotationStore.getState>['currentAnnotation']>['suggestion'];
   isSuggestionAccepted: boolean;
   navigate: (path: string) => void;
+  setPendingSuggestionIntent: ReturnType<typeof useAnnotationStore.getState>['setPendingSuggestionIntent'];
   recordSuggestionOutcome: (annotationId: string, accepted: boolean) => Promise<void>;
   handleCondense: () => Promise<void>;
   markSuggestionAccepted: () => void;
   emitEvent?: (event: Event) => boolean;
-  schedule?: (callback: () => void, delay: number) => number;
 }
 
 export async function runSuggestionAcceptFlow({
@@ -33,11 +33,11 @@ export async function runSuggestionAcceptFlow({
   suggestion,
   isSuggestionAccepted,
   navigate,
+  setPendingSuggestionIntent,
   recordSuggestionOutcome,
   handleCondense,
   markSuggestionAccepted,
   emitEvent = (event) => window.dispatchEvent(event),
-  schedule = (callback, delay) => window.setTimeout(callback, delay),
 }: SuggestionAcceptFlowParams): Promise<boolean> {
   if (!suggestion || isSuggestionAccepted) return false;
 
@@ -47,12 +47,17 @@ export async function runSuggestionAcceptFlow({
     }));
     markSuggestionAccepted();
   } else if (suggestion.type === 'todo' && suggestion.todoId) {
+    setPendingSuggestionIntent({
+      type: 'todo',
+      annotationId,
+      todoId: suggestion.todoId,
+      todoTitle: suggestion.todoTitle,
+      createdAt: Date.now(),
+    });
     navigate('/growth');
-    schedule(() => {
-      emitEvent(new CustomEvent('suggestion-highlight-todo', {
-        detail: { todoId: suggestion.todoId },
-      }));
-    }, 300);
+    emitEvent(new CustomEvent('suggestion-highlight-todo', {
+      detail: { todoId: suggestion.todoId },
+    }));
     markSuggestionAccepted();
   } else {
     return false;
@@ -78,7 +83,12 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   relatedMessage,
   onCondense,
 }) => {
-  const { currentAnnotation, dismissAnnotation, recordSuggestionOutcome } = useAnnotationStore();
+  const {
+    currentAnnotation,
+    dismissAnnotation,
+    recordSuggestionOutcome,
+    setPendingSuggestionIntent,
+  } = useAnnotationStore();
   const { hasStardust, createStardust, isGenerating } = useStardustStore();
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const navigate = useNavigate();
@@ -209,18 +219,26 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
   };
 
   // 处理建议按钮点击
-  const handleSuggestionAccept = async () => {
+  const handleSuggestionAccept = useCallback(async () => {
     if (!currentAnnotation?.suggestion) return;
     await runSuggestionAcceptFlow({
       annotationId: currentAnnotation.id,
       suggestion: currentAnnotation.suggestion,
       isSuggestionAccepted,
       navigate,
+      setPendingSuggestionIntent,
       recordSuggestionOutcome,
       handleCondense,
       markSuggestionAccepted: () => setIsSuggestionAccepted(true),
     });
-  };
+  }, [
+    currentAnnotation,
+    isSuggestionAccepted,
+    navigate,
+    setPendingSuggestionIntent,
+    recordSuggestionOutcome,
+    handleCondense,
+  ]);
 
   // 如果没有批注，不渲染
   if (!currentAnnotation) return null;

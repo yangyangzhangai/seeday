@@ -22,6 +22,7 @@
   - Mood pie chart (`MoodPieChart`): mood distribution visualization
   - AI diary generation and display (`DiaryBookShelf` + `DiaryBookViewer`)
   - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
+  - Root-section "My Diary" textarea edits directly on focus and persists on blur/autosave (iOS WebView keyboard-safe path)
 
 ## Upstream Dependencies
 

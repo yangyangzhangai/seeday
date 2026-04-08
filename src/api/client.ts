@@ -20,6 +20,10 @@ import type {
   LiveInputTelemetryIngestRequest,
   LiveInputTelemetryIngestResponse,
 } from '../services/input/liveInputTelemetryApi';
+import type {
+  AnnotationRequest,
+  AnnotationResponse,
+} from '../types/annotation';
 
 const API_BASE = '/api';
 
@@ -180,73 +184,6 @@ interface ReportRequest {
 
 interface ReportResponse {
   content: string;
-}
-
-interface AnnotationRequest {
-  eventType: string;
-  eventData: any;
-  userContext: {
-    todayActivities?: number;
-    todayDuration?: number;
-    currentHour?: number;
-    currentMinute?: number;
-    timezone?: string;
-    recentAnnotations?: string[];
-    recentMoodMessages?: string[]; // 连续心情原文（最多3条）
-    moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>; // 连续心情对话历史（含AI回复）
-    todayActivitiesList?: any[];
-    pendingTodos?: Array<{ id: string; title: string; category?: string; dueAt?: number }>; // 未完成待办（建议模式用）
-    statusSummary?: string;
-    contextHints?: string[];
-    frequentActivities?: string[];
-    todayContext?: {
-      date: string;
-      version: 'v1';
-      items: Array<{
-        id: string;
-        category: 'health' | 'special_day' | 'major_event';
-        summary: string;
-        sourceText: string;
-        confidence: number;
-        detectedAt: number;
-        expiresAt: number;
-      }>;
-    };
-    allowSuggestion?: boolean;
-    forceSuggestion?: boolean;
-    consecutiveTextCount?: number;
-    recoveryNudge?: {
-      key: string;
-      reason: 'bottle_missed_3_days' | 'recurring_missed_yesterday';
-      rewardStars: number;
-      todoId?: string;
-      todoTitle?: string;
-      bottleId?: string;
-      bottleName?: string;
-      activityName?: string;
-    };
-  };
-  lang?: 'zh' | 'en' | 'it';
-  aiMode?: AiCompanionMode;
-}
-
-interface AnnotationResponse {
-  content: string;
-  tone: 'playful' | 'celebrating' | 'concerned' | 'curious';
-  displayDuration: number;
-  source?: 'ai' | 'default';
-  reason?: 'no_key' | 'fetch_failed' | 'empty_response' | 'empty_content' | 'extract_failed' | 'exception';
-  debugAiMode?: string;
-  suggestion?: {
-    type: 'activity' | 'todo';
-    actionLabel: string;
-    activityName?: string;
-    todoId?: string;
-    todoTitle?: string;
-    rewardStars?: number;
-    rewardBottleId?: string;
-    recoveryKey?: string;
-  };
 }
 
 /**

@@ -9,6 +9,7 @@ import "./i18n"; // ← init i18n before anything else
 import "./index.css";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/feedback/ErrorBoundary.tsx";
+import { setupMobileAuthBridge } from "./lib/mobileAuthBridge";
 
 if (typeof document !== "undefined") {
   const root = document.documentElement;
@@ -23,6 +24,8 @@ if (typeof document !== "undefined") {
     markMaterialReady();
   }
 }
+
+void setupMobileAuthBridge();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

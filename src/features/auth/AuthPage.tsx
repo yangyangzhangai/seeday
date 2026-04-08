@@ -23,6 +23,8 @@ export const AuthPage = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const googleTimeoutRef = useRef<number | null>(null);
+  const appleTimeoutRef = useRef<number | null>(null);
 
   const resizeImageToDataUrl = (file: File, maxSize = 640, quality = 0.95): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -61,11 +63,40 @@ export const AuthPage = () => {
     return t('auth_error_generic') + msg;
   };
 
+  const clearOAuthTimeout = (provider: 'google' | 'apple') => {
+    const timeoutRef = provider === 'google' ? googleTimeoutRef : appleTimeoutRef;
+    if (!timeoutRef.current) return;
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  };
+
+  const armOAuthTimeout = (provider: 'google' | 'apple') => {
+    clearOAuthTimeout(provider);
+    const timeoutRef = provider === 'google' ? googleTimeoutRef : appleTimeoutRef;
+    timeoutRef.current = window.setTimeout(() => {
+      if (provider === 'google') {
+        setGoogleLoading(false);
+      } else {
+        setAppleLoading(false);
+      }
+      setError(getErrorMessage('OAuth timeout'));
+    }, 12000);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      clearOAuthTimeout('google');
+      clearOAuthTimeout('apple');
+    };
+  }, []);
+
   const handleAppleSignIn = async () => {
     setAppleLoading(true);
     setError(null);
+    armOAuthTimeout('apple');
     const { error } = await signInWithApple();
     if (error) {
+      clearOAuthTimeout('apple');
       setError(getErrorMessage(error.message || t('auth_error_generic')));
       setAppleLoading(false);
     }
@@ -74,8 +105,10 @@ export const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError(null);
+    armOAuthTimeout('google');
     const { error } = await signInWithGoogle();
     if (error) {
+      clearOAuthTimeout('google');
       setError(getErrorMessage(error.message || t('auth_error_generic')));
       setGoogleLoading(false);
     }

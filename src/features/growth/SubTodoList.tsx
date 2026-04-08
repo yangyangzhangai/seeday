@@ -28,7 +28,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
   const { t } = useTranslation();
   const addSubTodos = useTodoStore((s) => s.addSubTodos);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorType, setErrorType] = useState<'request' | 'empty' | null>(null);
 
   const pendingSubs = subTodos.filter((s) => !s.completed);
 
@@ -36,14 +36,22 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
     if (loading) return;
     triggerLightHaptic();
     setLoading(true);
-    setError(false);
+    setErrorType(null);
     try {
       const steps: DecomposeStep[] = await callTodoDecomposeAPI(parentTodo.title, resolveLang());
-      if (steps.length > 0) {
-        addSubTodos(parentTodo.id, steps);
+      const normalizedSteps = steps
+        .map((step) => ({
+          title: step.title,
+          suggestedDuration: step.durationMinutes,
+        }))
+        .filter((step) => step.title.trim());
+      if (normalizedSteps.length === 0) {
+        setErrorType('empty');
+        return;
       }
+      addSubTodos(parentTodo.id, normalizedSteps);
     } catch {
-      setError(true);
+      setErrorType('request');
     } finally {
       setLoading(false);
     }
@@ -81,8 +89,8 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
         )}
       </div>
 
-      {error && (
-        <p className="text-xs text-red-400 mb-2">{t('todo_decompose_error')}</p>
+      {errorType && (
+        <p className="text-xs text-red-400 mb-2">{t(errorType === 'empty' ? 'todo_decompose_empty' : 'todo_decompose_error')}</p>
       )}
 
       {/* Sub-todo list */}

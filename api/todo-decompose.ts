@@ -1,6 +1,9 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import OpenAI from 'openai';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+
+const openai = new OpenAI();
 
 const DECOMPOSE_PROMPT_ZH = `你是一个任务拆解助手。
 将用户提供的待办事项拆解成3到6个具体可执行的子步骤。
@@ -75,6 +78,20 @@ function parseDecomposeResponse(raw: string): { steps: Array<{ title: string; du
   return { steps: [] };
 }
 
+type DecomposeStep = { title: string; durationMinutes: number };
+
+function normalizeSteps(steps: unknown): DecomposeStep[] {
+  if (!Array.isArray(steps)) return [];
+  return steps
+    .filter((item): item is { title: unknown; durationMinutes: unknown } => Boolean(item && typeof item === 'object'))
+    .filter((item) => typeof item.title === 'string' && item.title.trim())
+    .slice(0, 6)
+    .map((item) => ({
+      title: item.title.trim(),
+      durationMinutes: Math.min(90, Math.max(5, Number(item.durationMinutes) || 15)),
+    }));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
   if (handlePreflight(req, res)) return;
@@ -87,55 +104,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const qwenApiKey = process.env.QWEN_API_KEY;
-  if (!qwenApiKey) {
-    jsonError(res, 500, 'Server configuration error: Missing QWEN_API_KEY');
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  if (!openaiApiKey) {
+    jsonError(res, 500, 'Server configuration error: Missing OPENAI_API_KEY');
     return;
   }
-
-  const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
-  const apiUrl = `${dashscopeBase}/chat/completions`;
-  const model = (process.env.CLASSIFY_MODEL || 'qwen-plus').trim() || 'qwen-plus';
+  const model = (process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
 
   const systemPrompt = lang === 'en' ? DECOMPOSE_PROMPT_EN : lang === 'it' ? DECOMPOSE_PROMPT_IT : DECOMPOSE_PROMPT_ZH;
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${qwenApiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: title.trim() },
-        ],
-        temperature: 0.7,
-        max_tokens: 512,
-        stream: false,
-      }),
+    const completion = await openai.chat.completions.create({
+      model,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: title.trim() },
+      ],
+      temperature: 0.5,
+      max_tokens: 512,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
-      return;
-    }
-
-    const result = await response.json();
-    const rawContent = result.choices?.[0]?.message?.content || '';
+    const rawContent = completion.choices?.[0]?.message?.content || '';
     const parsed = parseDecomposeResponse(rawContent);
-
-    // Validate and clamp
-    const steps = (parsed.steps ?? [])
-      .filter((s: unknown) => s && typeof (s as any).title === 'string' && (s as any).title.trim())
-      .slice(0, 6)
-      .map((s: any) => ({
-        title: String(s.title).trim(),
-        durationMinutes: Math.min(90, Math.max(5, Number(s.durationMinutes) || 15)),
-      }));
+    const steps = normalizeSteps(parsed.steps);
 
     res.status(200).json({ success: true, steps });
   } catch (error) {

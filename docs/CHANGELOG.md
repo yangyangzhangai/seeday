@@ -8,6 +8,85 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-08 - Refactor: annotation 建议链路可靠性 + schema 解析 + 文档对齐
+
+### Changed
+
+- `src/store/useAnnotationStore.ts` / `src/types/annotation.ts`
+  - 新增 `pendingSuggestionIntent` 持久化意图与消费 action（`setPendingSuggestionIntent` / `consumePendingSuggestionIntent`），用于跨页 suggestion 接受链路。
+  - 新增 `PendingSuggestionIntent` 类型。
+- `src/components/feedback/AIAnnotationBubble.tsx` / `src/features/growth/GrowthPage.tsx`
+  - suggestion 接受主链路改为 store 持久化意图（todo）；移除 `setTimeout + window event` 作为主依赖，事件仅保留 fallback。
+- `src/server/annotation-handler.ts`
+  - suggestion 解析与相似度逻辑下沉到独立模块，主 handler 聚焦流程编排。
+  - 删除 prompt 明文与正文明文日志；新增 `ANNOTATION_VERBOSE_LOGS=true` 控制详细元日志。
+- `src/server/annotation-suggestion.ts`（新增）
+  - 使用 zod schema (`safeParse`) 约束 suggestion JSON（兼容 mode/legacy 结构），替代脆弱正则解析路径。
+  - 统一 suggestion normalize 与 force/recovery fallback 构造。
+- `src/server/annotation-similarity.ts`（新增）
+  - 抽离相似度、emoji 提取与重写 prompt 工具。
+- `src/server/annotation-prompts.defaults.ts`（新增） / `src/server/annotation-prompts.user.ts`（新增） / `src/server/annotation-prompts.ts`
+  - prompt 文件按 defaults/user 拆分，`annotation-prompts.ts` 作为聚合出口。
+- `src/api/client.ts`
+  - 移除重复 `AnnotationRequest/AnnotationResponse` 本地定义，改为复用 `src/types/annotation.ts` 单一契约来源。
+- 文档与校验脚本
+  - 更新 `docs/PROJECT_MAP.md`、`docs/ARCHITECTURE.md`、`api/README.md`、`src/api/README.md`，对齐 telemetry 路由/端点与 annotation 模块拆分现状。
+  - 更新 `scripts/check-doc-sync.mjs`：覆盖 telemetry/profile 路由、`/api/live-input-telemetry` 端点 token，并纳入新增 annotation 子模块 DOC-DEPS 校验。
+
+### Validation
+
+- `npm run lint:docs-sync` ✅
+- `npm run lint:state-consistency` ✅
+- `npm run lint:max-lines` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：将本轮 P0/P1/P2 改造项标记为已完成并补充实现口径。
+
+## 2026-04-08 - Fix: iOS 套壳 OAuth 回跳链路 + 输入键盘/放大问题
+
+### Changed
+
+- `src/store/useAuthStore.ts`
+  - OAuth 登录 `redirectTo` 改为平台感知：Web 使用 `window.location.origin`，原生套壳使用 `VITE_IOS_OAUTH_REDIRECT_URL`（默认 `com.tshine.app://auth/callback`）。
+- `src/lib/mobileAuthBridge.ts`（新增） + `src/main.tsx`
+  - 新增 Capacitor `appUrlOpen` 桥接，支持处理 OAuth deep link 回调并执行 Supabase 会话恢复（`exchangeCodeForSession` / `setSession`）。
+- `src/features/auth/AuthPage.tsx`
+  - Google/Apple OAuth 增加超时兜底，避免回跳失败时登录按钮长期 loading。
+- `src/features/report/plant/PlantRootSection.tsx`
+  - 日记输入改为直接可编辑并在焦点事件进入编辑态，移除 `readOnly + 异步 focus` 路径，改善 iOS WebView 不弹键盘问题。
+- `src/index.css`
+  - iOS 防缩放规则扩展到页面级 `input/textarea/select`，统一移动端输入字号下限，降低聚焦自动放大概率。
+- `ios/App/App/Info.plist` + `.env.example`
+  - 增加 iOS URL scheme（`com.tshine.app`）配置并补充 OAuth redirect 环境变量示例。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：新增 `CAPACITOR_IOS_AUTH_INPUT_FIX` 主线与排查/实施清单。
+- 更新 `docs/CHANGELOG.md`：记录本次 iOS 套壳修复代码与配置路径。
+
+## 2026-04-08 - Fix: 待办拆解改用 OpenAI + 分步完成文案 + 空结果提示
+
+### Changed
+
+- `api/todo-decompose.ts`
+  - 将待办拆解模型调用从 DashScope(Qwen)切换为 OpenAI Chat Completions，密钥改为 `OPENAI_API_KEY`。
+  - 新增 `TODO_DECOMPOSE_MODEL` 环境变量（默认 `gpt-4o-mini`），并启用 `response_format: json_object` 提升 JSON 输出稳定性。
+  - 保留并强化 JSON 解析兜底与时长范围 clamp（5-90 分钟）。
+- `src/features/growth/SubTodoList.tsx`
+  - 修复字段映射：`durationMinutes` 正确映射到 store 所需的 `suggestedDuration`，避免子步骤建议时长丢失。
+  - 新增空步骤提示分支：当接口成功但未返回可用步骤时，给出可读反馈而非统一失败文案。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 拆解按钮文案更新为更柔和表达：`分步完成` / `Step by Step` / `Passo dopo passo`。
+  - 新增 `todo_decompose_empty` 文案，用于“返回空步骤”提示。
+- `api/README.md` / `src/api/README.md` / `.env.example`
+  - 同步 `/api/todo-decompose` 契约、provider 说明与 `TODO_DECOMPOSE_MODEL` 配置说明。
+
 ## 2026-04-08 - Feat: AI 待办拆解 + 连续专注队列模式
 
 ### Added

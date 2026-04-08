@@ -9,6 +9,7 @@
 - Route: `/auth`
 - Main actions:
   - Sign in / sign up
+  - OAuth sign-in (Google / Apple) with platform-aware redirect (`web origin` vs `iOS deep link`)
   - Avatar selection/update during auth flow
   - Session restore via `useAuthStore.initialize()`
   - Sign out / preference updates are exposed by `useAuthStore` and consumed by other pages such as `/profile`
@@ -16,6 +17,7 @@
 ## Upstream Dependencies
 
 - Store: `src/store/useAuthStore.ts`
+- Mobile OAuth bridge: `src/lib/mobileAuthBridge.ts` (Capacitor `appUrlOpen` callback handling)
 - App routing: `src/App.tsx`
 - i18n: `src/i18n/*`
 

@@ -8,6 +8,7 @@ import type {
   AnnotationEventType,
   AnnotationState,
   AnnotationSuggestion,
+  PendingSuggestionIntent,
   TodayContextSnapshot,
   TodayActivity
 } from '../types/annotation';
@@ -66,6 +67,7 @@ interface AnnotationStore extends AnnotationState {
     expiresAt: number;
   } | null;
   todayContextSnapshot: TodayContextSnapshot;
+  pendingSuggestionIntent: PendingSuggestionIntent | null;
 
   // Actions
   triggerAnnotation: (event: AnnotationEvent) => Promise<void>;
@@ -76,6 +78,11 @@ interface AnnotationStore extends AnnotationState {
   getAdaptiveMinInterval: () => number;
   getTodayStats: () => { activities: number; duration: number; events: AnnotationEvent[] };
   consumeRecoveryBonusForCompletion: (params: { todoId?: string; bottleId?: string }) => number;
+  setPendingSuggestionIntent: (intent: PendingSuggestionIntent) => void;
+  consumePendingSuggestionIntent: (params: {
+    type: PendingSuggestionIntent['type'];
+    maxAgeMs?: number;
+  }) => PendingSuggestionIntent | null;
 
   // 云端同步
   fetchAnnotations: () => Promise<void>;
@@ -128,6 +135,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
       recoverySuggestionAttempts: [],
       activeRecoveryBonus: null,
       todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
+      pendingSuggestionIntent: null,
 
       todayStats: {
         date: getTodayString(),
@@ -573,7 +581,29 @@ export const useAnnotationStore = create<AnnotationStore>()(
           recoverySuggestionAttempts: [],
           activeRecoveryBonus: null,
           todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
+          pendingSuggestionIntent: null,
         });
+      },
+
+      setPendingSuggestionIntent: (intent) => {
+        set({
+          pendingSuggestionIntent: {
+            ...intent,
+            createdAt: Number(intent.createdAt) || Date.now(),
+          },
+        });
+      },
+
+      consumePendingSuggestionIntent: ({ type, maxAgeMs = 30_000 }) => {
+        const pending = get().pendingSuggestionIntent;
+        if (!pending || pending.type !== type) return null;
+        if (Date.now() - pending.createdAt > maxAgeMs) {
+          set({ pendingSuggestionIntent: null });
+          return null;
+        }
+
+        set({ pendingSuggestionIntent: null });
+        return pending;
       },
 
       /**
@@ -689,6 +719,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
         recoverySuggestionAttempts: state.recoverySuggestionAttempts,
         activeRecoveryBonus: state.activeRecoveryBonus,
         todayContextSnapshot: state.todayContextSnapshot,
+        pendingSuggestionIntent: state.pendingSuggestionIntent,
       }),
     }
   )
