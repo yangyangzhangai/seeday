@@ -49,6 +49,8 @@ const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   sortOrder: 'sort_order',
   isTemplate: 'is_template',
   templateId: 'template_id',
+  parentId: 'parent_id',
+  suggestedDuration: 'suggested_duration',
 };
 
 export function fromDbMessage(row: any): Message {
@@ -110,6 +112,8 @@ export function fromDbTodo(row: any): Todo {
     sortOrder: row.sort_order ?? row.due_date ?? Date.now(),
     isTemplate: row.is_template ?? false,
     templateId: row.template_id,
+    parentId: row.parent_id ?? undefined,
+    suggestedDuration: row.suggested_duration ?? undefined,
   };
 }
 
@@ -134,6 +138,8 @@ export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
     sort_order: todo.sortOrder,
     is_template: todo.isTemplate,
     template_id: todo.templateId,
+    parent_id: todo.parentId ?? null,
+    suggested_duration: todo.suggestedDuration ?? null,
     user_id: userId,
   };
 }

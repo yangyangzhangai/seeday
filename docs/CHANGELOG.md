@@ -8,6 +8,58 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-08 - Feat: AI 待办拆解 + 连续专注队列模式
+
+### Added
+
+- `api/todo-decompose.ts`（新增）
+  - 新 Serverless 端点 `POST /api/todo-decompose`，接收 `{title, lang}`，调用 QWEN_API_KEY 将待办拆解为 3-6 个子步骤，每步返回 `{title, durationMinutes}`。
+  - 支持 zh / en / it 三语言 prompt，输出结果做 clamp（5-90 分钟）。
+- `src/features/growth/SubTodoList.tsx`（新增）
+  - 子步骤列表组件，渲染在 `GrowthTodoCard` 展开面板底部。
+  - 包含"AI 拆解"按钮（调用 `callTodoDecomposeAPI`，loading/error 状态）。
+  - 每条子步骤支持单独勾选、单独开番茄钟。
+  - 子步骤 ≥ 2 条未完成时显示"连续专注"按钮（浅蓝色药丸样式）。
+
+### Changed
+
+- `src/store/useTodoStore.ts`
+  - `Todo` 接口新增 `parentId?: string` 和 `suggestedDuration?: number` 字段。
+  - 新增 `addSubTodos(parentId, steps[])` action：批量创建子待办并同步 Supabase。
+  - `toggleTodo` 新增父待办自动完成逻辑：所有子步骤勾完时自动标记父待办完成。
+- `src/lib/dbMappers.ts`
+  - `fromDbTodo` / `toDbTodo` / `toDbTodoUpdates` 映射新增 `parent_id`、`suggested_duration` 字段。
+- `src/api/client.ts`
+  - 新增 `callTodoDecomposeAPI(title, lang)` 函数及 `DecomposeStep` 类型。
+- `src/features/growth/GrowthTodoCard.tsx`
+  - 新增 `subTodos` 和 `onSequentialFocus` props。
+  - 展开面板末尾接入 `SubTodoList` 组件。
+- `src/features/growth/GrowthTodoSection.tsx`
+  - 构建 `subTodoMap`（parentId → sub-todos），过滤掉有 `parentId` 的子待办不在主列表渲染。
+  - 向 `GrowthTodoCard` 传入 `subTodos` 和 `onSequentialFocus`。
+- `src/store/useFocusStore.ts`
+  - 新增 `queue: FocusQueueItem[]`、`queueIndex: number` 队列状态。
+  - 新增 `startFocusQueue(items)`、`advanceQueue()`、`clearQueue()` actions。
+  - persist 改为只持久化 `sessions`，队列和 currentSession 不持久化（页面刷新不恢复计时）。
+- `src/features/growth/FocusMode.tsx`
+  - 新增 `queueTodos` prop，进入队列模式。
+  - 顶部显示步骤进度轨道（完成/进行中/待开始三态）。
+  - 步骤完成后进入 5 分钟休息倒计时，可跳过，自动推进下一步。
+  - 队列模式开始按钮文案改为"连续专注"，隐藏正计时按钮。
+- `src/features/growth/GrowthPage.tsx`
+  - 新增 `focusQueue` state，`onSequentialFocus` 回调将子步骤列表传入 `FocusMode`。
+- `src/i18n/locales/zh|en|it.ts`
+  - 新增翻译 key：`todo_decompose_btn`、`todo_decompose_loading`、`todo_decompose_error`、`todo_decompose_steps_label`、`todo_decompose_min`、`todo_sequential_focus`。
+
+### Database
+
+- `todos` 表新增字段：
+  - `parent_id UUID REFERENCES todos(id) ON DELETE CASCADE`
+  - `suggested_duration INTEGER`
+  - 索引：`idx_todos_parent_id ON todos(parent_id)`
+
+---
+
 ## 2026-04-07 - Feat: 建议模式新增中断挽回提醒与 2 星一次性奖励
 
 ### Changed

@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
 import { triggerLightHaptic } from '../../lib/haptics';
+import { SubTodoList } from './SubTodoList';
 
 // Re-export for consumers
 export type { GrowthTodo, GrowthPriority };
@@ -19,11 +20,13 @@ const BLUE_SELECTED_STYLE = {
 
 interface Props {
   todo: GrowthTodo;
+  subTodos?: GrowthTodo[];
   onToggle: (id: string) => void;
   onFocus: (todo: GrowthTodo) => void;
   onStart?: (todo: GrowthTodo) => void;
   onDelete?: (id: string) => void;
   onUpdate?: (id: string, updates: Partial<Omit<GrowthTodo, 'id' | 'createdAt'>>) => Promise<void>;
+  onSequentialFocus?: (subTodos: GrowthTodo[]) => void;
   isHighlighted?: boolean;
 }
 
@@ -47,7 +50,7 @@ function tsToDatetimeLocal(ts?: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onUpdate, isHighlighted }: Props) => {
+export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart, onDelete, onUpdate, onSequentialFocus, isHighlighted }: Props) => {
   const { t } = useTranslation();
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [expanded, setExpanded] = useState(false);
@@ -407,6 +410,15 @@ export const GrowthTodoCard = ({ todo, onToggle, onFocus, onStart, onDelete, onU
               </select>
             </div>
           )}
+
+          {/* Sub-todos (AI decompose) */}
+          <SubTodoList
+            parentTodo={todo}
+            subTodos={subTodos}
+            onToggleSub={onToggle}
+            onFocusSub={onFocus}
+            onSequentialFocus={onSequentialFocus ?? (() => {})}
+          />
         </div>
       )}
     </div>

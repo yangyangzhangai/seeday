@@ -16,6 +16,7 @@ import { GrowthTodoCard } from './GrowthTodoCard';
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
+  onSequentialFocus?: (subTodos: GrowthTodo[]) => void;
   highlightTodoId?: string | null;
 }
 
@@ -25,7 +26,7 @@ function getPriorityRank(priority: GrowthTodo['priority']): number {
   return 2;
 }
 
-export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
+export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
@@ -141,10 +142,21 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
     navigate('/chat');
   };
 
+  // Build a map of parentId -> sub-todos for quick lookup
+  const subTodoMap = new Map<string, GrowthTodo[]>();
+  for (const t of todos) {
+    if (t.parentId) {
+      const arr = subTodoMap.get(t.parentId) ?? [];
+      arr.push(t);
+      subTodoMap.set(t.parentId, arr);
+    }
+  }
+
   const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const visible = todos
     .filter((t) => {
       if (t.isTemplate) return false;
+      if (t.parentId) return false; // sub-todos are rendered inside parent card
       if (t.completed && t.completedAt && t.completedAt < todayStartMs) return false;
       return true;
     })
@@ -331,11 +343,13 @@ export const GrowthTodoSection = ({ onFocus, highlightTodoId }: Props) => {
             >
               <GrowthTodoCard
                 todo={todo}
+                subTodos={subTodoMap.get(todo.id) ?? []}
                 onToggle={handleToggle}
                 onFocus={onFocus}
                 onStart={handleStart}
                 onDelete={handleDelete}
                 onUpdate={updateTodo}
+                onSequentialFocus={onSequentialFocus}
                 isHighlighted={highlightTodoId === todo.id}
               />
             </div>

@@ -19,7 +19,8 @@
       "Bash(pip install:*)",
       "Bash(python3 -c ':*)",
       "Bash(python -c ':*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(echo \"EXIT:$?\")"
     ],
     "deny": [
       "Bash(rm -rf:*)",

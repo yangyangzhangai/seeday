@@ -13,14 +13,26 @@ export interface FocusSession {
   actualDuration?: number;  // seconds
 }
 
+export interface FocusQueueItem {
+  todoId: string;
+  durationSeconds: number; // 0 = count-up
+}
+
 interface FocusState {
   currentSession: FocusSession | null;
   activeMessageId: string | null;    // linked record page message ID
   sessions: FocusSession[];
+  // Queue mode
+  queue: FocusQueueItem[];
+  queueIndex: number;               // which item is currently running (-1 = not in queue mode)
   startFocus: (todoId: string, duration: number) => void;
   setActiveMessageId: (id: string | null) => void;
   endFocus: () => FocusSession | null;
   isActive: () => boolean;
+  // Queue mode actions
+  startFocusQueue: (items: FocusQueueItem[]) => void;
+  advanceQueue: () => boolean;       // returns true if there's a next item, false if queue done
+  clearQueue: () => void;
   /** Fetch completed sessions from Supabase (last 200) */
   fetchSessions: () => Promise<void>;
 }
@@ -31,6 +43,8 @@ export const useFocusStore = create<FocusState>()(
       currentSession: null,
       activeMessageId: null,
       sessions: [],
+      queue: [],
+      queueIndex: -1,
 
       setActiveMessageId: (id) => set({ activeMessageId: id }),
 
@@ -86,6 +100,40 @@ export const useFocusStore = create<FocusState>()(
 
       isActive: () => get().currentSession !== null,
 
+      startFocusQueue: (items) => {
+        if (items.length === 0) return;
+        const first = items[0];
+        const session: FocusSession = {
+          id: uuidv4(),
+          todoId: first.todoId,
+          startedAt: Date.now(),
+          setDuration: first.durationSeconds,
+        };
+        set({ queue: items, queueIndex: 0, currentSession: session });
+      },
+
+      advanceQueue: () => {
+        const { queue, queueIndex } = get();
+        const nextIndex = queueIndex + 1;
+        if (nextIndex >= queue.length) {
+          set({ queue: [], queueIndex: -1, currentSession: null, activeMessageId: null });
+          return false;
+        }
+        const next = queue[nextIndex];
+        const session: FocusSession = {
+          id: uuidv4(),
+          todoId: next.todoId,
+          startedAt: Date.now(),
+          setDuration: next.durationSeconds,
+        };
+        set({ queueIndex: nextIndex, currentSession: session });
+        return true;
+      },
+
+      clearQueue: () => {
+        set({ queue: [], queueIndex: -1 });
+      },
+
       fetchSessions: async () => {
         try {
           const session = await getSupabaseSession();
@@ -118,6 +166,13 @@ export const useFocusStore = create<FocusState>()(
         }
       },
     }),
-    { name: 'focus-store' }
+    {
+      name: 'focus-store',
+      partialize: (state) => ({
+        sessions: state.sessions,
+        // currentSession and queue are intentionally not persisted:
+        // a page reload should not resume a mid-session timer
+      }),
+    }
   )
 );

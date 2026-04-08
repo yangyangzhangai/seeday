@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Play } from 'lucide-react';
+import { X, Play, SkipForward } from 'lucide-react';
 import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -12,19 +12,32 @@ import { type GrowthTodo } from './GrowthTodoCard';
 
 interface Props {
   todo: GrowthTodo;
+  /** When provided, FocusMode runs in queue mode — todo is the first item */
+  queueTodos?: GrowthTodo[];
   onClose: () => void;
 }
 
-export const FocusMode = ({ todo, onClose }: Props) => {
+export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const { t } = useTranslation();
-  const { currentSession, activeMessageId, startFocus, setActiveMessageId, endFocus } = useFocusStore();
+  const { currentSession, activeMessageId, startFocus, startFocusQueue, advanceQueue, clearQueue, queueIndex, queue, setActiveMessageId, endFocus } = useFocusStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
+  const todos = useTodoStore((s) => s.todos);
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
+  const [isResting, setIsResting] = useState(false);
+  const [restCountdown, setRestCountdown] = useState(0);
+  const restTimerRef = useRef<number | null>(null);
+
+  const isQueueMode = queueTodos !== undefined && queueTodos.length > 0;
+  // Current todo in queue mode is resolved from the store queue
+  const currentQueueTodo = isQueueMode && queueIndex >= 0 && queue[queueIndex]
+    ? todos.find((t) => t.id === queue[queueIndex].todoId) ?? todo
+    : todo;
+  const activeTodo = isQueueMode ? currentQueueTodo : todo;
 
   const isRunning = currentSession !== null;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -73,54 +86,104 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   const handleTouchEndRing = () => { isDragging.current = false; };
 
   const handleStart = async (countUp: boolean) => {
-    startFocus(todo.id, countUp ? 0 : durationMinutes * 60);
-    // Create record page activity
-    const now = Date.now();
-    const msgId = await sendMessage(todo.title, now, {
-      activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
-    });
-    if (msgId) {
-      setActiveMessageId(msgId);
+    if (isQueueMode && queueTodos) {
+      startFocusQueue(queueTodos.map((qt) => ({
+        todoId: qt.id,
+        durationSeconds: (qt.suggestedDuration ?? 25) * 60,
+      })));
+    } else {
+      startFocus(todo.id, countUp ? 0 : durationMinutes * 60);
     }
+    const targetTodo = isQueueMode ? queueTodos![0] : todo;
+    const now = Date.now();
+    const msgId = await sendMessage(targetTodo.title, now, {
+      activityTypeOverride: normalizeTodoCategory(targetTodo.category, targetTodo.title),
+    });
+    if (msgId) setActiveMessageId(msgId);
   };
 
-  const finishFocus = useCallback(async () => {
-    // End record page activity (duration = focus session duration)
+  const completeTodoAndEndActivity = useCallback(async (targetTodo: GrowthTodo) => {
     if (activeMessageId) {
-      // skipBottleStar: star will be awarded below via incrementBottleStar
-      await endActivity(activeMessageId, { skipBottleStar: !!todo.bottleId });
+      await endActivity(activeMessageId, { skipBottleStar: !!targetTodo.bottleId });
     }
     const session = endFocus();
-    // Auto-complete the todo and award bottle star
-    if (!todo.completed) {
-      toggleTodo(todo.id);
-      if (todo.bottleId) {
+    if (!targetTodo.completed) {
+      toggleTodo(targetTodo.id);
+      if (targetTodo.bottleId) {
         const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
-          todoId: todo.id,
-          bottleId: todo.bottleId,
+          todoId: targetTodo.id,
+          bottleId: targetTodo.bottleId,
         });
-        incrementBottleStars(todo.bottleId, stars);
+        incrementBottleStars(targetTodo.bottleId, stars);
       }
     }
+    return session;
+  }, [activeMessageId, endActivity, endFocus, toggleTodo, incrementBottleStars]);
+
+  const startRestThenAdvance = useCallback(() => {
+    const REST_SECS = 5 * 60; // 5 min rest
+    setIsResting(true);
+    setRestCountdown(REST_SECS);
+    let remaining = REST_SECS;
+    restTimerRef.current = window.setInterval(() => {
+      remaining -= 1;
+      setRestCountdown(remaining);
+      if (remaining <= 0) {
+        window.clearInterval(restTimerRef.current!);
+        restTimerRef.current = null;
+        setIsResting(false);
+        const hasNext = advanceQueue();
+        if (!hasNext) {
+          setSummary(t('growth_focus_summary', { duration: '' }));
+        }
+      }
+    }, 1000);
+  }, [advanceQueue, t]);
+
+  const finishFocus = useCallback(async () => {
+    const session = await completeTodoAndEndActivity(activeTodo);
+    setShowConfirmEnd(false);
+
+    if (isQueueMode) {
+      // Start rest period, then advance to next step
+      startRestThenAdvance();
+      return;
+    }
+
     if (session?.actualDuration) {
       const mins = Math.floor(session.actualDuration / 60);
       const secs = session.actualDuration % 60;
       const durStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
       setSummary(t('growth_focus_summary', { duration: durStr }));
     }
-    setShowConfirmEnd(false);
-  }, [activeMessageId, endActivity, endFocus, todo, toggleTodo, incrementBottleStars, t]);
+  }, [completeTodoAndEndActivity, activeTodo, isQueueMode, startRestThenAdvance, t]);
+
+  const skipRest = () => {
+    if (restTimerRef.current) {
+      window.clearInterval(restTimerRef.current);
+      restTimerRef.current = null;
+    }
+    setIsResting(false);
+    const hasNext = advanceQueue();
+    if (!hasNext) setSummary(t('growth_focus_summary', { duration: '' }));
+  };
 
   const handleEnd = useCallback(() => {
     if (!showConfirmEnd && isRunning) {
       setShowConfirmEnd(true);
       return;
     }
-    finishFocus();
+    void finishFocus();
   }, [showConfirmEnd, isRunning, finishFocus]);
 
   const handleConfirmEnd = () => {
-    finishFocus();
+    void finishFocus();
+  };
+
+  const handleClose = () => {
+    if (restTimerRef.current) window.clearInterval(restTimerRef.current);
+    clearQueue();
+    onClose();
   };
 
   const selectedTicks = Math.max(1, Math.round((durationMinutes / 60) * TICKS));
@@ -133,7 +196,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(10,18,36,0.92)] backdrop-blur-[20px]">
       <button
-        onClick={() => { if (isRunning) setShowConfirmEnd(true); else onClose(); }}
+        onClick={() => { if (isRunning || isResting) setShowConfirmEnd(true); else handleClose(); }}
         className="absolute right-6 top-6 text-white/60 transition hover:text-white"
       >
         <X size={24} />
@@ -142,17 +205,55 @@ export const FocusMode = ({ todo, onClose }: Props) => {
       <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-300/70">
         {isRunning ? t('growth_focus_start') : t('growth_focus_set_duration')}
       </p>
-      <h2 className="mb-5 px-6 text-center text-lg font-semibold text-white/85">{todo.title}</h2>
+      <h2 className="mb-5 px-6 text-center text-lg font-semibold text-white/85">{activeTodo.title}</h2>
+
+      {/* Queue progress track */}
+      {isQueueMode && queueTodos && queueTodos.length > 0 && (
+        <div className="mb-4 flex items-center gap-1.5 px-6">
+          {queueTodos.map((qt, i) => (
+            <div key={qt.id} className="flex flex-col items-center gap-1">
+              <div
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: 32,
+                  background: i < queueIndex
+                    ? 'rgba(125,211,252,0.90)'
+                    : i === queueIndex
+                      ? 'rgba(125,211,252,0.60)'
+                      : 'rgba(255,255,255,0.18)',
+                }}
+              />
+              <span className="text-[9px] text-white/40 truncate max-w-[40px] text-center leading-tight">
+                {qt.title.slice(0, 4)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {summary ? (
         <div className="flex flex-col items-center">
           <div className="text-6xl mb-6">🎉</div>
-          <p className="text-white text-xl font-medium mb-8">{summary}</p>
+          <p className="text-white text-xl font-medium mb-8">{t('growth_focus_summary', { duration: '' }).replace('：', '')}</p>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-full bg-white px-8 py-3 text-lg font-medium text-slate-900"
           >
             {t('close')}
+          </button>
+        </div>
+      ) : isResting ? (
+        <div className="flex flex-col items-center gap-6">
+          <p className="text-sky-200/80 text-sm font-medium tracking-wide">休息一下</p>
+          <div className="font-mono text-5xl font-bold tabular-nums text-white [text-shadow:0_0_24px_rgba(125,211,252,0.55)]">
+            {String(Math.floor(restCountdown / 60)).padStart(2, '0')}:{String(restCountdown % 60).padStart(2, '0')}
+          </div>
+          <button
+            onClick={skipRest}
+            className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+          >
+            <SkipForward size={15} />
+            跳过休息
           </button>
         </div>
       ) : isRunning ? (
@@ -161,7 +262,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
             setDuration={currentSession!.setDuration}
             startedAt={currentSession!.startedAt}
             onEnd={handleEnd}
-            onAutoComplete={finishFocus}
+            onAutoComplete={() => void finishFocus()}
           />
           {showConfirmEnd && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
@@ -279,7 +380,7 @@ export const FocusMode = ({ todo, onClose }: Props) => {
 
           <div className="flex gap-4">
             <button
-              onClick={() => handleStart(false)}
+              onClick={() => void handleStart(false)}
               className="flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg"
               style={{
                 background: 'linear-gradient(135deg, rgba(125,211,252,0.95) 0%, rgba(56,189,248,0.88) 100%)',
@@ -287,14 +388,16 @@ export const FocusMode = ({ todo, onClose }: Props) => {
               }}
             >
               <Play size={20} />
-              {t('growth_focus_start')}
+              {isQueueMode ? t('todo_sequential_focus') : t('growth_focus_start')}
             </button>
-            <button
-              onClick={() => handleStart(true)}
-              className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/20"
-            >
-              {t('growth_focus_counting_up')}
-            </button>
+            {!isQueueMode && (
+              <button
+                onClick={() => void handleStart(true)}
+                className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/20"
+              >
+                {t('growth_focus_counting_up')}
+              </button>
+            )}
           </div>
         </div>
       )}

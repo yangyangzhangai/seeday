@@ -66,6 +66,9 @@ export interface Todo {
   // Growth-specific
   bottleId?: string;
   sortOrder: number;
+  // Sub-todo (AI decompose)
+  parentId?: string;
+  suggestedDuration?: number; // AI-suggested duration in minutes
   // UI
   isPinned?: boolean;
 }
@@ -218,6 +221,7 @@ interface TodoState {
     category?: ActivityRecordType;
     scope?: TodoScope;
   }) => void;
+  addSubTodos: (parentId: string, steps: Array<{ title: string; suggestedDuration: number }>) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
   toggleTodo: (id: string) => void;
   togglePin: (id: string) => void;
@@ -405,11 +409,26 @@ export const useTodoStore = create<TodoState>()(
         if (!todo) return;
         const completed = !todo.completed;
         const completedAt = completed ? Date.now() : undefined;
-        set((state) => ({
-          todos: state.todos.map((t) =>
+        set((state) => {
+          const nextTodos = state.todos.map((t) =>
             t.id === id ? { ...t, completed, completedAt } : t
-          ),
-        }));
+          );
+          // Auto-complete parent when all its sub-todos are completed
+          if (completed && todo.parentId) {
+            const siblings = nextTodos.filter((t) => t.parentId === todo.parentId);
+            const allDone = siblings.every((t) => t.completed);
+            if (allDone) {
+              const now = Date.now();
+              bgSyncUpdate(todo.parentId, { completed: true, completedAt: now }).catch(console.error);
+              return {
+                todos: nextTodos.map((t) =>
+                  t.id === todo.parentId ? { ...t, completed: true, completedAt: now } : t
+                ),
+              };
+            }
+          }
+          return { todos: nextTodos };
+        });
         bgSyncUpdate(id, { completed, completedAt }).catch(console.error);
       },
 
@@ -520,6 +539,29 @@ export const useTodoStore = create<TodoState>()(
       },
 
       setActiveTodoId: (id) => set({ activeTodoId: id }),
+
+      // ── Add AI-decomposed sub-todos under a parent ──
+      addSubTodos: (parentId, steps) => {
+        const parent = get().todos.find((t) => t.id === parentId);
+        if (!parent) return;
+        const now = Date.now();
+        const subTodos: Todo[] = steps.map((step, i) => ({
+          id: uuidv4(),
+          title: step.title,
+          completed: false,
+          createdAt: now + i,
+          priority: parent.priority,
+          bottleId: parent.bottleId,
+          recurrence: 'once' as Recurrence,
+          isTemplate: false,
+          sortOrder: now + i,
+          parentId,
+          suggestedDuration: step.suggestedDuration,
+          category: parent.category,
+        }));
+        set((s) => ({ todos: [...s.todos, ...subTodos] }));
+        subTodos.forEach((t) => bgSyncInsert(t).catch(console.error));
+      },
 
       // ── Reorder todos ──
       reorderTodos: (id, direction) => {

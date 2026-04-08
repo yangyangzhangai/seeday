@@ -49,6 +49,7 @@ export const GrowthPage = () => {
   });
   const [showGoalPopup, setShowGoalPopup] = useState(false);
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
+  const [focusQueue, setFocusQueue] = useState<GrowthTodo[] | undefined>(undefined);
   const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
   const fetchBottles = useGrowthStore((s) => s.fetchBottles);
   const growthLoading = useGrowthStore((s) => s.isLoading);
@@ -152,7 +153,11 @@ export const GrowthPage = () => {
         <div className="flex-1 pb-28 pt-2">
           <BottleList />
           <div className="mx-4 my-2 border-t border-slate-200/70" />
-          <GrowthTodoSection onFocus={(todo) => setFocusTodo(todo)} highlightTodoId={highlightTodoId} />
+          <GrowthTodoSection
+            onFocus={(todo) => { setFocusQueue(undefined); setFocusTodo(todo); }}
+            onSequentialFocus={(subTodos) => { setFocusTodo(subTodos[0]); setFocusQueue(subTodos); }}
+            highlightTodoId={highlightTodoId}
+          />
         </div>
       </div>
 
@@ -163,7 +168,11 @@ export const GrowthPage = () => {
 
       {/* Focus mode overlay */}
       {focusTodo && (
-        <FocusMode todo={focusTodo} onClose={() => setFocusTodo(null)} />
+        <FocusMode
+          todo={focusTodo}
+          queueTodos={focusQueue}
+          onClose={() => { setFocusTodo(null); setFocusQueue(undefined); }}
+        />
       )}
     </div>
   );

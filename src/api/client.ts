@@ -508,3 +508,28 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
   }
   return normalizeAiCompanionMode(aiMode);
 }
+
+// ── Todo Decompose API ────────────────────────────────────────────────────────
+
+export interface DecomposeStep {
+  title: string;
+  durationMinutes: number;
+}
+
+interface TodoDecomposeRequest {
+  title: string;
+  lang?: 'zh' | 'en' | 'it';
+}
+
+interface TodoDecomposeResponse {
+  success: boolean;
+  steps: DecomposeStep[];
+}
+
+/**
+ * 调用 Todo 拆解 API - AI 将待办拆成 3-6 个子步骤
+ */
+export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'it' = 'zh'): Promise<DecomposeStep[]> {
+  const data = await postJson<TodoDecomposeRequest, TodoDecomposeResponse>('/todo-decompose', { title, lang });
+  return data.steps ?? [];
+}
