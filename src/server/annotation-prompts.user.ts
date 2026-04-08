@@ -1,5 +1,13 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
-import type { RecoveryNudgeContext, TodayContextSnapshot } from '../types/annotation.js';
+import type {
+  AnnotationCurrentDate,
+  AnnotationHolidayContext,
+  RecoveryNudgeContext,
+  SeasonContextV2,
+  TodayContextSnapshot,
+  WeatherAlert,
+  WeatherContextV2,
+} from '../types/annotation.js';
 
 export function buildTodayActivitiesText(activities: any[], lang: string, timezone?: string): string {
   if (!activities || activities.length === 0) {
@@ -40,6 +48,90 @@ export function buildTodayContextText(todayContext: TodayContextSnapshot | undef
   ));
 
   return lines.join('\n');
+}
+
+function buildCurrentDateText(currentDate: AnnotationCurrentDate | undefined, lang: string): string {
+  if (!currentDate) {
+    if (lang === 'en') return 'unknown';
+    if (lang === 'it') return 'sconosciuta';
+    return '未知';
+  }
+
+  const weekdayFallback = String(currentDate.weekday);
+  const weekday = currentDate.weekdayName || weekdayFallback;
+  if (lang === 'en') {
+    return `${currentDate.year}-${String(currentDate.month).padStart(2, '0')}-${String(currentDate.day).padStart(2, '0')} (${weekday})`;
+  }
+  if (lang === 'it') {
+    return `${String(currentDate.day).padStart(2, '0')}/${String(currentDate.month).padStart(2, '0')}/${currentDate.year} (${weekday})`;
+  }
+  return `${currentDate.year}年${currentDate.month}月${currentDate.day}日 (${weekday})`;
+}
+
+function buildHolidayText(holiday: AnnotationHolidayContext | undefined, lang: string): string {
+  if (!holiday?.isHoliday) {
+    if (lang === 'en') return 'none';
+    if (lang === 'it') return 'nessuna';
+    return '无';
+  }
+
+  const holidayName = holiday.name
+    || (lang === 'en' ? 'Holiday' : lang === 'it' ? 'Festivita' : '节日');
+  if (holiday.type === 'legal') {
+    if (lang === 'en') return `${holidayName} (Legal Holiday)`;
+    if (lang === 'it') return `${holidayName} (Festivita legale)`;
+    return `${holidayName}（法定节假日）`;
+  }
+
+  return holidayName;
+}
+
+function buildHolidayLine(
+  holiday: AnnotationHolidayContext | undefined,
+  lang: string,
+): string | null {
+  if (!holiday?.isHoliday) return null;
+  if (lang === 'en') return `Current holiday: ${buildHolidayText(holiday, lang)}`;
+  if (lang === 'it') return `Festivita di oggi: ${buildHolidayText(holiday, lang)}`;
+  return `今日节日：${buildHolidayText(holiday, lang)}`;
+}
+
+function buildWeatherAndSeasonLines(
+  lang: string,
+  weatherContext?: WeatherContextV2,
+  seasonContext?: SeasonContextV2,
+  weatherAlerts?: WeatherAlert[],
+): string[] {
+  const season = seasonContext?.season ?? 'unknown';
+  const temperatureText = typeof weatherContext?.temperatureC === 'number'
+    ? `${weatherContext.temperatureC}C`
+    : 'unknown';
+  const conditions = weatherContext?.conditions?.length
+    ? weatherContext.conditions.join(', ')
+    : 'unknown';
+  const alerts = weatherAlerts?.length ? weatherAlerts.join(', ') : '';
+
+  if (lang === 'en') {
+    return [
+      `Season: ${season}`,
+      `Weather: ${temperatureText}, ${conditions}`,
+      alerts ? `Alerts: ${alerts}` : '',
+    ].filter((line): line is string => Boolean(line));
+  }
+
+  if (lang === 'it') {
+    return [
+      `Stagione: ${season}`,
+      `Meteo: ${temperatureText}, ${conditions}`,
+      alerts ? `Avvisi: ${alerts}` : '',
+    ].filter((line): line is string => Boolean(line));
+  }
+
+  return [
+    `季节：${season}`,
+    `天气：${temperatureText}, ${conditions}`,
+    alerts ? `预警：${alerts}` : '',
+  ].filter((line): line is string => Boolean(line));
 }
 
 /**
@@ -129,11 +221,16 @@ interface SuggestionAwarePromptInput {
   contextHints?: string[];
   frequentActivities?: string[];
   pendingTodos?: Array<{ id: string; title: string; category?: string; dueAt?: number }>;
+  currentDate?: AnnotationCurrentDate;
+  holiday?: AnnotationHolidayContext;
   currentHour?: number;
   currentMinute?: number;
   consecutiveTextCount?: number;
   forceSuggestion?: boolean;
   recoveryNudge?: RecoveryNudgeContext;
+  weatherContext?: WeatherContextV2;
+  seasonContext?: SeasonContextV2;
+  weatherAlerts?: WeatherAlert[];
 }
 
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
@@ -148,11 +245,16 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     contextHints = [],
     frequentActivities = [],
     pendingTodos = [],
+    currentDate,
+    holiday,
     currentHour,
     currentMinute,
     consecutiveTextCount = 0,
     forceSuggestion = false,
     recoveryNudge,
+    weatherContext,
+    seasonContext,
+    weatherAlerts,
   } = input;
 
   const hourText = currentHour !== undefined
@@ -194,6 +296,9 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
 
     return [
       hourText ? `Current time: ${hourText}` : null,
+      `Current date: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
@@ -237,6 +342,9 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
 
     return [
       hourText ? `Ora corrente: ${hourText}` : null,
+      `Data corrente: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
@@ -278,6 +386,9 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
 
   return [
     hourText ? `当前时间：${hourText}` : null,
+    `当前日期：${buildCurrentDateText(currentDate, lang)}`,
+    buildHolidayLine(holiday, lang),
+    ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
@@ -303,8 +414,13 @@ export function buildUserPrompt(
   todayActivitiesText: string,
   recentMoodText: string,
   todayContextText?: string,
+  currentDate?: AnnotationCurrentDate,
+  holiday?: AnnotationHolidayContext,
   currentHour?: number,
   currentMinute?: number,
+  weatherContext?: WeatherContextV2,
+  seasonContext?: SeasonContextV2,
+  weatherAlerts?: WeatherAlert[],
 ): string {
   const hourText = currentHour !== undefined ? (() => {
     const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
@@ -316,6 +432,9 @@ export function buildUserPrompt(
   if (lang === 'en') {
     return [
       hourText ? `Current time: ${hourText}` : null,
+      `Current date: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
       `Today's timeline: ${todayActivitiesText}`,
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
@@ -330,6 +449,9 @@ export function buildUserPrompt(
   if (lang === 'it') {
     return [
       hourText ? `Ora corrente: ${hourText}` : null,
+      `Data corrente: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
       `Timeline di oggi: ${todayActivitiesText}`,
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
@@ -343,6 +465,9 @@ export function buildUserPrompt(
 
   return [
     hourText ? `当前时间：${hourText}` : null,
+    `当前日期：${buildCurrentDateText(currentDate, lang)}`,
+    buildHolidayLine(holiday, lang),
+    ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
     `今日时间线：${todayActivitiesText}`,
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,

@@ -159,6 +159,49 @@ export interface TodayContextSnapshot {
   version: 'v1';
 }
 
+export interface AnnotationCurrentDate {
+  year: number;
+  month: number;
+  day: number;
+  weekday: number;
+  weekdayName?: string;
+  isoDate: string;
+}
+
+export interface AnnotationHolidayContext {
+  isHoliday: boolean;
+  name?: string;
+  type?: 'legal' | 'social';
+  source: 'calendar' | 'none';
+}
+
+export type WeatherCondition =
+  | 'sunny'
+  | 'cloudy'
+  | 'overcast'
+  | 'rain_light'
+  | 'rain_medium'
+  | 'rain_heavy'
+  | 'snow'
+  | 'hail'
+  | 'windy'
+  | 'unknown';
+
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter' | 'unknown';
+
+export type WeatherAlert = 'strong_wind_watch' | 'haze_watch';
+
+export interface WeatherContextV2 {
+  temperatureC: number | null;
+  conditions: WeatherCondition[];
+  source: 'api' | 'fallback';
+}
+
+export interface SeasonContextV2 {
+  season: Season;
+  source: 'local' | 'fallback';
+}
+
 export interface AnnotationRequest {
   eventType: AnnotationEventType;
   eventData: AnnotationEvent['data'];
@@ -168,6 +211,14 @@ export interface AnnotationRequest {
     currentHour: number;               // 当前时间
     currentMinute?: number;            // 当前分钟
     timezone?: string;                 // IANA 时区字符串，如 "Europe/Rome"
+    currentDate?: AnnotationCurrentDate;
+    countryCode?: string;              // ISO 3166-1 alpha-2, 如 "CN" / "IT"
+    holiday?: AnnotationHolidayContext;
+    latitude?: number;
+    longitude?: number;
+    weatherContext?: WeatherContextV2;
+    seasonContext?: SeasonContextV2;
+    weatherAlerts?: WeatherAlert[];
     recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
     moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>;

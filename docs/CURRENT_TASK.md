@@ -21,6 +21,7 @@ Status: P0-P6 已完成；P7 仅剩联调、事件漏斗和库字段核对。
 - [x] today context 词库多语言补强（zh/en/it）：补充生病与重大事件表达、否定句拦截（如“没感冒” / “not sick”）、并降低歧义词误判（如 `cold plunge`）
 - [x] today context 追加高频自然表达与女性经期语义：支持“来例假/经期/痛经”及 `on my period` / `ho il ciclo` 等跨语言命中
 - [x] today context 补充细粒度生活病症场景：牙痛/智齿发炎/口腔溃疡/肠胃不适/反酸等，并按各语言自然表达覆盖（非直译）
+- [x] 天气与季节最小上下文接入（v2）：注入 `temperatureC + conditions[] + season`，支持复合天气（如 rain+wind）与业务预警（strong_wind_watch/haze_watch）
 
 ### 当前待办（按优先级）
 
@@ -97,6 +98,10 @@ Status: 问题已复现并完成根因定位，进入修复实施阶段。
 
 ## 近期完成（保留 2 条）
 
+- [x] Annotation Prompt 统一组装入口：新增 `src/server/annotation-prompt-builder.ts`，将 annotation/suggestion 两条链路收敛为统一 `{model, instructions, input}` prompt package，`annotation-handler` 已接入并复用到 rewrite 分支。
+- [x] AI 批注待办完成语义化透传：完成待办改为 `activity_completed` 并附带 `todoCompletionContext`；特殊待办（关联瓶子/重复任务 daily+weekly+monthly/创建>=3天）才附加紧凑 `summary + 90天统计`，普通一次性新待办维持轻量透传以控 token
+- [x] Annotation 上下文补充结构化日期：`userContext.currentDate` 已透传（year/month/day/weekday/isoDate），并注入 annotation/suggestion prompt。
+- [x] Annotation 节假日上下文接入：新增 `user_metadata.country_code`（ISO2）优先 + `timezone` 兜底国家解析，并注入法定/社会节日到 annotation/suggestion prompt。
 - [x] 魔法笔提示词多语言对齐：已将 EN/IT prompt 同步到最新中文口径（activity 通常不超过一件；其余活动默认 activity_backfill；仅明确并行表达允许并行）
 - [x] 魔法笔 mode-on 自动写入去二次分类：parser 返回的 `autoWriteItems.kind` 直接执行写入（activity->sendMessage / mood->sendMood），并移除 unparsed 本地提升自动写入，避免“活动被写成心情/补录漂移”为待办的二次判定误差
 - [x] 修复 AI companion prompts 在 Node ESM 下的模块解析：`src/lib/aiCompanion/prompts/index.ts` 改为显式 `.js` 后缀导出，解决 Vercel `ERR_MODULE_NOT_FOUND`（`/prompts/van`）
@@ -119,6 +124,8 @@ Status: 问题已复现并完成根因定位，进入修复实施阶段。
 - [x] 日记详情页 UI 对齐新稿：`ReportDetailModal` 改为双页 notebook 版式（第 1 页 activity/mood/to-do/habits，第 2 页 AI 观察 + my diary），并保留生成与保存主链路
 - [x] 日记详情页植物图点击可打开植物翻转卡：在 `ReportDetailModal` 接入点击回调，`ReportPage` 挂载 `PlantCardModal`，可查看背面根系卡片
 - [x] 待办拆解链路修正：`/api/todo-decompose` 改为 OpenAI (`gpt-4o-mini` 默认)，修复子步骤时长映射（`durationMinutes -> suggestedDuration`），并将按钮文案改为“分步完成 / Step by Step / Passo dopo passo”
+- [x] 连续专注休息态关闭修复：`FocusMode` 在休息倒计时点击右上角叉会复用“结束专注”同一套确认文案与按钮；确认后退出整个专注模式（不再继续队列），取消则继续休息；并将“休息一下/跳过休息”接入 i18n（zh/en/it）
+- [x] Growth 待办区标题多语言文案微调：`growth_todo_section` 从“今日要事”改为“近日要事”，并同步 EN/IT 为“Recent Tasks / Attivita recenti”
 
 ---
 

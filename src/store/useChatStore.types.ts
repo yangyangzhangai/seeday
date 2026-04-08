@@ -1,4 +1,5 @@
 import type { ActivityRecordType, ActivityType } from '../lib/activityType';
+import type { AnnotationEvent, AnnotationEventType } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 
 export type MessageType = 'text' | 'system' | 'ai';
@@ -56,7 +57,13 @@ export interface ChatState {
   sendMessage: (
     content: string,
     customTimestamp?: number,
-    options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType }
+    options?: {
+      skipMoodDetection?: boolean;
+      skipAnnotation?: boolean;
+      activityTypeOverride?: ActivityRecordType;
+      annotationEventType?: AnnotationEventType;
+      annotationEventData?: AnnotationEvent['data'];
+    }
   ) => Promise<string | null>;
   sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
   sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;

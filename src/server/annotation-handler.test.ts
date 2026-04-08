@@ -73,6 +73,9 @@ describe('annotation-handler', () => {
 
     const request = responsesCreateMock.mock.calls[0][0];
     expect(request.instructions).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
+    expect(request.input).not.toContain('Current holiday:');
+    expect(request.input).toContain('Season: unknown');
+    expect(request.input).toContain('Weather: unknown, unknown');
     expect(request).not.toHaveProperty('previous_response_id');
     expect(res.statusCode).toBe(200);
     expect((res.payload as { debugAiMode?: string }).debugAiMode).toBe('zep');

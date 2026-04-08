@@ -235,7 +235,7 @@ interface TodoState {
   reorderTodosByIds: (orderedIds: string[]) => void;
   generateRecurringTodos: () => void;
   linkMessageToTodo: (messageId: string, todoId: string) => void;
-  completeTodoByMessage: (messageId: string) => void;
+  completeTodoByMessage: (messageId: string) => Todo | null;
   setTodoCompletionMessage: (todoId: string, messageId: string) => void;
   getTodoCompletionMessage: (todoId: string) => string | undefined;
   clearTodoCompletionMessage: (todoId: string) => void;
@@ -679,7 +679,7 @@ export const useTodoStore = create<TodoState>()(
       completeTodoByMessage: (messageId) => {
         const { activeMessageMap, todos } = get();
         const todoId = activeMessageMap[messageId];
-        if (!todoId) return;
+        if (!todoId) return null;
         const todo = todos.find((t) => t.id === todoId);
         if (todo && !todo.completed) {
           const now = Date.now();
@@ -687,16 +687,24 @@ export const useTodoStore = create<TodoState>()(
           const duration = todo.startedAt
             ? Math.round((now - todo.startedAt) / 60000)
             : undefined;
+          const completedTodo: Todo = {
+            ...todo,
+            completed: true,
+            completedAt,
+            duration,
+          };
           set((s) => ({
             todos: s.todos.map((t) =>
-              t.id === todoId ? { ...t, completed: true, completedAt, duration } : t
+              t.id === todoId ? completedTodo : t
             ),
             activeMessageMap: Object.fromEntries(
               Object.entries(s.activeMessageMap).filter(([k]) => k !== messageId)
             ),
           }));
           bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch(console.error);
+          return completedTodo;
         }
+        return null;
       },
 
       setTodoCompletionMessage: (todoId, messageId) => {

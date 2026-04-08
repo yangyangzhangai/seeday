@@ -7,6 +7,7 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
+import { buildTodoCompletionAnnotationPayload } from '../../lib/todoCompletionAnnotation';
 import { FocusTimer } from './FocusTimer';
 import { type GrowthTodo } from './GrowthTodoCard';
 
@@ -25,6 +26,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
   const todos = useTodoStore((s) => s.todos);
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
+  const bottles = useGrowthStore((s) => s.bottles);
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -97,6 +99,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
     const targetTodo = isQueueMode ? queueTodos![0] : todo;
     const now = Date.now();
     const msgId = await sendMessage(targetTodo.title, now, {
+      skipAnnotation: true,
       activityTypeOverride: normalizeTodoCategory(targetTodo.category, targetTodo.title),
     });
     if (msgId) setActiveMessageId(msgId);
@@ -109,6 +112,22 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
     const session = endFocus();
     if (!targetTodo.completed) {
       toggleTodo(targetTodo.id);
+      const linkedBottle = targetTodo.bottleId ? bottles.find((b) => b.id === targetTodo.bottleId) : null;
+      const payload = buildTodoCompletionAnnotationPayload({
+        todo: targetTodo,
+        allTodos: todos,
+        now: Date.now(),
+        bottleName: linkedBottle?.name,
+      });
+      useAnnotationStore.getState().triggerAnnotation({
+        type: 'activity_completed',
+        timestamp: Date.now(),
+        data: {
+          content: targetTodo.title,
+          summary: payload.summary,
+          todoCompletionContext: payload.context,
+        },
+      }).catch(console.error);
       if (targetTodo.bottleId) {
         const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
           todoId: targetTodo.id,
@@ -118,7 +137,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
       }
     }
     return session;
-  }, [activeMessageId, endActivity, endFocus, toggleTodo, incrementBottleStars]);
+  }, [activeMessageId, endActivity, endFocus, toggleTodo, incrementBottleStars, bottles, todos]);
 
   const startRestThenAdvance = useCallback(() => {
     const REST_SECS = 5 * 60; // 5 min rest
@@ -177,6 +196,17 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   }, [showConfirmEnd, isRunning, finishFocus]);
 
   const handleConfirmEnd = () => {
+    if (isResting) {
+      if (restTimerRef.current) {
+        window.clearInterval(restTimerRef.current);
+        restTimerRef.current = null;
+      }
+      setIsResting(false);
+      setShowConfirmEnd(false);
+      clearQueue();
+      onClose();
+      return;
+    }
     void finishFocus();
   };
 
@@ -244,7 +274,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
         </div>
       ) : isResting ? (
         <div className="flex flex-col items-center gap-6">
-          <p className="text-sky-200/80 text-sm font-medium tracking-wide">休息一下</p>
+          <p className="text-sky-200/80 text-sm font-medium tracking-wide">{t('growth_focus_resting')}</p>
           <div className="font-mono text-5xl font-bold tabular-nums text-white [text-shadow:0_0_24px_rgba(125,211,252,0.55)]">
             {String(Math.floor(restCountdown / 60)).padStart(2, '0')}:{String(restCountdown % 60).padStart(2, '0')}
           </div>
@@ -253,38 +283,17 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
             className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
           >
             <SkipForward size={15} />
-            跳过休息
+            {t('growth_focus_skip_rest')}
           </button>
         </div>
       ) : isRunning ? (
         <>
           <FocusTimer
-            setDuration={currentSession!.setDuration}
-            startedAt={currentSession!.startedAt}
-            onEnd={handleEnd}
-            onAutoComplete={() => void finishFocus()}
-          />
-          {showConfirmEnd && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
-              <div className="mx-8 w-full max-w-sm rounded-3xl bg-[#F7F9F8] p-6 shadow-2xl">
-                <p className="mb-4 text-center text-sm font-semibold text-slate-700">{t('growth_focus_end_confirm')}</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowConfirmEnd(false)}
-                    className="flex-1 rounded-xl bg-slate-100 py-2 font-medium text-slate-700"
-                  >
-                    {t('cancel')}
-                  </button>
-                  <button
-                    onClick={handleConfirmEnd}
-                    className="flex-1 rounded-xl bg-rose-500 py-2 font-medium text-white"
-                  >
-                    {t('growth_focus_end')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+              setDuration={currentSession!.setDuration}
+              startedAt={currentSession!.startedAt}
+              onEnd={handleEnd}
+              onAutoComplete={() => void finishFocus()}
+            />
         </>
       ) : (
         <div className="flex flex-col items-center">
@@ -398,6 +407,30 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
                 {t('growth_focus_counting_up')}
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {showConfirmEnd && (isRunning || isResting) && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
+          <div className="mx-8 w-full max-w-sm rounded-3xl bg-[#F7F9F8] p-6 shadow-2xl">
+            <p className="mb-4 text-center text-sm font-semibold text-slate-700">
+              {t('growth_focus_end_confirm')}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmEnd(false)}
+                className="flex-1 rounded-xl bg-slate-100 py-2 font-medium text-slate-700"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleConfirmEnd}
+                className="flex-1 rounded-xl bg-rose-500 py-2 font-medium text-white"
+              >
+                {t('growth_focus_end')}
+              </button>
+            </div>
           </div>
         </div>
       )}

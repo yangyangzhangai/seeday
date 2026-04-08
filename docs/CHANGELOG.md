@@ -8,6 +8,135 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-08 - Refactor: annotation prompt 统一拼装入口（build prompt package）
+
+### Changed
+
+- `src/server/annotation-prompt-builder.ts`（新增）
+  - 新增统一拼装函数 `buildAnnotationPromptPackage(...)`，集中生成 LLM 调用所需 `{ model, instructions, input }`。
+  - 支持 `annotation` 与 `suggestion` 两种 mode，并统一接收日期/节日/天气/季节/预警等上下文字段。
+- `src/server/annotation-handler.ts`
+  - suggestion 分支与普通批注分支改为复用统一 prompt package，不再在 handler 内分散拼接 `systemPrompt/userPrompt/model`。
+  - rewrite 分支改为复用同一份 prompt package 输入，减少分支漂移风险。
+
+### Validation
+
+- `npx vitest run src/server/annotation-handler.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录“统一 prompt 组装入口”已落地。
+- 更新 `docs/PROJECT_MAP.md`：补充 `src/server/annotation-prompt-builder.ts` 模块职责。
+- 更新 `src/api/README.md`：补充 annotation 双路径 prompt package 统一组装说明。
+
+## 2026-04-08 - Feat: annotation 天气/季节最小上下文（复合天气 + 大风/雾霾预警）
+
+### Changed
+
+- `src/types/annotation.ts`
+  - 扩展 annotation 契约：新增 `WeatherContextV2` / `SeasonContextV2` / `WeatherAlert` 类型，并在 `userContext` 增加 `latitude`、`longitude`、`weatherContext`、`seasonContext`、`weatherAlerts` 可选字段。
+- `src/lib/seasonContext.ts`（新增）
+  - 新增季节解析（仅输出 `spring/summer/autumn/winter/unknown`）。
+- `src/server/weather-provider.ts`（新增） / `src/server/air-quality-provider.ts`（新增）
+  - 新增 Open-Meteo 天气与空气质量快照拉取（800ms 超时，失败返回 `null`）。
+- `src/server/weather-context.ts`（新增） / `src/server/weather-alerts.ts`（新增）
+  - 新增天气映射：`temperatureC + conditions[]`（支持复合标签，如 `rain_medium + windy`）。
+  - 新增业务预警：`strong_wind_watch`（风速/阵风阈值）与 `haze_watch`（PM2.5/PM10/AQI 阈值）。
+- `src/server/annotation-handler.ts` / `src/server/annotation-prompts.user.ts`
+  - 在普通批注与 suggestion-aware 双路径注入最小环境上下文行（Season/Weather/Alerts），并保证外部接口异常不阻断主链路。
+- `src/store/useAnnotationStore.ts`
+  - 从 `user_metadata` 透传可选 `latitude/longitude` 到 annotation 请求。
+- 测试新增/更新
+  - 新增 `src/lib/seasonContext.test.ts`、`src/server/weather-context.test.ts`、`src/server/weather-alerts.test.ts`。
+  - 更新 `src/server/annotation-prompts.user.test.ts`、`src/server/annotation-handler.test.ts`。
+
+### Doc Sync
+
+- 更新 `docs/TIMESHINE_AI活人感系统_天气与季节_实现方案.md` 为开发交付版 v2.0（最小契约 + 多标签天气 + 预警数据源与阈值）。
+- 更新 `docs/PROJECT_MAP.md`、`api/README.md`、`src/api/README.md`、`docs/CURRENT_TASK.md`，对齐新模块与 annotation 契约。
+
+## 2026-04-08 - Feat: annotation 国家与节假日上下文（法定+社会）
+
+### Changed
+
+- `src/types/annotation.ts`
+  - 扩展 annotation 契约：新增 `userContext.countryCode` 与 `userContext.holiday`，并补充 `AnnotationHolidayContext` 类型。
+- `src/store/useAnnotationStore.ts`
+  - 发起 annotation 请求时优先读取 `user_metadata.country_code`（ISO2）并透传；无用户字段时由服务端时区兜底。
+- `src/server/country-resolver.ts`（新增）
+  - 新增国家解析器：`profile` 优先，`timezone` 次之，最后默认 `CN`。
+- `src/server/holiday-resolver.ts`（新增）
+  - 新增节假日解析器：基于 `date-holidays` 解析法定节假日，并补充社会节日规则（含圣诞节、平安夜、情人节、万圣节、跨年夜）。
+- `src/server/annotation-handler.ts` / `src/server/annotation-prompts.user.ts`
+  - 在普通批注与 suggestion 双链路注入 holiday context（`Current holiday / 今日节日 / Festivita di oggi`）。
+- `package.json` / `package-lock.json`
+  - 新增依赖：`date-holidays`。
+- `api/README.md` / `src/api/README.md` / `docs/PROJECT_MAP.md`
+  - 同步 annotation `userContext` 字段与新增 server 模块说明。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录国家字段优先 + 时区兜底、法定/社会节日接入完成。
+
+## 2026-04-08 - Feat: annotation 区分普通记录与待办完成（含特殊待办摘要门控）
+
+### Changed
+
+- `src/lib/todoCompletionAnnotation.ts`（新增）
+  - 新增待办完成 annotation 负载构建：输出 `todoCompletionContext`（重要度/重复类型/创建时间/关联瓶子/90天统计）。
+  - 新增特殊待办门控：仅在“关联瓶子”或“重复任务（daily/weekly/monthly）”或“创建 >= 3 天”时附加紧凑 `summary`，降低 token 开销。
+- `src/store/useChatStore.ts` / `src/store/useChatStore.types.ts`
+  - `sendMessage` 增加可选 annotation 事件透传参数（`annotationEventType` / `annotationEventData`），使完成待办可触发 `activity_completed`。
+- `src/features/growth/GrowthTodoSection.tsx` / `src/features/growth/FocusMode.tsx`
+  - 待办完成路径改为向 annotation 发送完成事件，并附带待办上下文；普通输入保持原 `activity_recorded`。
+- `src/store/useTodoStore.ts`
+  - `completeTodoByMessage` 调整为返回 `Todo | null`，便于完成路径构建上下文。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `src/store/README.md`：补充待办完成事件分流、特殊待办判定与 token 控制规则。
+- 更新 `api/README.md` / `src/api/README.md`：补充 annotation `eventData.todoCompletionContext` + 条件 `summary` 契约说明。
+- 更新 `docs/CURRENT_TASK.md`：记录本轮“待办完成语义化透传”已完成。
+
+## 2026-04-08 - Feat: annotation 先接入结构化日期上下文（Step 1）
+
+### Changed
+
+- `src/types/annotation.ts`
+  - 扩展 annotation 请求契约：新增 `userContext.currentDate`（`year/month/day/weekday/weekdayName/isoDate`）。
+- `src/store/useAnnotationStore.ts`
+  - 在触发 annotation 请求时注入当前本地日期结构化字段，补齐“今天几号/星期几/年月日”数据透传。
+- `src/server/annotation-handler.ts` / `src/server/annotation-prompts.user.ts`
+  - 将 `currentDate` 注入普通批注与 suggestion 两条 prompt 路径，统一进入 LLM 上下文。
+- `api/README.md` / `src/api/README.md`
+  - 同步 annotation `userContext` 契约文档，补充 `currentDate` 字段。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录本次 annotation 日期上下文接入进展（Step 1）。
+
+## 2026-04-08 - Fix: 连续专注休息态右上角关闭确认 + 文案 i18n 对齐
+
+### Changed
+
+- `src/features/growth/FocusMode.tsx`
+  - 修复休息倒计时状态点击右上角关闭无反应：现在会弹出确认弹窗。
+  - 休息态关闭复用“结束专注”同一套确认文案与按钮；确认后退出整个 FocusMode（终止后续队列），取消则继续休息。
+  - 将休息态硬编码文案替换为 i18n key（休息提示、跳过休息按钮）。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增 `growth_focus_resting` / `growth_focus_skip_rest`。
+  - 保持待办拆解按钮文案为 `分步完成 / Step by Step / Passo dopo passo`。
+  - 调整 `growth_todo_section`：`今日要事 -> 近日要事`，并同步 `Recent Tasks / Attivita recenti`。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：补充本次 Growth 连续专注休息态关闭修复与多语言文案对齐记录。
+
 ## 2026-04-08 - Refactor: annotation 建议链路可靠性 + schema 解析 + 文档对齐
 
 ### Changed

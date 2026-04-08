@@ -17,6 +17,7 @@ import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
+import { buildTodoCompletionAnnotationPayload } from '../lib/todoCompletionAnnotation';
 import { buildClassifierRawInput } from '../lib/classifierRawInput';
 import {
   classifyRecordActivityType,
@@ -398,7 +399,13 @@ export const useChatStore = create<ChatState>()(
       sendMessage: async (
         content: string,
         customTimestamp?: number,
-        options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType },
+        options?: {
+          skipMoodDetection?: boolean;
+          skipAnnotation?: boolean;
+          activityTypeOverride?: ActivityRecordType;
+          annotationEventType?: AnnotationEvent['type'];
+          annotationEventData?: AnnotationEvent['data'];
+        },
       ) => {
         const now = customTimestamp ?? Date.now();
         let updatedMessages = [...get().messages];
@@ -471,17 +478,19 @@ export const useChatStore = create<ChatState>()(
         }
 
         // 触发 AI 批注
-        const annotationStore = useAnnotationStore.getState();
-
-        const recordEvent: AnnotationEvent = {
-          type: 'activity_recorded',
-          timestamp: Date.now(),
-          data: {
-            messageId: newMessage.id,
-            content: newMessage.content,
-          },
-        };
-        annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+        if (!options?.skipAnnotation) {
+          const annotationStore = useAnnotationStore.getState();
+          const recordEvent: AnnotationEvent = {
+            type: options?.annotationEventType || 'activity_recorded',
+            timestamp: Date.now(),
+            data: {
+              messageId: newMessage.id,
+              content: newMessage.content,
+              ...(options?.annotationEventData || {}),
+            },
+          };
+          annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+        }
 
         return newMessage.id;
       },
@@ -629,7 +638,31 @@ export const useChatStore = create<ChatState>()(
           moodStore.setMood(id, autoDetectMood(target.content, duration, resolveLangForText(target.content)));
         }
 
-        useTodoStore.getState().completeTodoByMessage(id);
+        const todoStore = useTodoStore.getState();
+        const completedTodo = todoStore.completeTodoByMessage(id);
+        if (completedTodo) {
+          const growthStore = useGrowthStore.getState();
+          const linkedBottle = completedTodo.bottleId
+            ? growthStore.bottles.find((b) => b.id === completedTodo.bottleId)
+            : null;
+          const payload = buildTodoCompletionAnnotationPayload({
+            todo: completedTodo,
+            allTodos: todoStore.todos,
+            now: Date.now(),
+            bottleName: linkedBottle?.name,
+          });
+          const completionEvent: AnnotationEvent = {
+            type: 'activity_completed',
+            timestamp: Date.now(),
+            data: {
+              messageId: id,
+              content: completedTodo.title,
+              summary: payload.summary,
+              todoCompletionContext: payload.context,
+            },
+          };
+          useAnnotationStore.getState().triggerAnnotation(completionEvent).catch(console.error);
+        }
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const grantBottleStars = (bottleId: string) => {

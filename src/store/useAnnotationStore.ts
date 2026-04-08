@@ -302,7 +302,23 @@ export const useAnnotationStore = create<AnnotationStore>()(
             .filter(t => !t.completed && !t.isTemplate)
             .map(t => ({ id: t.id, title: t.title, category: t.category, dueAt: t.dueAt, bottleId: t.bottleId }));
 
+          const currentDate = {
+            year: nowDate.getFullYear(),
+            month: nowDate.getMonth() + 1,
+            day: nowDate.getDate(),
+            weekday: nowDate.getDay(),
+            weekdayName: nowDate.toLocaleDateString('en-US', { weekday: 'long' }),
+            isoDate: getLocalDateString(nowDate),
+          };
+
           const nowDateKey = getLocalDateString(nowDate);
+          const authUser = useAuthStore.getState().user;
+          const metadataCountryCode = authUser?.user_metadata?.country_code;
+          const countryCode = typeof metadataCountryCode === 'string' ? metadataCountryCode.toUpperCase() : undefined;
+          const metadataLatitude = authUser?.user_metadata?.latitude;
+          const metadataLongitude = authUser?.user_metadata?.longitude;
+          const latitude = Number.isFinite(Number(metadataLatitude)) ? Number(metadataLatitude) : undefined;
+          const longitude = Number.isFinite(Number(metadataLongitude)) ? Number(metadataLongitude) : undefined;
           const attemptsToday = get().recoverySuggestionAttempts
             .filter((item) => item.date === nowDateKey)
             .map((item) => ({ key: item.key, timestamp: item.timestamp }));
@@ -352,6 +368,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
               currentHour: nowDate.getHours(),
               currentMinute: nowDate.getMinutes(),
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              currentDate,
+              countryCode,
+              latitude,
+              longitude,
               recentAnnotations,
               recentMoodMessages,
               moodConversationHistory,

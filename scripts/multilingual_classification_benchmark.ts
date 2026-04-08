@@ -1,4 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/LEXICON_ARCHITECTURE.md
+/// <reference types="node" />
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { classifyLiveInput } from '../src/services/input/liveInputClassifier';

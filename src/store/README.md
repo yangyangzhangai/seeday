@@ -37,9 +37,13 @@
 - `useAnnotationStore.ts` 现包含 suggestion 专用频率门控（分时段配额 + 日上限 + 动态最小间隔），不会限制普通文字批注。
 - suggestion 反馈通过 `recordSuggestionOutcome(annotationId, accepted)` 记录，写回本地状态与 `annotations.suggestion_accepted`。
 - today context（今日上下文）已接入：基于关键词识别 `health/special_day/major_event` 写入日级缓存，并在 annotation 请求时透传 `userContext.todayContext`；批注落库时同步写入 `annotations.today_context` 便于回放和分析。
+- annotation 时间/节日上下文已接入：透传 `userContext.currentDate`，并优先读取 `user_metadata.country_code` 作为 `userContext.countryCode`（无值时服务端用 timezone 兜底解析）。
 - 新增 recovery nudge（中断挽回提醒）：当瓶子连续 3 天无完成，或 daily/weekly 重复待办昨日断档时，`useAnnotationStore` 会透传 `userContext.recoveryNudge` 强制建议。
 - recovery nudge 触发时段：优先使用目标历史完成时段；无历史时默认中午 12 点窗口（±2h）；同一 key 每天最多提醒 2 次，二次提醒最小间隔 4 小时。
 - 新增一次性 2 星奖励状态：点击中断挽回建议后激活，完成匹配 todo/bottle 时由 `consumeRecoveryBonusForCompletion()` 消费并返回奖励星数。
+- 待办完成事件已与普通记录分流：`GrowthTodoSection`/`FocusMode` 在完成待办时触发 `activity_completed`，普通输入仍走 `activity_recorded`。
+- 待办完成会透传 `eventData.todoCompletionContext`（importance/recurrence/createdAt/ageDays/bottle/threeMonth），用于让 annotation 感知“这是待办完成”。
+- token 控制策略：仅“特殊待办”附加 `eventData.summary`（单行摘要 + 近 90 天统计）。特殊判定为任一命中：关联瓶子、重复任务（daily/weekly/monthly）、创建 >= 3 天；其余一次性新建轻量待办不附加 summary。
 
 ## 变更自检
 

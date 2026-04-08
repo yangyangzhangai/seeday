@@ -14,7 +14,7 @@
 | Method | Route | File | Success shape |
 | --- | --- | --- | --- |
 | `POST` | `/api/report` | `report.ts` | `{ content }` |
-| `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` | `{ content, tone, displayDuration, source, reason?, suggestion? }` |
+| `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` + `src/server/annotation-prompt-builder.ts` | `{ content, tone, displayDuration, source, reason?, suggestion? }` |
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `POST` | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
@@ -33,7 +33,9 @@ If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashSco
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
-Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders.
+Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `currentDate`, `countryCode`, `holiday`, optional `latitude`/`longitude`, optional env context (`weatherContext`/`seasonContext`/`weatherAlerts`), `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders.
+Annotation prompt assembly is unified by `src/server/annotation-prompt-builder.ts`, which packages `model + instructions + input` for both annotation and suggestion branches before calling the model.
+Annotation event payload now supports todo-completion context fields in `eventData` (`todoCompletionContext` + optional compact `summary`) so `/api/annotation` can distinguish normal activity records from completed todos without prompt changes.
 Annotation suggestion payload may include reward metadata (`rewardStars`, `rewardBottleId`, `recoveryKey`) so frontend can grant one-time bonus stars after completion.
 Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-input-telemetry`) and use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates `live_input_events`, `plant_asset_events`, and `telemetry_events` (`diary_sticker_*`) as a unified telemetry view.
 

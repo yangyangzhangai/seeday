@@ -34,6 +34,7 @@
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
+    "date-holidays": "^3.26.12",
     "framer-motion": "^11.0.8",
     "gsap": "^3.13.0",
     "html2canvas": "^1.4.1",

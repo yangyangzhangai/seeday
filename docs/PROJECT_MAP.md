@@ -71,6 +71,13 @@ src/
 - `src/server/annotation-prompts.ts` -> annotation prompt 出口（按 defaults/user 分拆）
 - `src/server/annotation-prompts.defaults.ts` -> 默认批注与 system prompt
 - `src/server/annotation-prompts.user.ts` -> user prompt 构建
+- `src/server/annotation-prompt-builder.ts` -> annotation/suggestion 统一 prompt package 组装（model/instructions/input）
+- `src/server/country-resolver.ts` -> annotation 国家来源解析（profile 优先，timezone 兜底）
+- `src/server/holiday-resolver.ts` -> annotation 节假日解析（法定 + 社会节日）
+- `src/server/weather-provider.ts` -> Open-Meteo 天气快照拉取（温度/天气码/雨雪/风）
+- `src/server/air-quality-provider.ts` -> Open-Meteo 空气质量快照拉取（PM2.5/PM10/AQI）
+- `src/server/weather-context.ts` -> 天气标签映射（支持复合天气）与 fallback
+- `src/server/weather-alerts.ts` -> 业务预警生成（大风/雾霾）
 - `src/server/annotation-suggestion.ts` -> suggestion JSON 解析（schema 约束）与兜底
 - `src/server/annotation-similarity.ts` -> 相似度/emoji 检测与重写 prompt
 - `src/server/magic-pen-prompts.ts` -> magic-pen prompt 模板

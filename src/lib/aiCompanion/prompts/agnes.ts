@@ -262,18 +262,16 @@ const AGNES_ANNOTATION_VARIANTS_ZH = [
 ];
 
 export function getAgnesDailyAnnotationPromptZH(): string {
-  const seed = new Date().toDateString();
-  const hash = [...seed].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
   const total = AGNES_ANNOTATION_VARIANTS_ZH.reduce((sum, v) => sum + v.weight, 0);
-  let r = hash % total;
+  let r = Math.random() * total;
   for (const v of AGNES_ANNOTATION_VARIANTS_ZH) {
     r -= v.weight;
-    if (r <= 0) return v.prompt;
+    if (r < 0) return v.prompt;
   }
   return AGNES_ANNOTATION_VARIANTS_ZH[AGNES_ANNOTATION_VARIANTS_ZH.length - 1].prompt;
 }
 
-// 保留导出供 aiCompanion.ts MODE_COPY 引用（按天轮换走 getSystemPrompt 拦截）
+// 保留导出供 aiCompanion.ts MODE_COPY 引用（请求级随机轮换走 getSystemPrompt 拦截）
 export const AGNES_ANNOTATION_PROMPT_ZH = AGNES_ANNOTATION_A_ZH;
 
 export const AGNES_DIARY_PROMPT_ZH = `## 你的身份

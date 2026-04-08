@@ -6,6 +6,7 @@ import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
+import { buildTodoCompletionAnnotationPayload } from '../../lib/todoCompletionAnnotation';
 import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
@@ -30,6 +31,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
+  const bottles = useGrowthStore((s) => s.bottles);
   const {
     todos,
     isLoading,
@@ -100,6 +102,13 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
 
     if (todo && !wasCompleted) {
       const now = Date.now();
+      const linkedBottle = todo.bottleId ? bottles.find((b) => b.id === todo.bottleId) : null;
+      const payload = buildTodoCompletionAnnotationPayload({
+        todo,
+        allTodos: todos,
+        now,
+        bottleName: linkedBottle?.name,
+      });
       if (todo.bottleId) {
         const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
           todoId: todo.id,
@@ -110,6 +119,11 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+        annotationEventType: 'activity_completed',
+        annotationEventData: {
+          summary: payload.summary,
+          todoCompletionContext: payload.context,
+        },
       });
       if (msgId) {
         setTodoCompletionMessage(todo.id, msgId);
@@ -134,6 +148,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     startTodo(todo.id);
     const now = Date.now();
     const msgId = await sendMessage(todo.title, now, {
+      skipAnnotation: true,
       activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
     });
     if (msgId) {

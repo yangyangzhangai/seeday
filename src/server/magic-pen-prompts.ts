@@ -170,11 +170,12 @@ Rules:
    - keep recognizable pieces in segments, do not dump them to unparsed only because the sentence is mixed/complex
    - use unparsed only for truly unclassifiable parts
 3) For activity_backfill, extract time when possible:
-    - exact: exact time or range
-    - period: keep period intent (morning/noon/afternoon/evening) instead of forcing one fixed clock window
-    - if duration is explicit (e.g. half hour / 1 hour / 90 minutes), provide durationMinutes when possible
-    - expressions like "8-9" or "8 to 9" should become a range via startTime/endTime, not leftover text
-    - missing: no reliable time
+     - exact: exact time or range
+     - period: keep period intent (morning/noon/afternoon/evening) instead of forcing one fixed clock window
+     - if duration is explicit (e.g. half hour / 1 hour / 90 minutes), provide durationMinutes when possible
+     - expressions like "8-9" or "8 to 9" should become a range via startTime/endTime, not leftover text
+     - if the user narrates a continuous sequence of events without explicit time-order markers, you may reasonably infer they happened in the stated order and infer approximate timing for intermediate events
+     - missing: no reliable time
 4) text must be a natural action phrase that can be read directly by users.
 5) Every segment should set timeRelation:
    - realtime: current/just happened/ongoing
@@ -232,10 +233,11 @@ Regole:
    - i segmenti riconoscibili devono andare in segments, non in unparsed solo perche la frase e mista/complessa
    - usa unparsed solo per parti davvero non classificabili
 3) Per activity_backfill estrai il tempo quando possibile:
-   - exact: orario preciso o intervallo
-   - period: mantieni la semantica della fascia (mattina/mezzogiorno/pomeriggio/sera) senza forzare una finestra fissa
-   - se la durata e esplicita (es. mezz'ora / 1 ora / 90 minuti), valorizza durationMinutes quando possibile
-   - missing: tempo non affidabile
+    - exact: orario preciso o intervallo
+    - period: mantieni la semantica della fascia (mattina/mezzogiorno/pomeriggio/sera) senza forzare una finestra fissa
+    - se la durata e esplicita (es. mezz'ora / 1 ora / 90 minuti), valorizza durationMinutes quando possibile
+    - se l'utente descrive una sequenza continua di eventi senza indicare esplicitamente l'ordine temporale, puoi inferire ragionevolmente che siano avvenuti nell'ordine narrato e dedurre orari approssimativi per gli eventi intermedi
+    - missing: tempo non affidabile
 4) text deve essere una frase d'azione naturale, leggibile direttamente dall'utente.
 5) Ogni segmento dovrebbe impostare timeRelation:
    - realtime: in corso/appena successo

@@ -17,15 +17,19 @@ import {
   normalizeSuggestion,
 } from './annotation-suggestion.js';
 import {
-  buildSuggestionAwareUserPrompt,
   buildTodayActivitiesText,
   buildTodayContextText,
-  buildUserPrompt,
   getDefaultAnnotations,
-  getModel,
-  getSystemPrompt,
 } from './annotation-prompts.js';
 import type { RecoveryNudgeContext } from '../types/annotation.js';
+import { resolveCountryCode } from './country-resolver.js';
+import { resolveHoliday } from './holiday-resolver.js';
+import { resolveSeasonContext } from '../lib/seasonContext.js';
+import { fetchWeatherSnapshot } from './weather-provider.js';
+import { buildWeatherContext } from './weather-context.js';
+import { fetchAirQualitySnapshot } from './air-quality-provider.js';
+import { buildWeatherAlerts } from './weather-alerts.js';
+import { buildAnnotationPromptPackage } from './annotation-prompt-builder.js';
 
 const openai = new OpenAI();
 
@@ -40,6 +44,15 @@ function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   const base = lang.toLowerCase().split('-')[0];
   if (base === 'en' || base === 'it') return base;
   return 'zh';
+}
+
+async function withElapsed<T>(task: Promise<T>): Promise<{ value: T; elapsedMs: number }> {
+  const startedAt = Date.now();
+  const value = await task;
+  return {
+    value,
+    elapsedMs: Date.now() - startedAt,
+  };
 }
 
 /**
@@ -94,11 +107,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ==================== 建议模式（客户端门控透传） ====================
   const forceSuggestion = userContext?.forceSuggestion === true;
   const isSuggestionMode = userContext?.allowSuggestion === true || forceSuggestion;
+  const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
+  const resolvedCountry = resolveCountryCode({
+    countryCode: userContext?.countryCode,
+    timezone: userTimezone,
+  });
+  const holiday = resolveHoliday({
+    countryCode: resolvedCountry.countryCode,
+    lang: resolvedLang,
+    currentDate: userContext?.currentDate,
+  });
+  const seasonContext = resolveSeasonContext(userContext?.currentDate);
+  const latitude = typeof userContext?.latitude === 'number' ? userContext.latitude : undefined;
+  const longitude = typeof userContext?.longitude === 'number' ? userContext.longitude : undefined;
+
+  const [weatherResult, airQualityResult] = await Promise.all([
+    withElapsed(fetchWeatherSnapshot({ latitude, longitude, timeoutMs: 800 })),
+    withElapsed(fetchAirQualitySnapshot({ latitude, longitude, timeoutMs: 800 })),
+  ]);
+
+  const weatherContext = buildWeatherContext(weatherResult.value);
+  const weatherAlerts = buildWeatherAlerts({
+    weather: weatherResult.value,
+    airQuality: airQualityResult.value,
+  });
+
+  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+    console.log('[Annotation API] Env context meta:', {
+      weather_source: weatherContext.source,
+      weather_conditions: weatherContext.conditions,
+      weather_temperature_c: weatherContext.temperatureC,
+      season: seasonContext.season,
+      alerts: weatherAlerts,
+      weather_fetch_ms: weatherResult.elapsedMs,
+      air_quality_fetch_ms: airQualityResult.elapsedMs,
+    });
+  }
 
   if (isSuggestionMode) {
     try {
       const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
-      const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
       const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
       const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
       const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
@@ -110,8 +158,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .trim();
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
-      const suggestionPrompt = buildSuggestionAwareUserPrompt({
+      const promptPackage = buildAnnotationPromptPackage({
+        mode: 'suggestion',
         lang: resolvedLang,
+        aiMode: resolvedAiMode,
         eventType,
         eventSummary,
         todayActivitiesText,
@@ -121,20 +171,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         contextHints: userContext?.contextHints,
         frequentActivities: userContext?.frequentActivities,
         pendingTodos,
+        currentDate: userContext?.currentDate,
+        holiday,
         currentHour,
         currentMinute,
         consecutiveTextCount: userContext?.consecutiveTextCount,
         forceSuggestion,
         recoveryNudge,
+        weatherContext,
+        seasonContext,
+        weatherAlerts,
       });
-      const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
-      const model = getModel(resolvedLang);
 
       openai.apiKey = apiKey;
       const llmResponse = await openai.responses.create({
-        model,
-        instructions: systemPrompt,
-        input: suggestionPrompt,
+        model: promptPackage.model,
+        instructions: promptPackage.instructions,
+        input: promptPackage.input,
         temperature: 0.6,
         max_output_tokens: 300,
       });
@@ -220,7 +273,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
-    const userTimezone = typeof userContext?.timezone === 'string' ? userContext.timezone : undefined;
     const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
 
     const sanitizeMoodText = (s: string) =>
@@ -249,25 +301,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentHour = userContext?.currentHour;
     const currentMinute = userContext?.currentMinute;
     const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
-    const userPrompt = buildUserPrompt(
-      resolvedLang,
+    const promptPackage = buildAnnotationPromptPackage({
+      mode: 'annotation',
+      lang: resolvedLang,
+      aiMode: resolvedAiMode,
       eventType,
       eventSummary,
       todayActivitiesText,
       recentMoodText,
       todayContextText,
+      currentDate: userContext?.currentDate,
+      holiday,
       currentHour,
-      currentMinute
-    );
-    const systemPrompt = getSystemPrompt(resolvedLang, resolvedAiMode);
-    const model = getModel(resolvedLang);
+      currentMinute,
+      weatherContext,
+      seasonContext,
+      weatherAlerts,
+    });
 
     openai.apiKey = apiKey;
 
     const llmResponse = await openai.responses.create({
-      model,
-      instructions: systemPrompt,
-      input: userPrompt,
+      model: promptPackage.model,
+      instructions: promptPackage.instructions,
+      input: promptPackage.input,
       temperature: 0.7,
       max_output_tokens: 480,
     });
@@ -277,7 +334,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
       console.log('[Annotation API] LLM meta:', {
         lang: resolvedLang,
-        model,
+        model: promptPackage.model,
         usage: llmResponse.usage,
         prompt_cache_hits: promptCacheHits,
         prompt_cache_misses: promptCacheMisses,
@@ -345,14 +402,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const rewritePrompt = buildRewritePrompt(
             resolvedLang,
-            userPrompt,
+            promptPackage.input,
             content,
             rawRecentAnnotations.slice(-3),
           );
 
           const rewriteResponse = await openai.responses.create({
-            model,
-            instructions: systemPrompt,
+            model: promptPackage.model,
+            instructions: promptPackage.instructions,
             input: rewritePrompt,
             temperature: resolvedLang === 'zh' ? 0.75 : 0.8,
             max_output_tokens: resolvedLang === 'zh' ? 180 : 480,
