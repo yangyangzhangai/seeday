@@ -1,5 +1,9 @@
-import { buildAiCompanionModePrompt, normalizeAiCompanionLang } from '../lib/aiCompanion.js';
+import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import type { RecoveryNudgeContext, TodayContextSnapshot } from '../types/annotation';
+import { getVanDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/van.js';
+import { getAgnesDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/agnes.js';
+import { getZepDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/zep.js';
+import { getMomoDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/momo.js';
 
 interface AnnotationTemplate {
   content: string;
@@ -118,6 +122,19 @@ export function getSystemPrompt(lang: string, aiMode?: string): string {
   const normalizedLang = normalizeAiCompanionLang(lang);
 
   if (aiMode) {
+    const normalizedMode = normalizeAiCompanionMode(aiMode);
+    if (normalizedMode === 'van' && normalizedLang === 'zh') {
+      return getVanDailyAnnotationPromptZH();
+    }
+    if (normalizedMode === 'agnes' && normalizedLang === 'zh') {
+      return getAgnesDailyAnnotationPromptZH();
+    }
+    if (normalizedMode === 'zep' && normalizedLang === 'zh') {
+      return getZepDailyAnnotationPromptZH();
+    }
+    if (normalizedMode === 'momo' && normalizedLang === 'zh') {
+      return getMomoDailyAnnotationPromptZH();
+    }
     return buildAiCompanionModePrompt(normalizedLang, aiMode, 'annotation');
   }
 
