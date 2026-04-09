@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout, BarChart3 } from 'lucide-react';
+import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout, BarChart3, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { DirectionSettingsPanel } from './DirectionSettingsPanel';
+import { RegionSettingsPanel } from './RegionSettingsPanel';
 
 function isLikelyAdmin(user: any): boolean {
   if (import.meta.env.DEV) {
@@ -31,6 +32,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { signOut, user } = useAuthStore();
+  const [isRegionOpen, setIsRegionOpen] = React.useState(false);
   const [isDirectionOpen, setIsDirectionOpen] = React.useState(false);
   const canSeeTelemetry = isLikelyAdmin(user);
 
@@ -49,6 +51,22 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
 
   return (
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+      <button
+        onClick={() => setIsRegionOpen(prev => !prev)}
+        className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}
+      >
+        <div className="flex items-center space-x-2.5">
+          <MapPin size={16} className="text-[#5F7A63]" />
+          <span className="text-xs text-slate-700">{t('profile_region_settings')}</span>
+        </div>
+        <ChevronRight
+          size={14}
+          className={`text-gray-300 transition-transform ${isRegionOpen ? 'rotate-90' : ''}`}
+        />
+      </button>
+
+      {isRegionOpen ? <RegionSettingsPanel onClose={() => setIsRegionOpen(false)} /> : null}
+
       <button
         onClick={() => setIsDirectionOpen(prev => !prev)}
         className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}

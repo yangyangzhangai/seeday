@@ -118,27 +118,30 @@ function getFallbackSystemPrompt(lang: string): string {
   return FALLBACK_SYSTEM_PROMPT_ZH;
 }
 
+const RANDOM_MODES = ['van', 'agnes', 'zep', 'momo'] as const;
+
+function getRandomMode(): typeof RANDOM_MODES[number] {
+  return RANDOM_MODES[Math.floor(Math.random() * RANDOM_MODES.length)];
+}
+
 export function getSystemPrompt(lang: string, aiMode?: string): string {
   const normalizedLang = normalizeAiCompanionLang(lang);
+  const resolvedMode = aiMode ?? getRandomMode();
+  const normalizedMode = normalizeAiCompanionMode(resolvedMode);
 
-  if (aiMode) {
-    const normalizedMode = normalizeAiCompanionMode(aiMode);
-    if (normalizedMode === 'van' && normalizedLang === 'zh') {
-      return getVanDailyAnnotationPromptZH();
-    }
-    if (normalizedMode === 'agnes' && normalizedLang === 'zh') {
-      return getAgnesDailyAnnotationPromptZH();
-    }
-    if (normalizedMode === 'zep' && normalizedLang === 'zh') {
-      return getZepDailyAnnotationPromptZH();
-    }
-    if (normalizedMode === 'momo' && normalizedLang === 'zh') {
-      return getMomoDailyAnnotationPromptZH();
-    }
-    return buildAiCompanionModePrompt(normalizedLang, aiMode, 'annotation');
+  if (normalizedMode === 'van' && normalizedLang === 'zh') {
+    return getVanDailyAnnotationPromptZH();
   }
-
-  return getFallbackSystemPrompt(normalizedLang);
+  if (normalizedMode === 'agnes' && normalizedLang === 'zh') {
+    return getAgnesDailyAnnotationPromptZH();
+  }
+  if (normalizedMode === 'zep' && normalizedLang === 'zh') {
+    return getZepDailyAnnotationPromptZH();
+  }
+  if (normalizedMode === 'momo' && normalizedLang === 'zh') {
+    return getMomoDailyAnnotationPromptZH();
+  }
+  return buildAiCompanionModePrompt(normalizedLang, resolvedMode, 'annotation');
 }
 
 export function getDefaultAnnotations(lang: string): AnnotationMap {

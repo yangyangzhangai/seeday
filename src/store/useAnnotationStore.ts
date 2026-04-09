@@ -422,6 +422,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             eventType: event.type,
             eventData: event.data,
             userContext: {
+              userId: useAuthStore.getState().user?.id,
               todayActivities: activities.length,
               todayDuration: totalDuration,
               currentHour: nowDate.getHours(),

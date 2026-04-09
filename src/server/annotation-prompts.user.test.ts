@@ -124,4 +124,27 @@ describe('annotation-prompts holiday formatting', () => {
     expect(withState).toContain('greenhouse smells like alcohol');
     expect(withoutState).toContain('Character current state:\nnone');
   });
+
+  it('injects association instruction block when provided', () => {
+    const prompt = buildUserPrompt(
+      'zh',
+      'activity_recorded',
+      '散步',
+      'timeline',
+      'stable',
+      'none',
+      '角色状态',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      '这次从ta当前的情绪状态进入回复，先感受它，再开口。',
+    );
+
+    expect(prompt).toContain('角色状态');
+    expect(prompt).toContain('这次从ta当前的情绪状态进入回复，先感受它，再开口。');
+  });
 });

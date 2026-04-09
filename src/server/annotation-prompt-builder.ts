@@ -33,6 +33,7 @@ interface BasePromptInput {
   weatherContext?: WeatherContextV2;
   seasonContext?: SeasonContextV2;
   weatherAlerts?: WeatherAlert[];
+  associationInstruction?: string;
 }
 
 interface SuggestionPromptInput extends BasePromptInput {
@@ -83,6 +84,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
       weatherContext: payload.weatherContext,
       seasonContext: payload.seasonContext,
       weatherAlerts: payload.weatherAlerts,
+      associationInstruction: payload.associationInstruction,
     });
   }
 
@@ -101,6 +103,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
     payload.weatherContext,
     payload.seasonContext,
     payload.weatherAlerts,
+    payload.associationInstruction,
   );
 }
 

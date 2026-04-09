@@ -239,6 +239,7 @@ interface SuggestionAwarePromptInput {
   weatherContext?: WeatherContextV2;
   seasonContext?: SeasonContextV2;
   weatherAlerts?: WeatherAlert[];
+  associationInstruction?: string;
 }
 
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
@@ -264,6 +265,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     weatherContext,
     seasonContext,
     weatherAlerts,
+    associationInstruction,
   } = input;
 
   const hourText = currentHour !== undefined
@@ -312,6 +314,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
+      associationInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       `Status summary:\n${statusSummary || 'none'}`,
       `Context hints:\n${hintsText}`,
@@ -359,6 +362,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
+      associationInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
       `Suggerimenti di contesto:\n${hintsText}`,
@@ -404,6 +408,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
+    associationInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     `状态摘要：\n${statusSummary || '无'}`,
     `情境提示：\n${hintsText}`,
@@ -434,6 +439,7 @@ export function buildUserPrompt(
   weatherContext?: WeatherContextV2,
   seasonContext?: SeasonContextV2,
   weatherAlerts?: WeatherAlert[],
+  associationInstruction?: string,
 ): string {
   const hourText = currentHour !== undefined ? (() => {
     const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
@@ -452,6 +458,7 @@ export function buildUserPrompt(
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
+      associationInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       'Please write one annotation about the activity or mood that just happened, in your current voice.',
       'Use exactly one emoji at the end.',
@@ -470,6 +477,7 @@ export function buildUserPrompt(
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
+      associationInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
       'Usa esattamente una emoji alla fine.',
@@ -487,6 +495,7 @@ export function buildUserPrompt(
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
+    associationInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',
     '句末必须只有一个 emoji。',

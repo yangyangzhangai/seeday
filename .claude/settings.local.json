@@ -20,7 +20,8 @@
       "Bash(python3 -c ':*)",
       "Bash(python -c ':*)",
       "Bash(python:*)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python3 -c \"import docx; print\\('python-docx available'\\)\")"
     ],
     "deny": [
       "Bash(rm -rf:*)",

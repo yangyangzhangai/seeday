@@ -130,14 +130,39 @@ export const useReportStore = create<ReportState>()(
 
           if (data && data.length > 0) {
             const mappedReports: Report[] = data.map(fromDbReport);
-            const dedupedReports = mappedReports.reduce<Report[]>(
+            const cloudDedupedReports = mappedReports.reduce<Report[]>(
               (reports, report) => mergeReportIntoList(reports, report.type, report.date, report),
               [],
             );
-            dedupedReports.sort((left, right) => right.date - left.date);
-            set({ reports: dedupedReports });
+
+            const localReports = get().reports;
+            const localOnlyReports = localReports.filter(
+              (localReport) => !cloudDedupedReports.some((cloudReport) => cloudReport.id === localReport.id),
+            );
+
+            const mergedReports = [...cloudDedupedReports];
+            for (const localReport of localOnlyReports) {
+              const existingByWindow = mergedReports.find(
+                (report) => report.type === localReport.type && isSameDay(report.date, localReport.date),
+              );
+              if (existingByWindow) {
+                continue;
+              }
+              mergedReports.push(localReport);
+            }
+
+            mergedReports.sort((left, right) => right.date - left.date);
+            set({ reports: mergedReports });
+
+            localOnlyReports.forEach((report) => {
+              void syncReportToSupabase(report);
+            });
           } else {
-            set({ reports: [] });
+            const localReports = get().reports;
+            set({ reports: localReports });
+            localReports.forEach((report) => {
+              void syncReportToSupabase(report);
+            });
           }
         } catch (error) {
           console.error('Error fetching reports:', error);

@@ -2,11 +2,35 @@
 
 All notable changes to this repository are documented here.
 
-## Documentation Isomorphism Logging Rules
+> Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
-1. Any structural/interface/code-path change must include one changelog line in the same PR.
-2. Changelog entries must reference both code path and doc path updates.
-3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
+## 2026-04-09 - Feat: annotation 横向联想中间层（首版采样 + U4 注入）
+
+### Changed
+
+- `src/server/lateral-association-sampler.ts`（新增）
+  - 新增联想采样核心：11 种联想类型 + 3 种出发点采样、动态权重调整、上次去重、daily 受限类型拦截、tone tag 近 3 次去重。
+  - 联想/出发点基础权重按需求文档第 3 章表格落地（包含 Agnes/Momo 冲突值修正）。
+  - 新增三语指令构建：联想指令 + 出发点追加指令 + tone_only 语气指令。
+- `src/server/lateral-association-state.ts`（新增）
+  - 新增服务端状态缓存（`userId + characterId` 维度）与换日重置处理。
+- `src/server/annotation-handler.ts`
+  - 在 annotation/suggestion 双路径 prompt 组装前接入横向联想采样。
+  - 采样结果写入 `associationInstruction` 并传递到 prompt U4 段。
+  - 新增可观测日志字段（`associationType/originType/toneTag/instruction`，受 verbose 开关控制）。
+- `src/server/annotation-prompt-builder.ts` / `src/server/annotation-prompts.user.ts`
+  - 扩展 prompt 输入字段 `associationInstruction`，并在角色状态块后注入 U4 指令。
+- `src/types/annotation.ts` / `src/store/useAnnotationStore.ts`
+  - `AnnotationRequest.userContext` 新增可选 `userId`，前端透传当前登录用户 id 供服务端状态分桶。
+- 测试新增/更新
+  - 新增 `src/server/lateral-association-sampler.test.ts`。
+  - 更新 `src/server/annotation-prompts.user.test.ts`（覆盖 U4 指令注入）。
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：新增“横向联想中间层”主线与 P0-P7 任务拆解。
+- 更新 `src/store/README.md`、`src/api/README.md`、`api/README.md`：同步横向联想接入与 `userContext.userId` 契约。
+- 更新 `docs/timeshine_lateral_association_spec_v1.1 (1).extracted.txt`：将 5.3 常量修正为与第 3 章权重表一致。
 
 ## 2026-04-09 - Fix: suggestion 待办高亮丢失与长期待办预拆解漏触发
 

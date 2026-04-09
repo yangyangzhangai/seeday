@@ -32,6 +32,14 @@ export interface MembershipState {
   source: MembershipSource;
 }
 
+export interface LocationMetadataInput {
+  countryCode: string;
+  latitude: number;
+  longitude: number;
+  locationLabel?: string;
+  source?: 'manual_geocode' | 'device_gps';
+}
+
 const DEFAULT_PREFERENCES: UserPreferences = {
   aiMode: 'van',
   aiModeEnabled: true,
@@ -108,6 +116,7 @@ interface AuthState {
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
+  updateLocationMetadata: (input: LocationMetadataInput) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
   /** Re-compute activityStreak from Supabase — call after recording a new activity */
   refreshActivityStreak: () => Promise<void>;
@@ -423,6 +432,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     }
     if (session?.user) {
+      const owner = readLocalDataOwner();
+      const hasLocalData = hasAnyLocalDataToMigrate();
+      const isCrossAccountData = owner.type === 'user' && owner.userId !== session.user.id;
+
+      if (isCrossAccountData) {
+        clearLocalDomainStores();
+      } else if (hasLocalData) {
+        // Existing-session restore path (app cold start / refresh):
+        // push any local data first, then pull cloud state.
+        // This avoids local-vs-cloud drift when the same account worked offline.
+        await syncLocalDataToSupabase(session.user.id);
+      }
+
       markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
       await updateLoginStreak(session.user.id);
@@ -585,6 +607,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data, error } = await supabase.auth.updateUser({
       data: { avatar_url: avatarDataUrl }
     });
+    if (!error && data?.user) {
+      set({ user: data.user });
+    }
+    return { error };
+  },
+
+  updateLocationMetadata: async (input) => {
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: new Error('Not signed in') };
+    }
+
+    const normalizedCountryCode = input.countryCode.trim().toUpperCase();
+    const latitude = Number(input.latitude);
+    const longitude = Number(input.longitude);
+    if (!/^[A-Z]{2}$/.test(normalizedCountryCode) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return { error: new Error('Invalid location metadata') };
+    }
+
+    const nextMetadata = {
+      ...(currentUser.user_metadata || {}),
+      country_code: normalizedCountryCode,
+      latitude: Number(latitude.toFixed(6)),
+      longitude: Number(longitude.toFixed(6)),
+      location_label: typeof input.locationLabel === 'string' && input.locationLabel.trim()
+        ? input.locationLabel.trim()
+        : null,
+      location_source: input.source || 'manual_geocode',
+      location_updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase.auth.updateUser({ data: nextMetadata });
     if (!error && data?.user) {
       set({ user: data.user });
     }

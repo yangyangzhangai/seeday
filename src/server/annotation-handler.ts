@@ -31,6 +31,14 @@ import { fetchAirQualitySnapshot } from './air-quality-provider.js';
 import { buildWeatherAlerts } from './weather-alerts.js';
 import { buildAnnotationPromptPackage } from './annotation-prompt-builder.js';
 import { decomposeTodoWithAI } from './todo-decompose-service.js';
+import {
+  sampleAssociation,
+  type CharacterId,
+} from './lateral-association-sampler.js';
+import {
+  getLateralAssociationState,
+  saveLateralAssociationState,
+} from './lateral-association-state.js';
 
 const openai = new OpenAI();
 
@@ -117,6 +125,56 @@ function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   return 'zh';
 }
 
+function normalizeCharacterId(value: unknown): CharacterId {
+  if (value === 'van' || value === 'momo' || value === 'agnes' || value === 'zep') {
+    return value;
+  }
+  return 'van';
+}
+
+function resolveLateralAssociationInstruction(params: {
+  userId: string;
+  characterId: CharacterId;
+  userInput: string;
+  lang: AnnotationLang;
+  currentDate?: { isoDate?: string };
+}): string | undefined {
+  const todayDate = params.currentDate?.isoDate || new Date().toISOString().slice(0, 10);
+  const state = getLateralAssociationState({
+    userId: params.userId,
+    characterId: params.characterId,
+    todayDate,
+  });
+
+  const sampled = sampleAssociation({
+    characterId: params.characterId,
+    userInput: params.userInput,
+    lang: params.lang,
+    state,
+    currentDate: todayDate,
+  });
+
+  saveLateralAssociationState({
+    userId: params.userId,
+    characterId: params.characterId,
+    state: sampled.nextState,
+  });
+
+  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+    console.log('[LateralAssociation]', {
+      userId: params.userId,
+      characterId: params.characterId,
+      lang: params.lang,
+      associationType: sampled.associationType,
+      originType: sampled.originType,
+      toneTag: sampled.toneTag,
+      instruction: sampled.associationInstruction,
+    });
+  }
+
+  return sampled.associationInstruction ?? undefined;
+}
+
 async function withElapsed<T>(task: Promise<T>): Promise<{ value: T; elapsedMs: number }> {
   const startedAt = Date.now();
   const value = await task;
@@ -145,6 +203,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { eventType, eventData, userContext, lang = 'zh', aiMode } = req.body;
   const resolvedLang = normalizeAnnotationLang(lang);
   const resolvedAiMode = aiMode ? normalizeAiCompanionMode(aiMode) : undefined;
+  const lateralCharacterId = normalizeCharacterId(resolvedAiMode);
+  const lateralUserId = typeof userContext?.userId === 'string' && userContext.userId.trim()
+    ? userContext.userId.trim()
+    : '__anonymous__';
 
   if (!eventType || !eventData) {
     jsonError(res, 400, 'Missing eventType or eventData');
@@ -227,6 +289,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
         .replace(/\s+/g, ' ')
         .trim();
+      const associationInstruction = resolveLateralAssociationInstruction({
+        userId: lateralUserId,
+        characterId: lateralCharacterId,
+        userInput: eventSummary,
+        lang: resolvedLang,
+        currentDate: userContext?.currentDate,
+      });
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
       const promptPackage = buildAnnotationPromptPackage({
@@ -253,6 +322,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         weatherContext,
         seasonContext,
         weatherAlerts,
+        associationInstruction,
       });
 
       openai.apiKey = apiKey;
@@ -368,6 +438,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
       .replace(/\s+/g, ' ')
       .trim();
+    const associationInstruction = resolveLateralAssociationInstruction({
+      userId: lateralUserId,
+      characterId: lateralCharacterId,
+      userInput: eventSummary,
+      lang: resolvedLang,
+      currentDate: userContext?.currentDate,
+    });
 
     // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
@@ -416,6 +493,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       weatherContext,
       seasonContext,
       weatherAlerts,
+      associationInstruction,
     });
 
     openai.apiKey = apiKey;

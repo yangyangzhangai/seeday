@@ -225,6 +225,7 @@ export interface AnnotationRequest {
     todayDuration: number;             // 今日总时长
     currentHour: number;               // 当前时间
     currentMinute?: number;            // 当前分钟
+    userId?: string;
     timezone?: string;                 // IANA 时区字符串，如 "Europe/Rome"
     currentDate?: AnnotationCurrentDate;
     countryCode?: string;              // ISO 3166-1 alpha-2, 如 "CN" / "IT"

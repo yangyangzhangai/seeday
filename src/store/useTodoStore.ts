@@ -84,6 +84,16 @@ function todayDayOfWeek(): number {
   return new Date().getDay();
 }
 
+function getTodoFreshness(todo: Todo): number {
+  return Math.max(
+    Number(todo.completedAt ?? 0),
+    Number(todo.startedAt ?? 0),
+    Number(todo.dueAt ?? 0),
+    Number(todo.sortOrder ?? 0),
+    Number(todo.createdAt ?? 0),
+  );
+}
+
 /** Check if a recurrence value means "non-recurring" */
 export function isNonRecurring(r?: Recurrence): boolean {
   return !r || r === 'none' || r === 'once';
@@ -289,16 +299,50 @@ export const useTodoStore = create<TodoState>()(
           const allIds = new Set(cloudIds);
           // Migrate old todo-storage data (one-time, clears old key after)
           const migrated = migrateOldTodoStorage(allIds);
-          const merged = [
-            ...cloudTodos,
-            ...migrated,
-          ];
+          const localTodos = get().todos;
+          const mergedById = new Map<string, Todo>();
+          const localPreferredConflicts: Todo[] = [];
+
+          for (const cloudTodo of cloudTodos) {
+            mergedById.set(cloudTodo.id, cloudTodo);
+          }
+
+          for (const localTodo of localTodos) {
+            const existing = mergedById.get(localTodo.id);
+            if (!existing) {
+              mergedById.set(localTodo.id, localTodo);
+              continue;
+            }
+            if (getTodoFreshness(localTodo) > getTodoFreshness(existing)) {
+              mergedById.set(localTodo.id, localTodo);
+              localPreferredConflicts.push(localTodo);
+            }
+          }
+
+          for (const migratedTodo of migrated) {
+            if (!mergedById.has(migratedTodo.id)) {
+              mergedById.set(migratedTodo.id, migratedTodo);
+            }
+          }
+
+          const merged = Array.from(mergedById.values());
+          const localOnly = localTodos.filter((todo) => !cloudIds.has(todo.id));
           set({
             todos: merged,
             isLoading: false,
             hasHydrated: true,
             lastSyncError: null,
           });
+          // Push local-only rows so cloud catches up for this account/device.
+          localOnly.forEach((t) => bgSyncInsert(t).catch(console.error));
+          if (localPreferredConflicts.length > 0) {
+            const { error: conflictSyncError } = await supabase
+              .from('todos')
+              .upsert(localPreferredConflicts.map((todo) => toDbTodo(todo, session.user.id)), { onConflict: 'id' });
+            if (conflictSyncError) {
+              console.error('Error syncing local-preferred todos:', conflictSyncError);
+            }
+          }
           // Sync migrated todos to Supabase
           migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
         } catch (err) {
