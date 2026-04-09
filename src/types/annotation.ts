@@ -1,5 +1,6 @@
 import type { ActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
+import type { UserProfileSnapshot } from './userProfile';
 /**
  * AI 批注系统类型定义
  * 
@@ -245,6 +246,7 @@ export interface AnnotationRequest {
     frequentActivities?: string[];
     todayContext?: TodayContextSnapshot;
     characterStateText?: string;
+    userProfileSnapshot?: UserProfileSnapshot;
     characterStateMeta?: {
       matchedBehaviorIds: string[];
       injectedBehaviorIds: string[];

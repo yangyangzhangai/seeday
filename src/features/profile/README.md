@@ -12,6 +12,9 @@
   - AI companion selection: 4 personas (`van`, `agnes`, `zep`, `momo`) with free/PLUS tiers
   - AI annotation sensitivity: 3-level drop-rate selector (low/medium/high)
   - Daily goal toggle: enable/disable daily goal popup in `/growth`
+  - Long-term profile toggle: enable/disable long-term profile pipeline (`user_metadata.long_term_profile_enabled`)
+  - User profile panel: edit manual routine/goals and manage visible anniversaries (`user_metadata.user_profile_v2`)
+  - User profile snapshot card: show meal-time hints, upcoming anniversaries, and latest recall moment from `buildUserProfileSnapshot(...)`
   - Plant direction customization: 5-slot mapping of activity categories to plant root positions
   - Membership display: FREE/PLUS tier feature matrix with upgrade CTA
   - Account controls: help, privacy, about, logout, admin-only telemetry link
@@ -24,6 +27,8 @@ ProfilePage
 ├── AIModeSection (companion toggle + selection)
 ├── AIAnnotationDropRate (sensitivity control)
 ├── DailyGoalToggle
+├── UserProfilePanel (manual profile + anniversaries)
+├── UserProfileInsightsCard (snapshot overview)
 ├── MembershipCard (tier display)
 ├── DirectionSettingsPanel (plant root mapping)
 └── SettingsList (account actions)
@@ -45,6 +50,8 @@ ProfilePage
 
 - **AI personas**: van (free), agnes (free), zep (PLUS), momo (PLUS); selection stored in `preferences.aiMode`
 - **Annotation drop-rate**: controls AI extraction aggressiveness; medium/high gated behind PLUS
+- **Long-term profile switch**: controls whether long-term profile snapshot is injected into annotation/suggestion prompt chain
+- **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)
 - **Weekly streak**: calculated from Supabase messages table (7-day login history)
 - **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()`
 

@@ -298,17 +298,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
-      const promptPackage = buildAnnotationPromptPackage({
-        mode: 'suggestion',
+        const promptPackage = buildAnnotationPromptPackage({
+          mode: 'suggestion',
         lang: resolvedLang,
         aiMode: resolvedAiMode,
         eventType,
         eventSummary,
         todayActivitiesText,
         recentMoodText,
-        todayContextText,
-        characterStateText: ENABLE_CHARACTER_STATE ? userContext?.characterStateText : undefined,
-        statusSummary: userContext?.statusSummary,
+          todayContextText,
+          characterStateText: ENABLE_CHARACTER_STATE ? userContext?.characterStateText : undefined,
+          userProfileSnapshot: userContext?.userProfileSnapshot,
+          statusSummary: userContext?.statusSummary,
         contextHints: userContext?.contextHints,
         frequentActivities: userContext?.frequentActivities,
         pendingTodos,
@@ -486,6 +487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recentMoodText,
       todayContextText,
       characterStateText: ENABLE_CHARACTER_STATE ? userContext?.characterStateText : undefined,
+      userProfileSnapshot: userContext?.userProfileSnapshot,
       currentDate: userContext?.currentDate,
       holiday,
       currentHour,

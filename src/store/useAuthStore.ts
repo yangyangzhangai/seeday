@@ -14,6 +14,14 @@ import { useFocusStore } from './useFocusStore';
 import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 import { isLegacyChatActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
+import type { UserProfileV2 } from '../types/userProfile';
+import {
+  LONG_TERM_PROFILE_ENABLED_KEY,
+  mergeUserProfile,
+  parseUserProfileV2,
+  profileStateFromMeta,
+  USER_PROFILE_METADATA_KEY,
+} from './authProfileHelpers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type MembershipPlan = 'free' | 'plus';
@@ -80,8 +88,11 @@ async function flushQueuedPreferences(): Promise<void> {
     while (queuedPreferenceSnapshot) {
       const snapshot = queuedPreferenceSnapshot;
       queuedPreferenceSnapshot = null;
+      const latestSession = await getSupabaseSession();
+      const baseMeta = (latestSession?.user?.user_metadata || {}) as Record<string, any>;
       const { error } = await supabase.auth.updateUser({
         data: {
+          ...baseMeta,
           ai_mode: snapshot.aiMode,
           ai_mode_enabled: snapshot.aiModeEnabled,
           daily_goal_enabled: snapshot.dailyGoalEnabled,
@@ -104,6 +115,8 @@ interface AuthState {
   user: any | null;
   loading: boolean;
   preferences: UserPreferences;
+  longTermProfileEnabled: boolean;
+  userProfileV2: UserProfileV2 | null;
   membershipPlan: MembershipPlan;
   membershipSource: MembershipSource;
   isPlus: boolean;
@@ -117,6 +130,10 @@ interface AuthState {
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
   updateLocationMetadata: (input: LocationMetadataInput) => Promise<{ error: any }>;
+  updateLongTermProfileEnabled: (enabled: boolean) => Promise<{ error: any }>;
+  updateUserProfile: (
+    updater: Partial<UserProfileV2> | ((prev: UserProfileV2 | null) => UserProfileV2),
+  ) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
   /** Re-compute activityStreak from Supabase — call after recording a new activity */
   refreshActivityStreak: () => Promise<void>;
@@ -403,6 +420,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   preferences: DEFAULT_PREFERENCES,
+  longTermProfileEnabled: false,
+  userProfileV2: null,
   membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
   membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
   isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
@@ -414,12 +433,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     const meta = sessionUser?.user_metadata || {};
     const nextPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
+    const profileState = profileStateFromMeta(meta);
     const membership = resolveMembershipState(sessionUser);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
     set({
       user: sessionUser,
       loading: false,
       preferences: nextPreferences,
+      longTermProfileEnabled: profileState.longTermProfileEnabled,
+      userProfileV2: profileState.userProfileV2,
       membershipPlan: membership.plan,
       membershipSource: membership.source,
       isPlus: membership.isPlus,
@@ -484,12 +506,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const nextPreferences = currentUser
         ? preferencesFromMeta(currentUser.user_metadata || {})
         : DEFAULT_PREFERENCES;
+      const profileState = profileStateFromMeta(currentUser?.user_metadata || {});
       const membership = resolveMembershipState(currentUser);
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
       set({
         user: currentUser,
         loading: false,
         preferences: nextPreferences,
+        longTermProfileEnabled: profileState.longTermProfileEnabled,
+        userProfileV2: profileState.userProfileV2,
         membershipPlan: membership.plan,
         membershipSource: membership.source,
         isPlus: membership.isPlus,
@@ -555,6 +580,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         markLocalDataOwnerAnonymous();
         set({
           preferences: DEFAULT_PREFERENCES,
+          longTermProfileEnabled: false,
+          userProfileV2: null,
           membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
           membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
           isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
@@ -642,6 +669,67 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!error && data?.user) {
       set({ user: data.user });
     }
+    return { error };
+  },
+
+  updateLongTermProfileEnabled: async (enabled) => {
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: new Error('Not signed in') };
+    }
+
+    const latestSession = await getSupabaseSession();
+    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
+    const nextMeta = {
+      ...baseMeta,
+      [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
+    };
+
+    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+    if (!error && data?.user) {
+      const profileState = profileStateFromMeta(data.user.user_metadata || {});
+      set({
+        user: data.user,
+        longTermProfileEnabled: profileState.longTermProfileEnabled,
+        userProfileV2: profileState.userProfileV2,
+      });
+    }
+
+    return { error };
+  },
+
+  updateUserProfile: async (updater) => {
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: new Error('Not signed in') };
+    }
+
+    const latestSession = await getSupabaseSession();
+    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
+    const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
+    const nextProfile = typeof updater === 'function'
+      ? updater(prev)
+      : mergeUserProfile(prev, updater);
+
+    const nextMeta = {
+      ...baseMeta,
+      [USER_PROFILE_METADATA_KEY]: {
+        ...nextProfile,
+        updatedAt: new Date().toISOString(),
+        createdAt: nextProfile.createdAt || new Date().toISOString(),
+      },
+    };
+
+    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+    if (!error && data?.user) {
+      const profileState = profileStateFromMeta(data.user.user_metadata || {});
+      set({
+        user: data.user,
+        longTermProfileEnabled: profileState.longTermProfileEnabled,
+        userProfileV2: profileState.userProfileV2,
+      });
+    }
+
     return { error };
   },
 

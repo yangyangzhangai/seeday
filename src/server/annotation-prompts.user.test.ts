@@ -147,4 +147,31 @@ describe('annotation-prompts holiday formatting', () => {
     expect(prompt).toContain('角色状态');
     expect(prompt).toContain('这次从ta当前的情绪状态进入回复，先感受它，再开口。');
   });
+
+  it('injects long-term profile snapshot block when provided', () => {
+    const prompt = buildUserPrompt(
+      'en',
+      'activity_recorded',
+      'coding',
+      'timeline',
+      'stable',
+      'none',
+      'focused',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        text: 'Declared wake/sleep: 07:30 / 23:30',
+        declaredMealTimes: [8, 12, 19],
+      },
+    );
+
+    expect(prompt).toContain('Long-term profile snapshot:');
+    expect(prompt).toContain('Declared wake/sleep: 07:30 / 23:30');
+  });
 });

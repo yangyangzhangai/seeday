@@ -14,6 +14,7 @@ import type {
   WeatherAlert,
   WeatherContextV2,
 } from '../types/annotation.js';
+import type { UserProfileSnapshot } from '../types/userProfile.js';
 
 type PromptMode = 'annotation' | 'suggestion';
 
@@ -26,6 +27,7 @@ interface BasePromptInput {
   recentMoodText: string;
   todayContextText?: string;
   characterStateText?: string;
+  userProfileSnapshot?: UserProfileSnapshot;
   currentDate?: AnnotationCurrentDate;
   holiday?: AnnotationHolidayContext;
   currentHour?: number;
@@ -70,6 +72,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
       recentMoodText: payload.recentMoodText,
       todayContextText: payload.todayContextText,
       characterStateText: payload.characterStateText,
+      userProfileSnapshot: payload.userProfileSnapshot,
       statusSummary: payload.statusSummary,
       contextHints: payload.contextHints,
       frequentActivities: payload.frequentActivities,
@@ -104,6 +107,7 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
     payload.seasonContext,
     payload.weatherAlerts,
     payload.associationInstruction,
+    payload.userProfileSnapshot,
   );
 }
 

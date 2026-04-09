@@ -6,6 +6,8 @@ interface SuggestionDetectorInput {
   todayActivities: TodayActivity[];
   pendingTodos: PendingTodoSummary[];
   recentMoodMessages?: string[];
+  declaredMealTimes?: number[];
+  observedMealTimes?: number[];
 }
 
 interface HintCandidate {
@@ -24,7 +26,25 @@ function minutesSinceLastActivity(now: Date, todayActivities: TodayActivity[]): 
   return Math.max(0, Math.floor((now.getTime() - last.timestamp) / 60000));
 }
 
-function isMealTime(hour: number): boolean {
+function normalizeMealTimes(value: number[] | undefined): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item) && item >= 0 && item <= 23)
+    .map((item) => Math.floor(item));
+}
+
+export function isMealTime(hour: number, declared?: number[], observed?: number[]): boolean {
+  const declaredTimes = normalizeMealTimes(declared);
+  if (declaredTimes.length > 0) {
+    return declaredTimes.some((time) => Math.abs(hour - time) <= 1);
+  }
+
+  const observedTimes = normalizeMealTimes(observed);
+  if (observedTimes.length > 0) {
+    return observedTimes.some((time) => Math.abs(hour - time) <= 1);
+  }
+
   return (hour >= 11 && hour <= 13) || (hour >= 18 && hour <= 20);
 }
 
@@ -68,7 +88,7 @@ export function detectSuggestionContextHints(input: SuggestionDetectorInput): st
   if (dueSoonTodos.length > 0) {
     candidates.push({ priority: 90, hint: 'At least one todo is due soon. A small, immediate action can reduce pressure.' });
   }
-  if (isMealTime(hour) && longFocusMinutes >= 120) {
+  if (isMealTime(hour, input.declaredMealTimes, input.observedMealTimes) && longFocusMinutes >= 120) {
     candidates.push({ priority: 80, hint: 'User has been focused for long duration near meal time. Consider food or hydration break suggestions.' });
   }
   if (hour >= 23 || hour <= 5) {

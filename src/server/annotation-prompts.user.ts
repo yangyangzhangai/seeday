@@ -8,6 +8,7 @@ import type {
   WeatherAlert,
   WeatherContextV2,
 } from '../types/annotation.js';
+import type { UserProfileSnapshot } from '../types/userProfile.js';
 
 export function buildTodayActivitiesText(activities: any[], lang: string, timezone?: string): string {
   if (!activities || activities.length === 0) {
@@ -225,6 +226,7 @@ interface SuggestionAwarePromptInput {
   recentMoodText: string;
   todayContextText?: string;
   characterStateText?: string;
+  userProfileSnapshot?: UserProfileSnapshot;
   statusSummary?: string;
   contextHints?: string[];
   frequentActivities?: string[];
@@ -242,6 +244,14 @@ interface SuggestionAwarePromptInput {
   associationInstruction?: string;
 }
 
+function buildUserProfileSnapshotText(userProfileSnapshot: UserProfileSnapshot | undefined, lang: string): string {
+  const text = userProfileSnapshot?.text?.trim();
+  if (text) return text;
+  if (lang === 'en') return 'none';
+  if (lang === 'it') return 'nessuno';
+  return '无';
+}
+
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
   const {
     lang,
@@ -251,6 +261,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     recentMoodText,
     todayContextText,
     characterStateText,
+    userProfileSnapshot,
     statusSummary,
     contextHints = [],
     frequentActivities = [],
@@ -314,6 +325,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
+      `Long-term profile snapshot:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       `Status summary:\n${statusSummary || 'none'}`,
@@ -362,6 +374,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
+      `Snapshot profilo a lungo termine:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
@@ -408,6 +421,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
+    `长期画像快照：\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
     associationInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     `状态摘要：\n${statusSummary || '无'}`,
@@ -440,6 +454,7 @@ export function buildUserPrompt(
   seasonContext?: SeasonContextV2,
   weatherAlerts?: WeatherAlert[],
   associationInstruction?: string,
+  userProfileSnapshot?: UserProfileSnapshot,
 ): string {
   const hourText = currentHour !== undefined ? (() => {
     const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
@@ -458,6 +473,7 @@ export function buildUserPrompt(
       `Recent mood: ${recentMoodText}`,
       `Today context:\n${todayContextText || 'none'}`,
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
+      `Long-term profile snapshot:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       'Please write one annotation about the activity or mood that just happened, in your current voice.',
@@ -477,6 +493,7 @@ export function buildUserPrompt(
       `Umore recente: ${recentMoodText}`,
       `Contesto di oggi:\n${todayContextText || 'nessuno'}`,
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
+      `Snapshot profilo a lungo termine:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
@@ -495,6 +512,7 @@ export function buildUserPrompt(
     `最近心情：${recentMoodText}`,
     `今日上下文：\n${todayContextText || '无'}`,
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
+    `长期画像快照：\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
     associationInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',

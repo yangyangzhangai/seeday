@@ -26,6 +26,7 @@ import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { buildStatusSummary } from '../lib/buildStatusSummary';
 import { detectSuggestionContextHints } from '../lib/suggestionDetector';
+import { buildUserProfileSnapshot } from '../lib/buildUserProfileSnapshot';
 import { isExplicitSuggestionRequest } from '../lib/suggestionIntentDetector';
 import { detectRecoveryNudge } from '../lib/recoverySuggestion';
 import {
@@ -393,11 +394,18 @@ export const useAnnotationStore = create<AnnotationStore>()(
             recentMoodMessages,
           });
 
+          const authState = useAuthStore.getState();
+          const userProfileSnapshot = authState.longTermProfileEnabled
+            ? buildUserProfileSnapshot({ profile: authState.userProfileV2, now: nowDate })
+            : undefined;
+
           const contextHints = detectSuggestionContextHints({
             now: nowDate,
             todayActivities: todayActivitiesList,
             pendingTodos,
             recentMoodMessages,
+            declaredMealTimes: userProfileSnapshot?.declaredMealTimes,
+            observedMealTimes: userProfileSnapshot?.observedMealTimes,
           });
 
           const characterStateEnabled = String(import.meta.env.VITE_ANNOTATION_CHARACTER_STATE_ENABLED ?? 'true') === 'true';
@@ -444,6 +452,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
                 ? get().todayContextSnapshot
                 : undefined,
               characterStateText: characterStateResult?.text || undefined,
+              userProfileSnapshot,
               characterStateMeta: characterStateResult?.meta,
               allowSuggestion: canAttemptSuggestion,
               forceSuggestion: explicitSuggestionRequest || Boolean(recoveryNudge),

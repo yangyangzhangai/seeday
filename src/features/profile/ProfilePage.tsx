@@ -7,6 +7,9 @@ import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
 import { AIAnnotationDropRate } from './components/AIAnnotationDropRate';
 import { DailyGoalToggle } from './components/DailyGoalToggle';
+import { LongTermProfileToggle } from './components/LongTermProfileToggle';
+import { UserProfilePanel } from './components/UserProfilePanel';
+import { UserProfileInsightsCard } from './components/UserProfileInsightsCard';
 import { MembershipCard } from './components/MembershipCard';
 import { SettingsList } from './components/SettingsList';
 import { LanguageSwitcher } from '../../components/layout/LanguageSwitcher';
@@ -52,6 +55,15 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div>
               <DailyGoalToggle plain />
+            </div>
+            <div>
+              <LongTermProfileToggle plain />
+            </div>
+            <div>
+              <UserProfilePanel plain />
+            </div>
+            <div>
+              <UserProfileInsightsCard plain />
             </div>
             {!isPlus ? (
               <div className="px-0 py-2">

@@ -4,6 +4,108 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-09 - Update: User Profile v1.1（仅画像系统 + Profile UI 强化）
+
+### Changed
+
+- `src/features/profile/components/UserProfilePanel.tsx`
+  - 新增“无改动不保存”脏检查，避免重复写入 metadata。
+  - 新增纪念日完整性校验（名称/日期必须成对填写），提升保存反馈明确性。
+  - 抽离表单工具到 `userProfilePanelHelpers.ts`，降低主组件复杂度并便于复用。
+- `src/features/profile/components/LongTermProfileToggle.tsx`
+  - 新增保存中态与成功/失败反馈文案，避免静默切换。
+  - 补充 `role=switch` 与 `aria-checked`，提升可访问性。
+- `src/features/profile/components/UserProfileInsightsCard.tsx`（新增）
+  - 在 Profile 页新增“画像快照”展示卡，聚合展示建议饭点、临近纪念日与最新回忆素材。
+  - 快照来源统一复用 `buildUserProfileSnapshot(...)`。
+- `src/features/profile/ProfilePage.tsx`
+  - 接入 `UserProfileInsightsCard`，形成“编辑 + 快照反馈”闭环。
+- `src/features/growth/LifeGoalPanel.tsx`（新增）
+  - 新增“人生目标管理”面板，支持在 Growth 页直接编辑长期人生目标。
+  - 写入链路复用 `useAuthStore.updateUserProfile(...)`，与 Profile 页 `manual.lifeGoal` 保持双向同步。
+- `src/features/growth/GrowthPage.tsx`
+  - Growth 主页面接入 `LifeGoalPanel`，形成“成长执行区 + 长期方向”同屏管理。
+- `src/store/authProfileHelpers.ts`
+  - 强化 `parseUserProfileV2(...)` 的输入清洗：manual/纪念日/隐性回忆数据校验，降低脏数据进入状态层风险。
+- i18n：`src/i18n/locales/zh.ts` / `src/i18n/locales/en.ts` / `src/i18n/locales/it.ts`
+  - 新增长期画像保存状态、画像保存校验、画像快照卡文案 key。
+  - 新增 Growth 人生目标管理文案 key（保存态/同步提示/无变更提示）。
+- 文档：`src/features/profile/README.md`、`src/features/growth/README.md`
+  - 同步 Profile 快照卡与 Growth 人生目标管理面板能力说明。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/lib/buildUserProfileSnapshot.test.ts src/lib/suggestionDetector.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：本轮策略明确为“仅画像系统 + Profile/Growth UI，不做新手引导”，并标记人生目标双向同步完成。
+
+## 2026-04-09 - Feat: User Profile v1.1 P2 首版（我的画像编辑面板）
+
+### Changed
+
+- `src/features/profile/components/UserProfilePanel.tsx`（新增）
+  - 新增“我的画像”折叠面板，支持编辑 `manual` 层字段：`primaryUse`、`wakeTime`、`sleepTime`、`mealTimes`、`currentGoal`、`lifeGoal`。
+  - 新增 A 类可见纪念日管理（新增/删除/每年重复），写入 `user_profile_v2.anniversariesVisible`。
+  - 保存链路统一复用 `useAuthStore.updateUserProfile(...)`，沿用 metadata `read -> merge -> write` 策略。
+- `src/features/profile/ProfilePage.tsx`
+  - Profile 页面接入 `UserProfilePanel`，与“长期画像开关”并列展示。
+- i18n：`src/i18n/locales/zh.ts` / `src/i18n/locales/en.ts` / `src/i18n/locales/it.ts`
+  - 新增 `profile_user_profile_*` 词条，覆盖用途/作息/目标/纪念日/保存状态文案。
+- `src/features/profile/README.md`
+  - 同步 profile 模块能力说明，补充 UserProfilePanel 入口与职责。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：P2 状态更新为“画像编辑已落地，目标双向同步待补”。
+
+## 2026-04-09 - Feat: User Profile v1.1 P0 基建（开关 + 快照 + prompt 注入）
+
+### Changed
+
+- `src/types/userProfile.ts`（新增）
+  - 新增用户画像 v2 类型：`UserProfileV2`、`VisibleAnniversary`、`HiddenMoment`、`ConfidenceSignal`、`UserProfileSnapshot`。
+- `src/lib/buildUserProfileSnapshot.ts`（新增）
+  - 新增长期画像快照构建：合并 manual/observed/dynamic/hidden 信息，产出英文快照文本、建议链路可用饭点、临近纪念日与召回素材。
+  - 新增 `isLongTermProfileEnabled(...)` 门控工具函数。
+- `src/store/useAuthStore.ts` + `src/store/authProfileHelpers.ts`（新增）
+  - `useAuthStore` 扩展状态：`longTermProfileEnabled`、`userProfileV2`。
+  - 新增 `updateLongTermProfileEnabled(...)` 与 `updateUserProfile(...)`，统一执行 `read -> merge -> write` 的 metadata 更新，避免覆盖并行字段。
+  - `updatePreferences` 持久化路径改为基于最新 metadata 合并写入。
+- `src/features/profile/components/LongTermProfileToggle.tsx`（新增） + `src/features/profile/ProfilePage.tsx`
+  - Profile 页新增“长期画像”总开关 UI，并持久化到 `user_metadata.long_term_profile_enabled`。
+- `src/store/useAnnotationStore.ts`
+  - 在开关开启时构建 `userProfileSnapshot` 并透传给 annotation API。
+  - suggestion context hint 检测接入 declared/observed 饭点。
+- `src/types/annotation.ts` / `src/server/annotation-handler.ts` / `src/server/annotation-prompt-builder.ts` / `src/server/annotation-prompts.user.ts`
+  - 扩展 `AnnotationRequest.userContext.userProfileSnapshot`。
+  - annotation + suggestion 双路径 prompt 注入长期画像快照块。
+- `src/lib/suggestionDetector.ts`
+  - `isMealTime(...)` 升级为 `isMealTime(hour, declared?, observed?)`，优先声明饭点，次选观测饭点，最后回退 legacy 时间窗。
+- i18n：`src/i18n/locales/zh.ts` / `src/i18n/locales/en.ts` / `src/i18n/locales/it.ts`
+  - 新增长期画像开关文案 key：`profile_long_term_profile`、`profile_long_term_profile_desc`。
+- 测试新增/更新
+  - 新增 `src/lib/buildUserProfileSnapshot.test.ts`。
+  - 更新 `src/lib/suggestionDetector.test.ts`（声明/观测/fallback 饭点判定）。
+  - 更新 `src/server/annotation-prompts.user.test.ts`（长期画像快照注入）。
+
+### Validation
+
+- `npx vitest run src/lib/suggestionDetector.test.ts src/lib/buildUserProfileSnapshot.test.ts src/server/annotation-prompts.user.test.ts` ✅
+- `npm run lint:all` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：主线 4 P0-0 ~ P0-5 标记完成。
+- 更新 `src/store/README.md`、`src/api/README.md`、`api/README.md`、`src/features/profile/README.md`：同步开关、快照透传与契约变更。
+
 ## 2026-04-09 - Feat: annotation 横向联想中间层（首版采样 + U4 注入）
 
 ### Changed

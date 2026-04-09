@@ -9,6 +9,7 @@ import { DailyGoalPopup } from './DailyGoalPopup';
 import { BottleList } from './BottleList';
 import { GrowthTodoSection } from './GrowthTodoSection';
 import { FocusMode } from './FocusMode';
+import { LifeGoalPanel } from './LifeGoalPanel';
 import { type GrowthTodo } from './GrowthTodoCard';
 
 function localDateStr(): string {
@@ -185,6 +186,7 @@ export const GrowthPage = () => {
         </header>
 
         <div className="flex-1 pb-28 pt-2">
+          <LifeGoalPanel />
           <BottleList />
           <div className="mx-4 my-2 border-t border-slate-200/70" />
           <GrowthTodoSection
