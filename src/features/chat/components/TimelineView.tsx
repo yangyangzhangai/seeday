@@ -92,7 +92,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       <div style={{ position: 'relative' }}>
         {/* Vertical timeline line */}
         <div style={{ position: 'absolute', left: timelineLineX, top: 12, bottom: 0, width: 1.5,
-          background: 'repeating-linear-gradient(to bottom, rgba(178,214,128,0.84) 0px, rgba(178,214,128,0.46) 300px, rgba(178,214,128,0.84) 600px)',
+          background: 'repeating-linear-gradient(to bottom, rgba(178,214,128,0.84) 0px, rgba(178,214,128,0.46) 600px, rgba(178,214,128,0.84) 1200px)',
           boxShadow: '0 0 9px rgba(178,214,128,0.30), 0 0 16px rgba(206,228,172,0.20)' }} />
 
         {items.map((msg, index) => {

@@ -64,6 +64,40 @@ Status: 需求已读完并完成技术拆解；待按阶段开发。
 
 ---
 
+## 当前主线 4：用户画像模块（User Profile v1.1）
+
+Status: 需求文档已按讨论结论升级为 v1.1；待按新分层方案进入 Phase 0 开发。
+
+### 冻结决策（本轮新增）
+
+- [x] 长期画像总开关：放在“我的”页面；仅开关开启时才启动整套长期画像链路。
+- [x] 链路门控范围：周提取、记忆写入、prompt 画像注入、历史召回在开关关闭时全部短路停用。
+- [x] 吃饭提醒规则保留并个性化：`isMealTime` 同时支持 manual/observed 饭点，未配置时 fallback `11-13 / 18-20`。
+- [x] 纪念与记忆双轨：A 类可见纪念日（AI 可自动写入、用户可管理）+ B 类隐性事件记忆（仅 AI 可见，用于回忆召回）。
+- [x] 记忆治理：事实事件长期保留不衰减；偏好/关系/状态信号按 30/60/90 天衰减。
+- [x] 画像边界：不主动收集年龄/伴侣/家庭关系；仅用户主动表露时后台记录关系线索，不前台展示。
+- [x] 新手引导改造：移除性格直问，新增“近期目标/人生目标”和“早午晚饭点”采集，并与待办人生目标联动。
+
+### 当前待办（按优先级）
+
+- [ ] P0-1 类型与快照：新增 `src/types/userProfile.ts`（`UserProfileV2`）与 `src/lib/buildUserProfileSnapshot.ts`，落地 manual/observed/dynamic/hidden 四层结构。
+- [ ] P0-2 开关接入：在“我的”页面新增 `longTermProfileEnabled`，并写入 `preferences`。
+- [ ] P0-3 链路门控：在周提取、记忆写入、prompt 注入、历史召回四个入口统一接入 `isLongTermProfileEnabled`。
+- [ ] P0-4 建议链路接入：`triggerAnnotation -> callAnnotationAPI -> api/annotation.ts -> annotation-prompts.ts` 透传 `userProfileSnapshot`（含 declared/observed 并存信息）。
+- [ ] P0-5 吃饭提醒个性化：改造 `src/lib/suggestionDetector.ts` 的 `isMealTime(hour, declared?, observed?)`，补 fallback 与边界测试。
+- [ ] P1 新手引导改版：落地 P1-P5（使用目的、作息+饭点、近期目标、人生目标、纪念日），移除性格直问，补齐 i18n（zh/en/it）。
+- [ ] P2 我的画像页：支持作息、目标、A 类纪念日管理，并与待办“人生目标管理”双向同步。
+- [ ] P3 周提取与记忆：新增 `api/extract-profile.ts`，产出 observed/dynamicSignals + A/B 候选记忆并写回。
+
+### 风险与待决策
+
+- [ ] `user_metadata` 并发写入冲突：需统一合并写策略（避免与 `preferences/login_days/lateral_association_state_v1` 互相覆盖）。
+- [ ] 周提取触发口径："最近 7 天且 >=5 条日记"的数据来源（messages / reports）需定案并与埋点一致。
+- [ ] A 类自动入库误判回滚：是否在“我的”页增加“最近 AI 新增纪念日”轻提示与一键撤销。
+- [ ] 关闭长期画像后的数据治理：默认冷存不使用已冻结；“清除长期画像数据”入口的交互细节待定。
+
+---
+
 ## 近期完成（仅保留 2 条）
 
 - [x] 修复 suggestion 待办跨页落地时序：`GrowthPage` 改为在 `todos` hydrate 且父待办已存在后再消费 `pendingSuggestionIntent`，避免提前清空导致不高亮/不落地。

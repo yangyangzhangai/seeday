@@ -21,7 +21,14 @@
       "Bash(python -c ':*)",
       "Bash(python:*)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(python3 -c \"import docx; print\\('python-docx available'\\)\")"
+      "Bash(python3 -c \"import docx; print\\('python-docx available'\\)\")",
+      "Bash(python3)",
+      "Bash(powershell -Command ':*)",
+      "Bash(cp \"docs/Timeshine_AI活人感系统_PRD_v2 \\(1\\).docx\" /tmp/prd.docx)",
+      "Bash(cp \"/c/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc/docs/Timeshine_AI活人感系统_PRD_v2 \\(1\\).docx\" /tmp/prd.docx)",
+      "Bash(python3 /tmp/extract.py)",
+      "Bash(python3:*)",
+      "Bash(pip3 list:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
