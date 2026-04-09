@@ -1,7 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { sampleAssociation } from './lateral-association-sampler';
+import { sampleAssociation, type LateralAssociationState } from './lateral-association-sampler';
 
 describe('lateral-association-sampler', () => {
+  it('keeps momo self_led origin close to 25% over large samples', () => {
+    let seed = 123456789;
+    const rng = () => {
+      seed = (1664525 * seed + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+
+    let state: LateralAssociationState = {
+      lastAssociationType: null,
+      lastToneTagHistory: [],
+      dailyTriggered: [],
+      dailyDate: '2026-04-09',
+    };
+
+    const total = 20000;
+    let selfLedCount = 0;
+
+    for (let i = 0; i < total; i += 1) {
+      const result = sampleAssociation({
+        characterId: 'momo',
+        userInput: '记录：今天吃饭然后工作',
+        lang: 'zh',
+        currentDate: '2026-04-09',
+        state,
+        rng,
+      });
+      if (result.originType === 'self_led') {
+        selfLedCount += 1;
+      }
+      state = result.nextState;
+    }
+
+    const ratio = selfLedCount / total;
+    expect(ratio).toBeGreaterThan(0.22);
+    expect(ratio).toBeLessThan(0.28);
+  });
+
   it('avoids repeating the immediate previous association type', () => {
     const result = sampleAssociation({
       characterId: 'van',

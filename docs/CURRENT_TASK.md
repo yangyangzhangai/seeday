@@ -51,16 +51,16 @@ Status: 需求已读完并完成技术拆解；待按阶段开发。
 - [x] P0 规格落地对齐：补齐 `AssociationType/OriginType/CharacterId` 类型、权重常量、受限类型集合与语言枚举。
 - [x] P1 采样器实现：新增 `LateralAssociationSampler`（权重调整、上次去重、daily 限制、tone tag 近3次去重、归一化与加权采样）。
 - [x] P2 信号检测实现：新增 `detectInputSignals`（zh/en/it 关键词首版），并明确词库来源（独立常量 vs 复用现有输入词库）。
-- [ ] P3 状态读写接入：当前先落地服务端内存态 `get/saveLateralAssociationState(userId, characterId)` + `dailyDate` 自动换日重置；下一步切到可持久化存储。
+- [x] P3 状态读写接入：已落地 `get/saveLateralAssociationState(userId, characterId)`，优先持久化到 Supabase Auth `user_metadata.lateral_association_state_v1`（无 service role 时回退内存态），含 `dailyDate` 自动换日重置。
 - [x] P4 Prompt 集成：已在 annotation 主流程注入 `associationInstruction` 到 U4（角色状态后），覆盖 suggestion 与普通 annotation 双链路。
-- [ ] P5 测试与验收：已补单测（去重/daily 限制/多语言注入）；待补统计验收（Momo self_led 约 25%，允许误差范围）。
+- [x] P5 测试与验收：已补单测（去重/daily 限制/多语言注入）与统计验收（Momo self_led 采样分布接近 25%，在容差范围内）。
 - [x] P6 可观测性：新增 debug 日志字段（associationType/originType/toneTag/instruction），便于线上调优与回归排查。
 - [ ] P7 文档同步：同步 `src/store/README.md`、`src/api/README.md`、`api/README.md`、`docs/CHANGELOG.md`。
 
 ### 风险与待决策
 
-- [ ] 关键词维护策略待定：`detectInputSignals` 先硬编码首版，还是复用 `src/services/input/` 现有词库；需结合现有词库覆盖率与耦合成本确认。
-- [ ] 状态持久化落点待核对：优先复用当前用户配置表/metadata，避免新增表；若字段容量或并发更新风险高，再补轻量 migration。
+- [x] 关键词维护策略：首版采用模块内三语关键词常量（低耦合快速落地）；后续迭代再评估与 `src/services/input/` 词库收敛。
+- [x] 状态持久化落点：已复用 `user_metadata`（`lateral_association_state_v1`），暂不新增表；若后续出现并发覆盖/容量问题再迁移到独立表。
 
 ---
 

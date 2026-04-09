@@ -13,7 +13,8 @@ All notable changes to this repository are documented here.
   - 联想/出发点基础权重按需求文档第 3 章表格落地（包含 Agnes/Momo 冲突值修正）。
   - 新增三语指令构建：联想指令 + 出发点追加指令 + tone_only 语气指令。
 - `src/server/lateral-association-state.ts`（新增）
-  - 新增服务端状态缓存（`userId + characterId` 维度）与换日重置处理。
+  - 新增服务端状态读写：优先持久化到 `auth.users.user_metadata.lateral_association_state_v1`（`userId + characterId` 维度），无 service role 时回退进程内缓存。
+  - 支持按 `dailyDate` 自动换日重置 daily 限制集合。
 - `src/server/annotation-handler.ts`
   - 在 annotation/suggestion 双路径 prompt 组装前接入横向联想采样。
   - 采样结果写入 `associationInstruction` 并传递到 prompt U4 段。
@@ -25,6 +26,7 @@ All notable changes to this repository are documented here.
 - 测试新增/更新
   - 新增 `src/server/lateral-association-sampler.test.ts`。
   - 更新 `src/server/annotation-prompts.user.test.ts`（覆盖 U4 指令注入）。
+  - 新增分布统计验收：Momo `self_led` 采样比例在容差内逼近 25%。
 
 ### Doc Sync
 

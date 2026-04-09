@@ -132,15 +132,15 @@ function normalizeCharacterId(value: unknown): CharacterId {
   return 'van';
 }
 
-function resolveLateralAssociationInstruction(params: {
+async function resolveLateralAssociationInstruction(params: {
   userId: string;
   characterId: CharacterId;
   userInput: string;
   lang: AnnotationLang;
   currentDate?: { isoDate?: string };
-}): string | undefined {
+}): Promise<string | undefined> {
   const todayDate = params.currentDate?.isoDate || new Date().toISOString().slice(0, 10);
-  const state = getLateralAssociationState({
+  const state = await getLateralAssociationState({
     userId: params.userId,
     characterId: params.characterId,
     todayDate,
@@ -154,7 +154,7 @@ function resolveLateralAssociationInstruction(params: {
     currentDate: todayDate,
   });
 
-  saveLateralAssociationState({
+  await saveLateralAssociationState({
     userId: params.userId,
     characterId: params.characterId,
     state: sampled.nextState,
@@ -289,7 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
         .replace(/\s+/g, ' ')
         .trim();
-      const associationInstruction = resolveLateralAssociationInstruction({
+      const associationInstruction = await resolveLateralAssociationInstruction({
         userId: lateralUserId,
         characterId: lateralCharacterId,
         userInput: eventSummary,
@@ -438,7 +438,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
       .replace(/\s+/g, ' ')
       .trim();
-    const associationInstruction = resolveLateralAssociationInstruction({
+    const associationInstruction = await resolveLateralAssociationInstruction({
       userId: lateralUserId,
       characterId: lateralCharacterId,
       userInput: eventSummary,
