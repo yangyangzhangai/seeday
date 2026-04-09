@@ -292,6 +292,49 @@ describe('annotation-handler', () => {
     expect((suggestion?.actionLabel as string)).toBe('Start step 1');
   });
 
+  it('pre-decomposes stale todo when ageDays is missing but createdAt is old string', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_stale_created_at',
+      output_text: '{"mode":"suggestion","content":"Try this todo now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-old-string","todoTitle":"Prepare project brief"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+    chatCompletionsCreateMock.mockResolvedValueOnce({
+      choices: [{ message: { content: '{"steps":[{"title":"Collect requirements","durationMinutes":20},{"title":"Draft outline","durationMinutes":30},{"title":"Review and finalize","durationMinutes":25}]}' } }],
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+    const oldCreatedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'still procrastinating' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{
+            id: 'todo-old-string',
+            title: 'Prepare project brief',
+            createdAt: oldCreatedAt,
+          }],
+          recentMoodMessages: [],
+          allowSuggestion: true,
+        },
+        lang: 'en',
+      },
+    } as any, res as any);
+
+    const suggestion = (res.payload as { suggestion?: Record<string, unknown> }).suggestion;
+    expect(chatCompletionsCreateMock).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(200);
+    expect(suggestion?.decomposeReady).toBe(true);
+    expect(suggestion?.decomposeSourceTodoId).toBe('todo-old-string');
+  });
+
   it('injects two-star reward fields for recovery nudge suggestions', async () => {
     responsesCreateMock.mockResolvedValueOnce({
       id: 'resp_recovery',

@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-08
+Last Updated: 2026-04-09
 Owner: current working session
 
 ---
@@ -100,6 +100,8 @@ Status: 问题已复现并完成根因定位，进入修复实施阶段。
 ## 近期完成（保留 2 条）
 
 - [x] Annotation Prompt 统一组装入口：新增 `src/server/annotation-prompt-builder.ts`，将 annotation/suggestion 两条链路收敛为统一 `{model, instructions, input}` prompt package，`annotation-handler` 已接入并复用到 rewrite 分支。
+- [x] 修复 suggestion 待办跨页落地时序：`GrowthPage` 改为在 `todos` hydrate 且父待办已存在后再消费 `pendingSuggestionIntent`，避免提前清空导致不高亮/不落地。
+- [x] 修复 stale todo 判定鲁棒性：补齐 todo 时间字段（`created_at/due_date/...`）字符串时间解析与服务端 fallback（`createdAt` 推断长期未完成），恢复“长期待办先拆解后建议”触发稳定性。
 - [x] AI 建议模式接入“长期未完成待办先拆解后建议”：suggestion 命中 stale todo（`ageDays>=3` 或逾期 >=24h）时，服务端先复用 todo-decompose 生成 3-6 步并透传 `decomposeSteps`；气泡点击后通过 `pendingSuggestionIntent` 在 Growth 页落地子待办并防重。
 - [x] AI 批注待办完成语义化透传：完成待办改为 `activity_completed` 并附带 `todoCompletionContext`；特殊待办（关联瓶子/重复任务 daily+weekly+monthly/创建>=3天）才附加紧凑 `summary + 90天统计`，普通一次性新待办维持轻量透传以控 token
 - [x] Annotation 上下文补充结构化日期：`userContext.currentDate` 已透传（year/month/day/weekday/isoDate），并注入 annotation/suggestion prompt。

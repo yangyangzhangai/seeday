@@ -50,4 +50,34 @@ describe('dbMappers todo recurrence days', () => {
       recurrence_days: [0, 6],
     });
   });
+
+  it('normalizes todo timestamps from string fields', () => {
+    const todo = fromDbTodo({
+      id: 'todo-time',
+      content: 'Timestamp parsing',
+      completed: false,
+      priority: 'medium',
+      category: 'work',
+      due_date: '2026-04-09T10:30:00.000Z',
+      scope: 'daily',
+      created_at: '1710000000000',
+      recurrence: 'once',
+      recurrence_days: null,
+      recurrence_id: null,
+      completed_at: '1710003600000',
+      is_pinned: false,
+      started_at: '1710001800000',
+      duration: 25,
+      bottle_id: null,
+      sort_order: '1710007200',
+      is_template: false,
+      template_id: null,
+    });
+
+    expect(todo.createdAt).toBe(1710000000000);
+    expect(todo.completedAt).toBe(1710003600000);
+    expect(todo.startedAt).toBe(1710001800000);
+    expect(todo.sortOrder).toBe(1710007200000);
+    expect(typeof todo.dueAt).toBe('number');
+  });
 });

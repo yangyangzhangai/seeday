@@ -52,8 +52,10 @@ export const GrowthPage = () => {
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
   const [focusQueue, setFocusQueue] = useState<GrowthTodo[] | undefined>(undefined);
   const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
+  const pendingSuggestionIntent = useAnnotationStore((s) => s.pendingSuggestionIntent);
   const consumePendingSuggestionIntent = useAnnotationStore((s) => s.consumePendingSuggestionIntent);
   const todos = useTodoStore((s) => s.todos);
+  const todosHydrated = useTodoStore((s) => s.hasHydrated);
   const addSubTodos = useTodoStore((s) => s.addSubTodos);
   const fetchBottles = useGrowthStore((s) => s.fetchBottles);
   const growthLoading = useGrowthStore((s) => s.isLoading);
@@ -71,19 +73,32 @@ export const GrowthPage = () => {
 
   // 监听 AI 建议待办高亮事件
   useEffect(() => {
-    const pendingIntent = consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
-    if (pendingIntent?.todoId) {
-      const steps = pendingIntent.decomposeSteps ?? [];
-      if (steps.length > 0) {
-        const existingSubTodos = todos.filter((todo) => todo.parentId === pendingIntent.todoId);
-        if (existingSubTodos.length === 0) {
-          addSubTodos(pendingIntent.todoId, steps);
-        }
-      }
-      setHighlightTodoId(pendingIntent.todoId);
-      setTimeout(() => setHighlightTodoId(null), 3000);
+    if (!todosHydrated) return;
+    if (!pendingSuggestionIntent || pendingSuggestionIntent.type !== 'todo') return;
+
+    if (Date.now() - pendingSuggestionIntent.createdAt > 45_000) {
+      consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
+      return;
     }
-  }, [addSubTodos, consumePendingSuggestionIntent, todos]);
+
+    const parentTodoExists = pendingSuggestionIntent.todoId
+      ? todos.some((todo) => todo.id === pendingSuggestionIntent.todoId)
+      : false;
+    if (!parentTodoExists) return;
+
+    const pendingIntent = consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
+    if (!pendingIntent?.todoId) return;
+
+    const steps = pendingIntent.decomposeSteps ?? [];
+    if (steps.length > 0) {
+      const existingSubTodos = todos.filter((todo) => todo.parentId === pendingIntent.todoId);
+      if (existingSubTodos.length === 0) {
+        addSubTodos(pendingIntent.todoId, steps);
+      }
+    }
+    setHighlightTodoId(pendingIntent.todoId);
+    setTimeout(() => setHighlightTodoId(null), 3000);
+  }, [addSubTodos, consumePendingSuggestionIntent, pendingSuggestionIntent, todos, todosHydrated]);
 
   useEffect(() => {
     const handler = (e: Event) => {

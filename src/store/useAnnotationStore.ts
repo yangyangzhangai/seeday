@@ -42,6 +42,29 @@ import {
 
 const MAX_TODAY_EVENTS = 400;
 
+function toTimestampMs(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1e11 ? value * 1000 : value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric < 1e11 ? numeric * 1000 : numeric;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 function appendCappedEvent(events: AnnotationEvent[], event: AnnotationEvent): AnnotationEvent[] {
   const next = [...events, event];
   if (next.length <= MAX_TODAY_EVENTS) {
@@ -308,14 +331,16 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const pendingTodos = useTodoStore.getState().todos
             .filter(t => !t.completed && !t.isTemplate)
             .map((t) => {
-              const ageDays = Math.max(0, Math.floor((now - t.createdAt) / (24 * 60 * 60 * 1000)));
+              const createdAtMs = toTimestampMs(t.createdAt) ?? now;
+              const dueAtMs = toTimestampMs(t.dueAt) ?? undefined;
+              const ageDays = Math.max(0, Math.floor((now - createdAtMs) / (24 * 60 * 60 * 1000)));
               return {
                 id: t.id,
                 title: t.title,
                 category: t.category,
-                dueAt: t.dueAt,
+                dueAt: dueAtMs,
                 bottleId: t.bottleId,
-                createdAt: t.createdAt,
+                createdAt: createdAtMs,
                 ageDays,
               };
             });

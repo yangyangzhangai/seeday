@@ -8,6 +8,33 @@ All notable changes to this repository are documented here.
 2. Changelog entries must reference both code path and doc path updates.
 3. If `npm run lint:docs-sync` scope is touched, the entry must mention doc-sync impact.
 
+## 2026-04-09 - Fix: suggestion 待办高亮丢失与长期待办预拆解漏触发
+
+### Changed
+
+- `src/features/growth/GrowthPage.tsx`
+  - 调整 `pendingSuggestionIntent` 消费时机：等待 todo store hydrate 且父待办存在后再消费，避免页面初次挂载时提前清空导致“未高亮/未落地子步骤”。
+  - 增加过期意图清理分支（>45s）避免陈旧 intent 残留。
+- `src/lib/dbMappers.ts`
+  - `fromDbTodo` 新增时间字段归一化（支持 number / 数字字符串 / ISO 字符串），统一映射 `createdAt/dueAt/completedAt/startedAt/sortOrder` 为毫秒时间戳。
+  - 修复由时间字段字符串导致 `ageDays` 计算失真、stale todo 判定不稳定的问题。
+- `src/store/useAnnotationStore.ts`
+  - 构建 `pendingTodos` 时对 `createdAt/dueAt` 做毫秒归一化，确保 `ageDays` 计算稳定并透传可用时间字段。
+- `src/server/annotation-handler.ts`
+  - stale todo 预拆解判定新增时间解析兜底：除 `ageDays` 外，支持基于 `createdAt` 推断“创建 >=3 天”与 `dueAt` 逾期判定（兼容字符串时间）。
+- 测试更新
+  - `src/lib/dbMappers.test.ts` 增加 todo 字符串时间字段解析用例。
+  - `src/server/annotation-handler.test.ts` 增加 `ageDays` 缺失但 `createdAt` 为旧字符串时仍触发预拆解用例。
+
+### Validation
+
+- `npx vitest run src/server/annotation-handler.test.ts src/lib/dbMappers.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：记录本次 suggestion 跨页时序与 stale todo 判定修复。
+
 ## 2026-04-08 - Feat: annotation 行为-角色状态映射（B01-B21）接入 U3
 
 ### Changed

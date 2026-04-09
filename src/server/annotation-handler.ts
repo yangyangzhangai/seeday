@@ -47,14 +47,50 @@ const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
 type PendingTodoLite = {
   id: string;
   title: string;
-  dueAt?: number;
+  dueAt?: number | string;
+  createdAt?: number | string;
   ageDays?: number;
 };
 
+function toTimestampMs(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return raw < 1e11 ? raw * 1000 : raw;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric < 1e11 ? numeric * 1000 : numeric;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 function shouldPreDecomposeTodo(todo: PendingTodoLite | undefined, nowMs: number): boolean {
   if (!todo) return false;
-  if (typeof todo.ageDays === 'number' && todo.ageDays >= STALE_TODO_DAYS_THRESHOLD) return true;
-  if (typeof todo.dueAt === 'number' && nowMs - todo.dueAt >= OVERDUE_TODO_MS_THRESHOLD) return true;
+  if (typeof todo.ageDays === 'number' && Number.isFinite(todo.ageDays) && todo.ageDays >= STALE_TODO_DAYS_THRESHOLD) {
+    return true;
+  }
+
+  const createdAtMs = toTimestampMs(todo.createdAt);
+  if (createdAtMs !== null && nowMs - createdAtMs >= STALE_TODO_DAYS_THRESHOLD * 24 * 60 * 60 * 1000) {
+    return true;
+  }
+
+  const dueAtMs = toTimestampMs(todo.dueAt);
+  if (dueAtMs !== null && nowMs - dueAtMs >= OVERDUE_TODO_MS_THRESHOLD) {
+    return true;
+  }
+
   return false;
 }
 

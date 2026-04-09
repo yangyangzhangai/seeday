@@ -38,6 +38,29 @@ function normalizeRecurrenceDays(raw: unknown): number[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function toTimestampMs(raw: unknown): number | undefined {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return raw < 1e11 ? raw * 1000 : raw;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric < 1e11 ? numeric * 1000 : numeric;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   title: 'content',
   dueAt: 'due_date',
@@ -92,24 +115,30 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
 }
 
 export function fromDbTodo(row: any): Todo {
+  const createdAt = toTimestampMs(row.created_at) ?? Date.now();
+  const dueAt = toTimestampMs(row.due_date);
+  const completedAt = toTimestampMs(row.completed_at);
+  const startedAt = toTimestampMs(row.started_at);
+  const sortOrder = toTimestampMs(row.sort_order) ?? dueAt ?? createdAt;
+
   return {
     id: row.id,
     title: row.content,              // DB 'content' → app 'title'
     completed: row.completed,
     priority: row.priority,
     category: normalizeTodoCategory(row.category, row.content),
-    dueAt: row.due_date,             // DB 'due_date' → app 'dueAt'
+    dueAt,                           // DB 'due_date' → app 'dueAt'
     scope: row.scope,
-    createdAt: row.created_at,
+    createdAt,
     recurrence: row.recurrence,
     recurrenceDays: normalizeRecurrenceDays(row.recurrence_days),
     recurrenceId: row.recurrence_id,
-    completedAt: row.completed_at,
+    completedAt,
     isPinned: row.is_pinned || false,
-    startedAt: row.started_at,
+    startedAt,
     duration: row.duration,
     bottleId: row.bottle_id,
-    sortOrder: row.sort_order ?? row.due_date ?? Date.now(),
+    sortOrder,
     isTemplate: row.is_template ?? false,
     templateId: row.template_id,
     parentId: row.parent_id ?? undefined,
