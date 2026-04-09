@@ -55,6 +55,13 @@ const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_EN
   ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' }
   : { plan: 'free', isPlus: false, source: 'default_free' };
 
+const LOCAL_DATA_OWNER_KEY = 'tshine:local-data-owner:v1';
+
+type LocalDataOwner =
+  | { type: 'anonymous'; userId: null }
+  | { type: 'user'; userId: string }
+  | { type: 'unknown'; userId: null };
+
 let queuedPreferenceSnapshot: UserPreferences | null = null;
 let isFlushingPreferenceSnapshot = false;
 
@@ -109,6 +116,98 @@ interface AuthState {
 function getTodayDateStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function readLocalDataOwner(): LocalDataOwner {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return { type: 'unknown', userId: null };
+  }
+  try {
+    const raw = window.localStorage.getItem(LOCAL_DATA_OWNER_KEY);
+    if (!raw) return { type: 'unknown', userId: null };
+    const parsed = JSON.parse(raw) as { type?: string; userId?: unknown };
+    if (parsed.type === 'anonymous') {
+      return { type: 'anonymous', userId: null };
+    }
+    if (parsed.type === 'user' && typeof parsed.userId === 'string' && parsed.userId.trim()) {
+      return { type: 'user', userId: parsed.userId };
+    }
+    return { type: 'unknown', userId: null };
+  } catch {
+    return { type: 'unknown', userId: null };
+  }
+}
+
+function writeLocalDataOwner(owner: Exclude<LocalDataOwner, { type: 'unknown' }>): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(LOCAL_DATA_OWNER_KEY, JSON.stringify(owner));
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+function markLocalDataOwnerAnonymous(): void {
+  writeLocalDataOwner({ type: 'anonymous', userId: null });
+}
+
+function markLocalDataOwnerUser(userId: string): void {
+  writeLocalDataOwner({ type: 'user', userId });
+}
+
+function clearLocalDomainStores(): void {
+  useChatStore.setState({ messages: [], hasInitialized: false });
+  useTodoStore.setState({
+    todos: [],
+    isLoading: false,
+    hasHydrated: false,
+    lastSyncError: null,
+  });
+  useReportStore.setState({ reports: [] });
+  useAnnotationStore.setState((state) => ({
+    annotations: [],
+    currentAnnotation: null,
+    todayStats: {
+      date: toLocalDateStr(Date.now()),
+      speakCount: 0,
+      lastSpeakTime: 0,
+      events: [],
+    },
+    config: {
+      ...state.config,
+      ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES, DEFAULT_MEMBERSHIP_STATE.isPlus),
+    },
+  }));
+  useMoodStore.getState().clear();
+  useGrowthStore.setState({
+    bottles: [],
+    dailyGoal: '',
+    goalDate: '',
+    popupDisabled: false,
+    isLoading: false,
+    hasHydrated: false,
+    lastSyncError: null,
+  });
+  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
+  useStardustStore.getState().clear();
+}
+
+function hasAnyLocalDataToMigrate(): boolean {
+  const hasMessages = useChatStore.getState().messages.length > 0;
+  const hasTodos = useTodoStore.getState().todos.length > 0;
+  const hasReports = useReportStore.getState().reports.length > 0;
+  const hasBottles = useGrowthStore.getState().bottles.length > 0;
+  const hasFocusSessions = useFocusStore.getState().sessions.length > 0;
+  const growth = useGrowthStore.getState();
+  const hasDailyGoal = Boolean(growth.dailyGoal && growth.goalDate);
+  const mood = useMoodStore.getState();
+  const hasMoodData =
+    Object.keys(mood.activityMood).length > 0
+    || Object.keys(mood.customMoodLabel).length > 0
+    || Object.keys(mood.customMoodApplied).length > 0
+    || Object.keys(mood.moodNote).length > 0;
+
+  return hasMessages || hasTodos || hasReports || hasBottles || hasFocusSessions || hasDailyGoal || hasMoodData;
 }
 
 function normalizeLoginDays(rawDays: unknown): string[] {
@@ -343,6 +442,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       await useStardustStore.getState().syncPendingStardusts();
       await useStardustStore.getState().fetchStardusts();
+      markLocalDataOwnerUser(session.user.id);
+    } else {
+      const owner = readLocalDataOwner();
+      if (owner.type === 'unknown' && !hasAnyLocalDataToMigrate()) {
+        markLocalDataOwnerAnonymous();
+      }
     }
 
     // Listen for changes
@@ -380,10 +485,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         hydrateGrowthDailyGoalFromMeta(meta);
       }
 
-      if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+      const isNewOrSwitchedAccount =
+        event === 'SIGNED_IN' && currentUser && (!previousUser || previousUser.id !== currentUser.id);
+
+      if (isNewOrSwitchedAccount && currentUser) {
         markGrowthDailyLoginSession(currentUser.id);
-        console.log('User signed in. Syncing local data...');
-        await syncLocalDataToSupabase(currentUser.id);
+
+        const owner = readLocalDataOwner();
+        const hasLocalData = hasAnyLocalDataToMigrate();
+        const isCrossAccountData = owner.type === 'user' && owner.userId !== currentUser.id;
+        const canMigrateAnonymousData = owner.type === 'anonymous' && hasLocalData;
+
+        if (isCrossAccountData || (owner.type === 'unknown' && hasLocalData)) {
+          clearLocalDomainStores();
+        } else if (canMigrateAnonymousData) {
+          console.log('User signed in. Syncing anonymous local data...');
+          await syncLocalDataToSupabase(currentUser.id);
+        }
 
         // 更新连续登录天数
         await updateLoginStreak(currentUser.id);
@@ -407,43 +525,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
         await useStardustStore.getState().syncPendingStardusts();
         await useStardustStore.getState().fetchStardusts();
+        markLocalDataOwnerUser(currentUser.id);
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        useChatStore.setState({ messages: [], hasInitialized: false });
-        useTodoStore.setState({
-          todos: [],
-          isLoading: false,
-          hasHydrated: false,
-          lastSyncError: null,
-        });
-        useReportStore.setState({ reports: [] });
-        useAnnotationStore.setState((state) => ({
-          annotations: [],
-          currentAnnotation: null,
-          todayStats: {
-            date: toLocalDateStr(Date.now()),
-            speakCount: 0,
-            lastSpeakTime: 0,
-            events: [],
-          },
-          config: {
-            ...state.config,
-            ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES, DEFAULT_MEMBERSHIP_STATE.isPlus),
-          },
-        }));
-        useMoodStore.getState().clear();
-        useGrowthStore.setState({
-          bottles: [],
-          dailyGoal: '',
-          goalDate: '',
-          popupDisabled: false,
-          isLoading: false,
-          hasHydrated: false,
-          lastSyncError: null,
-        });
-        useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
-        useStardustStore.getState().clear();
+        clearLocalDomainStores();
+        markLocalDataOwnerAnonymous();
         set({
           preferences: DEFAULT_PREFERENCES,
           membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
