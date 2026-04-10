@@ -91,9 +91,10 @@ interface FloatingChartProps {
   labelColor: string;
   active: boolean;
   onClick: () => void;
+  isEmpty: boolean;
 }
 
-function FloatingChart({ data, chartId, labelColor, active, onClick }: FloatingChartProps) {
+function FloatingChart({ data, chartId, labelColor, active, onClick, isEmpty }: FloatingChartProps) {
   const maxIndex = data.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   return (
     <button
@@ -102,27 +103,37 @@ function FloatingChart({ data, chartId, labelColor, active, onClick }: FloatingC
       className="active:scale-95 transition-transform"
       style={{ WebkitTapHighlightColor: 'transparent', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
     >
-      <div style={{
-        background: active ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.82)',
-        borderRadius: 18,
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        boxShadow: active
-          ? '0 6px 22px rgba(0,0,0,0.16), 0 0 0 1.5px rgba(160,200,160,0.55)'
-          : '0 2px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(255,255,255,0.55)',
-        padding: '6px 6px 5px',
-        transition: 'all 0.22s ease',
-      }}>
+      {isEmpty ? (
+        <div style={{
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          background: [
+            'radial-gradient(circle at 34% 28%, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.0) 36%)',
+            'radial-gradient(circle at 65% 75%, rgba(210,240,255,0.22) 0%, rgba(255,255,255,0.0) 38%)',
+            'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.0) 0%, rgba(200,230,255,0.08) 60%, rgba(180,220,200,0.10) 100%)',
+          ].join(', '),
+          boxShadow: [
+            '0 4px 20px rgba(160,200,230,0.12)',
+            'inset 0 2px 5px rgba(255,255,255,0.45)',
+            'inset 0 -2px 5px rgba(160,210,240,0.15)',
+            'inset 3px 0 5px rgba(255,190,220,0.10)',
+            'inset -3px 0 5px rgba(190,240,220,0.10)',
+          ].join(', '),
+          border: '1px solid rgba(255,255,255,0.22)',
+        }} />
+      ) : (
         <DonutChart
           data={data}
           maxIndex={maxIndex}
           chartId={chartId}
           labelColor={labelColor}
-          size={80}
-          innerRadius={14}
-          outerRadius={30}
+          size={100}
+          innerRadius={18}
+          outerRadius={38}
+          fontSize={6}
         />
-      </div>
+      )}
     </button>
   );
 }
@@ -214,32 +225,36 @@ export const DayEcoSphere: React.FC = () => {
 
   return (
     <div className="pointer-events-none">
-      <div className="pointer-events-auto relative" style={{ height: 130 }}>
+      <div className="pointer-events-auto relative" style={{ height: 190 }}>
         <style>{`
           @keyframes eco-float-a{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
           @keyframes eco-float-b{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
         `}</style>
 
-        {/* Left — mood donut chart */}
-        <div style={{ position: 'absolute', left: '5%', top: 16,
+        {/* Top — mood donut chart */}
+        <div style={{ position: 'absolute', left: '30%', top: 14,
           animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
           <FloatingChart
             data={moodChartData}
             chartId="eco-mood"
             labelColor="#A0304A"
             active={active === 'mood'}
+            isEmpty={moodDist.length === 0}
+            data={moodChartData}
             onClick={() => toggle('mood')}
           />
         </div>
 
-        {/* Right — activity donut chart */}
-        <div style={{ position: 'absolute', left: '52%', top: 10,
+        {/* Bottom — activity donut chart */}
+        <div style={{ position: 'absolute', left: '58%', top: 68,
           animation: 'eco-float-b 3.8s ease-in-out infinite 0.65s' }}>
           <FloatingChart
             data={activityChartData}
             chartId="eco-activity"
             labelColor="#2D5A30"
             active={active === 'activity'}
+            isEmpty={activityRaw.length === 0}
+            data={activityChartData}
             onClick={() => toggle('activity')}
           />
         </div>

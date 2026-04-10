@@ -32,6 +32,7 @@ export function DonutChart({
   size = 110,
   innerRadius = 20,
   outerRadius = 44,
+  fontSize = 8,
 }: {
   data: DataItem[];
   maxIndex: number;
@@ -40,6 +41,7 @@ export function DonutChart({
   size?: number;
   innerRadius?: number;
   outerRadius?: number;
+  fontSize?: number;
 }) {
   const cx = size / 2;
   const cy = size / 2;
@@ -109,7 +111,7 @@ export function DonutChart({
       {segments.map((segment, index) => (segment.sweep < 25 ? null : (
         <text key={index} x={segment.textX} y={segment.textY}
           textAnchor="middle" fill={labelColor}
-          style={{ fontSize: '8px', fontWeight: 700, pointerEvents: 'none' }}>
+          style={{ fontSize: `${fontSize}px`, fontWeight: 700, pointerEvents: 'none' }}>
           <tspan x={segment.textX} dy="-0.55em">{segment.name}</tspan>
           <tspan x={segment.textX} dy="1.2em">{segment.value}%</tspan>
         </text>
