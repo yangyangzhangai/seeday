@@ -16,10 +16,21 @@ function normalizeMealTimes(raw: unknown): number[] | undefined {
   return Array.from(new Set(normalized));
 }
 
+function normalizeMealTimesText(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const normalized = raw
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => /^([01]\d|2[0-3]):[0-5]\d$/.test(item));
+  if (normalized.length === 0) return undefined;
+  return normalized;
+}
+
 function sanitizeManual(raw: unknown): UserProfileV2['manual'] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const value = raw as Record<string, unknown>;
   const mealTimes = normalizeMealTimes(value.mealTimes);
+  const mealTimesText = normalizeMealTimesText(value.mealTimesText);
   const primaryUse = typeof value.primaryUse === 'string' && PRIMARY_USE_VALUES.has(value.primaryUse)
     ? (value.primaryUse as UserProfileV2['manual']['primaryUse'])
     : undefined;
@@ -32,6 +43,7 @@ function sanitizeManual(raw: unknown): UserProfileV2['manual'] {
     ...(typeof value.wakeTime === 'string' ? { wakeTime: value.wakeTime } : {}),
     ...(typeof value.sleepTime === 'string' ? { sleepTime: value.sleepTime } : {}),
     ...(mealTimes ? { mealTimes } : {}),
+    ...(mealTimesText ? { mealTimesText } : {}),
     ...(typeof value.currentGoal === 'string' ? { currentGoal: value.currentGoal } : {}),
     ...(typeof value.lifeGoal === 'string' ? { lifeGoal: value.lifeGoal } : {}),
     ...(Array.isArray(value.tags) ? { tags: value.tags.filter((tag): tag is string => typeof tag === 'string') } : {}),

@@ -39,6 +39,7 @@ export interface UserProfileManual {
   wakeTime?: string;
   sleepTime?: string;
   mealTimes?: number[];
+  mealTimesText?: string[];
   currentGoal?: string;
   lifeGoal?: string;
   tags?: string[];

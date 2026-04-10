@@ -73,6 +73,7 @@ export function buildManualPayload(
     wakeTime: string;
     sleepTime: string;
     mealHours: number[];
+    mealTimesText: string[];
     currentGoal: string;
     lifeGoal: string;
   },
@@ -83,6 +84,7 @@ export function buildManualPayload(
     wakeTime: values.wakeTime || undefined,
     sleepTime: values.sleepTime || undefined,
     mealTimes: values.mealHours.length ? values.mealHours : undefined,
+    mealTimesText: values.mealTimesText.length ? values.mealTimesText : undefined,
     currentGoal: values.currentGoal.trim() || undefined,
     lifeGoal: values.lifeGoal.trim() || undefined,
   };

@@ -8,15 +8,14 @@ import { AIModeSection } from './components/AIModeSection';
 import { AIAnnotationDropRate } from './components/AIAnnotationDropRate';
 import { DailyGoalToggle } from './components/DailyGoalToggle';
 import { LongTermProfileToggle } from './components/LongTermProfileToggle';
-import { UserProfilePanel } from './components/UserProfilePanel';
-import { UserProfileInsightsCard } from './components/UserProfileInsightsCard';
+import { UserProfileSection } from './components/UserProfileSection';
 import { MembershipCard } from './components/MembershipCard';
 import { SettingsList } from './components/SettingsList';
 import { LanguageSwitcher } from '../../components/layout/LanguageSwitcher';
 
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, loading, isPlus } = useAuthStore();
+  const { user, loading, isPlus, longTermProfileEnabled } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,12 +58,11 @@ export const ProfilePage: React.FC = () => {
             <div>
               <LongTermProfileToggle plain />
             </div>
-            <div>
-              <UserProfilePanel plain />
-            </div>
-            <div>
-              <UserProfileInsightsCard plain />
-            </div>
+            {longTermProfileEnabled ? (
+              <div>
+                <UserProfileSection plain />
+              </div>
+            ) : null}
             {!isPlus ? (
               <div className="px-0 py-2">
                 <MembershipCard isPlus={isPlus} />

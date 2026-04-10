@@ -10,7 +10,6 @@
 - Main user flows:
   - Bottle management: create habit/goal bottles, track star accumulation, mark achieved
   - Todo management: add/toggle/delete/start todos with priority, recurrence, bottle linking
-  - Life goal management: edit long-term life goal in Growth and sync with `user_profile_v2.manual.lifeGoal`
   - Focus sessions: full-screen Pomodoro timer (countdown 1-60 min or count-up) triggered from todo cards
   - Daily goal popup: conditional daily prompt (once per day, first Growth page visit)
   - Cross-feature integration: todo completion and focus sessions create activity cards in `/chat` timeline
@@ -19,7 +18,6 @@
 
 ```
 GrowthPage
-├── LifeGoalPanel (two-way sync with profile life goal)
 ├── BottleList
 │   ├── BottleCard (x N, horizontal scroll)
 │   └── AddBottleModal

@@ -1,17 +1,12 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/lib/buildUserProfileSnapshot.ts
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookHeart, CalendarClock, UtensilsCrossed } from 'lucide-react';
+import { BookHeart, CalendarClock } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { buildUserProfileSnapshot } from '../../../lib/buildUserProfileSnapshot';
 
 interface Props {
   plain?: boolean;
-}
-
-function toMealLabel(meals: number[]): string {
-  if (!meals.length) return '';
-  return meals.map((hour) => `${String(hour).padStart(2, '0')}:00`).join(' | ');
 }
 
 export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
@@ -22,7 +17,6 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
     [userProfileV2],
   );
 
-  const mealText = toMealLabel(snapshot.mealTimesForSuggestion || []);
   const anniversaries = (snapshot.visibleUpcomingAnniversaries || []).slice(0, 2);
   const latestRecall = snapshot.hiddenRecallMoments?.[0];
 
@@ -40,14 +34,6 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
         </div>
 
         <div className="mt-3 space-y-2.5 border-t border-slate-200/60 pt-2.5">
-          <div className="flex items-start gap-2">
-            <UtensilsCrossed size={13} className="mt-0.5 text-slate-500" />
-            <div>
-              <p className="text-[11px] text-slate-600">{t('profile_snapshot_meal_title')}</p>
-              <p className="text-[11px] text-slate-500">{mealText || t('profile_snapshot_empty')}</p>
-            </div>
-          </div>
-
           <div className="flex items-start gap-2">
             <CalendarClock size={13} className="mt-0.5 text-slate-500" />
             <div>

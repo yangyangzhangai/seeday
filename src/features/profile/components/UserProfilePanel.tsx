@@ -23,6 +23,7 @@ import {
 
 interface Props {
   plain?: boolean;
+  showHeader?: boolean;
 }
 
 function signature(input: {
@@ -49,10 +50,10 @@ function signature(input: {
   });
 }
 
-export const UserProfilePanel: React.FC<Props> = ({ plain = false }) => {
+export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = true }) => {
   const { t } = useTranslation();
   const { userProfileV2, updateUserProfile } = useAuthStore();
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(!showHeader);
   const [saving, setSaving] = React.useState(false);
   const [saveText, setSaveText] = React.useState('');
 
@@ -68,14 +69,17 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false }) => {
 
   const baselineSignature = React.useMemo(() => {
     const manual = userProfileV2?.manual;
+    const mealTimesText = Array.isArray(manual?.mealTimesText)
+      ? manual.mealTimesText
+      : [];
     const mealTimes = Array.isArray(manual?.mealTimes) ? manual.mealTimes : [];
     return signature({
       primaryUse: (manual?.primaryUse as PrimaryUse | undefined) || '',
       wakeTime: manual?.wakeTime || DEFAULT_WAKE_TIME,
       sleepTime: manual?.sleepTime || DEFAULT_SLEEP_TIME,
-      breakfastTime: toHourText(mealTimes[0], DEFAULT_BREAKFAST),
-      lunchTime: toHourText(mealTimes[1], DEFAULT_LUNCH),
-      dinnerTime: toHourText(mealTimes[2], DEFAULT_DINNER),
+      breakfastTime: mealTimesText[0] || toHourText(mealTimes[0], DEFAULT_BREAKFAST),
+      lunchTime: mealTimesText[1] || toHourText(mealTimes[1], DEFAULT_LUNCH),
+      dinnerTime: mealTimesText[2] || toHourText(mealTimes[2], DEFAULT_DINNER),
       currentGoal: manual?.currentGoal || '',
       lifeGoal: manual?.lifeGoal || '',
       anniversaries: toAnniversaryDrafts(userProfileV2?.anniversariesVisible),
@@ -83,14 +87,23 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false }) => {
   }, [userProfileV2]);
 
   React.useEffect(() => {
+    if (!showHeader) {
+      setExpanded(true);
+    }
+  }, [showHeader]);
+
+  React.useEffect(() => {
     const manual = userProfileV2?.manual;
     setPrimaryUse((manual?.primaryUse as PrimaryUse | undefined) || '');
     setWakeTime(manual?.wakeTime || DEFAULT_WAKE_TIME);
     setSleepTime(manual?.sleepTime || DEFAULT_SLEEP_TIME);
+    const mealTimesText = Array.isArray(manual?.mealTimesText)
+      ? manual.mealTimesText
+      : [];
     const mealTimes = Array.isArray(manual?.mealTimes) ? manual?.mealTimes : [];
-    setBreakfastTime(toHourText(mealTimes?.[0], DEFAULT_BREAKFAST));
-    setLunchTime(toHourText(mealTimes?.[1], DEFAULT_LUNCH));
-    setDinnerTime(toHourText(mealTimes?.[2], DEFAULT_DINNER));
+    setBreakfastTime(mealTimesText[0] || toHourText(mealTimes?.[0], DEFAULT_BREAKFAST));
+    setLunchTime(mealTimesText[1] || toHourText(mealTimes?.[1], DEFAULT_LUNCH));
+    setDinnerTime(mealTimesText[2] || toHourText(mealTimes?.[2], DEFAULT_DINNER));
     setCurrentGoal(manual?.currentGoal || '');
     setLifeGoal(manual?.lifeGoal || '');
     setAnniversaries(toAnniversaryDrafts(userProfileV2?.anniversariesVisible));
@@ -165,6 +178,7 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false }) => {
       wakeTime,
       sleepTime,
       mealHours,
+      mealTimesText: [breakfastTime, lunchTime, dinnerTime],
       currentGoal,
       lifeGoal,
     });
@@ -188,22 +202,24 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false }) => {
 
   return (
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
-      <button
-        onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
-      >
-        <div className="flex items-start gap-2.5 text-left">
-          <Sparkles size={16} className="mt-0.5 text-[#5F7A63]" />
-          <div>
-            <p className="text-xs text-slate-700">{t('profile_user_profile_title')}</p>
-            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
+      {showHeader ? (
+        <button
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
+        >
+          <div className="flex items-start gap-2.5 text-left">
+            <Sparkles size={16} className="mt-0.5 text-[#5F7A63]" />
+            <div>
+              <p className="text-xs text-slate-700">{t('profile_user_profile_title')}</p>
+              <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
+            </div>
           </div>
-        </div>
-        {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
-      </button>
+          {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+        </button>
+      ) : null}
 
       {expanded ? (
-        <div className="border-t border-slate-200/60 px-4 pb-4 pt-3">
+        <div className={showHeader ? 'border-t border-slate-200/60 px-4 pb-4 pt-3' : 'px-4 pb-4 pt-3'}>
           <div className="space-y-3">
             <label className="block">
               <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_primary_use')}</span>
