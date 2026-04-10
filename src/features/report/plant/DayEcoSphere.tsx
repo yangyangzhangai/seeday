@@ -232,7 +232,7 @@ export const DayEcoSphere: React.FC = () => {
         `}</style>
 
         {/* Top — mood donut chart */}
-        <div style={{ position: 'absolute', left: '30%', top: 14,
+        <div style={{ position: 'absolute', left: '14%', top: 14,
           animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
           <FloatingChart
             data={moodChartData}
@@ -240,7 +240,6 @@ export const DayEcoSphere: React.FC = () => {
             labelColor="#A0304A"
             active={active === 'mood'}
             isEmpty={moodDist.length === 0}
-            data={moodChartData}
             onClick={() => toggle('mood')}
           />
         </div>
@@ -254,7 +253,6 @@ export const DayEcoSphere: React.FC = () => {
             labelColor="#2D5A30"
             active={active === 'activity'}
             isEmpty={activityRaw.length === 0}
-            data={activityChartData}
             onClick={() => toggle('activity')}
           />
         </div>
