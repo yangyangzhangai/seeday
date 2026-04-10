@@ -48,6 +48,17 @@ export interface CharacterStateBuildOutput {
     injectedBehaviorIds: string[];
     usedTrendIds: string[];
     usedLiteIds: string[];
+    selectedStates: Array<{
+      behaviorId: string;
+      level: 'instant' | 'trend' | 'lite';
+      score: number;
+    }>;
+    suppressedBehaviorIds: string[];
+    activeEffects: Array<{
+      behaviorId: string;
+      score: number;
+      remainingHours: number;
+    }>;
   };
   tracker: CharacterStateTracker;
 }

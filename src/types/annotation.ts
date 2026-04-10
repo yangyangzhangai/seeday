@@ -101,6 +101,12 @@ export interface AIAnnotation {
   syncedToCloud: boolean;    // 是否已同步到云端
   suggestion?: AnnotationSuggestion; // AI 建议（overwork 模式）
   suggestionAccepted?: boolean; // suggestion 反馈（true/false/null）
+  narrativeEvent?: {
+    eventType: 'natural_event' | 'character_mention' | 'derived_event';
+    eventId: string;
+    instruction: string;
+    isTriggeredReply: boolean;
+  };
 }
 
 export interface AnnotationState {
@@ -221,6 +227,7 @@ export interface SeasonContextV2 {
 export interface AnnotationRequest {
   eventType: AnnotationEventType;
   eventData: AnnotationEvent['data'];
+  debugPrompts?: boolean;
   userContext: {
     todayActivities: number;           // 活动总数
     todayDuration: number;             // 今日总时长
@@ -252,6 +259,17 @@ export interface AnnotationRequest {
       injectedBehaviorIds: string[];
       usedTrendIds: string[];
       usedLiteIds: string[];
+      selectedStates: Array<{
+        behaviorId: string;
+        level: 'instant' | 'trend' | 'lite';
+        score: number;
+      }>;
+      suppressedBehaviorIds: string[];
+      activeEffects: Array<{
+        behaviorId: string;
+        score: number;
+        remainingHours: number;
+      }>;
     };
     allowSuggestion?: boolean;
     forceSuggestion?: boolean;
@@ -268,6 +286,12 @@ export interface AnnotationResponse {
   displayDuration: number;
   suggestion?: AnnotationSuggestion;
   source?: 'ai' | 'default';
+  narrativeEvent?: {
+    eventType: 'natural_event' | 'character_mention' | 'derived_event';
+    eventId: string;
+    instruction: string;
+    isTriggeredReply: boolean;
+  };
   reason?:
     | 'no_key'
     | 'fetch_failed'
@@ -278,6 +302,16 @@ export interface AnnotationResponse {
     | 'suggestion_force_fallback'
     | 'duplicate_or_emoji_repeated';
   debugAiMode?: string;
+  debugCharacterState?: {
+    enabled: boolean;
+    text: string;
+    meta?: AnnotationRequest['userContext']['characterStateMeta'];
+  };
+  debugPromptPackage?: {
+    model: string;
+    systemPrompt: string;
+    userPrompt: string;
+  };
 }
 
 // Chutes API 类型

@@ -146,7 +146,7 @@ function buildBottleNudge(
       rewardStars: 2,
       bottleId: bottle.id,
       bottleName: bottle.name,
-      activityName: `finish one small step for ${bottle.name}`,
+      activityName: bottle.name,
     };
   }
 

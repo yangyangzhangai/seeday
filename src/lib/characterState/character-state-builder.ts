@@ -1,5 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/AI批注回复_行为角色状态映射_开发落地方案_v1.md
-import { BEHAVIOR_BY_ID, TEA_SUBTYPE_CONFIG } from './behavior-map';
+import {
+  BEHAVIOR_BY_ID,
+  BEHAVIOR_EFFECT_CONFIG,
+  type BehaviorEffectConfig,
+  TEA_SUBTYPE_CONFIG,
+} from './behavior-map';
 import { detectBehaviors, type MatchedBehavior } from './behavior-matcher';
 import {
   CATEGORY_PRIORITY,
@@ -24,6 +29,7 @@ interface CandidateState {
   behaviorId: string;
   text: string;
   score: number;
+  level: 'instant' | 'trend' | 'lite';
   isTrend: boolean;
   isLite: boolean;
 }
@@ -43,6 +49,7 @@ function pickTextForBehavior(
       behaviorId,
       text: teaConfig.text,
       score: 1000,
+      level: 'instant',
       isTrend: false,
       isLite: false,
     };
@@ -68,36 +75,14 @@ function pickTextForBehavior(
     behaviorId,
     text,
     score: (CATEGORY_PRIORITY[behavior.category] || 0) + behavior.priority + Math.round(effectScore * 100),
+    level: useLite ? 'lite' : (useTrend ? 'trend' : 'instant'),
     isTrend: useTrend,
     isLite: useLite,
   };
 }
 
-function getEffectConfig(behaviorId: string): {
-  baseScore: number;
-  maxScore: number;
-  ttlHours: number;
-  halfLifeHours: number;
-} {
-  switch (behaviorId) {
-    case 'B03':
-      return { baseScore: 1.35, maxScore: 2.8, ttlHours: 48, halfLifeHours: 14 };
-    case 'B01':
-    case 'B13':
-      return { baseScore: 1.15, maxScore: 2.6, ttlHours: 36, halfLifeHours: 12 };
-    case 'B02':
-    case 'B21':
-      return { baseScore: 1.2, maxScore: 2.8, ttlHours: 36, halfLifeHours: 10 };
-    case 'B11':
-    case 'B12':
-      return { baseScore: 0.9, maxScore: 2.2, ttlHours: 12, halfLifeHours: 5 };
-    case 'B17':
-    case 'B18':
-    case 'B19':
-      return { baseScore: 1.0, maxScore: 2.4, ttlHours: 16, halfLifeHours: 7 };
-    default:
-      return { baseScore: 1.0, maxScore: 2.5, ttlHours: 24, halfLifeHours: 9 };
-  }
+function getEffectConfig(behaviorId: string): BehaviorEffectConfig {
+  return BEHAVIOR_EFFECT_CONFIG[behaviorId] || { baseScore: 1.0, maxScore: 2.5, ttlHours: 24, halfLifeHours: 9 };
 }
 
 function sortByPriority(states: CandidateState[]): CandidateState[] {
@@ -152,6 +137,10 @@ export function buildCharacterState(input: CharacterStateBuildInput): CharacterS
     .slice(0, CHARACTER_STATE_MAX_INJECT);
 
   const injectedBehaviorIds = selected.map((item) => item.behaviorId);
+  const suppressedBehaviorIds = sortByPriority(candidates)
+    .slice(CHARACTER_STATE_MAX_INJECT)
+    .map((item) => item.behaviorId);
+  const nowMs = input.now.getTime();
 
   return {
     text: selected.map((item) => item.text).join('\n'),
@@ -160,6 +149,19 @@ export function buildCharacterState(input: CharacterStateBuildInput): CharacterS
       injectedBehaviorIds,
       usedTrendIds: selected.filter((item) => item.isTrend).map((item) => item.behaviorId),
       usedLiteIds: selected.filter((item) => item.isLite).map((item) => item.behaviorId),
+      selectedStates: selected.map((item) => ({
+        behaviorId: item.behaviorId,
+        level: item.level,
+        score: Number(item.score.toFixed(2)),
+      })),
+      suppressedBehaviorIds,
+      activeEffects: tracker.activeEffects
+        .map((effect) => ({
+          behaviorId: effect.behaviorId,
+          score: Number(effect.score.toFixed(3)),
+          remainingHours: Number(Math.max(0, (effect.expiresAt - nowMs) / (60 * 60 * 1000)).toFixed(2)),
+        }))
+        .sort((a, b) => b.score - a.score),
     },
     tracker,
   };

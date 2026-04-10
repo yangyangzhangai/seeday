@@ -211,10 +211,10 @@ export function buildRecoveryFallbackSuggestion(
 
   const title = recoveryNudge.todoTitle || recoveryNudge.bottleName || recoveryNudge.activityName || '';
   const content = lang === 'en'
-    ? `You can bounce back today - finish ${title || 'one small step'} and earn two stars ⭐`
+    ? `Usually it is one star, but today you can bounce back with two stars if you finish ${title || 'one small step'} ⭐`
     : lang === 'it'
-      ? `Puoi ripartire oggi: completa ${title || 'un piccolo passo'} e ottieni due stelle ⭐`
-      : `你今天补回来就能拿到两颗星，先完成${title || '一个小步骤'} ⭐`;
+      ? `Di solito e una stella, ma oggi se completi ${title || 'un piccolo passo'} puoi ripartire con due stelle ⭐`
+      : `平时完成是1颗星，今天补回只要完成${title || '一个小步骤'}就能拿2颗星 ⭐`;
 
   return {
     content,

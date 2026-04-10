@@ -15,6 +15,7 @@ import {
   ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
 } from '../DiaryDonutChart';
 import { getMoodDisplayLabel } from '../../../lib/moodOptions';
+import { useBubbleMotionController } from './useBubbleMotionController';
 
 type ActiveChart = 'mood' | 'activity' | null;
 
@@ -89,12 +90,11 @@ interface FloatingChartProps {
   data: DataItem[];
   chartId: string;
   labelColor: string;
-  active: boolean;
   onClick: () => void;
   isEmpty: boolean;
 }
 
-function FloatingChart({ data, chartId, labelColor, active, onClick, isEmpty }: FloatingChartProps) {
+function FloatingChart({ data, chartId, labelColor, onClick, isEmpty }: FloatingChartProps) {
   const maxIndex = data.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   return (
     <button
@@ -131,7 +131,7 @@ function FloatingChart({ data, chartId, labelColor, active, onClick, isEmpty }: 
           size={100}
           innerRadius={18}
           outerRadius={38}
-          fontSize={6}
+          fontSize={7}
         />
       )}
     </button>
@@ -142,6 +142,7 @@ function FloatingChart({ data, chartId, labelColor, active, onClick, isEmpty }: 
 export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
   const [active, setActive] = useState<ActiveChart>(null);
+  const { containerRef, setBubbleRef } = useBubbleMotionController();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const messages = useChatStore(state => state.messages);
   const activityMood = useMoodStore(state => state.activityMood);
@@ -225,33 +226,22 @@ export const DayEcoSphere: React.FC = () => {
 
   return (
     <div className="pointer-events-none">
-      <div className="pointer-events-auto relative" style={{ height: 190 }}>
-        <style>{`
-          @keyframes eco-float-a{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-          @keyframes eco-float-b{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-        `}</style>
-
-        {/* Top — mood donut chart */}
-        <div style={{ position: 'absolute', left: '14%', top: 14,
-          animation: 'eco-float-a 3.4s ease-in-out infinite' }}>
+      <div ref={containerRef} className="pointer-events-auto relative overflow-hidden" style={{ height: 190 }}>
+        <div ref={setBubbleRef(0)} style={{ position: 'absolute', left: 0, top: 0, transform: 'translate3d(28px,16px,0)', willChange: 'transform' }}>
           <FloatingChart
             data={moodChartData}
             chartId="eco-mood"
             labelColor="#A0304A"
-            active={active === 'mood'}
             isEmpty={moodDist.length === 0}
             onClick={() => toggle('mood')}
           />
         </div>
 
-        {/* Bottom — activity donut chart */}
-        <div style={{ position: 'absolute', left: '58%', top: 68,
-          animation: 'eco-float-b 3.8s ease-in-out infinite 0.65s' }}>
+        <div ref={setBubbleRef(1)} style={{ position: 'absolute', left: 0, top: 0, transform: 'translate3d(170px,72px,0)', willChange: 'transform' }}>
           <FloatingChart
             data={activityChartData}
             chartId="eco-activity"
             labelColor="#2D5A30"
-            active={active === 'activity'}
             isEmpty={activityRaw.length === 0}
             onClick={() => toggle('activity')}
           />

@@ -242,6 +242,7 @@ interface SuggestionAwarePromptInput {
   seasonContext?: SeasonContextV2;
   weatherAlerts?: WeatherAlert[];
   associationInstruction?: string;
+  narrativeEventInstruction?: string;
 }
 
 function buildUserProfileSnapshotText(userProfileSnapshot: UserProfileSnapshot | undefined, lang: string): string {
@@ -277,6 +278,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     seasonContext,
     weatherAlerts,
     associationInstruction,
+    narrativeEventInstruction,
   } = input;
 
   const hourText = currentHour !== undefined
@@ -312,7 +314,8 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       ? [
         `Recovery nudge is active: ${JSON.stringify(recoveryNudge)}`,
         'You must return suggestion JSON and include rewardStars=2 and recoveryKey exactly as provided.',
-        'Content must clearly say completing today gives two stars.',
+        'Content must clearly contrast normal reward (1 star) vs today\'s recovery reward (2 stars).',
+        'Express this naturally in your own voice; do not use rigid template wording.',
       ]
       : [];
 
@@ -327,6 +330,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Long-term profile snapshot:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
+      narrativeEventInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       `Status summary:\n${statusSummary || 'none'}`,
       `Context hints:\n${hintsText}`,
@@ -361,7 +365,8 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       ? [
         `Recovery nudge attivo: ${JSON.stringify(recoveryNudge)}`,
         'Devi restituire JSON suggestion con rewardStars=2 e recoveryKey esattamente forniti.',
-        'Nel contenuto indica chiaramente che completando oggi ottiene due stelle.',
+        'Nel contenuto confronta chiaramente la ricompensa normale (1 stella) con quella di recupero di oggi (2 stelle).',
+        'Esprimilo in modo naturale con la tua voce, senza formule rigide.',
       ]
       : [];
 
@@ -376,6 +381,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Snapshot profilo a lungo termine:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
+      narrativeEventInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       `Riepilogo stato:\n${statusSummary || 'nessuno'}`,
       `Suggerimenti di contesto:\n${hintsText}`,
@@ -408,7 +414,8 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     ? [
       `恢复提醒上下文：${JSON.stringify(recoveryNudge)}`,
       '你必须输出 suggestion JSON，并且 suggestion 内必须包含 rewardStars=2 与 recoveryKey（按上下文原样返回）。',
-      'content 里必须明确表达：今天完成可获得两颗星。',
+      'content 里必须明确对比：平时完成是 1 颗星，今天补回完成是 2 颗星。',
+      '表达要自然、符合你的人设语气，不要套模板句。',
     ]
     : [];
 
@@ -423,6 +430,7 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
     `长期画像快照：\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
     associationInstruction || null,
+    narrativeEventInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     `状态摘要：\n${statusSummary || '无'}`,
     `情境提示：\n${hintsText}`,
@@ -455,6 +463,7 @@ export function buildUserPrompt(
   weatherAlerts?: WeatherAlert[],
   associationInstruction?: string,
   userProfileSnapshot?: UserProfileSnapshot,
+  narrativeEventInstruction?: string,
 ): string {
   const hourText = currentHour !== undefined ? (() => {
     const minuteStr = currentMinute !== undefined ? String(currentMinute).padStart(2, '0') : '00';
@@ -475,6 +484,7 @@ export function buildUserPrompt(
       `Character current state:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Long-term profile snapshot:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
+      narrativeEventInstruction || null,
       `Just happened: [${eventType}] ${eventSummary}`,
       'Please write one annotation about the activity or mood that just happened, in your current voice.',
       'Use exactly one emoji at the end.',
@@ -495,6 +505,7 @@ export function buildUserPrompt(
       `Stato attuale del personaggio:\n${buildCharacterStateText(characterStateText, lang)}`,
       `Snapshot profilo a lungo termine:\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
       associationInstruction || null,
+      narrativeEventInstruction || null,
       `Appena successo: [${eventType}] ${eventSummary}`,
       "Per favore, scrivi una sola annotazione sull'attivita o l'umore appena accaduto, con la tua voce attuale.",
       'Usa esattamente una emoji alla fine.',
@@ -514,6 +525,7 @@ export function buildUserPrompt(
     `角色当前状态：\n${buildCharacterStateText(characterStateText, lang)}`,
     `长期画像快照：\n${buildUserProfileSnapshotText(userProfileSnapshot, lang)}`,
     associationInstruction || null,
+    narrativeEventInstruction || null,
     `刚刚发生：[${eventType}] ${eventSummary}`,
     '请针对刚刚的活动或心情，用你当前的人设语气写一句批注。',
     '句末必须只有一个 emoji。',

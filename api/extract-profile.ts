@@ -7,6 +7,11 @@ import {
 } from '../src/server/extract-profile-service.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 
+function normalizeLang(raw: unknown): 'zh' | 'en' | 'it' {
+  if (raw === 'zh' || raw === 'it') return raw;
+  return 'en';
+}
+
 function normalizeMessages(raw: unknown): ExtractProfileMessage[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -31,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!(await requireSupabaseRequestAuth(req, res))) return;
 
   const recentMessages = normalizeMessages(req.body?.recentMessages);
+  const lang = normalizeLang(req.body?.lang);
   if (recentMessages.length === 0) {
     res.status(200).json({
       success: true,
@@ -52,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: recentMessages,
       apiKey,
       model: process.env.PROFILE_EXTRACT_MODEL,
+      lang,
     });
 
     res.status(200).json({

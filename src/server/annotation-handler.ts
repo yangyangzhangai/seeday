@@ -30,6 +30,7 @@ import { buildWeatherContext } from './weather-context.js';
 import { fetchAirQualitySnapshot } from './air-quality-provider.js';
 import { buildWeatherAlerts } from './weather-alerts.js';
 import { buildAnnotationPromptPackage } from './annotation-prompt-builder.js';
+import type { AnnotationPromptPackage } from './annotation-prompt-builder.js';
 import { decomposeTodoWithAI } from './todo-decompose-service.js';
 import {
   sampleAssociation,
@@ -39,6 +40,13 @@ import {
   getLateralAssociationState,
   saveLateralAssociationState,
 } from './lateral-association-state.js';
+import { detectNarrativeEventKey, evaluateNarrativeDensity } from './narrative-density-scorer.js';
+import { getTodayNarrativeCache, saveTodayNarrativeCache } from './narrative-density-state.js';
+import { evaluateNarrativeTrigger } from './narrative-density-trigger.js';
+import { buildNarrativeEventInstruction } from './narrative-event-library.js';
+import { reportNarrativeTelemetry } from './narrative-density-telemetry.js';
+import { NARRATIVE_EVENT_LOOKBACK_MS } from './narrative-density-constants.js';
+import type { NarrativeTriggeredEvent } from './narrative-density-types.js';
 
 const openai = new OpenAI();
 
@@ -48,6 +56,26 @@ const MAX_REWRITE_ATTEMPTS = 1;
 const SIMILARITY_THRESHOLD = 0.15;
 const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
 const ENABLE_CHARACTER_STATE = process.env.ANNOTATION_CHARACTER_STATE_ENABLED !== 'false';
+
+function buildPromptDebugPayload(
+  promptPackage: AnnotationPromptPackage | undefined,
+  includePromptDebug: boolean,
+): {
+  debugPromptPackage?: {
+    model: string;
+    systemPrompt: string;
+    userPrompt: string;
+  };
+} {
+  if (!includePromptDebug || !promptPackage) return {};
+  return {
+    debugPromptPackage: {
+      model: promptPackage.model,
+      systemPrompt: promptPackage.instructions,
+      userPrompt: promptPackage.input,
+    },
+  };
+}
 
 const STALE_TODO_DAYS_THRESHOLD = 3;
 const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -175,6 +203,115 @@ async function resolveLateralAssociationInstruction(params: {
   return sampled.associationInstruction ?? undefined;
 }
 
+async function resolveNarrativeEvent(params: {
+  userId: string;
+  characterId: CharacterId;
+  userInput: string;
+  lang: AnnotationLang;
+  currentDate?: { isoDate?: string };
+}): Promise<{
+  narrativeEvent?: NarrativeTriggeredEvent;
+  adjustedThreshold: number;
+  currentScore: number;
+  todayRichness: number;
+  isLowDensity: boolean;
+  blockedReason?: string;
+  dimensions: { freshness: number; density: number; emotion: number; vocab: number };
+}> {
+  const nowMs = Date.now();
+  const todayDate = params.currentDate?.isoDate || new Date(nowMs).toISOString().slice(0, 10);
+  const cache = await getTodayNarrativeCache({
+    userId: params.userId,
+    characterId: params.characterId,
+    todayDate,
+    nowMs,
+  });
+
+  const minRecentTs = nowMs - NARRATIVE_EVENT_LOOKBACK_MS;
+  const eventKey = detectNarrativeEventKey(params.userInput);
+  const recentEventKeys = (cache.recentEventKeys || []).filter((item) => item.ts >= minRecentTs);
+  const recentCount7d = recentEventKeys.filter((item) => item.key === eventKey).length;
+  const score = evaluateNarrativeDensity(params.userInput, recentCount7d);
+  const isFirstEntry = cache.entryCount <= 0;
+  const nextRichness = (cache.todayRichness * cache.entryCount + score.currentScore) / (cache.entryCount + 1);
+
+  cache.entryCount += 1;
+  cache.todayRichness = nextRichness;
+  cache.entries = [...cache.entries, { score: score.currentScore, ts: nowMs, eventKey: score.eventKey }].slice(-300);
+  cache.recentEventKeys = [...recentEventKeys, { key: score.eventKey, ts: nowMs }].slice(-600);
+
+  const triggerDecision = evaluateNarrativeTrigger({
+    isFirstEntry,
+    currentScore: score.currentScore,
+    todayRichness: nextRichness,
+    cache,
+  });
+  const isLowDensity = score.currentScore < triggerDecision.adjustedThreshold;
+  let narrativeEvent: NarrativeTriggeredEvent | undefined;
+  let blockedReason = triggerDecision.blockedReason;
+
+  if (triggerDecision.shouldTrigger && triggerDecision.selectedEventType) {
+    const selected = buildNarrativeEventInstruction({
+      characterId: params.characterId,
+      eventType: triggerDecision.selectedEventType,
+      lang: params.lang,
+    });
+    if (selected) {
+      narrativeEvent = selected;
+      cache.triggerCount.total += 1;
+      if (selected.eventType === 'natural_event') cache.triggerCount.naturalEvent += 1;
+      if (selected.eventType === 'character_mention') cache.triggerCount.characterMention += 1;
+      if (selected.eventType === 'derived_event') cache.triggerCount.derivedEvent += 1;
+    } else {
+      blockedReason = 'event_library_empty';
+    }
+  }
+
+  await saveTodayNarrativeCache({ userId: params.userId, characterId: params.characterId, cache });
+
+  void reportNarrativeTelemetry({
+    userId: params.userId,
+    eventName: 'density_scored',
+    eventData: {
+      currentScore: score.currentScore,
+      todayRichness: cache.todayRichness,
+      adjustedThreshold: triggerDecision.adjustedThreshold,
+      isLowDensity,
+      dimensions: score.dimensions,
+    },
+  });
+
+  if (narrativeEvent) {
+    void reportNarrativeTelemetry({
+      userId: params.userId,
+      eventName: 'event_triggered',
+      eventData: {
+        eventType: narrativeEvent.eventType,
+        eventId: narrativeEvent.eventId,
+      },
+    });
+  } else if (blockedReason) {
+    void reportNarrativeTelemetry({
+      userId: params.userId,
+      eventName: 'trigger_blocked',
+      eventData: {
+        blockedReason,
+        triggerCount: cache.triggerCount,
+      },
+    });
+  }
+
+  return {
+    narrativeEvent,
+    adjustedThreshold: triggerDecision.adjustedThreshold,
+    currentScore: score.currentScore,
+    todayRichness: cache.todayRichness,
+    isLowDensity,
+    blockedReason,
+    dimensions: score.dimensions,
+  };
+}
+
 async function withElapsed<T>(task: Promise<T>): Promise<{ value: T; elapsedMs: number }> {
   const startedAt = Date.now();
   const value = await task;
@@ -200,7 +337,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { eventType, eventData, userContext, lang = 'zh', aiMode } = req.body;
+  const { eventType, eventData, userContext, lang = 'zh', aiMode, debugPrompts } = req.body;
+  const includePromptDebug = debugPrompts === true || process.env.ANNOTATION_PROMPT_DEBUG === 'true';
   const resolvedLang = normalizeAnnotationLang(lang);
   const resolvedAiMode = aiMode ? normalizeAiCompanionMode(aiMode) : undefined;
   const lateralCharacterId = normalizeCharacterId(resolvedAiMode);
@@ -212,6 +350,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     jsonError(res, 400, 'Missing eventType or eventData');
     return;
   }
+
+  const debugCharacterState = {
+    enabled: ENABLE_CHARACTER_STATE,
+    text: ENABLE_CHARACTER_STATE ? String(userContext?.characterStateText || '').trim() : '',
+    meta: userContext?.characterStateMeta,
+  };
 
   if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
     console.log('[Annotation API] mode:', {
@@ -233,6 +377,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       source: 'default',
       reason: 'no_key',
       debugAiMode: resolvedAiMode || 'fallback',
+      debugCharacterState,
     });
     return;
   }
@@ -277,7 +422,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const sharedEventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
+    .replace(/\s+/g, ' ')
+    .trim();
+  const narrativeContext = await resolveNarrativeEvent({
+    userId: lateralUserId,
+    characterId: lateralCharacterId,
+    userInput: sharedEventSummary,
+    lang: resolvedLang,
+    currentDate: userContext?.currentDate,
+  });
+  const narrativeEventInstruction = narrativeContext.narrativeEvent?.instruction;
+
+  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+    console.log('[NarrativeDensity]', {
+      userId: lateralUserId,
+      characterId: lateralCharacterId,
+      score: Number(narrativeContext.currentScore.toFixed(3)),
+      threshold: Number(narrativeContext.adjustedThreshold.toFixed(3)),
+      isLowDensity: narrativeContext.isLowDensity,
+      blockedReason: narrativeContext.blockedReason,
+      triggeredEventType: narrativeContext.narrativeEvent?.eventType,
+      triggeredEventId: narrativeContext.narrativeEvent?.eventId,
+    });
+  }
+
   if (isSuggestionMode) {
+    let suggestionPromptPackage: AnnotationPromptPackage | undefined;
     try {
       const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
       const todayActivitiesText = buildTodayActivitiesText(recentActivities, resolvedLang, userTimezone);
@@ -286,9 +457,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const currentHour = userContext?.currentHour;
       const currentMinute = userContext?.currentMinute;
       const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
-      const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
-        .replace(/\s+/g, ' ')
-        .trim();
+      const eventSummary = sharedEventSummary;
       const associationInstruction = await resolveLateralAssociationInstruction({
         userId: lateralUserId,
         characterId: lateralCharacterId,
@@ -298,7 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
-        const promptPackage = buildAnnotationPromptPackage({
+      const promptPackage = buildAnnotationPromptPackage({
           mode: 'suggestion',
         lang: resolvedLang,
         aiMode: resolvedAiMode,
@@ -320,11 +489,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         consecutiveTextCount: userContext?.consecutiveTextCount,
         forceSuggestion,
         recoveryNudge,
-        weatherContext,
-        seasonContext,
-        weatherAlerts,
-        associationInstruction,
+          weatherContext,
+          seasonContext,
+          weatherAlerts,
+          associationInstruction,
+          narrativeEventInstruction,
       });
+      suggestionPromptPackage = promptPackage;
 
       openai.apiKey = apiKey;
       const llmResponse = await openai.responses.create({
@@ -378,8 +549,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tone: 'concerned',
           displayDuration: normalizedSuggestion ? 15000 : 8000,
           source: 'ai',
+          narrativeEvent: narrativeContext.narrativeEvent ? {
+            ...narrativeContext.narrativeEvent,
+            isTriggeredReply: true,
+          } : undefined,
           debugAiMode: resolvedAiMode || 'fallback',
+          debugCharacterState,
           suggestion: normalizedSuggestion,
+          ...buildPromptDebugPayload(suggestionPromptPackage, includePromptDebug),
         });
         return;
       }
@@ -396,8 +573,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             tone: 'concerned',
             displayDuration: 15000,
             source: 'ai',
+            narrativeEvent: narrativeContext.narrativeEvent ? {
+              ...narrativeContext.narrativeEvent,
+              isTriggeredReply: true,
+            } : undefined,
             debugAiMode: resolvedAiMode || 'fallback',
+            debugCharacterState,
             suggestion: fallback.suggestion,
+            ...buildPromptDebugPayload(suggestionPromptPackage, includePromptDebug),
           });
           return;
         }
@@ -407,7 +590,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tone: 'concerned',
           displayDuration: 8000,
           source: 'ai',
+          narrativeEvent: narrativeContext.narrativeEvent ? {
+            ...narrativeContext.narrativeEvent,
+            isTriggeredReply: true,
+          } : undefined,
           debugAiMode: resolvedAiMode || 'fallback',
+          debugCharacterState,
+          ...buildPromptDebugPayload(suggestionPromptPackage, includePromptDebug),
         });
         return;
       }
@@ -425,8 +614,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           displayDuration: 15000,
           source: 'default',
           reason: 'suggestion_force_fallback',
+          narrativeEvent: narrativeContext.narrativeEvent ? {
+            ...narrativeContext.narrativeEvent,
+            isTriggeredReply: false,
+          } : undefined,
           debugAiMode: resolvedAiMode || 'fallback',
+          debugCharacterState,
           suggestion: fallback.suggestion,
+          ...buildPromptDebugPayload(suggestionPromptPackage, includePromptDebug),
         });
         return;
       }
@@ -434,11 +629,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // suggestion 失败时回退普通批注
   }
 
+  let annotationPromptPackage: AnnotationPromptPackage | undefined;
   try {
     // 预处理事件数据（去除多余空白，避免 prompt 里混入奇怪换行）
-    const eventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
-      .replace(/\s+/g, ' ')
-      .trim();
+    const eventSummary = sharedEventSummary;
     const associationInstruction = await resolveLateralAssociationInstruction({
       userId: lateralUserId,
       characterId: lateralCharacterId,
@@ -496,7 +690,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       seasonContext,
       weatherAlerts,
       associationInstruction,
+      narrativeEventInstruction,
     });
+    annotationPromptPackage = promptPackage;
 
     openai.apiKey = apiKey;
 
@@ -533,6 +729,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'default',
         reason: 'empty_content',
         debugAiMode: resolvedAiMode || 'fallback',
+        debugCharacterState,
+        ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
       });
       return;
     }
@@ -551,6 +749,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'default',
         reason: 'extract_failed',
         debugAiMode: resolvedAiMode || 'fallback',
+        debugCharacterState,
+        ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
       });
       return;
     }
@@ -647,6 +847,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'default',
         reason: 'duplicate_or_emoji_repeated',
         debugAiMode: resolvedAiMode || 'fallback',
+        debugCharacterState,
+        ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
       });
       return;
     }
@@ -666,7 +868,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tone,
       displayDuration: 8000,
       source: 'ai',
+      narrativeEvent: narrativeContext.narrativeEvent ? {
+        ...narrativeContext.narrativeEvent,
+        isTriggeredReply: true,
+      } : undefined,
       debugAiMode: resolvedAiMode || 'fallback',
+      debugCharacterState,
+      ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
     });
   } catch (error) {
     console.error('Annotation API error:', error);
@@ -677,6 +885,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       source: 'default',
       reason: 'exception',
       debugAiMode: resolvedAiMode || 'fallback',
+      debugCharacterState,
+      ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
     });
   }
 }

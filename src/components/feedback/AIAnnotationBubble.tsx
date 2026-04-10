@@ -42,9 +42,6 @@ export async function runSuggestionAcceptFlow({
   if (!suggestion || isSuggestionAccepted) return false;
 
   if (suggestion.type === 'activity' && suggestion.activityName) {
-    emitEvent(new CustomEvent('suggestion-accept-activity', {
-      detail: { activityName: suggestion.activityName },
-    }));
     markSuggestionAccepted();
   } else if (suggestion.type === 'todo' && suggestion.todoId) {
     const decomposeSteps = Array.isArray(suggestion.decomposeSteps)

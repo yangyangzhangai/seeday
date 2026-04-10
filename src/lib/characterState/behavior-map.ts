@@ -20,6 +20,13 @@ export interface BehaviorEntry {
   lite?: Partial<Record<AiCompanionMode, string>>;
 }
 
+export interface BehaviorEffectConfig {
+  baseScore: number;
+  maxScore: number;
+  ttlHours: number;
+  halfLifeHours: number;
+}
+
 export const TEA_SUBTYPE_PRIORITY: TeaSubtype[] = ['herbal', 'fermented', 'leaf', 'light'];
 
 export const TEA_SUBTYPE_CONFIG: Record<TeaSubtype, {
@@ -301,3 +308,27 @@ export const BEHAVIOR_MAP: BehaviorEntry[] = [
 ];
 
 export const BEHAVIOR_BY_ID = new Map(BEHAVIOR_MAP.map((entry) => [entry.id, entry]));
+
+export const BEHAVIOR_EFFECT_CONFIG: Record<string, BehaviorEffectConfig> = {
+  B01: { baseScore: 1.15, maxScore: 2.6, ttlHours: 36, halfLifeHours: 12 },
+  B02: { baseScore: 1.2, maxScore: 2.8, ttlHours: 48, halfLifeHours: 10 },
+  B03: { baseScore: 1.35, maxScore: 2.8, ttlHours: 72, halfLifeHours: 18 },
+  B04: { baseScore: 1.0, maxScore: 2.5, ttlHours: 24, halfLifeHours: 8 },
+  B05: { baseScore: 1.0, maxScore: 2.5, ttlHours: 24, halfLifeHours: 8 },
+  B06: { baseScore: 0.95, maxScore: 2.3, ttlHours: 12, halfLifeHours: 4 },
+  B07: { baseScore: 1.0, maxScore: 2.4, ttlHours: 18, halfLifeHours: 6 },
+  B08: { baseScore: 1.0, maxScore: 2.5, ttlHours: 36, halfLifeHours: 12 },
+  B09: { baseScore: 1.0, maxScore: 2.5, ttlHours: 16, halfLifeHours: 5 },
+  B10: { baseScore: 1.0, maxScore: 2.5, ttlHours: 24, halfLifeHours: 8 },
+  B11: { baseScore: 0.9, maxScore: 2.2, ttlHours: 10, halfLifeHours: 3 },
+  B12: { baseScore: 0.9, maxScore: 2.2, ttlHours: 10, halfLifeHours: 3 },
+  B13: { baseScore: 1.15, maxScore: 2.6, ttlHours: 48, halfLifeHours: 14 },
+  B14: { baseScore: 1.05, maxScore: 2.5, ttlHours: 30, halfLifeHours: 9 },
+  B15: { baseScore: 0.9, maxScore: 2.2, ttlHours: 12, halfLifeHours: 4 },
+  B16: { baseScore: 1.0, maxScore: 2.4, ttlHours: 20, halfLifeHours: 7 },
+  B17: { baseScore: 1.0, maxScore: 2.4, ttlHours: 14, halfLifeHours: 5 },
+  B18: { baseScore: 1.0, maxScore: 2.4, ttlHours: 14, halfLifeHours: 5 },
+  B19: { baseScore: 1.0, maxScore: 2.4, ttlHours: 16, halfLifeHours: 6 },
+  B20: { baseScore: 1.0, maxScore: 2.5, ttlHours: 30, halfLifeHours: 10 },
+  B21: { baseScore: 1.2, maxScore: 2.8, ttlHours: 36, halfLifeHours: 10 },
+};

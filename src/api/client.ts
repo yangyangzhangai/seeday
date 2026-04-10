@@ -198,6 +198,7 @@ export interface ExtractProfileRequestMessage {
 
 interface ExtractProfileRequest {
   recentMessages: ExtractProfileRequestMessage[];
+  lang?: 'zh' | 'en' | 'it';
 }
 
 interface ExtractProfileResponse {
@@ -226,16 +227,19 @@ export async function callExtractProfileAPI(request: ExtractProfileRequest): Pro
 export async function callAnnotationAPI(request: AnnotationRequest): Promise<AnnotationResponse> {
   const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
   const resolvedAiMode = request.aiMode ?? (aiModeEnabled ? normalizeAiCompanionMode(aiMode) : undefined);
+  const debugPrompts = request.debugPrompts ?? import.meta.env.DEV;
   logApiDebug('annotation.request', {
     eventType: request.eventType,
     aiModeEnabled,
     requestedAiMode: request.aiMode,
     resolvedAiMode: resolvedAiMode ?? 'off',
+    debugPrompts,
   });
 
   const response = await postJson<AnnotationRequest, AnnotationResponse>('/annotation', {
     ...request,
     aiMode: resolvedAiMode,
+    debugPrompts,
   });
 
   logApiDebug('annotation.response', {

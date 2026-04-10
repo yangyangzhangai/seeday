@@ -4,7 +4,8 @@ import { supabase } from '../../api/supabase';
 export type DiaryStickerTelemetryEventName =
   | 'diary_sticker_deleted'
   | 'diary_sticker_reordered'
-  | 'diary_sticker_restored';
+  | 'diary_sticker_restored'
+  | 'event_condensed';
 
 type TelemetryEventPayload = Record<string, unknown>;
 

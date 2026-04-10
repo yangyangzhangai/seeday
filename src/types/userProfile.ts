@@ -53,6 +53,9 @@ export interface UserProfileObserved {
   activeWindows?: ConfidenceSignal<string[]>;
   moodByTimeBand?: ConfidenceSignal<Record<string, string>>;
   efficiencyByTimeBand?: ConfidenceSignal<Record<string, string>>;
+  weeklyStateSummary?: ConfidenceSignal<string>;
+  topActivities?: ConfidenceSignal<string[]>;
+  topMoods?: ConfidenceSignal<string[]>;
 }
 
 export interface UserProfileDynamicSignals {

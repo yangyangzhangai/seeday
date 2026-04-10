@@ -4,6 +4,74 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-10 - Feat: 低叙事密度判定 + 今日小事事件注入（Doc1 P1）
+
+### Changed
+
+- `src/server/narrative-density-types.ts`、`src/server/narrative-density-constants.ts`（新增）
+  - 新增低叙事密度缓存/触发/埋点相关类型与常量（四维权重、阈值修正系数、概率、每日上限、类型权重）。
+- `src/server/narrative-density-scorer.ts`、`src/server/narrative-density-trigger.ts`、`src/server/narrative-density-state.ts`（新增）
+  - 落地纯规则评分（freshness/density/emotion/vocab）与触发决策（首条跳过、阈值修正、每日总上限/类型上限、概率抽样）。
+  - 新增 `today_narrative_cache_v1` 读写（优先 `user_metadata`，无 service role 时回退进程内缓存），并支持跨日重置。
+- `src/server/narrative-event-library.ts`、`src/server/narrative-density-telemetry.ts`（新增）
+  - 新增 P1 事件库（`natural_event` / `character_mention`）与 `[今日小事] ...` 注入文案生成。
+  - 新增服务端 telemetry 上报：`density_scored` / `trigger_blocked` / `event_triggered`。
+- `src/server/annotation-handler.ts`、`src/server/annotation-prompt-builder.ts`、`src/server/annotation-prompts.user.ts`
+  - 在 `/api/annotation` 链路接入低叙事密度判定与注入；suggestion/normal annotation 双链路均可接收同一条今日小事注入。
+  - `/api/annotation` 响应新增 `narrativeEvent`（`eventType/eventId/instruction/isTriggeredReply`）供前端对齐凝结埋点。
+- `src/store/useAnnotationStore.ts`、`src/types/annotation.ts`、`src/services/input/reportTelemetryEvent.ts`
+  - store 层保存 `narrativeEvent` 元数据；当 suggestion 被接受且 `isTriggeredReply=true` 时新增 `event_condensed` telemetry。
+- `src/server/narrative-density-scorer.test.ts`、`src/server/narrative-density-trigger.test.ts`（新增）
+  - 新增首版单测覆盖：事件归类、低/高密度分差、首条拦截、低密命中触发。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/server/narrative-density-scorer.test.ts src/server/narrative-density-trigger.test.ts src/server/annotation-handler.test.ts` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`、`api/README.md`、`src/api/README.md`、`src/store/README.md`。
+
+## 2026-04-10 - Feat: 周画像提取支持多语言 + 新增周状态/高频活动/高频心情
+
+### Changed
+
+- `src/server/extract-profile-service.ts`
+  - `/api/extract-profile` 提取 prompt 新增 `zh/en/it` 三语路由（基于 `lang`）。
+  - 扩展提取 schema：`observed.weeklyStateSummary`、`observed.topActivities`（top3）、`observed.topMoods`（top3）。
+  - 新字段沿用 `ConfidenceSignal` 结构并统一做 `lastSeenAt` ISO 归一化。
+- `api/extract-profile.ts`
+  - 新增 `lang` 入参解析与白名单归一化（`zh`/`it`，其他回退 `en`），并透传至提取服务。
+- `src/api/client.ts` + `src/store/reportActions.ts`
+  - `callExtractProfileAPI()` 请求体新增 `lang`。
+  - 周报触发链路 `triggerWeeklyProfileExtraction()` 透传当前 i18n 语言到服务端。
+- `src/types/userProfile.ts` + `src/lib/buildUserProfileSnapshot.ts`
+  - `UserProfileObserved` 新增周状态/高频活动/高频心情字段类型。
+  - 长期画像快照文本新增这三个字段，批注 prompt 可直接消费。
+
+### Doc Sync
+
+- 更新 `api/README.md`、`src/api/README.md`、`docs/CURRENT_TASK.md`。
+
+## 2026-04-10 - Feat: EcoSphere 饼图自由漂浮 + 设备重力联动
+
+### Changed
+
+- `src/features/report/plant/DayEcoSphere.tsx`
+  - 两枚 Donut 气泡从固定定位改为在顶部空白区域内自由漂浮，支持边界碰撞与阻尼反弹。
+  - 保留点击展开逻辑（心情气泡仍可展开能量曲线面板），并维持现有夜间提示行为。
+  - Donut 文本字号轻微上调（`fontSize: 6 -> 7`），提升气泡内标签可读性。
+- `src/features/report/plant/useBubbleMotionController.ts`（新增）
+  - 新增气泡物理控制 hook：`requestAnimationFrame` 驱动速度/位移更新，包含漂浮扰动、空气阻尼、边界反弹。
+  - 接入 `deviceorientation`（倾斜重力）与 `devicemotion`（摇晃冲量）输入；传感器不可用或权限未授予时自动退化到纯自由漂浮。
+- `src/services/native/motionService.ts`（新增）
+  - 新增运动能力封装：传感器支持检测、iOS 运动权限请求（按需）、倾斜向量监听。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-10 - Feat: 角色状态改为持续影响 + 衰减注入（移除同日去重）
 
 ### Changed
@@ -16,9 +84,13 @@ All notable changes to this repository are documented here.
 - `src/lib/characterState/character-state-builder.ts`
   - 注入策略由“当次命中+同日去重”改为“命中累积影响 -> 时间衰减 -> 从 active effects 选文案”。
   - 衰减降级优先走 `lite` 文案（缺失时 fallback 到 `instant`），并继续保留 `trend` 与并发上限 2 条。
-  - 增加首版行为影响参数（base/max/ttl/half-life）用于不同事件持续时长与衰减速度。
+  - 行为参数改为配置化读取（`BEHAVIOR_EFFECT_CONFIG`），不再写死在 builder 内。
 - `src/lib/characterState/behavior-map.ts`
+  - 新增 B01-B21 全量衰减参数配置（`baseScore/maxScore/ttlHours/halfLifeHours`）。
   - 补齐部分行为的 `lite` 文案：B02（吸烟）、B03（熬夜）、B09（咖啡）。
+- `src/types/annotation.ts` / `src/server/annotation-handler.ts`
+  - 扩展 `characterStateMeta` 调试字段（active effects、文案档位、抑制列表）。
+  - `/api/annotation` 响应新增 `debugCharacterState`，可直接在浏览器 F12 的 Network 中查看本次角色状态注入上下文。
 - `src/lib/characterState/event-tracker.test.ts` / `src/lib/characterState/character-state-builder.test.ts`
   - 单测改为覆盖“同日持续影响”“衰减过期清理”“延迟消费一次”新逻辑。
 

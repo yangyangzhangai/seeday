@@ -11,6 +11,7 @@ describe('buildUserProfileSnapshot', () => {
           sleepTime: '23:30',
           mealTimes: [8, 12, 19],
           currentGoal: 'Prepare interview',
+          freeText: 'I like cycling and quiet cafes.',
         },
         observed: {
           mealTimes: {
@@ -28,6 +29,7 @@ describe('buildUserProfileSnapshot', () => {
     expect(snapshot.mealTimesForSuggestion).toEqual([8, 12, 19]);
     expect(snapshot.text).toContain('Declared meal times: 08:00, 12:00, 19:00');
     expect(snapshot.text).toContain('Observed meal times: 09:00, 13:00, 20:00');
+    expect(snapshot.text).toContain('Manual personalization: I like cycling and quiet cafes.');
   });
 
   it('calculates upcoming anniversaries in 3-day window', () => {

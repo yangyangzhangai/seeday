@@ -40,6 +40,7 @@ import {
   createEmptyCharacterStateTracker,
   type CharacterStateTracker,
 } from '../lib/characterState';
+import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
 const MAX_TODAY_EVENTS = 400;
 
@@ -429,6 +430,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const response = await callAnnotationAPI({
             eventType: event.type,
             eventData: event.data,
+            debugPrompts: import.meta.env.DEV,
             userContext: {
               userId: useAuthStore.getState().user?.id,
               todayActivities: activities.length,
@@ -464,6 +466,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
           });
           const debugAiMode = response.debugAiMode || aiMode;
           console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
+          if (import.meta.env.DEV && response.debugPromptPackage) {
+            console.groupCollapsed('[AI Annotator] Prompt package');
+            console.log('Model:', response.debugPromptPackage.model);
+            console.log('System prompt:\n', response.debugPromptPackage.systemPrompt);
+            console.log('User prompt:\n', response.debugPromptPackage.userPrompt);
+            console.groupEnd();
+          }
 
           // 先创建 id，后续同步需要
           const annotationId = uuidv4();
@@ -498,6 +507,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             syncedToCloud: false,
             suggestion,
             suggestionAccepted: undefined,
+            narrativeEvent: response.narrativeEvent,
           };
 
           const generatedEvent: AnnotationEvent = {
@@ -636,6 +646,14 @@ export const useAnnotationStore = create<AnnotationStore>()(
 
         if (error) {
           console.error('[Annotation] suggestion outcome sync failed:', error);
+        }
+
+        if (accepted && annotation.narrativeEvent?.isTriggeredReply) {
+          await reportTelemetryEvent('event_condensed', {
+            eventType: annotation.narrativeEvent.eventType,
+            eventId: annotation.narrativeEvent.eventId,
+            isTriggeredReply: true,
+          });
         }
       },
 

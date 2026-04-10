@@ -19,11 +19,12 @@ function addDays(dateKey: string, days: number): string {
 }
 
 function normalizeTracker(tracker: CharacterStateTracker): CharacterStateTracker {
+  const trackerWithEffects = tracker as CharacterStateTracker & { activeEffects?: ActiveEffect[] };
   return {
     history: Array.isArray(tracker.history) ? tracker.history : [],
     delayedQueue: Array.isArray(tracker.delayedQueue) ? tracker.delayedQueue : [],
-    activeEffects: Array.isArray((tracker as any).activeEffects)
-      ? ((tracker as any).activeEffects as ActiveEffect[])
+    activeEffects: Array.isArray(trackerWithEffects.activeEffects)
+      ? trackerWithEffects.activeEffects
       : [],
   };
 }

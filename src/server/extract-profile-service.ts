@@ -12,6 +12,8 @@ export interface ExtractProfileMessage {
   isMood?: boolean;
 }
 
+type ExtractProfileLang = 'zh' | 'en' | 'it';
+
 const confidenceStringSchema = z.object({
   value: z.string().min(1),
   confidence: z.number().min(0).max(1),
@@ -33,6 +35,13 @@ const confidenceStringArraySchema = z.object({
   lastSeenAt: z.string().min(1),
 });
 
+const confidenceTop3StringArraySchema = z.object({
+  value: z.array(z.string().min(1)).min(1).max(3),
+  confidence: z.number().min(0).max(1),
+  evidenceCount: z.number().int().min(1).max(99),
+  lastSeenAt: z.string().min(1),
+});
+
 const confidenceRecordSchema = z.object({
   value: z.record(z.string().min(1)),
   confidence: z.number().min(0).max(1),
@@ -48,6 +57,9 @@ const modelOutputSchema = z.object({
     activeWindows: confidenceStringArraySchema.optional(),
     moodByTimeBand: confidenceRecordSchema.optional(),
     efficiencyByTimeBand: confidenceRecordSchema.optional(),
+    weeklyStateSummary: confidenceStringSchema.optional(),
+    topActivities: confidenceTop3StringArraySchema.optional(),
+    topMoods: confidenceTop3StringArraySchema.optional(),
   }).optional(),
   dynamicSignals: z.object({
     preferences: confidenceStringArraySchema.optional(),
@@ -98,7 +110,77 @@ function buildInputDigest(messages: ExtractProfileMessage[]): string {
   return lines.join('\n');
 }
 
-function buildPrompt(nowIso: string, messageDigest: string): string {
+function buildPromptByLang(lang: ExtractProfileLang, nowIso: string, messageDigest: string): string {
+  if (lang === 'zh') {
+    return [
+      '你是日记应用的用户画像提取助手。',
+      '只分析提供的最近7天记录，并返回严格 JSON。',
+      '不要 markdown，不要解释，只输出 JSON 对象。',
+      '',
+      '规则：',
+      '- 保守提取：不确定就省略字段。',
+      '- anniversariesVisible 最多 3 条，hiddenMoments 最多 5 条。',
+      '- observed.topActivities 最多 3 条，observed.topMoods 最多 3 条。',
+      '- anniversariesVisible.date 使用 MM-DD 或 YYYY-MM-DD。',
+      '- hiddenMoments.date 使用 YYYY-MM-DD。',
+      '- confidence 范围 0-1。',
+      '- evidenceCount 必须是 >=1 的整数。',
+      '- observed.weeklyStateSummary.value 需要一句对这7天状态的简要总结。',
+      '',
+      '输出 JSON 结构：',
+      '{',
+      '  "observed": {',
+      '    "wakeTime": { "value": "", "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "sleepTime": { "value": "", "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "mealTimes": { "value": [8,13,19], "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "activeWindows": { "value": ["09:00-11:00"], "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "moodByTimeBand": { "value": { "night": "anxious" }, "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "efficiencyByTimeBand": { "value": { "morning": "high" }, "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "weeklyStateSummary": { "value": "", "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "topActivities": { "value": [""], "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" },',
+      '    "topMoods": { "value": [""], "confidence": 0.7, "evidenceCount": 2, "lastSeenAt": "" }',
+      '  },',
+      '  "dynamicSignals": { ...可选置信信号... },',
+      '  "anniversariesVisible": [{ "label": "", "date": "MM-DD", "repeating": true }],',
+      '  "hiddenMoments": [{ "kind": "highlight", "title": "", "date": "YYYY-MM-DD", "summary": "", "sourceMessageIds": [] }]',
+      '}',
+      '',
+      `Now: ${nowIso}`,
+      'Records:',
+      messageDigest || '(empty)',
+    ].join('\n');
+  }
+
+  if (lang === 'it') {
+    return [
+      'Sei un assistente per l\'estrazione del profilo utente in un\'app diario.',
+      'Analizza solo i record degli ultimi 7 giorni forniti e restituisci JSON STRICT.',
+      'Niente markdown. Niente spiegazioni. Solo oggetto JSON.',
+      '',
+      'Regole:',
+      '- Sii conservativo: se non sei sicuro, ometti il campo.',
+      '- Genera al massimo 3 anniversariesVisible e 5 hiddenMoments.',
+      '- observed.topActivities massimo 3 elementi, observed.topMoods massimo 3 elementi.',
+      '- anniversariesVisible.date usa MM-DD o YYYY-MM-DD.',
+      '- hiddenMoments.date usa YYYY-MM-DD.',
+      '- confidence deve essere 0-1.',
+      '- evidenceCount deve essere intero >=1 quando il segnale esiste.',
+      '- observed.weeklyStateSummary.value deve essere una frase breve sullo stato della settimana.',
+      '',
+      'Forma JSON in output:',
+      '{',
+      '  "observed": { ...segnali opzionali con confidence... },',
+      '  "dynamicSignals": { ...segnali opzionali con confidence... },',
+      '  "anniversariesVisible": [{ "label": "", "date": "MM-DD", "repeating": true }],',
+      '  "hiddenMoments": [{ "kind": "highlight", "title": "", "date": "YYYY-MM-DD", "summary": "", "sourceMessageIds": [] }]',
+      '}',
+      '',
+      `Now: ${nowIso}`,
+      'Records:',
+      messageDigest || '(empty)',
+    ].join('\n');
+  }
+
   return [
     'You are a profile extraction assistant for a journaling app.',
     'Analyze only the provided 7-day activity records and return STRICT JSON.',
@@ -107,6 +189,9 @@ function buildPrompt(nowIso: string, messageDigest: string): string {
     'Rules:',
     '- Be conservative: if uncertain, omit field.',
     '- Generate at most 3 anniversaries and 5 hidden moments.',
+    '- observed.topActivities must include at most 3 items.',
+    '- observed.topMoods must include at most 3 items.',
+    '- observed.weeklyStateSummary.value must be one short sentence summarizing this week.',
     '- anniversariesVisible.date uses MM-DD or YYYY-MM-DD.',
     '- hiddenMoments.date uses YYYY-MM-DD.',
     '- confidence must be 0-1.',
@@ -149,6 +234,7 @@ export async function extractUserProfileFromMessages(params: {
   messages: ExtractProfileMessage[];
   apiKey: string;
   model?: string;
+  lang?: ExtractProfileLang;
   openai?: OpenAI;
 }): Promise<Partial<UserProfileV2>> {
   const nowIso = new Date().toISOString();
@@ -162,7 +248,8 @@ export async function extractUserProfileFromMessages(params: {
 
   const client = params.openai ?? new OpenAI({ apiKey: params.apiKey });
   const model = (params.model || process.env.PROFILE_EXTRACT_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
-  const prompt = buildPrompt(nowIso, buildInputDigest(trimmedMessages));
+  const lang = params.lang === 'zh' || params.lang === 'it' ? params.lang : 'en';
+  const prompt = buildPromptByLang(lang, nowIso, buildInputDigest(trimmedMessages));
 
   const completion = await client.chat.completions.create({
     model,
@@ -224,6 +311,15 @@ export async function extractUserProfileFromMessages(params: {
             : undefined,
           efficiencyByTimeBand: data.observed.efficiencyByTimeBand
             ? { ...data.observed.efficiencyByTimeBand, lastSeenAt: toISO(data.observed.efficiencyByTimeBand.lastSeenAt, nowIso) }
+            : undefined,
+          weeklyStateSummary: data.observed.weeklyStateSummary
+            ? { ...data.observed.weeklyStateSummary, lastSeenAt: toISO(data.observed.weeklyStateSummary.lastSeenAt, nowIso) }
+            : undefined,
+          topActivities: data.observed.topActivities
+            ? { ...data.observed.topActivities, lastSeenAt: toISO(data.observed.topActivities.lastSeenAt, nowIso) }
+            : undefined,
+          topMoods: data.observed.topMoods
+            ? { ...data.observed.topMoods, lastSeenAt: toISO(data.observed.topMoods.lastSeenAt, nowIso) }
             : undefined,
         }
       : undefined,

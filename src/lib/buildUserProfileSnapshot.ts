@@ -101,10 +101,14 @@ function buildSnapshotText(snapshot: {
   sleepTime?: string;
   currentGoal?: string;
   lifeGoal?: string;
+  personalizationText?: string;
   declaredMealTimes: number[];
   observedMealTimes: number[];
   dynamicPreferences: string[];
   dynamicDislikes: string[];
+  weeklyStateSummary?: string;
+  topActivities: string[];
+  topMoods: string[];
   upcomingAnniversaries: UpcomingVisibleAnniversary[];
   hiddenRecallMoments: HiddenMoment[];
 }): string {
@@ -116,8 +120,12 @@ function buildSnapshotText(snapshot: {
   lines.push(`Observed meal times: ${snapshot.observedMealTimes.length ? formatMealTimes(snapshot.observedMealTimes) : 'unknown'}`);
   lines.push(`Current goal: ${snapshot.currentGoal || 'unknown'}`);
   lines.push(`Life goal: ${snapshot.lifeGoal || 'unknown'}`);
+  lines.push(`Manual personalization: ${snapshot.personalizationText || 'none'}`);
   lines.push(`Preferences: ${snapshot.dynamicPreferences.length ? snapshot.dynamicPreferences.join(', ') : 'none'}`);
   lines.push(`Dislikes: ${snapshot.dynamicDislikes.length ? snapshot.dynamicDislikes.join(', ') : 'none'}`);
+  lines.push(`Weekly state: ${snapshot.weeklyStateSummary || 'unknown'}`);
+  lines.push(`Top activities (7d): ${snapshot.topActivities.length ? snapshot.topActivities.join(', ') : 'none'}`);
+  lines.push(`Top moods (7d): ${snapshot.topMoods.length ? snapshot.topMoods.join(', ') : 'none'}`);
 
   if (snapshot.upcomingAnniversaries.length > 0) {
     lines.push(
@@ -159,6 +167,12 @@ export function buildUserProfileSnapshot(input: BuildUserProfileSnapshotInput): 
   const hiddenRecallMoments = pickHiddenRecallMoments(profile.hiddenMoments);
   const dynamicPreferences = profile.dynamicSignals?.preferences?.value || [];
   const dynamicDislikes = profile.dynamicSignals?.dislikes?.value || [];
+  const weeklyStateSummary = profile.observed?.weeklyStateSummary?.value?.trim();
+  const topActivities = profile.observed?.topActivities?.value || [];
+  const topMoods = profile.observed?.topMoods?.value || [];
+  const personalizationText = typeof profile.manual?.freeText === 'string'
+    ? profile.manual.freeText.trim()
+    : '';
 
   return {
     text: buildSnapshotText({
@@ -166,10 +180,14 @@ export function buildUserProfileSnapshot(input: BuildUserProfileSnapshotInput): 
       sleepTime: profile.manual?.sleepTime,
       currentGoal: profile.manual?.currentGoal,
       lifeGoal: profile.manual?.lifeGoal,
+      personalizationText,
       declaredMealTimes,
       observedMealTimes,
       dynamicPreferences,
       dynamicDislikes,
+      weeklyStateSummary,
+      topActivities,
+      topMoods,
       upcomingAnniversaries,
       hiddenRecallMoments,
     }),

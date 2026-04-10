@@ -173,7 +173,8 @@ export async function triggerWeeklyProfileExtraction(messages: Message[]): Promi
   }
 
   try {
-    const result = await callExtractProfileAPI({ recentMessages });
+    const lang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
+    const result = await callExtractProfileAPI({ recentMessages, lang });
     if (!result.success || !result.profile) {
       if (import.meta.env.DEV) {
         console.log('[WeeklyProfile] skip extraction:', result.reason || 'empty profile payload');

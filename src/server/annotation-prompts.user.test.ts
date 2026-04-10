@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildUserPrompt } from './annotation-prompts.user';
+import { buildSuggestionAwareUserPrompt, buildUserPrompt } from './annotation-prompts.user';
 
 describe('annotation-prompts holiday formatting', () => {
   it('adds legal suffix for legal holidays in all languages', () => {
@@ -173,5 +173,26 @@ describe('annotation-prompts holiday formatting', () => {
 
     expect(prompt).toContain('Long-term profile snapshot:');
     expect(prompt).toContain('Declared wake/sleep: 07:30 / 23:30');
+  });
+
+  it('requires recovery copy to contrast normal 1-star vs today 2-star reward', () => {
+    const prompt = buildSuggestionAwareUserPrompt({
+      lang: 'zh',
+      eventType: 'activity_recorded',
+      eventSummary: 'opened app again',
+      todayActivitiesText: 'none',
+      recentMoodText: 'none',
+      forceSuggestion: true,
+      recoveryNudge: {
+        key: 'bottle:b1:miss3d',
+        reason: 'bottle_missed_3_days',
+        rewardStars: 2,
+        bottleId: 'b1',
+        bottleName: '跑步',
+      },
+    });
+
+    expect(prompt).toContain('平时完成是 1 颗星，今天补回完成是 2 颗星');
+    expect(prompt).toContain('不要套模板句');
   });
 });

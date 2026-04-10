@@ -31,12 +31,14 @@
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
-`/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[]` from frontend weekly-report flow.
+`/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[] + lang` (`zh`/`en`/`it`) from frontend weekly-report flow.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `characterStateText`, `characterStateMeta`, `currentDate`, `countryCode`, `holiday`, optional `latitude`/`longitude`, optional env context (`weatherContext`/`seasonContext`/`weatherAlerts`), `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders. `pendingTodos[*]` also supports `createdAt/ageDays` so suggestion mode can detect stale todos.
 Annotation request `userContext` now also supports optional `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), which is injected into prompt when `long_term_profile_enabled=true`.
 Annotation request `userContext` additionally supports optional `userId` for lateral-association state partitioning (`userId + aiMode`); server samples one association focus per call and injects it into prompt U4. State is persisted in `auth.users.user_metadata.lateral_association_state_v1` when `SUPABASE_SERVICE_ROLE_KEY` is available, otherwise it falls back to in-memory cache.
+Annotation server now includes low-narrative-density detection (`today_narrative_cache_v1`) in the same `/api/annotation` flow: score is rule-based (freshness/density/emotion/vocab), trigger decision is server-side only, and at most one `[今日小事] ...` instruction is injected per request.
+`/api/annotation` response may include `narrativeEvent` (`eventType`, `eventId`, `instruction`, `isTriggeredReply`) for frontend condensation telemetry (`event_condensed`).
 Character-state prompt injection can be soft-disabled server-side via `ANNOTATION_CHARACTER_STATE_ENABLED=false` (fallbacks to `none/无/nessuno` in prompt U3 block).
 Annotation prompt assembly is unified by `src/server/annotation-prompt-builder.ts`, which packages `model + instructions + input` for both annotation and suggestion branches before calling the model.
 Annotation event payload now supports todo-completion context fields in `eventData` (`todoCompletionContext` + optional compact `summary`) so `/api/annotation` can distinguish normal activity records from completed todos without prompt changes.
@@ -46,7 +48,7 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 当前 provider 映射：
 
 - `/api/annotation` -> `OPENAI_API_KEY`
-- `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`）
+- `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`；按 `lang` 路由中/英/意 prompt）
 - `/api/todo-decompose` -> `OPENAI_API_KEY`（可选 `TODO_DECOMPOSE_MODEL`，默认 `gpt-4o-mini`）；共享 `src/server/todo-decompose-service.ts`，annotation 建议链路也可复用该服务对长期未完成待办做预拆解
 - `/api/report` / `/api/plant-diary` -> `CHUTES_API_KEY`
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）

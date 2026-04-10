@@ -17,7 +17,7 @@
 - `callPlantDiaryAPI()`
 - `callPlantHistoryAPI()` (`GET` with auth headers + query params)
 - `callPlantAssetTelemetryAPI()` (records resolved plant image fallback level)
-- `callExtractProfileAPI()` (weekly report trigger; extracts `observed/dynamic/memory` profile patch)
+- `callExtractProfileAPI()` (weekly report trigger; extracts `observed/dynamic/memory` profile patch, supports `lang` routing)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -37,7 +37,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Plant generate response status includes `monthly_exhausted` when the current month has no unused candidate plant IDs left for the computed root type.
 - Plant asset telemetry endpoint (`/api/plant-asset-telemetry`) records which fallback level (`1-4`) was used when plant artwork resolves.
 - `/api/live-input-telemetry` is the consolidated telemetry endpoint: `POST` ingests live-input events, `GET` returns dashboard aggregates for live input events, plant fallback telemetry events, and diary sticker operations (`diary_sticker_*`) from `telemetry_events`.
-- `callExtractProfileAPI()` posts weekly report `recentMessages[]` to `/api/extract-profile` with auth header and gets a profile patch payload (`Partial<UserProfileV2>`), then `useAuthStore.updateUserProfile(...)` merges it into `user_metadata.user_profile_v2`.
+- `callExtractProfileAPI()` posts weekly report `recentMessages[] + lang` to `/api/extract-profile` with auth header and gets a profile patch payload (`Partial<UserProfileV2>`), then `useAuthStore.updateUserProfile(...)` merges it into `user_metadata.user_profile_v2`; profile patch now includes `observed.weeklyStateSummary`, `observed.topActivities` (top3), `observed.topMoods` (top3).
 
 ## Current Notes
 
@@ -52,7 +52,9 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities/todayContext/characterStateText/characterStateMeta/currentDate/countryCode/holiday` plus optional `latitude/longitude` and optional env fields (`weatherContext/seasonContext/weatherAlerts`), along with suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`). `pendingTodos[*]` additionally supports `createdAt/ageDays` for stale-todo detection; response supports `suggestion` payload for actionable AI bubbles.
 - `callAnnotationAPI()` `userContext` now also supports `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), gated by `user_metadata.long_term_profile_enabled` on the client side.
 - annotation 服务端新增横向联想采样：根据 `aiMode + userContext.userId + eventSummary` 生成 `associationInstruction` 并插入 prompt（U4，位于角色状态后）；采样状态优先写入 `user_metadata.lateral_association_state_v1`（无 service role 时回退进程内缓存）。
+- annotation 服务端新增低叙事密度判定：基于 `today_narrative_cache_v1` 做规则评分 + 阈值修正 + 概率触发，命中后注入单条 `[今日小事] ...` 指令。
 - `callAnnotationAPI()` `userContext` now supports `recoveryNudge` (missed-streak reminder context), and suggestion payload supports reward metadata (`rewardStars`, `rewardBottleId`, `recoveryKey`) plus stale-todo pre-decompose metadata (`decomposeReady`, `decomposeSourceTodoId`, `decomposeSteps`) for one-time bonus awarding and step-first execution.
+- `callAnnotationAPI()` response may include `narrativeEvent` (`eventType/eventId/instruction/isTriggeredReply`) so store layer can correlate low-density-triggered replies with `event_condensed` telemetry.
 - Annotation prompt assembly now goes through `src/server/annotation-prompt-builder.ts`, which centralizes prompt packaging for both annotation/suggestion paths and returns a unified `{ model, instructions, input }` payload to the LLM call.
 - Annotation 事件层新增待办完成透传：完成待办时会发送 `activity_completed`，并在 `eventData` 附带 `todoCompletionContext`（important/recurrence/createdAt/threeMonth）与按条件附加的紧凑 `summary`，普通输入继续走 `activity_recorded`。
 - `callTodoDecomposeAPI()` routes to `/api/todo-decompose`, which now uses OpenAI (`OPENAI_API_KEY`) with default model `gpt-4o-mini` (override via `TODO_DECOMPOSE_MODEL`).

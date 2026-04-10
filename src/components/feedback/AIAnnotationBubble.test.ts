@@ -29,7 +29,7 @@ describe('runSuggestionAcceptFlow', () => {
     expect(accepted).toBe(true);
     expect(params.markSuggestionAccepted).toHaveBeenCalledTimes(1);
     expect(params.setPendingSuggestionIntent).not.toHaveBeenCalled();
-    expect(params.emitEvent).toHaveBeenCalledTimes(1);
+    expect(params.emitEvent).not.toHaveBeenCalled();
     expect(params.navigate).not.toHaveBeenCalled();
     expect(params.recordSuggestionOutcome).toHaveBeenCalledWith('anno-1', true);
     expect(params.handleCondense).toHaveBeenCalledTimes(1);
