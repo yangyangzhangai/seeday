@@ -19,10 +19,18 @@ export interface DelayedEvent {
   sourceDate: string;
 }
 
+export interface ActiveEffect {
+  behaviorId: string;
+  score: number;
+  updatedAt: number;
+  expiresAt: number;
+  halfLifeHours: number;
+}
+
 export interface CharacterStateTracker {
   history: BehaviorHitEvent[];
   delayedQueue: DelayedEvent[];
-  injectedByDate: Record<string, string[]>;
+  activeEffects: ActiveEffect[];
 }
 
 export interface CharacterStateBuildInput {
@@ -59,6 +67,6 @@ export function createEmptyCharacterStateTracker(): CharacterStateTracker {
   return {
     history: [],
     delayedQueue: [],
-    injectedByDate: {},
+    activeEffects: [],
   };
 }

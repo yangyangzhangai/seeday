@@ -245,7 +245,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         setDragOffsetY(0);
         setDragOrder(current.initialOrder);
         document.body.style.userSelect = 'none';
-      }, 320),
+      }, 220),
     };
     dragSessionRef.current = session;
 
@@ -255,7 +255,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       current.lastY = evt.clientY;
 
       if (!current.activated) {
-        if (Math.abs(evt.clientY - current.startY) > 8) {
+        if (Math.abs(evt.clientY - current.startY) > 14) {
           clearDragTimer();
           dragSessionRef.current = null;
           window.removeEventListener('pointermove', onPointerMove);

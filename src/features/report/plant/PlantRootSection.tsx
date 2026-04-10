@@ -215,7 +215,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
   return (
     /* Keep root visualization full-size; diary area is reachable by scrolling down. */
-    <div className="h-full relative overflow-y-auto overflow-x-hidden">
+    <div className="app-scroll-container h-full relative">
 
       {/* ── Large canvas area; diary sits right below with a small gap ── */}
       <div className="relative h-[max(460px,62vh)] overflow-hidden">

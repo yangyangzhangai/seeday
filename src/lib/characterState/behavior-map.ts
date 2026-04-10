@@ -112,12 +112,17 @@ export const BEHAVIOR_MAP: BehaviorEntry[] = [
       van: '温室这几天一直有烟味，你的叶子越来越没精神，想找一束干净的光。',
       zep: '温室这几天一直有烟，你的嗉囊有点难受，已经抗议累了。',
     },
+    lite: {
+      van: '温室里还有一点烟味，快散了。',
+      zep: '温室里烟味淡了，嗉囊松了一点。',
+    },
   },
   {
     id: 'B03', timing: 'delay-2', delayDays: 2, decayType: 'high', category: 'body', priority: 103,
     targets: ['van'],
     instant: { van: '温室的灯很晚还亮着，你的花开得有点迷糊，节律乱了。' },
     trend: { van: '温室这几天光照节律一直乱着，你有几片叶子开始泛黄了。' },
+    lite: { van: '温室的环境逐渐恢复正常，但叶片还有点没精神。' },
   },
   {
     id: 'B04', timing: 'instant', decayType: 'none', category: 'habit', priority: 104,
@@ -176,6 +181,7 @@ export const BEHAVIOR_MAP: BehaviorEntry[] = [
     targets: ['van'],
     instant: { van: '温室里有苦香气，你的叶片忍不住微微抖动了一下，有点提神。' },
     trend: { van: '温室这几天每天都有苦香气，你的叶片已经熟悉了，但还是会抖一下。' },
+    lite: { van: '温室里的香气逐渐淡了。' },
   },
   {
     id: 'B10', timing: 'instant', decayType: 'mid', category: 'diet', priority: 110,

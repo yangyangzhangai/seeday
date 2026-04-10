@@ -49,6 +49,7 @@
 - token 控制策略：仅“特殊待办”附加 `eventData.summary`（单行摘要 + 近 90 天统计）。特殊判定为任一命中：关联瓶子、重复任务（daily/weekly/monthly）、创建 >= 3 天；其余一次性新建轻量待办不附加 summary。
 - 用户画像 v1.1 基建已接入：`useAuthStore` 新增 `longTermProfileEnabled` + `userProfileV2` 状态，并提供 `updateLongTermProfileEnabled()` / `updateUserProfile()`（统一按 `read -> merge -> write` 更新 `user_metadata`，避免覆盖 `login_days`、`lateral_association_state_v1` 等并行字段）。
 - suggestion 画像门控已接入：`useAnnotationStore` 在 `longTermProfileEnabled=true` 时构建并透传 `userContext.userProfileSnapshot`，并将 declared/observed 饭点注入建议上下文提示检测。
+- 周报触发画像提取已接入：`useReportStore.generateReport('weekly', ...)` 会并行调用 `/api/extract-profile`（携带最近消息），并在成功后通过 `useAuthStore.updateUserProfile(...)` 合并写回 `observed/dynamicSignals/anniversariesVisible/hiddenMoments/lastExtractedAt`。
 
 ## 变更自检
 

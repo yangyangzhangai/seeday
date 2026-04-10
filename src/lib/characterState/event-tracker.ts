@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
-import type { DelayedEvent, CharacterStateTracker } from './constants';
+import type { ActiveEffect, DelayedEvent, CharacterStateTracker } from './constants';
 
 export function toDateKey(date: Date): string {
   const y = date.getFullYear();
@@ -18,11 +18,14 @@ function addDays(dateKey: string, days: number): string {
   return toDateKey(date);
 }
 
-function trimInjectedByDate(injectedByDate: Record<string, string[]>, today: string) {
-  const keepFrom = addDays(today, -8);
-  return Object.fromEntries(
-    Object.entries(injectedByDate).filter(([date]) => date >= keepFrom),
-  );
+function normalizeTracker(tracker: CharacterStateTracker): CharacterStateTracker {
+  return {
+    history: Array.isArray(tracker.history) ? tracker.history : [],
+    delayedQueue: Array.isArray(tracker.delayedQueue) ? tracker.delayedQueue : [],
+    activeEffects: Array.isArray((tracker as any).activeEffects)
+      ? ((tracker as any).activeEffects as ActiveEffect[])
+      : [],
+  };
 }
 
 export function withRecordedHistory(
@@ -30,9 +33,10 @@ export function withRecordedHistory(
   behaviorIds: string[],
   now: Date,
 ): CharacterStateTracker {
+  const normalized = normalizeTracker(tracker);
   const date = toDateKey(now);
   const existing = new Set(
-    tracker.history
+    normalized.history
       .filter((item) => item.date === date)
       .map((item) => item.behaviorId),
   );
@@ -42,12 +46,11 @@ export function withRecordedHistory(
     .map((behaviorId) => ({ behaviorId, date, timestamp: now.getTime() }));
 
   const keepFrom = addDays(date, -14);
-  const history = [...tracker.history, ...append].filter((item) => item.date >= keepFrom);
+  const history = [...normalized.history, ...append].filter((item) => item.date >= keepFrom);
 
   return {
-    ...tracker,
+    ...normalized,
     history,
-    injectedByDate: trimInjectedByDate(tracker.injectedByDate, date),
   };
 }
 
@@ -57,75 +60,150 @@ export function scheduleDelayedBehavior(
   sourceDate: string,
   delayDays: 1 | 2,
 ): CharacterStateTracker {
+  const normalized = normalizeTracker(tracker);
   const dueDate = addDays(sourceDate, 1);
   const expiresAt = addDays(sourceDate, delayDays);
 
-  const exists = tracker.delayedQueue.some(
+  const exists = normalized.delayedQueue.some(
     (item) => item.behaviorId === behaviorId && item.sourceDate === sourceDate,
   );
 
-  if (exists) return tracker;
+  if (exists) return normalized;
 
-  const delayedQueue: DelayedEvent[] = [...tracker.delayedQueue, {
+  const delayedQueue: DelayedEvent[] = [...normalized.delayedQueue, {
     behaviorId,
     sourceDate,
     dueDate,
     expiresAt,
   }];
 
-  return { ...tracker, delayedQueue };
+  return { ...normalized, delayedQueue };
 }
 
 export function consumeDueDelayedBehaviors(
   tracker: CharacterStateTracker,
   today: string,
 ): { dueBehaviorIds: string[]; tracker: CharacterStateTracker } {
-  const dueBehaviorIds = tracker.delayedQueue
+  const normalized = normalizeTracker(tracker);
+  const dueBehaviorIds = normalized.delayedQueue
     .filter((item) => item.dueDate <= today && item.expiresAt >= today)
     .map((item) => item.behaviorId);
 
-  const delayedQueue = tracker.delayedQueue.filter((item) => item.expiresAt >= today);
+  const delayedQueue = normalized.delayedQueue
+    .filter((item) => item.expiresAt >= today)
+    .filter((item) => item.dueDate > today);
+
   return {
     dueBehaviorIds,
-    tracker: { ...tracker, delayedQueue },
+    tracker: { ...normalized, delayedQueue },
   };
 }
 
 export function getSevenDayDensity(tracker: CharacterStateTracker, behaviorId: string, today: string): number {
+  const normalized = normalizeTracker(tracker);
   const start = addDays(today, -6);
-  return tracker.history.filter((item) => item.behaviorId === behaviorId && item.date >= start && item.date <= today).length;
+  return normalized.history
+    .filter((item) => item.behaviorId === behaviorId && item.date >= start && item.date <= today)
+    .length;
 }
 
 export function getStreakOnActiveDays(tracker: CharacterStateTracker, behaviorId: string): number {
-  const activeDays = [...new Set(tracker.history.map((item) => item.date))].sort((a, b) => b.localeCompare(a));
+  const normalized = normalizeTracker(tracker);
+  const activeDays = [...new Set(normalized.history.map((item) => item.date))].sort((a, b) => b.localeCompare(a));
   if (activeDays.length === 0) return 0;
 
   let streak = 0;
   for (const day of activeDays) {
-    const hit = tracker.history.some((item) => item.date === day && item.behaviorId === behaviorId);
+    const hit = normalized.history.some((item) => item.date === day && item.behaviorId === behaviorId);
     if (!hit) break;
     streak += 1;
   }
   return streak;
 }
 
-export function isInjectedToday(tracker: CharacterStateTracker, today: string, behaviorId: string): boolean {
-  return (tracker.injectedByDate[today] || []).includes(behaviorId);
+export function decayAndPruneActiveEffects(
+  tracker: CharacterStateTracker,
+  now: Date,
+  minScore = 0.08,
+): CharacterStateTracker {
+  const normalized = normalizeTracker(tracker);
+  const nowMs = now.getTime();
+  const activeEffects = normalized.activeEffects
+    .map((effect) => {
+      const elapsedHours = Math.max(0, (nowMs - effect.updatedAt) / (60 * 60 * 1000));
+      const halfLife = Math.max(effect.halfLifeHours, 0.5);
+      const decayedScore = effect.score * Math.pow(0.5, elapsedHours / halfLife);
+      return {
+        ...effect,
+        score: decayedScore,
+        updatedAt: nowMs,
+      };
+    })
+    .filter((effect) => effect.expiresAt > nowMs && effect.score >= minScore);
+
+  return {
+    ...normalized,
+    activeEffects,
+  };
 }
 
-export function markInjectedToday(
+export function addOrRefreshActiveEffect(
   tracker: CharacterStateTracker,
-  today: string,
-  behaviorIds: string[],
+  behaviorId: string,
+  now: Date,
+  options: {
+    baseScore: number;
+    maxScore: number;
+    ttlHours: number;
+    halfLifeHours: number;
+  },
 ): CharacterStateTracker {
-  const merged = new Set([...(tracker.injectedByDate[today] || []), ...behaviorIds]);
+  const pruned = decayAndPruneActiveEffects(tracker, now);
+  const nowMs = now.getTime();
+  const expiresAt = nowMs + options.ttlHours * 60 * 60 * 1000;
+  const existing = pruned.activeEffects.find((effect) => effect.behaviorId === behaviorId);
+
+  if (!existing) {
+    return {
+      ...pruned,
+      activeEffects: [...pruned.activeEffects, {
+        behaviorId,
+        score: Math.max(0, options.baseScore),
+        updatedAt: nowMs,
+        expiresAt,
+        halfLifeHours: options.halfLifeHours,
+      }],
+    };
+  }
+
+  const activeEffects = pruned.activeEffects.map((effect) => {
+    if (effect.behaviorId !== behaviorId) return effect;
+    return {
+      ...effect,
+      score: Math.min(options.maxScore, effect.score + options.baseScore),
+      updatedAt: nowMs,
+      expiresAt: Math.max(effect.expiresAt, expiresAt),
+      halfLifeHours: options.halfLifeHours,
+    };
+  });
+
   return {
-    ...tracker,
-    injectedByDate: {
-      ...trimInjectedByDate(tracker.injectedByDate, today),
-      [today]: [...merged],
-    },
+    ...pruned,
+    activeEffects,
   };
+}
+
+export function getActiveEffectScore(tracker: CharacterStateTracker, behaviorId: string): number {
+  const normalized = normalizeTracker(tracker);
+  const found = normalized.activeEffects.find((effect) => effect.behaviorId === behaviorId);
+  return found?.score ?? 0;
+}
+
+export function listActiveBehaviorIds(tracker: CharacterStateTracker): string[] {
+  const normalized = normalizeTracker(tracker);
+  return normalized.activeEffects
+    .map((effect) => effect.behaviorId)
+    .filter((id, index, array) => array.indexOf(id) === index);
 }
 
 export function getTodayFromNow(now: Date): string {

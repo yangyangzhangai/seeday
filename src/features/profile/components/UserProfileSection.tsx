@@ -2,18 +2,17 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { UserProfilePanel } from './UserProfilePanel';
-import { UserProfileInsightsCard } from './UserProfileInsightsCard';
 
 interface Props {
   plain?: boolean;
 }
 
-type ProfileTab = 'profile' | 'anniversaries' | 'snapshot';
+type ProfileTab = 'schedule' | 'personalization' | 'anniversaries';
 
 export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = React.useState(true);
-  const [activeTab, setActiveTab] = React.useState<ProfileTab>('profile');
+  const [activeTab, setActiveTab] = React.useState<ProfileTab>('schedule');
 
   const tabBaseClass = 'min-h-8 rounded-full px-3 text-[11px] transition';
 
@@ -38,33 +37,29 @@ export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab('profile')}
-              className={`${tabBaseClass} ${activeTab === 'profile' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
+              onClick={() => setActiveTab('schedule')}
+              className={`${tabBaseClass} ${activeTab === 'schedule' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
             >
-              {t('profile_user_profile_current_goal')}
+              {t('profile_user_profile_tab_schedule')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('personalization')}
+              className={`${tabBaseClass} ${activeTab === 'personalization' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
+            >
+              {t('profile_user_profile_tab_personalization')}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('anniversaries')}
               className={`${tabBaseClass} ${activeTab === 'anniversaries' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
             >
-              {t('profile_user_profile_anniversaries')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('snapshot')}
-              className={`${tabBaseClass} ${activeTab === 'snapshot' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
-            >
-              {t('profile_snapshot_title')}
+              {t('profile_user_profile_tab_anniversaries')}
             </button>
           </div>
 
           <div className="mt-3 overflow-hidden rounded-xl border border-slate-200/60 bg-white/55">
-            {activeTab === 'snapshot' ? (
-              <UserProfileInsightsCard plain />
-            ) : (
-              <UserProfilePanel plain showHeader={false} />
-            )}
+            <UserProfilePanel plain showHeader={false} activeTab={activeTab} />
           </div>
         </div>
       ) : null}

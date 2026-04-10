@@ -26,6 +26,7 @@
     "@capacitor/core": "^8.3.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.3.0",
+    "@capacitor/keyboard": "^8.0.2",
     "@chinese-fonts/lxgwwenkai": "^3.0.0",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/material-symbols-outlined": "^5.2.39",

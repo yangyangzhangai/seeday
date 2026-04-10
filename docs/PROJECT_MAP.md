@@ -55,7 +55,6 @@ src/
 - `annotation.ts` -> `POST /api/annotation`
 - `classify.ts` -> `POST /api/classify`
 - `diary.ts` -> `POST /api/diary`
-- `stardust.ts` -> `POST /api/stardust`
 - `magic-pen-parse.ts` -> `POST /api/magic-pen-parse`
 - `todo-decompose.ts` -> `POST /api/todo-decompose`
 - `plant-generate.ts` -> `POST /api/plant-generate`

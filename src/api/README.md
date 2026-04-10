@@ -11,13 +11,13 @@
 - `callAnnotationAPI()`
 - `callClassifierAPI()`
 - `callDiaryAPI()`
-- `callStardustAPI()`
 - `callMagicPenParseAPI()`
 - `callTodoDecomposeAPI()`
 - `callPlantGenerateAPI()`
 - `callPlantDiaryAPI()`
 - `callPlantHistoryAPI()` (`GET` with auth headers + query params)
 - `callPlantAssetTelemetryAPI()` (records resolved plant image fallback level)
+- `callExtractProfileAPI()` (weekly report trigger; extracts `observed/dynamic/memory` profile patch)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -37,6 +37,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Plant generate response status includes `monthly_exhausted` when the current month has no unused candidate plant IDs left for the computed root type.
 - Plant asset telemetry endpoint (`/api/plant-asset-telemetry`) records which fallback level (`1-4`) was used when plant artwork resolves.
 - `/api/live-input-telemetry` is the consolidated telemetry endpoint: `POST` ingests live-input events, `GET` returns dashboard aggregates for live input events, plant fallback telemetry events, and diary sticker operations (`diary_sticker_*`) from `telemetry_events`.
+- `callExtractProfileAPI()` posts weekly report `recentMessages[]` to `/api/extract-profile` with auth header and gets a profile patch payload (`Partial<UserProfileV2>`), then `useAuthStore.updateUserProfile(...)` merges it into `user_metadata.user_profile_v2`.
 
 ## Current Notes
 
@@ -47,6 +48,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Magic Pen parse `segments[*]` now supports `timeRelation` (`realtime` / `future` / `past` / `unknown`) for parser-first direct-write gating.
 - Endpoint robustness baseline now includes `src/server/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
+- Stardust creation no longer calls a dedicated emoji model endpoint; the emoji is reused from annotation content in store layer with local fallback (`✨`).
 - `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities/todayContext/characterStateText/characterStateMeta/currentDate/countryCode/holiday` plus optional `latitude/longitude` and optional env fields (`weatherContext/seasonContext/weatherAlerts`), along with suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`). `pendingTodos[*]` additionally supports `createdAt/ageDays` for stale-todo detection; response supports `suggestion` payload for actionable AI bubbles.
 - `callAnnotationAPI()` `userContext` now also supports `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), gated by `user_metadata.long_term_profile_enabled` on the client side.
 - annotation 服务端新增横向联想采样：根据 `aiMode + userContext.userId + eventSummary` 生成 `associationInstruction` 并插入 prompt（U4，位于角色状态后）；采样状态优先写入 `user_metadata.lateral_association_state_v1`（无 service role 时回退进程内缓存）。

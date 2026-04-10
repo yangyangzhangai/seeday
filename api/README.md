@@ -17,9 +17,9 @@
 | `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` + `src/server/annotation-prompt-builder.ts` | `{ content, tone, displayDuration, source, reason?, suggestion? }` |
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
-| `POST` | `/api/stardust` | `stardust.ts` | `{ emojiChar }` |
 | `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
 | `POST` | `/api/todo-decompose` | `todo-decompose.ts` | `{ success: true, steps }` |
+| `POST` | `/api/extract-profile` | `extract-profile.ts` | `{ success: true, profile, skipped?, reason? }` |
 | `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus?, message? }` |
 | `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
 | `GET` | `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
@@ -31,6 +31,7 @@
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
+`/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[]` from frontend weekly-report flow.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `characterStateText`, `characterStateMeta`, `currentDate`, `countryCode`, `holiday`, optional `latitude`/`longitude`, optional env context (`weatherContext`/`seasonContext`/`weatherAlerts`), `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders. `pendingTodos[*]` also supports `createdAt/ageDays` so suggestion mode can detect stale todos.
@@ -45,8 +46,9 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 当前 provider 映射：
 
 - `/api/annotation` -> `OPENAI_API_KEY`
+- `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`）
 - `/api/todo-decompose` -> `OPENAI_API_KEY`（可选 `TODO_DECOMPOSE_MODEL`，默认 `gpt-4o-mini`）；共享 `src/server/todo-decompose-service.ts`，annotation 建议链路也可复用该服务对长期未完成待办做预拆解
-- `/api/report` / `/api/stardust` / `/api/plant-diary` -> `CHUTES_API_KEY`
+- `/api/report` / `/api/plant-diary` -> `CHUTES_API_KEY`
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底

@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/types/userProfile.ts
-import type { PrimaryUse, UserProfileManual, VisibleAnniversary } from '../../../types/userProfile';
+import type { UserProfileManual, VisibleAnniversary } from '../../../types/userProfile';
 
 export interface AnniversaryDraft {
   id: string;
@@ -69,24 +69,20 @@ export function createAnniversaryId(): string {
 export function buildManualPayload(
   prevManual: UserProfileManual | undefined,
   values: {
-    primaryUse: PrimaryUse | '';
     wakeTime: string;
     sleepTime: string;
     mealHours: number[];
     mealTimesText: string[];
-    currentGoal: string;
-    lifeGoal: string;
+    freeText: string;
   },
 ): UserProfileManual {
   return {
     ...(prevManual || {}),
-    primaryUse: values.primaryUse || undefined,
     wakeTime: values.wakeTime || undefined,
     sleepTime: values.sleepTime || undefined,
     mealTimes: values.mealHours.length ? values.mealHours : undefined,
     mealTimesText: values.mealTimesText.length ? values.mealTimesText : undefined,
-    currentGoal: values.currentGoal.trim() || undefined,
-    lifeGoal: values.lifeGoal.trim() || undefined,
+    freeText: values.freeText.trim() || undefined,
   };
 }
 

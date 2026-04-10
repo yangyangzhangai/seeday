@@ -74,7 +74,7 @@ Browser (React)
 - 作用:
   - 统一封装前端到 serverless 的 HTTP 调用
   - 提供 `callReportAPI` / `callAnnotationAPI`
-  - 提供 `callClassifierAPI` / `callDiaryAPI` / `callStardustAPI`
+  - 提供 `callClassifierAPI` / `callDiaryAPI`
   - 提供 `callMagicPenParseAPI`
   - 提供 `callPlantGenerateAPI` / `callPlantDiaryAPI` / `callPlantHistoryAPI`
 
@@ -86,7 +86,6 @@ Browser (React)
 - `annotation.ts`: 批注生成与内容提取（`POST /api/annotation`）
 - `classify.ts`: 结构化分类（`POST /api/classify`）
 - `diary.ts`: 观察手记生成（`POST /api/diary`）
-- `stardust.ts`: 星尘 Emoji 生成（`POST /api/stardust`）
 - `magic-pen-parse.ts`: Magic Pen AI 结构化提取（`POST /api/magic-pen-parse`）
 - `todo-decompose.ts`: Todo 步骤拆解（`POST /api/todo-decompose`）
 - `plant-generate.ts`: 生成当日植物记录（`POST /api/plant-generate`）

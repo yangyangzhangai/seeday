@@ -4,6 +4,124 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-10 - Feat: 角色状态改为持续影响 + 衰减注入（移除同日去重）
+
+### Changed
+
+- `src/lib/characterState/constants.ts`
+  - `CharacterStateTracker` 新增 `activeEffects` 持续影响状态，移除 `injectedByDate` 同日去重结构。
+- `src/lib/characterState/event-tracker.ts`
+  - 新增持续影响能力：`decayAndPruneActiveEffects()`、`addOrRefreshActiveEffect()`、`getActiveEffectScore()`、`listActiveBehaviorIds()`。
+  - 延迟事件改为“到期消费一次后进入持续影响池”，不再按天重复注入。
+- `src/lib/characterState/character-state-builder.ts`
+  - 注入策略由“当次命中+同日去重”改为“命中累积影响 -> 时间衰减 -> 从 active effects 选文案”。
+  - 衰减降级优先走 `lite` 文案（缺失时 fallback 到 `instant`），并继续保留 `trend` 与并发上限 2 条。
+  - 增加首版行为影响参数（base/max/ttl/half-life）用于不同事件持续时长与衰减速度。
+- `src/lib/characterState/behavior-map.ts`
+  - 补齐部分行为的 `lite` 文案：B02（吸烟）、B03（熬夜）、B09（咖啡）。
+- `src/lib/characterState/event-tracker.test.ts` / `src/lib/characterState/character-state-builder.test.ts`
+  - 单测改为覆盖“同日持续影响”“衰减过期清理”“延迟消费一次”新逻辑。
+
+### Validation
+
+- `npm run -s test:unit -- src/lib/characterState/event-tracker.test.ts src/lib/characterState/character-state-builder.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+## 2026-04-10 - Fix: iOS 套壳输入缩放/滚动条/拖拽手感
+
+### Changed
+
+- `index.html`
+  - 收紧 viewport：增加 `maximum-scale=1.0` 与 `user-scalable=no`，降低 iOS 输入聚焦导致页面放大且不回退的概率。
+- `src/index.css`
+  - 补充根层约束：`html/body/#root` 全高与根滚动锁定，统一 `text-size-adjust`。
+  - 新增 `app-scroll-container`，统一隐藏滚动条并保留惯性滚动（`-webkit-overflow-scrolling: touch`）。
+- `src/features/growth/GrowthPage.tsx`、`src/features/profile/ProfilePage.tsx`、`src/features/chat/components/TimelineView.tsx`、`src/features/report/plant/PlantRootSection.tsx`
+  - 主滚动容器切换为 `app-scroll-container`，减少 iOS WebView 下可见网页滚动条。
+- `src/services/native/keyboardService.ts`（新增）+ `src/main.tsx`
+  - 新增 iOS 原生键盘监听与视口修正初始化，键盘显隐时同步根 class 与高度变量，并在收起后执行滚动位置回正。
+- `package.json`、`capacitor.config.ts`、`ios/App/App/capacitor.config.json`
+  - 引入 `@capacitor/keyboard`，配置 `Keyboard.resize = body` 并同步 iOS Capacitor 配置。
+- `ios/App/App/AppDelegate.swift`
+  - App 激活与启动后统一调整 WKWebView scrollView：关闭 bounce 与滚动指示器，减少“网页感”滚动表现。
+- `src/features/growth/GrowthTodoSection.tsx`
+  - 长按拖拽参数调优：触发延时 `320ms -> 220ms`，取消阈值 `8px -> 14px`，提升移动端拖拽手感。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-10 - Refactor: Stardust 统一复用批注 Emoji（移除独立模型端点）
+
+### Changed
+
+- `src/store/useStardustStore.ts`
+  - 移除 `callStardustAPI` 依赖，不再在凝结时调用独立 AI 选 Emoji。
+  - 新增本地 `extractEmojiFromAnnotation(...)`，优先复用批注内容中的 emoji，缺失时兜底 `✨`。
+- `src/api/client.ts`
+  - 删除 `callStardustAPI()` 及其请求/响应类型。
+- `api/stardust.ts`
+  - 删除 `/api/stardust` serverless 入口。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `api/README.md`、`src/api/README.md`、`docs/PROJECT_MAP.md`、`docs/ARCHITECTURE.md`、`docs/AI_USAGE_INVENTORY.md`、`.env.example`、`scripts/check-doc-sync.mjs`。
+
+## 2026-04-10 - Feat: 周报点击触发用户画像提取（P3）
+
+### Changed
+
+- `api/extract-profile.ts`（新增）
+  - 新增 `/api/extract-profile` 端点（需 Supabase Bearer token）。
+  - 接收前端透传 `recentMessages[]`，调用服务端提取逻辑并返回 `profile` patch。
+- `src/server/extract-profile-service.ts`（新增）
+  - 新增画像提取服务：基于 OpenAI（默认 `gpt-4o-mini`）将最近记录总结为 `observed/dynamicSignals/anniversariesVisible/hiddenMoments`。
+  - 增加严格 schema 校验与保守清洗：非法字段丢弃，不阻塞主链路。
+- `src/api/client.ts`
+  - 新增 `callExtractProfileAPI()` 与请求/响应类型定义。
+- `src/store/reportActions.ts` + `src/store/useReportStore.ts`
+  - 新增 `triggerWeeklyProfileExtraction()`：当 `generateReport('weekly', ...)` 执行时并行触发画像提取。
+  - 长期画像开关关闭时自动短路；提取成功后通过 `useAuthStore.updateUserProfile(...)` merge 写回 `user_profile_v2`，避免 metadata 覆盖。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：冻结“周报点击触发画像提取，每次点击都执行”的触发口径，并标记 P3 完成。
+- 更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`：补充新端点与周报触发链路说明。
+
+## 2026-04-10 - Update: User Profile UI 三分栏改版（作息/个性化画像/我的纪念日）
+
+### Changed
+
+- `src/features/profile/components/UserProfileSection.tsx`
+  - 将“我的画像”页签改为 3 个固定入口：`作息时间`、`个性化画像`、`我的纪念日`。
+  - 移除该区域对“画像快照”页签的直接展示，改为只承载画像编辑任务。
+- `src/features/profile/components/UserProfilePanel.tsx`
+  - 移除“主要用途”与目标输入区，新增 `manual.freeText` 自由输入区用于个性化画像描述。
+  - 纪念日列表保留用户新增 + AI 自动写入的混合数据，并新增来源标识（我添加的 / AI 识别）。
+  - 保存链路继续复用 `updateUserProfile(...)`，统一提交作息、自由画像、纪念日。
+- `src/features/profile/components/userProfilePanelHelpers.ts`
+  - `buildManualPayload(...)` 调整为写入 `freeText`，不再更新 `primaryUse/currentGoal/lifeGoal`。
+- i18n：`src/i18n/locales/zh.ts` / `src/i18n/locales/en.ts` / `src/i18n/locales/it.ts`
+  - 新增三分栏页签、个性化画像输入、纪念日来源标签相关词条。
+  - 同步更新画像区域描述文案。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+### Doc Sync
+
+- 更新 `docs/CURRENT_TASK.md`：补记 Profile 画像编辑区的三分栏 UI 改版落地。
+
 ## 2026-04-09 - Update: User Profile v1.1（仅画像系统 + Profile UI 强化）
 
 ### Changed

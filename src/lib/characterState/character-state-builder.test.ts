@@ -58,7 +58,7 @@ describe('character-state-builder', () => {
     expect(result.meta.injectedBehaviorIds.length).toBeLessThanOrEqual(2);
   });
 
-  it('dedupes same behavior on the same day', () => {
+  it('keeps same-day effects active with decay model', () => {
     const first = buildCharacterState({
       text: '今天喝了咖啡',
       aiMode: 'van',
@@ -74,6 +74,6 @@ describe('character-state-builder', () => {
     });
 
     expect(first.meta.injectedBehaviorIds).toContain('B09');
-    expect(second.meta.injectedBehaviorIds).not.toContain('B09');
+    expect(second.meta.injectedBehaviorIds).toContain('B09');
   });
 });

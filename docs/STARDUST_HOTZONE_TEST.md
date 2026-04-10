@@ -1,6 +1,6 @@
 # 星尘珍藏 (Stardust Memories) 热区测试文档
 
-> 状态说明：Stardust 功能已在当前版本实现并接入生产路径（前端经 `src/api/client.ts` 调用 `/api/stardust`，服务端在 `api/stardust.ts` 处理）。
+> 状态说明：Stardust 功能已在当前版本实现并接入生产路径（前端在 `src/components/feedback/AIAnnotationBubble.tsx` 提取批注 emoji，并写入 `src/store/useStardustStore.ts`）。
 
 ## 热区设计规范
 

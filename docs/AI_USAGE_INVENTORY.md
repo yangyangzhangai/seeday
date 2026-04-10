@@ -5,7 +5,7 @@
 ## 总览
 
 - 前端统一通过 `src/api/client.ts` 调用 `/api/*`。
-- 当前共识别到 9 个 AI 运行角色（含植物日记能力）。
+- 当前共识别到 8 个 AI 运行角色（含植物日记能力）。
 
 ## AI 使用明细
 
@@ -18,7 +18,6 @@
 | 时间记录分类器 | `api/classify.ts`；调用：`src/store/useChatStore.ts`、`src/store/useTodoStore.ts` | DashScope 兼容接口 + Qwen；默认 `qwen-plus` | 将输入分类成结构化数据（类别、时段、能量日志）；并做瓶子语义匹配 | 分类抽取、语义匹配、JSON 稳定 | 14B-32B |
 | 魔法笔解析 | `api/magic-pen-parse.ts`；调用：`src/services/input/magicPenParser.ts` | Zhipu `glm-4.7-flash` + Qwen fallback（`qwen-flash`） | 将自然语言拆成 `activity/mood/todo_add/activity_backfill` 等结构 | 非结构文本解析、时间抽取、鲁棒 JSON | 14B-32B（偏低延迟） |
 | 报告分析（日报/周报/月报） | `api/report.ts`；调用：`src/store/reportActions.ts` | Chutes；`NousResearch/Hermes-4-405B-FP8-TEE` | 生成周期复盘与改进建议 | 长文综合分析、趋势归因、建议质量 | 30B-70B（当前配置偏重） |
-| Stardust Emoji 选择 | `api/stardust.ts`；调用：`src/store/useStardustStore.ts` | Chutes；`Hermes-4-405B` | 根据活动+批注选一个 Emoji | 基础情绪映射、强格式约束 | 3B-8B |
 | 植物日记与 plantId 选择 | `api/plant-generate.ts` -> `src/server/plant-diary-service.ts` | OpenAI Chat Completions；`gpt-4.1-mini` | 从候选植物中选 `plantId` 并生成一句观察文案 | 受限集合选择、短文案、多语言 | 7B-20B |
 
 ## API 与环境变量映射
@@ -29,7 +28,6 @@
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` + `QWEN_API_KEY`（可选 `MAGIC_PEN_FALLBACK_MODEL`）
 - `/api/report` -> `CHUTES_API_KEY`
-- `/api/stardust` -> `CHUTES_API_KEY`
 - `src/server/plant-diary-service.ts`（由 `/api/plant-generate` 调用）-> `OPENAI_API_KEY`
 
 ## 补充观察

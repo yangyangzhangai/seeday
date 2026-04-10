@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        DispatchQueue.main.async { [weak self] in
+            self?.applyWebViewScrollBehavior()
+        }
         return true
     }
 
@@ -26,7 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        applyWebViewScrollBehavior()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
@@ -44,6 +46,60 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    private func applyWebViewScrollBehavior() {
+        guard let bridgeVC = findBridgeViewController(from: window?.rootViewController),
+              let webView = bridgeVC.bridge?.webView else {
+            return
+        }
+
+        let scrollView = webView.scrollView
+        scrollView.bounces = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.keyboardDismissMode = .interactive
+        if #available(iOS 11.0, *) {
+            scrollView.contentInsetAdjustmentBehavior = .never
+        }
+    }
+
+    private func findBridgeViewController(from root: UIViewController?) -> CAPBridgeViewController? {
+        guard let root else { return nil }
+
+        if let bridgeVC = root as? CAPBridgeViewController {
+            return bridgeVC
+        }
+
+        if let nav = root as? UINavigationController {
+            for controller in nav.viewControllers {
+                if let match = findBridgeViewController(from: controller) {
+                    return match
+                }
+            }
+        }
+
+        if let tab = root as? UITabBarController {
+            for controller in tab.viewControllers ?? [] {
+                if let match = findBridgeViewController(from: controller) {
+                    return match
+                }
+            }
+        }
+
+        if let presented = root.presentedViewController,
+           let match = findBridgeViewController(from: presented) {
+            return match
+        }
+
+        for child in root.children {
+            if let match = findBridgeViewController(from: child) {
+                return match
+            }
+        }
+
+        return nil
     }
 
 }

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyCharacterStateTracker } from './constants';
 import {
+  addOrRefreshActiveEffect,
   consumeDueDelayedBehaviors,
+  decayAndPruneActiveEffects,
+  getActiveEffectScore,
   getSevenDayDensity,
   getStreakOnActiveDays,
-  markInjectedToday,
   scheduleDelayedBehavior,
   toDateKey,
   withRecordedHistory,
@@ -36,7 +38,7 @@ describe('event-tracker', () => {
     expect(consumed.dueBehaviorIds).toEqual(['B01']);
   });
 
-  it('keeps delay-2 events active for two days', () => {
+  it('consumes delay events once after due date', () => {
     let tracker = createEmptyCharacterStateTracker();
     tracker = scheduleDelayedBehavior(tracker, 'B03', '2026-04-08', 2);
 
@@ -44,15 +46,27 @@ describe('event-tracker', () => {
     expect(day1.dueBehaviorIds).toContain('B03');
 
     const day2 = consumeDueDelayedBehaviors(day1.tracker, '2026-04-10');
-    expect(day2.dueBehaviorIds).toContain('B03');
-
-    const day3 = consumeDueDelayedBehaviors(day2.tracker, '2026-04-11');
-    expect(day3.dueBehaviorIds).not.toContain('B03');
+    expect(day2.dueBehaviorIds).not.toContain('B03');
   });
 
-  it('tracks per-day injected ids', () => {
-    const day = toDateKey(new Date('2026-04-08T10:00:00'));
-    const tracker = markInjectedToday(createEmptyCharacterStateTracker(), day, ['B21']);
-    expect(tracker.injectedByDate[day]).toContain('B21');
+  it('decays and prunes active effects by time', () => {
+    let tracker = createEmptyCharacterStateTracker();
+    const start = new Date('2026-04-08T10:00:00');
+    tracker = addOrRefreshActiveEffect(tracker, 'B21', start, {
+      baseScore: 1,
+      maxScore: 2,
+      ttlHours: 12,
+      halfLifeHours: 4,
+    });
+
+    const afterTwoHours = decayAndPruneActiveEffects(tracker, new Date('2026-04-08T12:00:00'));
+    expect(getActiveEffectScore(afterTwoHours, 'B21')).toBeLessThan(1);
+
+    const afterExpiry = decayAndPruneActiveEffects(afterTwoHours, new Date('2026-04-09T00:30:00'));
+    expect(getActiveEffectScore(afterExpiry, 'B21')).toBe(0);
+  });
+
+  it('keeps date key helper unchanged', () => {
+    expect(toDateKey(new Date('2026-04-08T10:00:00'))).toBe('2026-04-08');
   });
 });

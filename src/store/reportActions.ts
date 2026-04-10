@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
 import { supabase } from '../api/supabase';
-import { callDiaryAPI, callReportAPI } from '../api/client';
+import { callDiaryAPI, callExtractProfileAPI, callReportAPI, type ExtractProfileRequestMessage } from '../api/client';
 import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
@@ -142,6 +142,64 @@ export function createGeneratedReport({
     analysisStatus: 'idle',
     errorMessage: null,
   };
+}
+
+function buildExtractProfileMessages(messages: Message[]): ExtractProfileRequestMessage[] {
+  return messages
+    .filter((message) => typeof message.content === 'string' && message.content.trim().length > 0)
+    .slice(-120)
+    .map((message) => ({
+      id: message.id,
+      content: message.content,
+      timestamp: message.timestamp,
+      duration: message.duration,
+      activityType: message.activityType,
+      isMood: message.isMood,
+    }));
+}
+
+export async function triggerWeeklyProfileExtraction(messages: Message[]): Promise<void> {
+  const authState = useAuthStore.getState();
+  if (!authState.longTermProfileEnabled || !authState.user) {
+    return;
+  }
+
+  const recentMessages = buildExtractProfileMessages(messages);
+  if (recentMessages.length === 0) {
+    if (import.meta.env.DEV) {
+      console.log('[WeeklyProfile] skip extraction: empty messages');
+    }
+    return;
+  }
+
+  try {
+    const result = await callExtractProfileAPI({ recentMessages });
+    if (!result.success || !result.profile) {
+      if (import.meta.env.DEV) {
+        console.log('[WeeklyProfile] skip extraction:', result.reason || 'empty profile payload');
+      }
+      return;
+    }
+
+    const { error } = await useAuthStore.getState().updateUserProfile({
+      observed: result.profile.observed,
+      dynamicSignals: result.profile.dynamicSignals,
+      anniversariesVisible: result.profile.anniversariesVisible,
+      hiddenMoments: result.profile.hiddenMoments,
+      lastExtractedAt: result.profile.lastExtractedAt || new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn('[WeeklyProfile] updateUserProfile failed:', error);
+      return;
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[WeeklyProfile] profile extraction synced');
+    }
+  } catch (error) {
+    console.warn('[WeeklyProfile] extraction request failed:', error);
+  }
 }
 
 export function mergeReportIntoList(reports: Report[], type: ReportType, date: number, newReport: Report): Report[] {

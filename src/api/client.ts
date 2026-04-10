@@ -8,6 +8,7 @@
 import { normalizeAiCompanionMode, type AiCompanionMode } from '../lib/aiCompanion';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAuthStore } from '../store/useAuthStore';
+import type { UserProfileV2 } from '../types/userProfile';
 import type {
   PlantAssetTelemetryRequest,
   PlantAssetTelemetryResponse,
@@ -186,12 +187,37 @@ interface ReportResponse {
   content: string;
 }
 
+export interface ExtractProfileRequestMessage {
+  id: string;
+  content: string;
+  timestamp: number;
+  duration?: number;
+  activityType?: string;
+  isMood?: boolean;
+}
+
+interface ExtractProfileRequest {
+  recentMessages: ExtractProfileRequestMessage[];
+}
+
+interface ExtractProfileResponse {
+  success: boolean;
+  profile?: Partial<UserProfileV2>;
+  skipped?: boolean;
+  reason?: string;
+}
+
 /**
  * 调用 Report API
  */
 export async function callReportAPI(request: ReportRequest): Promise<string> {
   const data = await postJson<ReportRequest, ReportResponse>('/report', request);
   return data.content;
+}
+
+export async function callExtractProfileAPI(request: ExtractProfileRequest): Promise<ExtractProfileResponse> {
+  const headers = await getAuthHeaders();
+  return postJson<ExtractProfileRequest, ExtractProfileResponse>('/extract-profile', request, { headers });
 }
 
 /**
@@ -292,17 +318,6 @@ export async function callDiaryAPI(request: DiaryRequest): Promise<DiaryResponse
   });
 }
 
-// ── Stardust Emoji 生成 API ───────────────────────────────────────────────────
-
-interface StardustRequest {
-  userRawContent: string;
-  message: string;
-}
-
-interface StardustResponse {
-  emojiChar: string;
-}
-
 interface MagicPenParseRequest {
   rawText: string;
   lang?: ApiLang;
@@ -335,14 +350,6 @@ interface MagicPenParseResponse {
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
   providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
   fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception' | 'qwen';
-}
-
-/**
- * 调用 Stardust API - 为珍藏记忆生成 Emoji 字符
- * 替代 useStardustStore 中的前端直连 Chutes API 行为
- */
-export async function callStardustAPI(request: StardustRequest): Promise<StardustResponse> {
-  return postJson<StardustRequest, StardustResponse>('/stardust', request);
 }
 
 export async function callMagicPenParseAPI(

@@ -3,7 +3,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Sparkles, Plus, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
-import type { PrimaryUse } from '../../../types/userProfile';
 import {
   buildAnniversariesPayload,
   buildManualPayload,
@@ -24,17 +23,16 @@ import {
 interface Props {
   plain?: boolean;
   showHeader?: boolean;
+  activeTab?: 'schedule' | 'personalization' | 'anniversaries';
 }
 
 function signature(input: {
-  primaryUse: PrimaryUse | '';
   wakeTime: string;
   sleepTime: string;
   breakfastTime: string;
   lunchTime: string;
   dinnerTime: string;
-  currentGoal: string;
-  lifeGoal: string;
+  freeText: string;
   anniversaries: AnniversaryDraft[];
 }): string {
   const normalizedAnniversaries = input.anniversaries.map((item) => ({
@@ -44,27 +42,28 @@ function signature(input: {
   }));
   return JSON.stringify({
     ...input,
-    currentGoal: input.currentGoal.trim(),
-    lifeGoal: input.lifeGoal.trim(),
+    freeText: input.freeText.trim(),
     anniversaries: normalizedAnniversaries,
   });
 }
 
-export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = true }) => {
+export const UserProfilePanel: React.FC<Props> = ({
+  plain = false,
+  showHeader = true,
+  activeTab,
+}) => {
   const { t } = useTranslation();
   const { userProfileV2, updateUserProfile } = useAuthStore();
   const [expanded, setExpanded] = React.useState(!showHeader);
   const [saving, setSaving] = React.useState(false);
   const [saveText, setSaveText] = React.useState('');
 
-  const [primaryUse, setPrimaryUse] = React.useState<PrimaryUse | ''>('');
   const [wakeTime, setWakeTime] = React.useState(DEFAULT_WAKE_TIME);
   const [sleepTime, setSleepTime] = React.useState(DEFAULT_SLEEP_TIME);
   const [breakfastTime, setBreakfastTime] = React.useState(DEFAULT_BREAKFAST);
   const [lunchTime, setLunchTime] = React.useState(DEFAULT_LUNCH);
   const [dinnerTime, setDinnerTime] = React.useState(DEFAULT_DINNER);
-  const [currentGoal, setCurrentGoal] = React.useState('');
-  const [lifeGoal, setLifeGoal] = React.useState('');
+  const [freeText, setFreeText] = React.useState('');
   const [anniversaries, setAnniversaries] = React.useState<AnniversaryDraft[]>([]);
 
   const baselineSignature = React.useMemo(() => {
@@ -74,14 +73,12 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
       : [];
     const mealTimes = Array.isArray(manual?.mealTimes) ? manual.mealTimes : [];
     return signature({
-      primaryUse: (manual?.primaryUse as PrimaryUse | undefined) || '',
       wakeTime: manual?.wakeTime || DEFAULT_WAKE_TIME,
       sleepTime: manual?.sleepTime || DEFAULT_SLEEP_TIME,
       breakfastTime: mealTimesText[0] || toHourText(mealTimes[0], DEFAULT_BREAKFAST),
       lunchTime: mealTimesText[1] || toHourText(mealTimes[1], DEFAULT_LUNCH),
       dinnerTime: mealTimesText[2] || toHourText(mealTimes[2], DEFAULT_DINNER),
-      currentGoal: manual?.currentGoal || '',
-      lifeGoal: manual?.lifeGoal || '',
+      freeText: manual?.freeText || '',
       anniversaries: toAnniversaryDrafts(userProfileV2?.anniversariesVisible),
     });
   }, [userProfileV2]);
@@ -94,7 +91,6 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
 
   React.useEffect(() => {
     const manual = userProfileV2?.manual;
-    setPrimaryUse((manual?.primaryUse as PrimaryUse | undefined) || '');
     setWakeTime(manual?.wakeTime || DEFAULT_WAKE_TIME);
     setSleepTime(manual?.sleepTime || DEFAULT_SLEEP_TIME);
     const mealTimesText = Array.isArray(manual?.mealTimesText)
@@ -104,8 +100,7 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
     setBreakfastTime(mealTimesText[0] || toHourText(mealTimes?.[0], DEFAULT_BREAKFAST));
     setLunchTime(mealTimesText[1] || toHourText(mealTimes?.[1], DEFAULT_LUNCH));
     setDinnerTime(mealTimesText[2] || toHourText(mealTimes?.[2], DEFAULT_DINNER));
-    setCurrentGoal(manual?.currentGoal || '');
-    setLifeGoal(manual?.lifeGoal || '');
+    setFreeText(manual?.freeText || '');
     setAnniversaries(toAnniversaryDrafts(userProfileV2?.anniversariesVisible));
   }, [userProfileV2]);
 
@@ -118,25 +113,21 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
 
   const currentSignature = React.useMemo(
     () => signature({
-      primaryUse,
       wakeTime,
       sleepTime,
       breakfastTime,
       lunchTime,
       dinnerTime,
-      currentGoal,
-      lifeGoal,
+      freeText,
       anniversaries,
     }),
     [
-      primaryUse,
       wakeTime,
       sleepTime,
       breakfastTime,
       lunchTime,
       dinnerTime,
-      currentGoal,
-      lifeGoal,
+      freeText,
       anniversaries,
     ],
   );
@@ -174,13 +165,11 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
     setSaving(true);
 
     const nextManual = buildManualPayload(userProfileV2?.manual, {
-      primaryUse,
       wakeTime,
       sleepTime,
       mealHours,
       mealTimesText: [breakfastTime, lunchTime, dinnerTime],
-      currentGoal,
-      lifeGoal,
+      freeText,
     });
     const nextAnniversaries = buildAnniversariesPayload(anniversaries);
 
@@ -192,13 +181,6 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
     setSaving(false);
     setSaveText(error ? t('profile_user_profile_save_failed') : t('profile_user_profile_saved'));
   };
-
-  const usageOptions: Array<{ value: PrimaryUse; labelKey: string }> = [
-    { value: 'life_record', labelKey: 'profile_user_profile_use_life_record' },
-    { value: 'organize_thoughts', labelKey: 'profile_user_profile_use_organize_thoughts' },
-    { value: 'emotion_management', labelKey: 'profile_user_profile_use_emotion_management' },
-    { value: 'habit_building', labelKey: 'profile_user_profile_use_habit_building' },
-  ];
 
   return (
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
@@ -221,96 +203,78 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
       {expanded ? (
         <div className={showHeader ? 'border-t border-slate-200/60 px-4 pb-4 pt-3' : 'px-4 pb-4 pt-3'}>
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_primary_use')}</span>
-              <select
-                value={primaryUse}
-                onChange={(event) => setPrimaryUse(event.target.value as PrimaryUse | '')}
-                className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
-              >
-                <option value="">{t('profile_user_profile_select_placeholder')}</option>
-                {usageOptions.map((item) => (
-                  <option key={item.value} value={item.value}>{t(item.labelKey)}</option>
-                ))}
-              </select>
-            </label>
+            {activeTab !== 'personalization' && activeTab !== 'anniversaries' ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_wake_time')}</span>
+                    <input
+                      type="time"
+                      value={wakeTime}
+                      onChange={(event) => setWakeTime(event.target.value)}
+                      className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_sleep_time')}</span>
+                    <input
+                      type="time"
+                      value={sleepTime}
+                      onChange={(event) => setSleepTime(event.target.value)}
+                      className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+                    />
+                  </label>
+                </div>
 
-            <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_breakfast')}</span>
+                    <input
+                      type="time"
+                      value={breakfastTime}
+                      onChange={(event) => setBreakfastTime(event.target.value)}
+                      className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_lunch')}</span>
+                    <input
+                      type="time"
+                      value={lunchTime}
+                      onChange={(event) => setLunchTime(event.target.value)}
+                      className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_dinner')}</span>
+                    <input
+                      type="time"
+                      value={dinnerTime}
+                      onChange={(event) => setDinnerTime(event.target.value)}
+                      className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                    />
+                  </label>
+                </div>
+              </>
+            ) : null}
+
+            {activeTab === 'personalization' ? (
               <label className="block">
-                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_wake_time')}</span>
-                <input
-                  type="time"
-                  value={wakeTime}
-                  onChange={(event) => setWakeTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_personalization')}</span>
+                <textarea
+                  value={freeText}
+                  onChange={(event) => setFreeText(event.target.value)}
+                  placeholder={t('profile_user_profile_personalization_placeholder')}
+                  rows={6}
+                  className="w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 py-2 text-xs text-slate-700 outline-none"
                 />
               </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_sleep_time')}</span>
-                <input
-                  type="time"
-                  value={sleepTime}
-                  onChange={(event) => setSleepTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
-                />
-              </label>
-            </div>
+            ) : null}
 
-            <div className="grid grid-cols-3 gap-2">
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_breakfast')}</span>
-                <input
-                  type="time"
-                  value={breakfastTime}
-                  onChange={(event) => setBreakfastTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_lunch')}</span>
-                <input
-                  type="time"
-                  value={lunchTime}
-                  onChange={(event) => setLunchTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_dinner')}</span>
-                <input
-                  type="time"
-                  value={dinnerTime}
-                  onChange={(event) => setDinnerTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                />
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_current_goal')}</span>
-              <input
-                type="text"
-                value={currentGoal}
-                onChange={(event) => setCurrentGoal(event.target.value)}
-                placeholder={t('profile_user_profile_current_goal_placeholder')}
-                className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_life_goal')}</span>
-              <textarea
-                value={lifeGoal}
-                onChange={(event) => setLifeGoal(event.target.value)}
-                placeholder={t('profile_user_profile_life_goal_placeholder')}
-                rows={2}
-                className="w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 py-2 text-xs text-slate-700 outline-none"
-              />
-            </label>
-
-            <div>
+            {activeTab === 'anniversaries' ? (
+              <div>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] text-slate-600">{t('profile_user_profile_anniversaries')}</span>
+                <span className="text-[11px] text-slate-600">{t('profile_user_profile_my_anniversaries')}</span>
                 <button
                   type="button"
                   onClick={handleAddAnniversary}
@@ -327,6 +291,11 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
                 ) : (
                   anniversaries.map((item) => (
                     <div key={item.id} className="rounded-lg border border-[#DDEBE3] bg-white/70 p-2.5">
+                      <div className="mb-2 flex justify-end">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] ${item.source === 'ai_auto' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {item.source === 'ai_auto' ? t('profile_user_profile_anniversary_source_ai') : t('profile_user_profile_anniversary_source_user')}
+                        </span>
+                      </div>
                       <div className="grid grid-cols-[1fr_auto] gap-2">
                         <input
                           type="text"
@@ -380,7 +349,8 @@ export const UserProfilePanel: React.FC<Props> = ({ plain = false, showHeader = 
                   ))
                 )}
               </div>
-            </div>
+              </div>
+            ) : null}
 
             <div className="pt-1">
               <button

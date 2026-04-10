@@ -85,9 +85,8 @@
 - 状态: `beta`
 - 组件: `src/components/feedback/Stardust*.tsx`
 - 数据/状态: `src/store/useStardustStore.ts`
-- 服务端: `api/stardust.ts`
 - 说明:
-  - 前端明文密钥直连已下线，统一改 serverless 转发。
+  - Stardust Emoji 统一复用批注内容中的 emoji，缺失时本地兜底 `✨`，不再走独立 AI 端点。
 
 ## 8. Plant System（嵌入 `/report` + `/profile`）
 

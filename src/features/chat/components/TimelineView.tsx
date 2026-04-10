@@ -66,7 +66,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   if (isLoading) {
     return (
-      <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
+      <div className="app-scroll-container" style={{ flex: 1, paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
         {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
       </div>
     );
@@ -74,7 +74,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   if (items.length === 0) {
     return (
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+      <div className="app-scroll-container" style={{ flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80, opacity: 0.45 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 52, color: PRIMARY }}>event_note</span>
         <p style={{ fontSize: 14, color: '#64748b', margin: 0, textAlign: 'center' }}>
@@ -88,7 +88,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const timelineLineX = 60;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
+    <div className="app-scroll-container" style={{ flex: 1, paddingLeft: 16, paddingRight: 16, paddingBottom: TIMELINE_BOTTOM_PADDING, paddingTop: 16 }}>
       <div style={{ position: 'relative' }}>
         {/* Vertical timeline line */}
         <div style={{ position: 'absolute', left: timelineLineX, top: 12, bottom: 0, width: 1.5,

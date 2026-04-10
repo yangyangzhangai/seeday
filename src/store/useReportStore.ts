@@ -18,6 +18,7 @@ import {
   runReportAIAnalysis,
   runAIDiary,
   syncReportToSupabase,
+  triggerWeeklyProfileExtraction,
 } from './reportActions';
 import { getDateRange } from './reportHelpers';
 
@@ -220,6 +221,11 @@ export const useReportStore = create<ReportState>()(
         }));
 
         syncReportToSupabase(newReport);
+
+        if (type === 'weekly') {
+          void triggerWeeklyProfileExtraction(messages);
+        }
+
         return newReport.id;
       },
 

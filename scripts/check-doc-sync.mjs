@@ -31,7 +31,6 @@ const dependencyHeaderFiles = [
   'api/annotation.ts',
   'api/classify.ts',
   'api/diary.ts',
-  'api/stardust.ts',
   'src/server/http.ts',
   'src/server/annotation-prompts.defaults.ts',
   'src/server/annotation-prompts.user.ts',

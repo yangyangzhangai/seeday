@@ -10,6 +10,7 @@ import "./index.css";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/feedback/ErrorBoundary.tsx";
 import { setupMobileAuthBridge } from "./lib/mobileAuthBridge";
+import { setupKeyboardViewportFix } from "./services/native/keyboardService";
 
 if (typeof document !== "undefined") {
   const root = document.documentElement;
@@ -26,6 +27,7 @@ if (typeof document !== "undefined") {
 }
 
 void setupMobileAuthBridge();
+void setupKeyboardViewportFix();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
