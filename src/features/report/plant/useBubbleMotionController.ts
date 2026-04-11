@@ -9,21 +9,28 @@ import {
 
 const BUBBLE_SIZE = 100;
 const EDGE_PADDING = 4;
-const MAX_SPEED = 165;
-const AIR_DRAG = 0.988;
+const MAX_SPEED = 65;
+const AIR_DRAG = 0.992;
 const BOUNCE_DAMPING = 0.82;
-const DRIFT_STRENGTH = 24;
-const GRAVITY_STRENGTH = 250;
+const DRIFT_STRENGTH = 10;
+const GRAVITY_STRENGTH = 100;
 const SHAKE_GAIN = 0.028;
 const SHAKE_THRESHOLD = 1.7;
+const OVERLAP_THRESHOLD = BUBBLE_SIZE * (2 / 3);
+const WANDER_CHANGE_MIN = 1.8;
+const WANDER_CHANGE_MAX = 3.6;
+const WANDER_SMOOTHING = 0.08;
 
 interface BubblePhysicsState {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  phase: number;
-  phaseSpeed: number;
+  wanderX: number;
+  wanderY: number;
+  wanderTargetX: number;
+  wanderTargetY: number;
+  wanderTimer: number;
 }
 
 export interface BubbleMotionController {
@@ -35,6 +42,97 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function lerp(from: number, to: number, t: number): number {
+  return from + (to - from) * t;
+}
+
+function randomDirection(): { x: number; y: number } {
+  const angle = Math.random() * Math.PI * 2;
+  return { x: Math.cos(angle), y: Math.sin(angle) };
+}
+
+function randomRange(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randomPosition(maxX: number, maxY: number): { x: number; y: number } {
+  return {
+    x: randomRange(EDGE_PADDING, maxX),
+    y: randomRange(EDGE_PADDING, maxY),
+  };
+}
+
+function randomSeparatedPosition(
+  maxX: number,
+  maxY: number,
+  otherX: number,
+  otherY: number,
+): { x: number; y: number } {
+  for (let i = 0; i < 6; i += 1) {
+    const candidate = randomPosition(maxX, maxY);
+    if (Math.hypot(candidate.x - otherX, candidate.y - otherY) >= OVERLAP_THRESHOLD) return candidate;
+  }
+  return {
+    x: otherX < maxX / 2 ? maxX : EDGE_PADDING,
+    y: otherY < maxY / 2 ? maxY : EDGE_PADDING,
+  };
+}
+
+function seedWander(state: BubblePhysicsState): void {
+  const dir = randomDirection();
+  const strength = DRIFT_STRENGTH * randomRange(0.7, 1.2);
+  state.wanderTargetX = dir.x * strength;
+  state.wanderTargetY = dir.y * strength;
+  state.wanderX = state.wanderTargetX * 0.6;
+  state.wanderY = state.wanderTargetY * 0.6;
+  state.wanderTimer = randomRange(WANDER_CHANGE_MIN, WANDER_CHANGE_MAX);
+}
+
+function updateWander(state: BubblePhysicsState, dt: number, index: number): void {
+  state.wanderTimer -= dt;
+  if (state.wanderTimer <= 0) {
+    const dir = randomDirection();
+    const strength = DRIFT_STRENGTH * randomRange(0.7, 1.2);
+    state.wanderTargetX = dir.x * strength;
+    state.wanderTargetY = dir.y * strength;
+    state.wanderTimer = randomRange(WANDER_CHANGE_MIN, WANDER_CHANGE_MAX) + index * 0.2;
+  }
+  state.wanderX = lerp(state.wanderX, state.wanderTargetX, WANDER_SMOOTHING);
+  state.wanderY = lerp(state.wanderY, state.wanderTargetY, WANDER_SMOOTHING);
+}
+
+function resolveOverlap(a: BubblePhysicsState, b: BubblePhysicsState): void {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let dist = Math.hypot(dx, dy);
+  if (dist >= OVERLAP_THRESHOLD) return;
+  if (dist < 0.001) {
+    const dir = randomDirection();
+    dist = 0.001;
+    a.x -= dir.x * 0.5;
+    a.y -= dir.y * 0.5;
+    b.x += dir.x * 0.5;
+    b.y += dir.y * 0.5;
+  }
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const overlap = OVERLAP_THRESHOLD - dist;
+  const push = overlap * 0.5;
+  a.x -= nx * push;
+  a.y -= ny * push;
+  b.x += nx * push;
+  b.y += ny * push;
+  const impulse = overlap * 2.4;
+  a.vx -= nx * impulse;
+  a.vy -= ny * impulse;
+  b.vx += nx * impulse;
+  b.vy += ny * impulse;
+  a.vx *= BOUNCE_DAMPING;
+  a.vy *= BOUNCE_DAMPING;
+  b.vx *= BOUNCE_DAMPING;
+  b.vy *= BOUNCE_DAMPING;
+}
+
 export function useBubbleMotionController(): BubbleMotionController {
   const containerRef = useRef<HTMLDivElement>(null);
   const bubbleRefs = useRef<Array<HTMLDivElement | null>>([null, null]);
@@ -43,10 +141,11 @@ export function useBubbleMotionController(): BubbleMotionController {
   const shakeRef = useRef({ x: 0, y: 0 });
   const lastAccelRef = useRef<TiltVector | null>(null);
   const statesRef = useRef<BubblePhysicsState[]>([
-    { x: 28, y: 16, vx: 20, vy: -10, phase: 0.2, phaseSpeed: 0.84 },
-    { x: 170, y: 72, vx: -18, vy: 12, phase: 2.4, phaseSpeed: 0.72 },
+    { x: 28, y: 16, vx: 6, vy: -4, wanderX: 0, wanderY: 0, wanderTargetX: 6, wanderTargetY: -4, wanderTimer: 2.2 },
+    { x: 170, y: 72, vx: -6, vy: 5, wanderX: 0, wanderY: 0, wanderTargetX: -5, wanderTargetY: 5, wanderTimer: 2.6 },
   ]);
   const motionReadyRef = useRef(false);
+  const initPositionsRef = useRef(false);
 
   const updateArea = useCallback(() => {
     const el = containerRef.current;
@@ -54,6 +153,19 @@ export function useBubbleMotionController(): BubbleMotionController {
     areaRef.current = { width: el.clientWidth, height: el.clientHeight };
     const maxX = Math.max(EDGE_PADDING, areaRef.current.width - BUBBLE_SIZE - EDGE_PADDING);
     const maxY = Math.max(EDGE_PADDING, areaRef.current.height - BUBBLE_SIZE - EDGE_PADDING);
+    if (!initPositionsRef.current && maxX > EDGE_PADDING && maxY > EDGE_PADDING) {
+      const first = statesRef.current[0];
+      const second = statesRef.current[1];
+      const startA = randomPosition(maxX, maxY);
+      const startB = randomSeparatedPosition(maxX, maxY, startA.x, startA.y);
+      first.x = startA.x;
+      first.y = startA.y;
+      second.x = startB.x;
+      second.y = startB.y;
+      seedWander(first);
+      seedWander(second);
+      initPositionsRef.current = true;
+    }
     statesRef.current = statesRef.current.map((state) => ({
       ...state,
       x: clamp(state.x, EDGE_PADDING, maxX),
@@ -81,11 +193,9 @@ export function useBubbleMotionController(): BubbleMotionController {
         const maxX = Math.max(EDGE_PADDING, width - BUBBLE_SIZE - EDGE_PADDING);
         const maxY = Math.max(EDGE_PADDING, height - BUBBLE_SIZE - EDGE_PADDING);
         statesRef.current.forEach((state, index) => {
-          state.phase += state.phaseSpeed * dt;
-          const driftX = Math.cos(state.phase + index * 0.8) * DRIFT_STRENGTH;
-          const driftY = Math.sin(state.phase * 0.9 + index) * DRIFT_STRENGTH;
-          const ax = driftX + gravityRef.current.x * GRAVITY_STRENGTH + shakeRef.current.x * 430;
-          const ay = driftY + gravityRef.current.y * GRAVITY_STRENGTH + shakeRef.current.y * 430 - 6;
+          updateWander(state, dt, index);
+          const ax = state.wanderX + gravityRef.current.x * GRAVITY_STRENGTH + shakeRef.current.x * 430;
+          const ay = state.wanderY + gravityRef.current.y * GRAVITY_STRENGTH + shakeRef.current.y * 430 - 3;
           state.vx = clamp((state.vx + ax * dt) * Math.pow(AIR_DRAG, dt * 60), -MAX_SPEED, MAX_SPEED);
           state.vy = clamp((state.vy + ay * dt) * Math.pow(AIR_DRAG, dt * 60), -MAX_SPEED, MAX_SPEED);
           state.x += state.vx * dt;
@@ -98,6 +208,13 @@ export function useBubbleMotionController(): BubbleMotionController {
             state.y = clamp(state.y, EDGE_PADDING, maxY);
             state.vy *= -BOUNCE_DAMPING;
           }
+        });
+        resolveOverlap(statesRef.current[0], statesRef.current[1]);
+        statesRef.current.forEach((state) => {
+          state.x = clamp(state.x, EDGE_PADDING, maxX);
+          state.y = clamp(state.y, EDGE_PADDING, maxY);
+        });
+        statesRef.current.forEach((state, index) => {
           const node = bubbleRefs.current[index];
           if (node) node.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
         });

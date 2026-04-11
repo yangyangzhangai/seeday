@@ -56,6 +56,16 @@ export function DonutChart({
     y: cy + r * Math.sin((deg * Math.PI) / 180),
   });
 
+  const buildFullRingPath = (outer: number, inner: number, offsetX: number, offsetY: number) => [
+    `M ${cx + outer + offsetX} ${cy + offsetY}`,
+    `A ${outer} ${outer} 0 1 1 ${cx - outer + offsetX} ${cy + offsetY}`,
+    `A ${outer} ${outer} 0 1 1 ${cx + outer + offsetX} ${cy + offsetY}`,
+    `L ${cx + inner + offsetX} ${cy + offsetY}`,
+    `A ${inner} ${inner} 0 1 0 ${cx - inner + offsetX} ${cy + offsetY}`,
+    `A ${inner} ${inner} 0 1 0 ${cx + inner + offsetX} ${cy + offsetY}`,
+    'Z',
+  ].join(' ');
+
   let current = -90;
   const segments = data.map((item, index) => {
     const start = current;
@@ -73,13 +83,16 @@ export function DonutChart({
     const o2 = polar(adjustOuter, end);
     const i1 = polar(innerRadius, end);
     const i2 = polar(innerRadius, start);
-    const pathD = [
-      `M ${o1.x + offsetX} ${o1.y + offsetY}`,
-      `A ${adjustOuter} ${adjustOuter} 0 ${largeArc} 1 ${o2.x + offsetX} ${o2.y + offsetY}`,
-      `L ${i1.x + offsetX} ${i1.y + offsetY}`,
-      `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${i2.x + offsetX} ${i2.y + offsetY}`,
-      'Z',
-    ].join(' ');
+    const isFullCircle = sweep >= 359.999;
+    const pathD = isFullCircle
+      ? buildFullRingPath(adjustOuter, innerRadius, offsetX, offsetY)
+      : [
+        `M ${o1.x + offsetX} ${o1.y + offsetY}`,
+        `A ${adjustOuter} ${adjustOuter} 0 ${largeArc} 1 ${o2.x + offsetX} ${o2.y + offsetY}`,
+        `L ${i1.x + offsetX} ${i1.y + offsetY}`,
+        `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${i2.x + offsetX} ${i2.y + offsetY}`,
+        'Z',
+      ].join(' ');
     const midR = (innerRadius + adjustOuter) / 2;
     return {
       ...item,

@@ -4,6 +4,30 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Tweak: EcoSphere 气泡漂浮物理调优
+
+### Changed
+
+- `src/features/report/plant/useBubbleMotionController.ts`
+  - 自由漂浮改为随机游走扰动，减少规律性方向循环。
+  - 漂浮与重力影响整体降速约 2.5 倍，提升轻盈感。
+  - 新增双气泡重叠阈值（2/3 直径）阻尼反弹，避免完全重叠。
+  - 初始位置与漂移方向随机化，进入页面更自然。
+
+## 2026-04-11 - Tweak: Profile「专属记忆」文案与编辑界面简化
+
+### Changed
+
+- `src/features/profile/components/LongTermProfileToggle.tsx` + `src/i18n/locales/{zh,en,it}.ts`
+  - 长期画像文案升级为「专属记忆」语义，强调陪伴关系与“被记住”体验。
+- `src/features/profile/components/UserProfileSection.tsx`
+  - 移除三分栏 tab（作息/个性化画像/纪念日），改为单页内容容器。
+- `src/features/profile/components/UserProfilePanel.tsx`
+  - 编辑区合并为单页：作息与自由画像同屏编辑，并保留单一保存按钮。
+  - 前台不再展示纪念日新增/删除/来源标签 UI，保存链路仅提交 `manual`。
+- `src/features/profile/README.md` + `docs/CURRENT_TASK.md`
+  - 同步模块接口说明与当前任务记录。
+
 ## 2026-04-10 - Feat: 低叙事密度判定 + 今日小事事件注入（Doc1 P1）
 
 ### Changed
