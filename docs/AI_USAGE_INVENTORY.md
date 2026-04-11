@@ -11,8 +11,8 @@
 
 | AI角色 | 用到的地方 | 当前模型/供应商 | 具体功能描述 | 对模型能力要求 | 建议参数级别 |
 | --- | --- | --- | --- | --- | --- |
-| AI 批注（含建议模式） | `api/annotation.ts` -> `src/server/annotation-handler.ts`；触发：`src/store/useAnnotationStore.ts` | OpenAI-compatible Responses；`zh=deepseek-chat`，`en/it=gemini2.0-flash`（由 `src/server/annotation-prompts.defaults.ts` 决定） | 针对事件生成短批注；可输出建议 JSON；重写去重（文本相似度/emoji） | 人设稳定、多语言、上下文融合、结构化输出稳定 | 20B-70B（建议主力 30B+） |
-| 待办拆解 | `api/todo-decompose.ts` + `src/server/todo-decompose-service.ts`；入口：`src/features/growth/SubTodoList.tsx` | zh 默认 DashScope `qwen-plus`（`TODO_DECOMPOSE_MODEL_ZH`），en/it 默认 OpenAI `gpt-4o-mini`（`TODO_DECOMPOSE_MODEL`） | 将待办拆成 3-6 个可执行步骤并给时长 | 指令遵循、JSON 稳定、轻规划能力 | 7B-20B |
+| AI 批注（含建议模式） | `api/annotation.ts` -> `src/server/annotation-handler.ts`；触发：`src/store/useAnnotationStore.ts` | `zh=deepseek-chat`（DeepSeek，chat completions）+ `en/it=gemini2.0-flash`（Gemini 原生 `generateContent`） | 针对事件生成短批注；可输出建议 JSON；重写去重（文本相似度/emoji） | 人设稳定、多语言、上下文融合、结构化输出稳定 | 20B-70B（建议主力 30B+） |
+| 待办拆解 | `api/todo-decompose.ts` + `src/server/todo-decompose-service.ts`；入口：`src/features/growth/SubTodoList.tsx` | zh 默认 DashScope `qwen-plus`（`TODO_DECOMPOSE_MODEL_ZH`），en/it 默认 Gemini `gemini-2.0-flash`（`TODO_DECOMPOSE_MODEL`） | 将待办拆成 3-6 个可执行步骤并给时长 | 指令遵循、JSON 稳定、轻规划能力 | 7B-20B |
 | 日记生成（长文） | `api/diary.ts`；调用：`src/store/reportActions.ts` | OpenAI Chat Completions；`gpt-4o` | 基于结构化日报数据+历史上下文生成 AI 日记 | 长上下文总结、叙事能力、事实约束 | 30B-70B |
 | 报告短洞察（短文） | `api/diary.ts`（`action='insight'`）；调用：`src/features/report/ReportDetailModal.tsx` | OpenAI；`gpt-4o-mini` | 生成 todo/habit 的短洞察句（超短） | 极短文本压缩、格式遵循 | 7B-14B |
 | 时间记录分类器 | `api/classify.ts`；调用：`src/store/useChatStore.ts`、`src/store/useTodoStore.ts` | DashScope 兼容接口 + Qwen；默认 `qwen-plus` | 将输入分类成结构化数据（类别、时段、能量日志）；并做瓶子语义匹配 | 分类抽取、语义匹配、JSON 稳定 | 14B-32B |
@@ -22,8 +22,8 @@
 
 ## API 与环境变量映射
 
-- `/api/annotation` -> `DEEPSEEK_API_KEY`（zh）+ `GEMINI_API_KEY`（en/it），可选 `ANNOTATION_DEEPSEEK_BASE_URL` / `ANNOTATION_GEMINI_BASE_URL`
-- `/api/todo-decompose` -> `QWEN_API_KEY`（zh，`TODO_DECOMPOSE_MODEL_ZH`）+ `OPENAI_API_KEY`（en/it，`TODO_DECOMPOSE_MODEL`）；可选 `TODO_DECOMPOSE_VERBOSE_LOGS`
+- `/api/annotation` -> `DEEPSEEK_API_KEY`（zh）+ `GEMINI_API_KEY`（en/it）；可选 `ANNOTATION_DEEPSEEK_BASE_URL` / `ANNOTATION_GEMINI_BASE_URL`
+- `/api/todo-decompose` -> `QWEN_API_KEY`（zh，`TODO_DECOMPOSE_MODEL_ZH`）+ `GEMINI_API_KEY`（en/it，`TODO_DECOMPOSE_MODEL`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL`、`TODO_DECOMPOSE_VERBOSE_LOGS`
 - `/api/diary` -> `OPENAI_API_KEY`
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` + `QWEN_API_KEY`（可选 `MAGIC_PEN_FALLBACK_MODEL`）

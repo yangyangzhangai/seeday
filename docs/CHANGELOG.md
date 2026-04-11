@@ -11,9 +11,13 @@ All notable changes to this repository are documented here.
 - `src/server/todo-decompose-service.ts` + `api/todo-decompose.ts`
   - 新增待办拆解排障日志：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出请求入口、provider 路由、上游响应预览与解析结果。
   - `/api/todo-decompose` 失败分支新增结构化 `console.error`，记录关键环境与错误信息，便于在 Vercel Logs 快速定位 500 根因。
+  - 待办拆解 provider 路由调整为 `zh -> qwen`、`en/it -> gemini`（移除 openai 作为默认执行路径）。
 - `src/server/annotation-prompts.defaults.ts` + `src/server/annotation-provider-runtime.ts`
   - annotation 模型路由更新为：`zh -> deepseek-chat`，`en/it -> gemini2.0-flash`。
   - annotation runtime 新增 `deepseek` provider，支持 `DEEPSEEK_API_KEY` 与可选 `ANNOTATION_DEEPSEEK_BASE_URL`（默认 `https://api.deepseek.com/v1`）。
+- `src/server/annotation-handler.ts`
+  - 新增 provider 感知的 LLM 调用封装：`deepseek` 走 `chat.completions`（`/v1/chat/completions`），`gemini` 走原生 `generateContent`（`/v1beta/models/*:generateContent`），其余 provider 保持既有路径。
+  - 修复 DeepSeek/Gemini 在 `/v1/responses` 路径下的 404 兼容性问题，并在 suggestion/主流程异常日志中补充 provider/model 信息。
 - `.env.example` + `api/README.md` + `DEPLOY.md` + `docs/AI_USAGE_INVENTORY.md`
   - 同步环境变量、provider 映射与模型清单说明，明确各功能当前使用模型，减少联调混淆。
 

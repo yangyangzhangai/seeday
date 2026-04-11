@@ -467,14 +467,14 @@ interface TodoDecomposeResponse {
   steps: DecomposeStep[];
   parseStatus?: 'ok' | 'parse_failed';
   model?: string;
-  provider?: 'openai' | 'dashscope';
+  provider?: 'gemini' | 'dashscope';
 }
 
 export interface TodoDecomposeResult {
   steps: DecomposeStep[];
   parseStatus: 'ok' | 'parse_failed';
   model: string;
-  provider: 'openai' | 'dashscope';
+  provider: 'gemini' | 'dashscope';
 }
 
 /**
@@ -486,6 +486,6 @@ export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'i
     steps: data.steps ?? [],
     parseStatus: data.parseStatus === 'parse_failed' ? 'parse_failed' : 'ok',
     model: (data.model || 'unknown').trim() || 'unknown',
-    provider: data.provider === 'dashscope' ? 'dashscope' : 'openai',
+    provider: data.provider === 'dashscope' ? 'dashscope' : 'gemini',
   };
 }

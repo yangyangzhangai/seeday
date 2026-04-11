@@ -1,6 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import OpenAI from 'openai';
 import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
 import { normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
@@ -49,6 +48,14 @@ import { reportNarrativeTelemetry } from './narrative-density-telemetry.js';
 import { NARRATIVE_EVENT_LOOKBACK_MS } from './narrative-density-constants.js';
 import type { NarrativeTriggeredEvent } from './narrative-density-types.js';
 import { createAnnotationClient, resolveAnnotationRuntime } from './annotation-provider-runtime.js';
+import {
+  buildDecomposeReadyActionLabel,
+  buildDecomposeReadyContent,
+  buildPromptDebugPayload,
+  callAnnotationLLM,
+  type PendingTodoLite,
+  shouldPreDecomposeTodo,
+} from './annotation-handler-utils.js';
 
 type AnnotationLang = 'zh' | 'en' | 'it';
 
@@ -60,95 +67,6 @@ const LATERAL_ASSOCIATION_BASE_PROBABILITY = 0.5;
 const LATERAL_ASSOCIATION_PROBABILITY_DELTA = 0.2;
 const LATERAL_ASSOCIATION_MIN_PROBABILITY = 0.3;
 const LATERAL_ASSOCIATION_MAX_PROBABILITY = 0.7;
-
-function buildPromptDebugPayload(
-  promptPackage: AnnotationPromptPackage | undefined,
-  includePromptDebug: boolean,
-): {
-  debugPromptPackage?: {
-    model: string;
-    systemPrompt: string;
-    userPrompt: string;
-  };
-} {
-  if (!includePromptDebug || !promptPackage) return {};
-  return {
-    debugPromptPackage: {
-      model: promptPackage.model,
-      systemPrompt: promptPackage.instructions,
-      userPrompt: promptPackage.input,
-    },
-  };
-}
-
-const STALE_TODO_DAYS_THRESHOLD = 3;
-const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
-
-type PendingTodoLite = {
-  id: string;
-  title: string;
-  dueAt?: number | string;
-  createdAt?: number | string;
-  ageDays?: number;
-};
-
-function toTimestampMs(raw: unknown): number | null {
-  if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return raw < 1e11 ? raw * 1000 : raw;
-  }
-
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-
-    const numeric = Number(trimmed);
-    if (Number.isFinite(numeric)) {
-      return numeric < 1e11 ? numeric * 1000 : numeric;
-    }
-
-    const parsed = Date.parse(trimmed);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
-function shouldPreDecomposeTodo(todo: PendingTodoLite | undefined, nowMs: number): boolean {
-  if (!todo) return false;
-  if (typeof todo.ageDays === 'number' && Number.isFinite(todo.ageDays) && todo.ageDays >= STALE_TODO_DAYS_THRESHOLD) {
-    return true;
-  }
-
-  const createdAtMs = toTimestampMs(todo.createdAt);
-  if (createdAtMs !== null && nowMs - createdAtMs >= STALE_TODO_DAYS_THRESHOLD * 24 * 60 * 60 * 1000) {
-    return true;
-  }
-
-  const dueAtMs = toTimestampMs(todo.dueAt);
-  if (dueAtMs !== null && nowMs - dueAtMs >= OVERDUE_TODO_MS_THRESHOLD) {
-    return true;
-  }
-
-  return false;
-}
-
-function buildDecomposeReadyContent(lang: AnnotationLang, todoTitle: string, stepCount: number): string {
-  if (lang === 'en') {
-    return `I've already split "${todoTitle}" into ${stepCount} small steps. Tap start and begin step 1 🌿`;
-  }
-  if (lang === 'it') {
-    return `Ho gia diviso "${todoTitle}" in ${stepCount} piccoli passi. Tocca avvia e inizia dal primo 🌿`;
-  }
-  return `我已经把「${todoTitle}」拆成${stepCount}个小步骤了，点开始就先做第一步 🌿`;
-}
-
-function buildDecomposeReadyActionLabel(lang: AnnotationLang): string {
-  if (lang === 'en') return 'Start step 1';
-  if (lang === 'it') return 'Inizia dal passo 1';
-  return '开始第一步';
-}
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
@@ -401,7 +319,7 @@ async function withElapsed<T>(task: Promise<T>): Promise<{ value: T; elapsedMs: 
 
 /**
  * Vercel Serverless Function - Annotation API
- * 调用 OpenAI Responses API 生成 AI 批注（气泡）
+ * 调用多 provider 模型生成 AI 批注（气泡）
  *
  * POST /api/annotation
  * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it', aiMode?: string }
@@ -463,7 +381,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const annotationClient = createAnnotationClient(runtime);
+  const annotationClient = runtime.provider === 'gemini' && !/\/openai\/?$/i.test(String(runtime.baseURL || ''))
+    ? undefined
+    : createAnnotationClient(runtime);
 
   // ==================== 建议模式（客户端门控透传） ====================
   const forceSuggestion = userContext?.forceSuggestion === true;
@@ -591,15 +511,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       suggestionPromptPackage = promptPackage;
 
-      const llmResponse = await annotationClient.responses.create({
+      const llmResponse = await callAnnotationLLM(annotationClient, {
+        provider: runtime.provider,
         model: promptPackage.model,
         instructions: promptPackage.instructions,
         input: promptPackage.input,
         temperature: 0.6,
-        max_output_tokens: 300,
+        maxOutputTokens: 300,
+        apiKey: runtime.apiKey,
+        baseURL: runtime.baseURL,
+        expectJson: true,
       });
 
-      const raw = removeThinkingTags(llmResponse.output_text || '').trim();
+      const raw = removeThinkingTags(llmResponse.outputText || '').trim();
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
@@ -623,8 +547,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const steps = await decomposeTodoWithAI({
                 title: targetTodo.title,
                 lang: resolvedLang,
-                apiKey: process.env.OPENAI_API_KEY,
                 qwenApiKey: process.env.QWEN_API_KEY,
+                apiKey: process.env.OPENAI_API_KEY,
               });
               if (steps.length > 0) {
                 normalizedSuggestion.decomposeReady = true;
@@ -698,7 +622,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
     } catch (suggestionErr) {
-      console.error('[Annotation API] Suggestion mode error:', suggestionErr);
+      console.error('[Annotation API] Suggestion mode error:', {
+        provider: runtime.provider,
+        model: suggestionPromptPackage?.model,
+        error: suggestionErr instanceof Error ? suggestionErr.message : String(suggestionErr),
+      });
       if (forceSuggestion) {
         const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
         const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
@@ -784,12 +712,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     annotationPromptPackage = promptPackage;
 
-    const llmResponse = await annotationClient.responses.create({
+    const llmResponse = await callAnnotationLLM(annotationClient, {
+      provider: runtime.provider,
       model: promptPackage.model,
       instructions: promptPackage.instructions,
       input: promptPackage.input,
       temperature: 0.7,
-      max_output_tokens: 480,
+      maxOutputTokens: 480,
+      apiKey: runtime.apiKey,
+      baseURL: runtime.baseURL,
     });
 
     const promptCacheHits = (llmResponse.usage as any)?.prompt_cache_hits ?? 0;
@@ -802,11 +733,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         prompt_cache_hits: promptCacheHits,
         prompt_cache_misses: promptCacheMisses,
         cached: promptCacheHits > 0,
-        response_id: llmResponse.id,
+        response_id: llmResponse.responseId,
       });
     }
 
-    let content: string = llmResponse.output_text;
+    let content: string = llmResponse.outputText;
 
     if (!content || !content.trim()) {
       console.warn('[Annotation API] empty_content details:', { eventType, lang: resolvedLang });
@@ -874,15 +805,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             rawRecentAnnotations.slice(-3),
           );
 
-          const rewriteResponse = await annotationClient.responses.create({
+          const rewriteResponse = await callAnnotationLLM(annotationClient, {
+            provider: runtime.provider,
             model: promptPackage.model,
             instructions: promptPackage.instructions,
             input: rewritePrompt,
             temperature: resolvedLang === 'zh' ? 0.75 : 0.8,
-            max_output_tokens: resolvedLang === 'zh' ? 180 : 480,
+            maxOutputTokens: resolvedLang === 'zh' ? 180 : 480,
+            apiKey: runtime.apiKey,
+            baseURL: runtime.baseURL,
           });
 
-          let rewriteRaw = rewriteResponse.output_text;
+          let rewriteRaw = rewriteResponse.outputText;
           rewriteRaw = removeThinkingTags(rewriteRaw);
           const extractedRewrite = extractComment(rewriteRaw, resolvedLang);
 
@@ -965,7 +899,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
     });
   } catch (error) {
-    console.error('Annotation API error:', error);
+    console.error('Annotation API error:', {
+      provider: runtime.provider,
+      model: annotationPromptPackage?.model,
+      error: error instanceof Error ? error.message : String(error),
+    });
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
     res.status(200).json({
       ...defaultAnnotation,

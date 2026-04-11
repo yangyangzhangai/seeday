@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 type AnnotationProvider = 'qwen' | 'gemini' | 'deepseek' | 'openai';
 
 const DEFAULT_QWEN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 
 function resolveProviderFromModel(model: string): AnnotationProvider {
@@ -36,7 +36,11 @@ export function resolveAnnotationRuntime(model: string): {
     return {
       provider,
       apiKey: String(process.env.GEMINI_API_KEY || '').trim(),
-      baseURL: String(process.env.ANNOTATION_GEMINI_BASE_URL || DEFAULT_GEMINI_BASE_URL).trim(),
+      baseURL: String(
+        process.env.ANNOTATION_GEMINI_BASE_URL
+        || process.env.GEMINI_BASE_URL
+        || DEFAULT_GEMINI_BASE_URL,
+      ).trim(),
     };
   }
   if (provider === 'qwen') {
@@ -45,6 +49,7 @@ export function resolveAnnotationRuntime(model: string): {
       apiKey: String(process.env.QWEN_API_KEY || '').trim(),
       baseURL: String(
         process.env.ANNOTATION_QWEN_BASE_URL
+        || process.env.QWEN_BASE_URL
         || process.env.DASHSCOPE_BASE_URL
         || DEFAULT_QWEN_BASE_URL,
       ).trim(),
@@ -53,6 +58,7 @@ export function resolveAnnotationRuntime(model: string): {
   return {
     provider,
     apiKey: String(process.env.OPENAI_API_KEY || '').trim(),
+    baseURL: String(process.env.OPENAI_BASE_URL || '').trim() || undefined,
   };
 }
 

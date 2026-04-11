@@ -7,8 +7,11 @@ Owner: current working session
 
 ## 会话更新（2026-04-11）
 
-- [x] `/api/todo-decompose` 增加服务端调试日志与失败结构化日志，支持 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 快速定位 DashScope/OpenAI 调用异常。
+- [x] `/api/todo-decompose` 增加服务端调试日志与失败结构化日志，支持 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 快速定位 DashScope/Gemini 调用异常。
 - [x] annotation 中文模型切换为 `deepseek-chat`，并接入 `deepseek` provider 运行时（`DEEPSEEK_API_KEY` + `ANNOTATION_DEEPSEEK_BASE_URL`）。
+- [x] 修复 annotation 在 DeepSeek 下错误调用 `/v1/responses` 导致 404：改为 deepseek provider 走 `chat.completions`。
+- [x] 修复 annotation 在 Gemini 下 404：改为 Gemini 原生 `generateContent` 请求，不再走 OpenAI `responses` 路径。
+- [x] 待办拆解 provider 路由调整：`zh -> qwen`，`en/it -> gemini-2.0-flash`（不再走 OpenAI）。
 - [x] 同步文档与环境变量清单（`api/README.md`、`DEPLOY.md`、`.env.example`、`docs/AI_USAGE_INVENTORY.md`）。
 
 ---

@@ -1,6 +1,4 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
-import OpenAI from 'openai';
-
 type DecomposeLang = 'zh' | 'en' | 'it';
 
 export interface TodoDecomposeStep {
@@ -12,10 +10,11 @@ export interface TodoDecomposeResult {
   steps: TodoDecomposeStep[];
   parseStatus: 'ok' | 'parse_failed';
   model: string;
-  provider: 'openai' | 'dashscope';
+  provider: 'gemini' | 'dashscope';
 }
 
 const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS = process.env.TODO_DECOMPOSE_VERBOSE_LOGS === 'true';
 
 function previewText(raw: string, maxLen: number = 220): string {
@@ -148,16 +147,23 @@ function resolveDecomposeModel(lang: DecomposeLang, model?: string): string {
   if (lang === 'zh') {
     return (process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus').trim() || 'qwen-plus';
   }
-  return (process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
+  return (process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.0-flash').trim() || 'gemini-2.0-flash';
+}
+
+function normalizeGeminiModel(model: string): string {
+  const trimmed = String(model || '').trim();
+  if (!trimmed) return 'gemini-2.0-flash';
+  if (trimmed === 'gemini2.0-flash') return 'gemini-2.0-flash';
+  if (trimmed.startsWith('models/')) return trimmed.slice(7);
+  return trimmed;
 }
 
 export async function decomposeTodoWithAI(params: {
   title: string;
   lang: DecomposeLang;
-  apiKey?: string;
   model?: string;
   qwenApiKey?: string;
-  openai?: OpenAI;
+  geminiApiKey?: string;
 }): Promise<TodoDecomposeStep[]> {
   const result = await decomposeTodoWithAIDiagnostics(params);
   return result.steps;
@@ -166,14 +172,13 @@ export async function decomposeTodoWithAI(params: {
 export async function decomposeTodoWithAIDiagnostics(params: {
   title: string;
   lang: DecomposeLang;
-  apiKey?: string;
   model?: string;
   qwenApiKey?: string;
-  openai?: OpenAI;
+  geminiApiKey?: string;
 }): Promise<TodoDecomposeResult> {
   const model = resolveDecomposeModel(params.lang, params.model);
   const preferDashscope = /^qwen/i.test(model);
-  let provider: 'openai' | 'dashscope' = 'openai';
+  let provider: 'gemini' | 'dashscope' = preferDashscope ? 'dashscope' : 'gemini';
   let rawContent = '';
 
   if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
@@ -191,7 +196,11 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     if (!qwenApiKey) {
       throw new Error('Server configuration error: Missing QWEN_API_KEY for todo decompose');
     }
-    const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL).replace(/\/$/, '');
+    const dashscopeBase = (
+      process.env.DASHSCOPE_BASE_URL
+      || process.env.QWEN_BASE_URL
+      || DEFAULT_DASHSCOPE_BASE_URL
+    ).replace(/\/$/, '');
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
       console.log('[Todo Decompose] provider.dashscope.start', {
         model,
@@ -241,34 +250,75 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       });
     }
   } else {
-    const openaiApiKey = (params.apiKey || '').trim();
-    if (!openaiApiKey) {
-      throw new Error('Server configuration error: Missing OPENAI_API_KEY for todo decompose');
+    const geminiApiKey = (params.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
+    if (!geminiApiKey) {
+      throw new Error('Server configuration error: Missing GEMINI_API_KEY for todo decompose');
     }
-    const client = params.openai ?? new OpenAI({ apiKey: openaiApiKey });
+    const geminiBase = (
+      process.env.TODO_DECOMPOSE_GEMINI_BASE_URL
+      || process.env.GEMINI_BASE_URL
+      || DEFAULT_GEMINI_BASE_URL
+    ).replace(/\/$/, '');
+    const geminiModel = normalizeGeminiModel(model);
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.openai.start', {
-        model,
+      console.log('[Todo Decompose] provider.gemini.start', {
+        model: geminiModel,
+        baseURL: geminiBase,
       });
     }
-    const completion = await client.chat.completions.create({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: resolvePrompt(params.lang) },
-        { role: 'user', content: params.title.trim() },
-      ],
-      temperature: 0.5,
-      max_tokens: 512,
-    });
-    rawContent = completion.choices?.[0]?.message?.content || '';
+    const response = await fetch(
+      `${geminiBase}/models/${geminiModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: resolvePrompt(params.lang) }],
+          },
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: params.title.trim() }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 512,
+            responseMimeType: 'application/json',
+          },
+        }),
+      },
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+        console.error('[Todo Decompose] provider.gemini.error', {
+          model: geminiModel,
+          status: response.status,
+          statusText: response.statusText,
+          responsePreview: previewText(errorText),
+        });
+      }
+      throw new Error(`Gemini todo decompose failed: ${response.status} ${errorText}`);
+    }
+    const payload = (await response.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }>;
+    };
+    rawContent = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.openai.success', {
-        model,
+      console.log('[Todo Decompose] provider.gemini.success', {
+        model: geminiModel,
         rawLength: rawContent.length,
         rawPreview: previewText(rawContent),
       });
     }
+    provider = 'gemini';
   }
 
   const parsed = parseResponse(rawContent);

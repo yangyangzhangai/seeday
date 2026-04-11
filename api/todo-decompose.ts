@@ -19,8 +19,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await decomposeTodoWithAIDiagnostics({
       title,
       lang: lang === 'en' || lang === 'it' ? lang : 'zh',
-      apiKey: process.env.OPENAI_API_KEY,
       qwenApiKey: process.env.QWEN_API_KEY,
+      geminiApiKey: process.env.GEMINI_API_KEY,
     });
 
     res.status(200).json({
@@ -35,10 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lang,
       titleLength: typeof title === 'string' ? title.trim().length : 0,
       modelZh: process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus',
-      modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini',
-      hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+      modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.0-flash',
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       hasQwenKey: Boolean(process.env.QWEN_API_KEY),
-      dashscopeBase: process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      qwenBase: process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      geminiBase: process.env.TODO_DECOMPOSE_GEMINI_BASE_URL || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
       error: error instanceof Error ? error.message : String(error),
     });
     jsonError(res, 500, 'AI请求失败，请稍后重试', undefined, error instanceof Error ? error.message : 'Unknown error');

@@ -58,6 +58,7 @@ describe('annotation-handler', () => {
     process.env.OPENAI_API_KEY = 'test-key';
     process.env.QWEN_API_KEY = 'test-qwen-key';
     process.env.GEMINI_API_KEY = 'test-gemini-key';
+    process.env.ANNOTATION_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
     process.env.ANNOTATION_CHARACTER_STATE_ENABLED = 'true';
   });
 
@@ -251,6 +252,26 @@ describe('annotation-handler', () => {
   });
 
   it('pre-decomposes stale todo before returning suggestion', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('generativelanguage.googleapis.com')) {
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{
+              content: {
+                parts: [{ text: '{"steps":[{"title":"Collect requirements","durationMinutes":20},{"title":"Draft outline","durationMinutes":30},{"title":"Review and finalize","durationMinutes":25}]}' }],
+              },
+            }],
+          }),
+        } as Response;
+      }
+      return {
+        ok: false,
+        status: 503,
+        text: async () => 'mocked non-gemini fetch',
+      } as Response;
+    });
     responsesCreateMock.mockResolvedValueOnce({
       id: 'resp_suggestion_stale',
       output_text: '{"mode":"suggestion","content":"Try this todo now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-stale","todoTitle":"Prepare project brief"}}',
@@ -286,15 +307,36 @@ describe('annotation-handler', () => {
     } as any, res as any);
 
     const suggestion = (res.payload as { suggestion?: Record<string, unknown> }).suggestion;
-    expect(chatCompletionsCreateMock).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalled();
     expect(res.statusCode).toBe(200);
     expect(suggestion?.decomposeReady).toBe(true);
     expect(suggestion?.decomposeSourceTodoId).toBe('todo-stale');
     expect((suggestion?.decomposeSteps as Array<{ title: string }>)[0]?.title).toBe('Collect requirements');
     expect((suggestion?.actionLabel as string)).toBe('Start step 1');
+    fetchSpy.mockRestore();
   });
 
   it('pre-decomposes stale todo when ageDays is missing but createdAt is old string', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('generativelanguage.googleapis.com')) {
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{
+              content: {
+                parts: [{ text: '{"steps":[{"title":"Collect requirements","durationMinutes":20},{"title":"Draft outline","durationMinutes":30},{"title":"Review and finalize","durationMinutes":25}]}' }],
+              },
+            }],
+          }),
+        } as Response;
+      }
+      return {
+        ok: false,
+        status: 503,
+        text: async () => 'mocked non-gemini fetch',
+      } as Response;
+    });
     responsesCreateMock.mockResolvedValueOnce({
       id: 'resp_suggestion_stale_created_at',
       output_text: '{"mode":"suggestion","content":"Try this todo now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-old-string","todoTitle":"Prepare project brief"}}',
@@ -331,10 +373,11 @@ describe('annotation-handler', () => {
     } as any, res as any);
 
     const suggestion = (res.payload as { suggestion?: Record<string, unknown> }).suggestion;
-    expect(chatCompletionsCreateMock).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalled();
     expect(res.statusCode).toBe(200);
     expect(suggestion?.decomposeReady).toBe(true);
     expect(suggestion?.decomposeSourceTodoId).toBe('todo-old-string');
+    fetchSpy.mockRestore();
   });
 
   it('injects two-star reward fields for recovery nudge suggestions', async () => {
