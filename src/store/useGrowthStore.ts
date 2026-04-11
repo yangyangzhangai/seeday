@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { playSound } from '../services/sound/soundService';
 
 export type BottleType = 'habit' | 'goal';
 export type BottleStatus = 'active' | 'achieved' | 'irrigated';
@@ -170,16 +171,20 @@ export const useGrowthStore = create<GrowthState>()(
 
       incrementBottleStars: (id, amount) => {
         const starsToAdd = Math.max(1, Math.floor(amount || 1));
+        playSound('star');
+        let willAchieve = false;
         set((s) => ({
           bottles: s.bottles.map((b) => {
             if (b.id !== id || b.status !== 'active') return b;
             const newStars = b.stars + starsToAdd;
             if (newStars >= 21) {
+              willAchieve = true;
               return { ...b, stars: 21, status: 'achieved' as BottleStatus };
             }
             return { ...b, stars: newStars };
           }),
         }));
+        if (willAchieve) setTimeout(() => playSound('ding'), 400);
 
         void (async () => {
           try {

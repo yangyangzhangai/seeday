@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Play, SkipForward } from 'lucide-react';
+import { playSound } from '../../services/sound/soundService';
 import { useFocusStore } from '../../store/useFocusStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -160,6 +161,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   }, [advanceQueue, t]);
 
   const finishFocus = useCallback(async () => {
+    playSound('ding');
     const session = await completeTodoAndEndActivity(activeTodo);
     setShowConfirmEnd(false);
 

@@ -28,6 +28,7 @@ import { PlantCardModal } from './PlantCardModal';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 import { buildPlantGenerateUiState } from './plant/plantGenerateUi';
+import { playSound } from '../../services/sound/soundService';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -165,6 +166,7 @@ export const ReportPage = () => {
     try {
       const response = await generatePlant();
       if (response.status === 'generated') {
+        playSound('plantGrow');
         setPlantStatusHint(t('plant_generate_success'));
         return;
       }

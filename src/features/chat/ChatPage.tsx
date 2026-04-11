@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { playSound } from '../../services/sound/soundService';
 import { useSearchParams } from 'react-router-dom';
 import imgBirdZep02 from '../../assets/zep02.png';
 import imgBirdZep03 from '../../assets/zep03.png';
@@ -297,6 +298,7 @@ export const ChatPage = () => {
 
     const textToSend = input;
     setInput('');
+    playSound('bubble');
     sendingRef.current = true;
 
     try {
