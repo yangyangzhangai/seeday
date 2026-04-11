@@ -22,7 +22,7 @@ interface SoundConfig {
 
 const SOUND_CONFIG: Record<SoundKey, SoundConfig> = {
   ding:      { src: '/sounds/ding.mp3',       volume: 0.35 },
-  bubble:    { src: '/sounds/bubble.m4a',     volume: 0.7  },
+  bubble:    { src: '/sounds/bubble.mp3',     volume: 0.7  },
   plantGrow: { src: '/sounds/plant-grow.mp3', volume: 0.8  },
   star:      { src: '/sounds/star.mp3',       volume: 0.7  },
   waterDrop: { src: '/sounds/water-drop.m4a', volume: 0.65 },
