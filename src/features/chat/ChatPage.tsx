@@ -426,7 +426,7 @@ export const ChatPage = () => {
           onInputChange={setInput}
           onSend={() => { void handleSend(); }}
           onKeyDown={handleKeyDown}
-          onToggleMagicPenMode={() => setIsMagicPenModeOn(v => !v)}
+          onToggleMagicPenMode={() => { playSound('star'); setIsMagicPenModeOn(v => !v); }}
         />
 
         {/* Edit/Insert Modal */}
