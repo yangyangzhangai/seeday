@@ -28,6 +28,7 @@ import { PlantCardModal } from './PlantCardModal';
 import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 import { buildPlantGenerateUiState } from './plant/plantGenerateUi';
+import { playLoopSound, stopSound } from '../../services/sound/soundService';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -162,8 +163,10 @@ export const ReportPage = () => {
     if (!window.confirm(t('plant_generate_confirm'))) {
       return;
     }
+    playLoopSound('plantGrow');
     try {
       const response = await generatePlant();
+      stopSound('plantGrow');
       if (response.status === 'generated') {
         setPlantStatusHint(t('plant_generate_success'));
         return;
@@ -182,6 +185,7 @@ export const ReportPage = () => {
       }
       setPlantStatusHint(response.message ?? t('plant_generate_locked_hint'));
     } catch {
+      stopSound('plantGrow');
       setPlantStatusHint(t('plant_generate_failed'));
     }
   }, [currentLang, generatePlant, plantIsTooEarly, t]);

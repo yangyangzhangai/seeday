@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlarmClock, Check, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { playSound } from '../../services/sound/soundService';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
 import { triggerLightHaptic } from '../../lib/haptics';
 import { SubTodoList } from './SubTodoList';
@@ -178,6 +179,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
     e.preventDefault();
     e.stopPropagation();
     triggerLightHaptic();
+    if (!todo.completed) playSound('ding');
     onToggle(todo.id);
   };
 

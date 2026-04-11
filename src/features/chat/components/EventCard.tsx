@@ -6,6 +6,7 @@ import { getMoodColor } from '../../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
 import { formatDuration } from '../../../lib/time';
 import { cn } from '../../../lib/utils';
+import { playSound } from '../../../services/sound/soundService';
 import { ImageUploader, type ImageUploaderHandle } from './ImageUploader';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
@@ -284,7 +285,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             )}
           </div>
           {isOngoing && !readonly && (
-            <button onClick={e => { e.stopPropagation(); onEndActivity(message.id); }}
+            <button onClick={e => { e.stopPropagation(); playSound('ding'); onEndActivity(message.id); }}
               title={t('end_event_btn')}
               style={{ fontSize: 9, fontWeight: 800, padding: '3px 9px', borderRadius: 9999,
                 border: '1px solid rgba(244,192,194,0.3)', background: 'rgba(244,192,194,0.10)',

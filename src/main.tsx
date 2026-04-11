@@ -29,6 +29,9 @@ if (typeof document !== "undefined") {
 void setupMobileAuthBridge();
 void setupKeyboardViewportFix();
 
+import { preloadSounds } from './services/sound/soundService';
+preloadSounds();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>

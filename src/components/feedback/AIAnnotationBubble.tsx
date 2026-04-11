@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { AI_COMPANION_VISUALS } from '../../constants/aiCompanionVisuals';
 import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
 import momoBubbleAvatar from '../../assets/ai-companions/momo-bubble.png';
+import { playSound } from '../../services/sound/soundService';
 
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏
@@ -138,9 +139,10 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
     };
   }, []);
 
-  // 当批注变化时，重置进度
+  // 当批注变化时，重置进度并播放水滴声
   useEffect(() => {
     if (currentAnnotation) {
+      playSound('waterDrop');
       setProgress(100);
       setIsCondensed(false);
       setIsSuggestionAccepted(currentAnnotation.suggestionAccepted === true);
