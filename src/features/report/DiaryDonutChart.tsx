@@ -59,7 +59,8 @@ export function DonutChart({
   let current = -90;
   const segments = data.map((item, index) => {
     const start = current;
-    const sweep = (item.value / total) * 360;
+    // 限制最大 359.9°，防止单段 100% 时 SVG arc 起点=终点退化成直线
+    const sweep = Math.min((item.value / total) * 360, 359.9);
     current += sweep;
     const end = current;
     const mid = (start + end) / 2;
