@@ -6,18 +6,14 @@ import { useChatStore } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import {
   computeMoodDistribution,
-  computeMoodEnergyTimeline,
   computeActivityDistribution,
 } from '../reportPageHelpers';
-import type { MoodEnergyPoint } from '../reportPageHelpers';
 import {
   DonutChart, type DataItem,
   ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
 } from '../DiaryDonutChart';
 import { getMoodDisplayLabel } from '../../../lib/moodOptions';
 import { useBubbleMotionController } from './useBubbleMotionController';
-
-type ActiveChart = 'mood' | 'activity' | null;
 
 // ── helpers ──
 function normalizeChartPercents(items: DataItem[]): DataItem[] {
@@ -26,83 +22,18 @@ function normalizeChartPercents(items: DataItem[]): DataItem[] {
   return items;
 }
 
-// ── Mood Energy Line SVG ──
-function buildSmoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length < 2) return '';
-  const t = 0.35;
-  let d = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
-    const cp1x = p1.x + (p2.x - p0.x) * t;
-    const cp1y = p1.y + (p2.y - p0.y) * t;
-    const cp2x = p2.x - (p3.x - p1.x) * t;
-    const cp2y = p2.y - (p3.y - p1.y) * t;
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
-}
-
-function MoodEnergyLine({ points }: { points: MoodEnergyPoint[] }) {
-  if (points.length === 0) return null;
-  const dayStart = startOfDay(new Date()).getTime();
-  const dayEnd = endOfDay(new Date()).getTime();
-  const range = dayEnd - dayStart;
-  const toX = (ts: number) => ((ts - dayStart) / range) * 186 + 7;
-  const toY = (e: number) => 52 - ((e - 1) / 4) * 44;
-  const pts = points.map(p => ({ x: toX(p.timestamp), y: toY(p.energy) }));
-  const curvePath = buildSmoothPath(pts);
-  const baseline = 54;
-  const fillPath = curvePath
-    ? `${curvePath} L ${pts[pts.length - 1].x.toFixed(1)},${baseline} L ${pts[0].x.toFixed(1)},${baseline} Z`
-    : '';
-  return (
-    <svg viewBox="0 0 200 70" className="w-full" style={{ height: 68 }}>
-      <defs>
-        <linearGradient id="eco-curve-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#b08060" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#b08060" stopOpacity="0.01" />
-        </linearGradient>
-      </defs>
-      {[1, 3, 5].map(e => (
-        <line key={e} x1={5} y1={toY(e)} x2={195} y2={toY(e)}
-          stroke="rgba(150,110,70,0.07)" strokeWidth={0.5} />
-      ))}
-      {fillPath && <path d={fillPath} fill="url(#eco-curve-fill)" />}
-      {curvePath && (
-        <path d={curvePath} fill="none" stroke="#b08060"
-          strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-      )}
-      {[6, 12, 18].map(h => (
-        <text key={h} x={toX(dayStart + h * 3600_000)} y={67}
-          textAnchor="middle" fontSize={7} fill="rgba(120,90,60,0.42)">
-          {`${h}:00`}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
 // ── Floating DonutChart card ──
 interface FloatingChartProps {
   data: DataItem[];
   chartId: string;
   labelColor: string;
-  onClick: () => void;
   isEmpty: boolean;
 }
 
-function FloatingChart({ data, chartId, labelColor, onClick, isEmpty }: FloatingChartProps) {
+function FloatingChart({ data, chartId, labelColor, isEmpty }: FloatingChartProps) {
   const maxIndex = data.reduce((m, c, i, arr) => (c.value > arr[m].value ? i : m), 0);
   return (
-    <button
-      data-eco-bubble="true"
-      onClick={onClick}
-      className="active:scale-95 transition-transform"
-      style={{ WebkitTapHighlightColor: 'transparent', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-    >
+    <div data-eco-bubble="true" style={{ WebkitTapHighlightColor: 'transparent' }}>
       {isEmpty ? (
         <div style={{
           width: 80,
@@ -134,14 +65,13 @@ function FloatingChart({ data, chartId, labelColor, onClick, isEmpty }: Floating
           fontSize={7}
         />
       )}
-    </button>
+    </div>
   );
 }
 
 // ── Main Component ──
 export const DayEcoSphere: React.FC = () => {
   const { t } = useTranslation();
-  const [active, setActive] = useState<ActiveChart>(null);
   const { containerRef, setBubbleRef } = useBubbleMotionController();
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const messages = useChatStore(state => state.messages);
@@ -164,10 +94,6 @@ export const DayEcoSphere: React.FC = () => {
 
   const moodDist = useMemo(
     () => computeMoodDistribution(todayMessages, activityMood),
-    [todayMessages, activityMood],
-  );
-  const moodTimeline = useMemo(
-    () => computeMoodEnergyTimeline(todayMessages, activityMood),
     [todayMessages, activityMood],
   );
   const activityRaw = useMemo(
@@ -201,28 +127,6 @@ export const DayEcoSphere: React.FC = () => {
   }, [activityRaw, t]);
 
   const isNight = new Date().getHours() >= 20;
-  const toggle = (b: ActiveChart) => setActive(prev => prev === b ? null : b);
-
-  useEffect(() => {
-    if (!active) return;
-    const handle = (e: PointerEvent) => {
-      const el = e.target as Element | null;
-      if (!el) return;
-      if (el.closest('[data-eco-bubble="true"]')) return;
-      if (el.closest('[data-eco-panel="true"]')) return;
-      setActive(null);
-    };
-    document.addEventListener('pointerdown', handle, true);
-    return () => document.removeEventListener('pointerdown', handle, true);
-  }, [active]);
-
-  const glassPanel: React.CSSProperties = {
-    background: 'rgba(248,242,229,0.94)',
-    border: '1px solid rgba(195,168,120,0.38)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    boxShadow: '0 6px 20px rgba(90,60,20,0.12), 0 1px 0 rgba(255,255,255,0.7) inset',
-  };
 
   return (
     <div className="pointer-events-none">
@@ -233,7 +137,6 @@ export const DayEcoSphere: React.FC = () => {
             chartId="eco-mood"
             labelColor="#A0304A"
             isEmpty={moodDist.length === 0}
-            onClick={() => toggle('mood')}
           />
         </div>
 
@@ -243,7 +146,6 @@ export const DayEcoSphere: React.FC = () => {
             chartId="eco-activity"
             labelColor="#2D5A30"
             isEmpty={activityRaw.length === 0}
-            onClick={() => toggle('activity')}
           />
         </div>
       </div>
@@ -253,18 +155,6 @@ export const DayEcoSphere: React.FC = () => {
           style={{ fontSize: 10, color: 'rgba(245,235,210,0.75)' }}>
           {t('eco_sphere_night_hint')}
         </p>
-      )}
-
-      {/* Mood expanded panel — energy timeline */}
-      {active === 'mood' && moodTimeline.length > 0 && (
-        <div data-eco-panel="true"
-          className="pointer-events-auto mx-3 mb-2 rounded-2xl p-4 space-y-2"
-          style={glassPanel}>
-          <p className="text-xs font-semibold" style={{ color: '#5a4028' }}>
-            {t('eco_sphere_mood_energy_title')}
-          </p>
-          <MoodEnergyLine points={moodTimeline} />
-        </div>
       )}
     </div>
   );

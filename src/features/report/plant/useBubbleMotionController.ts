@@ -18,8 +18,13 @@ const SHAKE_GAIN = 0.028;
 const SHAKE_THRESHOLD = 1.7;
 const OVERLAP_THRESHOLD = BUBBLE_SIZE * (2 / 3);
 const WANDER_CHANGE_MIN = 1.8;
-const WANDER_CHANGE_MAX = 3.6;
+const WANDER_CHANGE_MAX = 5.2;
 const WANDER_SMOOTHING = 0.08;
+const JOLT_INTERVAL_MIN = 0.9;
+const JOLT_INTERVAL_MAX = 4.8;
+const JOLT_DURATION_MIN = 0.18;
+const JOLT_DURATION_MAX = 0.72;
+const JOLT_ACCEL = 80;
 
 interface BubblePhysicsState {
   x: number;
@@ -31,6 +36,10 @@ interface BubblePhysicsState {
   wanderTargetX: number;
   wanderTargetY: number;
   wanderTimer: number;
+  joltX: number;
+  joltY: number;
+  joltTimer: number;
+  joltDuration: number;
 }
 
 export interface BubbleMotionController {
@@ -86,6 +95,10 @@ function seedWander(state: BubblePhysicsState): void {
   state.wanderX = state.wanderTargetX * 0.6;
   state.wanderY = state.wanderTargetY * 0.6;
   state.wanderTimer = randomRange(WANDER_CHANGE_MIN, WANDER_CHANGE_MAX);
+  state.joltX = 0;
+  state.joltY = 0;
+  state.joltTimer = randomRange(JOLT_INTERVAL_MIN, JOLT_INTERVAL_MAX);
+  state.joltDuration = 0;
 }
 
 function updateWander(state: BubblePhysicsState, dt: number, index: number): void {
@@ -95,10 +108,29 @@ function updateWander(state: BubblePhysicsState, dt: number, index: number): voi
     const strength = DRIFT_STRENGTH * randomRange(0.7, 1.2);
     state.wanderTargetX = dir.x * strength;
     state.wanderTargetY = dir.y * strength;
-    state.wanderTimer = randomRange(WANDER_CHANGE_MIN, WANDER_CHANGE_MAX) + index * 0.2;
+    state.wanderTimer = randomRange(WANDER_CHANGE_MIN, WANDER_CHANGE_MAX) + index * 0.12;
   }
   state.wanderX = lerp(state.wanderX, state.wanderTargetX, WANDER_SMOOTHING);
   state.wanderY = lerp(state.wanderY, state.wanderTargetY, WANDER_SMOOTHING);
+
+  state.joltTimer -= dt;
+  if (state.joltTimer <= 0) {
+    const dir = randomDirection();
+    const strength = JOLT_ACCEL * randomRange(0.6, 1.15);
+    state.joltX = dir.x * strength;
+    state.joltY = dir.y * strength;
+    state.joltDuration = randomRange(JOLT_DURATION_MIN, JOLT_DURATION_MAX);
+    state.joltTimer = randomRange(JOLT_INTERVAL_MIN, JOLT_INTERVAL_MAX);
+  }
+  if (state.joltDuration > 0) {
+    state.joltDuration = Math.max(0, state.joltDuration - dt);
+    const decay = Math.pow(0.35, dt * 6);
+    state.joltX *= decay;
+    state.joltY *= decay;
+  } else {
+    state.joltX = 0;
+    state.joltY = 0;
+  }
 }
 
 function resolveOverlap(a: BubblePhysicsState, b: BubblePhysicsState): void {
@@ -141,8 +173,36 @@ export function useBubbleMotionController(): BubbleMotionController {
   const shakeRef = useRef({ x: 0, y: 0 });
   const lastAccelRef = useRef<TiltVector | null>(null);
   const statesRef = useRef<BubblePhysicsState[]>([
-    { x: 28, y: 16, vx: 6, vy: -4, wanderX: 0, wanderY: 0, wanderTargetX: 6, wanderTargetY: -4, wanderTimer: 2.2 },
-    { x: 170, y: 72, vx: -6, vy: 5, wanderX: 0, wanderY: 0, wanderTargetX: -5, wanderTargetY: 5, wanderTimer: 2.6 },
+    {
+      x: 28,
+      y: 16,
+      vx: 6,
+      vy: -4,
+      wanderX: 0,
+      wanderY: 0,
+      wanderTargetX: 6,
+      wanderTargetY: -4,
+      wanderTimer: 2.2,
+      joltX: 0,
+      joltY: 0,
+      joltTimer: 1.6,
+      joltDuration: 0,
+    },
+    {
+      x: 170,
+      y: 72,
+      vx: -6,
+      vy: 5,
+      wanderX: 0,
+      wanderY: 0,
+      wanderTargetX: -5,
+      wanderTargetY: 5,
+      wanderTimer: 2.6,
+      joltX: 0,
+      joltY: 0,
+      joltTimer: 2.1,
+      joltDuration: 0,
+    },
   ]);
   const motionReadyRef = useRef(false);
   const initPositionsRef = useRef(false);
@@ -194,8 +254,8 @@ export function useBubbleMotionController(): BubbleMotionController {
         const maxY = Math.max(EDGE_PADDING, height - BUBBLE_SIZE - EDGE_PADDING);
         statesRef.current.forEach((state, index) => {
           updateWander(state, dt, index);
-          const ax = state.wanderX + gravityRef.current.x * GRAVITY_STRENGTH + shakeRef.current.x * 430;
-          const ay = state.wanderY + gravityRef.current.y * GRAVITY_STRENGTH + shakeRef.current.y * 430 - 3;
+          const ax = state.wanderX + state.joltX + gravityRef.current.x * GRAVITY_STRENGTH + shakeRef.current.x * 430;
+          const ay = state.wanderY + state.joltY + gravityRef.current.y * GRAVITY_STRENGTH + shakeRef.current.y * 430;
           state.vx = clamp((state.vx + ax * dt) * Math.pow(AIR_DRAG, dt * 60), -MAX_SPEED, MAX_SPEED);
           state.vy = clamp((state.vy + ay * dt) * Math.pow(AIR_DRAG, dt * 60), -MAX_SPEED, MAX_SPEED);
           state.x += state.vx * dt;

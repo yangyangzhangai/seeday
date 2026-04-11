@@ -4,6 +4,18 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Tweak: EcoSphere 自由漂浮随机化 + 移除心情能量曲线
+
+### Changed
+
+- `src/features/report/plant/useBubbleMotionController.ts`
+  - 自由漂浮新增“随机时长 + 随机方向”切换节奏，并加入随机冲量脉冲，避免长期朝单一方向漂移。
+  - 移除固定竖向偏置力，改为更均衡的全向漂浮，增强物体在液体中自由漂移的观感。
+- `src/features/report/plant/DayEcoSphere.tsx`
+  - 移除心情气泡点击后的心情能量曲线展开面板，仅保留双气泡漂浮展示。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本轮 EcoSphere 漂浮与交互简化改动。
+
 ## 2026-04-11 - Tweak: EcoSphere 气泡漂浮物理调优
 
 ### Changed
