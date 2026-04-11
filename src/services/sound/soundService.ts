@@ -65,8 +65,37 @@ export function playSound(key: SoundKey) {
   ensureUnlocked();
   try {
     const audio = getAudio(key);
+    audio.loop = false;
     audio.currentTime = 0;
     void audio.play().catch(() => { /* 用户未授权或静音模式下静默忽略 */ });
+  } catch {
+    // ignore
+  }
+}
+
+/** 循环播放指定音效（如植物生长），直到调用 stopSound 停止 */
+export function playLoopSound(key: SoundKey) {
+  if (typeof window === 'undefined') return;
+  ensureUnlocked();
+  try {
+    const audio = getAudio(key);
+    audio.loop = true;
+    audio.currentTime = 0;
+    void audio.play().catch(() => { /* ignore */ });
+  } catch {
+    // ignore
+  }
+}
+
+/** 停止并重置指定音效 */
+export function stopSound(key: SoundKey) {
+  if (typeof window === 'undefined') return;
+  try {
+    const audio = audioCache.get(key);
+    if (!audio) return;
+    audio.loop = false;
+    audio.pause();
+    audio.currentTime = 0;
   } catch {
     // ignore
   }
