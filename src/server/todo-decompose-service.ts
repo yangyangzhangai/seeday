@@ -16,6 +16,14 @@ export interface TodoDecomposeResult {
 }
 
 const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS = process.env.TODO_DECOMPOSE_VERBOSE_LOGS === 'true';
+
+function previewText(raw: string, maxLen: number = 220): string {
+  const compact = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLen) return compact;
+  return `${compact.slice(0, maxLen)}...`;
+}
 
 const DECOMPOSE_PROMPT_ZH = `你是一个“低摩擦任务拆解助手”。
 你的唯一目标：把用户的待办拆成一组“立即可执行、操作非常具体、执行阻力很低”的小步骤。
@@ -168,12 +176,28 @@ export async function decomposeTodoWithAIDiagnostics(params: {
   let provider: 'openai' | 'dashscope' = 'openai';
   let rawContent = '';
 
+  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+    console.log('[Todo Decompose] request.start', {
+      lang: params.lang,
+      model,
+      preferDashscope,
+      titleLength: params.title.trim().length,
+      titlePreview: previewText(params.title, 120),
+    });
+  }
+
   if (preferDashscope) {
     const qwenApiKey = (params.qwenApiKey || process.env.QWEN_API_KEY || '').trim();
     if (!qwenApiKey) {
       throw new Error('Server configuration error: Missing QWEN_API_KEY for todo decompose');
     }
     const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL).replace(/\/$/, '');
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.dashscope.start', {
+        model,
+        baseURL: dashscopeBase,
+      });
+    }
     const response = await fetch(`${dashscopeBase}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -194,6 +218,14 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     });
     if (!response.ok) {
       const errorText = await response.text();
+      if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+        console.error('[Todo Decompose] provider.dashscope.error', {
+          model,
+          status: response.status,
+          statusText: response.statusText,
+          responsePreview: previewText(errorText),
+        });
+      }
       throw new Error(`DashScope todo decompose failed: ${response.status} ${errorText}`);
     }
     const payload = (await response.json()) as {
@@ -201,12 +233,24 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     };
     rawContent = payload.choices?.[0]?.message?.content || '';
     provider = 'dashscope';
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.dashscope.success', {
+        model,
+        rawLength: rawContent.length,
+        rawPreview: previewText(rawContent),
+      });
+    }
   } else {
     const openaiApiKey = (params.apiKey || '').trim();
     if (!openaiApiKey) {
       throw new Error('Server configuration error: Missing OPENAI_API_KEY for todo decompose');
     }
     const client = params.openai ?? new OpenAI({ apiKey: openaiApiKey });
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.openai.start', {
+        model,
+      });
+    }
     const completion = await client.chat.completions.create({
       model,
       response_format: { type: 'json_object' },
@@ -218,11 +262,27 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       max_tokens: 512,
     });
     rawContent = completion.choices?.[0]?.message?.content || '';
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.openai.success', {
+        model,
+        rawLength: rawContent.length,
+        rawPreview: previewText(rawContent),
+      });
+    }
   }
 
   const parsed = parseResponse(rawContent);
+  const normalizedSteps = normalizeSteps(parsed.steps);
+  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+    console.log('[Todo Decompose] request.finish', {
+      provider,
+      model,
+      parseStatus: parsed.parseStatus,
+      stepCount: normalizedSteps.length,
+    });
+  }
   return {
-    steps: normalizeSteps(parsed.steps),
+    steps: normalizedSteps,
     parseStatus: parsed.parseStatus,
     model,
     provider,

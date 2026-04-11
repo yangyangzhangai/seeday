@@ -5,6 +5,14 @@ Owner: current working session
 
 ---
 
+## 会话更新（2026-04-11）
+
+- [x] `/api/todo-decompose` 增加服务端调试日志与失败结构化日志，支持 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 快速定位 DashScope/OpenAI 调用异常。
+- [x] annotation 中文模型切换为 `deepseek-chat`，并接入 `deepseek` provider 运行时（`DEEPSEEK_API_KEY` + `ANNOTATION_DEEPSEEK_BASE_URL`）。
+- [x] 同步文档与环境变量清单（`api/README.md`、`DEPLOY.md`、`.env.example`、`docs/AI_USAGE_INVENTORY.md`）。
+
+---
+
 ## 当前主线 1：AI 建议模式（P7 收口）
 
 Status: P0-P6 已完成；P7 仅剩联调、漏斗埋点、数据库字段核对。

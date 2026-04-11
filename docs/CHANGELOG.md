@@ -4,6 +4,19 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Fix: todo-decompose 可观测性增强 + annotation 中文模型切换 DeepSeek
+
+### Changed
+
+- `src/server/todo-decompose-service.ts` + `api/todo-decompose.ts`
+  - 新增待办拆解排障日志：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出请求入口、provider 路由、上游响应预览与解析结果。
+  - `/api/todo-decompose` 失败分支新增结构化 `console.error`，记录关键环境与错误信息，便于在 Vercel Logs 快速定位 500 根因。
+- `src/server/annotation-prompts.defaults.ts` + `src/server/annotation-provider-runtime.ts`
+  - annotation 模型路由更新为：`zh -> deepseek-chat`，`en/it -> gemini2.0-flash`。
+  - annotation runtime 新增 `deepseek` provider，支持 `DEEPSEEK_API_KEY` 与可选 `ANNOTATION_DEEPSEEK_BASE_URL`（默认 `https://api.deepseek.com/v1`）。
+- `.env.example` + `api/README.md` + `DEPLOY.md` + `docs/AI_USAGE_INVENTORY.md`
+  - 同步环境变量、provider 映射与模型清单说明，明确各功能当前使用模型，减少联调混淆。
+
 ## 2026-04-11 - Fix: annotation 多 provider 实际接线 + Gemini/Qwen 环境变量落地
 
 ### Changed

@@ -152,5 +152,5 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
 
 export function getModel(lang: string): string {
   if (lang === 'en' || lang === 'it') return 'gemini2.0-flash';
-  return 'qwen-plus';
+  return 'deepseek-chat';
 }

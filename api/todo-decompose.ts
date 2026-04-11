@@ -31,6 +31,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       provider: result.provider,
     });
   } catch (error) {
+    console.error('[Todo Decompose API] request.failed', {
+      lang,
+      titleLength: typeof title === 'string' ? title.trim().length : 0,
+      modelZh: process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus',
+      modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini',
+      hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+      hasQwenKey: Boolean(process.env.QWEN_API_KEY),
+      dashscopeBase: process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+      error: error instanceof Error ? error.message : String(error),
+    });
     jsonError(res, 500, 'AI请求失败，请稍后重试', undefined, error instanceof Error ? error.message : 'Unknown error');
   }
 }

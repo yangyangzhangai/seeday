@@ -19,19 +19,21 @@ OPENAI_API_KEY=...
 CHUTES_API_KEY=...
 QWEN_API_KEY=...
 GEMINI_API_KEY=...
+DEEPSEEK_API_KEY=...
 ZHIPU_API_KEY=...
 ANNOTATION_QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ANNOTATION_GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+ANNOTATION_DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
 说明：
-- `QWEN_API_KEY` + `GEMINI_API_KEY` 用于 `annotation`（`zh -> qwen-plus`，`en/it -> gemini2.0-flash`）
-- `CHUTES_API_KEY` 用于 `report/diary/stardust/plant-diary`
-- `QWEN_API_KEY` 用于 `classify`，也可作为 `magic-pen-parse` 的 fallback provider
+- `DEEPSEEK_API_KEY` + `GEMINI_API_KEY` 用于 `annotation`（`zh -> deepseek-chat`，`en/it -> gemini2.0-flash`）
+- `CHUTES_API_KEY` 用于 `report`
+- `QWEN_API_KEY` 用于 `classify`、`todo-decompose(zh)`，也可作为 `magic-pen-parse` 的 fallback provider
 - `ZHIPU_API_KEY` 用于 `magic-pen-parse` 主路
-- 可选：`ANNOTATION_QWEN_BASE_URL`、`ANNOTATION_GEMINI_BASE_URL`、`CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`、`MAGIC_PEN_FALLBACK_MODEL`
+- 可选：`ANNOTATION_QWEN_BASE_URL`、`ANNOTATION_GEMINI_BASE_URL`、`ANNOTATION_DEEPSEEK_BASE_URL`、`CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`、`MAGIC_PEN_FALLBACK_MODEL`、`TODO_DECOMPOSE_MODEL`、`TODO_DECOMPOSE_MODEL_ZH`、`TODO_DECOMPOSE_VERBOSE_LOGS`
 
 ## 本地开发
 
@@ -75,7 +77,6 @@ npx vercel --prod
 - `POST /api/diary`
 - `POST /api/magic-pen-parse`
 - `POST /api/plant-generate`
-- `POST /api/plant-diary`
 - `GET /api/plant-history`
 - `POST /api/live-input-telemetry`
 - `GET /api/live-input-dashboard`
@@ -92,11 +93,12 @@ To enable the new live input telemetry dashboard in production:
 ## 运行时模型（当前实现）
 
 - `/api/report`: `NousResearch/Hermes-4-405B-FP8-TEE`
-- `/api/diary`: `Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
-- `/api/annotation`: `zh=qwen-plus`，`en/it=gemini2.0-flash`
+- `/api/diary`: `action=insight -> gpt-4o-mini`；默认日记正文 `gpt-4o`
+- `/api/annotation`: `zh=deepseek-chat`，`en/it=gemini2.0-flash`
+- `/api/todo-decompose`: `zh=qwen-plus`（可由 `TODO_DECOMPOSE_MODEL_ZH` 覆盖），`en/it=gpt-4o-mini`（可由 `TODO_DECOMPOSE_MODEL` 覆盖）
 - `/api/classify`: `qwen-plus`（可由 `CLASSIFY_MODEL` 覆盖）
 - `/api/magic-pen-parse`: `glm-4.7-flash`（失败时可回退 `qwen-flash`）
-- `/api/plant-diary`: `Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
+- `/api/plant-generate`（内部 `src/server/plant-diary-service.ts`）: `gpt-4.1-mini`
 
 ## 安全注意事项
 

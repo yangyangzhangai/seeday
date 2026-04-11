@@ -47,10 +47,10 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 
 当前 provider 映射：
 
-- `/api/annotation` -> `QWEN_API_KEY`（zh, model `qwen-plus`）+ `GEMINI_API_KEY`（en/it, model `gemini2.0-flash`），可选 `ANNOTATION_QWEN_BASE_URL`/`ANNOTATION_GEMINI_BASE_URL`
+- `/api/annotation` -> `DEEPSEEK_API_KEY`（zh, model `deepseek-chat`）+ `GEMINI_API_KEY`（en/it, model `gemini2.0-flash`）；可选 `ANNOTATION_DEEPSEEK_BASE_URL`/`ANNOTATION_GEMINI_BASE_URL`
 - `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`；按 `lang` 路由中/英/意 prompt）
-- `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 OpenAI `OPENAI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gpt-4o-mini`）；共享 `src/server/todo-decompose-service.ts`，annotation 建议链路也可复用该服务对长期未完成待办做预拆解
-- `/api/report` / `/api/plant-diary` -> `CHUTES_API_KEY`
+- `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 OpenAI `OPENAI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gpt-4o-mini`）；共享 `src/server/todo-decompose-service.ts`，annotation 建议链路也可复用该服务对长期未完成待办做预拆解；可选 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 打开服务端排障日志
+- `/api/report` -> `CHUTES_API_KEY`
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底
