@@ -150,6 +150,7 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
   return DEFAULT_ANNOTATIONS_ZH;
 }
 
-export function getModel(_lang: string): string {
-  return 'gpt-4.1-mini';
+export function getModel(lang: string): string {
+  if (lang === 'en' || lang === 'it') return 'gemini2.0-flash';
+  return 'qwen-plus';
 }

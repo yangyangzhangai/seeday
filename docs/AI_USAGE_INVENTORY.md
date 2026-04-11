@@ -11,7 +11,7 @@
 
 | AI角色 | 用到的地方 | 当前模型/供应商 | 具体功能描述 | 对模型能力要求 | 建议参数级别 |
 | --- | --- | --- | --- | --- | --- |
-| AI 批注（含建议模式） | `api/annotation.ts` -> `src/server/annotation-handler.ts`；触发：`src/store/useAnnotationStore.ts` | OpenAI Responses；`gpt-4.1-mini`（由 `src/server/annotation-prompts.defaults.ts` 决定） | 针对事件生成短批注；可输出建议 JSON；重写去重（文本相似度/emoji） | 人设稳定、多语言、上下文融合、结构化输出稳定 | 20B-70B（建议主力 30B+） |
+| AI 批注（含建议模式） | `api/annotation.ts` -> `src/server/annotation-handler.ts`；触发：`src/store/useAnnotationStore.ts` | OpenAI Responses；`zh=qwen-plus`，`en/it=gemini2.0-flash`（由 `src/server/annotation-prompts.defaults.ts` 决定） | 针对事件生成短批注；可输出建议 JSON；重写去重（文本相似度/emoji） | 人设稳定、多语言、上下文融合、结构化输出稳定 | 20B-70B（建议主力 30B+） |
 | 待办拆解 | `api/todo-decompose.ts` + `src/server/todo-decompose-service.ts`；入口：`src/features/growth/SubTodoList.tsx` | OpenAI Chat Completions；默认 `gpt-4o-mini`（可由 `TODO_DECOMPOSE_MODEL` 覆盖） | 将待办拆成 3-6 个可执行步骤并给时长 | 指令遵循、JSON 稳定、轻规划能力 | 7B-20B |
 | 日记生成（长文） | `api/diary.ts`；调用：`src/store/reportActions.ts` | OpenAI Chat Completions；`gpt-4o` | 基于结构化日报数据+历史上下文生成 AI 日记 | 长上下文总结、叙事能力、事实约束 | 30B-70B |
 | 报告短洞察（短文） | `api/diary.ts`（`action='insight'`）；调用：`src/features/report/ReportDetailModal.tsx` | OpenAI；`gpt-4o-mini` | 生成 todo/habit 的短洞察句（超短） | 极短文本压缩、格式遵循 | 7B-14B |
@@ -22,7 +22,7 @@
 
 ## API 与环境变量映射
 
-- `/api/annotation` -> `OPENAI_API_KEY`
+- `/api/annotation` -> `QWEN_API_KEY`（zh）+ `GEMINI_API_KEY`（en/it），可选 `ANNOTATION_QWEN_BASE_URL` / `ANNOTATION_GEMINI_BASE_URL`
 - `/api/todo-decompose` -> `OPENAI_API_KEY`（可选 `TODO_DECOMPOSE_MODEL`）
 - `/api/diary` -> `OPENAI_API_KEY`
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）

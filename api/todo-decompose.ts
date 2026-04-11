@@ -15,17 +15,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  if (!openaiApiKey) {
-    jsonError(res, 500, 'Server configuration error: Missing OPENAI_API_KEY');
-    return;
-  }
   try {
     const result = await decomposeTodoWithAIDiagnostics({
       title,
       lang: lang === 'en' || lang === 'it' ? lang : 'zh',
-      apiKey: openaiApiKey,
-      model: process.env.TODO_DECOMPOSE_MODEL,
+      apiKey: process.env.OPENAI_API_KEY,
+      qwenApiKey: process.env.QWEN_API_KEY,
     });
 
     res.status(200).json({

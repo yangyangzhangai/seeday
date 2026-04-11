@@ -20,6 +20,7 @@ import {
   buildTodayActivitiesText,
   buildTodayContextText,
   getDefaultAnnotations,
+  getModel,
 } from './annotation-prompts.js';
 import type { RecoveryNudgeContext } from '../types/annotation.js';
 import { resolveCountryCode } from './country-resolver.js';
@@ -47,8 +48,7 @@ import { buildNarrativeEventInstruction } from './narrative-event-library.js';
 import { reportNarrativeTelemetry } from './narrative-density-telemetry.js';
 import { NARRATIVE_EVENT_LOOKBACK_MS } from './narrative-density-constants.js';
 import type { NarrativeTriggeredEvent } from './narrative-density-types.js';
-
-const openai = new OpenAI();
+import { createAnnotationClient, resolveAnnotationRuntime } from './annotation-provider-runtime.js';
 
 type AnnotationLang = 'zh' | 'en' | 'it';
 
@@ -445,20 +445,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const defaultSet = getDefaultAnnotations(resolvedLang);
-  const apiKey = process.env.OPENAI_API_KEY;
+  const routeModel = getModel(resolvedLang);
+  const runtime = resolveAnnotationRuntime(routeModel);
 
-  if (!apiKey) {
+  if (!runtime.apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
     res.status(200).json({
       ...defaultAnnotation,
       displayDuration: 8000,
       source: 'default',
       reason: 'no_key',
+      debugProvider: runtime.provider,
+      debugModel: routeModel,
       debugAiMode: resolvedAiMode || 'fallback',
       debugCharacterState,
     });
     return;
   }
+
+  const annotationClient = createAnnotationClient(runtime);
 
   // ==================== 建议模式（客户端门控透传） ====================
   const forceSuggestion = userContext?.forceSuggestion === true;
@@ -586,8 +591,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       suggestionPromptPackage = promptPackage;
 
-      openai.apiKey = apiKey;
-      const llmResponse = await openai.responses.create({
+      const llmResponse = await annotationClient.responses.create({
         model: promptPackage.model,
         instructions: promptPackage.instructions,
         input: promptPackage.input,
@@ -619,8 +623,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const steps = await decomposeTodoWithAI({
                 title: targetTodo.title,
                 lang: resolvedLang,
-                apiKey,
-                model: process.env.TODO_DECOMPOSE_MODEL,
+                apiKey: process.env.OPENAI_API_KEY,
+                qwenApiKey: process.env.QWEN_API_KEY,
               });
               if (steps.length > 0) {
                 normalizedSuggestion.decomposeReady = true;
@@ -780,9 +784,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     annotationPromptPackage = promptPackage;
 
-    openai.apiKey = apiKey;
-
-    const llmResponse = await openai.responses.create({
+    const llmResponse = await annotationClient.responses.create({
       model: promptPackage.model,
       instructions: promptPackage.instructions,
       input: promptPackage.input,
@@ -872,7 +874,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             rawRecentAnnotations.slice(-3),
           );
 
-          const rewriteResponse = await openai.responses.create({
+          const rewriteResponse = await annotationClient.responses.create({
             model: promptPackage.model,
             instructions: promptPackage.instructions,
             input: rewritePrompt,

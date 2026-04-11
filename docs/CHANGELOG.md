@@ -4,6 +4,25 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Fix: annotation 多 provider 实际接线 + Gemini/Qwen 环境变量落地
+
+### Changed
+
+- `src/server/annotation-handler.ts`
+  - 新增 annotation runtime 解析：按 model 自动选择 provider（`qwen/gemini/openai`）与对应 `apiKey/baseURL`。
+  - `/api/annotation` 现在按语言路由真实生效：`zh -> QWEN_API_KEY (+ ANNOTATION_QWEN_BASE_URL)`，`en/it -> GEMINI_API_KEY (+ ANNOTATION_GEMINI_BASE_URL)`。
+  - 移除仅依赖 `OPENAI_API_KEY` 的单一路径，缺 key 时返回默认批注并附带 provider/model 调试信息。
+- `.env.example` + `DEPLOY.md` + `api/README.md` + `docs/AI_USAGE_INVENTORY.md`
+  - 同步新增 `GEMINI_API_KEY` 与 annotation 专用 base URL 变量说明，更新 `/api/annotation` provider 映射。
+
+## 2026-04-11 - Tweak: Annotation 模型按语种分流
+
+### Changed
+
+- `src/server/annotation-prompts.defaults.ts`
+  - `getModel(lang)` 调整为按语种路由：`zh` 使用 `qwen-plus`，`en/it` 使用 `gemini2.0-flash`。
+  - prompt 组装与 `/api/annotation` 主流程不变，仍通过 `buildAnnotationPromptPackage` 下发 `model`。
+
 ## 2026-04-11 - Fix: recovery 2 星仅限瓶子目标 + 建议文案与目标对齐
 
 ### Changed

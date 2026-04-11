@@ -56,6 +56,8 @@ describe('annotation-handler', () => {
       choices: [{ message: { content: '{"steps":[]}' } }],
     });
     process.env.OPENAI_API_KEY = 'test-key';
+    process.env.QWEN_API_KEY = 'test-qwen-key';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.ANNOTATION_CHARACTER_STATE_ENABLED = 'true';
   });
 

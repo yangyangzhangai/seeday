@@ -12,8 +12,10 @@ export interface TodoDecomposeResult {
   steps: TodoDecomposeStep[];
   parseStatus: 'ok' | 'parse_failed';
   model: string;
-  provider: 'openai';
+  provider: 'openai' | 'dashscope';
 }
+
+const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 
 const DECOMPOSE_PROMPT_ZH = `你是一个“低摩擦任务拆解助手”。
 你的唯一目标：把用户的待办拆成一组“立即可执行、操作非常具体、执行阻力很低”的小步骤。
@@ -133,11 +135,20 @@ function normalizeSteps(steps: unknown): TodoDecomposeStep[] {
     }));
 }
 
+function resolveDecomposeModel(lang: DecomposeLang, model?: string): string {
+  if (typeof model === 'string' && model.trim()) return model.trim();
+  if (lang === 'zh') {
+    return (process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus').trim() || 'qwen-plus';
+  }
+  return (process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
+}
+
 export async function decomposeTodoWithAI(params: {
   title: string;
   lang: DecomposeLang;
-  apiKey: string;
+  apiKey?: string;
   model?: string;
+  qwenApiKey?: string;
   openai?: OpenAI;
 }): Promise<TodoDecomposeStep[]> {
   const result = await decomposeTodoWithAIDiagnostics(params);
@@ -147,29 +158,73 @@ export async function decomposeTodoWithAI(params: {
 export async function decomposeTodoWithAIDiagnostics(params: {
   title: string;
   lang: DecomposeLang;
-  apiKey: string;
+  apiKey?: string;
   model?: string;
+  qwenApiKey?: string;
   openai?: OpenAI;
 }): Promise<TodoDecomposeResult> {
-  const client = params.openai ?? new OpenAI({ apiKey: params.apiKey });
-  const model = (params.model || process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
-  const completion = await client.chat.completions.create({
-    model,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: resolvePrompt(params.lang) },
-      { role: 'user', content: params.title.trim() },
-    ],
-    temperature: 0.5,
-    max_tokens: 512,
-  });
+  const model = resolveDecomposeModel(params.lang, params.model);
+  const preferDashscope = /^qwen/i.test(model);
+  let provider: 'openai' | 'dashscope' = 'openai';
+  let rawContent = '';
 
-  const rawContent = completion.choices?.[0]?.message?.content || '';
+  if (preferDashscope) {
+    const qwenApiKey = (params.qwenApiKey || process.env.QWEN_API_KEY || '').trim();
+    if (!qwenApiKey) {
+      throw new Error('Server configuration error: Missing QWEN_API_KEY for todo decompose');
+    }
+    const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL).replace(/\/$/, '');
+    const response = await fetch(`${dashscopeBase}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${qwenApiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: resolvePrompt(params.lang) },
+          { role: 'user', content: params.title.trim() },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.5,
+        max_tokens: 512,
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`DashScope todo decompose failed: ${response.status} ${errorText}`);
+    }
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    rawContent = payload.choices?.[0]?.message?.content || '';
+    provider = 'dashscope';
+  } else {
+    const openaiApiKey = (params.apiKey || '').trim();
+    if (!openaiApiKey) {
+      throw new Error('Server configuration error: Missing OPENAI_API_KEY for todo decompose');
+    }
+    const client = params.openai ?? new OpenAI({ apiKey: openaiApiKey });
+    const completion = await client.chat.completions.create({
+      model,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: resolvePrompt(params.lang) },
+        { role: 'user', content: params.title.trim() },
+      ],
+      temperature: 0.5,
+      max_tokens: 512,
+    });
+    rawContent = completion.choices?.[0]?.message?.content || '';
+  }
+
   const parsed = parseResponse(rawContent);
   return {
     steps: normalizeSteps(parsed.steps),
     parseStatus: parsed.parseStatus,
     model,
-    provider: 'openai',
+    provider,
   };
 }
