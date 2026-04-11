@@ -6,6 +6,7 @@ import type {
   LiveInputTelemetryDashboardResponse,
   LiveInputTelemetryRecentEvent,
   LiveInputTelemetrySeriesPoint,
+  TodoDecomposeTelemetrySeriesPoint,
 } from '../services/input/liveInputTelemetryApi.js';
 
 interface LiveInputEventRow {
@@ -43,6 +44,46 @@ interface DiaryStickerEventRow {
   event_name?: unknown;
   event_data?: unknown;
   lang?: unknown;
+}
+
+const ANNOTATION_EVENT_NAMES = new Set([
+  'density_scored',
+  'trigger_blocked',
+  'event_triggered',
+  'event_condensed',
+  'lateral_sampled',
+]);
+
+const TODO_DECOMPOSE_EVENT_NAMES = new Set([
+  'todo_decompose_requested',
+  'todo_decompose_succeeded',
+  'todo_decompose_empty',
+  'todo_decompose_parse_failed',
+  'todo_decompose_failed',
+  'todo_decompose_regenerate_clicked',
+]);
+
+function parseNumber(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string') {
+    const value = Number(raw);
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function parseBoolean(raw: unknown): boolean | null {
+  if (typeof raw === 'boolean') return raw;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return null;
+}
+
+function toScoreBucketKey(score: number): string {
+  const normalized = Math.max(0, Math.min(1, score));
+  const start = Math.floor(normalized * 10) / 10;
+  const end = Math.min(1, start + 0.1);
+  return `${start.toFixed(1)}-${end.toFixed(1)}`;
 }
 
 function isMissingOptionalTableError(error: { code?: string | null; message?: string | null } | null): boolean {
@@ -126,6 +167,28 @@ function createDateSeries(days: number): LiveInputTelemetrySeriesPoint[] {
   return points;
 }
 
+function createTodoDecomposeSeries(days: number): TodoDecomposeTelemetrySeriesPoint[] {
+  const points: TodoDecomposeTelemetrySeriesPoint[] = [];
+  const now = new Date();
+  now.setUTCHours(0, 0, 0, 0);
+
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const date = new Date(now);
+    date.setUTCDate(date.getUTCDate() - offset);
+    points.push({
+      day: date.toISOString().slice(0, 10),
+      requestedCount: 0,
+      succeededCount: 0,
+      emptyCount: 0,
+      parseFailedCount: 0,
+      failedCount: 0,
+      regenerateCount: 0,
+    });
+  }
+
+  return points;
+}
+
 export async function handleLiveInputDashboard(req: VercelRequest, res: VercelResponse): Promise<void> {
   const auth = await requireSupabaseRequestAuth(req, res);
   if (!auth) {
@@ -189,15 +252,43 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
   const byLang = new Map<string, number>();
   const plantFallbackLevels = new Map<string, number>();
   const diaryStickerActions = new Map<string, number>();
+  const annotationEventNames = new Map<string, number>();
+  const annotationCharacters = new Map<string, number>();
+  const associationTypes = new Map<string, number>();
+  const narrativeScoreBuckets = new Map<string, { count: number; triggeredCount: number }>();
+  const todoDecomposeEventNames = new Map<string, number>();
+  const todoDecomposeByLang = new Map<string, number>();
+  const todoDecomposeByModel = new Map<string, number>();
   const uniqueUsers = new Set<string>();
   const series = createDateSeries(days);
   const seriesMap = new Map(series.map((point) => [point.day, { ...point, userIds: new Set<string>() }]));
+  const todoDecomposeSeries = createTodoDecomposeSeries(days);
+  const todoDecomposeSeriesMap = new Map(todoDecomposeSeries.map((point) => [point.day, { ...point }]));
+  const uniqueDecomposedTodos = new Set<string>();
 
   let classificationCount = 0;
   let correctionCount = 0;
   let plantAssetCount = 0;
   let diaryStickerCount = 0;
+  let annotationTelemetryCount = 0;
+  let densityScoredCount = 0;
+  let triggerBlockedCount = 0;
+  let eventTriggeredCount = 0;
+  let eventCondensedCount = 0;
+  let lateralSampledCount = 0;
+  let lateralTriggeredCount = 0;
+  let narrativeScoreSum = 0;
+  let narrativeScoreCount = 0;
+  let finalProbabilitySum = 0;
+  let finalProbabilityCount = 0;
   let plantExactHitCount = 0;
+  let todoDecomposeRequestedCount = 0;
+  let todoDecomposeSucceededCount = 0;
+  let todoDecomposeEmptyCount = 0;
+  let todoDecomposeParseFailedCount = 0;
+  let todoDecomposeFailedCount = 0;
+  let todoDecomposeRegenerateCount = 0;
+  let todoDecomposeStepsTotal = 0;
 
   for (const event of events) {
     uniqueUsers.add(event.user_id);
@@ -260,9 +351,11 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
   }
 
   const diaryStickerEvents: LiveInputTelemetryRecentEvent[] = [];
+  const annotationTelemetryEvents: LiveInputTelemetryRecentEvent[] = [];
+  const todoDecomposeEvents: LiveInputTelemetryRecentEvent[] = [];
   for (const event of (diaryRows || []) as DiaryStickerEventRow[]) {
     const eventName = parseOptionalString(event.event_name);
-    if (!eventName || !eventName.startsWith('diary_sticker_')) {
+    if (!eventName) {
       continue;
     }
 
@@ -278,22 +371,161 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
     const seriesEntry = seriesMap.get(day);
     if (seriesEntry) {
       seriesEntry.userIds.add(userId);
-      seriesEntry.diaryStickerCount += 1;
     }
 
-    diaryStickerCount += 1;
     uniqueUsers.add(userId);
-    diaryStickerActions.set(eventName, (diaryStickerActions.get(eventName) ?? 0) + 1);
-
     const lang = parseOptionalString(event.lang) || parseOptionalString(eventData.lang) || 'unknown';
     byLang.set(lang, (byLang.get(lang) ?? 0) + 1);
 
-    const newOrder = parseStringArray(eventData.newOrder);
-    diaryStickerEvents.push({
+    if (TODO_DECOMPOSE_EVENT_NAMES.has(eventName)) {
+      const todoId = parseOptionalString(eventData.todoId);
+      const model = parseOptionalString(eventData.model) || 'unknown';
+      const isRegenerate = parseBoolean(eventData.isRegenerate);
+      const stepsCount = parseNumber(eventData.stepsCount);
+      const todoSeriesEntry = todoDecomposeSeriesMap.get(day);
+      if (todoSeriesEntry) {
+        if (eventName === 'todo_decompose_requested') todoSeriesEntry.requestedCount += 1;
+        if (eventName === 'todo_decompose_succeeded') todoSeriesEntry.succeededCount += 1;
+        if (eventName === 'todo_decompose_empty') todoSeriesEntry.emptyCount += 1;
+        if (eventName === 'todo_decompose_parse_failed') todoSeriesEntry.parseFailedCount += 1;
+        if (eventName === 'todo_decompose_failed') todoSeriesEntry.failedCount += 1;
+        if (eventName === 'todo_decompose_regenerate_clicked') todoSeriesEntry.regenerateCount += 1;
+      }
+
+      todoDecomposeEventNames.set(eventName, (todoDecomposeEventNames.get(eventName) ?? 0) + 1);
+      todoDecomposeByLang.set(lang, (todoDecomposeByLang.get(lang) ?? 0) + 1);
+      todoDecomposeByModel.set(model, (todoDecomposeByModel.get(model) ?? 0) + 1);
+
+      if (eventName === 'todo_decompose_requested') todoDecomposeRequestedCount += 1;
+      if (eventName === 'todo_decompose_succeeded') {
+        todoDecomposeSucceededCount += 1;
+        if (typeof stepsCount === 'number') {
+          todoDecomposeStepsTotal += stepsCount;
+        }
+        if (todoId) {
+          uniqueDecomposedTodos.add(todoId);
+        }
+      }
+      if (eventName === 'todo_decompose_empty') todoDecomposeEmptyCount += 1;
+      if (eventName === 'todo_decompose_parse_failed') todoDecomposeParseFailedCount += 1;
+      if (eventName === 'todo_decompose_failed') todoDecomposeFailedCount += 1;
+      if (eventName === 'todo_decompose_regenerate_clicked') todoDecomposeRegenerateCount += 1;
+
+      todoDecomposeEvents.push({
+        id,
+        createdAt,
+        userId,
+        eventType: 'todo_decompose',
+        kind: null,
+        internalKind: null,
+        confidence: null,
+        reasons: [],
+        fromKind: null,
+        toKind: null,
+        fallbackLevel: null,
+        requestedPlantId: null,
+        resolvedAssetUrl: null,
+        rootType: null,
+        plantStage: null,
+        eventName,
+        lang,
+        inputLength: 0,
+        inputPreview: parseOptionalString(eventData.entry),
+        todoId,
+        isRegenerate,
+        model,
+        provider: parseOptionalString(eventData.provider),
+        stepsCount,
+      });
+      continue;
+    }
+
+    if (eventName.startsWith('diary_sticker_')) {
+      if (seriesEntry) {
+        seriesEntry.diaryStickerCount += 1;
+      }
+
+      diaryStickerCount += 1;
+      diaryStickerActions.set(eventName, (diaryStickerActions.get(eventName) ?? 0) + 1);
+
+      const newOrder = parseStringArray(eventData.newOrder);
+      diaryStickerEvents.push({
+        id,
+        createdAt,
+        userId,
+        eventType: 'diary_sticker',
+        kind: null,
+        internalKind: null,
+        confidence: null,
+        reasons: [],
+        fromKind: null,
+        toKind: null,
+        fallbackLevel: null,
+        requestedPlantId: null,
+        resolvedAssetUrl: null,
+        rootType: null,
+        plantStage: null,
+        eventName,
+        reportId: parseOptionalString(eventData.reportId),
+        reportDate: parseOptionalString(eventData.date),
+        stickerId: parseOptionalString(eventData.stickerId),
+        newOrder: newOrder.length > 0 ? newOrder : null,
+        lang,
+        inputLength: 0,
+        inputPreview: parseOptionalString(eventData.source),
+      });
+      continue;
+    }
+
+    if (!ANNOTATION_EVENT_NAMES.has(eventName)) {
+      continue;
+    }
+
+    annotationTelemetryCount += 1;
+    annotationEventNames.set(eventName, (annotationEventNames.get(eventName) ?? 0) + 1);
+
+    if (eventName === 'density_scored') densityScoredCount += 1;
+    if (eventName === 'trigger_blocked') triggerBlockedCount += 1;
+    if (eventName === 'event_triggered') eventTriggeredCount += 1;
+    if (eventName === 'event_condensed') eventCondensedCount += 1;
+    if (eventName === 'lateral_sampled') lateralSampledCount += 1;
+
+    const narrativeScore = parseNumber(eventData.currentScore ?? eventData.narrativeScore);
+    if (narrativeScore !== null) {
+      narrativeScoreSum += narrativeScore;
+      narrativeScoreCount += 1;
+      const key = toScoreBucketKey(narrativeScore);
+      const prev = narrativeScoreBuckets.get(key) || { count: 0, triggeredCount: 0 };
+      prev.count += 1;
+      const triggered = parseBoolean(eventData.triggered) ?? false;
+      if (triggered) prev.triggeredCount += 1;
+      narrativeScoreBuckets.set(key, prev);
+    }
+
+    const finalProbability = parseNumber(eventData.finalProbability);
+    if (finalProbability !== null) {
+      finalProbabilitySum += finalProbability;
+      finalProbabilityCount += 1;
+    }
+
+    const triggered = parseBoolean(eventData.triggered);
+    if (triggered) lateralTriggeredCount += 1;
+
+    const characterId = parseOptionalString(eventData.characterId);
+    if (characterId) {
+      annotationCharacters.set(characterId, (annotationCharacters.get(characterId) ?? 0) + 1);
+    }
+
+    const associationType = parseOptionalString(eventData.associationType);
+    if (associationType) {
+      associationTypes.set(associationType, (associationTypes.get(associationType) ?? 0) + 1);
+    }
+
+    annotationTelemetryEvents.push({
       id,
       createdAt,
       userId,
-      eventType: 'diary_sticker',
+      eventType: 'annotation_telemetry',
       kind: null,
       internalKind: null,
       confidence: null,
@@ -306,13 +538,14 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
       rootType: null,
       plantStage: null,
       eventName,
-      reportId: parseOptionalString(eventData.reportId),
-      reportDate: parseOptionalString(eventData.date),
-      stickerId: parseOptionalString(eventData.stickerId),
-      newOrder: newOrder.length > 0 ? newOrder : null,
       lang,
       inputLength: 0,
-      inputPreview: parseOptionalString(eventData.source),
+      inputPreview: parseOptionalString(eventData.blockedReason),
+      narrativeScore,
+      finalProbability,
+      triggered,
+      characterId,
+      associationType,
     });
   }
 
@@ -325,6 +558,19 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
       plantAssetCount: current?.plantAssetCount ?? 0,
       diaryStickerCount: current?.diaryStickerCount ?? 0,
       uniqueUsers: current?.userIds.size ?? 0,
+    };
+  });
+
+  const normalizedTodoDecomposeSeries: TodoDecomposeTelemetrySeriesPoint[] = todoDecomposeSeries.map((point) => {
+    const current = todoDecomposeSeriesMap.get(point.day);
+    return {
+      day: point.day,
+      requestedCount: current?.requestedCount ?? 0,
+      succeededCount: current?.succeededCount ?? 0,
+      emptyCount: current?.emptyCount ?? 0,
+      parseFailedCount: current?.parseFailedCount ?? 0,
+      failedCount: current?.failedCount ?? 0,
+      regenerateCount: current?.regenerateCount ?? 0,
     };
   });
 
@@ -375,6 +621,8 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
       };
     }),
     ...diaryStickerEvents,
+    ...annotationTelemetryEvents,
+    ...todoDecomposeEvents,
   ] as LiveInputTelemetryRecentEvent[])
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, 50);
@@ -394,9 +642,78 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
     byInternalKind: toBreakdownItems(byInternalKind, classificationCount),
     correctionPaths: toBreakdownItems(correctionPaths, correctionCount),
     topReasons: toBreakdownItems(topReasons, classificationCount),
-    byLang: toBreakdownItems(byLang, classificationCount + correctionCount + plantAssetCount + diaryStickerCount),
+    byLang: toBreakdownItems(
+      byLang,
+      classificationCount + correctionCount + plantAssetCount + diaryStickerCount + annotationTelemetryCount,
+    ),
     plantFallbackLevels: toBreakdownItems(plantFallbackLevels, plantAssetCount),
     diaryStickerActions: toBreakdownItems(diaryStickerActions, diaryStickerCount),
+    annotationEventNames: toBreakdownItems(annotationEventNames, annotationTelemetryCount),
+    annotationCharacters: toBreakdownItems(annotationCharacters, annotationTelemetryCount),
+    associationTypes: toBreakdownItems(associationTypes, lateralSampledCount),
+    narrativeScoreBuckets: Array.from(narrativeScoreBuckets.entries())
+      .sort((left, right) => left[0].localeCompare(right[0]))
+      .map(([key, stats]) => ({
+        key,
+        count: stats.count,
+        triggeredCount: stats.triggeredCount,
+        triggerRate: stats.count > 0 ? stats.triggeredCount / stats.count : 0,
+      })),
+    aiAnnotationSummary: {
+      totalEvents: annotationTelemetryCount,
+      densityScoredCount,
+      triggerBlockedCount,
+      eventTriggeredCount,
+      eventCondensedCount,
+      lateralSampledCount,
+      lateralTriggeredCount,
+      lateralTriggerRate: lateralSampledCount > 0 ? lateralTriggeredCount / lateralSampledCount : 0,
+      avgNarrativeScore: narrativeScoreCount > 0 ? narrativeScoreSum / narrativeScoreCount : 0,
+      avgFinalProbability: finalProbabilityCount > 0 ? finalProbabilitySum / finalProbabilityCount : 0,
+    },
+    todoDecomposeSummary: {
+      requestedCount: todoDecomposeRequestedCount,
+      succeededCount: todoDecomposeSucceededCount,
+      emptyCount: todoDecomposeEmptyCount,
+      parseFailedCount: todoDecomposeParseFailedCount,
+      failedCount: todoDecomposeFailedCount,
+      regenerateCount: todoDecomposeRegenerateCount,
+      uniqueTodosDecomposed: uniqueDecomposedTodos.size,
+      emptyRate: todoDecomposeSucceededCount > 0 ? todoDecomposeEmptyCount / todoDecomposeSucceededCount : 0,
+      parseFailureRate: todoDecomposeRequestedCount > 0 ? todoDecomposeParseFailedCount / todoDecomposeRequestedCount : 0,
+      failureRate: todoDecomposeRequestedCount > 0 ? todoDecomposeFailedCount / todoDecomposeRequestedCount : 0,
+      regenerateRate: uniqueDecomposedTodos.size > 0 ? todoDecomposeRegenerateCount / uniqueDecomposedTodos.size : 0,
+      avgStepsPerSuccess: todoDecomposeSucceededCount > 0 ? todoDecomposeStepsTotal / todoDecomposeSucceededCount : 0,
+    },
+    todoDecomposeEventNames: toBreakdownItems(
+      todoDecomposeEventNames,
+      todoDecomposeRequestedCount
+      + todoDecomposeSucceededCount
+      + todoDecomposeEmptyCount
+      + todoDecomposeParseFailedCount
+      + todoDecomposeFailedCount
+      + todoDecomposeRegenerateCount,
+    ),
+    todoDecomposeByLang: toBreakdownItems(
+      todoDecomposeByLang,
+      todoDecomposeRequestedCount
+      + todoDecomposeSucceededCount
+      + todoDecomposeEmptyCount
+      + todoDecomposeParseFailedCount
+      + todoDecomposeFailedCount
+      + todoDecomposeRegenerateCount,
+    ),
+    todoDecomposeByModel: toBreakdownItems(
+      todoDecomposeByModel,
+      todoDecomposeRequestedCount
+      + todoDecomposeSucceededCount
+      + todoDecomposeEmptyCount
+      + todoDecomposeParseFailedCount
+      + todoDecomposeFailedCount
+      + todoDecomposeRegenerateCount,
+    ),
+    todoDecomposeSeries: normalizedTodoDecomposeSeries,
+    todoDecomposeRecentEvents: todoDecomposeEvents.slice(0, 50),
     series: normalizedSeries,
     recentEvents,
   };

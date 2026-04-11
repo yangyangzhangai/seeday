@@ -5,7 +5,11 @@ import {
   NARRATIVE_EVENT_WEIGHTS,
   NARRATIVE_THRESHOLD_BASE,
   NARRATIVE_THRESHOLD_RICHNESS_FACTOR,
-  NARRATIVE_TRIGGER_PROBABILITY,
+  NARRATIVE_TRIGGER_PROBABILITY_GAMMA,
+  NARRATIVE_TRIGGER_PROBABILITY_MAX,
+  NARRATIVE_TRIGGER_PROBABILITY_MIN,
+  NARRATIVE_TRIGGER_PROBABILITY_SPAN,
+  NARRATIVE_TRIGGER_RICHNESS_PENALTY,
 } from './narrative-density-constants.js';
 import type {
   NarrativeEventType,
@@ -42,6 +46,19 @@ function pickTypeByWeight(
   return available[available.length - 1]?.type ?? null;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeTriggerProbability(currentScore: number, todayRichness: number): number {
+  const lowDensityStrength = clamp(1 - currentScore, 0, 1);
+  const raw =
+    NARRATIVE_TRIGGER_PROBABILITY_MIN
+    + Math.pow(lowDensityStrength, NARRATIVE_TRIGGER_PROBABILITY_GAMMA) * NARRATIVE_TRIGGER_PROBABILITY_SPAN
+    - todayRichness * NARRATIVE_TRIGGER_RICHNESS_PENALTY;
+  return clamp(raw, NARRATIVE_TRIGGER_PROBABILITY_MIN, NARRATIVE_TRIGGER_PROBABILITY_MAX);
+}
+
 export function evaluateNarrativeTrigger(params: {
   isFirstEntry: boolean;
   currentScore: number;
@@ -54,20 +71,26 @@ export function evaluateNarrativeTrigger(params: {
     0,
     NARRATIVE_THRESHOLD_BASE - params.todayRichness * NARRATIVE_THRESHOLD_RICHNESS_FACTOR,
   );
+  const triggerProbability = computeTriggerProbability(params.currentScore, params.todayRichness);
 
-  if (params.isFirstEntry) return { shouldTrigger: false, adjustedThreshold, blockedReason: 'first_entry' };
-  if (params.currentScore >= adjustedThreshold) return { shouldTrigger: false, adjustedThreshold, blockedReason: 'not_low_density' };
-  if (params.cache.triggerCount.total >= NARRATIVE_DAILY_LIMIT.total) {
-    return { shouldTrigger: false, adjustedThreshold, blockedReason: 'daily_total_limit' };
+  if (params.isFirstEntry) {
+    return { shouldTrigger: false, adjustedThreshold, triggerProbability, blockedReason: 'first_entry' };
   }
-  if (random() >= NARRATIVE_TRIGGER_PROBABILITY) {
-    return { shouldTrigger: false, adjustedThreshold, blockedReason: 'probability_miss' };
+  if (params.cache.triggerCount.total >= NARRATIVE_DAILY_LIMIT.total) {
+    return { shouldTrigger: false, adjustedThreshold, triggerProbability, blockedReason: 'daily_total_limit' };
+  }
+  if (random() >= triggerProbability) {
+    return { shouldTrigger: false, adjustedThreshold, triggerProbability, blockedReason: 'probability_miss' };
   }
 
   const available = toWeightedAvailableTypes(params.cache);
-  if (available.length === 0) return { shouldTrigger: false, adjustedThreshold, blockedReason: 'event_type_limit' };
+  if (available.length === 0) {
+    return { shouldTrigger: false, adjustedThreshold, triggerProbability, blockedReason: 'event_type_limit' };
+  }
 
   const selectedEventType = pickTypeByWeight(available, random);
-  if (!selectedEventType) return { shouldTrigger: false, adjustedThreshold, blockedReason: 'no_available_type' };
-  return { shouldTrigger: true, adjustedThreshold, selectedEventType };
+  if (!selectedEventType) {
+    return { shouldTrigger: false, adjustedThreshold, triggerProbability, blockedReason: 'no_available_type' };
+  }
+  return { shouldTrigger: true, adjustedThreshold, triggerProbability, selectedEventType };
 }

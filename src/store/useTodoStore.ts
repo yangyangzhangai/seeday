@@ -231,7 +231,11 @@ interface TodoState {
     category?: ActivityRecordType;
     scope?: TodoScope;
   }) => void;
-  addSubTodos: (parentId: string, steps: Array<{ title: string; suggestedDuration: number }>) => void;
+  addSubTodos: (
+    parentId: string,
+    steps: Array<{ title: string; suggestedDuration: number }>,
+    options?: { replaceExisting?: boolean }
+  ) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
   toggleTodo: (id: string) => void;
   togglePin: (id: string) => void;
@@ -585,10 +589,14 @@ export const useTodoStore = create<TodoState>()(
       setActiveTodoId: (id) => set({ activeTodoId: id }),
 
       // ── Add AI-decomposed sub-todos under a parent ──
-      addSubTodos: (parentId, steps) => {
+      addSubTodos: (parentId, steps, options) => {
         const parent = get().todos.find((t) => t.id === parentId);
         if (!parent) return;
         const now = Date.now();
+        const shouldReplace = options?.replaceExisting === true;
+        const existingSubTodos = shouldReplace
+          ? get().todos.filter((t) => t.parentId === parentId)
+          : [];
         const subTodos: Todo[] = steps.map((step, i) => ({
           id: uuidv4(),
           title: step.title,
@@ -603,7 +611,13 @@ export const useTodoStore = create<TodoState>()(
           suggestedDuration: step.suggestedDuration,
           category: parent.category,
         }));
-        set((s) => ({ todos: [...s.todos, ...subTodos] }));
+        set((s) => ({
+          todos: [
+            ...s.todos.filter((t) => !(shouldReplace && t.parentId === parentId)),
+            ...subTodos,
+          ],
+        }));
+        existingSubTodos.forEach((t) => bgSyncDelete(t.id).catch(console.error));
         subTodos.forEach((t) => bgSyncInsert(t).catch(console.error));
       },
 

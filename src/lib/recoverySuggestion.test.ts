@@ -23,7 +23,7 @@ describe('detectRecoveryNudge', () => {
     expect(result?.rewardStars).toBe(2);
   });
 
-  it('returns recurring recovery nudge when yesterday daily template was missed', () => {
+  it('does not return nudge for recurring-only todos without bottle link', () => {
     const now = atLocalDay(0, 10);
     const templateId = 'tpl-1';
     const todos = [
@@ -46,9 +46,7 @@ describe('detectRecoveryNudge', () => {
     ];
 
     const result = detectRecoveryNudge({ now, todos, bottles: [] });
-    expect(result?.reason).toBe('recurring_missed_yesterday');
-    expect(result?.todoId).toBe('todo-today');
-    expect(result?.rewardStars).toBe(2);
+    expect(result).toBeNull();
   });
 
   it('skips nudge when reminders already reached daily max', () => {

@@ -373,6 +373,7 @@ const en = {
     growth_focus_resting: 'Take a break',
     growth_focus_skip_rest: 'Skip break',
     todo_decompose_btn: 'Step by Step',
+    todo_decompose_regenerate_btn: 'Re-breakdown',
     todo_decompose_loading: 'Breaking down...',
     todo_decompose_error: 'Failed, please retry',
     todo_decompose_empty: 'No useful steps yet, try rephrasing',

@@ -5,7 +5,13 @@ export type DiaryStickerTelemetryEventName =
   | 'diary_sticker_deleted'
   | 'diary_sticker_reordered'
   | 'diary_sticker_restored'
-  | 'event_condensed';
+  | 'event_condensed'
+  | 'todo_decompose_requested'
+  | 'todo_decompose_succeeded'
+  | 'todo_decompose_empty'
+  | 'todo_decompose_parse_failed'
+  | 'todo_decompose_failed'
+  | 'todo_decompose_regenerate_clicked';
 
 type TelemetryEventPayload = Record<string, unknown>;
 

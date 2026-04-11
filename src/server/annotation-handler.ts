@@ -56,6 +56,10 @@ const MAX_REWRITE_ATTEMPTS = 1;
 const SIMILARITY_THRESHOLD = 0.15;
 const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
 const ENABLE_CHARACTER_STATE = process.env.ANNOTATION_CHARACTER_STATE_ENABLED !== 'false';
+const LATERAL_ASSOCIATION_BASE_PROBABILITY = 0.5;
+const LATERAL_ASSOCIATION_PROBABILITY_DELTA = 0.2;
+const LATERAL_ASSOCIATION_MIN_PROBABILITY = 0.3;
+const LATERAL_ASSOCIATION_MAX_PROBABILITY = 0.7;
 
 function buildPromptDebugPayload(
   promptPackage: AnnotationPromptPackage | undefined,
@@ -160,13 +164,60 @@ function normalizeCharacterId(value: unknown): CharacterId {
   return 'van';
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function computeLateralAssociationProbability(narrativeScore: number): number {
+  if (!Number.isFinite(narrativeScore)) return LATERAL_ASSOCIATION_BASE_PROBABILITY;
+  const normalized = clamp(narrativeScore, 0, 1);
+  const shifted = 1 - 2 * normalized;
+  return clamp(
+    LATERAL_ASSOCIATION_BASE_PROBABILITY + LATERAL_ASSOCIATION_PROBABILITY_DELTA * shifted,
+    LATERAL_ASSOCIATION_MIN_PROBABILITY,
+    LATERAL_ASSOCIATION_MAX_PROBABILITY,
+  );
+}
+
+type LateralAssociationResolution = {
+  associationInstruction?: string;
+  triggered: boolean;
+  probability: number;
+  associationType?: string;
+  originType?: string;
+  toneTag?: string;
+};
+
 async function resolveLateralAssociationInstruction(params: {
   userId: string;
   characterId: CharacterId;
   userInput: string;
   lang: AnnotationLang;
   currentDate?: { isoDate?: string };
-}): Promise<string | undefined> {
+  narrativeScore: number;
+}): Promise<LateralAssociationResolution> {
+  const probability = computeLateralAssociationProbability(params.narrativeScore);
+  const triggered = Math.random() < probability;
+  if (!triggered) {
+    void reportNarrativeTelemetry({
+      userId: params.userId,
+      eventName: 'lateral_sampled',
+      eventData: {
+        narrativeScore: params.narrativeScore,
+        baseProbability: LATERAL_ASSOCIATION_BASE_PROBABILITY,
+        probabilityDelta: LATERAL_ASSOCIATION_PROBABILITY_DELTA,
+        finalProbability: probability,
+        triggered,
+        characterId: params.characterId,
+        lang: params.lang,
+      },
+    });
+    return {
+      triggered,
+      probability,
+    };
+  }
+
   const todayDate = params.currentDate?.isoDate || new Date().toISOString().slice(0, 10);
   const state = await getLateralAssociationState({
     userId: params.userId,
@@ -200,7 +251,31 @@ async function resolveLateralAssociationInstruction(params: {
     });
   }
 
-  return sampled.associationInstruction ?? undefined;
+  void reportNarrativeTelemetry({
+    userId: params.userId,
+    eventName: 'lateral_sampled',
+    eventData: {
+      narrativeScore: params.narrativeScore,
+      baseProbability: LATERAL_ASSOCIATION_BASE_PROBABILITY,
+      probabilityDelta: LATERAL_ASSOCIATION_PROBABILITY_DELTA,
+      finalProbability: probability,
+      triggered,
+      characterId: params.characterId,
+      lang: params.lang,
+      associationType: sampled.associationType,
+      originType: sampled.originType,
+      toneTag: sampled.toneTag,
+    },
+  });
+
+  return {
+    associationInstruction: sampled.associationInstruction ?? undefined,
+    triggered,
+    probability,
+    associationType: sampled.associationType,
+    originType: sampled.originType,
+    toneTag: sampled.toneTag,
+  };
 }
 
 async function resolveNarrativeEvent(params: {
@@ -212,6 +287,7 @@ async function resolveNarrativeEvent(params: {
 }): Promise<{
   narrativeEvent?: NarrativeTriggeredEvent;
   adjustedThreshold: number;
+  triggerProbability: number;
   currentScore: number;
   todayRichness: number;
   isLowDensity: boolean;
@@ -276,6 +352,7 @@ async function resolveNarrativeEvent(params: {
       currentScore: score.currentScore,
       todayRichness: cache.todayRichness,
       adjustedThreshold: triggerDecision.adjustedThreshold,
+      triggerProbability: triggerDecision.triggerProbability,
       isLowDensity,
       dimensions: score.dimensions,
     },
@@ -304,6 +381,7 @@ async function resolveNarrativeEvent(params: {
   return {
     narrativeEvent,
     adjustedThreshold: triggerDecision.adjustedThreshold,
+    triggerProbability: triggerDecision.triggerProbability,
     currentScore: score.currentScore,
     todayRichness: cache.todayRichness,
     isLowDensity,
@@ -433,6 +511,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     currentDate: userContext?.currentDate,
   });
   const narrativeEventInstruction = narrativeContext.narrativeEvent?.instruction;
+  const lateralAssociation = await resolveLateralAssociationInstruction({
+    userId: lateralUserId,
+    characterId: lateralCharacterId,
+    userInput: sharedEventSummary,
+    lang: resolvedLang,
+    currentDate: userContext?.currentDate,
+    narrativeScore: narrativeContext.currentScore,
+  });
+  const associationInstruction = lateralAssociation.associationInstruction;
 
   if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
     console.log('[NarrativeDensity]', {
@@ -440,10 +527,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       characterId: lateralCharacterId,
       score: Number(narrativeContext.currentScore.toFixed(3)),
       threshold: Number(narrativeContext.adjustedThreshold.toFixed(3)),
+      triggerProbability: Number(narrativeContext.triggerProbability.toFixed(3)),
       isLowDensity: narrativeContext.isLowDensity,
       blockedReason: narrativeContext.blockedReason,
       triggeredEventType: narrativeContext.narrativeEvent?.eventType,
       triggeredEventId: narrativeContext.narrativeEvent?.eventId,
+    });
+    console.log('[LateralAssociationGate]', {
+      userId: lateralUserId,
+      characterId: lateralCharacterId,
+      score: Number(narrativeContext.currentScore.toFixed(3)),
+      probability: Number(lateralAssociation.probability.toFixed(3)),
+      triggered: lateralAssociation.triggered,
+      associationType: lateralAssociation.associationType,
     });
   }
 
@@ -458,13 +554,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const currentMinute = userContext?.currentMinute;
       const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
       const eventSummary = sharedEventSummary;
-      const associationInstruction = await resolveLateralAssociationInstruction({
-        userId: lateralUserId,
-        characterId: lateralCharacterId,
-        userInput: eventSummary,
-        lang: resolvedLang,
-        currentDate: userContext?.currentDate,
-      });
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
       const promptPackage = buildAnnotationPromptPackage({
@@ -517,6 +606,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).suggestion
               : buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion)
             : undefined);
+
+        if (recoveryNudge) {
+          finalContent = buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).content;
+        }
 
         if (normalizedSuggestion?.type === 'todo' && typeof normalizedSuggestion.todoId === 'string') {
           const targetTodo = pendingTodos.find((todo) => todo.id === normalizedSuggestion.todoId) as PendingTodoLite | undefined;
@@ -633,13 +726,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 预处理事件数据（去除多余空白，避免 prompt 里混入奇怪换行）
     const eventSummary = sharedEventSummary;
-    const associationInstruction = await resolveLateralAssociationInstruction({
-      userId: lateralUserId,
-      characterId: lateralCharacterId,
-      userInput: eventSummary,
-      lang: resolvedLang,
-      currentDate: userContext?.currentDate,
-    });
 
     // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];

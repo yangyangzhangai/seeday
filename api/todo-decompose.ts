@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
-import { decomposeTodoWithAI } from '../src/server/todo-decompose-service.js';
+import { decomposeTodoWithAIDiagnostics } from '../src/server/todo-decompose-service.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
@@ -21,14 +21,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   try {
-    const steps = await decomposeTodoWithAI({
+    const result = await decomposeTodoWithAIDiagnostics({
       title,
       lang: lang === 'en' || lang === 'it' ? lang : 'zh',
       apiKey: openaiApiKey,
       model: process.env.TODO_DECOMPOSE_MODEL,
     });
 
-    res.status(200).json({ success: true, steps });
+    res.status(200).json({
+      success: true,
+      steps: result.steps,
+      parseStatus: result.parseStatus,
+      model: result.model,
+      provider: result.provider,
+    });
   } catch (error) {
     jsonError(res, 500, 'AI请求失败，请稍后重试', undefined, error instanceof Error ? error.message : 'Unknown error');
   }

@@ -374,6 +374,7 @@ const it: TranslationKeys = {
     growth_focus_resting: 'Fai una pausa',
     growth_focus_skip_rest: 'Salta pausa',
     todo_decompose_btn: 'Passo dopo passo',
+    todo_decompose_regenerate_btn: 'Scomponi di nuovo',
     todo_decompose_loading: 'Scomposizione...',
     todo_decompose_error: 'Errore, riprova',
     todo_decompose_empty: 'Nessun passo utile, prova a riformulare',

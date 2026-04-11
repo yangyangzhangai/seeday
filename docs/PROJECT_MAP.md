@@ -36,7 +36,7 @@ src/
 │   ├── growth/
 │   ├── report/
 │   ├── profile/
-│   └── telemetry/
+│   └── telemetry/      # Telemetry Center + business sub-dashboards
 ├── hooks/              # RealtimeSync / image upload hooks
 ├── i18n/               # 国际化初始化与词条
 ├── lib/                # 纯函数与映射工具

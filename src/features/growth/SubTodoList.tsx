@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Check, AlarmClock, Play } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { triggerLightHaptic } from '../../lib/haptics';
-import { callTodoDecomposeAPI, type DecomposeStep } from '../../api/client';
+import { callTodoDecomposeAPI } from '../../api/client';
+import { reportTelemetryEvent } from '../../services/input/reportTelemetryEvent';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import i18n from '../../i18n';
 import type { SupportedLang } from '../../services/input/lexicon/getLexicon';
@@ -31,33 +32,61 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
   const [errorType, setErrorType] = useState<'request' | 'empty' | null>(null);
 
   const pendingSubs = subTodos.filter((s) => !s.completed);
+  const hasSubTodos = subTodos.length > 0;
 
   const handleDecompose = async () => {
     if (loading) return;
+    const lang = resolveLang();
+    const requestId = `decompose_${parentTodo.id}_${Date.now()}`;
+    const telemetryBase = {
+      requestId,
+      todoId: parentTodo.id,
+      lang,
+      isRegenerate: hasSubTodos,
+      entry: 'growth_manual',
+    };
     triggerLightHaptic();
     setLoading(true);
     setErrorType(null);
+    void reportTelemetryEvent('todo_decompose_requested', telemetryBase);
+    if (hasSubTodos) {
+      void reportTelemetryEvent('todo_decompose_regenerate_clicked', telemetryBase);
+    }
     try {
-      const steps: DecomposeStep[] = await callTodoDecomposeAPI(parentTodo.title, resolveLang());
-      const normalizedSteps = steps
+      const result = await callTodoDecomposeAPI(parentTodo.title, lang);
+      const normalizedSteps = result.steps
         .map((step) => ({
           title: step.title,
           suggestedDuration: step.durationMinutes,
         }))
         .filter((step) => step.title.trim());
       if (normalizedSteps.length === 0) {
+        void reportTelemetryEvent(
+          result.parseStatus === 'parse_failed' ? 'todo_decompose_parse_failed' : 'todo_decompose_empty',
+          {
+            ...telemetryBase,
+            model: result.model,
+            provider: result.provider,
+          },
+        );
         setErrorType('empty');
         return;
       }
-      addSubTodos(parentTodo.id, normalizedSteps);
+      addSubTodos(parentTodo.id, normalizedSteps, { replaceExisting: hasSubTodos });
+      void reportTelemetryEvent('todo_decompose_succeeded', {
+        ...telemetryBase,
+        model: result.model,
+        provider: result.provider,
+        stepsCount: normalizedSteps.length,
+        durationTotalMin: normalizedSteps.reduce((sum, step) => sum + step.suggestedDuration, 0),
+      });
     } catch {
+      void reportTelemetryEvent('todo_decompose_failed', telemetryBase);
       setErrorType('request');
     } finally {
       setLoading(false);
     }
   };
-
-  const hasSubTodos = subTodos.length > 0;
 
   return (
     <div className="pt-2 border-t border-gray-100">
@@ -84,7 +113,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
             disabled={loading}
             className="text-[10px] text-gray-400 hover:text-sky-500 transition-colors"
           >
-            {loading ? t('todo_decompose_loading') : t('todo_decompose_btn')}
+            {loading ? t('todo_decompose_loading') : t('todo_decompose_regenerate_btn')}
           </button>
         )}
       </div>

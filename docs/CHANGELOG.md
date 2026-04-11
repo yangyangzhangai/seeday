@@ -4,6 +4,92 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Fix: recovery 2 星仅限瓶子目标 + 建议文案与目标对齐
+
+### Changed
+
+- `src/lib/recoverySuggestion.ts` + `src/lib/recoverySuggestion.test.ts`
+  - recovery nudge 检测收口为“仅瓶子连续 3 天未完成”路径。
+  - 移除 recurring 昨日断档触发 2 星的分支，并补充对应回归测试（无瓶子关联时返回 null）。
+- `src/types/annotation.ts` + `src/server/annotation-handler.test.ts`
+  - `RecoveryNudgeReason` 收敛为 `bottle_missed_3_days`，并同步测试夹具。
+- `src/server/annotation-handler.ts`
+  - recovery nudge 生效时，建议 `content` 改为基于最终 recovery 目标生成，避免出现“文案说 A、跳转到 B”错位。
+- `src/store/README.md` + `docs/CURRENT_TASK.md`
+  - 同步规则口径：2 星仅对瓶子关联目标生效。
+
+## 2026-04-11 - Tweak: 去除“今日小事”标签 + 互提长度规则细化
+
+### Changed
+
+- `src/server/narrative-event-library.ts`
+  - `natural_event` 注入改为纯自然句，不再附加 `[今日小事]` 标签前缀。
+- `src/server/character-mention-spec.ts`
+  - `character_mention` 注入头部去除 `Today Note/今日小事` 标签字样，保留互提背景与分组指引结构。
+  - 互提长度约束更新为：`zh` 20-28 字上限 40、`en` 16-22 words 上限 30、`it` 16-24 parole 上限 32。
+- `src/server/narrative-event-library.test.ts`
+  - 更新断言以匹配“无标签”注入文本与新版三语长度规则文案。
+
+## 2026-04-11 - Feat: 角色互提切换为三语等价 Prompt 指引注入
+
+### Changed
+
+- `src/server/character-mention-spec.ts`（新增）
+  - 新增角色互提结构化规格：关系背景、全局禁止项、A/B/C/D 组指引、角色差异化 few-shot。
+  - 一次性落地 `zh/en/it` 三语言等价内容，语义对齐但非硬直译。
+- `src/server/narrative-event-library.ts`
+  - `character_mention` 从“固定成品句子池”升级为“Prompt 指引块注入”（含组别随机）。
+  - 保持 `natural_event` 仍走 `[今日小事] ...` 轻量事件句模式。
+- `src/server/narrative-event-library.test.ts`（新增）
+  - 新增单测覆盖：`natural_event` 兼容性、`character_mention` 在 zh/en/it 的注入结构与组别抽样。
+- `docs/CURRENT_TASK.md`
+  - 同步标记“文档二角色互提”已落地，并更新风险项状态。
+
+### Validation
+
+- `npx vitest run src/server/narrative-event-library.test.ts src/server/narrative-density-trigger.test.ts src/server/narrative-density-scorer.test.ts` ✅
+
+## 2026-04-11 - Feat: Telemetry Center 门户 + AI 批注子看板
+
+### Changed
+
+- `src/server/annotation-handler.ts` + `src/server/narrative-density-telemetry.ts`
+  - 新增 `lateral_sampled` 埋点，记录 `narrativeScore/finalProbability/triggered/associationType`。
+  - 横向联想触发改为“基准概率 + 分数调制”模式（`base=0.5, delta=0.2, min=0.3, max=0.7`）。
+- `src/server/live-input-dashboard-handler.ts` + `src/services/input/liveInputTelemetryApi.ts`
+  - 统一看板扩展聚合 AI 批注埋点（`density_scored/trigger_blocked/event_triggered/event_condensed/lateral_sampled`）。
+  - 新增 AI 批注摘要、事件分布、角色分布、联想类型分布、叙事分数分桶触发率。
+- `src/features/telemetry/TelemetryHubPage.tsx`（新增）+ `src/features/telemetry/AiAnnotationTelemetryPage.tsx`（新增）+ `src/App.tsx`
+  - 新增 `/telemetry` 总入口与 `/telemetry/ai-annotation` 子页面。
+- `src/features/profile/components/SettingsList.tsx`
+  - 设置页埋点入口升级为 `Telemetry Center`，跳转统一门户。
+- `src/features/telemetry/isTelemetryAdmin.ts`（新增）+ `src/App.tsx` + `src/features/profile/components/SettingsList.tsx`
+  - 埋点页面入口与路由改为严格管理员可见/可访问（DEV 环境也不再放开）。
+- `api/README.md` + `src/api/README.md` + `docs/PROJECT_MAP.md` + `docs/CURRENT_TASK.md`
+  - 同步文档口径与看板聚合范围。
+
+## 2026-04-11 - Tweak: 低叙事密度触发改为分数连续概率 + 与横向联想互斥
+
+### Changed
+
+- `src/server/narrative-density-constants.ts`
+  - 四维权重调整为 `freshness=0.30 / density=0.30 / emotion=0.25 / vocab=0.15`。
+  - 触发参数从固定概率改为连续概率曲线参数（`min/span/max/gamma/richnessPenalty`）。
+- `src/server/narrative-density-trigger.ts`、`src/server/narrative-density-types.ts`
+  - 触发决策改为 score-driven 概率抽样（`(1-score)^gamma`）并受 `todayRichness` 惩罚项影响。
+  - 保留首条跳过、每日总上限、类型上限与类型权重抽样。
+  - 触发决策结果新增 `triggerProbability` 字段，便于日志与调参。
+- `src/server/annotation-handler.ts`
+  - 注入策略改为 `narrative > lateral` 互斥：命中 `[今日小事]` 时跳过横向联想采样，避免同轮双指令竞争。
+  - 调试日志与 `density_scored` telemetry 增加 `triggerProbability`。
+- `src/server/narrative-density-trigger.test.ts`
+  - 新增“高分低概率”与“低分概率更高”的单测覆盖，验证连续概率策略。
+
+### Validation
+
+- `npx vitest run src/server/narrative-density-trigger.test.ts src/server/narrative-density-scorer.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-11 - Tweak: EcoSphere 自由漂浮随机化 + 移除心情能量曲线
 
 ### Changed

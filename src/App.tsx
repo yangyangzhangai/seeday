@@ -9,6 +9,10 @@ import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
+import { TelemetryHubPage } from './features/telemetry/TelemetryHubPage';
+import { AiAnnotationTelemetryPage } from './features/telemetry/AiAnnotationTelemetryPage';
+import { TodoDecomposeTelemetryPage } from './features/telemetry/TodoDecomposeTelemetryPage';
+import { isTelemetryAdmin } from './features/telemetry/isTelemetryAdmin';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
@@ -52,6 +56,16 @@ const AuthRoute: React.FC = () => {
   if (user) return <Navigate to="/chat" replace />;
 
   return <AuthPage />;
+};
+
+const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+
+  if (loading) return <BlankScreen />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!isTelemetryAdmin(user)) return <Navigate to="/profile" replace />;
+  return children;
 };
 
 /** Thin wrapper around Outlet that fades in on route change */
@@ -290,7 +304,10 @@ function App() {
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="telemetry/live-input" element={<LiveInputTelemetryPage />} />
+          <Route path="telemetry" element={<RequireTelemetryAdmin><TelemetryHubPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/live-input" element={<RequireTelemetryAdmin><LiveInputTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/ai-annotation" element={<RequireTelemetryAdmin><AiAnnotationTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/todo-decompose" element={<RequireTelemetryAdmin><TodoDecomposeTelemetryPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
       </Routes>

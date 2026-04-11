@@ -360,7 +360,7 @@ describe('annotation-handler', () => {
           forceSuggestion: true,
           recoveryNudge: {
             key: 'recurring:tpl-1:miss1d',
-            reason: 'recurring_missed_yesterday',
+            reason: 'bottle_missed_3_days',
             rewardStars: 2,
             todoId: 'todo-1',
             todoTitle: 'Run 20 minutes',

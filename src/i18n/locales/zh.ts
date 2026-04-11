@@ -375,6 +375,7 @@ const zh: TranslationKeys = {
     growth_focus_resting: '休息一下',
     growth_focus_skip_rest: '跳过休息',
     todo_decompose_btn: '分步完成',
+    todo_decompose_regenerate_btn: '重新拆解',
     todo_decompose_loading: '正在拆解...',
     todo_decompose_error: '拆解失败，请重试',
     todo_decompose_empty: '没拆出步骤，换个说法试试',
