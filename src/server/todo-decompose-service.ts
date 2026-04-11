@@ -122,7 +122,10 @@ function normalizeSteps(steps: unknown): TodoDecomposeStep[] {
   if (!Array.isArray(steps)) return [];
   return steps
     .filter((item): item is { title: unknown; durationMinutes: unknown } => Boolean(item && typeof item === 'object'))
-    .filter((item) => typeof item.title === 'string' && item.title.trim())
+    .filter(
+      (item): item is { title: string; durationMinutes: unknown } =>
+        typeof item.title === 'string' && item.title.trim().length > 0,
+    )
     .slice(0, 6)
     .map((item) => ({
       title: item.title.trim(),
