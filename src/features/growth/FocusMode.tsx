@@ -44,7 +44,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
 
   const isRunning = currentSession !== null;
   const svgRef = useRef<SVGSVGElement>(null);
-  const isDragging = useRef(false);
+
   const TICKS = 60;
   const SVG_CENTER = 130;
   const RING_RADIUS = 120;
@@ -58,35 +58,27 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
     const cy = rect.top + rect.height / 2;
     const dx = clientX - cx;
     const dy = clientY - cy;
-    // Angle from 12 o'clock, clockwise (0° = top)
+    // 顶部 = 0 分钟，顺时针增加
     let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
     if (angle < 0) angle += 360;
     return Math.max(1, Math.min(60, Math.round((angle / 360) * 60) || 1));
   }, [durationMinutes]);
 
-  const handleHandleMouseDown = (e: React.MouseEvent<SVGCircleElement>) => {
+  // 按下小圆点后才开始监听移动，按下时不改值，只有拖动才更新
+  const handlePointerDown = (e: React.PointerEvent<SVGCircleElement>) => {
     e.stopPropagation();
-    isDragging.current = true;
-  };
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDragging.current) return;
-    setDurationMinutes(pointerToMinutes(e.clientX, e.clientY));
-  };
-  const handleMouseUp = () => { isDragging.current = false; };
+    e.currentTarget.setPointerCapture(e.pointerId);
 
-  const handleHandleTouchStart = (e: React.TouchEvent<SVGCircleElement>) => {
-    e.stopPropagation();
-    isDragging.current = true;
-    const touch = e.touches[0];
-    setDurationMinutes(pointerToMinutes(touch.clientX, touch.clientY));
+    const onMove = (ev: PointerEvent) => {
+      setDurationMinutes(pointerToMinutes(ev.clientX, ev.clientY));
+    };
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   };
-  const handleTouchMoveRing = (e: React.TouchEvent<SVGSVGElement>) => {
-    if (!isDragging.current) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    setDurationMinutes(pointerToMinutes(touch.clientX, touch.clientY));
-  };
-  const handleTouchEndRing = () => { isDragging.current = false; };
 
   const handleStart = async (countUp: boolean) => {
     if (isQueueMode && queueTodos) {
@@ -161,7 +153,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   }, [advanceQueue, t]);
 
   const finishFocus = useCallback(async () => {
-    playSound('ding');
+    playSound('complete');
     const session = await completeTodoAndEndActivity(activeTodo);
     setShowConfirmEnd(false);
 
@@ -221,7 +213,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const selectedTicks = Math.max(1, Math.round((durationMinutes / 60) * TICKS));
   const progressCircumference = 2 * Math.PI * RING_RADIUS;
   const progressDash = progressCircumference * (durationMinutes / 60);
-  const handleAngle = (durationMinutes / 60) * 2 * Math.PI - Math.PI / 2;
+  const handleAngle = (durationMinutes / 60) * 2 * Math.PI;
   const handleX = SVG_CENTER + RING_RADIUS * Math.cos(handleAngle);
   const handleY = SVG_CENTER + RING_RADIUS * Math.sin(handleAngle);
 
@@ -304,17 +296,13 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
               ref={svgRef}
               className="h-full w-full -rotate-90"
               viewBox="0 0 260 260"
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onTouchMove={handleTouchMoveRing}
-              onTouchEnd={handleTouchEndRing}
+              style={{ touchAction: 'none' }}
             >
               <circle cx="130" cy="130" r="120" fill="none" stroke="transparent" strokeWidth="40" />
 
               {Array.from({ length: TICKS }, (_, i) => {
                 const deg = i * 6;
-                const rad = (deg - 90) * (Math.PI / 180);
+                const rad = deg * (Math.PI / 180);
                 const active = i < selectedTicks;
                 const tickLen = i % 5 === 0 ? 12 : 7;
                 const x1 = SVG_CENTER + Math.cos(rad) * 101;
@@ -343,7 +331,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
                 strokeWidth="9"
                 strokeLinecap="round"
                 strokeDasharray={`${progressDash} ${progressCircumference}`}
-                strokeDashoffset={progressCircumference / 4}
+                strokeDashoffset={0}
                 style={{ filter: 'drop-shadow(0 0 8px rgba(125,211,252,0.55))' }}
               />
 
@@ -355,8 +343,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
                 stroke="rgba(255,255,255,0.92)"
                 strokeWidth="2.2"
                 style={{ filter: 'drop-shadow(0 0 10px rgba(125,211,252,0.72))', cursor: 'grab' }}
-                onMouseDown={handleHandleMouseDown}
-                onTouchStart={handleHandleTouchStart}
+                onPointerDown={handlePointerDown}
               />
             </svg>
 

@@ -28,7 +28,14 @@
       "Bash(cp \"/c/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc/docs/Timeshine_AI活人感系统_PRD_v2 \\(1\\).docx\" /tmp/prd.docx)",
       "Bash(python3 /tmp/extract.py)",
       "Bash(python3:*)",
-      "Bash(pip3 list:*)"
+      "Bash(pip3 list:*)",
+      "Bash(cp \"/Users/annie/Downloads/声音音效/叮声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/ding.mp3)",
+      "Bash(cp \"/Users/annie/Downloads/声音音效/气泡声.m4a\" /Users/annie/Tshine2-13-new/public/sounds/bubble.m4a)",
+      "Bash(cp \"/Users/annie/Downloads/声音音效/植物生长声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/plant-grow.mp3)",
+      "Bash(cp \"/Users/annie/Downloads/声音音效/星星闪烁声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/star.mp3)",
+      "Bash(cp \"/Users/annie/Downloads/声音音效/水滴声.m4a\" /Users/annie/Tshine2-13-new/public/sounds/water-drop.m4a)",
+      "Bash(cp \"/Users/annie/Downloads/叮声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/ding.mp3)",
+      "Bash(cp \"/Users/annie/Downloads/气泡声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/bubble.mp3)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
