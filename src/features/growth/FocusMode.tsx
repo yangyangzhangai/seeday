@@ -296,7 +296,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
               ref={svgRef}
               className="h-full w-full -rotate-90"
               viewBox="0 0 260 260"
-              style={{ touchAction: 'none' }}
+              style={{ touchAction: 'none', overflow: 'visible' }}
             >
               <circle cx="130" cy="130" r="120" fill="none" stroke="transparent" strokeWidth="40" />
 
