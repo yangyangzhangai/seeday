@@ -448,7 +448,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
+  const dashscopeBase = (
+    process.env.QWEN_BASE_URL
+    || process.env.DASHSCOPE_BASE_URL
+    || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+  ).replace(/\/$/, '');
   const apiUrl = `${dashscopeBase}/chat/completions`;
   const model = (process.env.CLASSIFY_MODEL || 'qwen-plus').trim() || 'qwen-plus';
   const qwenApiKey = process.env.QWEN_API_KEY;
