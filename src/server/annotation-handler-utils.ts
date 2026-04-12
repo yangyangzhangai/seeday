@@ -36,10 +36,23 @@ export type PendingTodoLite = {
 
 function normalizeGeminiModel(model: string): string {
   const trimmed = String(model || '').trim();
-  if (!trimmed) return 'gemini-2.0-flash';
+  if (!trimmed) return 'gemini-2.5-flash';
   if (trimmed === 'gemini2.0-flash') return 'gemini-2.0-flash';
+  if (trimmed === 'gemini2.5-flash') return 'gemini-2.5-flash';
   if (trimmed.startsWith('models/')) return trimmed.slice(7);
   return trimmed;
+}
+
+function isVertexGeminiBase(baseURL: string): boolean {
+  return /aiplatform\.googleapis\.com/i.test(baseURL);
+}
+
+function buildGeminiGenerateContentUrl(baseURL: string, model: string, apiKey: string): string {
+  const normalizedBase = baseURL.replace(/\/$/, '');
+  const modelPath = isVertexGeminiBase(normalizedBase)
+    ? `publishers/google/models/${model}`
+    : `models/${model}`;
+  return `${normalizedBase}/${modelPath}:generateContent?key=${encodeURIComponent(apiKey)}`;
 }
 
 export async function callAnnotationLLM(
@@ -51,7 +64,7 @@ export async function callAnnotationLLM(
     if (!apiKey) {
       throw new Error('Missing GEMINI_API_KEY for annotation');
     }
-    const geminiBase = String(params.baseURL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
+    const geminiBase = String(params.baseURL || 'https://aiplatform.googleapis.com/v1').replace(/\/$/, '');
     if (/\/openai$/i.test(geminiBase)) {
       if (!client) {
         throw new Error('Missing OpenAI client for Gemini OpenAI-compatible mode');
@@ -70,7 +83,7 @@ export async function callAnnotationLLM(
       };
     }
     const geminiModel = normalizeGeminiModel(params.model);
-    const response = await fetch(`${geminiBase}/models/${geminiModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    const response = await fetch(buildGeminiGenerateContentUrl(geminiBase, geminiModel, apiKey), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

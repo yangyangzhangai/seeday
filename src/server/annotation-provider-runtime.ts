@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 type AnnotationProvider = 'qwen' | 'gemini' | 'deepseek' | 'openai';
 
 const DEFAULT_QWEN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_GEMINI_BASE_URL = 'https://aiplatform.googleapis.com/v1';
 const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 
 function resolveProviderFromModel(model: string): AnnotationProvider {
