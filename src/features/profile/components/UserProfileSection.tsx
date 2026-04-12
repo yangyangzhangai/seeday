@@ -7,14 +7,9 @@ interface Props {
   plain?: boolean;
 }
 
-type ProfileTab = 'schedule' | 'personalization' | 'anniversaries';
-
 export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = React.useState(true);
-  const [activeTab, setActiveTab] = React.useState<ProfileTab>('schedule');
-
-  const tabBaseClass = 'min-h-8 rounded-full px-3 text-[11px] transition';
 
   return (
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
@@ -34,32 +29,8 @@ export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
 
       {expanded ? (
         <div className="border-t border-slate-200/60 px-4 pb-4 pt-3">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('schedule')}
-              className={`${tabBaseClass} ${activeTab === 'schedule' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
-            >
-              {t('profile_user_profile_tab_schedule')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('personalization')}
-              className={`${tabBaseClass} ${activeTab === 'personalization' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
-            >
-              {t('profile_user_profile_tab_personalization')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('anniversaries')}
-              className={`${tabBaseClass} ${activeTab === 'anniversaries' ? 'bg-[#E3F0E7] text-[#355643]' : 'border border-[#CBE7D7] bg-white/85 text-slate-600'}`}
-            >
-              {t('profile_user_profile_tab_anniversaries')}
-            </button>
-          </div>
-
-          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200/60 bg-white/55">
-            <UserProfilePanel plain showHeader={false} activeTab={activeTab} />
+          <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/55">
+            <UserProfilePanel plain showHeader={false} />
           </div>
         </div>
       ) : null}

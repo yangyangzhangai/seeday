@@ -7,7 +7,8 @@ type NarrativeTelemetryEventName =
   | 'density_scored'
   | 'trigger_blocked'
   | 'event_triggered'
-  | 'event_condensed';
+  | 'event_condensed'
+  | 'lateral_sampled';
 
 export async function reportNarrativeTelemetry(params: {
   userId?: string;

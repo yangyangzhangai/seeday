@@ -77,7 +77,7 @@ export interface PendingSuggestionIntent {
   }>;
 }
 
-export type RecoveryNudgeReason = 'bottle_missed_3_days' | 'recurring_missed_yesterday';
+export type RecoveryNudgeReason = 'bottle_missed_3_days';
 
 export interface RecoveryNudgeContext {
   key: string;

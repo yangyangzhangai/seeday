@@ -1,6 +1,4 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
-import OpenAI from 'openai';
-
 type DecomposeLang = 'zh' | 'en' | 'it';
 
 export interface TodoDecomposeStep {
@@ -8,58 +6,98 @@ export interface TodoDecomposeStep {
   durationMinutes: number;
 }
 
-const DECOMPOSE_PROMPT_ZH = `你是一个任务拆解助手。
-将用户提供的待办事项拆解成3到6个具体可执行的子步骤。
-输出严格的JSON格式，不要输出任何解释、前缀、后缀或Markdown代码块，只输出JSON本身。
+export interface TodoDecomposeResult {
+  steps: TodoDecomposeStep[];
+  parseStatus: 'ok' | 'parse_failed';
+  model: string;
+  provider: 'gemini' | 'dashscope';
+}
 
-【拆解原则】
-- 子步骤必须具体、可独立执行，不要太抽象
-- 子步骤按执行顺序排列
-- 每个子步骤给出建议时长（分钟），范围5到90分钟
-- 时长要符合实际，比如"买菜"15-30分钟，"做菜"30-60分钟
-- 步骤数量：简单任务3步，复杂任务最多6步
+const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS = process.env.TODO_DECOMPOSE_VERBOSE_LOGS === 'true';
+
+function previewText(raw: string, maxLen: number = 220): string {
+  const compact = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!compact) return '[empty]';
+  if (compact.length <= maxLen) return compact;
+  return `${compact.slice(0, maxLen)}...`;
+}
+
+const DECOMPOSE_PROMPT_ZH = `你是一个“低摩擦任务拆解助手”。
+你的唯一目标：把用户的待办拆成一组“立即可执行、操作非常具体、执行阻力很低”的小步骤。
+将用户待办拆解为3到6个子步骤，并严格输出JSON。
+不要输出任何解释、前缀、后缀或Markdown代码块，只输出JSON本身。
+
+【核心原则】
+- 每一步必须是“单一、具体动作”，用户读完就能立刻做
+- 每一步必须写清动作对象或产出，禁止抽象表述（如“准备一下”“优化一下”）
+- 每一步必须紧扣原待办目标，不能偏题，不能给泛化建议
+- 优先降低启动门槛：先给最容易开始的动作，再逐步推进
+- 建议时长要现实：优先5到20分钟，必要时可更长，总范围5到90分钟
+- 如果某一步仍然偏大，继续拆小，直到“容易执行”
+
+【输出前自检（不要输出）】
+- 是否每一步都具体到可以直接照做
+- 是否每一步都和原待办直接相关
+- 是否避免了空泛词（如“思考一下”“推进项目”）
 
 【输出格式】
 {
   "steps": [
-    { "title": "子步骤名称", "durationMinutes": 数字 },
+    { "title": "具体可执行的子步骤", "durationMinutes": 数字 },
     ...
   ]
 }`;
 
-const DECOMPOSE_PROMPT_EN = `You are a task breakdown assistant.
-Break down the user's todo item into 3 to 6 specific, actionable sub-steps.
-Output strictly in JSON format. Do NOT output any explanations, prefixes, suffixes, or Markdown code blocks. Output the JSON only.
+const DECOMPOSE_PROMPT_EN = `You are a low-friction task breakdown assistant.
+Your only goal is to turn the user's todo into a sequence of tiny steps that are immediately actionable, highly specific, and easy to execute.
+Break the todo into 3 to 6 sub-steps and output strict JSON.
+Do NOT output explanations, prefixes, suffixes, or Markdown code blocks. Output JSON only.
 
-[Breakdown Principles]
-- Each sub-step must be specific and independently executable, not abstract
-- Sub-steps are ordered by execution sequence
-- Provide a suggested duration (minutes) for each step, range 5 to 90 minutes
-- Durations should be realistic
-- Step count: 3 steps for simple tasks, up to 6 for complex ones
+[Core Principles]
+- Each step must be one concrete action that the user can do right away
+- Each step must include a clear object or deliverable (verb + object), never abstract wording
+- Every step must stay tightly aligned with the original todo; no generic advice
+- Reduce startup friction: start with the easiest action, then move forward
+- Duration must be realistic: prefer 5-20 minutes, allow longer only when necessary, always within 5-90 minutes
+- If a step is still too big, split it further until it feels easy to execute
+
+[Self-check Before Output (do not output this section)]
+- Is each step concrete enough to follow directly?
+- Is each step directly relevant to the original todo?
+- Did you avoid vague steps like "prepare", "think about", or "optimize"?
 
 [Output Format]
 {
   "steps": [
-    { "title": "sub-step name", "durationMinutes": number },
+    { "title": "specific actionable sub-step", "durationMinutes": number },
     ...
   ]
 }`;
 
-const DECOMPOSE_PROMPT_IT = `Sei un assistente per la scomposizione dei compiti.
-Scomponi il todo dell'utente in 3-6 sotto-passi specifici ed eseguibili.
-Restituisci rigorosamente in formato JSON. NON produrre spiegazioni, prefissi, suffissi o blocchi Markdown. Solo JSON.
+const DECOMPOSE_PROMPT_IT = `Sei un assistente di scomposizione task a basso attrito.
+Il tuo unico obiettivo e trasformare il todo dell'utente in una sequenza di micro-passi immediatamente eseguibili, molto specifici e facili da portare a termine.
+Scomponi il todo in 3-6 sotto-passi e restituisci JSON rigoroso.
+NON produrre spiegazioni, prefissi, suffissi o blocchi Markdown. Solo JSON.
 
-[Principi]
-- Ogni sotto-passo deve essere specifico e indipendentemente eseguibile
-- I sotto-passi sono ordinati per sequenza di esecuzione
-- Fornisci una durata suggerita (minuti) per ogni passo, da 5 a 90 minuti
-- Numero di passi: 3 per compiti semplici, massimo 6 per quelli complessi
+[Principi chiave]
+- Ogni passo deve essere una singola azione concreta, eseguibile subito
+- Ogni passo deve includere oggetto o risultato chiaro (verbo + oggetto), mai formulazioni astratte
+- Ogni passo deve restare strettamente legato al todo originale; niente consigli generici
+- Riduci l'attrito iniziale: inizia dall'azione piu facile, poi procedi
+- Durata realistica: preferisci 5-20 minuti, piu lunga solo se necessario, sempre tra 5 e 90 minuti
+- Se un passo e ancora troppo grande, scomponilo ulteriormente finche diventa facile da eseguire
+
+[Autoverifica prima dell'output (non stampare questa sezione)]
+- Ogni passo e abbastanza concreto da poter essere seguito subito?
+- Ogni passo e direttamente pertinente al todo originale?
+- Hai evitato passi vaghi come "preparare", "riflettere", "ottimizzare"?
 
 [Formato Output]
 {
   "steps": [
-    { "title": "nome sotto-passo", "durationMinutes": numero },
+    { "title": "sotto-passo specifico e azionabile", "durationMinutes": numero },
     ...
   ]
 }`;
@@ -70,28 +108,33 @@ function resolvePrompt(lang: DecomposeLang): string {
   return DECOMPOSE_PROMPT_ZH;
 }
 
-function parseResponse(raw: string): { steps: TodoDecomposeStep[] } {
+function parseResponse(raw: string): { steps: TodoDecomposeStep[]; parseStatus: 'ok' | 'parse_failed' } {
   try {
-    return JSON.parse(raw.trim());
+    const parsed = JSON.parse(raw.trim());
+    return { steps: parsed.steps, parseStatus: 'ok' };
   } catch {
     // fallback below
   }
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
     try {
-      return JSON.parse(match[0]);
+      const parsed = JSON.parse(match[0]);
+      return { steps: parsed.steps, parseStatus: 'ok' };
     } catch {
       // fallback below
     }
   }
-  return { steps: [] };
+  return { steps: [], parseStatus: 'parse_failed' };
 }
 
 function normalizeSteps(steps: unknown): TodoDecomposeStep[] {
   if (!Array.isArray(steps)) return [];
   return steps
     .filter((item): item is { title: unknown; durationMinutes: unknown } => Boolean(item && typeof item === 'object'))
-    .filter((item) => typeof item.title === 'string' && item.title.trim())
+    .filter(
+      (item): item is { title: string; durationMinutes: unknown } =>
+        typeof item.title === 'string' && item.title.trim().length > 0,
+    )
     .slice(0, 6)
     .map((item) => ({
       title: item.title.trim(),
@@ -99,27 +142,199 @@ function normalizeSteps(steps: unknown): TodoDecomposeStep[] {
     }));
 }
 
+function resolveDecomposeModel(lang: DecomposeLang, model?: string): string {
+  if (typeof model === 'string' && model.trim()) return model.trim();
+  if (lang === 'zh') {
+    return (process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus').trim() || 'qwen-plus';
+  }
+  return (process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.0-flash').trim() || 'gemini-2.0-flash';
+}
+
+function normalizeGeminiModel(model: string): string {
+  const trimmed = String(model || '').trim();
+  if (!trimmed) return 'gemini-2.0-flash';
+  if (trimmed === 'gemini2.0-flash') return 'gemini-2.0-flash';
+  if (trimmed.startsWith('models/')) return trimmed.slice(7);
+  return trimmed;
+}
+
 export async function decomposeTodoWithAI(params: {
   title: string;
   lang: DecomposeLang;
-  apiKey: string;
   model?: string;
-  openai?: OpenAI;
+  qwenApiKey?: string;
+  geminiApiKey?: string;
 }): Promise<TodoDecomposeStep[]> {
-  const client = params.openai ?? new OpenAI({ apiKey: params.apiKey });
-  const model = (params.model || process.env.TODO_DECOMPOSE_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
-  const completion = await client.chat.completions.create({
-    model,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: resolvePrompt(params.lang) },
-      { role: 'user', content: params.title.trim() },
-    ],
-    temperature: 0.5,
-    max_tokens: 512,
-  });
+  const result = await decomposeTodoWithAIDiagnostics(params);
+  return result.steps;
+}
 
-  const rawContent = completion.choices?.[0]?.message?.content || '';
+export async function decomposeTodoWithAIDiagnostics(params: {
+  title: string;
+  lang: DecomposeLang;
+  model?: string;
+  qwenApiKey?: string;
+  geminiApiKey?: string;
+}): Promise<TodoDecomposeResult> {
+  const model = resolveDecomposeModel(params.lang, params.model);
+  const preferDashscope = /^qwen/i.test(model);
+  let provider: 'gemini' | 'dashscope' = preferDashscope ? 'dashscope' : 'gemini';
+  let rawContent = '';
+
+  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+    console.log('[Todo Decompose] request.start', {
+      lang: params.lang,
+      model,
+      preferDashscope,
+      titleLength: params.title.trim().length,
+      titlePreview: previewText(params.title, 120),
+    });
+  }
+
+  if (preferDashscope) {
+    const qwenApiKey = (params.qwenApiKey || process.env.QWEN_API_KEY || '').trim();
+    if (!qwenApiKey) {
+      throw new Error('Server configuration error: Missing QWEN_API_KEY for todo decompose');
+    }
+    const dashscopeBase = (
+      process.env.DASHSCOPE_BASE_URL
+      || process.env.QWEN_BASE_URL
+      || DEFAULT_DASHSCOPE_BASE_URL
+    ).replace(/\/$/, '');
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.dashscope.start', {
+        model,
+        baseURL: dashscopeBase,
+      });
+    }
+    const response = await fetch(`${dashscopeBase}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${qwenApiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: resolvePrompt(params.lang) },
+          { role: 'user', content: params.title.trim() },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.5,
+        max_tokens: 512,
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+        console.error('[Todo Decompose] provider.dashscope.error', {
+          model,
+          status: response.status,
+          statusText: response.statusText,
+          responsePreview: previewText(errorText),
+        });
+      }
+      throw new Error(`DashScope todo decompose failed: ${response.status} ${errorText}`);
+    }
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    rawContent = payload.choices?.[0]?.message?.content || '';
+    provider = 'dashscope';
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.dashscope.success', {
+        model,
+        rawLength: rawContent.length,
+        rawPreview: previewText(rawContent),
+      });
+    }
+  } else {
+    const geminiApiKey = (params.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
+    if (!geminiApiKey) {
+      throw new Error('Server configuration error: Missing GEMINI_API_KEY for todo decompose');
+    }
+    const geminiBase = (
+      process.env.TODO_DECOMPOSE_GEMINI_BASE_URL
+      || process.env.GEMINI_BASE_URL
+      || DEFAULT_GEMINI_BASE_URL
+    ).replace(/\/$/, '');
+    const geminiModel = normalizeGeminiModel(model);
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.gemini.start', {
+        model: geminiModel,
+        baseURL: geminiBase,
+      });
+    }
+    const response = await fetch(
+      `${geminiBase}/models/${geminiModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: resolvePrompt(params.lang) }],
+          },
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: params.title.trim() }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 512,
+            responseMimeType: 'application/json',
+          },
+        }),
+      },
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+        console.error('[Todo Decompose] provider.gemini.error', {
+          model: geminiModel,
+          status: response.status,
+          statusText: response.statusText,
+          responsePreview: previewText(errorText),
+        });
+      }
+      throw new Error(`Gemini todo decompose failed: ${response.status} ${errorText}`);
+    }
+    const payload = (await response.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }>;
+    };
+    rawContent = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.gemini.success', {
+        model: geminiModel,
+        rawLength: rawContent.length,
+        rawPreview: previewText(rawContent),
+      });
+    }
+    provider = 'gemini';
+  }
+
   const parsed = parseResponse(rawContent);
-  return normalizeSteps(parsed.steps);
+  const normalizedSteps = normalizeSteps(parsed.steps);
+  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+    console.log('[Todo Decompose] request.finish', {
+      provider,
+      model,
+      parseStatus: parsed.parseStatus,
+      stepCount: normalizedSteps.length,
+    });
+  }
+  return {
+    steps: normalizedSteps,
+    parseStatus: parsed.parseStatus,
+    model,
+    provider,
+  };
 }

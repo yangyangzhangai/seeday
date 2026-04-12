@@ -4,6 +4,164 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-11 - Fix: todo-decompose 可观测性增强 + annotation 中文模型切换 DeepSeek
+
+### Changed
+
+- `src/server/todo-decompose-service.ts` + `api/todo-decompose.ts`
+  - 新增待办拆解排障日志：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出请求入口、provider 路由、上游响应预览与解析结果。
+  - `/api/todo-decompose` 失败分支新增结构化 `console.error`，记录关键环境与错误信息，便于在 Vercel Logs 快速定位 500 根因。
+  - 待办拆解 provider 路由调整为 `zh -> qwen`、`en/it -> gemini`（移除 openai 作为默认执行路径）。
+- `src/server/annotation-prompts.defaults.ts` + `src/server/annotation-provider-runtime.ts`
+  - annotation 模型路由更新为：`zh -> deepseek-chat`，`en/it -> gemini2.0-flash`。
+  - annotation runtime 新增 `deepseek` provider，支持 `DEEPSEEK_API_KEY` 与可选 `ANNOTATION_DEEPSEEK_BASE_URL`（默认 `https://api.deepseek.com/v1`）。
+- `src/server/annotation-handler.ts`
+  - 新增 provider 感知的 LLM 调用封装：`deepseek` 走 `chat.completions`（`/v1/chat/completions`），`gemini` 走原生 `generateContent`（`/v1beta/models/*:generateContent`），其余 provider 保持既有路径。
+  - 修复 DeepSeek/Gemini 在 `/v1/responses` 路径下的 404 兼容性问题，并在 suggestion/主流程异常日志中补充 provider/model 信息。
+- `.env.example` + `api/README.md` + `DEPLOY.md` + `docs/AI_USAGE_INVENTORY.md`
+  - 同步环境变量、provider 映射与模型清单说明，明确各功能当前使用模型，减少联调混淆。
+
+## 2026-04-11 - Fix: annotation 多 provider 实际接线 + Gemini/Qwen 环境变量落地
+
+### Changed
+
+- `src/server/annotation-handler.ts`
+  - 新增 annotation runtime 解析：按 model 自动选择 provider（`qwen/gemini/openai`）与对应 `apiKey/baseURL`。
+  - `/api/annotation` 现在按语言路由真实生效：`zh -> QWEN_API_KEY (+ ANNOTATION_QWEN_BASE_URL)`，`en/it -> GEMINI_API_KEY (+ ANNOTATION_GEMINI_BASE_URL)`。
+  - 移除仅依赖 `OPENAI_API_KEY` 的单一路径，缺 key 时返回默认批注并附带 provider/model 调试信息。
+- `.env.example` + `DEPLOY.md` + `api/README.md` + `docs/AI_USAGE_INVENTORY.md`
+  - 同步新增 `GEMINI_API_KEY` 与 annotation 专用 base URL 变量说明，更新 `/api/annotation` provider 映射。
+
+## 2026-04-11 - Tweak: Annotation 模型按语种分流
+
+### Changed
+
+- `src/server/annotation-prompts.defaults.ts`
+  - `getModel(lang)` 调整为按语种路由：`zh` 使用 `qwen-plus`，`en/it` 使用 `gemini2.0-flash`。
+  - prompt 组装与 `/api/annotation` 主流程不变，仍通过 `buildAnnotationPromptPackage` 下发 `model`。
+
+## 2026-04-11 - Fix: recovery 2 星仅限瓶子目标 + 建议文案与目标对齐
+
+### Changed
+
+- `src/lib/recoverySuggestion.ts` + `src/lib/recoverySuggestion.test.ts`
+  - recovery nudge 检测收口为“仅瓶子连续 3 天未完成”路径。
+  - 移除 recurring 昨日断档触发 2 星的分支，并补充对应回归测试（无瓶子关联时返回 null）。
+- `src/types/annotation.ts` + `src/server/annotation-handler.test.ts`
+  - `RecoveryNudgeReason` 收敛为 `bottle_missed_3_days`，并同步测试夹具。
+- `src/server/annotation-handler.ts`
+  - recovery nudge 生效时，建议 `content` 改为基于最终 recovery 目标生成，避免出现“文案说 A、跳转到 B”错位。
+- `src/store/README.md` + `docs/CURRENT_TASK.md`
+  - 同步规则口径：2 星仅对瓶子关联目标生效。
+
+## 2026-04-11 - Tweak: 去除“今日小事”标签 + 互提长度规则细化
+
+### Changed
+
+- `src/server/narrative-event-library.ts`
+  - `natural_event` 注入改为纯自然句，不再附加 `[今日小事]` 标签前缀。
+- `src/server/character-mention-spec.ts`
+  - `character_mention` 注入头部去除 `Today Note/今日小事` 标签字样，保留互提背景与分组指引结构。
+  - 互提长度约束更新为：`zh` 20-28 字上限 40、`en` 16-22 words 上限 30、`it` 16-24 parole 上限 32。
+- `src/server/narrative-event-library.test.ts`
+  - 更新断言以匹配“无标签”注入文本与新版三语长度规则文案。
+
+## 2026-04-11 - Feat: 角色互提切换为三语等价 Prompt 指引注入
+
+### Changed
+
+- `src/server/character-mention-spec.ts`（新增）
+  - 新增角色互提结构化规格：关系背景、全局禁止项、A/B/C/D 组指引、角色差异化 few-shot。
+  - 一次性落地 `zh/en/it` 三语言等价内容，语义对齐但非硬直译。
+- `src/server/narrative-event-library.ts`
+  - `character_mention` 从“固定成品句子池”升级为“Prompt 指引块注入”（含组别随机）。
+  - 保持 `natural_event` 仍走 `[今日小事] ...` 轻量事件句模式。
+- `src/server/narrative-event-library.test.ts`（新增）
+  - 新增单测覆盖：`natural_event` 兼容性、`character_mention` 在 zh/en/it 的注入结构与组别抽样。
+- `docs/CURRENT_TASK.md`
+  - 同步标记“文档二角色互提”已落地，并更新风险项状态。
+
+### Validation
+
+- `npx vitest run src/server/narrative-event-library.test.ts src/server/narrative-density-trigger.test.ts src/server/narrative-density-scorer.test.ts` ✅
+
+## 2026-04-11 - Feat: Telemetry Center 门户 + AI 批注子看板
+
+### Changed
+
+- `src/server/annotation-handler.ts` + `src/server/narrative-density-telemetry.ts`
+  - 新增 `lateral_sampled` 埋点，记录 `narrativeScore/finalProbability/triggered/associationType`。
+  - 横向联想触发改为“基准概率 + 分数调制”模式（`base=0.5, delta=0.2, min=0.3, max=0.7`）。
+- `src/server/live-input-dashboard-handler.ts` + `src/services/input/liveInputTelemetryApi.ts`
+  - 统一看板扩展聚合 AI 批注埋点（`density_scored/trigger_blocked/event_triggered/event_condensed/lateral_sampled`）。
+  - 新增 AI 批注摘要、事件分布、角色分布、联想类型分布、叙事分数分桶触发率。
+- `src/features/telemetry/TelemetryHubPage.tsx`（新增）+ `src/features/telemetry/AiAnnotationTelemetryPage.tsx`（新增）+ `src/App.tsx`
+  - 新增 `/telemetry` 总入口与 `/telemetry/ai-annotation` 子页面。
+- `src/features/profile/components/SettingsList.tsx`
+  - 设置页埋点入口升级为 `Telemetry Center`，跳转统一门户。
+- `src/features/telemetry/isTelemetryAdmin.ts`（新增）+ `src/App.tsx` + `src/features/profile/components/SettingsList.tsx`
+  - 埋点页面入口与路由改为严格管理员可见/可访问（DEV 环境也不再放开）。
+- `api/README.md` + `src/api/README.md` + `docs/PROJECT_MAP.md` + `docs/CURRENT_TASK.md`
+  - 同步文档口径与看板聚合范围。
+
+## 2026-04-11 - Tweak: 低叙事密度触发改为分数连续概率 + 与横向联想互斥
+
+### Changed
+
+- `src/server/narrative-density-constants.ts`
+  - 四维权重调整为 `freshness=0.30 / density=0.30 / emotion=0.25 / vocab=0.15`。
+  - 触发参数从固定概率改为连续概率曲线参数（`min/span/max/gamma/richnessPenalty`）。
+- `src/server/narrative-density-trigger.ts`、`src/server/narrative-density-types.ts`
+  - 触发决策改为 score-driven 概率抽样（`(1-score)^gamma`）并受 `todayRichness` 惩罚项影响。
+  - 保留首条跳过、每日总上限、类型上限与类型权重抽样。
+  - 触发决策结果新增 `triggerProbability` 字段，便于日志与调参。
+- `src/server/annotation-handler.ts`
+  - 注入策略改为 `narrative > lateral` 互斥：命中 `[今日小事]` 时跳过横向联想采样，避免同轮双指令竞争。
+  - 调试日志与 `density_scored` telemetry 增加 `triggerProbability`。
+- `src/server/narrative-density-trigger.test.ts`
+  - 新增“高分低概率”与“低分概率更高”的单测覆盖，验证连续概率策略。
+
+### Validation
+
+- `npx vitest run src/server/narrative-density-trigger.test.ts src/server/narrative-density-scorer.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+## 2026-04-11 - Tweak: EcoSphere 自由漂浮随机化 + 移除心情能量曲线
+
+### Changed
+
+- `src/features/report/plant/useBubbleMotionController.ts`
+  - 自由漂浮新增“随机时长 + 随机方向”切换节奏，并加入随机冲量脉冲，避免长期朝单一方向漂移。
+  - 移除固定竖向偏置力，改为更均衡的全向漂浮，增强物体在液体中自由漂移的观感。
+- `src/features/report/plant/DayEcoSphere.tsx`
+  - 移除心情气泡点击后的心情能量曲线展开面板，仅保留双气泡漂浮展示。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本轮 EcoSphere 漂浮与交互简化改动。
+
+## 2026-04-11 - Tweak: EcoSphere 气泡漂浮物理调优
+
+### Changed
+
+- `src/features/report/plant/useBubbleMotionController.ts`
+  - 自由漂浮改为随机游走扰动，减少规律性方向循环。
+  - 漂浮与重力影响整体降速约 2.5 倍，提升轻盈感。
+  - 新增双气泡重叠阈值（2/3 直径）阻尼反弹，避免完全重叠。
+  - 初始位置与漂移方向随机化，进入页面更自然。
+
+## 2026-04-11 - Tweak: Profile「专属记忆」文案与编辑界面简化
+
+### Changed
+
+- `src/features/profile/components/LongTermProfileToggle.tsx` + `src/i18n/locales/{zh,en,it}.ts`
+  - 长期画像文案升级为「专属记忆」语义，强调陪伴关系与“被记住”体验。
+- `src/features/profile/components/UserProfileSection.tsx`
+  - 移除三分栏 tab（作息/个性化画像/纪念日），改为单页内容容器。
+- `src/features/profile/components/UserProfilePanel.tsx`
+  - 编辑区合并为单页：作息与自由画像同屏编辑，并保留单一保存按钮。
+  - 前台不再展示纪念日新增/删除/来源标签 UI，保存链路仅提交 `manual`。
+- `src/features/profile/README.md` + `docs/CURRENT_TASK.md`
+  - 同步模块接口说明与当前任务记录。
+
 ## 2026-04-10 - Feat: 低叙事密度判定 + 今日小事事件注入（Doc1 P1）
 
 ### Changed

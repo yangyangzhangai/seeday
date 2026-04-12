@@ -1,6 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import OpenAI from 'openai';
 import { extractComment, removeThinkingTags } from '../lib/aiParser.js';
 import { normalizeAiCompanionMode } from '../lib/aiCompanion.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from './http.js';
@@ -20,6 +19,7 @@ import {
   buildTodayActivitiesText,
   buildTodayContextText,
   getDefaultAnnotations,
+  getModel,
 } from './annotation-prompts.js';
 import type { RecoveryNudgeContext } from '../types/annotation.js';
 import { resolveCountryCode } from './country-resolver.js';
@@ -47,8 +47,15 @@ import { buildNarrativeEventInstruction } from './narrative-event-library.js';
 import { reportNarrativeTelemetry } from './narrative-density-telemetry.js';
 import { NARRATIVE_EVENT_LOOKBACK_MS } from './narrative-density-constants.js';
 import type { NarrativeTriggeredEvent } from './narrative-density-types.js';
-
-const openai = new OpenAI();
+import { createAnnotationClient, resolveAnnotationRuntime } from './annotation-provider-runtime.js';
+import {
+  buildDecomposeReadyActionLabel,
+  buildDecomposeReadyContent,
+  buildPromptDebugPayload,
+  callAnnotationLLM,
+  type PendingTodoLite,
+  shouldPreDecomposeTodo,
+} from './annotation-handler-utils.js';
 
 type AnnotationLang = 'zh' | 'en' | 'it';
 
@@ -56,95 +63,10 @@ const MAX_REWRITE_ATTEMPTS = 1;
 const SIMILARITY_THRESHOLD = 0.15;
 const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
 const ENABLE_CHARACTER_STATE = process.env.ANNOTATION_CHARACTER_STATE_ENABLED !== 'false';
-
-function buildPromptDebugPayload(
-  promptPackage: AnnotationPromptPackage | undefined,
-  includePromptDebug: boolean,
-): {
-  debugPromptPackage?: {
-    model: string;
-    systemPrompt: string;
-    userPrompt: string;
-  };
-} {
-  if (!includePromptDebug || !promptPackage) return {};
-  return {
-    debugPromptPackage: {
-      model: promptPackage.model,
-      systemPrompt: promptPackage.instructions,
-      userPrompt: promptPackage.input,
-    },
-  };
-}
-
-const STALE_TODO_DAYS_THRESHOLD = 3;
-const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
-
-type PendingTodoLite = {
-  id: string;
-  title: string;
-  dueAt?: number | string;
-  createdAt?: number | string;
-  ageDays?: number;
-};
-
-function toTimestampMs(raw: unknown): number | null {
-  if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return raw < 1e11 ? raw * 1000 : raw;
-  }
-
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-
-    const numeric = Number(trimmed);
-    if (Number.isFinite(numeric)) {
-      return numeric < 1e11 ? numeric * 1000 : numeric;
-    }
-
-    const parsed = Date.parse(trimmed);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
-function shouldPreDecomposeTodo(todo: PendingTodoLite | undefined, nowMs: number): boolean {
-  if (!todo) return false;
-  if (typeof todo.ageDays === 'number' && Number.isFinite(todo.ageDays) && todo.ageDays >= STALE_TODO_DAYS_THRESHOLD) {
-    return true;
-  }
-
-  const createdAtMs = toTimestampMs(todo.createdAt);
-  if (createdAtMs !== null && nowMs - createdAtMs >= STALE_TODO_DAYS_THRESHOLD * 24 * 60 * 60 * 1000) {
-    return true;
-  }
-
-  const dueAtMs = toTimestampMs(todo.dueAt);
-  if (dueAtMs !== null && nowMs - dueAtMs >= OVERDUE_TODO_MS_THRESHOLD) {
-    return true;
-  }
-
-  return false;
-}
-
-function buildDecomposeReadyContent(lang: AnnotationLang, todoTitle: string, stepCount: number): string {
-  if (lang === 'en') {
-    return `I've already split "${todoTitle}" into ${stepCount} small steps. Tap start and begin step 1 🌿`;
-  }
-  if (lang === 'it') {
-    return `Ho gia diviso "${todoTitle}" in ${stepCount} piccoli passi. Tocca avvia e inizia dal primo 🌿`;
-  }
-  return `我已经把「${todoTitle}」拆成${stepCount}个小步骤了，点开始就先做第一步 🌿`;
-}
-
-function buildDecomposeReadyActionLabel(lang: AnnotationLang): string {
-  if (lang === 'en') return 'Start step 1';
-  if (lang === 'it') return 'Inizia dal passo 1';
-  return '开始第一步';
-}
+const LATERAL_ASSOCIATION_BASE_PROBABILITY = 0.5;
+const LATERAL_ASSOCIATION_PROBABILITY_DELTA = 0.2;
+const LATERAL_ASSOCIATION_MIN_PROBABILITY = 0.3;
+const LATERAL_ASSOCIATION_MAX_PROBABILITY = 0.7;
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
@@ -160,13 +82,60 @@ function normalizeCharacterId(value: unknown): CharacterId {
   return 'van';
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function computeLateralAssociationProbability(narrativeScore: number): number {
+  if (!Number.isFinite(narrativeScore)) return LATERAL_ASSOCIATION_BASE_PROBABILITY;
+  const normalized = clamp(narrativeScore, 0, 1);
+  const shifted = 1 - 2 * normalized;
+  return clamp(
+    LATERAL_ASSOCIATION_BASE_PROBABILITY + LATERAL_ASSOCIATION_PROBABILITY_DELTA * shifted,
+    LATERAL_ASSOCIATION_MIN_PROBABILITY,
+    LATERAL_ASSOCIATION_MAX_PROBABILITY,
+  );
+}
+
+type LateralAssociationResolution = {
+  associationInstruction?: string;
+  triggered: boolean;
+  probability: number;
+  associationType?: string;
+  originType?: string;
+  toneTag?: string;
+};
+
 async function resolveLateralAssociationInstruction(params: {
   userId: string;
   characterId: CharacterId;
   userInput: string;
   lang: AnnotationLang;
   currentDate?: { isoDate?: string };
-}): Promise<string | undefined> {
+  narrativeScore: number;
+}): Promise<LateralAssociationResolution> {
+  const probability = computeLateralAssociationProbability(params.narrativeScore);
+  const triggered = Math.random() < probability;
+  if (!triggered) {
+    void reportNarrativeTelemetry({
+      userId: params.userId,
+      eventName: 'lateral_sampled',
+      eventData: {
+        narrativeScore: params.narrativeScore,
+        baseProbability: LATERAL_ASSOCIATION_BASE_PROBABILITY,
+        probabilityDelta: LATERAL_ASSOCIATION_PROBABILITY_DELTA,
+        finalProbability: probability,
+        triggered,
+        characterId: params.characterId,
+        lang: params.lang,
+      },
+    });
+    return {
+      triggered,
+      probability,
+    };
+  }
+
   const todayDate = params.currentDate?.isoDate || new Date().toISOString().slice(0, 10);
   const state = await getLateralAssociationState({
     userId: params.userId,
@@ -200,7 +169,31 @@ async function resolveLateralAssociationInstruction(params: {
     });
   }
 
-  return sampled.associationInstruction ?? undefined;
+  void reportNarrativeTelemetry({
+    userId: params.userId,
+    eventName: 'lateral_sampled',
+    eventData: {
+      narrativeScore: params.narrativeScore,
+      baseProbability: LATERAL_ASSOCIATION_BASE_PROBABILITY,
+      probabilityDelta: LATERAL_ASSOCIATION_PROBABILITY_DELTA,
+      finalProbability: probability,
+      triggered,
+      characterId: params.characterId,
+      lang: params.lang,
+      associationType: sampled.associationType,
+      originType: sampled.originType,
+      toneTag: sampled.toneTag,
+    },
+  });
+
+  return {
+    associationInstruction: sampled.associationInstruction ?? undefined,
+    triggered,
+    probability,
+    associationType: sampled.associationType,
+    originType: sampled.originType,
+    toneTag: sampled.toneTag,
+  };
 }
 
 async function resolveNarrativeEvent(params: {
@@ -212,6 +205,7 @@ async function resolveNarrativeEvent(params: {
 }): Promise<{
   narrativeEvent?: NarrativeTriggeredEvent;
   adjustedThreshold: number;
+  triggerProbability: number;
   currentScore: number;
   todayRichness: number;
   isLowDensity: boolean;
@@ -276,6 +270,7 @@ async function resolveNarrativeEvent(params: {
       currentScore: score.currentScore,
       todayRichness: cache.todayRichness,
       adjustedThreshold: triggerDecision.adjustedThreshold,
+      triggerProbability: triggerDecision.triggerProbability,
       isLowDensity,
       dimensions: score.dimensions,
     },
@@ -304,6 +299,7 @@ async function resolveNarrativeEvent(params: {
   return {
     narrativeEvent,
     adjustedThreshold: triggerDecision.adjustedThreshold,
+    triggerProbability: triggerDecision.triggerProbability,
     currentScore: score.currentScore,
     todayRichness: cache.todayRichness,
     isLowDensity,
@@ -323,7 +319,7 @@ async function withElapsed<T>(task: Promise<T>): Promise<{ value: T; elapsedMs: 
 
 /**
  * Vercel Serverless Function - Annotation API
- * 调用 OpenAI Responses API 生成 AI 批注（气泡）
+ * 调用多 provider 模型生成 AI 批注（气泡）
  *
  * POST /api/annotation
  * Body: { eventType: string, eventData: {...}, userContext: {...}, lang: 'zh' | 'en' | 'it', aiMode?: string }
@@ -367,20 +363,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const defaultSet = getDefaultAnnotations(resolvedLang);
-  const apiKey = process.env.OPENAI_API_KEY;
+  const routeModel = getModel(resolvedLang);
+  const runtime = resolveAnnotationRuntime(routeModel);
 
-  if (!apiKey) {
+  if (!runtime.apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
     res.status(200).json({
       ...defaultAnnotation,
       displayDuration: 8000,
       source: 'default',
       reason: 'no_key',
+      debugProvider: runtime.provider,
+      debugModel: routeModel,
       debugAiMode: resolvedAiMode || 'fallback',
       debugCharacterState,
     });
     return;
   }
+
+  const annotationClient = runtime.provider === 'gemini' && !/\/openai\/?$/i.test(String(runtime.baseURL || ''))
+    ? undefined
+    : createAnnotationClient(runtime);
 
   // ==================== 建议模式（客户端门控透传） ====================
   const forceSuggestion = userContext?.forceSuggestion === true;
@@ -433,6 +436,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     currentDate: userContext?.currentDate,
   });
   const narrativeEventInstruction = narrativeContext.narrativeEvent?.instruction;
+  const lateralAssociation = await resolveLateralAssociationInstruction({
+    userId: lateralUserId,
+    characterId: lateralCharacterId,
+    userInput: sharedEventSummary,
+    lang: resolvedLang,
+    currentDate: userContext?.currentDate,
+    narrativeScore: narrativeContext.currentScore,
+  });
+  const associationInstruction = lateralAssociation.associationInstruction;
 
   if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
     console.log('[NarrativeDensity]', {
@@ -440,10 +452,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       characterId: lateralCharacterId,
       score: Number(narrativeContext.currentScore.toFixed(3)),
       threshold: Number(narrativeContext.adjustedThreshold.toFixed(3)),
+      triggerProbability: Number(narrativeContext.triggerProbability.toFixed(3)),
       isLowDensity: narrativeContext.isLowDensity,
       blockedReason: narrativeContext.blockedReason,
       triggeredEventType: narrativeContext.narrativeEvent?.eventType,
       triggeredEventId: narrativeContext.narrativeEvent?.eventId,
+    });
+    console.log('[LateralAssociationGate]', {
+      userId: lateralUserId,
+      characterId: lateralCharacterId,
+      score: Number(narrativeContext.currentScore.toFixed(3)),
+      probability: Number(lateralAssociation.probability.toFixed(3)),
+      triggered: lateralAssociation.triggered,
+      associationType: lateralAssociation.associationType,
     });
   }
 
@@ -458,13 +479,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const currentMinute = userContext?.currentMinute;
       const todayContextText = buildTodayContextText(userContext?.todayContext, resolvedLang);
       const eventSummary = sharedEventSummary;
-      const associationInstruction = await resolveLateralAssociationInstruction({
-        userId: lateralUserId,
-        characterId: lateralCharacterId,
-        userInput: eventSummary,
-        lang: resolvedLang,
-        currentDate: userContext?.currentDate,
-      });
       const recentMoodText = (userContext?.recentMoodMessages || []).slice(-3).join(' / ') || 'none';
 
       const promptPackage = buildAnnotationPromptPackage({
@@ -497,16 +511,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       suggestionPromptPackage = promptPackage;
 
-      openai.apiKey = apiKey;
-      const llmResponse = await openai.responses.create({
+      const llmResponse = await callAnnotationLLM(annotationClient, {
+        provider: runtime.provider,
         model: promptPackage.model,
         instructions: promptPackage.instructions,
         input: promptPackage.input,
         temperature: 0.6,
-        max_output_tokens: 300,
+        maxOutputTokens: 300,
+        apiKey: runtime.apiKey,
+        baseURL: runtime.baseURL,
+        expectJson: true,
       });
 
-      const raw = removeThinkingTags(llmResponse.output_text || '').trim();
+      const raw = removeThinkingTags(llmResponse.outputText || '').trim();
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
@@ -518,6 +535,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               : buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion)
             : undefined);
 
+        if (recoveryNudge) {
+          finalContent = buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).content;
+        }
+
         if (normalizedSuggestion?.type === 'todo' && typeof normalizedSuggestion.todoId === 'string') {
           const targetTodo = pendingTodos.find((todo) => todo.id === normalizedSuggestion.todoId) as PendingTodoLite | undefined;
           const canPreDecompose = shouldPreDecomposeTodo(targetTodo, Date.now());
@@ -526,8 +547,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const steps = await decomposeTodoWithAI({
                 title: targetTodo.title,
                 lang: resolvedLang,
-                apiKey,
-                model: process.env.TODO_DECOMPOSE_MODEL,
+                qwenApiKey: process.env.QWEN_API_KEY,
+                apiKey: process.env.OPENAI_API_KEY,
               });
               if (steps.length > 0) {
                 normalizedSuggestion.decomposeReady = true;
@@ -601,7 +622,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
     } catch (suggestionErr) {
-      console.error('[Annotation API] Suggestion mode error:', suggestionErr);
+      console.error('[Annotation API] Suggestion mode error:', {
+        provider: runtime.provider,
+        model: suggestionPromptPackage?.model,
+        error: suggestionErr instanceof Error ? suggestionErr.message : String(suggestionErr),
+      });
       if (forceSuggestion) {
         const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
         const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
@@ -633,13 +658,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 预处理事件数据（去除多余空白，避免 prompt 里混入奇怪换行）
     const eventSummary = sharedEventSummary;
-    const associationInstruction = await resolveLateralAssociationInstruction({
-      userId: lateralUserId,
-      characterId: lateralCharacterId,
-      userInput: eventSummary,
-      lang: resolvedLang,
-      currentDate: userContext?.currentDate,
-    });
 
     // 构建今日时间线（最近3个活动）
     const recentActivities = userContext?.todayActivitiesList?.slice(-3) || [];
@@ -694,14 +712,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     annotationPromptPackage = promptPackage;
 
-    openai.apiKey = apiKey;
-
-    const llmResponse = await openai.responses.create({
+    const llmResponse = await callAnnotationLLM(annotationClient, {
+      provider: runtime.provider,
       model: promptPackage.model,
       instructions: promptPackage.instructions,
       input: promptPackage.input,
       temperature: 0.7,
-      max_output_tokens: 480,
+      maxOutputTokens: 480,
+      apiKey: runtime.apiKey,
+      baseURL: runtime.baseURL,
     });
 
     const promptCacheHits = (llmResponse.usage as any)?.prompt_cache_hits ?? 0;
@@ -714,11 +733,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         prompt_cache_hits: promptCacheHits,
         prompt_cache_misses: promptCacheMisses,
         cached: promptCacheHits > 0,
-        response_id: llmResponse.id,
+        response_id: llmResponse.responseId,
       });
     }
 
-    let content: string = llmResponse.output_text;
+    let content: string = llmResponse.outputText;
 
     if (!content || !content.trim()) {
       console.warn('[Annotation API] empty_content details:', { eventType, lang: resolvedLang });
@@ -786,15 +805,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             rawRecentAnnotations.slice(-3),
           );
 
-          const rewriteResponse = await openai.responses.create({
+          const rewriteResponse = await callAnnotationLLM(annotationClient, {
+            provider: runtime.provider,
             model: promptPackage.model,
             instructions: promptPackage.instructions,
             input: rewritePrompt,
             temperature: resolvedLang === 'zh' ? 0.75 : 0.8,
-            max_output_tokens: resolvedLang === 'zh' ? 180 : 480,
+            maxOutputTokens: resolvedLang === 'zh' ? 180 : 480,
+            apiKey: runtime.apiKey,
+            baseURL: runtime.baseURL,
           });
 
-          let rewriteRaw = rewriteResponse.output_text;
+          let rewriteRaw = rewriteResponse.outputText;
           rewriteRaw = removeThinkingTags(rewriteRaw);
           const extractedRewrite = extractComment(rewriteRaw, resolvedLang);
 
@@ -877,7 +899,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...buildPromptDebugPayload(annotationPromptPackage, includePromptDebug),
     });
   } catch (error) {
-    console.error('Annotation API error:', error);
+    console.error('Annotation API error:', {
+      provider: runtime.provider,
+      model: annotationPromptPackage?.model,
+      error: error instanceof Error ? error.message : String(error),
+    });
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
     res.status(200).json({
       ...defaultAnnotation,

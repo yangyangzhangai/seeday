@@ -161,27 +161,9 @@ function buildBottleNudge(
   };
 }
 
-function buildRecurringNudge(
-  template: RecoveryTodo,
-  todos: RecoveryTodo[],
-): RecoveryNudgeContext | null {
-  const todoTarget = pickBestTodoTarget(todos.filter((todo) => todo.templateId === template.id));
-  if (!todoTarget) return null;
-
-  return {
-    key: `recurring:${template.id}:miss1d`,
-    reason: 'recurring_missed_yesterday',
-    rewardStars: 2,
-    bottleId: todoTarget.bottleId,
-    todoId: todoTarget.id,
-    todoTitle: todoTarget.title,
-  };
-}
-
 export function detectRecoveryNudge(input: RecoverySuggestionInput): RecoveryNudgeContext | null {
   const { now, todos, bottles, attemptsToday = [] } = input;
   const todayStart = startOfLocalDayMs(now);
-  const yesterdayStart = todayStart - DAY_MS;
 
   const activeBottles = bottles.filter((bottle) => bottle.status === 'active');
   const bottleCandidates = activeBottles
@@ -200,40 +182,6 @@ export function detectRecoveryNudge(input: RecoverySuggestionInput): RecoveryNud
   for (const bottle of bottleCandidates) {
     const nudge = buildBottleNudge(bottle, todos);
     const relatedTodos = todos.filter((todo) => todo.bottleId === bottle.id);
-    const preferredHour = resolvePreferredHourFromTodos(relatedTodos);
-    if (nudge && canNotifyNow({ key: nudge.key, now, preferredHour, attemptsToday })) {
-      return nudge;
-    }
-  }
-
-  const templates = todos
-    .filter((todo) => todo.isTemplate)
-    .filter((todo) => todo.recurrence === 'daily' || todo.recurrence === 'weekly');
-
-  for (const template of templates) {
-    const createdAt = Number(template.createdAt || 0);
-    if (!Number.isFinite(createdAt) || createdAt >= todayStart) continue;
-
-    let dueYesterday = false;
-    if (template.recurrence === 'daily') {
-      dueYesterday = true;
-    } else if (template.recurrence === 'weekly') {
-      const yesterdayDow = new Date(yesterdayStart).getDay();
-      dueYesterday = (template.recurrenceDays ?? []).includes(yesterdayDow);
-    }
-    if (!dueYesterday) continue;
-
-    const completedYesterday = todos.some((todo) => (
-      todo.templateId === template.id
-      && todo.completed
-      && typeof todo.completedAt === 'number'
-      && todo.completedAt >= yesterdayStart
-      && todo.completedAt < todayStart
-    ));
-    if (completedYesterday) continue;
-
-    const nudge = buildRecurringNudge(template, todos);
-    const relatedTodos = todos.filter((todo) => todo.templateId === template.id);
     const preferredHour = resolvePreferredHourFromTodos(relatedTodos);
     if (nudge && canNotifyNow({ key: nudge.key, now, preferredHour, attemptsToday })) {
       return nudge;

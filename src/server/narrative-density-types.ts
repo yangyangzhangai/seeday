@@ -53,6 +53,7 @@ export interface NarrativeScoreResult {
 export interface NarrativeTriggerDecision {
   shouldTrigger: boolean;
   adjustedThreshold: number;
+  triggerProbability: number;
   blockedReason?: TriggerBlockedReason;
   selectedEventType?: NarrativeEventType;
 }

@@ -24,6 +24,7 @@ describe('narrative-density-trigger', () => {
     });
     expect(result.shouldTrigger).toBe(false);
     expect(result.blockedReason).toBe('first_entry');
+    expect(result.triggerProbability).toBeGreaterThan(0);
   });
 
   it('returns event type when low density and probability hit', () => {
@@ -36,5 +37,36 @@ describe('narrative-density-trigger', () => {
     });
     expect(result.shouldTrigger).toBe(true);
     expect(result.selectedEventType).toBeTruthy();
+  });
+
+  it('uses score-driven probability (high score rarely triggers)', () => {
+    const result = evaluateNarrativeTrigger({
+      isFirstEntry: false,
+      currentScore: 0.9,
+      todayRichness: 0.5,
+      cache: cache(),
+      random: () => 0.02,
+    });
+    expect(result.shouldTrigger).toBe(false);
+    expect(result.blockedReason).toBe('probability_miss');
+    expect(result.triggerProbability).toBeCloseTo(0.015, 3);
+  });
+
+  it('gives lower score a higher trigger probability', () => {
+    const low = evaluateNarrativeTrigger({
+      isFirstEntry: false,
+      currentScore: 0.1,
+      todayRichness: 0.5,
+      cache: cache(),
+      random: () => 0.999,
+    });
+    const high = evaluateNarrativeTrigger({
+      isFirstEntry: false,
+      currentScore: 0.8,
+      todayRichness: 0.5,
+      cache: cache(),
+      random: () => 0.999,
+    });
+    expect(low.triggerProbability).toBeGreaterThan(high.triggerProbability);
   });
 });

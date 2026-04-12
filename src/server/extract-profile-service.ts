@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/用户画像模块_需求与技术文档_v1.md
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { UserProfileV2 } from '../types/userProfile';
+import type { UserProfileV2 } from '../types/userProfile.js';
 
 export interface ExtractProfileMessage {
   id: string;

@@ -8,28 +8,12 @@ import type {
   LiveInputTelemetryRecentEvent,
   LiveInputTelemetrySeriesPoint,
 } from '../../services/input/liveInputTelemetryApi';
+import { isTelemetryAdmin } from './isTelemetryAdmin';
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function isLikelyAdmin(user: any): boolean {
-  if (import.meta.env.DEV) {
-    return true;
-  }
-
-  const roleCandidates = [
-    user?.app_metadata?.role,
-    user?.user_metadata?.role,
-    ...(Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []),
-    ...(Array.isArray(user?.user_metadata?.roles) ? user.user_metadata.roles : []),
-  ];
-
-  return roleCandidates.some((item) => (
-    typeof item === 'string'
-    && ['admin', 'owner', 'staff', 'internal', 'super_admin'].includes(item.trim().toLowerCase())
-  ));
-}
 
 function BreakdownSection(props: {
   title: string;
@@ -108,6 +92,8 @@ function RecentEvents({ items }: { items: LiveInputTelemetryRecentEvent[] }) {
               ? `${item.internalKind || 'unknown'} / ${item.confidence || 'unknown'}`
               : item.eventType === 'correction'
                 ? `${item.fromKind || 'unknown'} -> ${item.toKind || 'unknown'}`
+                : item.eventType === 'annotation_telemetry'
+                  ? `${item.eventName || 'annotation_event'} / score ${item.narrativeScore?.toFixed(3) || 'n/a'}`
                 : item.eventType === 'diary_sticker'
                   ? `${item.eventName || 'diary_sticker_unknown'} / ${item.stickerId || 'all'}`
                 : `fallback L${item.fallbackLevel || 4} / ${item.rootType || 'unknown'}_${item.plantStage || 'unknown'}`}
@@ -189,7 +175,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
     return null;
   }
 
-  const likelyAdmin = isLikelyAdmin(user);
+  const likelyAdmin = isTelemetryAdmin(user);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F8FA]">
@@ -199,8 +185,8 @@ export const LiveInputTelemetryPage: React.FC = () => {
             <div>
               <h1 className="text-lg font-semibold text-gray-900">Live Input Telemetry</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Central telemetry dashboard for classification, correction, and plant fallback events from Supabase.
-                Diary sticker operations are also merged from <code>telemetry_events</code>.
+                Module dashboard for classification, correction, and plant fallback events from Supabase.
+                Diary sticker operations and AI annotation telemetry are merged from <code>telemetry_events</code>.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

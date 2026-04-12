@@ -465,12 +465,27 @@ interface TodoDecomposeRequest {
 interface TodoDecomposeResponse {
   success: boolean;
   steps: DecomposeStep[];
+  parseStatus?: 'ok' | 'parse_failed';
+  model?: string;
+  provider?: 'gemini' | 'dashscope';
+}
+
+export interface TodoDecomposeResult {
+  steps: DecomposeStep[];
+  parseStatus: 'ok' | 'parse_failed';
+  model: string;
+  provider: 'gemini' | 'dashscope';
 }
 
 /**
  * 调用 Todo 拆解 API - AI 将待办拆成 3-6 个子步骤
  */
-export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'it' = 'zh'): Promise<DecomposeStep[]> {
+export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'it' = 'zh'): Promise<TodoDecomposeResult> {
   const data = await postJson<TodoDecomposeRequest, TodoDecomposeResponse>('/todo-decompose', { title, lang });
-  return data.steps ?? [];
+  return {
+    steps: data.steps ?? [],
+    parseStatus: data.parseStatus === 'parse_failed' ? 'parse_failed' : 'ok',
+    model: (data.model || 'unknown').trim() || 'unknown',
+    provider: data.provider === 'dashscope' ? 'dashscope' : 'gemini',
+  };
 }

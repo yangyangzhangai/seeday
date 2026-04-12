@@ -1,6 +1,12 @@
 import type { InternalLiveInputKind, LiveInputClassification, LiveInputConfidence, LiveInputKind } from './types';
 
-export type LiveInputTelemetryEventType = 'classification' | 'correction' | 'plant_asset' | 'diary_sticker';
+export type LiveInputTelemetryEventType =
+  | 'classification'
+  | 'correction'
+  | 'plant_asset'
+  | 'diary_sticker'
+  | 'annotation_telemetry'
+  | 'todo_decompose';
 export type LiveInputTelemetryCorrectionKind = 'activity' | 'mood';
 export type LiveInputTelemetryLang = 'zh' | 'en' | 'it';
 
@@ -59,6 +65,31 @@ export interface LiveInputTelemetrySeriesPoint {
   uniqueUsers: number;
 }
 
+export interface TodoDecomposeTelemetrySeriesPoint {
+  day: string;
+  requestedCount: number;
+  succeededCount: number;
+  emptyCount: number;
+  parseFailedCount: number;
+  failedCount: number;
+  regenerateCount: number;
+}
+
+export interface TodoDecomposeTelemetrySummary {
+  requestedCount: number;
+  succeededCount: number;
+  emptyCount: number;
+  parseFailedCount: number;
+  failedCount: number;
+  regenerateCount: number;
+  uniqueTodosDecomposed: number;
+  emptyRate: number;
+  parseFailureRate: number;
+  failureRate: number;
+  regenerateRate: number;
+  avgStepsPerSuccess: number;
+}
+
 export interface LiveInputTelemetryRecentEvent {
   id: string;
   createdAt: string;
@@ -83,6 +114,36 @@ export interface LiveInputTelemetryRecentEvent {
   lang?: string | null;
   inputLength: number;
   inputPreview?: string | null;
+  narrativeScore?: number | null;
+  finalProbability?: number | null;
+  triggered?: boolean | null;
+  characterId?: string | null;
+  associationType?: string | null;
+  todoId?: string | null;
+  isRegenerate?: boolean | null;
+  model?: string | null;
+  provider?: string | null;
+  stepsCount?: number | null;
+}
+
+export interface AnnotationScoreBucketItem {
+  key: string;
+  count: number;
+  triggeredCount: number;
+  triggerRate: number;
+}
+
+export interface AiAnnotationTelemetrySummary {
+  totalEvents: number;
+  densityScoredCount: number;
+  triggerBlockedCount: number;
+  eventTriggeredCount: number;
+  eventCondensedCount: number;
+  lateralSampledCount: number;
+  lateralTriggeredCount: number;
+  lateralTriggerRate: number;
+  avgNarrativeScore: number;
+  avgFinalProbability: number;
 }
 
 export interface LiveInputTelemetryDashboardSummary {
@@ -105,6 +166,17 @@ export interface LiveInputTelemetryDashboardResponse {
   byLang: LiveInputTelemetryBreakdownItem[];
   plantFallbackLevels: LiveInputTelemetryBreakdownItem[];
   diaryStickerActions: LiveInputTelemetryBreakdownItem[];
+  annotationEventNames: LiveInputTelemetryBreakdownItem[];
+  annotationCharacters: LiveInputTelemetryBreakdownItem[];
+  associationTypes: LiveInputTelemetryBreakdownItem[];
+  narrativeScoreBuckets: AnnotationScoreBucketItem[];
+  aiAnnotationSummary: AiAnnotationTelemetrySummary;
+  todoDecomposeSummary: TodoDecomposeTelemetrySummary;
+  todoDecomposeEventNames: LiveInputTelemetryBreakdownItem[];
+  todoDecomposeByLang: LiveInputTelemetryBreakdownItem[];
+  todoDecomposeByModel: LiveInputTelemetryBreakdownItem[];
+  todoDecomposeSeries: TodoDecomposeTelemetrySeriesPoint[];
+  todoDecomposeRecentEvents: LiveInputTelemetryRecentEvent[];
   series: LiveInputTelemetrySeriesPoint[];
   recentEvents: LiveInputTelemetryRecentEvent[];
 }

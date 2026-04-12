@@ -5,24 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { DirectionSettingsPanel } from './DirectionSettingsPanel';
 import { RegionSettingsPanel } from './RegionSettingsPanel';
-
-function isLikelyAdmin(user: any): boolean {
-  if (import.meta.env.DEV) {
-    return true;
-  }
-
-  const roleCandidates = [
-    user?.app_metadata?.role,
-    user?.user_metadata?.role,
-    ...(Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []),
-    ...(Array.isArray(user?.user_metadata?.roles) ? user.user_metadata.roles : []),
-  ];
-
-  return roleCandidates.some((item) => (
-    typeof item === 'string'
-    && ['admin', 'owner', 'staff', 'internal', 'super_admin'].includes(item.trim().toLowerCase())
-  ));
-}
+import { isTelemetryAdmin } from '../../telemetry/isTelemetryAdmin';
 
 interface Props {
   plain?: boolean;
@@ -34,7 +17,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   const { signOut, user } = useAuthStore();
   const [isRegionOpen, setIsRegionOpen] = React.useState(false);
   const [isDirectionOpen, setIsDirectionOpen] = React.useState(false);
-  const canSeeTelemetry = isLikelyAdmin(user);
+  const canSeeTelemetry = isTelemetryAdmin(user);
 
   const handleLogout = () => {
     if (window.confirm(t('header_confirm_logout'))) {
@@ -101,12 +84,12 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
 
       {canSeeTelemetry ? (
         <button
-          onClick={() => navigate('/telemetry/live-input')}
+          onClick={() => navigate('/telemetry')}
           className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-t border-slate-200/60'}`}
         >
           <div className="flex items-center space-x-2.5">
             <BarChart3 size={16} className="text-[#5F7A63]" />
-            <span className="text-xs text-slate-700">Live Input Telemetry</span>
+            <span className="text-xs text-slate-700">Telemetry Center</span>
           </div>
           <ChevronRight size={14} className="text-slate-300" />
         </button>

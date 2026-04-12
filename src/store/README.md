@@ -39,7 +39,7 @@
 - today context（今日上下文）已接入：基于关键词识别 `health/special_day/major_event` 写入日级缓存，并在 annotation 请求时透传 `userContext.todayContext`；批注落库时同步写入 `annotations.today_context` 便于回放和分析。
 - annotation 时间/节日上下文已接入：透传 `userContext.currentDate`，并优先读取 `user_metadata.country_code` 作为 `userContext.countryCode`（无值时服务端用 timezone 兜底解析）。
 - 行为-角色状态映射已接入：`useAnnotationStore` 在触发前构建 `userContext.characterStateText/meta`，状态来源于 `src/lib/characterState/*` 的 matcher + tracker + builder（支持延迟触发/streak/密度衰减/同日去重）。
-- 新增 recovery nudge（中断挽回提醒）：当瓶子连续 3 天无完成，或 daily/weekly 重复待办昨日断档时，`useAnnotationStore` 会透传 `userContext.recoveryNudge` 强制建议。
+- 新增 recovery nudge（中断挽回提醒）：仅当瓶子连续 3 天无完成时，`useAnnotationStore` 会透传 `userContext.recoveryNudge` 强制建议（2 星奖励不再对未关联瓶子的重复待办触发）。
 - recovery nudge 触发时段：优先使用目标历史完成时段；无历史时默认中午 12 点窗口（±2h）；同一 key 每天最多提醒 2 次，二次提醒最小间隔 4 小时。
 - 新增一次性 2 星奖励状态：点击中断挽回建议后激活，完成匹配 todo/bottle 时由 `consumeRecoveryBonusForCompletion()` 消费并返回奖励星数。
 - 新增“长期未完成待办预拆解”透传：suggestion 命中 stale todo 时，payload 可携带 `decomposeSteps`；点击建议后通过 `pendingSuggestionIntent` 跨页传递给 Growth 页并落地子待办（已存在子待办时跳过重复创建）。
