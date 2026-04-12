@@ -1,9 +1,25 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../lib/aiCompanion.js';
-import { getVanDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/van.js';
-import { getAgnesDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/agnes.js';
-import { getZepDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/zep.js';
-import { getMomoDailyAnnotationPromptZH } from '../lib/aiCompanion/prompts/momo.js';
+import {
+  getVanDailyAnnotationPromptEN,
+  getVanDailyAnnotationPromptIT,
+  getVanDailyAnnotationPromptZH,
+} from '../lib/aiCompanion/prompts/van.js';
+import {
+  getAgnesDailyAnnotationPromptEN,
+  getAgnesDailyAnnotationPromptIT,
+  getAgnesDailyAnnotationPromptZH,
+} from '../lib/aiCompanion/prompts/agnes.js';
+import {
+  getZepDailyAnnotationPromptEN,
+  getZepDailyAnnotationPromptIT,
+  getZepDailyAnnotationPromptZH,
+} from '../lib/aiCompanion/prompts/zep.js';
+import {
+  getMomoDailyAnnotationPromptEN,
+  getMomoDailyAnnotationPromptIT,
+  getMomoDailyAnnotationPromptZH,
+} from '../lib/aiCompanion/prompts/momo.js';
 
 interface AnnotationTemplate {
   content: string;
@@ -129,16 +145,24 @@ export function getSystemPrompt(lang: string, aiMode?: string): string {
   const resolvedMode = aiMode ?? getRandomMode();
   const normalizedMode = normalizeAiCompanionMode(resolvedMode);
 
-  if (normalizedMode === 'van' && normalizedLang === 'zh') {
+  if (normalizedMode === 'van') {
+    if (normalizedLang === 'en') return getVanDailyAnnotationPromptEN();
+    if (normalizedLang === 'it') return getVanDailyAnnotationPromptIT();
     return getVanDailyAnnotationPromptZH();
   }
-  if (normalizedMode === 'agnes' && normalizedLang === 'zh') {
+  if (normalizedMode === 'agnes') {
+    if (normalizedLang === 'en') return getAgnesDailyAnnotationPromptEN();
+    if (normalizedLang === 'it') return getAgnesDailyAnnotationPromptIT();
     return getAgnesDailyAnnotationPromptZH();
   }
-  if (normalizedMode === 'zep' && normalizedLang === 'zh') {
+  if (normalizedMode === 'zep') {
+    if (normalizedLang === 'en') return getZepDailyAnnotationPromptEN();
+    if (normalizedLang === 'it') return getZepDailyAnnotationPromptIT();
     return getZepDailyAnnotationPromptZH();
   }
-  if (normalizedMode === 'momo' && normalizedLang === 'zh') {
+  if (normalizedMode === 'momo') {
+    if (normalizedLang === 'en') return getMomoDailyAnnotationPromptEN();
+    if (normalizedLang === 'it') return getMomoDailyAnnotationPromptIT();
     return getMomoDailyAnnotationPromptZH();
   }
   return buildAiCompanionModePrompt(normalizedLang, resolvedMode, 'annotation');
@@ -151,6 +175,6 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
 }
 
 export function getModel(lang: string): string {
-  if (lang === 'en' || lang === 'it') return 'gemini2.5-flash';
+  if (lang === 'en' || lang === 'it') return 'gpt-4.1-mini';
   return 'deepseek-chat';
 }

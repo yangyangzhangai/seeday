@@ -19,7 +19,7 @@ describe('aiCompanion', () => {
     const prompt = buildAiCompanionModePrompt('en', 'momo', 'annotation');
 
     expect(prompt).toContain('You are Momo, a tiny mushroom living in the Plantime time greenhouse.');
-    expect(prompt).toContain('You are a mushroom.');
+    expect(prompt).toContain('Core stance: hold, do not push');
     expect(prompt).toContain('Exactly one emoji at the end');
   });
 
@@ -54,7 +54,15 @@ describe('aiCompanion', () => {
   it('injects the selected mode into annotation system prompts', () => {
     const prompt = getSystemPrompt('en', 'zep');
 
-    expect(prompt).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
-    expect(prompt).toContain('One annotation only.');
+    expect(prompt).toContain('You are Zep');
+    expect(prompt).toContain('Exactly one emoji at the end.');
+  });
+
+  it('routes en/it annotation system prompts to dedicated mode prompts (no concatenated fallback blocks)', () => {
+    const enPrompt = getSystemPrompt('en', 'van');
+    const itPrompt = getSystemPrompt('it', 'agnes');
+
+    expect(enPrompt).not.toContain('Annotation priorities:');
+    expect(itPrompt).not.toContain("Priorita dell'annotazione:");
   });
 });
