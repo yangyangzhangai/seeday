@@ -9,7 +9,8 @@
  */
 
 export type SoundKey =
-  | 'ding'        // 待办完成 / 计时结束 / 集满一瓶
+  | 'ding'        // 待办完成 / 集满一瓶 / 瓶子加星
+  | 'complete'    // 专注计时结束
   | 'bubble'      // 发送消息 / 心情卡片 / 待办卡片
   | 'plantGrow'   // 生成植物
   | 'star'        // 生成习惯/目标星星
@@ -22,10 +23,11 @@ interface SoundConfig {
 
 const SOUND_CONFIG: Record<SoundKey, SoundConfig> = {
   ding:      { src: '/sounds/ding.mp3',       volume: 0.35 },
+  complete:  { src: '/sounds/complete.mp3',   volume: 0.8  },
   bubble:    { src: '/sounds/bubble.mp3',     volume: 0.7  },
   plantGrow: { src: '/sounds/plant-grow.mp3', volume: 0.8  },
   star:      { src: '/sounds/star.mp3',       volume: 0.7  },
-  waterDrop: { src: '/sounds/water-drop.m4a', volume: 0.65 },
+  waterDrop: { src: '/sounds/water-drop.mp3', volume: 0.65 },
 };
 
 const audioCache = new Map<SoundKey, HTMLAudioElement>();
