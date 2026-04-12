@@ -171,7 +171,7 @@ export const useGrowthStore = create<GrowthState>()(
 
       incrementBottleStars: (id, amount) => {
         const starsToAdd = Math.max(1, Math.floor(amount || 1));
-        playSound('star');
+        playSound('ding');
         let willAchieve = false;
         set((s) => ({
           bottles: s.bottles.map((b) => {
