@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Play, SkipForward } from 'lucide-react';
 import { playSound } from '../../services/sound/soundService';
@@ -19,6 +19,11 @@ interface Props {
   onClose: () => void;
 }
 
+function normalizeDurationMinutes(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 25;
+  return Math.max(1, Math.min(60, Math.round(value)));
+}
+
 export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const { t } = useTranslation();
   const { currentSession, activeMessageId, startFocus, startFocusQueue, advanceQueue, clearQueue, queueIndex, queue, setActiveMessageId, endFocus } = useFocusStore();
@@ -28,7 +33,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const todos = useTodoStore((s) => s.todos);
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const bottles = useGrowthStore((s) => s.bottles);
-  const [durationMinutes, setDurationMinutes] = useState(25);
+  const [durationMinutes, setDurationMinutes] = useState(() => normalizeDurationMinutes(queueTodos?.[0]?.suggestedDuration ?? todo.suggestedDuration));
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isResting, setIsResting] = useState(false);
@@ -44,6 +49,11 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
 
   const isRunning = currentSession !== null;
   const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (isRunning || isResting) return;
+    setDurationMinutes(normalizeDurationMinutes(activeTodo.suggestedDuration));
+  }, [activeTodo.id, activeTodo.suggestedDuration, isRunning, isResting]);
 
   const TICKS = 60;
   const SVG_CENTER = 130;

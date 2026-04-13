@@ -1,12 +1,14 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-11
+Last Updated: 2026-04-13
 Owner: current working session
 
 ---
 
 ## 会话更新（2026-04-11）
 
+- [x] 修复「拆解子待办 -> 连续专注」默认时长显示错误：Focus 弹层初始时长与未开始状态下的时长同步，改为优先使用首个/当前子任务 `suggestedDuration`，不再固定 25min。
+- [x] 魔法笔发送路由收口：本地快路径改为仅 8 字以内短句可触发；新增“待办/清单”意图拦截与多动作拦截，命中时强制走 parser，避免误直写活动。
 - [x] 修复 recovery 建议“正文与按钮目标错位”：recovery 场景切到 recovery-only prompt，仅提供 recovery 目标上下文；服务端统一校验并强制 suggestion 与 recovery todo 对齐。
 - [x] 修复 todo-decompose 在 Gemini `gemini-2.0-flash` 下线导致 404：默认模型升级为 `gemini-2.5-flash`，并增加 404 自动降级重试（`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`）。
 - [x] `/api/todo-decompose` 增加服务端调试日志与失败结构化日志，支持 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 快速定位 DashScope/Gemini 调用异常。
@@ -15,6 +17,14 @@ Owner: current working session
 - [x] 修复 annotation 在 Gemini 下 404：改为 Gemini 原生 `generateContent` 请求，不再走 OpenAI `responses` 路径。
 - [x] 待办拆解 provider 路由调整：`zh -> qwen`，`en/it -> gemini-2.5-flash`（不再走 OpenAI）。
 - [x] 同步文档与环境变量清单（`api/README.md`、`DEPLOY.md`、`.env.example`、`docs/AI_USAGE_INVENTORY.md`）。
+- [x] annotation 可观测补全：`ANNOTATION_VERBOSE_LOGS=true` 时在 Vercel Logs 结构化输出完整请求体、system/user prompt、LLM 原始输出、最终响应，以及横向联想/低叙事触发详情。
+
+## 会话更新（2026-04-13）
+
+- [x] 语言偏好上云：`LanguageSwitcher` 切换语言时改为调用 `useAuthStore.updateLanguagePreference()`，写入 Supabase Auth metadata `i18nextLng`，不再仅依赖 localStorage。
+- [x] 云端语言回填：登录初始化与 `SIGNED_IN` 事件新增语言 metadata 自愈；若云端缺失 `i18nextLng`，自动将当前 i18n 语言写回云端。
+- [x] todo-decompose 详细排障日志增强：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出 provider `finishReason`、usage、完整 `rawFull` 及上游错误原文（`responseRaw`），便于定位“回复说一半/解析失败”。
+- [x] annotation 调试链路补齐 Gemini 完整返回：`ANNOTATION_VERBOSE_LOGS=true` 时输出 Gemini `finishReason`、`usageMetadata` 与完整 `rawFull`；同时在 suggestion/annotation/rewrite 日志中透传 `finishReason`。
 
 ---
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { triggerLightHaptic } from '../../lib/haptics';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const LANGUAGES = [
     { code: 'en', label: 'English' },
@@ -15,6 +16,7 @@ interface Props {
 
 export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
     const { i18n } = useTranslation();
+    const updateLanguagePreference = useAuthStore(state => state.updateLanguagePreference);
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -46,9 +48,9 @@ export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    const selectLanguage = (code: string) => {
+    const selectLanguage = async (code: string) => {
         triggerLightHaptic();
-        i18n.changeLanguage(code);
+        await updateLanguagePreference(code);
         setIsOpen(false);
     };
 
@@ -77,7 +79,7 @@ export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
                     {LANGUAGES.map((lang) => (
                         <button
                             key={lang.code}
-                            onClick={() => selectLanguage(lang.code)}
+                            onClick={() => { void selectLanguage(lang.code); }}
                             className={`w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors border ${lang.code === current
                                     ? 'font-medium'
                                     : 'text-[#355643] hover:bg-white/60'

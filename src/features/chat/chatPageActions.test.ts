@@ -158,7 +158,7 @@ describe('handleMagicPenModeSend', () => {
     expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
-  it('mode-on short text under 6 chars: prefers local fast path', async () => {
+  it('mode-on short text under 8 chars: prefers local fast path', async () => {
     const params = makeMagicSendParams({
       input: '要开会了',
       parseMagicPenInput: vi.fn(async () => ({
@@ -184,6 +184,42 @@ describe('handleMagicPenModeSend', () => {
     expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('要开会了');
     expect(params.parseMagicPenInput).not.toHaveBeenCalled();
     expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
+  });
+
+  it('mode-on todo list intent: bypasses local fast path and uses parser', async () => {
+    const params = makeMagicSendParams({
+      input: '以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭',
+      parseMagicPenInput: vi.fn(async () => ({
+        drafts: [],
+        unparsedSegments: ['以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭'],
+        autoWriteItems: [],
+      })),
+    });
+
+    await handleMagicPenModeSend(params);
+
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.parseMagicPenInput).toHaveBeenCalledWith(
+      '以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭',
+      { lang: 'zh' },
+    );
+    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('mode-on multi-action short sentence: bypasses local fast path and uses parser', async () => {
+    const params = makeMagicSendParams({
+      input: '跑步吃饭',
+      parseMagicPenInput: vi.fn(async () => ({
+        drafts: [],
+        unparsedSegments: ['跑步吃饭'],
+        autoWriteItems: [],
+      })),
+    });
+
+    await handleMagicPenModeSend(params);
+
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.parseMagicPenInput).toHaveBeenCalledWith('跑步吃饭', { lang: 'zh' });
   });
 
   it('mode-on explicit day signal: still uses parser even when short', async () => {

@@ -4,6 +4,79 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-13 - Fix: annotation/todo-decompose 上游原始返回调试日志补齐
+
+### Changed
+
+- `src/server/todo-decompose-service.ts`
+  - `TODO_DECOMPOSE_VERBOSE_LOGS=true` 时，DashScope/Gemini 成功日志新增 `finishReason`、usage 与完整 `rawFull`（不再仅 `rawPreview`）。
+  - Gemini/DashScope 错误与重试日志新增 `responseRaw`，便于直接查看上游错误原文。
+  - 请求结束日志新增 `rawLength` 与 `rawPreview`，便于快速判断“有返回但解析失败”的场景。
+- `src/server/annotation-handler-utils.ts` + `src/server/annotation-handler.ts`
+  - Gemini annotation 调用新增 verbose 成功日志：`finishReason`、`usageMetadata`、`candidatesCount` 与完整 `rawFull`。
+  - Gemini annotation 失败日志新增 `responseRaw`。
+  - suggestion/annotation/rewrite 侧日志补充 `finishReason`，便于定位“输出说一半”是否由 `MAX_TOKENS`/安全阻断触发。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-13 - Feat: 语言偏好同步到云端 metadata（i18nextLng）
+
+### Changed
+
+- `src/store/useAuthStore.ts`
+  - 新增 `updateLanguagePreference(language)`：统一执行语言切换并写入 `auth.users.raw_user_meta_data.i18nextLng`（Supabase `updateUser({ data })`）。
+  - 初始化登录态与 `SIGNED_IN` 事件新增语言 metadata 自愈：当云端缺失 `i18nextLng` 时，自动使用当前 i18n 语言回填；当云端已有值时，优先同步到前端 i18n。
+  - 新增语言归一化工具（`zh/en/it`）与 metadata 读取/同步辅助函数，避免 `zh-CN`、`it-IT` 等区域变体导致漂移。
+- `src/components/layout/LanguageSwitcher.tsx`
+  - 语言切换入口改为调用 `useAuthStore.updateLanguagePreference(...)`，确保“切换即上云”。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-13 - Fix: 连续专注默认时长跟随首个子任务
+
+### Changed
+
+- `src/features/growth/FocusMode.tsx`
+  - 新增 `normalizeDurationMinutes`，统一将建议时长归一到 `1-60` 分钟，缺省回退 `25` 分钟。
+  - Focus 弹层打开时，`durationMinutes` 初始值改为优先读取首个子任务/当前待办的 `suggestedDuration`，不再固定 `25`。
+  - 新增未开跑状态下的时长同步逻辑：当目标待办切换（含连续专注场景）时，圆盘展示时长自动更新为对应子任务建议时长。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-13 - Fix: annotation 调试日志补齐（请求/Prompt/模型输出/特殊模式）
+
+### Changed
+
+- `src/server/annotation-handler.ts`
+  - 新增统一结构化 verbose 日志入口：`ANNOTATION_VERBOSE_LOGS=true` 时记录 `request.received`（完整 `eventData` + `userContext`）。
+  - 在 suggestion/annotation 双链路新增 `prompt.*.built` 与 `llm.*.raw_output` 日志，覆盖 system prompt、user prompt、原始模型输出与 usage 元信息。
+  - 新增 `special_modes.resolved` 与 `response.*` 日志，明确是否命中 suggestion、低叙事事件触发信息、横向联想触发与类型、最终返回 payload。
+- `api/README.md`
+  - 补充 `/api/annotation` verbose 日志说明，明确 Vercel Logs 可见字段范围与开关条件。
+
+## 2026-04-13 - Fix: Magic Pen 本地快路径收口（8 字阈值 + 待办拦截 + 多动作拦截）
+
+### Changed
+
+- `src/features/chat/chatPageActions.ts`
+  - `shouldUseLocalFastPath(...)` 收口为“仅简单输入且语义长度 <= 8”才允许本地快路径。
+  - 新增待办/清单意图拦截（如“以下是我的待办 / 待办 / todo / 清单”等），命中后强制走 parser。
+  - 新增多动作拦截（括号/分隔符/中文空格列举/多动作词），默认禁用本地快路径，避免整句被直接写成活动。
+- `src/features/chat/chatPageActions.test.ts`
+  - 更新快路径阈值用例为“8 字以内”。
+  - 新增回归用例：待办清单输入强制走 parser；短句多动作输入强制走 parser。
+
+### Validation
+
+- `npm run test:unit -- src/features/chat/chatPageActions.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-12 - Fix: recovery 建议改为 recovery-only 提示链路，统一文案与按钮目标
 
 ### Changed

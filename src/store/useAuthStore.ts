@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import i18n from '../i18n';
 import { useChatStore } from './useChatStore';
 import { useTodoStore } from './useTodoStore';
 import { useReportStore } from './useReportStore';
@@ -11,10 +12,10 @@ import { useStardustStore } from './useStardustStore';
 import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
-import { toDbMessage, toDbReport, toDbTodo } from '../lib/dbMappers';
 import { isLegacyChatActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
 import type { UserProfileV2 } from '../types/userProfile';
+import { syncLocalDataToSupabase } from './authDataSyncHelpers';
 import {
   LONG_TERM_PROFILE_ENABLED_KEY,
   mergeUserProfile,
@@ -24,6 +25,7 @@ import {
 } from './authProfileHelpers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
+export type UiLanguage = 'zh' | 'en' | 'it';
 export type MembershipPlan = 'free' | 'plus';
 export type MembershipSource = 'metadata' | 'temporary_unlock' | 'default_free';
 
@@ -72,6 +74,7 @@ const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_EN
   : { plan: 'free', isPlus: false, source: 'default_free' };
 
 const LOCAL_DATA_OWNER_KEY = 'tshine:local-data-owner:v1';
+const SUPPORTED_UI_LANGUAGES: UiLanguage[] = ['zh', 'en', 'it'];
 
 type LocalDataOwner =
   | { type: 'anonymous'; userId: null }
@@ -135,8 +138,55 @@ interface AuthState {
     updater: Partial<UserProfileV2> | ((prev: UserProfileV2 | null) => UserProfileV2),
   ) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
+  updateLanguagePreference: (language: string) => Promise<{ error: any }>;
   /** Re-compute activityStreak from Supabase — call after recording a new activity */
   refreshActivityStreak: () => Promise<void>;
+}
+
+function normalizeUiLanguage(raw: unknown): UiLanguage {
+  const normalized = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (normalized.startsWith('zh')) return 'zh';
+  if (normalized.startsWith('it')) return 'it';
+  return 'en';
+}
+
+function languageFromMeta(meta: Record<string, any>): UiLanguage | null {
+  const value = meta.i18nextLng;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const normalized = normalizeUiLanguage(value);
+  return SUPPORTED_UI_LANGUAGES.includes(normalized) ? normalized : null;
+}
+
+function syncI18nLanguageFromMeta(meta: Record<string, any>): void {
+  const cloudLanguage = languageFromMeta(meta);
+  if (!cloudLanguage) return;
+  const current = normalizeUiLanguage(i18n.language);
+  if (current !== cloudLanguage) {
+    void i18n.changeLanguage(cloudLanguage);
+  }
+}
+
+async function ensureCloudLanguageMetadata(user: any | null): Promise<any | null> {
+  if (!user) return user;
+  const meta = (user.user_metadata || {}) as Record<string, any>;
+  const cloudLanguage = languageFromMeta(meta);
+  if (cloudLanguage) {
+    syncI18nLanguageFromMeta(meta);
+    return user;
+  }
+
+  const fallbackLanguage = normalizeUiLanguage(i18n.language);
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      ...meta,
+      i18nextLng: fallbackLanguage,
+    },
+  });
+  if (error || !data?.user) {
+    return user;
+  }
+
+  return data.user;
 }
 
 function getTodayDateStr(): string {
@@ -430,11 +480,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     // Get initial session
     const session = await getSupabaseSession();
-    const sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
+    let sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
+    sessionUser = await ensureCloudLanguageMetadata(sessionUser);
     const meta = sessionUser?.user_metadata || {};
     const nextPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
     const profileState = profileStateFromMeta(meta);
     const membership = resolveMembershipState(sessionUser);
+    syncI18nLanguageFromMeta(meta);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
     set({
       user: sessionUser,
@@ -464,7 +516,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Existing-session restore path (app cold start / refresh):
         // push any local data first, then pull cloud state.
         // This avoids local-vs-cloud drift when the same account worked offline.
-        await syncLocalDataToSupabase(session.user.id);
+        await syncLocalDataToSupabase(session.user.id, {
+          currentUser: sessionUser,
+          onUserUpdated: (user) => set({ user }),
+        });
       }
 
       markGrowthDailyLoginSession(session.user.id);
@@ -501,6 +556,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (event === 'SIGNED_IN' && currentUser) {
         currentUser = await ensureTodayLoginDay(currentUser);
+        currentUser = await ensureCloudLanguageMetadata(currentUser);
       }
 
       const nextPreferences = currentUser
@@ -508,6 +564,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         : DEFAULT_PREFERENCES;
       const profileState = profileStateFromMeta(currentUser?.user_metadata || {});
       const membership = resolveMembershipState(currentUser);
+      syncI18nLanguageFromMeta(currentUser?.user_metadata || {});
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
       set({
         user: currentUser,
@@ -547,7 +604,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           clearLocalDomainStores();
         } else if (canMigrateAnonymousData) {
           console.log('User signed in. Syncing anonymous local data...');
-          await syncLocalDataToSupabase(currentUser.id);
+          await syncLocalDataToSupabase(currentUser.id, {
+            currentUser,
+            onUserUpdated: (user) => set({ user }),
+          });
         }
 
         // 更新连续登录天数
@@ -741,6 +801,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void flushQueuedPreferences();
   },
 
+  updateLanguagePreference: async (language: string) => {
+    const normalized = normalizeUiLanguage(language);
+    await i18n.changeLanguage(normalized);
+
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: null };
+    }
+
+    const latestSession = await getSupabaseSession();
+    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
+    const nextMeta = {
+      ...baseMeta,
+      i18nextLng: normalized,
+    };
+
+    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+    if (!error && data?.user) {
+      set({ user: data.user });
+    }
+    return { error };
+  },
+
   refreshActivityStreak: async () => {
     const userId = get().user?.id;
     if (!userId) return;
@@ -833,155 +916,3 @@ async function updateLoginStreak(userId: string): Promise<void> {
   }
 }
 
-async function syncLocalDataToSupabase(userId: string) {
-  const messages = useChatStore.getState().messages
-    .filter((message) => !isLegacyChatActivityType(message.activityType));
-  const moodState = useMoodStore.getState();
-  const bottles = useGrowthStore.getState().bottles;
-  const todos = useTodoStore.getState().todos;
-  const focusSessions = useFocusStore.getState().sessions;
-  const growthState = useGrowthStore.getState();
-
-  // 1. Sync Messages
-  if (messages.length > 0) {
-    const messagesToUpload = messages.map((m) => toDbMessage(m, userId));
-
-    // We use upsert to avoid conflicts if IDs somehow match, 
-    // but typically local IDs (UUIDs) won't conflict with others.
-    const { error } = await supabase.from('messages').upsert(messagesToUpload, { onConflict: 'id' });
-    if (error) {
-      console.error('Error syncing messages:', error);
-    } else {
-      console.log(`Synced ${messages.length} messages.`);
-    }
-  }
-
-  // 2. Sync Moods
-  const moodIds = Array.from(
-    new Set([
-      ...Object.keys(moodState.activityMood),
-      ...Object.keys(moodState.customMoodLabel),
-      ...Object.keys(moodState.customMoodApplied),
-      ...Object.keys(moodState.moodNote),
-    ]),
-  );
-
-  const moodsToUpload = moodIds
-    .map((messageId) => ({
-      user_id: userId,
-      message_id: messageId,
-      mood_label: moodState.activityMood[messageId] ?? null,
-      custom_label: moodState.customMoodLabel[messageId] ?? null,
-      is_custom: moodState.customMoodApplied[messageId] ?? null,
-      note: moodState.moodNote[messageId] ?? null,
-      source: moodState.moodNoteMeta[messageId]?.source ?? moodState.activityMoodMeta[messageId]?.source ?? 'auto',
-    }))
-    .filter((row) =>
-      row.mood_label != null
-      || row.custom_label != null
-      || row.is_custom != null
-      || row.note != null,
-    );
-
-  if (moodsToUpload.length > 0) {
-    const { error } = await supabase
-      .from('moods')
-      .upsert(moodsToUpload, { onConflict: 'user_id,message_id' });
-
-    if (error) {
-      console.error('Error syncing moods:', error);
-    } else {
-      console.log(`Synced ${moodsToUpload.length} moods.`);
-    }
-  }
-
-  // 3. Sync Bottles
-  if (bottles.length > 0) {
-    const bottlesToUpload = bottles.map((bottle) => ({
-      id: bottle.id,
-      user_id: userId,
-      name: bottle.name,
-      type: bottle.type,
-      stars: bottle.stars,
-      round: bottle.round,
-      status: bottle.status,
-      created_at: new Date(bottle.createdAt).toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
-
-    const { error } = await supabase.from('bottles').upsert(bottlesToUpload, { onConflict: 'id' });
-    if (error) {
-      console.error('Error syncing bottles:', error);
-    } else {
-      console.log(`Synced ${bottles.length} bottles.`);
-    }
-  }
-
-  // 4. Sync Todos
-  if (todos.length > 0) {
-    const todosToUpload = todos.map((t) => toDbTodo(t, userId));
-
-    const { error } = await supabase.from('todos').upsert(todosToUpload, { onConflict: 'id' });
-    if (error) {
-      console.error('Error syncing todos:', error);
-    } else {
-      console.log(`Synced ${todos.length} todos.`);
-    }
-  }
-
-  // 5. Sync Focus Sessions
-  if (focusSessions.length > 0) {
-    const sessionsToUpload = focusSessions.map((session) => ({
-      id: session.id,
-      user_id: userId,
-      todo_id: session.todoId || null,
-      started_at: new Date(session.startedAt).toISOString(),
-      ended_at: session.endedAt ? new Date(session.endedAt).toISOString() : null,
-      set_duration: session.setDuration,
-      actual_duration: session.actualDuration ?? null,
-    }));
-
-    const { error } = await supabase.from('focus_sessions').upsert(sessionsToUpload, { onConflict: 'id' });
-    if (error) {
-      console.error('Error syncing focus sessions:', error);
-    } else {
-      console.log(`Synced ${focusSessions.length} focus sessions.`);
-    }
-  }
-
-  // 6. Sync Reports
-  const reports = useReportStore.getState().reports;
-  if (reports.length > 0) {
-    const reportsToUpload = reports.map((r) => toDbReport(r, userId));
-
-    const { error } = await supabase.from('reports').upsert(reportsToUpload, { onConflict: 'id' });
-    if (error) {
-      console.error('Error syncing reports:', error);
-    } else {
-      console.log(`Synced ${reports.length} reports.`);
-    }
-  }
-
-  // 7. Sync Growth Daily Goal metadata when local is newer or cloud is empty
-  if (growthState.dailyGoal && growthState.goalDate) {
-    const currentUser = useAuthStore.getState().user;
-    const remoteGoalDate = normalizeDailyGoalDate(currentUser?.user_metadata?.daily_goal_date);
-    const shouldSyncDailyGoal = !remoteGoalDate || growthState.goalDate >= remoteGoalDate;
-
-    if (shouldSyncDailyGoal) {
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          ...(currentUser?.user_metadata || {}),
-          daily_goal: growthState.dailyGoal,
-          daily_goal_date: growthState.goalDate,
-        },
-      });
-
-      if (error) {
-        console.error('Error syncing daily goal metadata:', error);
-      } else if (data?.user) {
-        useAuthStore.setState({ user: data.user });
-      }
-    }
-  }
-}

@@ -70,6 +70,11 @@ const LATERAL_ASSOCIATION_PROBABILITY_DELTA = 0.2;
 const LATERAL_ASSOCIATION_MIN_PROBABILITY = 0.3;
 const LATERAL_ASSOCIATION_MAX_PROBABILITY = 0.7;
 
+function logAnnotationDebug(stage: string, payload: Record<string, unknown>): void {
+  if (!ENABLE_VERBOSE_ANNOTATION_LOGS) return;
+  console.log(`[Annotation API] ${stage}`, payload);
+}
+
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
   if (typeof lang !== 'string') return 'zh';
   const base = lang.toLowerCase().split('-')[0];
@@ -355,14 +360,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     meta: userContext?.characterStateMeta,
   };
 
-  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-    console.log('[Annotation API] mode:', {
-      eventType,
-      lang: resolvedLang,
-      requestedAiMode: aiMode || 'none',
-      resolvedAiMode: resolvedAiMode || 'fallback',
-    });
-  }
+  logAnnotationDebug('request.received', {
+    eventType,
+    eventData,
+    userContext,
+    lang,
+    resolvedLang,
+    requestedAiMode: aiMode || 'none',
+    resolvedAiMode: resolvedAiMode || 'fallback',
+    debugPrompts,
+    includePromptDebug,
+  });
 
   const defaultSet = getDefaultAnnotations(resolvedLang);
   const routeModel = getModel(resolvedLang);
@@ -370,6 +378,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!runtime.apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
+    logAnnotationDebug('response.no_key_fallback', {
+      provider: runtime.provider,
+      model: routeModel,
+      response: {
+        ...defaultAnnotation,
+        displayDuration: 8000,
+        source: 'default',
+        reason: 'no_key',
+      },
+    });
     res.status(200).json({
       ...defaultAnnotation,
       displayDuration: 8000,
@@ -448,10 +466,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   const associationInstruction = lateralAssociation.associationInstruction;
 
-  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-    console.log('[NarrativeDensity]', {
-      userId: lateralUserId,
-      characterId: lateralCharacterId,
+  logAnnotationDebug('special_modes.resolved', {
+    isSuggestionMode,
+    forceSuggestion,
+    narrative: {
       score: Number(narrativeContext.currentScore.toFixed(3)),
       threshold: Number(narrativeContext.adjustedThreshold.toFixed(3)),
       triggerProbability: Number(narrativeContext.triggerProbability.toFixed(3)),
@@ -459,16 +477,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       blockedReason: narrativeContext.blockedReason,
       triggeredEventType: narrativeContext.narrativeEvent?.eventType,
       triggeredEventId: narrativeContext.narrativeEvent?.eventId,
-    });
-    console.log('[LateralAssociationGate]', {
-      userId: lateralUserId,
-      characterId: lateralCharacterId,
+      instruction: narrativeContext.narrativeEvent?.instruction,
+    },
+    lateralAssociation: {
       score: Number(narrativeContext.currentScore.toFixed(3)),
       probability: Number(lateralAssociation.probability.toFixed(3)),
       triggered: lateralAssociation.triggered,
       associationType: lateralAssociation.associationType,
-    });
-  }
+      originType: lateralAssociation.originType,
+      toneTag: lateralAssociation.toneTag,
+      instruction: lateralAssociation.associationInstruction,
+    },
+  });
 
   if (isSuggestionMode) {
     let suggestionPromptPackage: AnnotationPromptPackage | undefined;
@@ -512,6 +532,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           narrativeEventInstruction,
       });
       suggestionPromptPackage = promptPackage;
+      logAnnotationDebug('prompt.suggestion.built', {
+        provider: runtime.provider,
+        model: promptPackage.model,
+        systemPrompt: promptPackage.instructions,
+        userPrompt: promptPackage.input,
+      });
 
       const llmResponse = await callAnnotationLLM(annotationClient, {
         provider: runtime.provider,
@@ -526,6 +552,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       const raw = removeThinkingTags(llmResponse.outputText || '').trim();
+      logAnnotationDebug('llm.suggestion.raw_output', {
+        provider: runtime.provider,
+        model: promptPackage.model,
+        finishReason: llmResponse.finishReason,
+        outputText: llmResponse.outputText || '',
+        outputTextAfterThinkingTagRemoval: raw,
+        usage: llmResponse.usage,
+        responseId: llmResponse.responseId,
+      });
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
@@ -571,6 +606,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        logAnnotationDebug('response.suggestion.ai', {
+          content: finalContent,
+          suggestion: normalizedSuggestion,
+          source: 'ai',
+          displayDuration: normalizedSuggestion ? 15000 : 8000,
+        });
+
         res.status(200).json({
           content: finalContent,
           tone: 'concerned',
@@ -595,6 +637,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const fallback = recoveryNudge
             ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
             : buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+          logAnnotationDebug('response.suggestion.force_fallback', {
+            content: finalContent,
+            source: 'ai',
+            fallbackSuggestion: fallback.suggestion,
+            displayDuration: 15000,
+          });
           res.status(200).json({
             content: finalContent,
             tone: 'concerned',
@@ -611,6 +659,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
           return;
         }
+
+        logAnnotationDebug('response.suggestion.comment_only', {
+          content: finalContent,
+          source: 'ai',
+          displayDuration: 8000,
+        });
 
         res.status(200).json({
           content: finalContent,
@@ -717,6 +771,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       narrativeEventInstruction,
     });
     annotationPromptPackage = promptPackage;
+    logAnnotationDebug('prompt.annotation.built', {
+      provider: runtime.provider,
+      model: promptPackage.model,
+      systemPrompt: promptPackage.instructions,
+      userPrompt: promptPackage.input,
+    });
 
     const llmResponse = await callAnnotationLLM(annotationClient, {
       provider: runtime.provider,
@@ -729,19 +789,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseURL: runtime.baseURL,
     });
 
-    const promptCacheHits = (llmResponse.usage as any)?.prompt_cache_hits ?? 0;
-    const promptCacheMisses = (llmResponse.usage as any)?.prompt_cache_misses ?? 0;
-    if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-      console.log('[Annotation API] LLM meta:', {
-        lang: resolvedLang,
-        model: promptPackage.model,
-        usage: llmResponse.usage,
-        prompt_cache_hits: promptCacheHits,
-        prompt_cache_misses: promptCacheMisses,
-        cached: promptCacheHits > 0,
-        response_id: llmResponse.responseId,
-      });
-    }
+    logAnnotationDebug('llm.annotation.raw_output', {
+      provider: runtime.provider,
+      model: promptPackage.model,
+      finishReason: llmResponse.finishReason,
+      outputText: llmResponse.outputText || '',
+      usage: llmResponse.usage,
+      responseId: llmResponse.responseId,
+    });
 
     let content: string = llmResponse.outputText;
 
@@ -840,8 +895,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
             console.log('[Annotation API] 重写候选', {
               attempt,
+              finishReason: rewriteResponse.finishReason,
               similarity: Number(rewriteSimilarity.toFixed(3)),
               hasDuplicateEmoji: rewriteHasDuplicateEmoji,
+              rawLength: rewriteRaw.length,
+              rawOutput: rewriteRaw,
             });
           }
 
@@ -890,6 +948,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 如果 AI 忘记加 emoji，补上该 eventType 专属的兜底 emoji
     content = ensureEmoji(content, fallbackEmoji);
+
+    logAnnotationDebug('response.annotation.ai', {
+      content,
+      tone,
+      source: 'ai',
+      displayDuration: 8000,
+      narrativeEvent: narrativeContext.narrativeEvent,
+    });
 
     res.status(200).json({
       content,

@@ -249,20 +249,28 @@ export async function decomposeTodoWithAIDiagnostics(params: {
           status: response.status,
           statusText: response.statusText,
           responsePreview: previewText(errorText),
+          responseRaw: errorText,
         });
       }
       throw new Error(`DashScope todo decompose failed: ${response.status} ${errorText}`);
     }
     const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      usage?: unknown;
+      choices?: Array<{
+        finish_reason?: string;
+        message?: { content?: string };
+      }>;
     };
     rawContent = payload.choices?.[0]?.message?.content || '';
     provider = 'dashscope';
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
       console.log('[Todo Decompose] provider.dashscope.success', {
         model,
+        finishReason: payload.choices?.[0]?.finish_reason || null,
+        usage: payload.usage,
         rawLength: rawContent.length,
         rawPreview: previewText(rawContent),
+        rawFull: rawContent,
       });
     }
   } else {
@@ -327,6 +335,7 @@ export async function decomposeTodoWithAIDiagnostics(params: {
             toModel: fallbackGeminiModel,
             status: response.status,
             responsePreview: previewText(firstErrorText),
+            responseRaw: firstErrorText,
           });
         }
         response = await requestGemini(fallbackGeminiModel);
@@ -340,13 +349,16 @@ export async function decomposeTodoWithAIDiagnostics(params: {
             status: response.status,
             statusText: response.statusText,
             responsePreview: previewText(secondErrorText),
+            responseRaw: secondErrorText,
           });
         }
         throw new Error(`Gemini todo decompose failed: ${response.status} ${secondErrorText}`);
       }
     }
     const payload = (await response.json()) as {
+      usageMetadata?: unknown;
       candidates?: Array<{
+        finishReason?: string;
         content?: {
           parts?: Array<{ text?: string }>;
         };
@@ -356,8 +368,12 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
       console.log('[Todo Decompose] provider.gemini.success', {
         model: modelUsed,
+        finishReason: payload.candidates?.[0]?.finishReason || null,
+        usageMetadata: payload.usageMetadata,
+        candidatesCount: payload.candidates?.length || 0,
         rawLength: rawContent.length,
         rawPreview: previewText(rawContent),
+        rawFull: rawContent,
       });
     }
     provider = 'gemini';
@@ -369,6 +385,8 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     console.log('[Todo Decompose] request.finish', {
       provider,
       model: modelUsed,
+      rawLength: rawContent.length,
+      rawPreview: previewText(rawContent),
       parseStatus: parsed.parseStatus,
       stepCount: normalizedSteps.length,
     });

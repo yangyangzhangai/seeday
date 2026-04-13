@@ -21,7 +21,10 @@ interface AnnotationLLMCallResult {
   outputText: string;
   usage?: unknown;
   responseId?: string;
+  finishReason?: string;
 }
+
+const ENABLE_VERBOSE_ANNOTATION_LOGS = process.env.ANNOTATION_VERBOSE_LOGS === 'true';
 
 const STALE_TODO_DAYS_THRESHOLD = 3;
 const OVERDUE_TODO_MS_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -107,20 +110,44 @@ export async function callAnnotationLLM(
     });
     if (!response.ok) {
       const errorText = await response.text();
+      if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+        console.error('[Annotation API] llm.gemini.error', {
+          model: geminiModel,
+          status: response.status,
+          statusText: response.statusText,
+          responseRaw: errorText,
+        });
+      }
       throw new Error(`Gemini annotation failed: ${response.status} ${errorText}`);
     }
     const payload = (await response.json()) as {
       usageMetadata?: unknown;
+      promptFeedback?: {
+        blockReason?: string;
+      };
       candidates?: Array<{
+        finishReason?: string;
         content?: {
           parts?: Array<{ text?: string }>;
         };
       }>;
     };
     const outputText = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+    const finishReason = payload.candidates?.[0]?.finishReason || payload.promptFeedback?.blockReason;
+    if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
+      console.log('[Annotation API] llm.gemini.success', {
+        model: geminiModel,
+        finishReason: finishReason || null,
+        usageMetadata: payload.usageMetadata,
+        candidatesCount: payload.candidates?.length || 0,
+        rawLength: outputText.length,
+        rawFull: outputText,
+      });
+    }
     return {
       outputText,
       usage: payload.usageMetadata,
+      finishReason,
     };
   }
 
@@ -143,6 +170,7 @@ export async function callAnnotationLLM(
       outputText: completion.choices?.[0]?.message?.content || '',
       usage: completion.usage,
       responseId: completion.id,
+      finishReason: completion.choices?.[0]?.finish_reason,
     };
   }
 
