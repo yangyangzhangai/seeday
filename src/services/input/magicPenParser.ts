@@ -40,6 +40,21 @@ function summarizeSegments(
   }));
 }
 
+function classifyParseOutcome(response: {
+  parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
+  providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
+  failureCategory?: 'model_output_invalid' | 'provider_call_failed' | 'unknown';
+  data: { unparsed: string[] };
+}): 'ok' | 'partial_unrecognized' | 'parse_failed' {
+  if (response.parseStrategy === 'fallback_failed' || response.providerUsed === 'none') {
+    return 'parse_failed';
+  }
+  if (response.data.unparsed.length > 0) {
+    return 'partial_unrecognized';
+  }
+  return 'ok';
+}
+
 function preprocessRawText(rawText: string): string {
   return rawText.trim().replace(/[^\S\n]+/g, ' ').slice(0, 500);
 }
@@ -87,6 +102,7 @@ export async function parseMagicPenInput(
       currentLocalDateTime: toLocalDateTimeString(now),
       timezoneOffsetMinutes: -now.getTimezoneOffset(),
     });
+    const parseOutcome = classifyParseOutcome(response);
 
     logMagicPenParser('parse.api_response', {
       elapsedMs: Date.now() - startedAt,
@@ -94,11 +110,24 @@ export async function parseMagicPenInput(
       parseStrategy: response.parseStrategy,
       providerUsed: response.providerUsed,
       fallbackFrom: response.fallbackFrom,
+      failureCategory: response.failureCategory,
+      providerAttempts: response.attempts,
+      parseOutcome,
       segmentCount: response.data.segments.length,
       unparsedCount: response.data.unparsed.length,
       segments: summarizeSegments(response.data.segments),
       unparsedPreview: response.data.unparsed.map((segment) => previewInput(segment, 48)),
     });
+
+    if (parseOutcome === 'parse_failed') {
+      logMagicPenParser('parse.api_failed', {
+        traceId: response.traceId,
+        parseStrategy: response.parseStrategy,
+        providerUsed: response.providerUsed,
+        failureCategory: response.failureCategory,
+        providerAttempts: response.attempts,
+      });
+    }
 
     const built = buildDraftsFromAIResult(response.data, now, options.lang ?? 'zh');
     const salvagedDrafts = (options.lang ?? 'zh') === 'zh'

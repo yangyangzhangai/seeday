@@ -87,7 +87,7 @@ describe('annotation-handler', () => {
     expect(responsesCreateMock).toHaveBeenCalledTimes(1);
 
     const request = responsesCreateMock.mock.calls[0][0];
-    expect(request.instructions).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
+    expect(request.instructions).toContain('You are Zep');
     expect(request.input).not.toContain('Current holiday:');
     expect(request.input).toContain('Season: unknown');
     expect(request.input).toContain('Weather: unknown, unknown');
@@ -422,6 +422,101 @@ describe('annotation-handler', () => {
     expect(suggestion?.rewardStars).toBe(2);
     expect(suggestion?.rewardBottleId).toBe('bottle-1');
     expect(suggestion?.recoveryKey).toBe('recurring:tpl-1:miss1d');
+  });
+
+  it('keeps recovery suggestion target aligned even if model returns unrelated activity', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_recovery_mismatch',
+      output_text: '{"mode":"suggestion","content":"Normally one star, but today if you recover coding you get two stars ⭐","suggestion":{"type":"activity","actionLabel":"Go organize album","activityName":"organize album"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'opened app again' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [
+            { id: 'todo-coding', title: 'Finish coding task' },
+            { id: 'todo-album', title: 'Organize album' },
+          ],
+          allowSuggestion: true,
+          forceSuggestion: true,
+          recoveryNudge: {
+            key: 'bottle:1:miss3d',
+            reason: 'bottle_missed_3_days',
+            rewardStars: 2,
+            todoId: 'todo-coding',
+            todoTitle: 'Finish coding task',
+            bottleId: 'bottle-1',
+          },
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    const payload = res.payload as { content: string; suggestion?: Record<string, unknown> };
+    expect(res.statusCode).toBe(200);
+    expect(payload.content).toContain('one star');
+    expect(payload.content).toContain('two stars');
+    expect(payload.suggestion?.type).toBe('todo');
+    expect(payload.suggestion?.todoId).toBe('todo-coding');
+    expect(payload.suggestion?.todoTitle).toBe('Finish coding task');
+    expect(payload.suggestion?.rewardStars).toBe(2);
+    expect(payload.suggestion?.recoveryKey).toBe('bottle:1:miss3d');
+  });
+
+  it('falls back to recovery copy when model misses one-vs-two star contrast', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_recovery_bad_copy',
+      output_text: '{"mode":"suggestion","content":"You can do it today ⭐","suggestion":{"type":"todo","actionLabel":"Start now","todoId":"todo-1","todoTitle":"Run"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'opened app again' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-1', title: 'Run' }],
+          allowSuggestion: true,
+          forceSuggestion: true,
+          recoveryNudge: {
+            key: 'bottle:2:miss3d',
+            reason: 'bottle_missed_3_days',
+            rewardStars: 2,
+            todoId: 'todo-1',
+            todoTitle: 'Run',
+          },
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    const payload = res.payload as { content: string; suggestion?: Record<string, unknown> };
+    expect(res.statusCode).toBe(200);
+    expect(payload.content).toContain('one star');
+    expect(payload.content).toContain('two stars');
+    expect(payload.suggestion?.todoId).toBe('todo-1');
+    expect(payload.suggestion?.rewardStars).toBe(2);
   });
 
   it('disables character state injection when server switch is off', async () => {

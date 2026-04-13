@@ -4,6 +4,37 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-12 - Fix: recovery 建议改为 recovery-only 提示链路，统一文案与按钮目标
+
+### Changed
+
+- `src/server/annotation-prompts.user.ts`
+  - recovery nudge 命中时切换为 recovery-only prompt：仅注入 recovery 目标上下文，不再暴露普通待办列表，要求模型输出“平时 1 星 / 今天恢复 2 星”且带督促语气。
+  - 明确约束 suggestion 只能围绕 recovery 目标，避免出现“正文说 A、按钮指向 B”。
+- `src/server/annotation-suggestion.ts`
+  - 新增 `normalizeRecoverySuggestion`：recovery 场景下强制 suggestion 与 recovery 目标对齐（todoId/todoTitle/rewardStars/recoveryKey）。
+  - 新增 `isRecoveryContentCompliant`：校验文案是否包含 1 星与 2 星对比，不合规走 fallback。
+- `src/server/annotation-handler.ts`
+  - recovery 场景改为“AI 文案优先 + 规则校验兜底”，不再无条件覆盖正文。
+  - suggestion 统一走 recovery 归一化，避免按钮跳转目标漂移到无关活动。
+- `src/server/annotation-prompts.user.test.ts` + `src/server/annotation-handler.test.ts`
+  - 新增/更新回归测试：覆盖 recovery-only prompt、生效后 suggestion 对齐、以及文案不合规时 fallback。
+
+### Validation
+
+- `npx vitest run src/server/annotation-prompts.user.test.ts src/server/annotation-handler.test.ts` ✅
+
+## 2026-04-12 - Fix: todo-decompose Gemini 默认模型升级到 2.5 + 404 自动降级
+
+### Changed
+
+- `src/server/todo-decompose-service.ts` + `api/todo-decompose.ts`
+  - `/api/todo-decompose` 的 en/it 默认模型从 `gemini-2.0-flash` 升级为 `gemini-2.5-flash`，避免新账户调用已下线模型返回 404。
+  - Gemini 调用新增“模型下线 404”自动降级重试：首个模型命中 `NOT_FOUND`/`no longer available` 时，自动切到 `TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`（默认 `gemini-2.5-flash`）重试一次。
+  - 诊断日志补充 fallback 信息，并在成功/返回结构中反映实际调用模型（`model`）。
+- `.env.example` + `api/README.md` + `src/api/README.md` + `DEPLOY.md` + `docs/AI_USAGE_INVENTORY.md`
+  - 同步默认模型说明为 `gemini-2.5-flash`，并新增 `TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL` 配置说明。
+
 ## 2026-04-11 - Fix: todo-decompose 可观测性增强 + annotation 中文模型切换 DeepSeek
 
 ### Changed

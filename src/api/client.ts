@@ -354,6 +354,13 @@ interface MagicPenParseResponse {
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
   providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
   fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception' | 'qwen';
+  failureCategory?: 'model_output_invalid' | 'provider_call_failed' | 'unknown';
+  attempts?: Array<{
+    provider: 'zhipu' | 'qwen_flash_fallback';
+    reason: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
+    status?: number;
+    elapsedMs: number;
+  }>;
 }
 
 export async function callMagicPenParseAPI(

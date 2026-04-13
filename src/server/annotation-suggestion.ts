@@ -199,6 +199,62 @@ export function normalizeSuggestion(
   return normalized;
 }
 
+export function normalizeRecoverySuggestion(
+  lang: AnnotationLang,
+  suggestion: Record<string, unknown> | undefined,
+  recoveryNudge: RecoveryNudgeContext,
+): Record<string, unknown> {
+  const fallback = buildRecoveryFallbackSuggestion(lang, recoveryNudge).suggestion;
+  const normalized = normalizeSuggestion(lang, suggestion, recoveryNudge) ?? fallback;
+
+  const result: Record<string, unknown> = {
+    ...fallback,
+    rewardStars: 2,
+    recoveryKey: recoveryNudge.key,
+  };
+
+  if (recoveryNudge.bottleId) {
+    result.rewardBottleId = recoveryNudge.bottleId;
+  }
+
+  if (recoveryNudge.todoId) {
+    result.type = 'todo';
+    result.todoId = recoveryNudge.todoId;
+    if (recoveryNudge.todoTitle) {
+      result.todoTitle = recoveryNudge.todoTitle;
+    }
+    delete result.activityName;
+  } else {
+    result.type = 'activity';
+    result.activityName = recoveryNudge.activityName || String(normalized.activityName || fallback.activityName || '').trim();
+    delete result.todoId;
+    delete result.todoTitle;
+  }
+
+  return result;
+}
+
+export function isRecoveryContentCompliant(lang: AnnotationLang, content: string): boolean {
+  const text = String(content || '').toLowerCase();
+  if (!text.trim()) return false;
+
+  if (lang === 'zh') {
+    const hasOne = /1\s*颗?星|一\s*颗?星/.test(text);
+    const hasTwo = /2\s*颗?星|两\s*颗?星/.test(text);
+    return hasOne && hasTwo;
+  }
+
+  if (lang === 'it') {
+    const hasOne = /1\s*stella|una\s+stella/.test(text);
+    const hasTwo = /2\s*stelle|due\s+stelle/.test(text);
+    return hasOne && hasTwo;
+  }
+
+  const hasOne = /1\s*star|one\s+star/.test(text);
+  const hasTwo = /2\s*stars|two\s+stars/.test(text);
+  return hasOne && hasTwo;
+}
+
 export function buildRecoveryFallbackSuggestion(
   lang: AnnotationLang,
   recoveryNudge: RecoveryNudgeContext,

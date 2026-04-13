@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lang,
       titleLength: typeof title === 'string' ? title.trim().length : 0,
       modelZh: process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus',
-      modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.0-flash',
+      modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.5-flash',
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       hasQwenKey: Boolean(process.env.QWEN_API_KEY),
       qwenBase: process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',

@@ -15,6 +15,7 @@ export interface TodoDecomposeResult {
 
 const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_TODO_DECOMPOSE_GEMINI_MODEL = 'gemini-2.5-flash';
 const ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS = process.env.TODO_DECOMPOSE_VERBOSE_LOGS === 'true';
 
 function previewText(raw: string, maxLen: number = 220): string {
@@ -147,15 +148,29 @@ function resolveDecomposeModel(lang: DecomposeLang, model?: string): string {
   if (lang === 'zh') {
     return (process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus').trim() || 'qwen-plus';
   }
-  return (process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.0-flash').trim() || 'gemini-2.0-flash';
+  return (
+    process.env.TODO_DECOMPOSE_MODEL
+    || DEFAULT_TODO_DECOMPOSE_GEMINI_MODEL
+  ).trim() || DEFAULT_TODO_DECOMPOSE_GEMINI_MODEL;
 }
 
 function normalizeGeminiModel(model: string): string {
   const trimmed = String(model || '').trim();
-  if (!trimmed) return 'gemini-2.0-flash';
+  if (!trimmed) return DEFAULT_TODO_DECOMPOSE_GEMINI_MODEL;
   if (trimmed === 'gemini2.0-flash') return 'gemini-2.0-flash';
+  if (trimmed === 'gemini2.5-flash') return 'gemini-2.5-flash';
   if (trimmed.startsWith('models/')) return trimmed.slice(7);
   return trimmed;
+}
+
+function shouldRetryGeminiModelNotFound(status: number, errorText: string): boolean {
+  if (status !== 404) return false;
+  const normalizedError = String(errorText || '').toLowerCase();
+  return (
+    normalizedError.includes('not_found')
+    || normalizedError.includes('not found')
+    || normalizedError.includes('no longer available')
+  );
 }
 
 export async function decomposeTodoWithAI(params: {
@@ -179,6 +194,7 @@ export async function decomposeTodoWithAIDiagnostics(params: {
   const model = resolveDecomposeModel(params.lang, params.model);
   const preferDashscope = /^qwen/i.test(model);
   let provider: 'gemini' | 'dashscope' = preferDashscope ? 'dashscope' : 'gemini';
+  let modelUsed = model;
   let rawContent = '';
 
   if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
@@ -260,14 +276,11 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       || DEFAULT_GEMINI_BASE_URL
     ).replace(/\/$/, '');
     const geminiModel = normalizeGeminiModel(model);
-    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.gemini.start', {
-        model: geminiModel,
-        baseURL: geminiBase,
-      });
-    }
-    const response = await fetch(
-      `${geminiBase}/models/${geminiModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+    const fallbackGeminiModel = normalizeGeminiModel(
+      process.env.TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL || DEFAULT_TODO_DECOMPOSE_GEMINI_MODEL,
+    );
+    const requestGemini = async (targetModel: string) => fetch(
+      `${geminiBase}/models/${targetModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
       {
         method: 'POST',
         headers: {
@@ -291,17 +304,46 @@ export async function decomposeTodoWithAIDiagnostics(params: {
         }),
       },
     );
+    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+      console.log('[Todo Decompose] provider.gemini.start', {
+        model: geminiModel,
+        fallbackModel: fallbackGeminiModel,
+        baseURL: geminiBase,
+      });
+    }
+    let response = await requestGemini(geminiModel);
+    modelUsed = geminiModel;
     if (!response.ok) {
-      const errorText = await response.text();
-      if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-        console.error('[Todo Decompose] provider.gemini.error', {
-          model: geminiModel,
-          status: response.status,
-          statusText: response.statusText,
-          responsePreview: previewText(errorText),
-        });
+      const firstErrorText = await response.text();
+      const shouldRetry = (
+        geminiModel !== fallbackGeminiModel
+        && shouldRetryGeminiModelNotFound(response.status, firstErrorText)
+      );
+      if (shouldRetry) {
+        if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+          console.warn('[Todo Decompose] provider.gemini.retry', {
+            reason: 'model_not_found',
+            fromModel: geminiModel,
+            toModel: fallbackGeminiModel,
+            status: response.status,
+            responsePreview: previewText(firstErrorText),
+          });
+        }
+        response = await requestGemini(fallbackGeminiModel);
+        modelUsed = fallbackGeminiModel;
       }
-      throw new Error(`Gemini todo decompose failed: ${response.status} ${errorText}`);
+      if (!response.ok) {
+        const secondErrorText = await response.text();
+        if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
+          console.error('[Todo Decompose] provider.gemini.error', {
+            model: modelUsed,
+            status: response.status,
+            statusText: response.statusText,
+            responsePreview: previewText(secondErrorText),
+          });
+        }
+        throw new Error(`Gemini todo decompose failed: ${response.status} ${secondErrorText}`);
+      }
     }
     const payload = (await response.json()) as {
       candidates?: Array<{
@@ -313,7 +355,7 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     rawContent = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
       console.log('[Todo Decompose] provider.gemini.success', {
-        model: geminiModel,
+        model: modelUsed,
         rawLength: rawContent.length,
         rawPreview: previewText(rawContent),
       });
@@ -326,7 +368,7 @@ export async function decomposeTodoWithAIDiagnostics(params: {
   if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
     console.log('[Todo Decompose] request.finish', {
       provider,
-      model,
+      model: modelUsed,
       parseStatus: parsed.parseStatus,
       stepCount: normalizedSteps.length,
     });
@@ -334,7 +376,7 @@ export async function decomposeTodoWithAIDiagnostics(params: {
   return {
     steps: normalizedSteps,
     parseStatus: parsed.parseStatus,
-    model,
+    model: modelUsed,
     provider,
   };
 }

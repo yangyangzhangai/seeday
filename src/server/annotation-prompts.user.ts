@@ -253,6 +253,101 @@ function buildUserProfileSnapshotText(userProfileSnapshot: UserProfileSnapshot |
   return '无';
 }
 
+function buildRecoverySuggestionOnlyPrompt(input: {
+  lang: string;
+  eventType: string;
+  eventSummary: string;
+  recoveryNudge: RecoveryNudgeContext;
+  currentDate?: AnnotationCurrentDate;
+  currentHour?: number;
+  currentMinute?: number;
+  holiday?: AnnotationHolidayContext;
+  weatherContext?: WeatherContextV2;
+  seasonContext?: SeasonContextV2;
+  weatherAlerts?: WeatherAlert[];
+}): string {
+  const {
+    lang,
+    eventType,
+    eventSummary,
+    recoveryNudge,
+    currentDate,
+    currentHour,
+    currentMinute,
+    holiday,
+    weatherContext,
+    seasonContext,
+    weatherAlerts,
+  } = input;
+  const hourText = currentHour !== undefined
+    ? `${String(currentHour).padStart(2, '0')}:${String(currentMinute ?? 0).padStart(2, '0')}`
+    : null;
+
+  const rewardTarget = recoveryNudge.todoTitle || recoveryNudge.bottleName || recoveryNudge.activityName || '';
+  const recoveryJsonShape = '{"mode":"suggestion","content":"<one sentence + one emoji>","suggestion":{"type":"todo|activity","actionLabel":"<button>","todoId":"<optional>","todoTitle":"<optional>","activityName":"<optional>","rewardStars":2,"rewardBottleId":"<optional>","recoveryKey":"<required>"}}';
+
+  if (lang === 'en') {
+    return [
+      'Recovery-only turn: output a recovery suggestion JSON only. Do not output normal annotation.',
+      hourText ? `Current time: ${hourText}` : null,
+      `Current date: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
+      `Just happened: [${eventType}] ${eventSummary}`,
+      `Recovery target: ${rewardTarget || 'the interrupted bottle goal'}`,
+      `Recovery context: ${JSON.stringify(recoveryNudge)}`,
+      'Write in your character voice and sound natural.',
+      'Content must explicitly say: normally this gives 1 star, but today recovering it gives 2 stars (celebration/exception tone allowed).',
+      'Encourage action now with a warm but direct push.',
+      'Suggestion must stay on this recovery target only. Do not switch to unrelated activities.',
+      'Return only JSON with this shape:',
+      recoveryJsonShape,
+      'For todo recovery, keep type=todo and use the provided todoId/todoTitle.',
+      'Always include rewardStars=2 and recoveryKey exactly as provided.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  if (lang === 'it') {
+    return [
+      'Turno solo recovery: restituisci solo JSON di suggerimento recovery. Niente annotazione normale.',
+      hourText ? `Ora corrente: ${hourText}` : null,
+      `Data corrente: ${buildCurrentDateText(currentDate, lang)}`,
+      buildHolidayLine(holiday, lang),
+      ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
+      `Appena successo: [${eventType}] ${eventSummary}`,
+      `Target recovery: ${rewardTarget || 'obiettivo interrotto della bottiglia'}`,
+      `Contesto recovery: ${JSON.stringify(recoveryNudge)}`,
+      'Scrivi con la voce del personaggio, naturale e credibile.',
+      'Nel contenuto devi dire chiaramente: di solito vale 1 stella, ma oggi se recupera vale 2 stelle (tono di eccezione/festeggiamento ammesso).',
+      'Spingi ad agire adesso, con incoraggiamento concreto.',
+      'Il suggerimento deve restare solo su questo target recovery. Non cambiare su attivita non correlate.',
+      'Restituisci solo JSON con questa forma:',
+      recoveryJsonShape,
+      'Per recovery todo usa type=todo e il todoId/todoTitle forniti.',
+      'Includi sempre rewardStars=2 e recoveryKey esattamente come forniti.',
+    ].filter(Boolean).join('\n\n');
+  }
+
+  return [
+    '本轮是 recovery-only：只输出 recovery 建议 JSON，不要输出普通批注。',
+    hourText ? `当前时间：${hourText}` : null,
+    `当前日期：${buildCurrentDateText(currentDate, lang)}`,
+    buildHolidayLine(holiday, lang),
+    ...buildWeatherAndSeasonLines(lang, weatherContext, seasonContext, weatherAlerts),
+    `刚刚发生：[${eventType}] ${eventSummary}`,
+    `恢复目标：${rewardTarget || '中断的瓶子目标'}`,
+    `恢复上下文：${JSON.stringify(recoveryNudge)}`,
+    '请用角色语气自然表达，不要模板腔。',
+    'content 必须明确表达：平时完成是 1 颗星，今天恢复完成是 2 颗星（可带庆祝/破例语气）。',
+    '语气要有督促感，推动用户马上行动。',
+    '建议目标必须只围绕该 recovery 目标，不允许切到无关活动。',
+    '只返回 JSON，格式如下：',
+    recoveryJsonShape,
+    '如果是 todo 恢复，type 必须是 todo，且使用给定 todoId/todoTitle。',
+    'suggestion 内必须包含 rewardStars=2 和 recoveryKey（按上下文原样返回）。',
+  ].filter(Boolean).join('\n\n');
+}
+
 export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput): string {
   const {
     lang,
@@ -294,6 +389,22 @@ export function buildSuggestionAwareUserPrompt(input: SuggestionAwarePromptInput
     .slice(0, 6)
     .map((todo, index) => `${index + 1}. [${todo.id}] ${todo.title}${todo.category ? ` (${todo.category})` : ''}`)
     .join('\n') || 'none';
+
+  if (recoveryNudge) {
+    return buildRecoverySuggestionOnlyPrompt({
+      lang,
+      eventType,
+      eventSummary,
+      recoveryNudge,
+      currentDate,
+      currentHour,
+      currentMinute,
+      holiday,
+      weatherContext,
+      seasonContext,
+      weatherAlerts,
+    });
+  }
 
   if (lang === 'en') {
     const modeRules = forceSuggestion

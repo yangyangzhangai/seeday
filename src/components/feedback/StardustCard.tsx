@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -31,6 +31,7 @@ export const StardustCard: React.FC<StardustCardProps> = ({
   onRetry,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { t } = useTranslation();
 
   // 点击外部关闭
@@ -66,6 +67,12 @@ export const StardustCard: React.FC<StardustCardProps> = ({
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsExpanded(false);
+    }
+  }, [isOpen, data?.createdAt]);
 
   // 计算卡片位置（优先显示在Emoji上方，空间不足则显示在下方）
   const getCardPosition = () => {
@@ -174,15 +181,15 @@ export const StardustCard: React.FC<StardustCardProps> = ({
 
                 {/* 消息内容 */}
                 <div className="relative">
-                  <p className="text-sm text-gray-800 leading-relaxed line-clamp-4">
+                  <p className={`text-sm text-gray-800 leading-relaxed ${isExpanded ? '' : 'line-clamp-4'}`}>
                     {data.message}
                   </p>
                   {data.message.length > 200 && (
                     <button
                       className="text-xs text-purple-600 hover:text-purple-700 mt-1"
-                      onClick={() => {/* TODO: 展开完整内容 */ }}
+                      onClick={() => setIsExpanded((prev) => !prev)}
                     >
-                      {t('expand')}
+                      {isExpanded ? t('report_section_collapse') : t('expand')}
                     </button>
                   )}
                 </div>

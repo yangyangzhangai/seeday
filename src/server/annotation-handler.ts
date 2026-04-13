@@ -13,6 +13,8 @@ import {
   buildForcedFallbackSuggestion,
   buildRecoveryFallbackSuggestion,
   extractSuggestionPayload,
+  isRecoveryContentCompliant,
+  normalizeRecoverySuggestion,
   normalizeSuggestion,
 } from './annotation-suggestion.js';
 import {
@@ -527,16 +529,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
-        let finalContent = ensureEmoji(parsedPayload.content, '🌿');
-        const normalizedSuggestion = normalizeSuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
-          ?? (forceSuggestion
-            ? (recoveryNudge
-              ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).suggestion
-              : buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion)
-            : undefined);
+        const recoveryFallback = recoveryNudge
+          ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
+          : undefined;
 
-        if (recoveryNudge) {
-          finalContent = buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge).content;
+        let finalContent = ensureEmoji(parsedPayload.content, recoveryNudge ? '⭐' : '🌿');
+        const normalizedSuggestion = recoveryNudge
+          ? normalizeRecoverySuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
+          : (normalizeSuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
+            ?? (forceSuggestion
+              ? buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion
+              : undefined));
+
+        if (recoveryFallback && !isRecoveryContentCompliant(resolvedLang, finalContent)) {
+          finalContent = recoveryFallback.content;
         }
 
         if (normalizedSuggestion?.type === 'todo' && typeof normalizedSuggestion.todoId === 'string') {

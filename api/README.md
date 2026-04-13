@@ -49,7 +49,7 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 
 - `/api/annotation` -> `DEEPSEEK_API_KEY`（zh, model `deepseek-chat`）+ `GEMINI_API_KEY`（en/it, model `gemini2.0-flash`）；可选 `ANNOTATION_DEEPSEEK_BASE_URL`/`ANNOTATION_GEMINI_BASE_URL`（Gemini 走原生 `generateContent`）
 - `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`；按 `lang` 路由中/英/意 prompt）
-- `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 Gemini 原生 `GEMINI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gemini-2.0-flash`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL` 与 `TODO_DECOMPOSE_VERBOSE_LOGS=true`
+- `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 Gemini 原生 `GEMINI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gemini-2.5-flash`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL`、`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL` 与 `TODO_DECOMPOSE_VERBOSE_LOGS=true`
 - `/api/report` -> `CHUTES_API_KEY`
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）

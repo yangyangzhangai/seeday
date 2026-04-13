@@ -192,7 +192,34 @@ describe('annotation-prompts holiday formatting', () => {
       },
     });
 
-    expect(prompt).toContain('平时完成是 1 颗星，今天补回完成是 2 颗星');
-    expect(prompt).toContain('不要套模板句');
+    expect(prompt).toContain('平时完成是 1 颗星，今天恢复完成是 2 颗星');
+    expect(prompt).toContain('不要模板腔');
+  });
+
+  it('switches to recovery-only prompt scope when recovery nudge is active', () => {
+    const prompt = buildSuggestionAwareUserPrompt({
+      lang: 'zh',
+      eventType: 'activity_recorded',
+      eventSummary: 'opened app again',
+      todayActivitiesText: '1. [todo-1] 写代码',
+      recentMoodText: 'none',
+      pendingTodos: [
+        { id: 'todo-1', title: '写代码' },
+        { id: 'todo-2', title: '整理相册' },
+      ],
+      recoveryNudge: {
+        key: 'bottle:b1:miss3d',
+        reason: 'bottle_missed_3_days',
+        rewardStars: 2,
+        todoId: 'todo-1',
+        todoTitle: '写代码',
+        bottleId: 'b1',
+        bottleName: '成长瓶',
+      },
+    });
+
+    expect(prompt).toContain('recovery-only');
+    expect(prompt).toContain('建议目标必须只围绕该 recovery 目标');
+    expect(prompt).not.toContain('待办列表：');
   });
 });
