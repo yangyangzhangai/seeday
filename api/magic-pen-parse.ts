@@ -67,7 +67,7 @@ type ProviderCallResult = ProviderCallSuccess | ProviderCallFailure;
 type MagicPenFailureCategory = 'model_output_invalid' | 'provider_call_failed' | 'unknown';
 
 const ZHIPU_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_QWEN_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_FALLBACK_MODEL = 'qwen-flash';
 const PRIMARY_TIMEOUT_MS = 12000;
 const FALLBACK_TIMEOUT_MS = 12000;
@@ -110,7 +110,7 @@ function getTimeoutMs(value: string | undefined, fallbackMs: number): number {
 }
 
 function normalizeBaseUrl(baseUrl: string | undefined): string {
-  const value = (baseUrl || DEFAULT_DASHSCOPE_BASE_URL).trim();
+  const value = (baseUrl || DEFAULT_QWEN_BASE_URL).trim();
   return value.replace(/\/+$/, '');
 }
 
@@ -414,8 +414,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0,
   });
 
-  const apiKey = process.env.ZHIPU_API_KEY;
-  const fallbackApiKey = process.env.QWEN_API_KEY;
+  const apiKey = (process.env.ZHIPU_API_KEY || '').trim();
+  const fallbackApiKey = (process.env.QWEN_API_KEY || '').trim();
   if (!apiKey && !fallbackApiKey) {
     logMagicPen(traceId, 'request.missing_api_keys');
     jsonError(res, 500, 'Server configuration error: Missing API key');
@@ -435,9 +435,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const providerAttempts: ProviderCallFailure[] = [];
 
-    const fallbackApiKey = process.env.QWEN_API_KEY;
     const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
-    const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
+    const fallbackBaseUrl = process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL;
+    const fallbackApiUrl = `${normalizeBaseUrl(fallbackBaseUrl)}/chat/completions`;
     const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
 
     if (fallbackApiKey) {

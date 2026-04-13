@@ -213,8 +213,8 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       throw new Error('Server configuration error: Missing QWEN_API_KEY for todo decompose');
     }
     const dashscopeBase = (
-      process.env.DASHSCOPE_BASE_URL
-      || process.env.QWEN_BASE_URL
+      process.env.QWEN_BASE_URL
+      || process.env.DASHSCOPE_BASE_URL
       || DEFAULT_DASHSCOPE_BASE_URL
     ).replace(/\/$/, '');
     if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
@@ -308,6 +308,9 @@ export async function decomposeTodoWithAIDiagnostics(params: {
             temperature: 0.5,
             maxOutputTokens: 512,
             responseMimeType: 'application/json',
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           },
         }),
       },

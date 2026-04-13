@@ -78,6 +78,7 @@ export async function callAnnotationLLM(
         input: params.input,
         temperature: params.temperature,
         max_output_tokens: params.maxOutputTokens,
+        reasoning_effort: 'none',
       });
       return {
         outputText: response.output_text || '',
@@ -104,6 +105,9 @@ export async function callAnnotationLLM(
         generationConfig: {
           temperature: params.temperature,
           maxOutputTokens: params.maxOutputTokens,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
           ...(params.expectJson ? { responseMimeType: 'application/json' } : {}),
         },
       }),

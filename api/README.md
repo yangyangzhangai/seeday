@@ -18,7 +18,7 @@
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
-| `POST` | `/api/todo-decompose` | `todo-decompose.ts` | `{ success: true, steps }` |
+| `POST` | `/api/todo-decompose` | `todo-decompose.ts` | `{ success: true, steps, parseStatus, model, provider }` |
 | `POST` | `/api/extract-profile` | `extract-profile.ts` | `{ success: true, profile, skipped?, reason? }` |
 | `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus?, message? }` |
 | `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |
@@ -29,7 +29,7 @@
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
-If `QWEN_API_KEY` is configured, `/api/magic-pen-parse` will fallback to DashScope OpenAI-compatible endpoint when Zhipu call fails by timeout/http/empty content/parse failure.
+`/api/magic-pen-parse` currently tries DashScope OpenAI-compatible Qwen first (`qwen-flash`, overridable by `MAGIC_PEN_FALLBACK_MODEL`), then falls back to Zhipu (`glm-4.7-flash`) when needed.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 `/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[] + lang` (`zh`/`en`/`it`) from frontend weekly-report flow.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
@@ -48,7 +48,7 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 
 当前 provider 映射：
 
-- `/api/annotation` -> `DEEPSEEK_API_KEY`（zh, model `deepseek-chat`）+ `GEMINI_API_KEY`（en/it, model `gemini2.0-flash`）；可选 `ANNOTATION_DEEPSEEK_BASE_URL`/`ANNOTATION_GEMINI_BASE_URL`（Gemini 走原生 `generateContent`）
+- `/api/annotation` -> `DEEPSEEK_API_KEY`（zh, model `deepseek-chat`）+ `OPENAI_API_KEY`（en/it, model `gpt-4.1-mini`）；可选 `ANNOTATION_DEEPSEEK_BASE_URL`、`OPENAI_BASE_URL`
 - `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`；按 `lang` 路由中/英/意 prompt）
 - `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 Gemini 原生 `GEMINI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gemini-2.5-flash`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL`、`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL` 与 `TODO_DECOMPOSE_VERBOSE_LOGS=true`
 - `/api/report` -> `CHUTES_API_KEY`
