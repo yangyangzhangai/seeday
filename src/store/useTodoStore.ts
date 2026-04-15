@@ -71,6 +71,8 @@ export interface Todo {
   suggestedDuration?: number; // AI-suggested duration in minutes
   // UI
   isPinned?: boolean;
+  // Sync state tracking（离线优先）
+  syncState?: 'pending' | 'synced' | 'failed';
 }
 
 /** Backward-compat alias for growth components */
@@ -158,7 +160,7 @@ async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'crea
     if (Object.keys(dbUpdates).length === 0) return;
     const { error } = await supabase
       .from('todos')
-      .update(dbUpdates)
+      .update({ ...dbUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', session.user.id);
     if (error) console.error('Error syncing todo update:', error);
@@ -167,23 +169,49 @@ async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'crea
   }
 }
 
+// bgSyncInsert：插入成功后回写 syncState:'synced'，失败后回写 'failed'
 async function bgSyncInsert(todo: Todo): Promise<void> {
   try {
     const session = await getSupabaseSession();
     if (!session) return;
-    const { error } = await supabase.from('todos').insert([toDbTodo(todo, session.user.id)]);
-    if (error) console.error('Error syncing todo insert:', error);
+    const { error } = await supabase
+      .from('todos')
+      .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
+    if (error) {
+      console.error('Error syncing todo insert:', error);
+      useTodoStore.setState((s) => ({
+        todos: s.todos.map((t) =>
+          t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
+        ),
+      }));
+      return;
+    }
+    useTodoStore.setState((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todo.id ? { ...t, syncState: 'synced' as const } : t
+      ),
+    }));
   } catch (e) {
     console.error('bgSyncInsert failed:', e);
+    useTodoStore.setState((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
+      ),
+    }));
   }
 }
 
+// bgSyncDelete：软删除（UPDATE deleted_at），不再硬删除
 async function bgSyncDelete(id: string): Promise<void> {
   try {
     const session = await getSupabaseSession();
     if (!session) return;
-    const { error } = await supabase.from('todos').delete().eq('id', id).eq('user_id', session.user.id);
-    if (error) console.error('Error syncing todo delete:', error);
+    const { error } = await supabase
+      .from('todos')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', session.user.id);
+    if (error) console.error('Error syncing todo soft-delete:', error);
   } catch (e) {
     console.error('bgSyncDelete failed:', e);
   }
@@ -269,7 +297,9 @@ export const useTodoStore = create<TodoState>()(
       activeMessageMap: {},
       todoCompletionMessageMap: {},
 
-      // ── Fetch from Supabase (cloud is source of truth when signed in) ──
+      // ── Fetch from Supabase ──────────────────────────────────────────────
+      // 策略：推 pending/failed → 收集仍然失败的 → 拉云端（软删除过滤）→ 合并失败的进去
+      // syncState='synced' 但云端没有的条目 = 已在其他设备删除，本地也移除（防复活）
       fetchTodos: async () => {
         set({ isLoading: true, lastSyncError: null });
         try {
@@ -279,76 +309,69 @@ export const useTodoStore = create<TodoState>()(
             return;
           }
 
+          // ① 找出本地所有未同步的条目（pending / failed / 无 syncState 的旧数据）
+          const localTodos = get().todos;
+          const needsPush = localTodos.filter(
+            (t) => !t.syncState || t.syncState === 'pending' || t.syncState === 'failed'
+          );
+
+          // ② 尝试推送，收集仍然失败的
+          const stillFailed: Todo[] = [];
+          await Promise.all(
+            needsPush.map(async (t) => {
+              try {
+                const { error } = await supabase
+                  .from('todos')
+                  .upsert([toDbTodo(t, session.user.id)], { onConflict: 'id' });
+                if (error) throw error;
+                // 推成功：在本地标记 synced（fetch 后会被云端数据覆盖，这里是临时标记）
+              } catch {
+                stillFailed.push(t);
+              }
+            })
+          );
+
+          // ③ 拉云端（只拉未软删除的）
           const { data, error } = await supabase
             .from('todos')
             .select('*')
-            .eq('user_id', session.user.id);
+            .eq('user_id', session.user.id)
+            .is('deleted_at', null);
+
           if (error) {
             console.error('Error fetching todos:', error);
-            set({
-              isLoading: false,
-              hasHydrated: true,
-              lastSyncError: error.message,
-            });
+            set({ isLoading: false, hasHydrated: true, lastSyncError: error.message });
             return;
           }
-          const cloudTodos = data.map(fromDbTodo);
+
+          const cloudTodos = data.map(fromDbTodo); // syncState: 'synced'
+
+          // 顺手修正 category（历史数据标准化）
           data.forEach((row) => {
             const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
             if (row.category !== normalizedCategory) {
               void bgSyncUpdate(row.id, { category: normalizedCategory });
             }
           });
+
+          // ④ 合并：云端数据 + 仍然失败的本地条目（云端没有的才保留）
           const cloudIds = new Set(cloudTodos.map((t) => t.id));
-          const allIds = new Set(cloudIds);
-          // Migrate old todo-storage data (one-time, clears old key after)
-          const migrated = migrateOldTodoStorage(allIds);
-          const localTodos = get().todos;
-          const mergedById = new Map<string, Todo>();
-          const localPreferredConflicts: Todo[] = [];
+          const survivingFailed = stillFailed
+            .filter((t) => !cloudIds.has(t.id))
+            .map((t) => ({ ...t, syncState: 'failed' as const }));
 
-          for (const cloudTodo of cloudTodos) {
-            mergedById.set(cloudTodo.id, cloudTodo);
-          }
+          // ⑤ 一次性迁移旧 todo-storage（历史兼容）
+          const migrated = migrateOldTodoStorage(cloudIds);
+          migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
 
-          for (const localTodo of localTodos) {
-            const existing = mergedById.get(localTodo.id);
-            if (!existing) {
-              mergedById.set(localTodo.id, localTodo);
-              continue;
-            }
-            if (getTodoFreshness(localTodo) > getTodoFreshness(existing)) {
-              mergedById.set(localTodo.id, localTodo);
-              localPreferredConflicts.push(localTodo);
-            }
-          }
-
-          for (const migratedTodo of migrated) {
-            if (!mergedById.has(migratedTodo.id)) {
-              mergedById.set(migratedTodo.id, migratedTodo);
-            }
-          }
-
-          const merged = Array.from(mergedById.values());
-          const localOnly = localTodos.filter((todo) => !cloudIds.has(todo.id));
           set({
-            todos: merged,
+            todos: [...cloudTodos, ...survivingFailed, ...migrated],
             isLoading: false,
             hasHydrated: true,
-            lastSyncError: null,
+            lastSyncError: stillFailed.length > 0
+              ? `${stillFailed.length} 条待办同步失败，将在下次重试`
+              : null,
           });
-          // Push local-only rows so cloud catches up for this account/device.
-          localOnly.forEach((t) => bgSyncInsert(t).catch(console.error));
-          if (localPreferredConflicts.length > 0) {
-            const { error: conflictSyncError } = await supabase
-              .from('todos')
-              .upsert(localPreferredConflicts.map((todo) => toDbTodo(todo, session.user.id)), { onConflict: 'id' });
-            if (conflictSyncError) {
-              console.error('Error syncing local-preferred todos:', conflictSyncError);
-            }
-          }
-          // Sync migrated todos to Supabase
-          migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
         } catch (err) {
           set({
             isLoading: false,
@@ -386,6 +409,7 @@ export const useTodoStore = create<TodoState>()(
             sortOrder: defaultSortOrder,
             category: normalizedCategory,
             scope: input.scope,
+            syncState: 'pending',
           };
 
           const shouldGenerate =
@@ -408,6 +432,7 @@ export const useTodoStore = create<TodoState>()(
               sortOrder: defaultSortOrder,
               category: normalizedCategory,
               scope: input.scope,
+              syncState: 'pending',
             };
             newTodos.push(instance);
             bgSyncInsert(instance).catch(console.error);
@@ -434,6 +459,7 @@ export const useTodoStore = create<TodoState>()(
             sortOrder: defaultSortOrder,
             category: normalizedCategory,
             scope: input.scope,
+            syncState: 'pending',
           };
           set((s) => ({ todos: [...s.todos, todo] }));
           bgSyncInsert(todo).catch(console.error);
@@ -610,6 +636,7 @@ export const useTodoStore = create<TodoState>()(
           parentId,
           suggestedDuration: step.suggestedDuration,
           category: parent.category,
+          syncState: 'pending' as const,
         }));
         set((s) => ({
           todos: [

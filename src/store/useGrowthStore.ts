@@ -61,6 +61,8 @@ function toDbBottle(bottle: Bottle, userId: string) {
     round: bottle.round,
     status: bottle.status,
     created_at: new Date(bottle.createdAt).toISOString(),
+    deleted_at: null,                        // 明确标记为未删除
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -81,7 +83,10 @@ function fromDbBottle(row: Record<string, unknown>): Bottle {
 function withDefaultSyncState(bottle: Bottle): Bottle {
   return {
     ...bottle,
-    syncState: bottle.syncState ?? 'synced',
+    // 旧数据没有 syncState 时，默认 'pending' 而非 'synced'
+    // 原因：无法确认旧数据是否成功推过云端，宁可多推一次（upsert 幂等），
+    // 也不能误判为"云端已删"导致本地数据丢失
+    syncState: bottle.syncState ?? 'pending',
     syncError: bottle.syncError ?? null,
   };
 }
@@ -158,7 +163,12 @@ export const useGrowthStore = create<GrowthState>()(
           try {
             const session = await getSupabaseSession();
             if (!session) return;
-            await supabase.from('bottles').delete().eq('id', id).eq('user_id', session.user.id);
+            // 软删除：UPDATE deleted_at，保留云端记录用于多设备同步
+            await supabase
+              .from('bottles')
+              .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+              .eq('id', id)
+              .eq('user_id', session.user.id);
           } catch (err) {
             if (import.meta.env.DEV) console.warn('[GrowthStore] delete bottle failed', err);
           }
@@ -282,6 +292,8 @@ export const useGrowthStore = create<GrowthState>()(
       disablePopup: () => set({ popupDisabled: true }),
       enablePopup: () => set({ popupDisabled: false }),
 
+      // 策略：推 pending/failed → 收集仍然失败的 → 拉云端（软删除+irrigated过滤）→ 合并失败的
+      // syncState='synced' 但云端没有的瓶子 = 已在其他设备删除，本地也移除（防复活）
       fetchBottles: async () => {
         set({ isLoading: true, lastSyncError: null });
         try {
@@ -290,56 +302,58 @@ export const useGrowthStore = create<GrowthState>()(
             set({ isLoading: false, hasHydrated: true });
             return;
           }
+
+          // ① 找出本地所有未同步的瓶子
+          const localBottles = get().bottles.map(withDefaultSyncState);
+          const needsPush = localBottles.filter(
+            (b) => b.syncState === 'pending' || b.syncState === 'failed'
+          );
+
+          // ② 尝试推送，收集仍然失败的
+          const stillFailed: Bottle[] = [];
+          await Promise.all(
+            needsPush.map(async (b) => {
+              try {
+                const { error } = await supabase
+                  .from('bottles')
+                  .upsert([toDbBottle(b, session.user.id)], { onConflict: 'id' });
+                if (error) throw error;
+              } catch {
+                stillFailed.push(b);
+              }
+            })
+          );
+
+          // ③ 拉云端（过滤软删除 + irrigated 归档）
           const { data, error } = await supabase
             .from('bottles')
             .select('*')
             .eq('user_id', session.user.id)
-            .neq('status', 'irrigated')   // irrigated = archived, don't restore
+            .is('deleted_at', null)
+            .neq('status', 'irrigated')
             .order('created_at', { ascending: true });
+
           if (error) {
-            set({
-              isLoading: false,
-              hasHydrated: true,
-              lastSyncError: error.message,
-            });
+            set({ isLoading: false, hasHydrated: true, lastSyncError: error.message });
             return;
           }
 
           const cloudBottles = (data as Record<string, unknown>[]).map(fromDbBottle);
           const cloudIds = new Set(cloudBottles.map((b) => b.id));
-          const localBottles = get().bottles.map(withDefaultSyncState);
-          const localOnly = localBottles.filter((b) => !cloudIds.has(b.id));
 
-          let reconciledLocalOnly = localOnly;
-          let reconcileError: string | null = null;
+          // ④ 合并：云端数据 + 仍然失败的本地瓶子（云端没有的才保留）
+          const survivingFailed = stillFailed
+            .filter((b) => !cloudIds.has(b.id))
+            .map((b) => ({ ...b, syncState: 'failed' as BottleSyncState, syncError: 'sync_failed' }));
 
-          if (localOnly.length > 0) {
-            const { error: reconcileWriteError } = await supabase
-              .from('bottles')
-              .upsert(localOnly.map((b) => toDbBottle(b, session.user.id)), { onConflict: 'id' });
-
-            if (reconcileWriteError) {
-              reconcileError = reconcileWriteError.message;
-              reconciledLocalOnly = localOnly.map((b) => ({
-                ...b,
-                syncState: 'failed',
-                syncError: reconcileWriteError.message,
-              }));
-            } else {
-              reconciledLocalOnly = localOnly.map((b) => ({
-                ...b,
-                syncState: 'synced',
-                syncError: null,
-              }));
-            }
-          }
-
-          set(() => ({
-            bottles: [...cloudBottles, ...reconciledLocalOnly],
+          set({
+            bottles: [...cloudBottles, ...survivingFailed],
             isLoading: false,
             hasHydrated: true,
-            lastSyncError: reconcileError,
-          }));
+            lastSyncError: stillFailed.length > 0
+              ? `${stillFailed.length} 个瓶子同步失败，将在下次重试`
+              : null,
+          });
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[GrowthStore] fetchBottles failed', err);
           set({

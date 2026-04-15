@@ -143,6 +143,7 @@ export function fromDbTodo(row: any): Todo {
     templateId: row.template_id,
     parentId: row.parent_id ?? undefined,
     suggestedDuration: row.suggested_duration ?? undefined,
+    syncState: 'synced',             // 从云端来的都是已同步状态
   };
 }
 
@@ -170,6 +171,8 @@ export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
     parent_id: todo.parentId ?? null,
     suggested_duration: todo.suggestedDuration ?? null,
     user_id: userId,
+    deleted_at: null,                // 明确标记为未删除
+    updated_at: new Date().toISOString(),
   };
 }
 

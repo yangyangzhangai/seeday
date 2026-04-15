@@ -1,0 +1,5 @@
+
+> youware-react-template@0.0.0 lint:secrets
+> node ./scripts/check-secrets.mjs
+
+[check-secrets] No files to scan. Passed.
