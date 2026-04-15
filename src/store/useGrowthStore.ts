@@ -35,7 +35,10 @@ function normalizeCheckinDates(raw: unknown): string[] {
 }
 
 function isMissingCheckinDatesColumnError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err ?? '');
+  // Supabase returns plain PostgrestError objects (not instanceof Error), so check .message directly
+  const message = (typeof err === 'object' && err !== null)
+    ? String((err as Record<string, unknown>).message ?? '')
+    : String(err ?? '');
   const lower = message.toLowerCase();
   return lower.includes('bottle_checkin_dates') && (lower.includes('column') || lower.includes('schema'));
 }
