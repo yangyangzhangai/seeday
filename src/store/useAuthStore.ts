@@ -600,10 +600,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const isCrossAccountData = owner.type === 'user' && owner.userId !== currentUser.id;
         const canMigrateAnonymousData = owner.type === 'anonymous' && hasLocalData;
 
-        if (isCrossAccountData || (owner.type === 'unknown' && hasLocalData)) {
+        if (isCrossAccountData) {
           clearLocalDomainStores();
-        } else if (canMigrateAnonymousData) {
-          console.log('User signed in. Syncing anonymous local data...');
+        } else if (canMigrateAnonymousData || (owner.type === 'unknown' && hasLocalData)) {
+          // canMigrateAnonymousData: 明确的访客数据
+          // unknown + hasLocalData: 老用户（owner 标记添加前就在用 app），同样迁移而非清空
+          if (import.meta.env.DEV) console.log('[AuthStore] syncing local data to cloud...');
           await syncLocalDataToSupabase(currentUser.id, {
             currentUser,
             onUserUpdated: (user) => set({ user }),
