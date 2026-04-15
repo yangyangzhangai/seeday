@@ -172,6 +172,7 @@ Persisted to `bottles`:
 - `stars`
 - `round`
 - `status`
+- `bottle_checkin_dates`
 - `created_at`
 
 Also expected by update queries:

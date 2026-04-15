@@ -4,6 +4,68 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-15 - Feat: Growth 瓶子详情弹层与轻量打卡统计
+
+### Changed
+
+- `src/features/growth/BottleList.tsx`
+  - 点击瓶子交互收口为统一 `BottleDetailSheet`：替换原“生成待办确认弹窗 + 达成态弹窗”的分叉流程。
+  - 删除操作并入瓶子详情弹层，新增二次确认后删除。
+  - 详情弹层内保留主操作：active 瓶子可一键生成关联待办；achieved 瓶子按类型执行浇灌/继续追踪。
+- `src/features/growth/BottleDetailSheet.tsx`（新增）
+  - 新增瓶子详情 UI，展示三项核心指标：近 7 天打卡（含今天）、当前连续、最长连续。
+- `src/features/growth/BottleCard.tsx`
+  - 卡片交互简化为“点击打开详情”，移除卡片角删除入口，避免多入口冲突。
+- `src/store/useGrowthStore.ts`
+  - Bottle 新增 `checkinDates` 字段（`YYYY-MM-DD` 去重），并在 `incrementBottleStars()` 内统一写入今日日期，覆盖 AI 匹配与待办完成两条加星路径。
+  - Supabase 映射新增 `bottle_checkin_dates` 读写。
+- `src/lib/bottleStats.ts`（新增）
+  - 新增轻量统计计算：`last7Days/currentStreak/bestStreak`。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增瓶子详情与打卡统计相关多语言文案键。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: 日记落款兜底 + 用户称呼三层防线
+
+### Changed
+
+- `api/diary.ts`
+  - 新增日记称呼 fallback：当 `display_name` 缺失时，按语言使用保底称呼（ZH=`园主` / EN=`Gardener` / IT=`Custode`），并始终注入强制称呼规则。
+  - 新增输出质检重写：若生成文本仍包含泛称（如“用户/ta/the user”），自动触发一次低温重写，仅替换称呼不改结构。
+  - 新增末端硬替换兜底：重写后仍残留泛称时，进行规则化替换，确保最终文本优先使用目标称呼。
+  - 修复 `stripModelSignoff()`：不再删除带内容的落款行，避免误删真实签名。
+  - 新增落款兜底：若尾部缺少签名，按语言与 AI 人设自动补签（Van/Agnes/Zep/Momo）。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Refactor: 日记输入去除光谱/光质等旧术语
+
+### Changed
+
+- `src/lib/report-calculator/formatter.ts`
+  - 重写 `formatForDiaryAI()`，移除“光谱分布/光质读数/能量曲线/引力错位/历史趋势”整段结构化文本。
+  - 日记输入改为仅保留：总时长、专注时长、待办完成概览、事件清单、心情记录。
+- `src/lib/report-calculator/types.ts` + `src/lib/report-calculator/core.ts`
+  - 精简 `ComputedResult`：删除 `spectrum/light_quality/gravity_mismatch/history_trends`，新增轻量字段 `focus_duration_min`、`todo_completed`、`todo_total`。
+  - 删除对应计算链路，保留日记输入必要统计。
+- `src/store/reportActions.ts`
+  - `buildHistoryContext()` 改为使用轻量字段生成历史摘要，不再依赖 `spectrum/light_quality`。
+- `src/store/useReportStore.ts`
+  - `ReportStats` 删除 `spectrum/lightQuality` 字段；AI 日记生成后不再写入这两类统计。
+- `src/features/report/SpectrumBarChart.tsx`（删除）
+- `src/features/report/LightQualityDashboard.tsx`（删除）
+- `src/i18n/locales/zh.ts` + `src/i18n/locales/en.ts` + `src/i18n/locales/it.ts`
+  - 删除已废弃的光谱/光质相关翻译 key。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-15 - Fix: 重复待办实例日堆积 + monthly 频率错误
 
 ### Changed

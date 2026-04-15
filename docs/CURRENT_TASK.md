@@ -35,6 +35,12 @@ Owner: current working session
 - [x] 修复聊天时间线编辑弹窗「点击确定后不自动关闭」边界：`handleSave` 改为 `try/finally` 收口，编辑/插入成功执行后统一关闭弹窗，避免持久化阶段异常时弹窗卡住。
 - [x] 修复重复待办“每天新增一条”堆积：`generateRecurringTodos` 新增“同模板存在未完成实例则跳过生成”门控，改为同一模板同一时刻只保留一条未完成实例。
 - [x] 修复 monthly 重复待办生成频率：新增/自动生成都收敛为仅每月 1 号生成，避免按天误生成。
+- [x] Growth 瓶子交互改版：点击瓶子统一改为详情弹层（替代原“仅生成待办确认框”），将删除入口合并进弹层并保留达成态操作（浇灌/继续追踪）。
+- [x] Growth 瓶子新增轻量打卡统计：`Bottle.checkinDates`（`YYYY-MM-DD` 去重）在 `incrementBottleStars` 统一写入，详情弹层展示“近7天打卡天数（含今天）/当前连续/最长连续”。
+- [x] 日记输入数据收口：移除 `formatForDiaryAI` 中“光谱分布/光质读数/能量曲线/引力错位/历史趋势”区块，改为仅保留事件清单、心情记录、专注时长和待办完成概览。
+- [x] 旧结构清理：删除 `SpectrumBarChart` / `LightQualityDashboard` 组件与相关 i18n key，`ComputedResult` 与 `ReportStats` 同步去除 `spectrum/lightQuality` 字段，避免旧世界观术语继续渗入日记链路。
+- [x] 日记落款兜底：`api/diary.ts` 新增签名检测与按人设补签名（Van/Agnes/Zep/Momo），避免模型漏写落款。
+- [x] 日记称呼防线升级：`api/diary.ts` 新增称呼 fallback（ZH=`园主` / EN=`Gardener` / IT=`Custode`）+ 生成后质检重写 + 末端硬替换，降低“用户/ta/the user”残留概率。
 
 ---
 

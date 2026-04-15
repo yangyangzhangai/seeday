@@ -11,7 +11,6 @@ import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { type ComputedResult } from '../lib/reportCalculator';
-import type { SpectrumItem, LightQuality } from '../lib/report-calculator/types';
 import {
   createGeneratedReport,
   mergeReportIntoList,
@@ -70,9 +69,6 @@ export interface ReportStats {
     low: { completed: number; total: number };
     completedTitles: string[];
   };
-  // Populated after AI diary generation
-  spectrum?: SpectrumItem[];
-  lightQuality?: LightQuality;
 }
 
 export interface StickerItem {
@@ -289,15 +285,11 @@ export const useReportStore = create<ReportState>()(
             computedHistory: [...current.computedHistory.slice(-6), result.computed],
           }));
 
-          const statsUpdate = {
-            spectrum: result.computed.spectrum,
-            lightQuality: result.computed.light_quality,
-          };
           const existingStats = get().reports.find(r => r.id === reportId)?.stats;
           get().updateReport(reportId, {
             aiAnalysis: result.content,
             analysisStatus: 'success',
-            stats: existingStats ? { ...existingStats, ...statsUpdate } : undefined,
+            stats: existingStats,
           });
           console.log('[Diary] AI 日记生成完成');
 

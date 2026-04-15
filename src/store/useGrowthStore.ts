@@ -19,8 +19,30 @@ export interface Bottle {
   round: number;       // current round (goal bottles track multiple rounds)
   status: BottleStatus;
   createdAt: number;
+  checkinDates?: string[];
   syncState?: BottleSyncState;
   syncError?: string | null;
+}
+
+function normalizeCheckinDates(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+
+  const normalized = raw
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+
+  return Array.from(new Set(normalized)).sort();
+}
+
+function isMissingCheckinDatesColumnError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const lower = message.toLowerCase();
+  return lower.includes('bottle_checkin_dates') && (lower.includes('column') || lower.includes('schema'));
+}
+
+function removeCheckinDatesField(payload: Record<string, unknown>): Record<string, unknown> {
+  const { bottle_checkin_dates: _ignored, ...rest } = payload;
+  return rest;
 }
 
 interface GrowthState {
@@ -60,6 +82,7 @@ function toDbBottle(bottle: Bottle, userId: string) {
     stars: bottle.stars,
     round: bottle.round,
     status: bottle.status,
+    bottle_checkin_dates: normalizeCheckinDates(bottle.checkinDates),
     created_at: new Date(bottle.createdAt).toISOString(),
     deleted_at: null,                        // 明确标记为未删除
     updated_at: new Date().toISOString(),
@@ -75,6 +98,7 @@ function fromDbBottle(row: Record<string, unknown>): Bottle {
     round: row.round as number,
     status: row.status as BottleStatus,
     createdAt: new Date(row.created_at as string).getTime(),
+    checkinDates: normalizeCheckinDates(row.bottle_checkin_dates),
     syncState: 'synced',
     syncError: null,
   };
@@ -88,6 +112,7 @@ function withDefaultSyncState(bottle: Bottle): Bottle {
     // 也不能误判为"云端已删"导致本地数据丢失
     syncState: bottle.syncState ?? 'pending',
     syncError: bottle.syncError ?? null,
+    checkinDates: normalizeCheckinDates(bottle.checkinDates),
   };
 }
 
@@ -118,6 +143,7 @@ export const useGrowthStore = create<GrowthState>()(
           round: 1,
           status: 'active',
           createdAt: Date.now(),
+          checkinDates: [],
           syncState: 'pending',
           syncError: null,
         };
@@ -127,8 +153,13 @@ export const useGrowthStore = create<GrowthState>()(
           try {
             const session = await getSupabaseSession();
             if (!session) return;
-            const { error } = await supabase.from('bottles').insert([toDbBottle(bottle, session.user.id)]);
-            if (error) throw error;
+            const payload = toDbBottle(bottle, session.user.id);
+            const { error } = await supabase.from('bottles').insert([payload]);
+            if (error) {
+              if (!isMissingCheckinDatesColumnError(error)) throw error;
+              const fallback = await supabase.from('bottles').insert([removeCheckinDatesField(payload)]);
+              if (fallback.error) throw fallback.error;
+            }
             set((s) => ({
               bottles: s.bottles.map((b) =>
                 b.id === bottle.id
@@ -187,11 +218,13 @@ export const useGrowthStore = create<GrowthState>()(
           bottles: s.bottles.map((b) => {
             if (b.id !== id || b.status !== 'active') return b;
             const newStars = b.stars + starsToAdd;
+            const today = todayDateStr();
+            const checkinDates = normalizeCheckinDates([...(b.checkinDates ?? []), today]);
             if (newStars >= 21) {
               willAchieve = true;
-              return { ...b, stars: 21, status: 'achieved' as BottleStatus };
+              return { ...b, stars: 21, status: 'achieved' as BottleStatus, checkinDates };
             }
-            return { ...b, stars: newStars };
+            return { ...b, stars: newStars, checkinDates };
           }),
         }));
         if (willAchieve) setTimeout(() => playSound('ding'), 400);
@@ -202,11 +235,26 @@ export const useGrowthStore = create<GrowthState>()(
             if (!session) return;
             const updated = get().bottles.find(b => b.id === id);
             if (!updated) return;
-            await supabase
+            const payload = {
+              stars: updated.stars,
+              status: updated.status,
+              bottle_checkin_dates: normalizeCheckinDates(updated.checkinDates),
+              updated_at: new Date().toISOString(),
+            };
+            const { error } = await supabase
               .from('bottles')
-              .update({ stars: updated.stars, status: updated.status, updated_at: new Date().toISOString() })
+              .update(payload)
               .eq('id', id)
               .eq('user_id', session.user.id);
+            if (error) {
+              if (!isMissingCheckinDatesColumnError(error)) throw error;
+              const fallback = await supabase
+                .from('bottles')
+                .update(removeCheckinDatesField(payload))
+                .eq('id', id)
+                .eq('user_id', session.user.id);
+              if (fallback.error) throw fallback.error;
+            }
           } catch (err) {
             if (import.meta.env.DEV) console.warn('[GrowthStore] update stars failed', err);
           }
@@ -314,10 +362,17 @@ export const useGrowthStore = create<GrowthState>()(
           await Promise.all(
             needsPush.map(async (b) => {
               try {
+                const payload = toDbBottle(b, session.user.id);
                 const { error } = await supabase
                   .from('bottles')
-                  .upsert([toDbBottle(b, session.user.id)], { onConflict: 'id' });
-                if (error) throw error;
+                  .upsert([payload], { onConflict: 'id' });
+                if (error) {
+                  if (!isMissingCheckinDatesColumnError(error)) throw error;
+                  const fallback = await supabase
+                    .from('bottles')
+                    .upsert([removeCheckinDatesField(payload)], { onConflict: 'id' });
+                  if (fallback.error) throw fallback.error;
+                }
               } catch {
                 stillFailed.push(b);
               }

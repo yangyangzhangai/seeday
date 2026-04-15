@@ -21,6 +21,7 @@ GrowthPage
 ├── BottleList
 │   ├── BottleCard (x N, horizontal scroll)
 │   └── AddBottleModal
+│   └── BottleDetailSheet
 ├── GrowthTodoSection
 │   ├── GrowthTodoCard (x N, sorted/filtered list)
 │   └── AddGrowthTodoModal
@@ -46,6 +47,8 @@ GrowthPage
 
 - **Bottle types**: habit (ongoing) / goal (completable with round tracking)
 - **Star system**: incremented on todo completion + focus session completion; displayed as scattered visuals in bottle
+- **Bottle detail sheet**: tap bottle to open unified actions (create linked todo / irrigate / continue / delete)
+- **Check-in stats**: bottle stores `checkinDates` (`YYYY-MM-DD`) and exposes `last7Days/currentStreak/bestStreak`
 - **Todo recurrence**: once / daily / weekly (with day-of-week selection); templates generate instances
 - **Focus timer**: circular SVG drag picker for duration; auto-completes countdown; awards star + creates activity card
 - **Daily goal**: synced to Supabase user_metadata (daily_goal, daily_goal_date); controlled via sessionStorage + localStorage

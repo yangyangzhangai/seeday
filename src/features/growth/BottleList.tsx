@@ -6,6 +6,8 @@ import { BottleCard } from './BottleCard';
 import { AddBottleModal } from './AddBottleModal';
 import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 import { useTodoStore, type Recurrence } from '../../store/useTodoStore';
+import { computeBottleCheckinStats } from '../../lib/bottleStats';
+import { BottleDetailSheet } from './BottleDetailSheet';
 import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
@@ -22,7 +24,6 @@ export const BottleList = () => {
     removeBottle,
     markBottleIrrigated,
     continueBottle,
-    markBottleAchieved,
     fetchBottles,
     isLoading,
     hasHydrated,
@@ -34,10 +35,8 @@ export const BottleList = () => {
 
   // Prompt shown after creating a new habit bottle
   const [habitPromptBottle, setHabitPromptBottle] = useState<Bottle | null>(null);
-  // Prompt shown on click/long-press of any bottle → "Generate todo?"
-  const [todoPromptBottle, setTodoPromptBottle] = useState<Bottle | null>(null);
-  // Prompt shown when clicking an achieved bottle → irrigate / goal confirm
-  const [achievedBottle, setAchievedBottle] = useState<Bottle | null>(null);
+  // Unified bottle detail sheet shown on click
+  const [selectedBottle, setSelectedBottle] = useState<Bottle | null>(null);
 
   const [showTodoModal, setShowTodoModal] = useState(false);
   const [todoDefaultBottle, setTodoDefaultBottle] = useState<{ title?: string; bottleId?: string; recurrence?: Recurrence } | undefined>();
@@ -70,36 +69,32 @@ export const BottleList = () => {
     setShowTodoModal(true);
   };
 
-  // After click/long-press todo prompt confirms
-  const handleTodoPromptConfirm = () => {
-    if (!todoPromptBottle) return;
+  const handleCreateTodo = (targetBottle: Bottle, recurrence: Recurrence) => {
     setTodoDefaultBottle({
-      title: todoPromptBottle.name,
-      bottleId: todoPromptBottle.id,
-      recurrence: todoPromptBottle.type === 'habit' ? 'daily' : 'once',
+      title: targetBottle.name,
+      bottleId: targetBottle.id,
+      recurrence,
     });
-    setTodoPromptBottle(null);
+    setSelectedBottle(null);
     setShowTodoModal(true);
   };
 
-  // Irrigate an achieved bottle (animate then remove)
   const handleIrrigate = (id: string) => {
-    setAchievedBottle(null);
+    setSelectedBottle(null);
     markBottleIrrigated(id);
   };
 
-  // Goal confirm: achieved=true → irrigate, false → continue
-  const handleGoalConfirm = (achieved: boolean) => {
-    if (!achievedBottle) return;
-    const id = achievedBottle.id;
-    setAchievedBottle(null);
-    if (achieved) {
-      markBottleAchieved(id);
-      setTimeout(() => markBottleIrrigated(id), 100);
-    } else {
-      continueBottle(id);
-    }
+  const handleContinueGoal = (id: string) => {
+    setSelectedBottle(null);
+    continueBottle(id);
   };
+
+  const handleDeleteBottle = (id: string) => {
+    setSelectedBottle(null);
+    removeBottle(id);
+  };
+
+  const selectedBottleStats = computeBottleCheckinStats(selectedBottle?.checkinDates);
 
   return (
     <section className="mb-4">
@@ -146,9 +141,7 @@ export const BottleList = () => {
             <BottleCard
               key={bottle.id}
               bottle={bottle}
-              onTodoPrompt={setTodoPromptBottle}
-              onAchievedClick={setAchievedBottle}
-              onDelete={removeBottle}
+              onSelect={setSelectedBottle}
             />
           ))}
         </div>
@@ -185,65 +178,15 @@ export const BottleList = () => {
         </div>
       )}
 
-      {/* 2. Click/long-press "Generate todo?" prompt */}
-      {todoPromptBottle && (
-        <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}
-          onClick={() => setTodoPromptBottle(null)}>
-          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')} onClick={(e) => e.stopPropagation()}>
-            <p className="text-slate-800 text-center mb-4 font-medium">
-              {t('growth_bottle_todo_prompt', { name: todoPromptBottle.name })}
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setTodoPromptBottle(null)}
-                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                {t('cancel')}
-              </button>
-              <button onClick={handleTodoPromptConfirm}
-                className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                {t('confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Achieved bottle popup */}
-      {achievedBottle && (
-        <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}
-          onClick={() => setAchievedBottle(null)}>
-          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')} onClick={(e) => e.stopPropagation()}>
-            {achievedBottle.type === 'habit' ? (
-              <>
-                <p className="text-slate-600 text-center mb-4">{t('growth_bottle_irrigate_hint')}</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setAchievedBottle(null)}
-                    className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                    {t('cancel')}
-                  </button>
-                  <button onClick={() => handleIrrigate(achievedBottle.id)}
-                    className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                    {t('growth_bottle_irrigate')}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-slate-600 text-center mb-4">{t('growth_bottle_goal_confirm')}</p>
-                <div className="flex gap-3">
-                  <button onClick={() => handleGoalConfirm(false)}
-                    className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                    {t('growth_bottle_goal_no')}
-                  </button>
-                  <button onClick={() => handleGoalConfirm(true)}
-                    className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2')}>
-                    {t('growth_bottle_goal_yes')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <BottleDetailSheet
+        bottle={selectedBottle}
+        stats={selectedBottleStats}
+        onClose={() => setSelectedBottle(null)}
+        onCreateTodo={handleCreateTodo}
+        onDelete={handleDeleteBottle}
+        onIrrigate={handleIrrigate}
+        onContinue={handleContinueGoal}
+      />
 
       {/* Todo form modal */}
       <AddGrowthTodoModal

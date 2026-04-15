@@ -24,49 +24,6 @@ export interface ClassifiedData {
   energy_log: EnergyLog[];
 }
 
-export interface SpectrumItem {
-  category: string;
-  label: string;
-  emoji: string;
-  duration_min: number;
-  duration_str: string;
-  ratio: number;
-  percent_str: string;
-  bar: string;
-  is_anomaly: boolean;
-  top_item: {
-    name: string;
-    duration_str: string;
-  } | null;
-}
-
-export interface LightQuality {
-  focus_ratio: number;
-  scatter_ratio: number;
-  active_ratio: number;
-  passive_ratio: number;
-  focus_pct: string;
-  scatter_pct: string;
-  active_pct: string;
-  passive_pct: string;
-  todo_completed: number;
-  todo_total: number;
-  todo_ratio: number | null;
-  todo_str: string;
-}
-
-export interface TrendSignal {
-  metric: string;
-  today: string;
-  hist_avg: string;
-  delta?: number;
-  direction: string;
-  is_positive: boolean;
-  is_warning: boolean;
-  consecutive_up?: boolean;
-  consecutive_days?: number;
-}
-
 export interface MoodRecord {
   time: string;
   time_slot: 'morning' | 'afternoon' | 'evening';
@@ -75,12 +32,10 @@ export interface MoodRecord {
 
 export interface ComputedResult {
   total_duration_str: string;
-  spectrum: SpectrumItem[];
-  light_quality: LightQuality;
-  gravity_mismatch: string | null;
-  energy_log: EnergyLog[];
+  focus_duration_min: number;
+  todo_completed: number;
+  todo_total: number;
   raw_items: ClassifiedItem[];
-  history_trends: TrendSignal[];
   mood_records?: MoodRecord[];
 }
 
@@ -116,7 +71,3 @@ export const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; des
     desc: '运动、健身、睡眠、就医',
   },
 };
-
-export const ACTIVE_CATEGORIES = new Set(['study', 'work']);
-export const ANOMALY_THRESHOLD = 0.35;
-export const BAR_TOTAL = 12;

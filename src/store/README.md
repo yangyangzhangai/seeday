@@ -56,6 +56,8 @@
 
 ## 变更自检
 
+- `useGrowthStore.ts`（2026-04）：Bottle 新增 `checkinDates`（按 `YYYY-MM-DD` 去重）用于 Growth 瓶子详情面板统计：近 7 天打卡天数、当前连续天数、历史最长连续天数。
+
 ```bash
 npx tsc --noEmit
 npm run build

@@ -58,15 +58,7 @@ The same breakdown is serialised into plain text and passed to the diary AI via 
 
 ## Visualization Components
 
-New components added in Phase 4:
-
-| Component | Data Source | Render When |
-|-----------|-------------|-------------|
-| `ActivityCategoryDonut` | `stats.actionAnalysis` | Past daily report with activity records |
-| `SpectrumBarChart` | `stats.spectrum` | After AI diary generation |
-| `LightQualityDashboard` | `stats.lightQuality` | After AI diary generation |
-
-`stats.spectrum` and `stats.lightQuality` are populated in `useReportStore.generateAIDiary` from `ComputedResult` after the classifier + diary API calls succeed. They are persisted to Supabase via `stats` JSON column.
+Current daily-report visual blocks focus on activity and mood summaries from `stats.actionAnalysis` and `stats.moodDistribution`.
 
 ## i18n Coverage
 

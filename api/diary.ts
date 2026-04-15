@@ -81,11 +81,127 @@ function buildDiaryModePrompt(lang: string, _userName?: string, aiMode?: string)
   return `${modePrompt}\n\n${corePrompt}`;
 }
 
+const FALLBACK_ADDRESSEE: Record<'zh' | 'en' | 'it', string> = {
+  zh: '园主',
+  en: 'Gardener',
+  it: 'Custode',
+};
+
+const SIGNOFF_FALLBACKS: Record<'zh' | 'en' | 'it', Record<'van' | 'agnes' | 'zep' | 'momo', string>> = {
+  zh: {
+    van: '——你的喇叭花Van',
+    agnes: '——你的龙血树Agnes',
+    zep: '——你的鹈鹕Zep',
+    momo: '——你的小蘑菇Momo',
+  },
+  en: {
+    van: '- Your morning glory Van',
+    agnes: '- Your dragon tree Agnes',
+    zep: '- Your pelican Zep',
+    momo: '- Your little mushroom Momo',
+  },
+  it: {
+    van: '- La tua campanula Van',
+    agnes: '- La tua dracena Agnes',
+    zep: '- Il tuo pellicano Zep',
+    momo: '- Il tuo piccolo fungo Momo',
+  },
+};
+
+function resolveDiaryAddressee(lang: 'zh' | 'en' | 'it', userName: unknown): string {
+  if (typeof userName !== 'string') return FALLBACK_ADDRESSEE[lang];
+  const cleaned = userName.replace(/[\r\n]+/g, ' ').replace(/["“”'`]/g, '').trim();
+  if (!cleaned) return FALLBACK_ADDRESSEE[lang];
+  return cleaned.slice(0, 24);
+}
+
+function buildAddresseeRule(lang: 'zh' | 'en' | 'it', addressee: string): string {
+  if (lang === 'zh') {
+    return `\n\n【最重要指令】：对方称呼统一为“${addressee}”。你在日记正文中，绝对禁止使用“ta”或“用户”来称呼对方，必须全程使用“${addressee}”。`;
+  }
+  if (lang === 'it') {
+    return `\n\n[REGOLA CRITICA]: Il nome da usare e "${addressee}". Non usare riferimenti generici come "utente" o "l'utente". Usa sempre "${addressee}" nel testo del diario.`;
+  }
+  return `\n\n[IMPORTANT CRITICAL RULE]: The addressee name is "${addressee}". Do not use generic references like "the user", "they", "them", or "my host". Always use "${addressee}" throughout the diary body.`;
+}
+
 function stripModelSignoff(content: string): string {
   return content
-    .replace(/^\s*[【\[]?落款[】\]]?[:：]?\s*\S+\s*$/gmu, '')
-    .replace(/^\s*[\[]?Sign-off[\]]?[:：]?\s*\S+\s*$/gmi, '')
+    .replace(/^\s*[【\[]?落款[】\]]?[:：]?\s*$/gmu, '')
+    .replace(/^\s*[\[]?Sign-off[\]]?[:：]?\s*$/gmi, '')
     .trim();
+}
+
+function containsGenericUserRefs(content: string, lang: 'zh' | 'en' | 'it'): boolean {
+  if (lang === 'zh') {
+    return /(用户|\bta\b)/i.test(content);
+  }
+  if (lang === 'it') {
+    return /(the\s+user|my\s+host|\bl['’]?utente\b|\butente\b)/i.test(content);
+  }
+  return /(\bthe\s+user\b|\bmy\s+host\b|\bthey\b|\bthem\b|\btheir\b)/i.test(content);
+}
+
+function forceAddresseeReplacement(content: string, lang: 'zh' | 'en' | 'it', addressee: string): string {
+  if (lang === 'zh') {
+    return content
+      .replace(/用户/g, addressee)
+      .replace(/\bta\b/gi, addressee);
+  }
+  if (lang === 'it') {
+    return content
+      .replace(/\bl['’]?utente\b/gi, addressee)
+      .replace(/\butente\b/gi, addressee)
+      .replace(/\bthe\s+user\b/gi, addressee)
+      .replace(/\bmy\s+host\b/gi, addressee);
+  }
+  return content
+    .replace(/\bthe\s+user\b/gi, addressee)
+    .replace(/\bmy\s+host\b/gi, addressee)
+    .replace(/\bthey\b/gi, addressee)
+    .replace(/\bthem\b/gi, addressee)
+    .replace(/\btheir\b/gi, `${addressee}'s`);
+}
+
+async function rewriteAddresseeIfNeeded(
+  lang: 'zh' | 'en' | 'it',
+  content: string,
+  addressee: string,
+): Promise<string> {
+  const systemPrompt = lang === 'zh'
+    ? `你是文案重写器。任务：不改变原文结构、段落、语气和长度，只做称呼替换。把所有“用户/ta”替换为“${addressee}”，并保持其他内容不变。只输出重写后的正文。`
+    : lang === 'it'
+      ? `Sei un riscrittore minimale. Mantieni struttura, tono e lunghezza del testo. Sostituisci tutti i riferimenti generici all'utente con "${addressee}". Non aggiungere spiegazioni; restituisci solo il testo riscritto.`
+      : `You are a minimal rewriter. Keep structure, tone, and length unchanged. Replace all generic user references with "${addressee}". Return only the rewritten diary text.`;
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content },
+    ],
+    temperature: 0.1,
+    max_tokens: 1200,
+  });
+
+  return (completion.choices?.[0]?.message?.content || '').trim();
+}
+
+function hasAnySignoff(content: string): boolean {
+  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const tail = lines.slice(-3);
+  return tail.some((line) => /^[-—–]{1,2}\s*.+/.test(line));
+}
+
+function ensureDiarySignoff(
+  content: string,
+  lang: 'zh' | 'en' | 'it',
+  aiMode: 'van' | 'agnes' | 'zep' | 'momo',
+): string {
+  const trimmed = content.trim();
+  if (!trimmed) return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`.trim();
+  if (hasAnySignoff(trimmed)) return trimmed;
+  return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -175,14 +291,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 如果提供了用户昵称，在使用 system prompt 前给出强制指令（保留原逻辑作为双重保险）
   const normalizedLang = normalizeAiCompanionLang(lang);
-  let finalSystemPrompt = buildDiaryModePrompt(normalizedLang, userName, aiMode);
-  if (userName) {
-    if (normalizedLang === 'en' || normalizedLang === 'it') {
-      finalSystemPrompt += `\n\n【IMPORTANT CRITICAL RULE】: The user's name is "${userName}". You MUST refer to the user by this name ("${userName}") instead of using generic terms like "them", "the user", or "my host". For example, write "I noticed ${userName} was tired" instead of "I noticed they were tired".`;
-    } else {
-      finalSystemPrompt += `\n\n【最重要指令】：用户的昵称是“${userName}”。你在日记正文中，绝对禁止使用“ta”或“用户”来称呼对方，必须全程使用“${userName}”来称呼！例如：“我发现${userName}今天很累”。记住，你是在认真记录 ${userName} 的生活。`;
-    }
-  }
+  const normalizedMode = normalizeAiCompanionMode(aiMode);
+  const addressee = resolveDiaryAddressee(normalizedLang, userName);
+  let finalSystemPrompt = buildDiaryModePrompt(normalizedLang, addressee, normalizedMode);
+  finalSystemPrompt += buildAddresseeRule(normalizedLang, addressee);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -205,6 +317,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     content = stripModelSignoff(removeThinkingTags(content));
+
+    if (containsGenericUserRefs(content, normalizedLang)) {
+      try {
+        const rewritten = await rewriteAddresseeIfNeeded(normalizedLang, content, addressee);
+        if (rewritten) {
+          content = rewritten;
+        }
+      } catch (rewriteError) {
+        console.error('Diary addressee rewrite failed:', rewriteError);
+      }
+    }
+
+    content = forceAddresseeReplacement(content, normalizedLang, addressee);
+    content = ensureDiarySignoff(content, normalizedLang, normalizedMode);
 
     res.status(200).json({
       success: true,

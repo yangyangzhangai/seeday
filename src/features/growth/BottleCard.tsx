@@ -1,6 +1,5 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 import { type Bottle } from '../../store/useGrowthStore';
 import { cn } from '../../lib/utils';
 import glassBottleImage from '../../assets/growth/glass-bottle.png';
@@ -8,79 +7,14 @@ import growthStarImage from '../../assets/growth/growth-star.png';
 
 interface Props {
   bottle: Bottle;
-  onTodoPrompt: (bottle: Bottle) => void;   // click (desktop) / long-press (mobile)
-  onAchievedClick: (bottle: Bottle) => void; // click when achieved
-  onDelete?: (id: string) => void;
+  onSelect: (bottle: Bottle) => void;
 }
 
-export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: Props) => {
+export const BottleCard = ({ bottle, onSelect }: Props) => {
   const { t } = useTranslation();
-  const [irrigating, setIrrigating] = useState(false);
-  const [deleteVisible, setDeleteVisible] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchMovedRef = useRef(false);
 
   const isAchieved = bottle.status === 'achieved';
   const syncState = bottle.syncState ?? 'synced';
-
-  useEffect(() => {
-    if (!deleteVisible) return;
-    const handleOutside = (e: MouseEvent | TouchEvent) => {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        setDeleteVisible(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('touchstart', handleOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('touchstart', handleOutside);
-    };
-  }, [deleteVisible]);
-
-  const handleBottleAction = () => {
-    setDeleteVisible(false);
-    if (isAchieved) {
-      onAchievedClick(bottle);
-    } else {
-      onTodoPrompt(bottle);
-    }
-  };
-
-  const handleAroundClick = () => {
-    setDeleteVisible(true);
-  };
-
-  const handleTouchStart = () => {
-    touchMovedRef.current = false;
-    longPressRef.current = setTimeout(() => {
-      if (!touchMovedRef.current) {
-        handleBottleAction();
-      }
-    }, 600);
-  };
-
-  const handleTouchMove = () => {
-    touchMovedRef.current = true;
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
-  // Irrigate animation (triggered by parent via a separate mechanism if needed)
-  const triggerIrrigate = () => {
-    setIrrigating(true);
-  };
-  void triggerIrrigate; // unused but kept for future use
 
   const starLayout = useMemo(() => {
     const hash = (input: string) => {
@@ -138,40 +72,20 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
   }, [bottle.id, bottle.stars]);
 
   return (
-    <div ref={cardRef} className="group relative w-20 flex-shrink-0" onClick={handleAroundClick}>
-      {/* Delete button */}
-      {onDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(bottle.id); }}
-          className={cn(
-            'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
-            deleteVisible ? 'flex' : 'hidden',
-            'md:hidden md:group-hover:flex'
-          )}
-          title={t('delete')}
-        >
-          <X size={10} />
-        </button>
-      )}
-
+    <button
+      type="button"
+      className="group relative w-20 flex-shrink-0"
+      onClick={() => onSelect(bottle)}
+      aria-label={t('growth_bottle_open_detail', { name: bottle.name })}
+    >
       <div
         className={cn(
           'flex cursor-pointer select-none flex-col items-center transition-all',
-          irrigating && 'animate-pulse opacity-0 scale-110 transition-all duration-700'
+          'group-active:scale-95'
         )}
       >
         {/* Bottle visual */}
-        <div
-          className="relative mb-1.5 h-14 w-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleBottleAction();
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
+        <div className="relative mb-1.5 h-14 w-10">
           {/* Stars scattered inside jar (no liquid layer) */}
           <div className="absolute left-[20%] right-[20%] top-[35%] bottom-[12%] z-[1] overflow-hidden">
             {starLayout.map((star, i) => (
@@ -230,6 +144,6 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
           </span>
         )}
       </div>
-    </div>
+    </button>
   );
 };

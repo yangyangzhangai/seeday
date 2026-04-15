@@ -480,15 +480,15 @@ function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
   ];
 
   recent.forEach((item, index) => {
-    const focusCats = new Set(['study', 'work']);
-    const focusMin = item.spectrum.filter((s) => focusCats.has(s.category)).reduce((sum, s) => sum + s.duration_min, 0);
+    const focusMin = item.focus_duration_min || 0;
     const dayIndex = history.length - recent.length + index + 1;
     const focusH = Math.floor(focusMin / 60);
     const focusM = focusMin % 60;
     const focusStr = focusH > 0 ? (focusM > 0 ? `${focusH}h ${focusM}min` : `${focusH}h`) : `${focusM}min`;
-    const { todo_completed, todo_total } = item.light_quality;
-    const todoStr = todo_total > 0
-      ? (isZh ? `${todo_completed}/${todo_total} 项完成` : `${todo_completed}/${todo_total} done`)
+    const todoCompleted = item.todo_completed || 0;
+    const todoTotal = item.todo_total || 0;
+    const todoStr = todoTotal > 0
+      ? (isZh ? `${todoCompleted}/${todoTotal} 项完成` : `${todoCompleted}/${todoTotal} done`)
       : (isZh ? '无待办' : 'no todos');
 
     if (isZh) {
