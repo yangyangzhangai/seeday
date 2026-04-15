@@ -114,6 +114,8 @@ interface AnnotationStore extends AnnotationState {
     type: PendingSuggestionIntent['type'];
     maxAgeMs?: number;
   }) => PendingSuggestionIntent | null;
+  /** 删除活动消息时，从今日事件日志中移除关联事件，避免 AI 看到已删活动 */
+  removeEventsByMessageId: (messageId: string) => void;
 
   // 云端同步
   fetchAnnotations: () => Promise<void>;
@@ -705,6 +707,15 @@ export const useAnnotationStore = create<AnnotationStore>()(
             createdAt: Number(intent.createdAt) || Date.now(),
           },
         });
+      },
+
+      removeEventsByMessageId: (messageId) => {
+        set((s) => ({
+          todayStats: {
+            ...s.todayStats,
+            events: s.todayStats.events.filter((e) => e.data?.messageId !== messageId),
+          },
+        }));
       },
 
       consumePendingSuggestionIntent: ({ type, maxAgeMs = 30_000 }) => {
