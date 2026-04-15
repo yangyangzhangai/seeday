@@ -4,6 +4,59 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-15 - Fix: 重复待办实例日堆积 + monthly 频率错误
+
+### Changed
+
+- `src/store/useTodoStore.ts`
+  - `generateRecurringTodos()` 新增未完成实例门控：同一 `templateId` 只要存在 `completed=false` 的实例，当天即跳过生成，避免 daily/weekly/monthly 重复待办“每天新增一条未完成实例”的堆积。
+  - 修复 monthly 调度条件：自动生成逻辑由“每次触发都可生成”改为“仅每月 1 号生成”。
+  - 修复创建重复模板时的首日实例生成判定：`recurrence='monthly'` 仅在每月 1 号立即生成首条实例，其余日期仅创建模板。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: 聊天时间线编辑/插入后弹窗自动关闭
+
+### Changed
+
+- `src/features/chat/ChatPage.tsx`
+  - `handleSave` 改为 `try/finally` 结构：当编辑或插入操作成功执行后，无论后续持久化阶段是否抛出异常，都会统一清空 `editingId/insertingAfterId` 关闭弹窗。
+  - 保持原有校验逻辑（空内容/时间为空/开始时间晚于当前）不变，仅收口“已完成修改但弹窗未关闭”的交互边界。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: Growth 添加待办弹层移动端高度与滚动可用性
+
+### Changed
+
+- `src/features/growth/AddGrowthTodoModal.tsx`
+  - 弹层容器改为「头部 + 可滚动内容区 + 底部操作区」三段式，移除 `max-h-[85vh]`，改为基于 `100dvh` 与全局 modal gutter 的高度约束，避免 iOS Safari 视口变化导致内容被压出可视区。
+  - 内容区启用独立滚动与 `-webkit-overflow-scrolling: touch`，修复小屏设备上“无法下拉到表单底部”的问题。
+  - 确认按钮移至底部固定操作区并补 safe-area 底部留白，保证输入后始终可点击保存。
+  - 视觉尺寸对齐现有弹窗：由底部全宽样式改为居中卡片（`w-[min(92vw,420px)]` + `rounded-3xl`），降低视觉压迫感，避免“弹窗过大”。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: 日记详情活动/情绪总结半句截断
+
+### Changed
+
+- `src/store/reportHelpers.ts`
+  - 移除活动/情绪总结的 50 字符硬截断逻辑（原 `clampText50`），改为仅做空白归一，确保句子完整输出。
+- `src/features/report/ReportDetailModal.tsx`
+  - 新增 legacy 截断识别（长度接近 50 且句尾无终止标点），命中时使用 `stats.actionAnalysis` / `stats.moodDistribution` 现场重算总结文本。
+  - `SectionRow` 文本区域增加 `minWidth: 0` 与 `overflowWrap: anywhere`，降低长文本在 grid/flex 场景下被裁切风险。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-13 - Fix: annotation/todo-decompose 上游原始返回调试日志补齐
 
 ### Changed

@@ -86,6 +86,10 @@ function todayDayOfWeek(): number {
   return new Date().getDay();
 }
 
+function todayDayOfMonth(): number {
+  return new Date().getDate();
+}
+
 function getTodoFreshness(todo: Todo): number {
   return Math.max(
     Number(todo.completedAt ?? 0),
@@ -414,7 +418,7 @@ export const useTodoStore = create<TodoState>()(
 
           const shouldGenerate =
             recurrence === 'daily' ||
-            recurrence === 'monthly' ||
+            (recurrence === 'monthly' && todayDayOfMonth() === 1) ||
             (recurrence === 'weekly' && (input.recurrenceDays ?? []).includes(todayDayOfWeek()));
 
           const newTodos: Todo[] = [template];
@@ -705,6 +709,7 @@ export const useTodoStore = create<TodoState>()(
         if (lastGeneratedDate === today) return;
 
         const dayOfWeek = todayDayOfWeek();
+        const dayOfMonth = todayDayOfMonth();
         const templates = todos.filter((t) => t.isTemplate);
         const newInstances: Todo[] = [];
 
@@ -714,10 +719,15 @@ export const useTodoStore = create<TodoState>()(
           } else if (tpl.recurrence === 'weekly') {
             if (!(tpl.recurrenceDays ?? []).includes(dayOfWeek)) continue;
           } else if (tpl.recurrence === 'monthly') {
-            // generate on day 1
+            if (dayOfMonth !== 1) continue;
           } else {
             continue;
           }
+
+          const hasUnfinishedInstance = todos.some(
+            (t) => t.templateId === tpl.id && !t.completed
+          );
+          if (hasUnfinishedInstance) continue;
 
           const todayStart = new Date(today).getTime();
           const todayEnd = todayStart + 86400000;

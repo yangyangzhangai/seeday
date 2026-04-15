@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-13
+Last Updated: 2026-04-15
 Owner: current working session
 
 ---
@@ -25,6 +25,16 @@ Owner: current working session
 - [x] 云端语言回填：登录初始化与 `SIGNED_IN` 事件新增语言 metadata 自愈；若云端缺失 `i18nextLng`，自动将当前 i18n 语言写回云端。
 - [x] todo-decompose 详细排障日志增强：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出 provider `finishReason`、usage、完整 `rawFull` 及上游错误原文（`responseRaw`），便于定位“回复说一半/解析失败”。
 - [x] annotation 调试链路补齐 Gemini 完整返回：`ANNOTATION_VERBOSE_LOGS=true` 时输出 Gemini `finishReason`、`usageMetadata` 与完整 `rawFull`；同时在 suggestion/annotation/rewrite 日志中透传 `finishReason`。
+
+## 会话更新（2026-04-15）
+
+- [x] 修复日记详情页「活动/情绪总结被截断」：根因是 `generateActionSummary/generateMoodSummary` 在 `reportHelpers.ts` 内被硬截断为前 50 字符（无省略号），非 AI 返回截断。
+- [x] 回填历史兼容：`ReportDetailModal` 新增 legacy 截断检测，命中时使用 `stats.actionAnalysis/moodDistribution` 重新生成完整总结，避免旧报告继续显示半句。
+- [x] 显示层兜底：`SectionRow` 右侧文本列增加 `minWidth:0` 与 `overflowWrap:anywhere`，防止极端长词/长串导致布局裁切。
+- [x] 修复 Growth「添加待办」弹层在移动端过高且不可顺畅下拉：改为头/内容/底部按钮三段式布局，内容区独立滚动（含 iOS 惯性滚动），底部确认按钮固定可见，避免被底部区域遮挡；并对齐其他弹窗样式收窄为居中卡片（`min(92vw,420px)`）避免“弹窗过大”。
+- [x] 修复聊天时间线编辑弹窗「点击确定后不自动关闭」边界：`handleSave` 改为 `try/finally` 收口，编辑/插入成功执行后统一关闭弹窗，避免持久化阶段异常时弹窗卡住。
+- [x] 修复重复待办“每天新增一条”堆积：`generateRecurringTodos` 新增“同模板存在未完成实例则跳过生成”门控，改为同一模板同一时刻只保留一条未完成实例。
+- [x] 修复 monthly 重复待办生成频率：新增/自动生成都收敛为仅每月 1 号生成，避免按天误生成。
 
 ---
 

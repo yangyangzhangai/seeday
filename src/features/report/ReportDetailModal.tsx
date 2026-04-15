@@ -12,6 +12,7 @@ import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
+import { generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
 import {
@@ -109,6 +110,15 @@ function clampInsightText(raw: string, maxChars = 20): string {
   const chars = Array.from(text);
   if (chars.length <= maxChars) return text;
   return `${chars.slice(0, maxChars).join('')}…`;
+}
+
+function isLikelyLegacyClampedSummary(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  const chars = Array.from(trimmed);
+  if (chars.length < 50) return false;
+  const tail = chars[chars.length - 1] || '';
+  return !/[。！？.!?…]$/.test(tail);
 }
 
 function toPercent(rate: number): number {
@@ -224,9 +234,9 @@ function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] })
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 8px 1fr' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{left}</div>
       <div />
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', overflow: 'hidden' }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', overflow: 'hidden' }}>
         {lines.map((line, index) => (
-          <div key={index} style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: '18px' }}>{line}</div>
+          <div key={index} style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: '18px', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{line}</div>
         ))}
       </div>
     </div>
@@ -500,12 +510,27 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     return withPercent;
   }, [moodDistribution, t]);
 
-  const actionSummaryText = typeof selectedReport?.stats?.actionSummary === 'string'
-    ? selectedReport.stats.actionSummary.trim()
-    : '';
-  const moodSummaryText = typeof selectedReport?.stats?.moodSummary === 'string'
-    ? selectedReport.stats.moodSummary.trim()
-    : '';
+  const actionSummaryText = useMemo(() => {
+    const stored = typeof selectedReport?.stats?.actionSummary === 'string'
+      ? selectedReport.stats.actionSummary.trim()
+      : '';
+    if (stored && !isLikelyLegacyClampedSummary(stored)) return stored;
+
+    const source = selectedReport?.stats?.actionAnalysis;
+    if (!source || source.length === 0) return stored;
+    return generateActionSummary(source, lang);
+  }, [selectedReport?.stats?.actionSummary, selectedReport?.stats?.actionAnalysis, lang]);
+
+  const moodSummaryText = useMemo(() => {
+    const stored = typeof selectedReport?.stats?.moodSummary === 'string'
+      ? selectedReport.stats.moodSummary.trim()
+      : '';
+    if (stored && !isLikelyLegacyClampedSummary(stored)) return stored;
+
+    const source = selectedReport?.stats?.moodDistribution;
+    if (!source || source.length === 0) return stored;
+    return generateMoodSummary(source, lang);
+  }, [selectedReport?.stats?.moodSummary, selectedReport?.stats?.moodDistribution, lang]);
 
   const activityAnalysisLine1 = actionSummaryText || copy.activityLine1;
   const moodAnalysisLine1 = moodSummaryText || copy.moodLine1;

@@ -61,11 +61,9 @@ const ACTION_CATEGORY_ENCOURAGEMENT: Record<SupportedLang, Record<ActionCategory
   },
 };
 
-function clampText50(s: string): string {
+function normalizeSummaryText(s: string): string {
   if (!s) return s;
-  const chars = Array.from(s);
-  if (chars.length <= 50) return s;
-  return chars.slice(0, 50).join('');
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 export function getDateRange(type: ReportType, date: number, customEndDate?: number): { start: Date; end: Date; title: string } {
@@ -216,7 +214,7 @@ export function generateActionSummary(
     if (second) parts.push(`"${labels[second.category]}" followed — good balance.`);
     parts.push(encouragement[top.category]);
   }
-  return clampText50(parts.join(' '));
+  return normalizeSummaryText(parts.join(' '));
 }
 
 // ── Daily todo stats ─────────────────────────────────────────
@@ -324,5 +322,5 @@ export function generateMoodSummary(
     if (secondMoodLabel) parts.push(`"${secondMoodLabel}" also weaved through — natural rhythm.`);
     parts.push('Thank you for recording your feelings honestly. Every step counts.');
   }
-  return clampText50(parts.join(' '));
+  return normalizeSummaryText(parts.join(' '));
 }

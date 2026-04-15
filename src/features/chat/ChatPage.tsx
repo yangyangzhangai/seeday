@@ -247,15 +247,24 @@ export const ChatPage = () => {
       window.alert(t('chat_start_time_no_future'));
       return;
     }
-    if (editingId) {
-      await updateActivity(editingId, editContent, startMs, endMs);
-    } else if (insertingAfterId) {
-      const idx = messages.findIndex(m => m.id === insertingAfterId);
-      const nextMsg = messages[idx + 1];
-      await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, startMs, endMs);
+
+    let shouldCloseModal = false;
+    try {
+      if (editingId) {
+        await updateActivity(editingId, editContent, startMs, endMs);
+        shouldCloseModal = true;
+      } else if (insertingAfterId) {
+        const idx = messages.findIndex(m => m.id === insertingAfterId);
+        const nextMsg = messages[idx + 1];
+        await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, startMs, endMs);
+        shouldCloseModal = true;
+      }
+    } finally {
+      if (shouldCloseModal) {
+        setEditingId(null);
+        setInsertingAfterId(null);
+      }
     }
-    setEditingId(null);
-    setInsertingAfterId(null);
   };
 
   const handleDelete = async (id: string) => {

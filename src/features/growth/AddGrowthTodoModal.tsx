@@ -99,148 +99,154 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
 
   return (
-    <div className={cn('fixed inset-0 z-50 flex items-end justify-center', APP_MODAL_OVERLAY_CLASS)}>
-      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-slide-up max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-6 pb-safe')}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-slate-800">{t('growth_todo_add')}</h3>
-          <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={20} /></button>
-        </div>
+    <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}>
+      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-in zoom-in-95 fade-in w-[min(92vw,420px)] max-h-[86vh] overflow-hidden rounded-3xl')}>
+        <div className="flex max-h-[86vh] flex-col">
+          <div className="flex items-center justify-between px-5 pb-3 pt-5">
+            <h3 className="text-lg font-bold text-slate-800">{t('growth_todo_add')}</h3>
+            <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={20} /></button>
+          </div>
 
-        {/* Title */}
-        <input
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
-          placeholder={t('growth_todo_title_placeholder')}
-          className={cn(
-            APP_MODAL_INPUT_CLASS,
-            'mb-1 w-full p-3 text-sm',
-            titleError ? "border-red-400" : "border-gray-200"
-          )}
-        />
-        {titleError && (
-          <p className="text-xs text-red-500 mb-3">{t('growth_todo_title_required')}</p>
-        )}
-
-        {/* Priority */}
-        <label className="block text-sm font-medium text-slate-600 mt-3 mb-2">
-          {t('growth_todo_priority')}
-        </label>
-        <div className="flex gap-2 mb-4">
-          {priorities.map((p) => (
-            <button
-              key={p}
-              onClick={() => {
-                triggerLightHaptic();
-                setPriority(p);
-              }}
+          <div className="flex-1 overflow-y-auto px-5 pb-3 [overscroll-behavior:contain] [-webkit-overflow-scrolling:touch]">
+            {/* Title */}
+            <input
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
+              placeholder={t('growth_todo_title_placeholder')}
               className={cn(
-                'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
-                priority === p ? 'text-[#1D4ED8]' : 'border-white/80 bg-white/70 text-[#2F3E33]'
+                APP_MODAL_INPUT_CLASS,
+                'mb-1 w-full p-3 text-sm',
+                titleError ? 'border-red-400' : 'border-gray-200'
               )}
-              style={priority === p ? selectedGlowStyle : undefined}
-            >
-              {t(`growth_todo_priority_${p}`)}
-            </button>
-          ))}
-        </div>
+            />
+            {titleError && (
+              <p className="text-xs text-red-500 mb-3">{t('growth_todo_title_required')}</p>
+            )}
 
-        {/* Due date */}
-        <label className="block text-sm font-medium text-slate-600 mb-2">
-          {t('growth_todo_due_datetime')}
-        </label>
-        <input
-          type="datetime-local"
-          value={dueAt}
-          onChange={(e) => setDueAt(e.target.value)}
-          className={cn(APP_MODAL_INPUT_CLASS, 'mb-4 w-full p-3 text-sm')}
-        />
-
-        {/* Recurrence */}
-        <label className="block text-sm font-medium text-slate-600 mb-2">
-          {t('growth_todo_recurrence')}
-        </label>
-        <div className="flex gap-2 mb-4">
-          {recurrences.map((r) => (
-            <button
-              key={r}
-              onClick={() => {
-                triggerLightHaptic();
-                setRecurrence(r);
-              }}
-              className={cn(
-                'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
-                recurrence === r
-                  ? 'text-[#1D4ED8]'
-                  : 'border-white/80 bg-white/70 text-[#2F3E33]'
-              )}
-              style={recurrence === r ? selectedGlowStyle : undefined}
-            >
-              {t(`growth_todo_recurrence_${r}`)}
-            </button>
-          ))}
-        </div>
-
-        {/* Weekly day picker */}
-        {recurrence === 'weekly' && (
-          <>
-            <label className="block text-sm font-medium text-slate-600 mb-2">
-              {t('growth_todo_weekly_days')}
+            {/* Priority */}
+            <label className="block text-sm font-medium text-slate-600 mt-3 mb-2">
+              {t('growth_todo_priority')}
             </label>
-            <div className="flex gap-1 mb-4">
-              {DAY_LABELS.map((label, i) => (
+            <div className="flex gap-2 mb-4">
+              {priorities.map((p) => (
                 <button
-                  key={i}
+                  key={p}
                   onClick={() => {
                     triggerLightHaptic();
-                    toggleDay(i);
+                    setPriority(p);
                   }}
                   className={cn(
-                    'h-9 w-9 rounded-full border text-xs font-medium transition-all',
-                    recurrenceDays.includes(i)
-                      ? 'text-[#1D4ED8]'
-                      : 'border-white/70 bg-white/80 text-[#2F3E33]'
+                    'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
+                    priority === p ? 'text-[#1D4ED8]' : 'border-white/80 bg-white/70 text-[#2F3E33]'
                   )}
-                  style={recurrenceDays.includes(i) ? selectedGlowStyle : undefined}
+                  style={priority === p ? selectedGlowStyle : undefined}
                 >
-                  {label}
+                  {t(`growth_todo_priority_${p}`)}
                 </button>
               ))}
             </div>
-          </>
-        )}
 
-        {/* Link bottle */}
-        {bottles.length > 0 && (
-          <>
+            {/* Due date */}
             <label className="block text-sm font-medium text-slate-600 mb-2">
-              {t('growth_todo_link_bottle')}
+              {t('growth_todo_due_datetime')}
             </label>
-            <select
-              value={bottleId}
-              onChange={(e) => setBottleId(e.target.value)}
-               className={cn(APP_MODAL_INPUT_CLASS, 'mb-4 w-full p-3 text-sm')}
-            >
-              <option value="">{t('growth_todo_none')}</option>
-              {bottles.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </>
-        )}
+            <input
+              type="datetime-local"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+              className={cn(APP_MODAL_INPUT_CLASS, 'mb-4 w-full p-3 text-sm')}
+            />
 
-        <button
-          onClick={() => {
-            if (!title.trim()) {
-              handleSubmit();
-              return;
-            }
-            triggerLightHaptic();
-            handleSubmit();
-          }}
-          className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}
-        >
-          {t('confirm')}
-        </button>
+            {/* Recurrence */}
+            <label className="block text-sm font-medium text-slate-600 mb-2">
+              {t('growth_todo_recurrence')}
+            </label>
+            <div className="flex gap-2 mb-4">
+              {recurrences.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    triggerLightHaptic();
+                    setRecurrence(r);
+                  }}
+                  className={cn(
+                    'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
+                    recurrence === r
+                      ? 'text-[#1D4ED8]'
+                      : 'border-white/80 bg-white/70 text-[#2F3E33]'
+                  )}
+                  style={recurrence === r ? selectedGlowStyle : undefined}
+                >
+                  {t(`growth_todo_recurrence_${r}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Weekly day picker */}
+            {recurrence === 'weekly' && (
+              <>
+                <label className="block text-sm font-medium text-slate-600 mb-2">
+                  {t('growth_todo_weekly_days')}
+                </label>
+                <div className="flex gap-1 mb-4">
+                  {DAY_LABELS.map((label, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        triggerLightHaptic();
+                        toggleDay(i);
+                      }}
+                      className={cn(
+                        'h-9 w-9 rounded-full border text-xs font-medium transition-all',
+                        recurrenceDays.includes(i)
+                          ? 'text-[#1D4ED8]'
+                          : 'border-white/70 bg-white/80 text-[#2F3E33]'
+                      )}
+                      style={recurrenceDays.includes(i) ? selectedGlowStyle : undefined}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Link bottle */}
+            {bottles.length > 0 && (
+              <>
+                <label className="block text-sm font-medium text-slate-600 mb-2">
+                  {t('growth_todo_link_bottle')}
+                </label>
+                <select
+                  value={bottleId}
+                  onChange={(e) => setBottleId(e.target.value)}
+                  className={cn(APP_MODAL_INPUT_CLASS, 'mb-2 w-full p-3 text-sm')}
+                >
+                  <option value="">{t('growth_todo_none')}</option>
+                  {bottles.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+
+          <div className="border-t border-white/70 bg-white px-5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-3">
+            <button
+              onClick={() => {
+                if (!title.trim()) {
+                  handleSubmit();
+                  return;
+                }
+                triggerLightHaptic();
+                handleSubmit();
+              }}
+              className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}
+            >
+              {t('confirm')}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
