@@ -41,6 +41,9 @@ Owner: current working session
 - [x] 旧结构清理：删除 `SpectrumBarChart` / `LightQualityDashboard` 组件与相关 i18n key，`ComputedResult` 与 `ReportStats` 同步去除 `spectrum/lightQuality` 字段，避免旧世界观术语继续渗入日记链路。
 - [x] 日记落款兜底：`api/diary.ts` 新增签名检测与按人设补签名（Van/Agnes/Zep/Momo），避免模型漏写落款。
 - [x] 日记称呼防线升级：`api/diary.ts` 新增称呼 fallback（ZH=`园主` / EN=`Gardener` / IT=`Custode`）+ 生成后质检重写 + 末端硬替换，降低“用户/ta/the user”残留概率。
+- [x] 修复 TypeScript 构建阻断（annotation/extract-profile）：`decomposeTodoWithAI` 参数改为 `geminiApiKey`；移除 Gemini OpenAI 兼容调用中的无效 `reasoning_effort` 字段；`extract-profile-service` 增加置信信号标准化，确保输出符合 `UserProfileObserved/UserProfileDynamicSignals` 类型。
+- [x] 修复 Growth 待办同步“重试仍失败”循环：`useTodoStore.fetchTodos()` 推送改为父待办优先、子待办后推，并对 `todos_parent_id_fkey (23503)` 增加父任务补推与去父引用兜底，避免子待办先写导致反复 400/409。
+- [x] 修复 Growth 待办同步 `22003 bigint out of range`：`toDbTodo/toDbTodoUpdates` 新增 bigint 字段安全归一化（`created_at/due_date/started_at/completed_at/sort_order`），并在新增待办时对 `sortOrder` 做安全夹紧，避免异常极值穿透到 Supabase。
 
 ---
 

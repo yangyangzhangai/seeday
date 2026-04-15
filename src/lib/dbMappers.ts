@@ -8,6 +8,24 @@ import type { Todo } from '../store/useTodoStore';
 
 export type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
 
+const BIGINT_JS_SAFE_MIN = -9_000_000_000_000_000;
+const BIGINT_JS_SAFE_MAX = 9_000_000_000_000_000;
+
+function normalizeBigintLike(raw: unknown): number | null {
+  if (raw == null) return null;
+
+  const numeric = typeof raw === 'number'
+    ? raw
+    : (typeof raw === 'string' ? Number(raw.trim()) : Number.NaN);
+
+  if (!Number.isFinite(numeric)) return null;
+
+  const truncated = Math.trunc(numeric);
+  if (truncated < BIGINT_JS_SAFE_MIN) return BIGINT_JS_SAFE_MIN;
+  if (truncated > BIGINT_JS_SAFE_MAX) return BIGINT_JS_SAFE_MAX;
+  return truncated;
+}
+
 /** 安全解析 mood_descriptions JSONB 字段，容错脏数据 */
 export function safeParseMoodDescriptions(raw: unknown): MoodDescription[] | null {
   if (!raw) return null;
@@ -40,7 +58,9 @@ function normalizeRecurrenceDays(raw: unknown): number[] | undefined {
 
 function toTimestampMs(raw: unknown): number | undefined {
   if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return raw < 1e11 ? raw * 1000 : raw;
+    const normalized = raw < 1e11 ? raw * 1000 : raw;
+    const safe = normalizeBigintLike(normalized);
+    return safe == null ? undefined : safe;
   }
 
   if (typeof raw === 'string') {
@@ -49,7 +69,9 @@ function toTimestampMs(raw: unknown): number | undefined {
 
     const numeric = Number(trimmed);
     if (Number.isFinite(numeric)) {
-      return numeric < 1e11 ? numeric * 1000 : numeric;
+      const normalized = numeric < 1e11 ? numeric * 1000 : numeric;
+      const safe = normalizeBigintLike(normalized);
+      return safe == null ? undefined : safe;
     }
 
     const parsed = Date.parse(trimmed);
@@ -151,24 +173,27 @@ export function fromDbTodo(row: any): Todo {
 }
 
 export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
+  const createdAt = normalizeBigintLike(todo.createdAt) ?? Math.trunc(Date.now());
+  const sortOrder = normalizeBigintLike(todo.sortOrder) ?? createdAt;
+
   return {
     id: todo.id,
     content: todo.title,             // app 'title' → DB 'content'
     completed: todo.completed,
     priority: todo.priority,
     category: todo.category,
-    due_date: todo.dueAt,            // app 'dueAt' → DB 'due_date'
+    due_date: normalizeBigintLike(todo.dueAt), // app 'dueAt' → DB 'due_date'
     scope: todo.scope,
-    created_at: todo.createdAt,
+    created_at: createdAt,
     recurrence: todo.recurrence,
     recurrence_days: normalizeRecurrenceDays(todo.recurrenceDays) ?? null,
     recurrence_id: todo.recurrenceId,
-    completed_at: todo.completedAt,
+    completed_at: normalizeBigintLike(todo.completedAt),
     is_pinned: todo.isPinned,
-    started_at: todo.startedAt,
+    started_at: normalizeBigintLike(todo.startedAt),
     duration: todo.duration,
     bottle_id: todo.bottleId,
-    sort_order: todo.sortOrder,
+    sort_order: sortOrder,
     is_template: todo.isTemplate,
     template_id: todo.templateId,
     parent_id: todo.parentId ?? null,
@@ -181,11 +206,16 @@ export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
 
 export function toDbTodoUpdates(updates: TodoUpdates): Record<string, unknown> {
   const dbUpdates: Record<string, unknown> = {};
+  const bigintKeys = new Set<keyof TodoUpdates>(['dueAt', 'completedAt', 'startedAt', 'sortOrder']);
 
   for (const [key, value] of Object.entries(updates) as [keyof TodoUpdates, TodoUpdates[keyof TodoUpdates]][]) {
     const mappedKey = TODO_DB_FIELD_MAP[key] || key;
     if (key === 'recurrenceDays') {
       dbUpdates[mappedKey] = normalizeRecurrenceDays(value) ?? null;
+      continue;
+    }
+    if (bigintKeys.has(key)) {
+      dbUpdates[mappedKey] = value === undefined ? null : normalizeBigintLike(value);
       continue;
     }
     dbUpdates[mappedKey] = value === undefined ? null : value;

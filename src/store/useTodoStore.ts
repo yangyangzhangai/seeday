@@ -78,6 +78,18 @@ export interface Todo {
 /** Backward-compat alias for growth components */
 export type GrowthTodo = Todo;
 
+const SORT_ORDER_SAFE_MIN = -9_000_000_000_000_000;
+const SORT_ORDER_SAFE_MAX = 9_000_000_000_000_000;
+
+function sanitizeSortOrder(value: unknown, fallback: number): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.trunc(fallback);
+  const truncated = Math.trunc(numeric);
+  if (truncated < SORT_ORDER_SAFE_MIN) return SORT_ORDER_SAFE_MIN;
+  if (truncated > SORT_ORDER_SAFE_MAX) return SORT_ORDER_SAFE_MAX;
+  return truncated;
+}
+
 // ── Helpers ─────────────────────────────────────────────────
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -221,6 +233,18 @@ async function bgSyncDelete(id: string): Promise<void> {
   }
 }
 
+function isTodoParentForeignKeyError(err: unknown): boolean {
+  const message = (typeof err === 'object' && err !== null)
+    ? String((err as Record<string, unknown>).message ?? '')
+    : String(err ?? '');
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('todos_parent_id_fkey') ||
+    (lower.includes('violates foreign key constraint') && lower.includes('parent_id')) ||
+    (lower.includes('key is not present in table') && lower.includes('todos'))
+  );
+}
+
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
   try {
     const lang = resolveLangForText(title);
@@ -314,26 +338,85 @@ export const useTodoStore = create<TodoState>()(
           }
 
           // ① 找出本地所有未同步的条目（pending / failed / 无 syncState 的旧数据）
+          //    并先修复本地明显孤儿 parentId（本地父任务不存在）
           const localTodos = get().todos;
-          const needsPush = localTodos.filter(
+          const localTodoIdSet = new Set(localTodos.map((t) => t.id));
+          let hasLocalOrphanParent = false;
+          const normalizedLocalTodos = localTodos.map((todo) => {
+            if (todo.parentId && !localTodoIdSet.has(todo.parentId)) {
+              hasLocalOrphanParent = true;
+              return { ...todo, parentId: undefined, syncState: 'pending' as const };
+            }
+            return todo;
+          });
+          if (hasLocalOrphanParent) {
+            set({ todos: normalizedLocalTodos });
+          }
+
+          const needsPush = normalizedLocalTodos.filter(
             (t) => !t.syncState || t.syncState === 'pending' || t.syncState === 'failed'
           );
+          const pushTodoById = new Map(needsPush.map((todo) => [todo.id, todo]));
+
+          async function upsertTodo(todo: Todo): Promise<void> {
+            const { error } = await supabase
+              .from('todos')
+              .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
+            if (error) throw error;
+          }
+
+          async function upsertTodoWithParentRecovery(todo: Todo): Promise<void> {
+            try {
+              await upsertTodo(todo);
+              return;
+            } catch (error) {
+              if (!isTodoParentForeignKeyError(error)) throw error;
+            }
+
+            const parentId = todo.parentId;
+            if (parentId) {
+              const parentTodo = pushTodoById.get(parentId);
+              if (parentTodo) {
+                await upsertTodo(parentTodo);
+                await upsertTodo(todo);
+                return;
+              }
+            }
+
+            const detachedTodo: Todo = { ...todo, parentId: undefined };
+            await upsertTodo(detachedTodo);
+          }
 
           // ② 尝试推送，收集仍然失败的
-          const stillFailed: Todo[] = [];
+          const failedById = new Map<string, Todo>();
+          const markFailed = (todo: Todo) => {
+            failedById.set(todo.id, { ...todo, syncState: 'failed' as const });
+          };
+
+          const parentTodos = needsPush.filter((todo) => !todo.parentId);
+          const childTodos = needsPush.filter((todo) => !!todo.parentId);
+
           await Promise.all(
-            needsPush.map(async (t) => {
+            parentTodos.map(async (todo) => {
               try {
-                const { error } = await supabase
-                  .from('todos')
-                  .upsert([toDbTodo(t, session.user.id)], { onConflict: 'id' });
-                if (error) throw error;
-                // 推成功：在本地标记 synced（fetch 后会被云端数据覆盖，这里是临时标记）
+                await upsertTodo(todo);
               } catch {
-                stillFailed.push(t);
+                markFailed(todo);
               }
             })
           );
+
+          await Promise.all(
+            childTodos.map(async (todo) => {
+              try {
+                await upsertTodoWithParentRecovery(todo);
+              } catch {
+                markFailed(todo);
+              }
+            })
+          );
+
+          const stillFailed = Array.from(failedById.values());
 
           // ③ 拉云端（只拉未软删除的）
           const { data, error } = await supabase
@@ -388,8 +471,12 @@ export const useTodoStore = create<TodoState>()(
       // ── Add todo (unified: supports growth + legacy fields) ──
       addTodo: (input) => {
         const { todos } = get();
-        const minOrder = todos.filter((t) => !t.isTemplate).reduce((min, t) => Math.min(min, t.sortOrder), Infinity);
-        const defaultSortOrder = minOrder === Infinity ? 0 : minOrder - 1;
+        const minOrder = todos
+          .filter((t) => !t.isTemplate)
+          .reduce((min, t) => Math.min(min, sanitizeSortOrder(t.sortOrder, Date.now())), Infinity);
+        const defaultSortOrder = minOrder === Infinity
+          ? 0
+          : sanitizeSortOrder(minOrder - 1, Date.now());
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
         const lang = resolveLangForText(input.title);

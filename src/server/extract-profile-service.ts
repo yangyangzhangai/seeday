@@ -1,7 +1,12 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/用户画像模块_需求与技术文档_v1.md
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { UserProfileV2 } from '../types/userProfile.js';
+import type {
+  ConfidenceSignal,
+  UserProfileDynamicSignals,
+  UserProfileObserved,
+  UserProfileV2,
+} from '../types/userProfile.js';
 
 export interface ExtractProfileMessage {
   id: string;
@@ -86,6 +91,28 @@ function toISO(value: string, fallback: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return fallback;
   return parsed.toISOString();
+}
+
+function normalizeConfidenceSignal<T>(
+  signal:
+    | {
+        value?: T;
+        confidence?: number;
+        evidenceCount?: number;
+        lastSeenAt?: string;
+      }
+    | undefined,
+  fallbackIso: string,
+): ConfidenceSignal<T> | undefined {
+  if (!signal || signal.value === undefined) return undefined;
+  if (typeof signal.confidence !== 'number' || !Number.isFinite(signal.confidence)) return undefined;
+  if (typeof signal.evidenceCount !== 'number' || !Number.isFinite(signal.evidenceCount)) return undefined;
+  return {
+    value: signal.value,
+    confidence: signal.confidence,
+    evidenceCount: signal.evidenceCount,
+    lastSeenAt: toISO(signal.lastSeenAt || fallbackIso, fallbackIso),
+  };
 }
 
 function isAnniversaryDate(value: string): boolean {
@@ -290,62 +317,61 @@ export async function extractUserProfileFromMessages(params: {
       createdAt: nowIso,
     }));
 
+  const observed: UserProfileObserved | undefined = data.observed
+    ? {
+        ...(normalizeConfidenceSignal(data.observed.wakeTime, nowIso)
+          ? { wakeTime: normalizeConfidenceSignal(data.observed.wakeTime, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.sleepTime, nowIso)
+          ? { sleepTime: normalizeConfidenceSignal(data.observed.sleepTime, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.mealTimes, nowIso)
+          ? { mealTimes: normalizeConfidenceSignal(data.observed.mealTimes, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.activeWindows, nowIso)
+          ? { activeWindows: normalizeConfidenceSignal(data.observed.activeWindows, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.moodByTimeBand, nowIso)
+          ? { moodByTimeBand: normalizeConfidenceSignal(data.observed.moodByTimeBand, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.efficiencyByTimeBand, nowIso)
+          ? { efficiencyByTimeBand: normalizeConfidenceSignal(data.observed.efficiencyByTimeBand, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.weeklyStateSummary, nowIso)
+          ? { weeklyStateSummary: normalizeConfidenceSignal(data.observed.weeklyStateSummary, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.topActivities, nowIso)
+          ? { topActivities: normalizeConfidenceSignal(data.observed.topActivities, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.observed.topMoods, nowIso)
+          ? { topMoods: normalizeConfidenceSignal(data.observed.topMoods, nowIso) }
+          : {}),
+      }
+    : undefined;
+
+  const dynamicSignals: UserProfileDynamicSignals | undefined = data.dynamicSignals
+    ? {
+        ...(normalizeConfidenceSignal(data.dynamicSignals.preferences, nowIso)
+          ? { preferences: normalizeConfidenceSignal(data.dynamicSignals.preferences, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.dynamicSignals.dislikes, nowIso)
+          ? { dislikes: normalizeConfidenceSignal(data.dynamicSignals.dislikes, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.dynamicSignals.copingPatterns, nowIso)
+          ? { copingPatterns: normalizeConfidenceSignal(data.dynamicSignals.copingPatterns, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.dynamicSignals.relationshipSignals, nowIso)
+          ? { relationshipSignals: normalizeConfidenceSignal(data.dynamicSignals.relationshipSignals, nowIso) }
+          : {}),
+        ...(normalizeConfidenceSignal(data.dynamicSignals.currentFocusInference, nowIso)
+          ? { currentFocusInference: normalizeConfidenceSignal(data.dynamicSignals.currentFocusInference, nowIso) }
+          : {}),
+      }
+    : undefined;
+
   return {
-    observed: data.observed
-      ? {
-          ...data.observed,
-          wakeTime: data.observed.wakeTime
-            ? { ...data.observed.wakeTime, lastSeenAt: toISO(data.observed.wakeTime.lastSeenAt, nowIso) }
-            : undefined,
-          sleepTime: data.observed.sleepTime
-            ? { ...data.observed.sleepTime, lastSeenAt: toISO(data.observed.sleepTime.lastSeenAt, nowIso) }
-            : undefined,
-          mealTimes: data.observed.mealTimes
-            ? { ...data.observed.mealTimes, lastSeenAt: toISO(data.observed.mealTimes.lastSeenAt, nowIso) }
-            : undefined,
-          activeWindows: data.observed.activeWindows
-            ? { ...data.observed.activeWindows, lastSeenAt: toISO(data.observed.activeWindows.lastSeenAt, nowIso) }
-            : undefined,
-          moodByTimeBand: data.observed.moodByTimeBand
-            ? { ...data.observed.moodByTimeBand, lastSeenAt: toISO(data.observed.moodByTimeBand.lastSeenAt, nowIso) }
-            : undefined,
-          efficiencyByTimeBand: data.observed.efficiencyByTimeBand
-            ? { ...data.observed.efficiencyByTimeBand, lastSeenAt: toISO(data.observed.efficiencyByTimeBand.lastSeenAt, nowIso) }
-            : undefined,
-          weeklyStateSummary: data.observed.weeklyStateSummary
-            ? { ...data.observed.weeklyStateSummary, lastSeenAt: toISO(data.observed.weeklyStateSummary.lastSeenAt, nowIso) }
-            : undefined,
-          topActivities: data.observed.topActivities
-            ? { ...data.observed.topActivities, lastSeenAt: toISO(data.observed.topActivities.lastSeenAt, nowIso) }
-            : undefined,
-          topMoods: data.observed.topMoods
-            ? { ...data.observed.topMoods, lastSeenAt: toISO(data.observed.topMoods.lastSeenAt, nowIso) }
-            : undefined,
-        }
-      : undefined,
-    dynamicSignals: data.dynamicSignals
-      ? {
-          ...data.dynamicSignals,
-          preferences: data.dynamicSignals.preferences
-            ? { ...data.dynamicSignals.preferences, lastSeenAt: toISO(data.dynamicSignals.preferences.lastSeenAt, nowIso) }
-            : undefined,
-          dislikes: data.dynamicSignals.dislikes
-            ? { ...data.dynamicSignals.dislikes, lastSeenAt: toISO(data.dynamicSignals.dislikes.lastSeenAt, nowIso) }
-            : undefined,
-          copingPatterns: data.dynamicSignals.copingPatterns
-            ? { ...data.dynamicSignals.copingPatterns, lastSeenAt: toISO(data.dynamicSignals.copingPatterns.lastSeenAt, nowIso) }
-            : undefined,
-          relationshipSignals: data.dynamicSignals.relationshipSignals
-            ? { ...data.dynamicSignals.relationshipSignals, lastSeenAt: toISO(data.dynamicSignals.relationshipSignals.lastSeenAt, nowIso) }
-            : undefined,
-          currentFocusInference: data.dynamicSignals.currentFocusInference
-            ? {
-                ...data.dynamicSignals.currentFocusInference,
-                lastSeenAt: toISO(data.dynamicSignals.currentFocusInference.lastSeenAt, nowIso),
-              }
-            : undefined,
-        }
-      : undefined,
+    observed,
+    dynamicSignals,
     anniversariesVisible: anniversariesVisible?.length ? anniversariesVisible : undefined,
     hiddenMoments: hiddenMoments?.length ? hiddenMoments : undefined,
     lastExtractedAt: nowIso,

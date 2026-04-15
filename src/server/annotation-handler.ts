@@ -589,7 +589,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 title: targetTodo.title,
                 lang: resolvedLang,
                 qwenApiKey: process.env.QWEN_API_KEY,
-                apiKey: process.env.OPENAI_API_KEY,
+                geminiApiKey: process.env.GEMINI_API_KEY,
               });
               if (steps.length > 0) {
                 normalizedSuggestion.decomposeReady = true;

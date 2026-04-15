@@ -4,6 +4,51 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-15 - Fix: Todo 同步 bigint 越界导致 22003
+
+### Changed
+
+- `src/lib/dbMappers.ts`
+  - 新增 bigint 安全归一化：对待办写库字段 `created_at/due_date/started_at/completed_at/sort_order` 在入库前执行有限值校验与安全夹紧，避免异常极值触发 Postgres `22003`。
+  - `toTimestampMs()` 增加 bigint 安全归一化，避免脏时间戳在前后端往返后继续放大。
+  - `toDbTodoUpdates()` 对 bigint 更新字段统一走归一化路径，避免局部更新时越界。
+- `src/store/useTodoStore.ts`
+  - 新增 `sanitizeSortOrder()`，新增待办时基于安全范围计算 `defaultSortOrder`，避免历史极端排序值被继续减小后穿透数据库上限。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: Growth 待办重试同步循环触发 parent_id 外键冲突
+
+### Changed
+
+- `src/store/useTodoStore.ts`
+  - `fetchTodos()` 推送阶段新增“父待办优先、子待办后推”的两阶段 upsert，避免子待办先写入触发 `todos_parent_id_fkey`。
+  - 新增 `isTodoParentForeignKeyError()` 识别 PostgREST `23503` 外键报错（`todos_parent_id_fkey / Key is not present in table "todos"`）。
+  - 子待办同步命中外键冲突时，新增恢复链路：先补推本地父待办再重试子待办；若父待办本地不存在则去除 `parentId` 后兜底 upsert，避免“重试一次继续失败”的死循环。
+  - 同步前增加本地孤儿 `parentId` 自愈（本地父任务不存在时自动清空并标记 `pending`）。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-15 - Fix: annotation / extract-profile TypeScript 编译错误
+
+### Changed
+
+- `src/server/annotation-handler.ts`
+  - 修复待办预拆解调用参数名：`apiKey` -> `geminiApiKey`，与 `decomposeTodoWithAI()` 签名对齐。
+- `src/server/annotation-handler-utils.ts`
+  - 移除 Gemini OpenAI 兼容 `responses.create()` 调用中的 `reasoning_effort` 字段，避免当前 SDK 类型重载不匹配。
+- `src/server/extract-profile-service.ts`
+  - 增加 `normalizeConfidenceSignal()` 统一清洗置信信号（`value/confidence/evidenceCount/lastSeenAt`）。
+  - 重构 `observed`/`dynamicSignals` 组装逻辑，仅在信号有效时注入字段，避免 `exactOptionalPropertyTypes` 下的 `undefined` 属性与可选字段冲突。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-15 - Feat: Growth 瓶子详情弹层与轻量打卡统计
 
 ### Changed
