@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { ArrowDownUp } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
@@ -54,6 +55,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const endActivity = useChatStore((s) => s.endActivity);
   const deleteActivity = useChatStore((s) => s.deleteActivity);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
+  const [smartSort, setSmartSort] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
@@ -168,6 +170,18 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   }
 
   const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+
+  function getSmartDueRank(todo: GrowthTodo): number {
+    if (!todo.dueAt) return 3;
+    const now = Date.now();
+    const todayEnd = todayStartMs + 24 * 60 * 60 * 1000 - 1;
+    const tomorrowEnd = todayEnd + 24 * 60 * 60 * 1000;
+    if (todo.dueAt < now) return 0;       // 已逾期
+    if (todo.dueAt <= todayEnd) return 0; // 今日到期
+    if (todo.dueAt <= tomorrowEnd) return 1; // 明天
+    return 2; // 未来
+  }
+
   const visible = todos
     .filter((t) => {
       if (t.isTemplate) return false;
@@ -177,12 +191,17 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     })
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      if (smartSort) {
+        const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+        if (priorityDiff !== 0) return priorityDiff;
+        const dueDiff = getSmartDueRank(a) - getSmartDueRank(b);
+        if (dueDiff !== 0) return dueDiff;
+        return b.createdAt - a.createdAt; // 新的优先
+      }
       if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-
       const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
       if (priorityDiff !== 0) return priorityDiff;
-
-      return a.createdAt - b.createdAt;
+      return b.createdAt - a.createdAt; // 新的优先
     });
 
   const visibleMap = new Map(visible.map((todo) => [todo.id, todo]));
@@ -315,7 +334,21 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
 
   return (
     <section className="mb-4 px-4">
-      <h2 className="mb-3 text-[14px] font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[14px] font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
+        <button
+          onClick={() => setSmartSort((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all',
+            smartSort
+              ? 'bg-[#8FAF92] text-white'
+              : 'bg-gray-100 text-gray-400'
+          )}
+        >
+          <ArrowDownUp size={11} />
+          {smartSort ? t('todo_sort_smart') : t('todo_sort_manual')}
+        </button>
+      </div>
 
       {/* Inline quick-add input */}
       <div

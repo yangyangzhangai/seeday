@@ -88,6 +88,18 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
     : null;
   const isOverdue = todo.dueAt && !todo.completed && todo.dueAt < Date.now();
 
+  const getDueBadge = (): { label: string; className: string } | null => {
+    if (!todo.dueAt || todo.completed) return null;
+    const now = Date.now();
+    const todayEnd = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
+    const tomorrowEnd = todayEnd + 24 * 60 * 60 * 1000;
+    if (todo.dueAt < now) return { label: t('todo_due_badge_overdue'), className: 'text-red-600 bg-red-50 border border-red-200' };
+    if (todo.dueAt <= todayEnd) return { label: t('todo_due_badge_today'), className: 'text-orange-500 bg-orange-50 border border-orange-200' };
+    if (todo.dueAt <= tomorrowEnd) return { label: t('todo_due_badge_tomorrow'), className: 'text-blue-500 bg-sky-50 border border-sky-200' };
+    return null;
+  };
+  const dueBadge = getDueBadge();
+
   // Collapse on click outside
   useEffect(() => {
     if (!expanded) return;
@@ -272,11 +284,13 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
               {todo.title}
             </span>
           )}
-          {dueStr && (
-            <span className={cn("text-[10px]", isOverdue ? "text-red-500" : "text-gray-400")}>
-              {dueStr}
+          {dueBadge ? (
+            <span className={cn("inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none mt-0.5", dueBadge.className)}>
+              {dueBadge.label}
             </span>
-          )}
+          ) : dueStr ? (
+            <span className="text-[10px] text-gray-400">{dueStr}</span>
+          ) : null}
         </div>
 
         {/* Priority badge */}

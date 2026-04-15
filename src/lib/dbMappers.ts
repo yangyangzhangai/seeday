@@ -119,7 +119,10 @@ export function fromDbTodo(row: any): Todo {
   const dueAt = toTimestampMs(row.due_date);
   const completedAt = toTimestampMs(row.completed_at);
   const startedAt = toTimestampMs(row.started_at);
-  const sortOrder = toTimestampMs(row.sort_order) ?? dueAt ?? createdAt;
+  const rawSortOrder = row.sort_order;
+  const sortOrder = (typeof rawSortOrder === 'number' && Number.isFinite(rawSortOrder))
+    ? rawSortOrder
+    : (dueAt ?? createdAt);
 
   return {
     id: row.id,

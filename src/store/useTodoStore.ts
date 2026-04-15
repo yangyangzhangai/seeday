@@ -389,7 +389,7 @@ export const useTodoStore = create<TodoState>()(
       addTodo: (input) => {
         const { todos } = get();
         const minOrder = todos.filter((t) => !t.isTemplate).reduce((min, t) => Math.min(min, t.sortOrder), Infinity);
-        const defaultSortOrder = input.dueAt ?? (minOrder === Infinity ? 0 : minOrder - 1);
+        const defaultSortOrder = minOrder === Infinity ? 0 : minOrder - 1;
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
         const lang = resolveLangForText(input.title);
