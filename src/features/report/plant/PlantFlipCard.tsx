@@ -189,7 +189,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
         <button
           onClick={onGenerateDiary}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-[14px] shadow-md active:scale-95 transition-all"
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-[15px] shadow-md active:scale-95 transition-all"
           style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
         >
           <PenLine size={16} />

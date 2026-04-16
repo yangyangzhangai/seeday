@@ -135,7 +135,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {/* Time label */}
               <div style={{ width: 44, paddingTop: 8, textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
                 <span
-                  style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8',
+                  style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
                     cursor: (!cardReadonly && onTimeClick) ? 'pointer' : 'default' }}
                   onClick={() => { if (!cardReadonly && onTimeClick) onTimeClick(msg); }}

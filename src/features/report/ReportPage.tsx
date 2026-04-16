@@ -361,7 +361,7 @@ export const ReportPage = () => {
             <button
               onClick={handleOpenDiaryBook}
               className="rounded-full px-2 py-1 active:opacity-70 transition whitespace-nowrap"
-              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.15rem' }}
+              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
             >
               {t('report_view_diary_book')}
             </button>
@@ -369,7 +369,7 @@ export const ReportPage = () => {
               onClick={handleGeneratePlant}
               disabled={plantGenerateUi.disabled}
               className="rounded-full px-2 py-1 transition whitespace-nowrap disabled:opacity-55 disabled:cursor-not-allowed active:opacity-70"
-              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(9px, 2.5vw, 11px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.15rem' }}
+              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
             >
               {t(plantGenerateUi.buttonKey)}
             </button>

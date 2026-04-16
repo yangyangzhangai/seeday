@@ -57,6 +57,8 @@ Owner: current working session
 - [x] 升级页支付反馈闭环：`UpgradePage` 对购买/恢复结果做错误码映射与提示，成功后触发 `useAuthStore.initialize()` 刷新会员状态。
 - [x] P5d 收口：魔法笔模式与待办拆解入口新增 `isPlus` 门控，Free 点击后统一提示并跳转 `/upgrade`。
 - [x] P6 提前执行：`MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED` 已改为 `false`，默认不再给全员 Plus；会员态仅由 metadata 或 trial 判定。
+- [x] 聊天「活动/心情记录」可读性微调：放大时间轴时间戳、活动/心情卡标题、心情标签与时长信息字号，降低“字体过小”阅读负担。
+- [x] 日记入口按钮字号微调：报告页头部「查看日记本」与植物卡片「生成日记」字体上调，移动端点击前可读性更稳定。
 
 ---
 

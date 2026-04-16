@@ -4,6 +4,20 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-16 - Fix: 活动/心情记录与日记入口字号可读性优化
+
+### Changed
+
+- `src/features/chat/components/TimelineView.tsx`
+  - 时间轴左侧时间戳字体从 8px 上调到 10px，提升记录页阅读辨识度。
+- `src/features/chat/components/EventCard.tsx` + `src/features/chat/components/MoodCard.tsx`
+  - 活动/心情卡标题字体从 13px 上调到 14px。
+  - 活动卡心情标签从 8px 上调到 10px，并同步微调 padding；心情备注从 10px 上调到 11px。
+  - 活动卡计时区与结束按钮字号上调（9px -> 10px），计时图标同步放大。
+- `src/features/report/ReportPage.tsx` + `src/features/report/plant/PlantFlipCard.tsx`
+  - 报告页头部圆角按钮字号由 `clamp(9px,2.5vw,11px)` 调整为 `clamp(11px,2.9vw,13px)`。
+  - 植物翻转卡「生成日记」按钮字号由 14px 微调到 15px。
+
 ## 2026-04-16 - Feat: 会员升级页与日记 Teaser 首版落地
 
 ### Changed
