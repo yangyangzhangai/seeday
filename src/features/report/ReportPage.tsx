@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
 import Calendar from 'react-calendar';
@@ -63,9 +64,17 @@ export const ReportPage = () => {
   const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
   const [openedPlantCard, setOpenedPlantCard] = useState<DailyPlantRecord | null>(null);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
   const currentLang = i18n.language?.split('-')[0] || 'en';
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
+
+  useEffect(() => {
+    if (!selectedReport || isPlus) return;
+    if (selectedReport.teaserText?.trim()) return;
+    if (selectedReport.analysisStatus === 'generating') return;
+    void generateAIDiary(selectedReport.id);
+  }, [selectedReport?.id, selectedReport?.analysisStatus, selectedReport?.teaserText, isPlus, generateAIDiary]);
 
   const reportMessages = useMemo(
     () => getMessagesForReport(chatMessages, dateCache, selectedReport),
@@ -427,6 +436,8 @@ export const ReportPage = () => {
 
       <ReportDetailModal
         selectedReport={selectedReport}
+        isPlus={isPlus}
+        onUpgradeClick={() => navigate('/upgrade')}
         dailyMoodDistribution={dailyMoodDistribution}
         onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); setDiaryNavDate(null); }}
         onBack={openedFromDiaryBook ? () => {

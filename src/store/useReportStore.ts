@@ -9,6 +9,7 @@ import i18n from '../i18n';
 import { useTodoStore } from './useTodoStore';
 import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
+import { useAuthStore } from './useAuthStore';
 import { useGrowthStore } from './useGrowthStore';
 import { type ComputedResult } from '../lib/reportCalculator';
 import {
@@ -87,6 +88,7 @@ export interface Report {
   type: 'daily' | 'weekly' | 'monthly' | 'custom';
   content: string; // JSON string or markdown
   aiAnalysis?: string | null;
+  teaserText?: string | null;
   userNote?: string;
   stats?: ReportStats;
   analysisStatus?: 'idle' | 'generating' | 'success' | 'error';
@@ -175,6 +177,7 @@ export const useReportStore = create<ReportState>()(
         if (session) {
           const dbUpdates: any = {};
           if (updates.aiAnalysis !== undefined) dbUpdates.ai_analysis = updates.aiAnalysis;
+          if (updates.teaserText !== undefined) dbUpdates.teaser_text = updates.teaserText;
           if (updates.title !== undefined) dbUpdates.title = updates.title;
           if (updates.content !== undefined) dbUpdates.content = updates.content;
           if (updates.stats !== undefined) dbUpdates.stats = updates.stats;
@@ -265,6 +268,8 @@ export const useReportStore = create<ReportState>()(
         get().updateReport(reportId, { analysisStatus: 'generating', errorMessage: null });
 
         try {
+          const isPlus = useAuthStore.getState().isPlus;
+
           // Fetch messages for this report's date range from Supabase
           const start = new Date(report.startDate ?? report.date);
           const end = new Date(report.endDate ?? report.date);
@@ -279,15 +284,19 @@ export const useReportStore = create<ReportState>()(
             bottles: growthStore.bottles,
             dailyGoal: growthStore.dailyGoal,
             goalDate: growthStore.goalDate,
+            mode: isPlus ? 'full' : 'teaser',
           });
 
-          set((current) => ({
-            computedHistory: [...current.computedHistory.slice(-6), result.computed],
-          }));
+          if (result.computed) {
+            set((current) => ({
+              computedHistory: [...current.computedHistory.slice(-6), result.computed],
+            }));
+          }
 
           const existingStats = get().reports.find(r => r.id === reportId)?.stats;
           get().updateReport(reportId, {
-            aiAnalysis: result.content,
+            aiAnalysis: isPlus ? result.content : report.aiAnalysis,
+            teaserText: isPlus ? report.teaserText : result.content,
             analysisStatus: 'success',
             stats: existingStats,
           });
@@ -305,7 +314,11 @@ export const useReportStore = create<ReportState>()(
     {
       name: 'report-storage',
       partialize: (state) => ({
-        reports: state.reports.map(r => ({ ...r, analysisStatus: r.aiAnalysis ? 'success' : 'idle', errorMessage: undefined })),
+        reports: state.reports.map(r => ({
+          ...r,
+          analysisStatus: (r.aiAnalysis || r.teaserText) ? 'success' : 'idle',
+          errorMessage: undefined,
+        })),
         computedHistory: state.computedHistory
       }),
     }

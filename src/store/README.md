@@ -53,6 +53,7 @@
 - suggestion 画像门控已接入：`useAnnotationStore` 在 `longTermProfileEnabled=true` 时构建并透传 `userContext.userProfileSnapshot`，并将 declared/observed 饭点注入建议上下文提示检测。
 - 周报触发画像提取已接入：`useReportStore.generateReport('weekly', ...)` 会并行调用 `/api/extract-profile`（携带最近消息），并在成功后通过 `useAuthStore.updateUserProfile(...)` 合并写回 `observed/dynamicSignals/anniversariesVisible/hiddenMoments/lastExtractedAt`。
 - suggestion 反馈埋点扩展：当用户接受且该条批注 `narrativeEvent.isTriggeredReply=true` 时，会额外写入 `telemetry_events.event_condensed`（携带 `eventType/eventId`）供低叙事密度质量复盘。
+- `useReportStore.generateAIDiary()` now branches by membership: Plus -> full AI diary (`aiAnalysis`), Free -> teaser copy (`teaserText`) for blur-lock upgrade UI.
 
 ## 变更自检
 

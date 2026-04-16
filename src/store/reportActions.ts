@@ -245,7 +245,7 @@ export async function runReportAIAnalysis(report: Report, todos: Todo[], message
 
 interface AIDiaryResult {
   content: string;
-  computed: ComputedResult;
+  computed?: ComputedResult;
 }
 
 interface RunAIDiaryInput {
@@ -257,6 +257,7 @@ interface RunAIDiaryInput {
   bottles: BottleSnapshot[];
   dailyGoal?: string;
   goalDate?: string;
+  mode?: 'full' | 'teaser';
 }
 
 function getTimeSlot(timestamp: number): 'morning' | 'afternoon' | 'evening' {
@@ -300,6 +301,7 @@ export async function runAIDiary({
   bottles,
   dailyGoal,
   goalDate,
+  mode = 'full',
 }: RunAIDiaryInput): Promise<AIDiaryResult> {
   const range = getDateRange(report.type, report.date, report.endDate);
   const start = report.startDate ? new Date(report.startDate) : range.start;
@@ -327,6 +329,22 @@ export async function runAIDiary({
 
   const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
   const isZh = currentLang === 'zh';
+
+  if (mode === 'teaser') {
+    const teaserResult = await callDiaryAPI({
+      mode: 'teaser',
+      structuredData: buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh),
+      rawInput: activities.map((item) => item.content).join('\n').slice(0, 800),
+      lang: currentLang,
+    });
+
+    if (!teaserResult.success || !teaserResult.content) {
+      throw new Error('日记 Teaser 生成失败');
+    }
+
+    return { content: teaserResult.content };
+  }
+
   const reportDateStr = format(start, 'yyyy-MM-dd');
   const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
   const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);

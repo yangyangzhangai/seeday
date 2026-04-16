@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const FEATURES = [
+export const MEMBERSHIP_FEATURES = [
   { labelKey: 'membership_feat_basic_analysis', free: true },
   { labelKey: 'membership_feat_ai_chat', free: true },
   { labelKey: 'membership_feat_daily_plant', free: true },
@@ -17,17 +18,9 @@ interface Props {
   isPlus: boolean;
 }
 
-function showToast(msg: string) {
-  const el = document.createElement('div');
-  el.textContent = msg;
-  el.style.cssText =
-    'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:20px;font-size:14px;z-index:9999;pointer-events:none;';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2000);
-}
-
 export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -94,7 +87,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
           </span>
         </div>
         <div className="mb-4 grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
-          {FEATURES.map(({ labelKey, free }) => {
+          {MEMBERSHIP_FEATURES.map(({ labelKey, free }) => {
             const unlocked = free || isPlus;
             return (
               <div
@@ -130,7 +123,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
 
         {!isPlus ? (
           <button
-            onClick={() => showToast(t('profile_upgrade_coming'))}
+            onClick={() => navigate('/upgrade')}
             className="relative w-full overflow-hidden rounded-[17px] py-[11px] text-[13px] font-extrabold transition-all active:scale-[0.97]"
             style={{
               background: 'linear-gradient(130deg, rgba(132,117,255,0.22) 0%, rgba(131,209,255,0.34) 100%)',

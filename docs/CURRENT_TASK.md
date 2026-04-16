@@ -45,6 +45,19 @@ Owner: current working session
 - [x] 修复 Growth 待办同步“重试仍失败”循环：`useTodoStore.fetchTodos()` 推送改为父待办优先、子待办后推，并对 `todos_parent_id_fkey (23503)` 增加父任务补推与去父引用兜底，避免子待办先写导致反复 400/409。
 - [x] 修复 Growth 待办同步 `22003 bigint out of range`：`toDbTodo/toDbTodoUpdates` 新增 bigint 字段安全归一化（`created_at/due_date/started_at/completed_at/sort_order`），并在新增待办时对 `sortOrder` 做安全夹紧，避免异常极值穿透到 Supabase。
 
+## 会话更新（2026-04-16）
+
+- [x] 会员升级页首版落地：新增 `/upgrade` 页面（方案切换、权益对比、支付按钮占位、iOS 恢复入口占位），并将 Profile/Report 侧升级入口统一跳转到 `/upgrade`。
+- [x] 支付构建隔离基建：新增 `@payment` alias（`VITE_PAYMENT_MODE=iap|stripe`）与双实现占位模块（`src/services/payment/iap|stripe` 同签名导出），并补 `build:ios` / `build:web` 构建脚本。
+- [x] 会员试用期逻辑接入：`signUp` 写入 `trial_started_at`，`resolveMembershipState()` 增加 7 天试用判定（source=`trial`），并补充边界单测。
+- [x] 日记 Teaser 首版工程化：`/api/diary` 增加 `mode='teaser'`（模板分桶，零 LLM 成本）；前端 `useReportStore.generateAIDiary()` 按会员分流（Plus 写 `aiAnalysis`，Free 写 `teaserText`）。
+- [x] Free 日记解锁引导 UI：报告详情页与日记本观察区增加“渐变模糊 + 解锁按钮”，点击跳转 `/upgrade`。
+- [x] 新增 `/api/subscription`：接入鉴权 + `auth.users.user_metadata` 会员写回（`membership_plan/membership_expires_at/...`），支持 `activate/restore/cancel` 与 `source='iap'`。
+- [x] iOS 支付适配层接线：`src/services/payment/iap/index.ts` 新增“原生桥交易凭证 -> `/api/subscription`”调用链（含 productId/planType 映射）；未接原生插件时返回显式错误码。
+- [x] 升级页支付反馈闭环：`UpgradePage` 对购买/恢复结果做错误码映射与提示，成功后触发 `useAuthStore.initialize()` 刷新会员状态。
+- [x] P5d 收口：魔法笔模式与待办拆解入口新增 `isPlus` 门控，Free 点击后统一提示并跳转 `/upgrade`。
+- [x] P6 提前执行：`MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED` 已改为 `false`，默认不再给全员 Plus；会员态仅由 metadata 或 trial 判定。
+
 ---
 
 ## 当前主线 1：AI 建议模式（P7 收口）

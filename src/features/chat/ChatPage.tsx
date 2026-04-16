@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { playSound } from '../../services/sound/soundService';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import imgBirdZep02 from '../../assets/zep02.png';
 import imgBirdZep03 from '../../assets/zep03.png';
 import imgVan01 from '../../assets/morning-glory-01.png';
@@ -50,6 +50,7 @@ export const ChatPage = () => {
   const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
   const fetchStardusts = useStardustStore(state => state.fetchStardusts);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [input, setInput] = useState(() => localStorage.getItem('chat_input_draft') ?? '');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingDate, setIsLoadingDate] = useState(false);
@@ -74,6 +75,7 @@ export const ChatPage = () => {
   } | null>(null);
 
   const aiMode = useAuthStore(state => state.preferences.aiMode);
+  const isPlus = useAuthStore(state => state.isPlus);
 
   const personaImages: Record<string, [string, string]> = {
     van: [imgVan01, imgVan02],
@@ -118,6 +120,12 @@ export const ChatPage = () => {
       window.removeEventListener('orientationchange', updateBirdAnchor);
     };
   }, [selectedDate, isLoading, isLoadingDate, isMagicPenOpen]);
+
+  useEffect(() => {
+    if (!isPlus && isMagicPenModeOn) {
+      setIsMagicPenModeOn(false);
+    }
+  }, [isPlus, isMagicPenModeOn]);
 
   useEffect(() => {
     setSelectedDate(new Date());
@@ -435,7 +443,15 @@ export const ChatPage = () => {
           onInputChange={setInput}
           onSend={() => { void handleSend(); }}
           onKeyDown={handleKeyDown}
-          onToggleMagicPenMode={() => { playSound('star'); setIsMagicPenModeOn(v => !v); }}
+          onToggleMagicPenMode={() => {
+            if (!isPlus) {
+              window.alert(t('profile_plus_only'));
+              navigate('/upgrade');
+              return;
+            }
+            playSound('star');
+            setIsMagicPenModeOn(v => !v);
+          }}
         />
 
         {/* Edit/Insert Modal */}

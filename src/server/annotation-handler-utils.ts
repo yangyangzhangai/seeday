@@ -78,6 +78,7 @@ export async function callAnnotationLLM(
         input: params.input,
         temperature: params.temperature,
         max_output_tokens: params.maxOutputTokens,
+        stream: false,
       });
       return {
         outputText: response.output_text || '',

@@ -50,6 +50,40 @@ describe('useAuthStore membership helpers', () => {
     });
   });
 
+  it('treats users inside 7-day trial window as plus', () => {
+    const trialStart = new Date('2026-04-10T00:00:00.000Z').toISOString();
+    const membership = resolveMembershipState(
+      {
+        app_metadata: {},
+        user_metadata: { trial_started_at: trialStart },
+      },
+      { temporaryUnlockEnabled: false, nowMs: new Date('2026-04-16T00:00:00.000Z').getTime() },
+    );
+
+    expect(membership).toEqual({
+      plan: 'plus',
+      isPlus: true,
+      source: 'trial',
+    });
+  });
+
+  it('expires trial access after 7 days', () => {
+    const trialStart = new Date('2026-04-01T00:00:00.000Z').toISOString();
+    const membership = resolveMembershipState(
+      {
+        app_metadata: {},
+        user_metadata: { trial_started_at: trialStart },
+      },
+      { temporaryUnlockEnabled: false, nowMs: new Date('2026-04-10T00:00:00.000Z').getTime() },
+    );
+
+    expect(membership).toEqual({
+      plan: 'free',
+      isPlus: false,
+      source: 'default_free',
+    });
+  });
+
   it('gives plus users the expanded annotation quota', () => {
     expect(
       getAnnotationConfigFromPreferences(

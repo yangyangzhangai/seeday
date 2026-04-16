@@ -24,13 +24,13 @@ export const AI_COMPANION_VISUALS: Record<AiCompanionMode, AiCompanionVisual> = 
     name: 'Agnes',
     subtitle: '引领指导',
     avatar: agnesAvatar,
-    free: true,
+    free: false,
   },
   zep: {
     name: 'Zep',
     subtitle: '生活真实',
     avatar: zepAvatar,
-    free: true,
+    free: false,
   },
   momo: {
     name: 'Momo',

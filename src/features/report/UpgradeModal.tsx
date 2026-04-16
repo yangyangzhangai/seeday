@@ -21,7 +21,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose }) => {
 
   const handleUpgrade = () => {
     onClose();
-    navigate('/profile');
+    navigate('/upgrade');
   };
 
   return (

@@ -18,6 +18,7 @@
 - `callPlantHistoryAPI()` (`GET` with auth headers + query params)
 - `callPlantAssetTelemetryAPI()` (records resolved plant image fallback level)
 - `callExtractProfileAPI()` (weekly report trigger; extracts `observed/dynamic/memory` profile patch, supports `lang` routing)
+- `callSubscriptionAPI()` (membership activate/restore/cancel bridge for payment adapters)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -48,6 +49,8 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Magic Pen parse `segments[*]` now supports `timeRelation` (`realtime` / `future` / `past` / `unknown`) for parser-first direct-write gating.
 - Endpoint robustness baseline now includes `src/server/magic-pen-parse.test.ts` (body validation + wrapped JSON extraction + invalid-output fallback).
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
+- `callDiaryAPI()` now supports `mode: 'full' | 'teaser'`; `teaser` returns low-cost copy used for Free diary blur-lock surface.
+- `callSubscriptionAPI()` posts to `/api/subscription` with auth header; iOS IAP adapter uses it to persist `membership_plan` after server-side verification.
 - Stardust creation no longer calls a dedicated emoji model endpoint; the emoji is reused from annotation content in store layer with local fallback (`✨`).
 - `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities/todayContext/characterStateText/characterStateMeta/currentDate/countryCode/holiday` plus optional `latitude/longitude` and optional env fields (`weatherContext/seasonContext/weatherAlerts`), along with suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`). `pendingTodos[*]` additionally supports `createdAt/ageDays` for stale-todo detection; response supports `suggestion` payload for actionable AI bubbles.
 - `callAnnotationAPI()` `userContext` now also supports `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), gated by `user_metadata.long_term_profile_enabled` on the client side.

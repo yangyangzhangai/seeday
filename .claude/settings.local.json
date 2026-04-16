@@ -36,7 +36,8 @@
       "Bash(cp \"/Users/annie/Downloads/声音音效/水滴声.m4a\" /Users/annie/Tshine2-13-new/public/sounds/water-drop.m4a)",
       "Bash(cp \"/Users/annie/Downloads/叮声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/ding.mp3)",
       "Bash(cp \"/Users/annie/Downloads/气泡声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/bubble.mp3)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "WebSearch"
     ],
     "deny": [
       "Bash(rm -rf:*)",

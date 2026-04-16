@@ -234,6 +234,7 @@ export function fromDbReport(row: any): Report {
     type: row.type,
     content: row.content,
     aiAnalysis: row.ai_analysis,
+    teaserText: row.teaser_text ?? null,
     userNote: row.user_note ?? undefined,
     stats: row.stats,
     analysisStatus: row.ai_analysis ? 'success' : 'idle',
@@ -252,6 +253,7 @@ export function toDbReport(report: Report, userId: string): Record<string, unkno
     type: report.type,
     content: report.content,
     ai_analysis: report.aiAnalysis,
+    teaser_text: report.teaserText,
     user_note: report.userNote,
     stats: report.stats,
   };

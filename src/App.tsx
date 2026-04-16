@@ -8,10 +8,12 @@ import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
 import { TelemetryHubPage } from './features/telemetry/TelemetryHubPage';
 import { AiAnnotationTelemetryPage } from './features/telemetry/AiAnnotationTelemetryPage';
 import { TodoDecomposeTelemetryPage } from './features/telemetry/TodoDecomposeTelemetryPage';
+import { UserAnalyticsDashboardPage } from './features/telemetry/UserAnalyticsDashboardPage';
 import { isTelemetryAdmin } from './features/telemetry/isTelemetryAdmin';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
@@ -304,10 +306,12 @@ function App() {
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="upgrade" element={<UpgradePage />} />
           <Route path="telemetry" element={<RequireTelemetryAdmin><TelemetryHubPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/live-input" element={<RequireTelemetryAdmin><LiveInputTelemetryPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/ai-annotation" element={<RequireTelemetryAdmin><AiAnnotationTelemetryPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/todo-decompose" element={<RequireTelemetryAdmin><TodoDecomposeTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/user-analytics" element={<RequireTelemetryAdmin><UserAnalyticsDashboardPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
       </Routes>

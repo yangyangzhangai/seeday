@@ -4,6 +4,83 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-16 - Feat: 会员升级页与日记 Teaser 首版落地
+
+### Changed
+
+- `src/features/profile/UpgradePage.tsx`（新增）
+  - 新增 `/upgrade` 页面：月/年方案切换、权益对比、支付按钮占位与恢复购买入口（由 `@payment` 适配层驱动）。
+- `src/features/profile/components/MembershipCard.tsx` + `src/features/report/UpgradeModal.tsx` + `src/App.tsx`
+  - 统一升级入口跳转到 `/upgrade`，新增受保护路由注册。
+- `vite.config.ts` + `package.json` + `src/services/payment/*` + `src/types/payment.d.ts`
+  - 增加构建时支付隔离：`VITE_PAYMENT_MODE` 控制 `@payment` 别名映射（IAP/Stripe 双实现同签名导出）。
+  - 增加 `build:ios` / `build:web` 脚本。
+- `src/store/useAuthStore.ts` + `src/store/useAuthStore.test.ts`
+  - 注册时写入 `trial_started_at`；`resolveMembershipState()` 增加 7 天试用判定（source=`trial`）及边界测试。
+- `api/diary.ts` + `src/api/client.ts` + `src/store/reportActions.ts` + `src/store/useReportStore.ts`
+  - `/api/diary` 新增 `mode='teaser'` 分支（模板分桶、零 LLM 成本）。
+  - `generateAIDiary()` 按会员分流：Plus 写入 `aiAnalysis`，Free 写入 `teaserText`。
+- `src/lib/dbMappers.ts` + `src/features/report/ReportDetailModal.tsx` + `src/features/report/DiaryBookViewer.tsx` + `src/features/report/ReportPage.tsx`
+  - 报告数据结构新增 `teaserText` 映射。
+  - Free 用户在观察日记区域展示 Teaser 渐变模糊与解锁按钮（跳转 `/upgrade`）。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增升级页与 Teaser 解锁文案 keys。
+- 文档同步
+  - 更新 `docs/CURRENT_TASK.md`、`docs/PROJECT_MAP.md`、`src/features/profile/README.md`、`src/api/README.md`、`api/README.md`、`src/store/README.md`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-16 - Feat: iOS 订阅写回链路（/api/subscription）与升级页结果闭环
+
+### Changed
+
+- `api/subscription.ts`（新增）
+  - 新增 `POST /api/subscription`，支持 `action=activate|restore|cancel`（当前聚焦 `source='iap'`）。
+  - 接入 `requireSupabaseRequestAuth` 鉴权与 `SUPABASE_SERVICE_ROLE_KEY` 写回，统一更新 `auth.users.user_metadata`：`membership_plan/membership_expires_at/membership_source/membership_product_id/membership_transaction_id`。
+  - 新增 Apple App Store Server API 校验骨架：根据 `transactionId` 访问 Apple 生产/沙盒交易查询接口，校验 `bundleId/productId` 与订阅有效期；支持 `APPLE_IAP_VERIFY_BYPASS` 本地调试开关。
+- `src/api/client.ts`
+  - 新增 `callSubscriptionAPI()`，统一承载前端支付适配层到 `/api/subscription` 的受鉴权请求。
+- `src/services/payment/types.ts` + `src/services/payment/iap/index.ts` + `src/services/payment/stripe/index.ts`
+  - 支付动作返回值扩展 `code/plan/expiresAt` 字段。
+  - iOS 适配层新增“原生 IAP 桥 -> `/api/subscription`”调用链（购买与恢复）；当原生插件未接线时返回 `iap_client_not_ready` 显式错误码。
+  - Stripe 占位适配层补齐显式错误码（`stripe_not_ready/stripe_not_supported`）。
+- `src/features/profile/UpgradePage.tsx`
+  - 购买/恢复动作增加错误码映射与提示；成功后执行 `useAuthStore.initialize()` 刷新会员态并返回 Profile。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增升级页支付结果提示文案（购买成功、恢复成功、IAP/Stripe 未接线、激活失败等）。
+- `.env.example` + 文档同步
+  - 新增 IAP 相关环境变量模板（`APPLE_IAP_*`、`VITE_IAP_PRODUCT_*`、`APPLE_IAP_VERIFY_BYPASS`）。
+  - 更新 `docs/CURRENT_TASK.md`、`docs/PROJECT_MAP.md`、`src/api/README.md`、`api/README.md`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
+## 2026-04-16 - Feat: 会员门控收口（P5d）+ 关闭全员 Plus（P6）
+
+### Changed
+
+- `src/store/useAuthStore.ts`
+  - `MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED` 从 `true` 改为 `false`，默认会员态不再走临时全员 Plus；仅 `metadata` 与 7 天试用可判定 `isPlus=true`。
+- `src/features/chat/ChatPage.tsx`
+  - 魔法笔模式切换新增 Plus 门控：Free 用户点击后提示并跳转 `/upgrade`。
+  - 新增兜底收口：当会员态变为 Free 时自动关闭已开启的魔法笔模式，避免状态残留绕过。
+- `src/features/growth/SubTodoList.tsx`
+  - 待办 AI 拆解按钮新增 Plus 门控：Free 用户点击后提示并跳转 `/upgrade`。
+- `src/features/profile/README.md`
+  - AI 人格说明更新为仅 Van 免费，Agnes/Zep/Momo 为 Plus。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+- `npm run lint:docs-sync` ✅
+
 ## 2026-04-15 - Fix: Todo 同步 bigint 越界导致 22003
 
 ### Changed

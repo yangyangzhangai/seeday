@@ -6,7 +6,7 @@
 
 ## Public Interface
 
-- Route: `/profile`
+- Route: `/profile`, `/upgrade`
 - Main user flows:
   - User identity: avatar upload (resized to 160px), display name editing
   - AI companion selection: 4 personas (`van`, `agnes`, `zep`, `momo`) with free/PLUS tiers
@@ -32,6 +32,11 @@ ProfilePage
 ├── MembershipCard (tier display)
 ├── DirectionSettingsPanel (plant root mapping)
 └── SettingsList (account actions)
+
+UpgradePage
+├── Plan switcher (monthly / annual)
+├── Feature list (reuses MembershipCard feature keys)
+└── Payment CTA (build-time `@payment` adapter)
 ```
 
 ## Upstream Dependencies
@@ -48,7 +53,7 @@ ProfilePage
 
 ## Key Business Logic
 
-- **AI personas**: van (free), agnes (free), zep (PLUS), momo (PLUS); selection stored in `preferences.aiMode`
+- **AI personas**: van (free), agnes/zep/momo (PLUS); selection stored in `preferences.aiMode`
 - **Annotation drop-rate**: controls AI extraction aggressiveness; medium/high gated behind PLUS
 - **Personal memory switch**: controls whether long-term profile snapshot is injected into annotation/suggestion prompt chain
 - **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)

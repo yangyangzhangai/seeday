@@ -318,55 +318,47 @@ export async function extractUserProfileFromMessages(params: {
     }));
 
   const observed: UserProfileObserved | undefined = data.observed
-    ? {
-        ...(normalizeConfidenceSignal(data.observed.wakeTime, nowIso)
-          ? { wakeTime: normalizeConfidenceSignal(data.observed.wakeTime, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.sleepTime, nowIso)
-          ? { sleepTime: normalizeConfidenceSignal(data.observed.sleepTime, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.mealTimes, nowIso)
-          ? { mealTimes: normalizeConfidenceSignal(data.observed.mealTimes, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.activeWindows, nowIso)
-          ? { activeWindows: normalizeConfidenceSignal(data.observed.activeWindows, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.moodByTimeBand, nowIso)
-          ? { moodByTimeBand: normalizeConfidenceSignal(data.observed.moodByTimeBand, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.efficiencyByTimeBand, nowIso)
-          ? { efficiencyByTimeBand: normalizeConfidenceSignal(data.observed.efficiencyByTimeBand, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.weeklyStateSummary, nowIso)
-          ? { weeklyStateSummary: normalizeConfidenceSignal(data.observed.weeklyStateSummary, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.topActivities, nowIso)
-          ? { topActivities: normalizeConfidenceSignal(data.observed.topActivities, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.observed.topMoods, nowIso)
-          ? { topMoods: normalizeConfidenceSignal(data.observed.topMoods, nowIso) }
-          : {}),
-      }
+    ? (() => {
+        const obs = data.observed!;
+        const result: UserProfileObserved = {};
+        const wt = normalizeConfidenceSignal(obs.wakeTime, nowIso);
+        if (wt) result.wakeTime = wt;
+        const st = normalizeConfidenceSignal(obs.sleepTime, nowIso);
+        if (st) result.sleepTime = st;
+        const mt = normalizeConfidenceSignal(obs.mealTimes, nowIso);
+        if (mt) result.mealTimes = mt;
+        const aw = normalizeConfidenceSignal(obs.activeWindows, nowIso);
+        if (aw) result.activeWindows = aw;
+        const mood = normalizeConfidenceSignal(obs.moodByTimeBand, nowIso);
+        if (mood) result.moodByTimeBand = mood;
+        const eff = normalizeConfidenceSignal(obs.efficiencyByTimeBand, nowIso);
+        if (eff) result.efficiencyByTimeBand = eff;
+        const ws = normalizeConfidenceSignal(obs.weeklyStateSummary, nowIso);
+        if (ws) result.weeklyStateSummary = ws;
+        const ta = normalizeConfidenceSignal(obs.topActivities, nowIso);
+        if (ta) result.topActivities = ta;
+        const tm = normalizeConfidenceSignal(obs.topMoods, nowIso);
+        if (tm) result.topMoods = tm;
+        return result;
+      })()
     : undefined;
 
   const dynamicSignals: UserProfileDynamicSignals | undefined = data.dynamicSignals
-    ? {
-        ...(normalizeConfidenceSignal(data.dynamicSignals.preferences, nowIso)
-          ? { preferences: normalizeConfidenceSignal(data.dynamicSignals.preferences, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.dynamicSignals.dislikes, nowIso)
-          ? { dislikes: normalizeConfidenceSignal(data.dynamicSignals.dislikes, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.dynamicSignals.copingPatterns, nowIso)
-          ? { copingPatterns: normalizeConfidenceSignal(data.dynamicSignals.copingPatterns, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.dynamicSignals.relationshipSignals, nowIso)
-          ? { relationshipSignals: normalizeConfidenceSignal(data.dynamicSignals.relationshipSignals, nowIso) }
-          : {}),
-        ...(normalizeConfidenceSignal(data.dynamicSignals.currentFocusInference, nowIso)
-          ? { currentFocusInference: normalizeConfidenceSignal(data.dynamicSignals.currentFocusInference, nowIso) }
-          : {}),
-      }
+    ? (() => {
+        const ds = data.dynamicSignals!;
+        const result: UserProfileDynamicSignals = {};
+        const pref = normalizeConfidenceSignal(ds.preferences, nowIso);
+        if (pref) result.preferences = pref;
+        const dl = normalizeConfidenceSignal(ds.dislikes, nowIso);
+        if (dl) result.dislikes = dl;
+        const cp = normalizeConfidenceSignal(ds.copingPatterns, nowIso);
+        if (cp) result.copingPatterns = cp;
+        const rs = normalizeConfidenceSignal(ds.relationshipSignals, nowIso);
+        if (rs) result.relationshipSignals = rs;
+        const cf = normalizeConfidenceSignal(ds.currentFocusInference, nowIso);
+        if (cf) result.currentFocusInference = cf;
+        return result;
+      })()
     : undefined;
 
   return {

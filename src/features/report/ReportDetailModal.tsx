@@ -22,6 +22,8 @@ import {
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
+  isPlus: boolean;
+  onUpgradeClick: () => void;
   dailyMoodDistribution: MoodDistributionItem[];
   onClose: () => void;
   onBack?: () => void;
@@ -245,6 +247,8 @@ function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] })
 
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   selectedReport,
+  isPlus,
+  onUpgradeClick,
   dailyMoodDistribution: _dailyMoodDistribution,
   onClose,
   onBack,
@@ -443,7 +447,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const onScroll = useCallback(() => {
     const el = pagesRef.current;
     if (!el) return;
-    setActivePage(Math.round(el.scrollLeft / el.clientWidth));
+    const next = Math.round(el.scrollLeft / el.clientWidth) >= 1 ? 1 : 0;
+    setActivePage(next);
   }, []);
 
   const handlePrev = useCallback(() => {
@@ -472,10 +477,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [onNavigateNext, canNavigateNext, activePage]);
 
   const observationText = useMemo(() => {
-    const raw = selectedReport?.aiAnalysis?.trim();
+    const raw = isPlus
+      ? selectedReport?.aiAnalysis?.trim()
+      : selectedReport?.teaserText?.trim();
     const text = raw && raw.length > 0 ? raw : copy.observationFallback;
     return text.replace(/\s+/g, ' ');
-  }, [selectedReport?.aiAnalysis, copy.observationFallback]);
+  }, [isPlus, selectedReport?.aiAnalysis, selectedReport?.teaserText, copy.observationFallback]);
 
   const myDiaryText = useMemo(() => {
     const raw = selectedReport?.userNote?.trim();
@@ -669,9 +676,44 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                           <div style={{ width: '100%', height: 150 }} />
                         )}
                       </div>
-                      <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
-                        {observationText}
-                      </p>
+                      {isPlus ? (
+                        <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          {observationText}
+                        </p>
+                      ) : (
+                        <div style={{ position: 'relative', minHeight: 180 }}>
+                          <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                            {observationText}
+                          </p>
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              background: 'linear-gradient(180deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.85) 65%, rgba(255,255,255,1) 100%)',
+                              display: 'flex',
+                              alignItems: 'flex-end',
+                              justifyContent: 'center',
+                              paddingBottom: 8,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={onUpgradeClick}
+                              style={{
+                                border: 'none',
+                                borderRadius: 999,
+                                background: '#4f46e5',
+                                color: '#fff',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                padding: '6px 12px',
+                              }}
+                            >
+                              {t('report_teaser_unlock')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

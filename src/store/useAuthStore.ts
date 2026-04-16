@@ -27,7 +27,7 @@ import {
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = 'zh' | 'en' | 'it';
 export type MembershipPlan = 'free' | 'plus';
-export type MembershipSource = 'metadata' | 'temporary_unlock' | 'default_free';
+export type MembershipSource = 'metadata' | 'trial' | 'temporary_unlock' | 'default_free';
 
 export interface UserPreferences {
   aiMode: AiCompanionMode;
@@ -63,7 +63,7 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
   high: 8,
 };
 
-const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = true;
+const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
 const IOS_OAUTH_REDIRECT_URL = import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.tshine.app://auth/callback';
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
@@ -347,9 +347,10 @@ function resolveOAuthRedirectUrl(): string {
 
 export function resolveMembershipState(
   user: { user_metadata?: Record<string, any>; app_metadata?: Record<string, any> } | null | undefined,
-  options?: { temporaryUnlockEnabled?: boolean },
+  options?: { temporaryUnlockEnabled?: boolean; nowMs?: number },
 ): MembershipState {
   const temporaryUnlockEnabled = options?.temporaryUnlockEnabled ?? MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED;
+  const nowMs = options?.nowMs ?? Date.now();
   const userMeta = user?.user_metadata || {};
   const appMeta = user?.app_metadata || {};
   const membershipCandidates = [
@@ -384,6 +385,15 @@ export function resolveMembershipState(
         source: 'metadata',
       };
     }
+  }
+
+  const trialStartedAtRaw = appMeta.trial_started_at ?? userMeta.trial_started_at;
+  const trialStartedAtMs = typeof trialStartedAtRaw === 'string' || typeof trialStartedAtRaw === 'number'
+    ? new Date(trialStartedAtRaw).getTime()
+    : Number.NaN;
+  const trialWindowMs = 7 * 24 * 60 * 60 * 1000;
+  if (Number.isFinite(trialStartedAtMs) && trialStartedAtMs <= nowMs && nowMs - trialStartedAtMs < trialWindowMs) {
+    return { plan: 'plus', isPlus: true, source: 'trial' };
   }
 
   if (temporaryUnlockEnabled) {
@@ -681,9 +691,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       options: {
         data: {
           display_name: nickname || email.split('@')[0],
-          avatar_url: avatarDataUrl || null
-        }
-      }
+          avatar_url: avatarDataUrl || null,
+          trial_started_at: new Date().toISOString(),
+        },
+      },
     });
     return { error };
   },
@@ -917,4 +928,3 @@ async function updateLoginStreak(userId: string): Promise<void> {
     if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
   }
 }
-

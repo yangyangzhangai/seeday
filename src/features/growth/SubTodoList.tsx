@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, AlarmClock, Play } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useNavigate } from 'react-router-dom';
 import { triggerLightHaptic } from '../../lib/haptics';
 import { callTodoDecomposeAPI } from '../../api/client';
 import { reportTelemetryEvent } from '../../services/input/reportTelemetryEvent';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import i18n from '../../i18n';
 import type { SupportedLang } from '../../services/input/lexicon/getLexicon';
 
@@ -27,6 +29,8 @@ function resolveLang(): SupportedLang {
 
 export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onSequentialFocus }: Props) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const isPlus = useAuthStore((s) => s.isPlus);
   const addSubTodos = useTodoStore((s) => s.addSubTodos);
   const [loading, setLoading] = useState(false);
   const [errorType, setErrorType] = useState<'request' | 'empty' | null>(null);
@@ -36,6 +40,11 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
 
   const handleDecompose = async () => {
     if (loading) return;
+    if (!isPlus) {
+      window.alert(t('profile_plus_only'));
+      navigate('/upgrade');
+      return;
+    }
     const lang = resolveLang();
     const requestId = `decompose_${parentTodo.id}_${Date.now()}`;
     const telemetryBase = {

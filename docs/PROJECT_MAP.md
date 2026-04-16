@@ -62,6 +62,7 @@ src/
 - `plant-history.ts` -> `GET /api/plant-history`
 - `plant-asset-telemetry.ts` -> `POST /api/plant-asset-telemetry`
 - `live-input-telemetry.ts` -> `POST /api/live-input-telemetry` and `GET /api/live-input-telemetry`
+- `subscription.ts` -> `POST /api/subscription`
 
 ## 3.1) 服务端共享模块 `src/server/`
 
@@ -90,6 +91,7 @@ src/
 2. AI 请求统一走 `src/api/client.ts -> /api/*`。
 3. 服务端密钥只从 `process.env` 读取（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
 4. 页面入口统一放在 `src/features/*`。
+5. 会员升级页入口位于 `src/features/profile/UpgradePage.tsx`（route: `/upgrade`）。
 
 ## 5) 与当前治理状态对齐
 
@@ -109,4 +111,5 @@ src/
 - `src/server/`
 - `src/i18n/`
 - `src/api/`
+- `src/services/payment/`
 - `api/`

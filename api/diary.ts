@@ -204,13 +204,88 @@ function ensureDiarySignoff(
   return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`;
 }
 
+const DIARY_TEASERS: Record<'zh' | 'en' | 'it', Record<string, string[]>> = {
+  zh: {
+    A: ['园主今天说自己{情绪词}，Van 当场想替 ta 翻个案——不是对园主，是对那种处境……'],
+    B: ['今天园主{情绪词}的样子太闪耀啦，但 Van 发现了比这开心更动人的一个小秘密……'],
+    C: ['今天园主给了{主要活动}{时长}，但 Van 在这堆时间里找到了一个意料之外的惊喜……'],
+    D: ['园主给{主要活动}花了{时长}，但流汗之外，Van 看到了新的收获……'],
+    E: ['园主今天提到{人物}了，但 Van 顺着这句话，发现了园主自己都没注意到的细节……'],
+    F: ['今天园主又做{主要活动}又忙别的，整整{时长}，Van 看见了串起这一切的隐形线……'],
+    G: ['园主以为今天是空白的一天，但 Van 在安静里听到了一颗发芽的声音……'],
+    H: ['今天突破了一点点常规，园主没觉得多大不了，但 Van 在背后看到了一个园主沉睡了好久的特质……'],
+    I: ['园主今天说了很多，但真正的答案，其实已经悄悄夹在中间出现了……'],
+    J: ['今天看起来和昨天没什么两样，但 Van 在平淡里抓到了一个园主值得骄傲的进步……'],
+  },
+  en: {
+    A: ['You thought today\'s {情绪词} had won. Van begs to differ — you actually came out on top. The proof is right here…'],
+    B: ['You were radiant with {情绪词} today — but Van spotted something even more moving underneath it…'],
+    C: ['You gave {时长} to {主要活动} today — and Van found something unexpected hiding inside all that time…'],
+    D: ['You gave {时长} to {主要活动} today — but Van saw something beyond the sweat…'],
+    E: ['You mentioned {人物} today — and Van followed that thread to a detail you hadn\'t even noticed…'],
+    F: ['{主要活动} and everything else, for {时长} straight — Van spotted the invisible thread running through it all…'],
+    G: ['You thought today was a blank. Van heard something germinating in the quiet…'],
+    H: ['You broke from routine today and thought nothing of it. Van saw something sleeping in you begin to stir…'],
+    I: ['You said a lot today. But the real answer — it already slipped into the middle of it all…'],
+    J: ['Today looked a lot like yesterday — but Van caught something in the ordinary that\'s worth being proud of…'],
+  },
+  it: {
+    A: ['Pensavi che {情绪词} avesse vinto oggi. Van non e d\'accordo — hai vinto tu. Le prove sono qui…'],
+    B: ['Eri raggiante di {情绪词} oggi — ma Van ha notato qualcosa di ancora piu commovente nascosto sotto…'],
+    C: ['Hai dedicato {时长} a {主要活动} oggi — e Van ha trovato qualcosa di inaspettato nascosto in tutto quel tempo…'],
+    D: ['Hai dedicato {时长} a {主要活动} oggi — ma Van ha visto qualcosa al di la del sudore…'],
+    E: ['Hai menzionato {人物} oggi — e Van ha seguito quel filo fino a un dettaglio che non avevi notato…'],
+    F: ['{主要活动} e tutto il resto, per {时长} di fila — Van ha intravisto il filo invisibile che attraversa tutto…'],
+    G: ['Pensavi che oggi fosse una pagina bianca. Van ha sentito qualcosa germogliare nel silenzio…'],
+    H: ['Hai rotto un po\' la routine oggi e non te ne sei preoccupato. Van ha visto qualcosa iniziare a muoversi…'],
+    I: ['Hai detto molto oggi. Ma la vera risposta — era gia scivolata nel mezzo di tutto…'],
+    J: ['Oggi sembrava molto simile a ieri — ma Van ha catturato qualcosa nell\'ordinario di cui vale la pena essere orgogliosi…'],
+  },
+};
+
+function pickDiaryTeaserBucket(input: string): string {
+  const text = input.toLowerCase();
+  const negativeMood = /(焦虑|难过|崩溃|烦躁|委屈|sad|anxious|overwhelmed|hurt|triste|ansioso|ferito)/.test(text);
+  if (negativeMood) return 'A';
+  const positiveMood = /(开心|满足|高兴|兴奋|自豪|happy|excited|proud|content|felice|soddisfatto|orgoglioso)/.test(text);
+  if (positiveMood) return 'B';
+  const hasPerson = /(妈妈|爸爸|朋友|同事|老师|家人|mom|dad|friend|colleague|teacher|madre|padre|amico|collega)/.test(text);
+  const hasSocial = /(社交|聊天|聚会|social|meeting|party|sociale|incontro|festa)/.test(text);
+  if (hasPerson || hasSocial) return 'E';
+  const hasExercise = /(运动|跑步|健身|瑜伽|exercise|workout|run|allenamento|corsa|yoga)/.test(text);
+  if (hasExercise) return 'D';
+  const hasWorkStudy = /(工作|学习|写作|复盘|work|study|deep work|lavoro|studio)/.test(text);
+  if (hasWorkStudy) return 'C';
+  const hasDeepShare = /[\u4e00-\u9fa5]{50,}|\b\w{50,}\b/.test(input);
+  if (hasDeepShare) return 'I';
+  const hasLowFreqHint = /(第一次|不常|尝试|new|first time|rarely|prima volta|insolito)/.test(text);
+  if (hasLowFreqHint) return 'H';
+  return 'J';
+}
+
+function buildDiaryTeaser(lang: 'zh' | 'en' | 'it', structuredData: string, rawInput?: string): string {
+  const source = `${structuredData}\n${rawInput || ''}`;
+  const bucket = pickDiaryTeaserBucket(source);
+  const template = DIARY_TEASERS[lang][bucket][0] || DIARY_TEASERS[lang].J[0];
+  const moodWord = lang === 'zh' ? '有点累' : lang === 'it' ? 'un po stanco' : 'a little tired';
+  const personWord = lang === 'zh' ? '朋友' : lang === 'it' ? 'una persona cara' : 'someone close';
+  const activityWord = lang === 'zh' ? '工作' : lang === 'it' ? 'lavoro' : 'work';
+  const durationWord = lang === 'zh' ? '3小时' : lang === 'it' ? '3 ore' : '3 hours';
+  return template
+    .split('{情绪词}').join(moodWord)
+    .split('{人物}').join(personWord)
+    .split('{主要活动}').join(activityWord)
+    .split('{时长}').join(durationWord)
+    .trim();
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['POST']);
 
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
-  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName, aiMode, action, kind, summary } = req.body;
+  const { structuredData, rawInput, date, historyContext, lang = 'zh', userName, aiMode, action, kind, summary, mode = 'full' } = req.body;
 
   // Short insight branch: action === 'insight'
   if (action === 'insight') {
@@ -268,6 +343,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  const normalizedMode = normalizeAiCompanionMode(aiMode);
+
+  if (mode === 'teaser') {
+    const teaser = buildDiaryTeaser(normalizedLang, structuredData, rawInput);
+    res.status(200).json({ success: true, content: teaser });
+    return;
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     jsonError(res, 500, 'Server configuration error: Missing API key');
@@ -290,8 +374,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 如果提供了用户昵称，在使用 system prompt 前给出强制指令（保留原逻辑作为双重保险）
-  const normalizedLang = normalizeAiCompanionLang(lang);
-  const normalizedMode = normalizeAiCompanionMode(aiMode);
   const addressee = resolveDiaryAddressee(normalizedLang, userName);
   let finalSystemPrompt = buildDiaryModePrompt(normalizedLang, addressee, normalizedMode);
   finalSystemPrompt += buildAddresseeRule(normalizedLang, addressee);

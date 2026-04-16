@@ -11,6 +11,12 @@ type TelemetryModuleCard = {
 
 const MODULES: TelemetryModuleCard[] = [
   {
+    title: 'User Analytics',
+    route: '/telemetry/user-analytics',
+    description: 'New users, DAU, premium conversion, D7 retention, and per-user lookup.',
+    useCase: 'Use this board to monitor growth, track premium conversion, and look up specific users.',
+  },
+  {
     title: 'AI Annotation Reply',
     route: '/telemetry/ai-annotation',
     description: 'Covers low-density scoring, lateral-association sampling, trigger, and condensation telemetry.',

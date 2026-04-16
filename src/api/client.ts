@@ -10,6 +10,10 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAuthStore } from '../store/useAuthStore';
 import type { UserProfileV2 } from '../types/userProfile';
 import type {
+  UserAnalyticsDashboardResponse,
+  UserAnalyticsLookupResponse,
+} from '../types/userAnalytics';
+import type {
   PlantAssetTelemetryRequest,
   PlantAssetTelemetryResponse,
   PlantGenerateRequest,
@@ -33,6 +37,9 @@ interface ApiErrorShape {
 }
 
 type ApiLang = 'zh' | 'en' | 'it';
+type SubscriptionAction = 'activate' | 'restore' | 'cancel';
+type SubscriptionSource = 'iap' | 'stripe';
+type SubscriptionPlanType = 'monthly' | 'annual';
 
 let apiRequestSeq = 0;
 
@@ -173,6 +180,31 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+interface SubscriptionRequest {
+  action: SubscriptionAction;
+  source: SubscriptionSource;
+  planType?: SubscriptionPlanType;
+  transactionId?: string;
+  productId?: string;
+  originalTransactionId?: string;
+}
+
+interface SubscriptionResponse {
+  success: boolean;
+  plan: 'free' | 'plus';
+  isPlus: boolean;
+  expiresAt: string | null;
+  verificationEnvironment?: 'production' | 'sandbox' | 'unknown';
+}
+
+export async function callSubscriptionAPI(request: SubscriptionRequest): Promise<SubscriptionResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<SubscriptionRequest, SubscriptionResponse>('/subscription', request, { headers });
+}
+
 interface ReportRequest {
   data: {
     date: string;
@@ -291,6 +323,7 @@ interface ClassifyResponse {
 }
 
 interface DiaryRequest {
+  mode?: 'full' | 'teaser';
   structuredData: string;
   rawInput?: string;
   date?: string;
@@ -455,6 +488,22 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
     return undefined;
   }
   return normalizeAiCompanionMode(aiMode);
+}
+
+// ── User Analytics API ────────────────────────────────────────────────────────
+
+export async function callUserAnalyticsDashboardAPI(days = 30): Promise<UserAnalyticsDashboardResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  const params = new URLSearchParams({ days: String(days) });
+  return getJson<UserAnalyticsDashboardResponse>(`/user-analytics?${params.toString()}`, { headers });
+}
+
+export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAnalyticsLookupResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  const params = new URLSearchParams({ type: 'user_lookup', query });
+  return getJson<UserAnalyticsLookupResponse>(`/user-analytics?${params.toString()}`, { headers });
 }
 
 // ── Todo Decompose API ────────────────────────────────────────────────────────

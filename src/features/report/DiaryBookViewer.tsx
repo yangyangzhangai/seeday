@@ -3,10 +3,12 @@ import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay,
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { normalizeMoodKey } from '../../lib/moodOptions';
 import { cn } from '../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
@@ -134,7 +136,9 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 /* ──────────────────────────── page content ───────────────────────────── */
 function PageContent({ page, scale, allMessages, plantRecords }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[] }) {
   const px = (n: number) => n * scale;
-  const { i18n } = useTranslation();
+  const { i18n, t: tr } = useTranslation();
+  const navigate = useNavigate();
+  const isPlus = useAuthStore((state) => state.isPlus);
   const activityMood = useMoodStore(state => state.activityMood);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
   const langRaw = i18n.language?.split('-')[0] ?? 'en';
@@ -256,7 +260,9 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   const dateLocale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
   const datePattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
   const headerDate = dayDate ? format(dayDate, datePattern, { locale: dateLocale }) : '';
-  const observationText = report?.aiAnalysis?.trim() || copy.observationFallback;
+  const observationText = isPlus
+    ? (report?.aiAnalysis?.trim() || copy.observationFallback)
+    : (report?.teaserText?.trim() || copy.observationFallback);
   const myDiary = report?.userNote?.trim() || copy.diaryPlaceholder;
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -378,7 +384,7 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
           <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
           <h3 style={sectionTitleStyle}>{copy.sectionObservation}</h3>
-          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflow: 'hidden' }}>
+          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflow: 'hidden', position: 'relative' }}>
             <div
               style={{
                 float: 'left',
@@ -401,6 +407,35 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
             </div>
             {observationText}
             <div style={{ clear: 'both' }} />
+            {!isPlus ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0) 36%, rgba(255,255,255,0.9) 68%, rgba(255,255,255,1) 100%)',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  paddingBottom: px(3),
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate('/upgrade')}
+                  style={{
+                    border: 'none',
+                    borderRadius: 999,
+                    background: '#4f46e5',
+                    color: '#fff',
+                    fontSize: px(4.4),
+                    fontWeight: 700,
+                    padding: `${px(1.5)}px ${px(3)}px`,
+                  }}
+                >
+                  {tr('report_teaser_unlock')}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
