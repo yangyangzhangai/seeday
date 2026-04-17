@@ -10,6 +10,7 @@ export const MEMBERSHIP_FEATURES = [
   { labelKey: 'membership_feat_daily_report', free: false },
   { labelKey: 'membership_feat_monthly_report', free: false },
   { labelKey: 'membership_feat_advanced_analysis', free: false },
+  { labelKey: 'membership_feat_ai_memory', free: false },
   { labelKey: 'membership_feat_weekly_report', free: false },
   { labelKey: 'membership_feat_yearly_report', free: false },
 ];

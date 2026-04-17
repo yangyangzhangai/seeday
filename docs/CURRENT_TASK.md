@@ -7,6 +7,13 @@ Owner: current working session
 
 ## 会话更新（2026-04-17）
 
+- [x] Profile「作息/AI专属记忆」能力拆分：新增独立作息编辑面板（起床/睡觉/三餐）并保持 Free 可用；AI 专属记忆改为 Plus 功能，Free 侧显示会员升级引导。
+- [x] AI 专属记忆会员门控收口：`useAnnotationStore` 与周报画像提取链路改为 `isPlus && longTermProfileEnabled` 双门控，避免 Free 继续注入/提取长期画像。
+- [x] 会员权益与规格文档同步：`MembershipCard/UpgradePage` 权益列表新增“AI 专属记忆”，并在 `docs/MEMBERSHIP_SPEC.md` 明确“作息 Free、AI 专属记忆 Plus”。
+- [x] 新增会员项目现状文档：`docs/MEMBERSHIP_PROJECT_STATUS.md`，沉淀“规格 vs 当前实现”对照、支付链路状态、Free/Plus 手测清单与已知差异，便于新同学快速接手。
+- [x] 管理员 Telemetry 看板国际化补齐：`TelemetryHubPage`、`LiveInputTelemetryPage`、`AiAnnotationTelemetryPage`、`TodoDecomposeTelemetryPage` 改为使用 i18n key，支持 `zh/en/it` 跟随全局语言切换。
+- [x] Profile 设置页管理员入口文案收口：`Telemetry Center` 改为 i18n key（`telemetry_hub_title`），避免中英文混显。
+- [x] 新增三语词条：在 `src/i18n/locales/{zh,en,it}.ts` 增补 Telemetry Hub / Live Input / AI Annotation / Todo Decompose 全量文案键。
 - [x] Vercel Hobby 函数配额收口：将 User Analytics 从独立 `api/user-analytics.ts` 合并到 `GET /api/live-input-telemetry?module=user_analytics`，并保留 `type=user_lookup` 查询分支。
 - [x] 前端 User Analytics API 改道：`callUserAnalyticsDashboardAPI/callUserAnalyticsLookupAPI` 统一改为调用 `/api/live-input-telemetry`（带 `module=user_analytics` 参数）。
 - [x] 删除独立 serverless 入口 `api/user-analytics.ts`，将函数总数压回 Hobby 上限以内。

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Languages } from 'lucide-react';
+import { Crown, Languages, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
@@ -9,6 +9,7 @@ import { AIAnnotationDropRate } from './components/AIAnnotationDropRate';
 import { DailyGoalToggle } from './components/DailyGoalToggle';
 import { LongTermProfileToggle } from './components/LongTermProfileToggle';
 import { UserProfileSection } from './components/UserProfileSection';
+import { RoutineSettingsPanel } from './components/RoutineSettingsPanel';
 import { MembershipCard } from './components/MembershipCard';
 import { SettingsList } from './components/SettingsList';
 import { LanguageSwitcher } from '../../components/layout/LanguageSwitcher';
@@ -56,11 +57,37 @@ export const ProfilePage: React.FC = () => {
               <DailyGoalToggle plain />
             </div>
             <div>
-              <LongTermProfileToggle plain />
+              <RoutineSettingsPanel plain />
             </div>
-            {longTermProfileEnabled ? (
+            {isPlus ? (
+              <div>
+                <LongTermProfileToggle plain />
+              </div>
+            ) : null}
+            {isPlus && longTermProfileEnabled ? (
               <div>
                 <UserProfileSection plain />
+              </div>
+            ) : null}
+            {!isPlus ? (
+              <div className="px-4 py-3">
+                <div className="rounded-xl border border-[#E9D9A2] bg-[#FFF8E3] p-3">
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles size={16} strokeWidth={1.5} className="mt-0.5 text-[#856404]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-[#7A5D00]">{t('profile_ai_memory_locked_title')}</p>
+                      <p className="mt-0.5 text-[10px] leading-tight text-[#8A6D00]">{t('profile_ai_memory_locked_desc')}</p>
+                    </div>
+                    <Crown size={14} strokeWidth={1.5} className="text-[#A57D00]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/upgrade')}
+                    className="mt-2 min-h-9 rounded-lg border border-[#E9D9A2] bg-white/80 px-3 text-xs font-semibold text-[#7A5D00]"
+                  >
+                    {t('profile_upgrade')}
+                  </button>
+                </div>
               </div>
             ) : null}
             {!isPlus ? (

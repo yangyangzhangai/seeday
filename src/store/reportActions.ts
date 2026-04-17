@@ -160,7 +160,7 @@ function buildExtractProfileMessages(messages: Message[]): ExtractProfileRequest
 
 export async function triggerWeeklyProfileExtraction(messages: Message[]): Promise<void> {
   const authState = useAuthStore.getState();
-  if (!authState.longTermProfileEnabled || !authState.user) {
+  if (!authState.isPlus || !authState.longTermProfileEnabled || !authState.user) {
     return;
   }
 

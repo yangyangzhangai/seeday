@@ -4,14 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import {
-  buildManualPayload,
-  DEFAULT_BREAKFAST,
-  DEFAULT_DINNER,
-  DEFAULT_LUNCH,
-  DEFAULT_SLEEP_TIME,
-  DEFAULT_WAKE_TIME,
-  toHour,
-  toHourText,
+  buildAIMemoryManualPayload,
 } from './userProfilePanelHelpers';
 
 interface Props {
@@ -20,11 +13,6 @@ interface Props {
 }
 
 function signature(input: {
-  wakeTime: string;
-  sleepTime: string;
-  breakfastTime: string;
-  lunchTime: string;
-  dinnerTime: string;
   freeText: string;
 }): string {
   return JSON.stringify({
@@ -43,25 +31,11 @@ export const UserProfilePanel: React.FC<Props> = ({
   const [saving, setSaving] = React.useState(false);
   const [saveText, setSaveText] = React.useState('');
 
-  const [wakeTime, setWakeTime] = React.useState(DEFAULT_WAKE_TIME);
-  const [sleepTime, setSleepTime] = React.useState(DEFAULT_SLEEP_TIME);
-  const [breakfastTime, setBreakfastTime] = React.useState(DEFAULT_BREAKFAST);
-  const [lunchTime, setLunchTime] = React.useState(DEFAULT_LUNCH);
-  const [dinnerTime, setDinnerTime] = React.useState(DEFAULT_DINNER);
   const [freeText, setFreeText] = React.useState('');
 
   const baselineSignature = React.useMemo(() => {
     const manual = userProfileV2?.manual;
-    const mealTimesText = Array.isArray(manual?.mealTimesText)
-      ? manual.mealTimesText
-      : [];
-    const mealTimes = Array.isArray(manual?.mealTimes) ? manual.mealTimes : [];
     return signature({
-      wakeTime: manual?.wakeTime || DEFAULT_WAKE_TIME,
-      sleepTime: manual?.sleepTime || DEFAULT_SLEEP_TIME,
-      breakfastTime: mealTimesText[0] || toHourText(mealTimes[0], DEFAULT_BREAKFAST),
-      lunchTime: mealTimesText[1] || toHourText(mealTimes[1], DEFAULT_LUNCH),
-      dinnerTime: mealTimesText[2] || toHourText(mealTimes[2], DEFAULT_DINNER),
       freeText: manual?.freeText || '',
     });
   }, [userProfileV2]);
@@ -74,42 +48,14 @@ export const UserProfilePanel: React.FC<Props> = ({
 
   React.useEffect(() => {
     const manual = userProfileV2?.manual;
-    setWakeTime(manual?.wakeTime || DEFAULT_WAKE_TIME);
-    setSleepTime(manual?.sleepTime || DEFAULT_SLEEP_TIME);
-    const mealTimesText = Array.isArray(manual?.mealTimesText)
-      ? manual.mealTimesText
-      : [];
-    const mealTimes = Array.isArray(manual?.mealTimes) ? manual?.mealTimes : [];
-    setBreakfastTime(mealTimesText[0] || toHourText(mealTimes?.[0], DEFAULT_BREAKFAST));
-    setLunchTime(mealTimesText[1] || toHourText(mealTimes?.[1], DEFAULT_LUNCH));
-    setDinnerTime(mealTimesText[2] || toHourText(mealTimes?.[2], DEFAULT_DINNER));
     setFreeText(manual?.freeText || '');
   }, [userProfileV2]);
 
-  const mealHours = React.useMemo(() => {
-    const parsed = [breakfastTime, lunchTime, dinnerTime]
-      .map((item) => toHour(item))
-      .filter((item): item is number => typeof item === 'number');
-    return Array.from(new Set(parsed));
-  }, [breakfastTime, lunchTime, dinnerTime]);
-
   const currentSignature = React.useMemo(
     () => signature({
-      wakeTime,
-      sleepTime,
-      breakfastTime,
-      lunchTime,
-      dinnerTime,
       freeText,
     }),
-    [
-      wakeTime,
-      sleepTime,
-      breakfastTime,
-      lunchTime,
-      dinnerTime,
-      freeText,
-    ],
+    [freeText],
   );
 
   const hasUnsavedChanges = currentSignature !== baselineSignature;
@@ -122,11 +68,7 @@ export const UserProfilePanel: React.FC<Props> = ({
     setSaveText('');
     setSaving(true);
 
-    const nextManual = buildManualPayload(userProfileV2?.manual, {
-      wakeTime,
-      sleepTime,
-      mealHours,
-      mealTimesText: [breakfastTime, lunchTime, dinnerTime],
+    const nextManual = buildAIMemoryManualPayload(userProfileV2?.manual, {
       freeText,
     });
 
@@ -159,60 +101,6 @@ export const UserProfilePanel: React.FC<Props> = ({
       {expanded ? (
         <div className={showHeader ? 'border-t border-slate-200/60 px-4 pb-4 pt-3' : 'px-4 pb-4 pt-3'}>
           <div className="space-y-3">
-            <div>
-              <p className="mb-2 text-xs text-slate-600">{t('profile_user_profile_tab_schedule')}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_wake_time')}</span>
-                  <input
-                    type="time"
-                    value={wakeTime}
-                    onChange={(event) => setWakeTime(event.target.value)}
-                    className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_sleep_time')}</span>
-                  <input
-                    type="time"
-                    value={sleepTime}
-                    onChange={(event) => setSleepTime(event.target.value)}
-                    className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_breakfast')}</span>
-                  <input
-                    type="time"
-                    value={breakfastTime}
-                    onChange={(event) => setBreakfastTime(event.target.value)}
-                    className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_lunch')}</span>
-                  <input
-                    type="time"
-                    value={lunchTime}
-                    onChange={(event) => setLunchTime(event.target.value)}
-                    className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_dinner')}</span>
-                  <input
-                    type="time"
-                    value={dinnerTime}
-                    onChange={(event) => setDinnerTime(event.target.value)}
-                    className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
-                  />
-                </label>
-              </div>
-            </div>
-
             <label className="block">
               <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_tab_personalization')}</span>
               <textarea

@@ -398,7 +398,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           });
 
           const authState = useAuthStore.getState();
-          const userProfileSnapshot = authState.longTermProfileEnabled
+          const userProfileSnapshot = authState.isPlus && authState.longTermProfileEnabled
             ? buildUserProfileSnapshot({ profile: authState.userProfileV2, now: nowDate })
             : undefined;
 

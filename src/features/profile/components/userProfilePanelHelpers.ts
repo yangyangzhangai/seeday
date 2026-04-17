@@ -66,14 +66,13 @@ export function createAnniversaryId(): string {
   return `ann-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function buildManualPayload(
+export function buildRoutineManualPayload(
   prevManual: UserProfileManual | undefined,
   values: {
     wakeTime: string;
     sleepTime: string;
     mealHours: number[];
     mealTimesText: string[];
-    freeText: string;
   },
 ): UserProfileManual {
   return {
@@ -82,6 +81,17 @@ export function buildManualPayload(
     sleepTime: values.sleepTime || undefined,
     mealTimes: values.mealHours.length ? values.mealHours : undefined,
     mealTimesText: values.mealTimesText.length ? values.mealTimesText : undefined,
+  };
+}
+
+export function buildAIMemoryManualPayload(
+  prevManual: UserProfileManual | undefined,
+  values: {
+    freeText: string;
+  },
+): UserProfileManual {
+  return {
+    ...(prevManual || {}),
     freeText: values.freeText.trim() || undefined,
   };
 }

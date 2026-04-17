@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/api/README.md
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { callLiveInputTelemetryDashboardAPI } from '../../api/client';
 import type {
   AnnotationScoreBucketItem,
@@ -39,8 +40,9 @@ function BreakdownSection(props: {
 }
 
 function BucketTable({ items }: { items: AnnotationScoreBucketItem[] }) {
+  const { t } = useTranslation();
   if (items.length === 0) {
-    return <p className="text-sm text-gray-500">No narrative score buckets yet.</p>;
+    return <p className="text-sm text-gray-500">{t('telemetry_ai_bucket_empty')}</p>;
   }
 
   return (
@@ -48,10 +50,10 @@ function BucketTable({ items }: { items: AnnotationScoreBucketItem[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 text-left text-gray-500">
-            <th className="py-2 font-medium">Score Bucket</th>
-            <th className="py-2 font-medium">Samples</th>
-            <th className="py-2 font-medium">Triggered</th>
-            <th className="py-2 font-medium">Trigger Rate</th>
+              <th className="py-2 font-medium">{t('telemetry_ai_table_bucket')}</th>
+              <th className="py-2 font-medium">{t('telemetry_ai_table_samples')}</th>
+              <th className="py-2 font-medium">{t('telemetry_ai_table_triggered')}</th>
+              <th className="py-2 font-medium">{t('telemetry_ai_table_trigger_rate')}</th>
           </tr>
         </thead>
         <tbody>
@@ -70,6 +72,7 @@ function BucketTable({ items }: { items: AnnotationScoreBucketItem[] }) {
 }
 
 export const AiAnnotationTelemetryPage: React.FC = () => {
+  const { t } = useTranslation();
   const [days, setDays] = useState(14);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +91,7 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load AI annotation telemetry dashboard.');
+          setError(loadError instanceof Error ? loadError.message : t('telemetry_ai_load_failed'));
           setDashboard(null);
         }
       } finally {
@@ -103,7 +106,7 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, t]);
 
   const summary = dashboard?.aiAnnotationSummary;
 
@@ -113,10 +116,9 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">AI Annotation Telemetry</h1>
+              <h1 className="text-lg font-semibold text-gray-900">{t('telemetry_ai_title')}</h1>
               <p className="mt-1 text-sm text-gray-500">
-                This board tracks low-narrative scoring, lateral-association sampling, event triggering, and
-                downstream condensation.
+                {t('telemetry_ai_desc')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -129,20 +131,19 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
                     value === days ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {value}d
+                  {t('telemetry_common_days', { n: value })}
                 </button>
               ))}
             </div>
           </div>
           <p className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            Decision hint: if lateral trigger rate is persistently above 65%, reduce base probability; if below 35%,
-            raise base probability or increase probability delta.
+            {t('telemetry_ai_decision_hint')}
           </p>
         </section>
 
         {isLoading ? (
           <section className="rounded-2xl border border-gray-100 bg-white p-6 text-sm text-gray-500 shadow-sm">
-            Loading AI annotation telemetry...
+            {t('telemetry_ai_loading')}
           </section>
         ) : null}
 
@@ -156,32 +157,31 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
           <>
             <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Lateral Trigger Rate</div>
+                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_trigger_rate')}</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{formatPercent(summary.lateralTriggerRate)}</div>
               </div>
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Lateral Samples</div>
+                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_samples')}</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.lateralSampledCount}</div>
               </div>
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Event Triggered</div>
+                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_event_triggered')}</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.eventTriggeredCount}</div>
               </div>
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Avg Narrative Score</div>
+                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_avg_score')}</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.avgNarrativeScore.toFixed(3)}</div>
               </div>
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Avg Final Probability</div>
+                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_avg_probability')}</div>
                 <div className="mt-2 text-3xl font-semibold text-gray-900">{formatPercent(summary.avgFinalProbability)}</div>
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-gray-900">Narrative Score Buckets</h2>
+              <h2 className="text-sm font-semibold text-gray-900">{t('telemetry_ai_bucket_title')}</h2>
               <p className="mt-1 text-xs text-gray-500">
-                What it means: each bucket groups low-density scores. Lower buckets should generally show higher
-                lateral trigger rate after probability modulation.
+                {t('telemetry_ai_bucket_desc')}
               </p>
               <div className="mt-3">
                 <BucketTable items={dashboard.narrativeScoreBuckets} />
@@ -190,22 +190,22 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
               <BreakdownSection
-                title="Annotation Event Mix"
-                description="What happened in the annotation pipeline and where requests are blocked or converted."
+                title={t('telemetry_ai_breakdown_event_mix')}
+                description={t('telemetry_ai_breakdown_event_mix_desc')}
                 items={dashboard.annotationEventNames}
-                emptyLabel="No annotation telemetry events yet."
+                emptyLabel={t('telemetry_ai_breakdown_event_mix_empty')}
               />
               <BreakdownSection
-                title="By Character"
-                description="How lateral sampling distributes across companion characters for balancing and QA."
+                title={t('telemetry_ai_breakdown_by_character')}
+                description={t('telemetry_ai_breakdown_by_character_desc')}
                 items={dashboard.annotationCharacters}
-                emptyLabel="No character-level events yet."
+                emptyLabel={t('telemetry_ai_breakdown_by_character_empty')}
               />
               <BreakdownSection
-                title="Association Types"
-                description="Which lateral association dimensions are being sampled in production."
+                title={t('telemetry_ai_breakdown_association_types')}
+                description={t('telemetry_ai_breakdown_association_types_desc')}
                 items={dashboard.associationTypes}
-                emptyLabel="No association type events yet."
+                emptyLabel={t('telemetry_ai_breakdown_association_types_empty')}
               />
             </section>
           </>

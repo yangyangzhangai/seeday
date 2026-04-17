@@ -4,6 +4,51 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-17 - Feat: 作息独立为普通功能 + AI 专属记忆升级为 Plus 权益
+
+### Changed
+
+- `src/features/profile/components/RoutineSettingsPanel.tsx`（新增）
+  - 新增独立作息编辑面板（起床/睡觉/早餐/午餐/晚餐），保存链路复用 `useAuthStore.updateUserProfile(...)`，写回 `user_profile_v2.manual`。
+- `src/features/profile/components/UserProfilePanel.tsx` + `src/features/profile/ProfilePage.tsx` + `src/features/profile/components/userProfilePanelHelpers.ts`
+  - `UserProfilePanel` 从“作息+记忆”调整为仅编辑 AI 专属记忆文本（`manual.freeText`）。
+  - Profile 页面接入 `RoutineSettingsPanel`，并将 AI 专属记忆区域改为 Plus 门控（Free 显示升级引导，Plus 可用开关与编辑区）。
+  - helper 拆分为 `buildRoutineManualPayload` / `buildAIMemoryManualPayload`，避免字段互相覆盖。
+- `src/store/useAnnotationStore.ts` + `src/store/reportActions.ts`
+  - 画像注入与周报触发画像提取统一升级为双门控：`isPlus && longTermProfileEnabled`。
+- `src/features/profile/components/MembershipCard.tsx` + `src/i18n/locales/{zh,en,it}.ts`
+  - 会员权益列表新增 “AI 专属记忆” 文案键；新增作息面板与 AI 记忆会员引导相关三语词条。
+- 文档同步
+  - 更新 `src/features/profile/README.md`、`src/store/README.md`、`docs/MEMBERSHIP_SPEC.md`、`docs/CURRENT_TASK.md`。
+  - 新增 `docs/MEMBERSHIP_PROJECT_STATUS.md`，沉淀规格对照、当前实现状态与 Free/Plus 手测清单。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-17 - Feat: 管理员 Telemetry 看板支持多语言切换（zh/en/it）
+
+### Changed
+
+- `src/features/telemetry/TelemetryHubPage.tsx`
+  - Hub 页面所有模块卡片文案改为 i18n key，支持随全局语言切换。
+- `src/features/telemetry/LiveInputTelemetryPage.tsx`
+  - 标题、摘要卡、表头、分布区块、最近事件文案改为 i18n key。
+  - 错误提示与管理员提示也改为多语言文案（环境变量名仍以 code 形式显示）。
+- `src/features/telemetry/AiAnnotationTelemetryPage.tsx`
+  - 看板标题、说明、决策提示、指标名、分布区块与空态文案改为 i18n key。
+- `src/features/telemetry/TodoDecomposeTelemetryPage.tsx`
+  - 指标卡解释文案、趋势区块、分布区块、最近事件与表头改为 i18n key。
+- `src/features/profile/components/SettingsList.tsx`
+  - 管理员入口 `Telemetry Center` 文案改为 `telemetry_hub_title`，避免语言切换后混显英文。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增 Telemetry Hub / Live Input / AI Annotation / Todo Decompose 全量词条键，补齐三语映射。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-17 - Refactor: User Analytics 合并进 live-input telemetry 端点
 
 ### Changed
