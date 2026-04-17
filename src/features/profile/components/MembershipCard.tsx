@@ -2,6 +2,14 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { isEligibleForMembershipTrial } from '../membershipTrialEligibility';
+
+const MEMBERSHIP_PURPLE = '#a855f7';
+const MEMBERSHIP_PURPLE_DEEP = '#9333ea';
+const MEMBERSHIP_PINK = '#ec4899';
+const MEMBERSHIP_TEXT = '#7e22ce';
+const MEMBERSHIP_ICON = '#a855f7';
 
 export const MEMBERSHIP_FEATURES = [
   { labelKey: 'membership_feat_basic_analysis', free: true },
@@ -22,41 +30,27 @@ interface Props {
 export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const showTrialCta = isEligibleForMembershipTrial(user, isPlus);
 
   return (
     <div
       className="relative overflow-hidden rounded-2xl px-4 py-4"
       style={{
-        background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #dff0ff 100%)',
+        background:
+          'linear-gradient(132deg, #fcf9ff 0%, #f6f0ff 24%, #f8f2ff 52%, #fef8fc 100%)',
         backdropFilter: 'blur(22px) saturate(145%)',
         WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-        border: 'none',
-        boxShadow: '0 8px 22px rgba(90,116,199,0.14)',
+        border: '1px solid rgba(168,85,247,0.22)',
+        boxShadow: '0 10px 28px rgba(168,85,247,0.16)',
       }}
     >
       <div
         aria-hidden
+        className="pointer-events-none absolute inset-0"
         style={{
-          position: 'absolute',
-          top: -26,
-          right: -22,
-          width: 132,
-          height: 132,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(124,101,255,0.42) 0%, rgba(124,101,255,0.12) 45%, rgba(124,101,255,0) 76%)',
-          filter: 'blur(0.5px)',
-        }}
-      />
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          left: 22,
-          bottom: -30,
-          width: 180,
-          height: 100,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(129,180,255,0.34) 0%, rgba(129,180,255,0.08) 48%, rgba(129,180,255,0) 78%)',
+          background:
+            'linear-gradient(118deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.38) 34%, rgba(255,255,255,0.16) 62%, rgba(255,255,255,0.34) 100%), linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 44%, rgba(168,85,247,0.08) 100%), linear-gradient(90deg, rgba(168,85,247,0.04) 0%, rgba(236,72,153,0.05) 100%)',
         }}
       />
 
@@ -65,26 +59,26 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden"
             style={{
-              background: 'linear-gradient(145deg, #5e4be7 0%, #4058d5 52%, #4c8dff 100%)',
+              background: `linear-gradient(145deg, ${MEMBERSHIP_PURPLE_DEEP} 0%, ${MEMBERSHIP_PURPLE} 58%, ${MEMBERSHIP_PINK} 100%)`,
               border: 'none',
-              boxShadow: '0 0 10px rgba(95,118,244,0.34)',
+              boxShadow: '0 0 14px rgba(168,85,247,0.40)',
             }}
           >
             <Crown size={16} strokeWidth={1.5} color="#f6f9ff" />
           </div>
-          <span className="text-sm font-extrabold text-[#3f43aa]">{t('profile_membership')}</span>
+          <span className="profile-fn-title">{t('profile_membership')}</span>
           <span
             className="rounded-full px-2 py-[2px] text-[9px] font-bold tracking-[0.06em]"
             style={{
               background: isPlus
-                ? 'linear-gradient(135deg, #5242de 0%, #4156da 56%, #4f8fff 100%)'
+                ? `linear-gradient(135deg, ${MEMBERSHIP_PURPLE_DEEP} 0%, ${MEMBERSHIP_PURPLE} 56%, ${MEMBERSHIP_PINK} 100%)`
                 : 'rgba(255,255,255,0.66)',
               color: isPlus ? '#f4f8ff' : '#6b7280',
               border: 'none',
-              boxShadow: isPlus ? '0 5px 12px rgba(75,96,223,0.3), inset 0 1px 1px rgba(240,246,255,0.78)' : 'none',
+              boxShadow: isPlus ? '0 5px 12px rgba(168,85,247,0.3), inset 0 1px 1px rgba(240,246,255,0.78)' : 'none',
             }}
           >
-            {isPlus ? 'PLUS' : 'FREE'}
+            {isPlus ? 'PRO' : 'FREE'}
           </span>
         </div>
         <div className="mb-4 grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
@@ -95,8 +89,8 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                 key={labelKey}
                 className="flex items-center justify-center gap-1.5 rounded-full px-2 py-1"
                 style={{
-                  background: unlocked ? 'rgba(255,255,255,0.46)' : 'rgba(255,255,255,0.28)',
-                  border: '1px solid rgba(255,255,255,0.55)',
+                  background: unlocked ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.38)',
+                  border: unlocked ? '1px solid rgba(168,85,247,0.20)' : '1px solid rgba(255,255,255,0.58)',
                 }}
               >
                 {unlocked ? (
@@ -104,9 +98,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                     size={12}
                     strokeWidth={1.5}
                     style={{
-                      color: '#4c61d8',
+                      color: MEMBERSHIP_ICON,
                       flexShrink: 0,
-                      filter: 'drop-shadow(0 0 3px rgba(95,132,255,0.85)) drop-shadow(0 0 6px rgba(95,132,255,0.45))',
+                      filter: 'drop-shadow(0 0 3px rgba(168,85,247,0.85)) drop-shadow(0 0 6px rgba(168,85,247,0.45))',
                     }}
                   />
                 ) : (
@@ -114,7 +108,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                 )}
                 <span
                   className="text-xs leading-tight"
-                  style={{ color: unlocked ? '#3d4f9f' : '#545f78' }}
+                  style={{ color: unlocked ? MEMBERSHIP_TEXT : '#545f78' }}
                 >
                   {t(labelKey)}
                 </span>
@@ -128,29 +122,29 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
             onClick={() => navigate('/upgrade')}
             className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-[11px] text-sm font-extrabold transition-all active:scale-[0.97]"
             style={{
-              background: 'linear-gradient(130deg, rgba(132,117,255,0.22) 0%, rgba(131,209,255,0.34) 100%)',
-              boxShadow: '0 6px 18px rgba(90,116,199,0.24)',
-              color: '#3746b0',
-              border: '0.5px solid rgba(255,255,255,0.88)',
+              background: 'linear-gradient(130deg, rgba(147,51,234,0.56) 0%, rgba(168,85,247,0.5) 58%, rgba(236,72,153,0.48) 100%)',
+              boxShadow: '0 4px 12px rgba(168,85,247,0.14)',
+              color: 'rgba(248,250,255,0.94)',
+              border: '0.5px solid rgba(255,255,255,0.84)',
             }}
           >
-            {t('profile_upgrade')}
+            {showTrialCta ? t('profile_upgrade_trial') : t('profile_upgrade')}
           </button>
         ) : (
           <div className="flex w-full items-center justify-center gap-1.5">
             <div
               className="h-px flex-1"
               style={{
-                background: 'linear-gradient(90deg, rgba(117,123,209,0.08) 0%, rgba(117,123,209,0.85) 100%)',
-                boxShadow: '0 0 7px rgba(113,128,243,0.6)',
+                background: 'linear-gradient(90deg, rgba(168,85,247,0.08) 0%, rgba(168,85,247,0.85) 100%)',
+                boxShadow: '0 0 7px rgba(168,85,247,0.55)',
               }}
             />
-            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#4751be]">ACTIVE</span>
+            <span className="text-[10px] font-semibold tracking-[0.08em]" style={{ color: MEMBERSHIP_TEXT }}>ACTIVE</span>
             <div
               className="h-px flex-1"
               style={{
-                background: 'linear-gradient(90deg, rgba(117,123,209,0.85) 0%, rgba(117,123,209,0.08) 100%)',
-                boxShadow: '0 0 7px rgba(113,128,243,0.6)',
+                background: 'linear-gradient(90deg, rgba(168,85,247,0.85) 0%, rgba(168,85,247,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(168,85,247,0.55)',
               }}
             />
           </div>

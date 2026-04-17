@@ -39,7 +39,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
       >
         <div className="flex items-center space-x-2.5">
           <MapPin size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-          <span className="text-sm text-slate-700">{t('profile_region_settings')}</span>
+          <span className="profile-fn-title">{t('profile_region_settings')}</span>
         </div>
         <ChevronRight
           size={16}
@@ -56,7 +56,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
       >
         <div className="flex items-center space-x-2.5">
           <Sprout size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-          <span className="text-sm text-slate-700">{t('profile_root_direction_settings')}</span>
+          <span className="profile-fn-title">{t('profile_root_direction_settings')}</span>
         </div>
         <ChevronRight
           size={16}
@@ -77,7 +77,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         >
           <div className="flex items-center space-x-2.5">
             <Icon size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-            <span className="text-sm text-slate-700">{t(labelKey)}</span>
+            <span className="profile-fn-title">{t(labelKey)}</span>
           </div>
           <ChevronRight size={16} strokeWidth={1.5} className="text-slate-300" />
         </button>
@@ -90,7 +90,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
           >
             <div className="flex items-center space-x-2.5">
               <BarChart3 size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-              <span className="text-sm text-slate-700">{t('telemetry_hub_title')}</span>
+              <span className="profile-fn-title">{t('telemetry_hub_title')}</span>
             </div>
             <ChevronRight size={16} strokeWidth={1.5} className="text-slate-300" />
           </button>
@@ -102,7 +102,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         className="flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-white/70"
       >
         <LogOut size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-        <span className="text-sm text-slate-700">{t('profile_logout')}</span>
+        <span className="profile-fn-title">{t('profile_logout')}</span>
       </button>
     </div>
   );

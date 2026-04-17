@@ -26,8 +26,8 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
         <div className="flex items-start gap-2.5">
           <BookHeart size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
-            <p className="text-xs text-slate-700">{t('profile_snapshot_title')}</p>
-            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+            <p className="profile-fn-title">{t('profile_snapshot_title')}</p>
+            <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">
               {longTermProfileEnabled ? t('profile_snapshot_desc_enabled') : t('profile_snapshot_desc_disabled')}
             </p>
           </div>
@@ -38,7 +38,7 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
             <CalendarClock size={16} strokeWidth={1.5} className="mt-0.5 text-slate-500" />
             <div>
               <p className="text-xs text-slate-600">{t('profile_snapshot_anniversary_title')}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] font-light text-slate-500">
                 {anniversaries.length > 0
                   ? anniversaries.map((item) => `${item.label} (${item.daysUntil}d)`).join(' | ')
                   : t('profile_snapshot_empty')}
@@ -48,7 +48,7 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
 
           <div>
             <p className="text-xs text-slate-600">{t('profile_snapshot_recall_title')}</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-[10px] font-light text-slate-500">
               {latestRecall ? `${latestRecall.title} (${latestRecall.date})` : t('profile_snapshot_empty')}
             </p>
           </div>

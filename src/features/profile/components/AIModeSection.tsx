@@ -25,6 +25,13 @@ const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
   momo: profileMomoAvatar,
 };
 
+const AI_SUBTITLE_KEY: Record<AiCompanionMode, string> = {
+  van: 'profile_ai_mode_van_subtitle',
+  agnes: 'profile_ai_mode_agnes_subtitle',
+  zep: 'profile_ai_mode_zep_subtitle',
+  momo: 'profile_ai_mode_momo_subtitle',
+};
+
 function showToast(msg: string) {
   const el = document.createElement('div');
   el.textContent = msg;
@@ -69,7 +76,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
       {/* Header row */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center space-x-1.5">
-          <span className="text-sm text-slate-700">{t('profile_ai_mode')}</span>
+          <span className="profile-fn-title">{t('profile_ai_mode')}</span>
           <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-xs font-semibold text-[#3f5f35]">
             {t('profile_free')}
           </span>
@@ -118,16 +125,16 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
                 className="mb-1 h-9 w-9 object-contain"
               />
               <span
-                className="text-sm font-semibold leading-tight"
+                className="text-[14px] font-semibold leading-tight"
                 style={{ color: selected ? '#426D56' : '#1e293b' }}
               >
                 {mode.name}
               </span>
               <span
-                className="mt-0.5 text-center text-xs leading-tight"
+                className="mt-0.5 text-center text-[12px] font-light leading-tight"
                 style={{ color: selected ? '#6F9580' : '#64748b' }}
               >
-                {mode.subtitle}
+                {t(AI_SUBTITLE_KEY[modeKey])}
               </span>
               {locked && (
                 <Lock size={10} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />

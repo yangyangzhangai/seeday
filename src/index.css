@@ -83,6 +83,14 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
 
+.profile-fn-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: #000000;
+}
+
 .app-mobile-page-frame {
   width: 100% !important;
   max-width: none !important;
