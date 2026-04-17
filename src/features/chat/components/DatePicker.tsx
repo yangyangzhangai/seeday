@@ -45,9 +45,9 @@ const SAGE_GREEN_DEEP = '#5F7A63';
 const DATE_PAST_PRELOAD_DAYS = 35;
 const DATE_FUTURE_DAYS = 6;
 const DATE_PREPEND_STEP_DAYS = 21;
-const DATE_ITEM_WIDTH = 38;
+const DATE_ITEM_WIDTH = 60;
 const DATE_ITEM_GAP = 8;
-const DATE_PREPEND_TRIGGER_PX = 64;
+const DATE_PREPEND_TRIGGER_PX = 100;
 const BLUE_SELECTED_BG =
   'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
 const BLUE_SELECTED_BORDER = '0.5px solid transparent';
@@ -345,17 +345,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 scrollSnapAlign: 'center',
               }}
             >
-              <span style={{ fontSize: 10, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
+              <span style={{ fontSize: 12, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
                 textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
-              <div style={{ width: 32, height: 32, borderRadius: '50%',
+              <div style={{ width: 44, height: 44, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: sel ? BLUE_SELECTED_BG : '#F8FAFC',
                 border: sel ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
                 boxShadow: sel ? BLUE_SELECTED_SHADOW : 'none',
                 transition: 'all 0.18s' }}>
-                <span style={{ fontSize: 12, lineHeight: 1, fontWeight: sel ? 700 : 500,
+                <span style={{ fontSize: 15, lineHeight: 1, fontWeight: sel ? 700 : 500,
                   color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
                   {date}
                 </span>

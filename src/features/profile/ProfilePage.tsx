@@ -99,7 +99,7 @@ export const ProfilePage: React.FC = () => {
               <div className="flex w-full items-center justify-between gap-3">
                 <div className="flex items-center space-x-2.5">
                   <Languages size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-                  <span className="text-xs text-slate-700">{t('language_switch')}</span>
+                  <span className="text-sm text-slate-700">{t('language_switch')}</span>
                 </div>
                 <LanguageSwitcher variant="list" />
               </div>
