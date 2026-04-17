@@ -37,7 +37,9 @@
       "Bash(cp \"/Users/annie/Downloads/叮声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/ding.mp3)",
       "Bash(cp \"/Users/annie/Downloads/气泡声.mp3\" /Users/annie/Tshine2-13-new/public/sounds/bubble.mp3)",
       "Bash(echo \"exit: $?\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wc -l /Users/annie/Tshine2-13-new/src/features/growth/*.tsx)",
+      "Bash(wc -l /Users/annie/Tshine2-13-new/src/features/auth/AuthPage.tsx /Users/annie/Tshine2-13-new/src/features/profile/ProfilePage.tsx /Users/annie/Tshine2-13-new/src/features/profile/components/*.tsx /Users/annie/Tshine2-13-new/src/features/profile/UpgradePage.tsx)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
