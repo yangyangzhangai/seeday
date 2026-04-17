@@ -345,17 +345,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 scrollSnapAlign: 'center',
               }}
             >
-              <span className="text-xs" style={{ fontWeight: 700, letterSpacing: '0.10em',
+              <span style={{ fontSize: 10, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
                 textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
-              <div style={{ width: 34, height: 34, borderRadius: '50%',
+              <div style={{ width: 32, height: 32, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: sel ? BLUE_SELECTED_BG : '#F8FAFC',
                 border: sel ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
                 boxShadow: sel ? BLUE_SELECTED_SHADOW : 'none',
                 transition: 'all 0.18s' }}>
-                <span className="text-xs" style={{ fontWeight: sel ? 700 : 500,
+                <span style={{ fontSize: 12, lineHeight: 1, fontWeight: sel ? 700 : 500,
                   color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
                   {date}
                 </span>
