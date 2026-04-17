@@ -4,6 +4,32 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-17 - Style: 日记预览页背景绿更新
+
+### Changed
+
+- `src/features/report/DiaryBookShelf.tsx`
+  - 书架页背景色从 `#7a9b7e` 调整为 `#B8C2AE`，降低饱和度并匹配新视觉参考色。
+- `src/features/report/DiaryBookViewer.tsx`
+  - 日记翻页预览背景色同步改为 `#B8C2AE`，与书架页保持一致。
+
+## 2026-04-17 - Style: 日记书架封面阴影改为硬边书本投影
+
+### Changed
+
+- `src/features/report/DiaryBookShelf.tsx`
+  - 书架页封面阴影从单层柔和 `drop-shadow` 调整为三层组合阴影：近距离硬边接触影 + 中距离硬边投影 + 远距离柔边漫射。
+  - 在保留书本正向摆放的前提下增强边角存在感，整体观感更接近实体书在台面上的阴影。
+
+## 2026-04-17 - Style: 日记书架封面改为牛皮纸+红棕书脊配色
+
+### Changed
+
+- `src/features/report/DiaryBookShelf.tsx`
+  - 书架封面主色从浅米色改为牛皮纸棕（MUJI 风格），并新增封面边框线，强化“纸封壳”边界感。
+  - 左侧书脊改为红棕色布脊风格，保留并强化双凹线细节，维持书脊结构识别度。
+  - 增加轻量纸张颗粒纹理与内阴影层，让封面材质更接近实体纸本而非纯色块。
+
 ## 2026-04-17 - Fix: 全端禁止网页复制文字与图片
 
 ### Changed

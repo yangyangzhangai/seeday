@@ -96,8 +96,8 @@
 - **首次注册登录** → 进入首页前强制走完
 - **已注册老用户** → 通过现有「我的 → 用户画像」面板（`UserProfilePanel`）增量完善
   - 不单独做"主动提醒"新板块
-  - `UserProfilePanel` 顶部新增"身份与作息"区块（见 4.8）
-  - 字段缺失时 Profile 页展示一个轻量提示气泡："补全身份和作息，让 Tshine 帮你记录日常"，点击后展开面板
+  - `UserProfilePanel` 顶部新增"日程与作息"区块（见 4.8）
+  - 字段缺失时 Profile 页展示一个轻量提示气泡："补全日程和作息，让 Tshine 帮你记录日常"，点击后展开面板
 - 字段：`UserProfileV2.onboardingCompleted`（已预留，未启用）
 
 #### 4.1.2 步骤流程
@@ -106,43 +106,47 @@
 |---|---|---|---|
 | 1 | 欢迎页 + 简介 "Tshine 会帮你记录日常" | — | ✓ |
 | 2 | 通知权限申请（系统弹窗） | — | 可稍后开启 |
-| 3 | 身份选择：工作党 / 学生 / 自由职业 / 无业 | ✓ | ✗ |
-| 4 | 根据身份收集作息（见 4.2） | ✓ | 每字段可跳过 |
+| 3 | **日程设置**：勾选适用的日程类型（见 4.2） | — | ✓（可稍后在设置里补填） |
+| 4 | 根据勾选类型收集对应作息时间 | — | 每字段可跳过 |
 | 5 | 确认并进入首页 | — | — |
+
+> **不询问"你是什么身份"**：Step 3 只问"你有哪些需要记录的日程"，用勾选框替代身份标签，避免对用户生活方式作分类或评判。勾选结果仅用于后台调度逻辑，**不在任何 UI 界面向用户展示**。
 
 #### 4.1.3 交互规范
 
 - 复用 `APP_MODAL_CARD_CLASS` 样式体系
 - 进度指示：顶部 4/5 段进度条
-- 返回：可回上一步，不可跳过身份选择
+- 返回：可回上一步，Step 3 可跳过（提醒功能降级为仅三餐/起睡提醒）
 - 初次完成后：`onboardingCompleted = true`
 
 ---
 
-### 4.2 身份分类与作息数据收集
+### 4.2 日程类型与作息数据收集
 
 #### 4.2.1 数据结构扩展（UserProfileV2.manual）
 
 ```ts
 // src/types/userProfile.ts 扩展
 interface UserProfileManualV2 extends UserProfileManual {
-  // 新增字段
-  lifeStage?: 'worker' | 'student' | 'freelancer' | 'unemployed';
+  // 内部调度用，不对外展示；true = 用户勾选了该日程类型
+  hasWorkSchedule?: boolean;   // 有固定上班/工作时间
+  hasClassSchedule?: boolean;  // 有固定上课时间
+  // 注意：原 lifeStage 字段废弃，不再使用
 
-  // 工作党 / 自由职业共用
+  // 工作日程字段（hasWorkSchedule = true 时收集）
   workStart?: string;       // "09:30"
   workEnd?: string;         // "18:00"
   lunchStart?: string;      // "12:00"
   lunchEnd?: string;        // "13:00"
 
-  // 学生专用：上/下/晚三段式课程时间（每段最多 1 个时间范围）
+  // 课表字段（hasClassSchedule = true 时收集）
   classSchedule?: ClassSchedule;
   classScheduleSource?: 'image' | 'manual';
 
-  // 通用作息
+  // 通用作息（所有用户都收集）
   wakeTime?: string;        // "07:30"
   sleepTime?: string;       // "23:30"
-  lunchTime?: string;       // "12:00"（无业/学生用；工作党用 lunchStart/lunchEnd）
+  lunchTime?: string;       // "12:00"（无工作日程时用；有工作日程时用 lunchStart/lunchEnd）
   dinnerTime?: string;      // "19:00"
 }
 
@@ -163,20 +167,20 @@ interface TimeRange {
 }
 ```
 
-#### 4.2.2 各身份对应字段
+#### 4.2.2 日程组合对应字段
 
-| 身份 | 收集字段 | 默认提醒锚点 |
+| 用户勾选 | 收集字段 | 默认提醒锚点 |
 |---|---|---|
-| **工作党** | `wakeTime`, `workStart`, `workEnd`, `lunchStart`, `lunchEnd`, `sleepTime` | 起床、上班、午休开始、午休结束、下班、睡前 |
-| **自由职业** | 同工作党（字段全部可选，允许不填） | 同上（仅填了的才提醒） |
-| **学生** | `classSchedule`（上/下/晚三段）**+** `wakeTime`, `lunchTime`, `dinnerTime`, `sleepTime`（三餐和作息独立收集） | 上午课开始/结束、下午课开始/结束、晚自习开始/结束、起床、午餐、晚餐、睡前 |
-| **无业** | `wakeTime`, `lunchTime`, `dinnerTime`, `sleepTime` | 起床、午餐、晚餐、睡前 |
+| **有工作时间** | `wakeTime`, `workStart`, `workEnd`, `lunchStart`, `lunchEnd`, `sleepTime` | 起床、上班、午休开始、午休结束、下班、睡前 |
+| **有上课时间** | `classSchedule`（上/下/晚三段）+ `wakeTime`, `lunchTime`, `dinnerTime`, `sleepTime` | 上午课开始/结束、下午课开始/结束、晚自习开始/结束、起床、午餐、晚餐、睡前 |
+| **两者都有** | 合并上两行所有字段 | 合并提醒（所有已填字段均生效） |
+| **都不勾选** | `wakeTime`, `lunchTime`, `dinnerTime`, `sleepTime` | 起床、午餐、晚餐、睡前 |
 
 所有时间字段：24 小时制 `HH:MM`，i18n key 统一走 `t('profile_schedule_*')`。
 
 ---
 
-### 4.3 课表图片导入（学生）
+### 4.3 课表图片导入（hasClassSchedule = true 的用户）
 
 #### 4.3.1 交互流程
 
@@ -256,9 +260,8 @@ export async function registerNotificationCategories() {
       {
         id: 'CONFIRM_DENY',           // 通用确认类（作息提醒）
         actions: [
-          { id: 'confirm',     title: '✓ 开始记录'    },  // 静默写入 extra 中预设的活动
-          { id: 'deny',        title: '我在做别的'     },  // 打开 App → QuickActivityPicker
-          { id: 'pause_today', title: '今天不提醒了'   },
+          { id: 'confirm', title: '✓ 确认'      },  // 静默写入预设活动，不打开 App
+          { id: 'deny',    title: '我在做别的'   },  // 打开 App → QuickActivityPicker
         ],
       },
       {
@@ -284,9 +287,8 @@ export async function registerNotificationCategories() {
       {
         id: 'SESSION_CHECK',          // 3h 无新记录（全6种活动类型，§4.10.1）
         actions: [
-          { id: 'still_yes',   title: '✓ 还在继续'   },  // 重新安排 3h 后再检查
-          { id: 'still_no',    title: '我在做别的'    },  // 打开 App → QuickActivityPicker
-          { id: 'pause_today', title: '今天不提醒了'  },
+          { id: 'still_yes', title: '✓ 还在'      },  // 重新安排 3h 后再检查
+          { id: 'still_no',  title: '我在做别的'   },  // 打开 App → QuickActivityPicker
         ],
       },
     ],
@@ -315,13 +317,17 @@ export async function registerNotificationCategories() {
   [App图标]  Tshine                  现在  [AI头像缩略图]
   Van：安妮，你今天开始上班了吗？
   ────────────────────────────────────────────────────
-        ✓ 开始记录           ← confirm：静默写入预设活动，不打开 App
+        ✓ 确认               ← confirm：静默写入预设活动，不打开 App
   ────────────────────────────────────────────────────
-        我在做别的           ← deny：打开 App → QuickActivityPicker
-  ────────────────────────────────────────────────────
-        今天不提醒了         ← pause_today：取消今日所有通知
+        我在做别的           ← deny：打开 App → QuickActivityPicker（可选类型按钮 + 自由输入）
 ──────────────────────────────────────────────────────
 ```
+
+> **"我在做别的"的完整体验**：点击后打开 App，底部自动弹出 QuickActivityPicker。用户可以：
+> - 点预设类型按钮（🍽 吃饭 / 😴 休息 / 🎮 娱乐 / 🏃 运动 / 💬 社交 / ✏️ 其他）
+> - 或在输入框自由输入任何内容
+>
+> 无论选择哪种方式，今日此提醒类型均永久跳过。
 
 **AI 头像缩略图实现**：
 - 使用 `LocalNotifications.schedule` 的 `attachments` 字段
@@ -379,7 +385,6 @@ LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
   }
 
   if (actionId === 'still_yes')   rescheduleSessionCheck(extra.activityType);
-  if (actionId === 'pause_today') pauseAllRemindersToday();
   if (actionId === 'view_report') router.push('/report');
   if (actionId === 'grow_plant')  router.push('/growth');
   if (actionId === 'open_chat')   router.push('/chat');
@@ -394,7 +399,7 @@ LocalNotifications.addListener('localNotificationReceived', (notification) => {
 
 #### 4.4.7 权限申请
 
-- **时机**：Onboarding Step 2（进入身份选择前）
+- **时机**：Onboarding Step 2（进入日程设置前）
 - **文案**：`"Tshine 会在上下班、用餐时间轻轻提醒你，帮你自动记录日常。"`
 - **拒绝处理**：仍可使用 App，所有提醒降级为"进入 App 时补弹窗"（`checkMissedReminders`）
 
@@ -414,7 +419,7 @@ reminder_<type>_<HHMM>
 |---|---|
 | 22:00 `setTimeout` 触发 React 弹窗 | 22:00 `LocalNotifications.schedule` 发原生通知 |
 | App 被杀掉 = 失效 | App 关闭后仍能收到 |
-| 触发条件：plant/diary 未生成 | 同现有逻辑，校验时机改为调度时（当日 00:10 重调度时检查昨日） |
+| 触发条件：plant/diary 未生成 | **20:00 触发时实时检查**当日 plant+diary 是否均未生成（`!plantDone && !diaryDone`）；00:10 重调度时仅决定是否加入今日队列（乐观加入，触发时再实时判断） |
 
 迁移后 `useNightReminder.ts` 可删除；逻辑合并进 `reminderScheduler.ts` 的 `evening_check` 类型处理。
 
@@ -429,25 +434,33 @@ reminder_<type>_<HHMM>
 | 类型 | 触发时间 | 默认文案（Van） | 确认后动作 |
 |---|---|---|---|
 | `work_start` | `workStart` | "{name}，你今天开始上班了吗？" | 开启工作计时 |
-| `lunch_start` | `lunchStart` | "上午辛苦啦，开始吃饭了吗？" | 结束上班计时，开启午餐计时 |
-| `lunch_end` | `lunchEnd` | "午休结束，回到工作了吗？" | 结束午餐计时，开启下午工作 |
-| `work_end` | `workEnd` | "一天工作辛苦了，下班了吗？" | 结束工作计时 |
-| `class_morning_start` | 上午段 `start` | "要开始上午的课了吗？" | 开启上午课程计时 |
-| `class_morning_end` | 上午段 `end` | "上午的课结束了吗？" | 结束上午课程计时 |
-| `class_afternoon_start` | 下午段 `start` | "下午的课开始了吗？" | 开启下午课程计时 |
-| `class_afternoon_end` | 下午段 `end` | "下午的课结束了吗？" | 结束下午课程计时 |
-| `class_evening_start` | 晚段 `start` | "要去上晚自习了吗？" | 开启晚间课程计时 |
-| `class_evening_end` | 晚段 `end` | "晚自习结束了吗？" | 结束晚间计时 |
-| `wake` | `wakeTime` | "早安，起床啦？" | 记录起床时间 |
-| `sleep` | `sleepTime` | "该休息啦，准备睡觉了吗？" | 结束所有活跃计时 |
-| `meal_lunch` | `lunchTime`（学生/无业） | "要去吃午饭了吗？" | 开启午餐计时 |
-| `meal_dinner` | `dinnerTime` | "晚餐时间到啦" | 开启晚餐计时 |
+| `lunch_start` | `lunchStart` | "{name}，上午辛苦啦，吃饭了吗？" | 结束上班计时，开启午餐计时 |
+| `lunch_end` | `lunchEnd` | "{name}，午休结束，回到工作了吗？" | 结束午餐计时，开启下午工作 |
+| `work_end` | `workEnd` | "{name}，辛苦啦，下班了吗？" | 结束工作计时 |
+| `class_morning_start` | 上午段 `start` | "{name}，上午的课要开始了吗？" | 开启上午课程计时 |
+| `class_morning_end` | 上午段 `end` | "{name}，上午的课结束了吗？" | 结束上午课程计时 |
+| `class_afternoon_start` | 下午段 `start` | "{name}，下午的课开始了吗？" | 开启下午课程计时 |
+| `class_afternoon_end` | 下午段 `end` | "{name}，下午的课结束了吗？" | 结束下午课程计时 |
+| `class_evening_start` | 晚段 `start` | "{name}，要去上晚自习了吗？" | 开启晚间课程计时 |
+| `class_evening_end` | 晚段 `end` | "{name}，晚自习结束了吗？" | 结束晚间计时 |
+| `wake` | `wakeTime` | "{name}，早安，起床啦？" | 记录起床时间 |
+| `sleep` | `sleepTime` | "{name}，准备睡觉了吗？" | 结束所有活跃计时 |
+| `meal_lunch` | `lunchTime`（无工作日程的用户） | "{name}，要去吃午饭了吗？" | 开启午餐计时 |
+| `meal_dinner` | `dinnerTime` | "{name}，晚饭时间到啦" | 开启晚餐计时 |
 | `evening_check` | **20:00 固定** | "今天过得怎么样？看看日报或生成植物吧" | 跳转日报 / 植物生成 |
 | `weekend_morning_check` | **周末/节假日 10:00 固定** | "周末上午好！在做什么呀？" | 记录用户输入（可选）|
 | `weekend_afternoon_check` | **周末/节假日 16:00 固定** | "下午好，今天玩得开心吗？" | 记录用户输入（可选）|
 | `weekend_evening_check` | **周末/节假日 20:00 固定** | "周末的晚上好！要看看今日日报吗？" | 跳转日报 / 植物生成 |
 
 #### 4.5.2 弹窗交互（带 AI 头像 + 快捷输入）
+
+> **弹窗形态总览**：本文档共涉及三种弹窗，定义位置如下。除 §4.5.2 外，其余章节均引用而不重复定义。
+>
+> | 形态 | 适用场景 | 定义位置 |
+> |---|---|---|
+> | **A. 标准提醒弹窗**（本节） | 所有作息/上课/吃饭类提醒 + session_check | §4.5.2 |
+> | **B. 晚间总结弹窗** | 20:00 evening_check（植物/日报入口） | §4.7 |
+> | iOS 原生通知横幅 | App 后台/关闭时的系统通知，非 App 弹窗 | §4.4.4 |
 
 ```
 ┌────────────────────────────────────┐
@@ -464,7 +477,6 @@ reminder_<type>_<HHMM>
 │  │ 写点什么...              │  │↑│ │
 │  └────────────────────────┘  └──┘ │
 │                                    │
-│  今天不提醒了                        │  ← 小字灰色，tap 静默今日所有提醒
 └────────────────────────────────────┘
 ```
 
@@ -482,8 +494,10 @@ reminder_<type>_<HHMM>
 | 操作 | 视觉 | 行为 | 对应业务 |
 |---|---|---|---|
 | 点对勾 | ✓ 圆形按钮（绿色系） | 按提醒类型默认动作执行（开始计时 / 结束计时） | 同 § 4.5.1 默认动作 |
-| 点叉号 | ✗ 圆形按钮（中性灰） | 10 分钟后再次推送（最多重试 2 次） | 同原逻辑 |
+| 点叉号 | ✗ 圆形按钮（中性灰） | **立即打开 QuickActivityPicker**，今日此提醒类型**永久跳过**（不重试） | 用户正在做别的事，记录实际活动后该提醒不再出现 |
 | **输入文字 + 发送** | 输入框 + ↑ 发送键 | **等同于在 ChatPage 发送这条消息** | 见下方 |
+
+> **✗ 按钮行为说明**：用户点 ✗ 表示"我没在做你说的那件事"，App 立刻弹出 QuickActivityPicker（底部 bottom sheet，见 §4.10.1）让用户选择实际在做什么。无论用户是否在 Picker 里选了选项，本次提醒类型当日均不再重推。**没有 10 分钟重试逻辑。**
 
 **视觉规范**：
 - 对勾/叉号均为**圆形图标按钮**，无文字标签
@@ -491,20 +505,15 @@ reminder_<type>_<HHMM>
 - 对勾色：`#5F7A63`（sage green，与 AI 记录主题色一致）
 - 叉号色：`#94A3B8`（slate-400，弱化以突出主动作）
 - 交互：点击时轻触觉反馈 `triggerLightHaptic()`
-- 无障碍：`aria-label="确认"` / `aria-label="稍后再问"`（走 i18n）
+- 无障碍：`aria-label="确认"` / `aria-label="我在做别的"`（走 i18n）
 
-**"今天不提醒了"按钮规范**：
-- 位置：弹窗最底部，居中，小字（`text-xs`），颜色 `#94A3B8`
-- 点击后：`localStorage.setItem('reminderPausedDate', todayStr)`，当日所有待发通知取消，已调度的原生通知通过 `LocalNotifications.cancel()` 批量撤销
-- 视觉反馈：轻触反馈 + 弹窗关闭，无额外 toast（行为已明确，不需要确认）
-- i18n key：`t('reminder_pause_today')`
 
 ##### 弹窗内输入发送（核心新增）
 
 - 弹窗底部有独立的**快捷输入区**：单行 input + 发送按钮（纸飞机图标）
 - 用户可自由输入任何内容（如"今天稍微晚点开工，先去买了杯咖啡"）
 - 点击发送后：
-  1. 关闭本弹窗（视同已响应，不再 10 分钟重问）
+  1. 关闭本弹窗（视同已响应，今日此提醒类型不再推送）
   2. **完全等价于在 ChatPage 发送一条消息**：
      - 复用 `useChatStore` 的 `sendMessage` / `appendUserMessage` action
      - 走相同的分类、注释、植物生成、live input classification 等后续流程
@@ -557,13 +566,19 @@ export const REMINDER_COPY: Record<AiCompanionMode, Record<ReminderType, string>
   momo: { /* ... */ },
 };
 
+// {name} 使用规则：
+// - 所有提醒文案均包含 {name} 占位符
+// - 有昵称时："{name}，早安，起床啦？" → "安妮，早安，起床啦？"
+// - 无昵称时：replace('{name}', '') + replace(/^[，,]\s*/, '') → "早安，起床啦？"
 export function getReminderCopy(
   mode: AiCompanionMode,
   type: ReminderType,
   vars: { name?: string } = {},
 ): string {
   const template = REMINDER_COPY[mode]?.[type] ?? REMINDER_COPY.van[type];
-  return template.replace('{name}', vars.name ?? '').replace(/^，/, '');
+  return template
+    .replace('{name}', vars.name ?? '')
+    .replace(/^[，,]\s*/, '');   // 无昵称时去掉开头的逗号和空格
 }
 ```
 
@@ -576,15 +591,17 @@ export function getReminderCopy(
 
 **原则**：保持核心信息（触发动作）不变，通过语气差异体现人格。
 
+> **功能性提醒（上课/下课/吃饭/上班/下班类）语气约束**：这类提醒的核心是"是否开始/结束了某件事"，是功能性询问而非情绪表达。语气应保持**轻量中性**，避免对用户当前状态作假设性判断（如"下午课上完了，好好喘口气"——万一用户还在拖堂课，这类表达会让人反感）。人格差异主要体现在**句末语气助词和节奏感**，而非对事件结果的情绪化描述。idle_nudge、evening_check、weekend 类提醒可以有更丰富的情绪表达。
+
 | 提醒 | Van（情绪治愈） | Agnes（引领指导） | Zep（生活真实） | Momo（从容温吞） |
 |---|---|---|---|---|
 | `work_start` | "{name}，你今天开始上班了吗？" | "{name}，又是开工的时间，做好准备了吗？" | "{name}，上班时间到，是时候开干啦。" | "{name}，上班啦～不急，慢慢进入状态～" |
-| `lunch_start` | "上午辛苦啦，开始吃饭了吗？" | "午餐时间到，记得好好吃饭。" | "午饭了，别再死磕工作了。" | "吃饭啦～今天想吃点什么呢？" |
-| `lunch_end` | "午休结束，回到工作了吗？" | "午休结束，继续加油。" | "行吧，继续搬砖。" | "回去工作啦～一点点来～" |
-| `work_end` | "一天工作辛苦了，下班了吗？" | "工作时段结束了，该收尾啦。" | "下班！今天就到这儿。" | "下班啦～今天也辛苦啦～" |
-| `class_morning_start` | "要开始上午的课了吗？" | "上午的课即将开始，准备好了吗？" | "上课了，专心点。" | "要开始上课啦～带上小本本～" |
-| `wake` | "早安，起床啦？" | "新的一天开始了，起床吧。" | "该起床了，别赖床。" | "早安～慢慢睁开眼睛～" |
-| `sleep` | "该休息啦，准备睡觉了吗？" | "今天到这里，该休息了。" | "睡觉去吧，别熬夜。" | "困了吧～盖好被子再睡哦～" |
+| `lunch_start` | "{name}，上午辛苦啦，吃饭了吗？" | "{name}，午餐时间到，好好吃饭。" | "{name}，午饭了，别再死磕了。" | "{name}，吃饭啦～今天想吃什么～" |
+| `lunch_end` | "{name}，午休结束，回去了吗？" | "{name}，午休结束，继续加油。" | "{name}，行吧，继续搬砖。" | "{name}，回去工作啦～慢慢来～" |
+| `work_end` | "{name}，辛苦啦，下班了吗？" | "{name}，工作结束了，该收尾啦。" | "{name}，下班！今天就到这儿。" | "{name}，下班啦～今天也辛苦啦～" |
+| `class_morning_start` | "{name}，上午的课要开始了吗？" | "{name}，上午的课即将开始，准备好了吗？" | "{name}，上课了，专心点。" | "{name}，要上课啦～带上小本本～" |
+| `wake` | "{name}，早安，起床啦？" | "{name}，新的一天开始了，起床吧。" | "{name}，起床了，别赖床。" | "{name}，早安～慢慢睁眼睛～" |
+| `sleep` | "{name}，准备睡觉了吗？" | "{name}，今天到这里，去休息吧。" | "{name}，睡觉去吧，别熬夜。" | "{name}，困了吧～盖好被子再睡～" |
 | `evening_check` | "今天过得怎么样？看看日报或生成植物吧" | "今天的记录需要你来整理。" | "一天结束啦，看看今天做了啥。" | "今天也结束啦～来种颗小植物吧～" |
 | `weekend_morning_check` | "周末上午好！在做什么呀？" | "周末了，上午有什么好计划？" | "周末了，上午干嘛呢？" | "周末早上好～悠闲地做什么呢～" |
 | `weekend_afternoon_check` | "下午好，今天玩得开心吗？" | "周末下午，有没有好好放松？" | "下午好，周末怎么过的？" | "下午好～今天开心吗～" |
@@ -593,11 +610,6 @@ export function getReminderCopy(
 > 完整文案表见 `src/services/reminder/reminderCopy.ts` 实现（本文档仅列代表性样本）。
 
 #### 4.5.5 去重与冲突规则
-
-**规则零：今日已暂停（最优先）**
-- `localStorage.getItem('reminderPausedDate') === todayStr` → 当日所有提醒全部跳过
-- 入口：ReminderPopup 底部"今天不提醒了"按钮 / 通知长按 `pause_today` action
-- 实现：`pauseAllRemindersToday()` 同时调用 `LocalNotifications.cancel({ notifications: todayPendingIds })`
 
 **规则一：当日已响应不重推**
 - 同一 `reminder_type` 当天只会成功触发 1 次（用户点 ✓/✗ 或输入文字均视为"已响应"）
@@ -643,8 +655,8 @@ function shouldSkipReminder(type: ReminderType, triggerTime: Date): boolean {
 
 | 提醒类型 | 匹配条件 |
 |---|---|
-| `work_start` | 过去 4h 内有 `activityType === 'work'` 的记录，且之后无任何新记录 |
-| `class_*_start` | 过去 4h 内有 `activityType === 'study'` 的记录，且之后无任何新记录 |
+| `work_start` | 过去 **2h** 内有 `activityType === 'work'` 的记录，且之后无任何新记录 |
+| `class_*_start` | 过去 **2h** 内有 `activityType === 'study'` 的记录，且之后无任何新记录 |
 | 吃饭/起床/睡觉类 | 不适用（三餐不存在"持续进行"状态，不做 session 静默） |
 
 > **为什么是 2 小时**：2h 内刚记录过同类活动，几乎可以确定用户仍在进行中；超过 2h 则可能已结束，提醒才有意义。session_check（3h 无新记录）在此之后独立接管。
@@ -735,6 +747,7 @@ interface TimingSession {
 ### 4.7 晚间总结提醒（固定 20:00）
 
 - 时间点：**每日 20:00 固定**（不受身份影响，所有用户生效）
+- **触发前置条件**：当日植物**且**日记均未生成，才发通知/弹窗。任意一个已生成则当日不再提醒。（代码实现：`!plantDone && !diaryDone`，现有 `useNightReminder.ts` 已按此逻辑修复）
 - 若 20:00 用户仍在"工作/上课"计时中 → 提醒文案带"你好像还在忙，休息时再看看"
 - 弹窗内容：
   - 今日事件数（"你今天记录了 X 件事"）
@@ -751,7 +764,7 @@ interface TimingSession {
 
 **不新增独立卡片，而是扩展现有的 `UserProfilePanel`。**
 
-现有 `UserProfilePanel` 已经覆盖了 `wakeTime / sleepTime / breakfastTime / lunchTime / dinnerTime / freeText` 等作息字段，这是天然的扩展点。在其基础上新增"身份"和"提醒设置"区块即可。
+现有 `UserProfilePanel` 已经覆盖了 `wakeTime / sleepTime / breakfastTime / lunchTime / dinnerTime / freeText` 等作息字段，这是天然的扩展点。在其基础上新增"日程类型"勾选和"提醒设置"区块即可。**日程类型（`hasWorkSchedule` / `hasClassSchedule`）只作为显示哪些时间字段的开关，不在任何 UI 界面向用户展示为"身份"标签。**
 
 #### 4.8.2 Profile 页面整体不变
 
@@ -775,18 +788,19 @@ interface TimingSession {
 
 ```
 ┌ UserProfilePanel ──────────────────────────┐
-│ [A] 身份（新增）                             │
-│     ○ 工作党  ○ 学生  ○ 自由职业  ○ 无业     │
+│ [A] 我的日程（新增）                          │
+│     ☐ 有固定的上班 / 工作时间                 │
+│     ☐ 有固定的上课时间                       │
 │                                            │
-│ [B] 作息时间（原有 + 按身份增强）             │
+│ [B] 作息时间（原有 + 按勾选扩展）             │
 │     通用：🌅 起床 / 🌙 睡觉                  │
 │           🍞 早餐 / 🍜 午餐 / 🍲 晚餐         │
 │                                            │
-│     【工作党/自由职业额外显示】                │
+│     【勾选"上班时间"后额外显示】               │
 │           💼 上班开始 / 上班结束              │
 │           🛋 午休开始 / 午休结束              │
 │                                            │
-│     【学生额外显示】                         │
+│     【勾选"上课时间"后额外显示】               │
 │           📚 上午课  start - end            │
 │           📚 下午课  start - end            │
 │           📚 晚自习  start - end            │
@@ -806,19 +820,16 @@ interface TimingSession {
 
 #### 4.8.4 字段展示规则
 
-- **身份未选** → 只显示[A]区块，提示"选择身份后展示对应作息字段"
-- **身份切换时** → 保留已填通用字段（起床/睡觉/三餐），清空不适用字段（如从学生切到工作党时清空课表，弹确认）
+- **默认状态** → 只显示通用作息字段（起床/睡觉/三餐），勾选对应日程后扩展显示额外字段
+- **取消勾选时** → 保留已填通用字段，清空对应专属字段（如取消"上课时间"时清空课表，弹确认）
 - **课表导入按钮** → 点击后走 4.3 节流程，返回后填入 `morning/afternoon/evening` 三个时段
 - **提醒开关关闭** → 所有系统通知取消调度，但字段保留
 
 #### 4.8.5 i18n 新增 key
 
 ```
-profile_user_profile_life_stage
-profile_user_profile_life_stage_worker
-profile_user_profile_life_stage_student
-profile_user_profile_life_stage_freelancer
-profile_user_profile_life_stage_unemployed
+profile_user_profile_has_work_schedule    ← "有固定的上班 / 工作时间"
+profile_user_profile_has_class_schedule   ← "有固定的上课时间"
 
 profile_user_profile_work_start
 profile_user_profile_work_end
@@ -919,9 +930,8 @@ async function getIsFreeDay(date: Date, countryCode: string): Promise<boolean> {
 沿用 §4.5.2 的弹窗结构（AI头像 + 文案 + ✓/✗ + 快捷输入框），差异如下：
 
 - **✓ 按钮文案**：`t('reminder_weekend_confirm')` → "好的，记一下"
-- **✗ 按钮语义**：跳过，当日该时段不再提醒（不重试）
+- **✗ 按钮语义**：打开 QuickActivityPicker，当日该时段不再提醒（与工作日行为一致，均无重试）
 - **输入框**：保持原有"直接告诉我"语义，发送后等同 ChatPage 发消息
-- **无"再问一次"逻辑**：周末询问不做 10 分钟重试（区别于工作日提醒）
 
 #### 4.9.5 调度器实现要点
 
@@ -961,8 +971,10 @@ Idle 分为两个独立场景，触发条件不同：
 
 | 形态 | 触发条件 | 行为 |
 |---|---|---|
-| **A. In-session idle**（`session_check`） | 用户有 work/study 记录，3h 内无新消息 | 50% 问"还在 xxx 吗" / 50% AI 主动问候 |
+| **A. In-session idle**（`session_check`） | 任意 activityType 的消息后 3h 无新记录 | 50% 问"还在做 xxx 吗"（**提醒用户继续记录**） / 50% AI 主动问候 |
 | **B. App-closure idle**（`idle_nudge`） | 用户关闭 App 超过 4h 未打开 | 始终走 AI 主动问候 |
+
+> **session_check 设计意图**：核心目的是**提醒用户记录**，而不是检测 session 是否真的还在进行。"还在做X吗"只是引导用户确认/更新状态的问法，并非断言用户一定还在进行中。全6种活动类型都应触发——哪怕是"逛超市"这类短暂活动，3小时没有任何记录本身就是一个值得问的信号。
 
 ---
 
@@ -999,11 +1011,9 @@ Idle 分为两个独立场景，触发条件不同：
   [App图标]  Tshine         [时间]  [AI头像缩略图]
   Van：你上次记录运动是 3 小时前，还在继续吗？
 ── 长按展开 ──────────────────────────────────────────
-        ✓ 还在继续
+        ✓ 还在             ← still_yes：重新安排 3h 后再检查，不打开 App
   ──────────────────────────────────────────────────
-        我在做别的
-  ──────────────────────────────────────────────────
-        今天不提醒了
+        我在做别的         ← still_no：打开 App → QuickActivityPicker
 ──────────────────────────────────────────────────────
 ```
 
@@ -1038,21 +1048,25 @@ const activity = ACTIVITY_DISPLAY_LABEL[lastActivityRecord.activityType];
 | 操作 | 结果 |
 |---|---|
 | **点 ✓ 还在继续** | 重新安排 3h 后的下一次检查（再次 50/50 随机） |
-| **点 我在做别的** | 打开 App → ChatPage → **底部自动弹出 QuickActivityPicker**（见下方） |
-| **直接点横幅** | 打开 App → `ReminderPopup`（session_check 版，含 ✓/✗ + 输入框 + 今天不提醒了） |
+| **点 我在做别的（通知按钮）** | 打开 App → 停留在 ChatPage → **底部自动弹出 QuickActivityPicker** |
+| **点 我在做别的（应用内弹窗 ✗）** | 当前页面底部滑入 QuickActivityPicker，不跳转 ChatPage |
+| **直接点横幅** | 打开 App → 显示 `ReminderPopup`（标准提醒弹窗，含 ✓/✗ + 输入框，见 §4.5.2） |
 
-##### QuickActivityPicker（ChatPage 底部 bottom sheet）
+##### QuickActivityPicker（底部 bottom sheet）
 
-点 ✗ 进入 ChatPage 时，底部自动弹出：
+点"我在做别的"后弹出：
 
 ```
-╔═══════════════════════════════════════════╗
-║  你结束工作了，现在在做什么？                ║  ← {activity} 用固定词
-║                                           ║
-║  [🍽 吃饭]  [😴 休息]  [🎮 娱乐]  [📝 其他] ║
-║                                           ║
-║  [自己输入...]                             ║
-╚═══════════════════════════════════════════╝
+╔══════════════════════════════════════════════════╗
+║  你结束工作了，现在在做什么？                       ║  ← {activity} 用固定词
+║                                                  ║
+║  [🍽 吃饭]  [😴 休息]  [🎮 娱乐]                  ║
+║  [🏃 运动]  [💬 社交]  [✏️ 其他]                  ║
+║                                                  ║
+║  ┌──────────────────────────────┐  ┌──┐          ║
+║  │ 或者直接告诉我...              │  │↑│          ║
+║  └──────────────────────────────┘  └──┘          ║
+╚══════════════════════════════════════════════════╝
 ```
 
 - **形态**：ChatPage 底部 bottom sheet，从底部滑入，不遮挡聊天内容，可下滑关闭
@@ -1060,7 +1074,9 @@ const activity = ACTIVITY_DISPLAY_LABEL[lastActivityRecord.activityType];
   - 🍽 吃饭 → `t('quick_activity_meal')`
   - 😴 休息 → `t('quick_activity_rest')`
   - 🎮 娱乐 → `t('quick_activity_entertainment')`
-  - 📝 其他 → focus 输入框
+  - 🏃 运动 → `t('quick_activity_health')`
+  - 💬 社交 → `t('quick_activity_social')`
+  - ✏️ 其他 → focus 输入框
 - **关闭（下滑/点遮罩）** → 不发消息，用户之后自己输入
 - **组件**：约 50 行，纯展示，数据来自 `useReminderStore.lastSessionActivity`
 - **触发**：`router.push('/chat?show_quick_picker=1&activity=work')`，ChatPage 读取 query param
@@ -1369,7 +1385,7 @@ export function updateWidgetData(data: {
 6. 学生/自由职业/无业三种路径
 7. 课表图片 AI 解析
 8. "我的"配置入口
-9. 拒绝 10 分钟重试
+9. ✗ 行为：永久跳过当日此类提醒 + 打开 QuickActivityPicker
 
 ### Phase 3（体验打磨）
 10. 主动输入静默跳过提醒

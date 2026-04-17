@@ -8,8 +8,13 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
 
 /* ──────────────────────────── constants ──────────────────────────── */
-const COVER_BG = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
-const SHELF_BG = '#7a9b7e';
+const COVER_BG = 'radial-gradient(140% 120% at 20% 10%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 42%), linear-gradient(160deg, #d7ab77 0%, #cd9d69 100%)';
+const SHELF_BG = '#B8C2AE';
+const COVER_BORDER = 'rgba(117, 80, 45, 0.45)';
+const COVER_TEXT = '#6A4A2C';
+const COVER_SUBTEXT = 'rgba(106, 74, 44, 0.58)';
+const SPINE_BG = '#9E4A3A';
+const SPINE_DARK = 'rgba(72, 36, 28, 0.45)';
 
 const THUMB_W = 86;   // cover width
 const THUMB_H = 124;  // cover height (≈ 180:260 ratio)
@@ -92,6 +97,7 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
             width: THUMB_W,
             height: THUMB_H,
             background: COVER_BG,
+            border: `1px solid ${COVER_BORDER}`,
             borderRadius: '2px 4px 4px 2px',
             display: 'flex',
             flexDirection: 'column',
@@ -100,15 +106,27 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
             gap: 4,
             overflow: 'hidden',
             filter: lifted
-              ? 'drop-shadow(0 10px 16px rgba(0,0,0,0.55))'
-              : 'drop-shadow(0 6px 10px rgba(0,0,0,0.38))',
+              ? 'drop-shadow(0 1px 0 rgba(34, 44, 28, 0.28)) drop-shadow(5px 8px 0 rgba(44, 58, 36, 0.18)) drop-shadow(14px 22px 16px rgba(22, 30, 18, 0.34))'
+              : 'drop-shadow(0 1px 0 rgba(34, 44, 28, 0.22)) drop-shadow(3px 5px 0 rgba(44, 58, 36, 0.12)) drop-shadow(9px 14px 12px rgba(22, 30, 18, 0.28))',
             transition: 'filter 0.25s ease',
           }}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '2px 4px 4px 2px',
+                boxShadow: 'inset 0 0 0 1px rgba(255, 239, 220, 0.14), inset 0 -10px 18px rgba(118, 78, 42, 0.12)',
+                backgroundImage: 'radial-gradient(rgba(88, 60, 34, 0.1) 0.65px, transparent 0.65px)',
+                backgroundSize: '3px 3px',
+                pointerEvents: 'none',
+              }}
+            />
             {/* Spine strip — two thin dark vertical lines */}
             <div style={{
-              position: 'absolute', left: 0, top: 0, width: 7, height: '100%',
-              background: 'rgba(0,0,0,0.13)',
-              backgroundImage: 'linear-gradient(90deg, transparent 2.5px, rgba(0,0,0,0.38) 2.5px, rgba(0,0,0,0.38) 3px, transparent 3px, transparent 3.5px, rgba(0,0,0,0.38) 3.5px, rgba(0,0,0,0.38) 4px, transparent 4px)',
+              position: 'absolute', left: 0, top: 0, width: 9, height: '100%',
+              background: SPINE_BG,
+              backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.14) 0px, rgba(255,255,255,0.04) 1px, transparent 2px), repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px), linear-gradient(90deg, transparent 3px, rgba(72,36,28,0.55) 3px, rgba(72,36,28,0.55) 3.6px, transparent 3.6px, transparent 5px, rgba(72,36,28,0.45) 5px, rgba(72,36,28,0.45) 5.6px, transparent 5.6px)',
+              boxShadow: `inset -1px 0 0 ${SPINE_DARK}`,
               borderRadius: '2px 0 0 2px',
             }} />
 
@@ -128,10 +146,10 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
                 style={{
                   fontWeight: 700,
                   letterSpacing: 1.5,
-                  color: '#6b5a3e',
+                  color: COVER_TEXT,
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: '1px solid rgba(107,90,62,0.35)',
+                  borderBottom: '1px solid rgba(106,74,44,0.35)',
                   textAlign: 'center',
                   width: 62,
                   outline: 'none',
@@ -143,13 +161,13 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
               <span
                 onClick={e => { e.stopPropagation(); onStartEdit(); }}
                 className="text-xs font-bold"
-                style={{ letterSpacing: 2, color: '#6b5a3e', cursor: 'text' }}
+                style={{ letterSpacing: 2, color: COVER_TEXT, cursor: 'text' }}
               >
                 {bookName}
               </span>
             )}
 
-            <span style={{ fontSize: 7.5, letterSpacing: 1, color: 'rgba(107,90,62,0.5)' }}>
+            <span style={{ fontSize: 7.5, letterSpacing: 1, color: COVER_SUBTEXT }}>
               Diary
             </span>
           </div>

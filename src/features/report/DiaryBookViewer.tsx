@@ -32,6 +32,7 @@ const MAX_VIS = 4;
 const BASE_HEIGHT_SHRINK = 20;
 const PAPER_COLOR = '#ffffff';
 const COVER_COLOR = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
+const SHELF_BG = '#B8C2AE';
 const SPINE_STRIP_W = 14;
 const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
@@ -793,7 +794,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column',
-      background: '#7a9b7e', userSelect: 'none', touchAction: 'pan-y',
+      background: SHELF_BG, userSelect: 'none', touchAction: 'pan-y',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `calc(env(safe-area-inset-top, 0px) + 12px) 20px 12px` }}>

@@ -46,7 +46,7 @@ export function useNightReminder() {
       if (isAlreadyDismissedToday()) return;
       const plantDone = isPlantGeneratedToday(todayPlantRef.current);
       const diaryDone = isDiaryGeneratedToday(reportsRef.current);
-      if (!plantDone || !diaryDone) {
+      if (!plantDone && !diaryDone) {
         setShowReminder(true);
       }
     };
