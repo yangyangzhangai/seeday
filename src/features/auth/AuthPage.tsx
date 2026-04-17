@@ -151,39 +151,18 @@ export const AuthPage = () => {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#fcfaf7] px-4">
-      {/* Ambient background blurs */}
-      <div className="pointer-events-none fixed right-0 top-0 h-[260px] w-[260px] rounded-full bg-[#B2EEDA]/20 blur-[90px]" />
-      <div className="pointer-events-none fixed bottom-[100px] left-0 h-[200px] w-[200px] rounded-full bg-rose-200/20 blur-[70px]" />
-      <div className="pointer-events-none fixed left-1/2 top-1/3 h-[180px] w-[180px] -translate-x-1/2 rounded-full bg-[#8FAF92]/10 blur-[80px]" />
-
       {/* Back button */}
       <div className="absolute left-4 top-4 z-10">
         <button
           onClick={() => navigate('/')}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/80 text-[#2F3E33] shadow-[inset_0_1px_1px_rgba(255,255,255,0.72),0_8px_18px_rgba(148,163,184,0.2)] transition-colors hover:bg-white"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={24} strokeWidth={1.5} />
         </button>
       </div>
 
       {/* Main card */}
-      <div
-        className="relative w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-white/65 px-6 py-8"
-        style={{
-          background: 'rgba(252,250,247,0.88)',
-          backdropFilter: 'blur(20px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-          boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.75), 0 24px 64px rgba(15,23,42,0.10)',
-        }}
-      >
-        {/* Decorative inner glow */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(143,175,146,0.30) 0%, rgba(143,175,146,0.06) 60%, transparent 80%)',
-          }}
-        />
+      <div className="relative w-full max-w-sm px-6 py-8">
 
         {/* Header */}
         <div className="mb-6 text-center">
@@ -214,7 +193,7 @@ export const AuthPage = () => {
                   <img src={avatarPreview} alt="avatar preview" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <User className="text-[#8FAF92]" size={30} />
+                    <User className="text-[#8FAF92]" size={30} strokeWidth={1.5} />
                   </div>
                 )}
               </div>
@@ -313,7 +292,7 @@ export const AuthPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="relative w-full overflow-hidden rounded-2xl py-2.5 text-sm font-semibold text-[#2F3E33] shadow-[0px_2px_2px_#C8C8C8] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-2.5 text-sm font-semibold text-[#2F3E33] shadow-[0px_2px_2px_#C8C8C8] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               background: 'rgba(144.67,212.06,122.21,0.22)',
               border: '1px solid rgba(143,175,146,0.45)',
@@ -330,7 +309,7 @@ export const AuthPage = () => {
         {/* Divider */}
         <div className="my-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-200/70" />
-          <span className="text-[11px] font-medium text-slate-400">{t('auth_or_divider')}</span>
+          <span className="text-xs font-medium text-slate-400">{t('auth_or_divider')}</span>
           <div className="h-px flex-1 bg-slate-200/70" />
         </div>
 
@@ -339,7 +318,7 @@ export const AuthPage = () => {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleLoading || loading}
-          className="mb-3 w-full overflow-hidden rounded-2xl border border-white/70 bg-white/80 py-2.5 text-sm font-medium text-slate-700 shadow-[inset_0_1px_1px_rgba(255,255,255,0.72),0_4px_12px_rgba(148,163,184,0.12)] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="mb-3 w-full overflow-hidden rounded-xl min-h-[44px] border border-white/70 bg-white/80 py-2.5 text-sm font-medium text-slate-700 shadow-[inset_0_1px_1px_rgba(255,255,255,0.72),0_4px_12px_rgba(148,163,184,0.12)] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           <div className="flex items-center justify-center gap-2.5">
             {googleLoading ? (
@@ -361,7 +340,7 @@ export const AuthPage = () => {
           type="button"
           onClick={handleAppleSignIn}
           disabled={appleLoading || loading}
-          className="w-full overflow-hidden rounded-2xl py-2.5 text-sm font-medium text-white shadow-[0_4px_12px_rgba(15,23,42,0.22)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full overflow-hidden rounded-xl min-h-[44px] py-2.5 text-sm font-medium text-white shadow-[0_4px_12px_rgba(15,23,42,0.22)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: 'linear-gradient(160deg, #1c1c1e 0%, #2c2c2e 100%)' }}
         >
           <div className="flex items-center justify-center gap-2.5">
@@ -412,14 +391,14 @@ export const AuthPage = () => {
               }}
               title={t('auth_close')}
             >
-              <X size={16} />
+              <X size={16} strokeWidth={1.5} />
             </button>
             <button
               className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-10 top-2 p-1.5')}
               onClick={() => setShowAvatarMenu((v) => !v)}
               title={t('auth_more')}
             >
-              <MoreHorizontal size={16} />
+              <MoreHorizontal size={16} strokeWidth={1.5} />
             </button>
             {showAvatarMenu && (
               <div className={cn(APP_MODAL_CARD_CLASS, 'absolute right-2 top-10 rounded-lg overflow-hidden')}>
@@ -435,7 +414,7 @@ export const AuthPage = () => {
               {avatarPreview ? (
                 <img src={avatarPreview} alt="avatar large" className="w-full h-full object-cover" />
               ) : (
-                <User className="text-[#8FAF92]" size={100} />
+                <User className="text-[#8FAF92]" size={100} strokeWidth={1.5} />
               )}
             </div>
           </div>

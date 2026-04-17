@@ -186,7 +186,7 @@ export function MagicPenSheet({
               </div>
               <div>
                 <h2 className="text-base font-semibold text-slate-800">{t('chat_magic_pen_title')}</h2>
-                <p className="text-[11px] text-slate-500">{t('chat_magic_pen_subtitle')}</p>
+                <p className="text-xs text-slate-500">{t('chat_magic_pen_subtitle')}</p>
               </div>
             </div>
             <button type="button" onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1.5')}>
@@ -281,17 +281,17 @@ export function MagicPenSheet({
                         }`}
                       />
                       {isEstimated && (
-                        <span className="text-[10px] text-amber-600 ml-1">{t('chat_magic_pen_estimated_time')}</span>
+                        <span className="text-xs text-amber-600 ml-1">{t('chat_magic_pen_estimated_time')}</span>
                       )}
                     </div>
                     {draft.errors.map((error) => (
-                      <p key={error} className="text-[11px] text-red-500">{t(errorToI18nKey(error))}</p>
+                      <p key={error} className="text-xs text-red-500">{t(errorToI18nKey(error))}</p>
                     ))}
                     {commitState === 'success' && (
-                      <p className="text-[11px] text-sky-600">{t('chat_magic_pen_item_success')}</p>
+                      <p className="text-xs text-sky-600">{t('chat_magic_pen_item_success')}</p>
                     )}
                     {commitState === 'error' && (
-                      <p className="text-[11px] text-red-500">{t('chat_magic_pen_item_error')}</p>
+                      <p className="text-xs text-red-500">{t('chat_magic_pen_item_error')}</p>
                     )}
                   </div>
                 );
@@ -357,10 +357,10 @@ export function MagicPenSheet({
                       </div>
                     )}
                     {commitState === 'success' && (
-                      <p className="text-[11px] text-sky-600">{t('chat_magic_pen_item_success')}</p>
+                      <p className="text-xs text-sky-600">{t('chat_magic_pen_item_success')}</p>
                     )}
                     {commitState === 'error' && (
-                      <p className="text-[11px] text-red-500">{t('chat_magic_pen_item_error')}</p>
+                      <p className="text-xs text-red-500">{t('chat_magic_pen_item_error')}</p>
                     )}
                   </div>
                 );
@@ -400,7 +400,7 @@ export function MagicPenSheet({
           {/* Unparsed segments */}
           {unparsedSegments.length > 0 && (
             <div className="rounded-xl bg-[#F5F0EA] p-3">
-              <p className="text-[11px] text-[#9C8567] mb-1">{t('chat_magic_pen_unparsed_hint')}</p>
+              <p className="text-xs text-[#9C8567] mb-1">{t('chat_magic_pen_unparsed_hint')}</p>
               {unparsedSegments.map((segment) => (
                 <p key={segment} className="text-xs text-[#7A6B55]">· {segment}</p>
               ))}

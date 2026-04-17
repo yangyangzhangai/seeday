@@ -77,7 +77,7 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, 
         onClick={onClose}
         className={cn(APP_MODAL_CLOSE_CLASS, 'absolute top-6 right-6 w-10 h-10 flex items-center justify-center')}
       >
-        <X size={20} />
+        <X size={24} strokeWidth={1.5} />
       </button>
     </div>
   );

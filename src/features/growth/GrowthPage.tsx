@@ -162,7 +162,7 @@ export const GrowthPage = () => {
 
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
-      <div className="app-mobile-page-frame app-scroll-container relative h-full w-full max-w-[430px] text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+      <div className="app-mobile-page-frame app-scroll-container relative h-full w-full max-w-[430px] text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-3xl md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
         <header
           className="app-mobile-page-header sticky top-0 z-10 flex items-center justify-between px-4 pb-3 pt-11"
           style={{
@@ -171,7 +171,7 @@ export const GrowthPage = () => {
             WebkitBackdropFilter: 'blur(14px) saturate(150%)',
           }}
         >
-          <h1 className="text-xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('growth_title')}</h1>
+          <h1 className="text-2xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('growth_title')}</h1>
           {hasSyncError ? (
             <button
               onClick={handleManualSync}

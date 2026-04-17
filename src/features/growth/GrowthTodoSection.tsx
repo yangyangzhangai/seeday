@@ -335,11 +335,11 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   return (
     <section className="mb-4 px-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[14px] font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
+        <h2 className="text-sm font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
         <button
           onClick={() => setSmartSort((v) => !v)}
           className={cn(
-            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all',
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all',
             smartSort
               ? 'bg-[#8FAF92] text-white'
               : 'bg-gray-100 text-gray-400'
@@ -432,7 +432,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
           onClick={() => setPendingDelete(null)}
         >
           <div
-            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-md rounded-t-3xl p-5 pb-8 space-y-3')}
+            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-md rounded-t-2xl p-5 pb-8 space-y-3')}
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm font-semibold text-slate-800 text-center">

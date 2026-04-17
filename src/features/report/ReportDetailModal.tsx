@@ -197,11 +197,11 @@ function NavBar({
   return (
     <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
       <button className="p-1" onClick={onLeft}>
-        <ChevronLeft className="w-6 h-6" style={{ color: '#1A1A1A' }} />
+        <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
       </button>
-      <h2 style={{ color: '#1A1A1A', fontSize: '22px', fontWeight: 700 }}>{title}</h2>
+      <h2 className="text-2xl font-bold" style={{ color: '#1A1A1A' }}>{title}</h2>
       <button className="p-1" onClick={onRight} disabled={rightDisabled} style={{ opacity: rightDisabled ? 0.35 : 1 }}>
-        <ChevronRight className="w-6 h-6" style={{ color: '#1A1A1A' }} />
+        <ChevronRight size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
       </button>
     </div>
   );
@@ -210,7 +210,7 @@ function NavBar({
 function DateHeader({ date }: { date: string }) {
   return (
     <div style={{ flexShrink: 0, marginBottom: '8px' }}>
-      <h1 style={{ color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif', fontSize: '16px', fontWeight: 700, textAlign: 'center' }}>
+      <h1 className="text-base font-bold text-center" style={{ color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif' }}>
         {date}
       </h1>
       <div style={{ borderTop: '0.5px solid #AEAABF' }} />
@@ -238,7 +238,7 @@ function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] })
       <div />
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', overflow: 'hidden' }}>
         {lines.map((line, index) => (
-          <div key={index} style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: '18px', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{line}</div>
+          <div key={index} className="text-xs leading-relaxed" style={{ color: '#1A1A1A', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{line}</div>
         ))}
       </div>
     </div>
@@ -580,7 +580,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionActivity}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionActivity}</div>
                   <SectionRow
                     left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
                     lines={[activityAnalysisLine1]}
@@ -590,7 +590,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <WaveDivider />
 
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionMood}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionMood}</div>
                   <SectionRow
                     left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
                     lines={[moodAnalysisLine1]}
@@ -600,7 +600,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <WaveDivider />
 
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionTodo}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionTodo}</div>
                   <SectionRow
                     left={(
                       <div style={{ display: 'flex', gap: '5px' }}>
@@ -616,7 +616,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <WaveDivider />
 
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, alignSelf: 'flex-start', fontSize: '13px', fontWeight: 700, padding: '1px 6px' }}>{copy.sectionHabits}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionHabits}</div>
                   <SectionRow
                     left={(
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
@@ -654,7 +654,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionObservation}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, padding: '1px 0' }}>{copy.sectionObservation}</div>
 
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
                     <div style={{ height: '100%', overflow: 'hidden' }}>
@@ -677,12 +677,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         )}
                       </div>
                       {isPlus ? (
-                        <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                           {observationText}
                         </p>
                       ) : (
                         <div style={{ position: 'relative', minHeight: 180 }}>
-                          <p style={{ margin: 0, padding: 0, fontSize: '12px', lineHeight: '18px', color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                             {observationText}
                           </p>
                           <div
@@ -699,13 +699,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                             <button
                               type="button"
                               onClick={onUpgradeClick}
-                              style={{
+                              className="text-xs font-bold"
+                            style={{
                                 border: 'none',
                                 borderRadius: 999,
                                 background: '#4f46e5',
                                 color: '#fff',
-                                fontSize: 11,
-                                fontWeight: 700,
                                 padding: '6px 12px',
                               }}
                             >
@@ -721,11 +720,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <WaveDivider />
 
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flexShrink: 0, fontSize: '13px', fontWeight: 700, padding: '1px 0' }}>{copy.sectionMyDiary}</div>
+                  <div className="text-sm font-bold" style={{ flexShrink: 0, padding: '1px 0' }}>{copy.sectionMyDiary}</div>
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
                     <textarea
                       readOnly
                       value={myDiaryText}
+                      className="text-xs"
                       style={{
                         position: 'absolute',
                         inset: 0,
@@ -736,7 +736,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         resize: 'none',
                         background: 'transparent',
                         lineHeight: '18px',
-                        fontSize: '12px',
                         color: selectedReport.userNote?.trim() ? '#1A1A1A' : '#C8C8C0',
                         padding: '0 4px 0 2px',
                         margin: 0,

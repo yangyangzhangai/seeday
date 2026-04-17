@@ -159,8 +159,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   return (
     <div
       className={isPlus
-        ? 'relative overflow-hidden rounded-[1.5rem] px-4 py-3'
-        : 'rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}
+        ? 'relative overflow-hidden rounded-2xl px-4 py-3'
+        : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}
       style={plusCardStyle}
     >
       {isPlus ? (
@@ -213,7 +213,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User size={22} className="text-gray-400" />
+              <User size={24} strokeWidth={1.5} className="text-gray-400" />
             </div>
           )}
         </button>
@@ -256,7 +256,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                   boxShadow: '0 5px 12px rgba(75,96,223,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
                 }}
               >
-                <Crown size={10} />
+                <Crown size={10} strokeWidth={1.5} />
                 <span>PLUS</span>
               </span>
             )}
@@ -375,7 +375,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               }}
               title={t('auth_close')}
             >
-              <X size={16} />
+              <X size={16} strokeWidth={1.5} />
             </button>
 
             {showAvatarMenu ? (
@@ -394,7 +394,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               onClick={() => setShowAvatarMenu((v) => !v)}
               title={t('auth_more')}
             >
-              <MoreHorizontal size={16} />
+              <MoreHorizontal size={16} strokeWidth={1.5} />
             </button>
 
             {/* Full avatar */}
@@ -406,7 +406,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User size={80} className="text-gray-500" />
+                <User size={80} strokeWidth={1.5} className="text-gray-500" />
               )}
             </div>
           </div>

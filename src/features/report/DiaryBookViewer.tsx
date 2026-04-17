@@ -477,11 +477,11 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#4a3a2a' }}>
+          <span className="text-base font-bold" style={{ color: '#4a3a2a' }}>
             {date && format(date, 'yyyy年M月d日 EEEE', { locale: zhCN })}
           </span>
           <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')} style={{ cursor: 'pointer' }}>
-            <X size={18} />
+            <X size={24} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -504,18 +504,18 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
 
             {/* AI 观察日记 */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#3d5a8a', marginBottom: 10 }}>AI 观察笔记</div>
+              <div className="text-sm font-bold" style={{ color: '#3d5a8a', marginBottom: 10 }}>AI 观察笔记</div>
               {report?.aiAnalysis ? (
-                <p style={{ margin: 0, fontSize: 14, color: '#4a5a7a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.aiAnalysis}</p>
+                <p className="text-sm" style={{ margin: 0, color: '#4a5a7a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.aiAnalysis}</p>
               ) : (
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(61,90,138,0.4)', fontStyle: 'italic' }}>
+                <p className="text-sm" style={{ margin: 0, color: 'rgba(61,90,138,0.4)', fontStyle: 'italic' }}>
                   {report ? 'AI 正在整理笔记…' : '暂无 AI 笔记'}
                 </p>
               )}
             </div>
 
             {!report && (
-              <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 14, padding: '24px 0' }}>
+              <div className="text-sm text-center" style={{ color: 'rgba(0,0,0,0.3)', padding: '24px 0' }}>
                 {date && isSameDay(date, new Date()) ? '今日日记将在 20:00 后生成' : '暂无日记记录'}
               </div>
             )}
@@ -525,25 +525,25 @@ function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget;
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {report?.stats?.actionSummary && (
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>活动分类</div>
-                <p style={{ margin: 0, fontSize: 14, color: '#5a4a3a', lineHeight: 1.65 }}>{report.stats.actionSummary}</p>
+                <div className="text-xs font-bold" style={{ color: '#4a3a2a', marginBottom: 6 }}>活动分类</div>
+                <p className="text-sm" style={{ margin: 0, color: '#5a4a3a', lineHeight: 1.65 }}>{report.stats.actionSummary}</p>
               </div>
             )}
             {report?.stats?.moodSummary && (
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#4a3a2a', marginBottom: 6 }}>今日心情</div>
-                <p style={{ margin: 0, fontSize: 14, color: '#7a6a5a', lineHeight: 1.65 }}>{report.stats.moodSummary}</p>
+                <div className="text-xs font-bold" style={{ color: '#4a3a2a', marginBottom: 6 }}>今日心情</div>
+                <p className="text-sm" style={{ margin: 0, color: '#7a6a5a', lineHeight: 1.65 }}>{report.stats.moodSummary}</p>
               </div>
             )}
 
             <div style={{ height: 1, background: 'rgba(0,0,0,0.08)' }} />
 
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#4a3a2a', marginBottom: 10 }}>我的日记</div>
+              <div className="text-sm font-bold" style={{ color: '#4a3a2a', marginBottom: 10 }}>我的日记</div>
               {report?.userNote ? (
-                <p style={{ margin: 0, fontSize: 14, color: '#4a3a2a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.userNote}</p>
+                <p className="text-sm" style={{ margin: 0, color: '#4a3a2a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.userNote}</p>
               ) : (
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(0,0,0,0.2)', lineHeight: '28px' }}>
+                <p className="text-sm" style={{ margin: 0, color: 'rgba(0,0,0,0.2)', lineHeight: '28px' }}>
                   {report ? '未留下文字…' : '暂无日记'}
                 </p>
               )}
@@ -788,16 +788,16 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
               onClick={onBackToShelf}
               style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', color: 'rgba(255,255,255,0.78)', background: 'none', border: 'none', padding: 0 }}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={24} strokeWidth={1.5} />
             </button>
           ) : null}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 14, letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
-          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 2 }}>{daysInMonth} 天</div>
+          <div className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={20} /></button>
+          <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={24} strokeWidth={1.5} /></button>
         </div>
       </div>
 
@@ -916,9 +916,9 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={24} strokeWidth={1.5} />
             </button>
-            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, minWidth: 56, textAlign: 'center' }}>
+            <span className="text-sm" style={{ color: 'rgba(255,255,255,0.55)', minWidth: 56, textAlign: 'center' }}>
               {getIndicator()}
             </span>
             <button
@@ -930,14 +930,14 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount >= daysInMonth ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={24} strokeWidth={1.5} />
             </button>
           </div>
         ) : (
-          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>{getIndicator()}</span>
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{getIndicator()}</span>
         )}
         {isBookOpen && (
-          <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10, marginTop: 3 }}>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.18)', marginTop: 3 }}>
             {onOpenDiaryPage ? '双击页面可进入日记' : '双击页面可放大查看'}
           </div>
         )}

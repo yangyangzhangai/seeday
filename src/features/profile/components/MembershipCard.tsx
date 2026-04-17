@@ -24,7 +24,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
 
   return (
     <div
-      className="relative overflow-hidden rounded-[1.5rem] px-4 py-4"
+      className="relative overflow-hidden rounded-2xl px-4 py-4"
       style={{
         background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #dff0ff 100%)',
         backdropFilter: 'blur(22px) saturate(145%)',
@@ -69,9 +69,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
               boxShadow: '0 0 10px rgba(95,118,244,0.34)',
             }}
           >
-            <Crown size={16} color="#f6f9ff" />
+            <Crown size={16} strokeWidth={1.5} color="#f6f9ff" />
           </div>
-          <span className="text-[13px] font-extrabold text-[#3f43aa]">{t('profile_membership')}</span>
+          <span className="text-sm font-extrabold text-[#3f43aa]">{t('profile_membership')}</span>
           <span
             className="rounded-full px-2 py-[2px] text-[9px] font-bold tracking-[0.06em]"
             style={{
@@ -101,6 +101,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                 {unlocked ? (
                   <Check
                     size={12}
+                    strokeWidth={1.5}
                     style={{
                       color: '#4c61d8',
                       flexShrink: 0,
@@ -111,7 +112,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                   <span aria-hidden style={{ width: 12, height: 12, display: 'inline-block', flexShrink: 0 }} />
                 )}
                 <span
-                  className="text-[11px] leading-tight"
+                  className="text-xs leading-tight"
                   style={{ color: unlocked ? '#3d4f9f' : '#545f78' }}
                 >
                   {t(labelKey)}
@@ -124,7 +125,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
         {!isPlus ? (
           <button
             onClick={() => navigate('/upgrade')}
-            className="relative w-full overflow-hidden rounded-[17px] py-[11px] text-[13px] font-extrabold transition-all active:scale-[0.97]"
+            className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-[11px] text-sm font-extrabold transition-all active:scale-[0.97]"
             style={{
               background: 'linear-gradient(130deg, rgba(132,117,255,0.22) 0%, rgba(131,209,255,0.34) 100%)',
               boxShadow: '0 6px 18px rgba(90,116,199,0.24)',

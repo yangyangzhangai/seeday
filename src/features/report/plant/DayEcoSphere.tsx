@@ -151,8 +151,8 @@ export const DayEcoSphere: React.FC = () => {
       </div>
 
       {isNight && (
-        <p className="pointer-events-none text-center px-6 pb-1"
-          style={{ fontSize: 10, color: 'rgba(245,235,210,0.75)' }}>
+        <p className="pointer-events-none text-center px-6 pb-1 text-xs"
+          style={{ color: 'rgba(245,235,210,0.75)' }}>
           {t('eco_sphere_night_hint')}
         </p>
       )}

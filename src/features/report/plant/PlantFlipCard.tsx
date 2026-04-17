@@ -168,7 +168,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                <ChevronLeft size={18} color="#5a4028" />
+                <ChevronLeft size={24} strokeWidth={1.5} color="#5a4028" />
               </button>
 
               {/* Fully interactive root system */}
@@ -189,18 +189,18 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
         <button
           onClick={onGenerateDiary}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-[15px] shadow-md active:scale-95 transition-all"
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-base shadow-md active:scale-95 transition-all"
           style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
         >
-          <PenLine size={16} />
+          <PenLine size={16} strokeWidth={1.5} />
           {t('plant_card_diary_button')}
         </button>
         <button
           onClick={saveCard}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-[14px] active:scale-95 transition-all"
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all"
           style={{ color: '#5e734b', border: '1px solid rgba(94,115,75,0.22)', background: 'rgba(255,255,255,0.88)' }}
         >
-          <Download size={16} />
+          <Download size={16} strokeWidth={1.5} />
           {t('plant_save_card')}
         </button>
       </div>

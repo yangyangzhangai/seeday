@@ -63,7 +63,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         {/* Error / readonly hint */}
         {(inputError || (isReadOnly && readOnlyMessage)) && (
           <div style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', marginBottom: 6, pointerEvents: 'auto' }}>
-            <p style={{ fontSize: 10, color: inputError ? '#EF4444' : '#94a3b8', margin: 0 }}>
+            <p className="text-xs" style={{ color: inputError ? '#EF4444' : '#94a3b8', margin: 0 }}>
               {inputError || readOnlyMessage}
             </p>
           </div>
@@ -117,9 +117,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               onKeyDown={onKeyDown}
               placeholder={t('chat_placeholder_neutral')}
               disabled={disabled}
+              className="text-base"
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                fontSize: 16, color: '#0f172a',
+                color: '#0f172a',
               }}
             />
 

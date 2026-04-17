@@ -48,10 +48,10 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false })
   };
 
   return (
-    <div className={plain ? 'px-4 py-2.5' : 'rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+    <div className={plain ? 'px-4 py-2.5' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <div className="flex items-center gap-2">
         <div className="flex items-center space-x-2.5 whitespace-nowrap flex-shrink-0">
-          <Gauge size={16} className="text-[#5F7A63]" />
+          <Gauge size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
           <span className="text-xs text-slate-700">
             {t('profile_annotation_drop')}
           </span>
@@ -75,7 +75,7 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false })
               >
                 {t(labelKey)}
                 {locked && (
-                  <Lock size={9} className="absolute top-1 right-1 text-gray-400" />
+                  <Lock size={9} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />
                 )}
               </button>
             );

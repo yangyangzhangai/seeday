@@ -100,11 +100,11 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
 
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}>
-      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-in zoom-in-95 fade-in w-[min(92vw,420px)] max-h-[86vh] overflow-hidden rounded-3xl')}>
+      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-in zoom-in-95 fade-in w-[min(92vw,420px)] max-h-[86vh] overflow-hidden rounded-2xl')}>
         <div className="flex max-h-[86vh] flex-col">
           <div className="flex items-center justify-between px-5 pb-3 pt-5">
             <h3 className="text-lg font-bold text-slate-800">{t('growth_todo_add')}</h3>
-            <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={20} /></button>
+            <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={24} strokeWidth={1.5} /></button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 pb-3 [overscroll-behavior:contain] [-webkit-overflow-scrolling:touch]">
