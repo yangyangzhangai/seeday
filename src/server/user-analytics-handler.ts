@@ -1,19 +1,17 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { User } from '@supabase/supabase-js';
-import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { jsonError } from './http.js';
 import {
-  requireSupabaseRequestAuth,
   isLiveInputAdminUser,
-} from '../src/server/supabase-request-auth.js';
+  requireSupabaseRequestAuth,
+} from './supabase-request-auth.js';
 import type {
   UserAnalyticsDashboardResponse,
   UserAnalyticsDailySeries,
-  UserAnalyticsRetentionRow,
   UserAnalyticsLookupResponse,
-} from '../src/types/userAnalytics.js';
-
-// ── helpers ───────────────────────────────────────────────────────────────────
+  UserAnalyticsRetentionRow,
+} from '../types/userAnalytics.js';
 
 const PREMIUM_PLANS = new Set(['plus', 'premium', 'pro', 'vip']);
 
@@ -24,9 +22,9 @@ function isPremium(user: User): boolean {
   if (am.vip === true || um.vip === true) return true;
   const planKeys = ['membership_plan', 'plan', 'subscription_plan'];
   for (const key of planKeys) {
-    const v = String(am[key] ?? '').toLowerCase();
-    const vv = String(um[key] ?? '').toLowerCase();
-    if (PREMIUM_PLANS.has(v) || PREMIUM_PLANS.has(vv)) return true;
+    const amPlan = String(am[key] ?? '').toLowerCase();
+    const umPlan = String(um[key] ?? '').toLowerCase();
+    if (PREMIUM_PLANS.has(amPlan) || PREMIUM_PLANS.has(umPlan)) return true;
   }
   return false;
 }
@@ -36,46 +34,47 @@ function getMembershipPlan(user: User): string | null {
   const um = (user.user_metadata ?? {}) as Record<string, unknown>;
   for (const src of [am, um]) {
     for (const key of ['membership_plan', 'plan', 'subscription_plan']) {
-      const v = String(src[key] ?? '').trim();
-      if (v) return v;
+      const value = String(src[key] ?? '').trim();
+      if (value) return value;
     }
   }
   return null;
 }
 
-function toDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+function toDateKey(value: Date): string {
+  return value.toISOString().slice(0, 10);
 }
 
-function getWeekKey(d: Date): string {
-  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dow = day.getUTCDay() || 7;
-  day.setUTCDate(day.getUTCDate() - dow + 1); // Monday
+function getWeekKey(value: Date): string {
+  const day = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  const dayOfWeek = day.getUTCDay() || 7;
+  day.setUTCDate(day.getUTCDate() - dayOfWeek + 1);
   return day.toISOString().slice(0, 10);
 }
 
 function parseDays(raw: unknown): number {
-  const v = Number(raw);
-  return Number.isFinite(v) ? Math.min(Math.max(Math.round(v), 7), 90) : 30;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return 30;
+  return Math.min(Math.max(Math.round(value), 7), 90);
 }
 
-// ── fetch all users via pagination ────────────────────────────────────────────
-
-async function fetchAllUsers(adminClient: NonNullable<Awaited<ReturnType<typeof requireSupabaseRequestAuth>>['adminClient']>): Promise<User[]> {
-  const all: User[] = [];
+async function fetchAllUsers(
+  adminClient: NonNullable<Awaited<ReturnType<typeof requireSupabaseRequestAuth>>['adminClient']>,
+): Promise<User[]> {
+  const allUsers: User[] = [];
   let page = 1;
   const perPage = 1000;
+
   while (true) {
     const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
     if (error || !data) break;
-    all.push(...data.users);
+    allUsers.push(...data.users);
     if (data.users.length < perPage) break;
     page += 1;
   }
-  return all;
-}
 
-// ── dashboard handler ─────────────────────────────────────────────────────────
+  return allUsers;
+}
 
 async function handleDashboard(
   req: VercelRequest,
@@ -85,21 +84,22 @@ async function handleDashboard(
   const days = parseDays(req.query.days);
   const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
   const todayKey = toDateKey(new Date());
-
   const users = await fetchAllUsers(adminClient);
 
   const premiumIds = new Set<string>();
   const newUsersByDay = new Map<string, number>();
   const newPremiumByDay = new Map<string, number>();
 
-  for (const u of users) {
-    const pm = isPremium(u);
-    if (pm) premiumIds.add(u.id);
-    const created = new Date(u.created_at);
+  for (const user of users) {
+    const premium = isPremium(user);
+    if (premium) premiumIds.add(user.id);
+    const created = new Date(user.created_at);
     if (created.getTime() >= sinceMs) {
-      const dk = toDateKey(created);
-      newUsersByDay.set(dk, (newUsersByDay.get(dk) ?? 0) + 1);
-      if (pm) newPremiumByDay.set(dk, (newPremiumByDay.get(dk) ?? 0) + 1);
+      const dayKey = toDateKey(created);
+      newUsersByDay.set(dayKey, (newUsersByDay.get(dayKey) ?? 0) + 1);
+      if (premium) {
+        newPremiumByDay.set(dayKey, (newPremiumByDay.get(dayKey) ?? 0) + 1);
+      }
     }
   }
 
@@ -118,81 +118,77 @@ async function handleDashboard(
   const premiumDauByDay = new Map<string, Set<string>>();
 
   for (const row of msgRows ?? []) {
-    const ts = Number(row.timestamp);
-    if (!Number.isFinite(ts)) continue;
-    const dk = toDateKey(new Date(ts));
-    if (!dauByDay.has(dk)) dauByDay.set(dk, new Set());
-    dauByDay.get(dk)!.add(row.user_id);
+    const timestamp = Number(row.timestamp);
+    if (!Number.isFinite(timestamp)) continue;
+    const dayKey = toDateKey(new Date(timestamp));
+    if (!dauByDay.has(dayKey)) dauByDay.set(dayKey, new Set());
+    dauByDay.get(dayKey)!.add(row.user_id);
     if (premiumIds.has(row.user_id)) {
-      if (!premiumDauByDay.has(dk)) premiumDauByDay.set(dk, new Set());
-      premiumDauByDay.get(dk)!.add(row.user_id);
+      if (!premiumDauByDay.has(dayKey)) premiumDauByDay.set(dayKey, new Set());
+      premiumDauByDay.get(dayKey)!.add(row.user_id);
     }
   }
 
-  // Build daily series
   const dailySeries: UserAnalyticsDailySeries[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000);
-    const dk = toDateKey(d);
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(Date.now() - index * 86400000);
+    const dayKey = toDateKey(date);
     dailySeries.push({
-      day: dk,
-      newUsers: newUsersByDay.get(dk) ?? 0,
-      dau: dauByDay.get(dk)?.size ?? 0,
-      newPremium: newPremiumByDay.get(dk) ?? 0,
-      activePremium: premiumDauByDay.get(dk)?.size ?? 0,
+      day: dayKey,
+      newUsers: newUsersByDay.get(dayKey) ?? 0,
+      dau: dauByDay.get(dayKey)?.size ?? 0,
+      newPremium: newPremiumByDay.get(dayKey) ?? 0,
+      activePremium: premiumDauByDay.get(dayKey)?.size ?? 0,
     });
   }
 
-  // Retention: weekly cohorts
   const cohortMap = new Map<string, string[]>();
-  for (const u of users) {
-    const wk = getWeekKey(new Date(u.created_at));
-    if (!cohortMap.has(wk)) cohortMap.set(wk, []);
-    cohortMap.get(wk)!.push(u.id);
+  for (const user of users) {
+    const weekKey = getWeekKey(new Date(user.created_at));
+    if (!cohortMap.has(weekKey)) cohortMap.set(weekKey, []);
+    cohortMap.get(weekKey)!.push(user.id);
   }
 
   const msgDatesByUser = new Map<string, number[]>();
   for (const row of msgRows ?? []) {
-    const ts = Number(row.timestamp);
-    if (!Number.isFinite(ts)) continue;
+    const timestamp = Number(row.timestamp);
+    if (!Number.isFinite(timestamp)) continue;
     if (!msgDatesByUser.has(row.user_id)) msgDatesByUser.set(row.user_id, []);
-    msgDatesByUser.get(row.user_id)!.push(ts);
+    msgDatesByUser.get(row.user_id)!.push(timestamp);
   }
 
   const sortedWeeks = Array.from(cohortMap.keys()).sort();
   const retention: UserAnalyticsRetentionRow[] = sortedWeeks
-    .slice(-10, -1) // exclude current partial week
+    .slice(-10, -1)
     .reverse()
-    .map((wk) => {
-      const weekStartMs = new Date(wk).getTime();
+    .map((weekKey) => {
+      const weekStartMs = new Date(weekKey).getTime();
       const nextWeekStart = weekStartMs + 7 * 86400000;
       const nextWeekEnd = weekStartMs + 14 * 86400000;
-      const uids = cohortMap.get(wk)!;
-      const retained = uids.filter((uid) => {
-        return (msgDatesByUser.get(uid) ?? []).some((ts) => ts >= nextWeekStart && ts < nextWeekEnd);
+      const userIds = cohortMap.get(weekKey)!;
+      const retained = userIds.filter((userId) => {
+        return (msgDatesByUser.get(userId) ?? []).some((timestamp) => (
+          timestamp >= nextWeekStart && timestamp < nextWeekEnd
+        ));
       }).length;
+
       return {
-        cohortWeek: wk,
-        cohortSize: uids.length,
+        cohortWeek: weekKey,
+        cohortSize: userIds.length,
         d7Retained: retained,
-        d7RetentionRate: uids.length > 0 ? retained / uids.length : 0,
+        d7RetentionRate: userIds.length > 0 ? retained / userIds.length : 0,
       };
     });
-
-  const todayDau = dauByDay.get(todayKey)?.size ?? 0;
-  const todayPremiumDau = premiumDauByDay.get(todayKey)?.size ?? 0;
-  const todayNew = newUsersByDay.get(todayKey) ?? 0;
-  const todayNewPremium = newPremiumByDay.get(todayKey) ?? 0;
 
   const body: UserAnalyticsDashboardResponse = {
     overview: {
       totalUsers: users.length,
       totalPremium: premiumIds.size,
       conversionRate: users.length > 0 ? premiumIds.size / users.length : 0,
-      activeToday: todayDau,
-      activePremiumToday: todayPremiumDau,
-      newToday: todayNew,
-      newPremiumToday: todayNewPremium,
+      activeToday: dauByDay.get(todayKey)?.size ?? 0,
+      activePremiumToday: premiumDauByDay.get(todayKey)?.size ?? 0,
+      newToday: newUsersByDay.get(todayKey) ?? 0,
+      newPremiumToday: newPremiumByDay.get(todayKey) ?? 0,
     },
     dailySeries,
     retention,
@@ -201,8 +197,6 @@ async function handleDashboard(
 
   res.status(200).json(body);
 }
-
-// ── user lookup handler ───────────────────────────────────────────────────────
 
 async function handleUserLookup(
   req: VercelRequest,
@@ -216,8 +210,8 @@ async function handleUserLookup(
   }
 
   const users = await fetchAllUsers(adminClient);
-  const lq = query.toLowerCase();
-  const found = users.find((u) => u.email?.toLowerCase() === lq || u.id === query);
+  const lowerQuery = query.toLowerCase();
+  const found = users.find((user) => user.email?.toLowerCase() === lowerQuery || user.id === query);
 
   if (!found) {
     res.status(200).json({ found: false, user: null } satisfies UserAnalyticsLookupResponse);
@@ -253,15 +247,14 @@ async function handleUserLookup(
   res.status(200).json(body);
 }
 
-// ── main handler ──────────────────────────────────────────────────────────────
-
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  applyCors(res, ['GET']);
-  if (handlePreflight(req, res)) return;
-  if (!requireMethod(req, res, 'GET')) return;
-
+export async function handleUserAnalyticsDashboard(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
   const auth = await requireSupabaseRequestAuth(req, res);
-  if (!auth) return;
+  if (!auth) {
+    return;
+  }
 
   if (!isLiveInputAdminUser(auth.user)) {
     jsonError(res, 403, 'Forbidden');
@@ -275,7 +268,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   if (req.query.type === 'user_lookup') {
     await handleUserLookup(req, res, auth.adminClient);
-  } else {
-    await handleDashboard(req, res, auth.adminClient);
+    return;
   }
+
+  await handleDashboard(req, res, auth.adminClient);
 }

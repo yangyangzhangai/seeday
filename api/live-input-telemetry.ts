@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 import { handleLiveInputDashboard } from '../src/server/live-input-dashboard-handler.js';
+import { handleUserAnalyticsDashboard } from '../src/server/user-analytics-handler.js';
 import type { LiveInputTelemetryIngestRequest } from '../src/services/input/liveInputTelemetryApi.js';
 
 function normalizeReasons(raw: unknown): string[] {
@@ -45,6 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (handlePreflight(req, res)) return;
   if (req.method === 'GET') {
+    if (req.query.module === 'user_analytics') {
+      await handleUserAnalyticsDashboard(req, res);
+      return;
+    }
     await handleLiveInputDashboard(req, res);
     return;
   }

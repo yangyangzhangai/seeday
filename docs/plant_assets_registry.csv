@@ -49,3 +49,22 @@ bul_late_0002,bul,late,2,,bul_late_0002.png,png,TRUE,风信子,Hyacinth,Giacinto
 bul_late_0003,bul,late,3,,bul_late_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
 bul_late_0004,bul,late,4,,bul_late_0004.png,png,TRUE,仙客来,Cyclamen,Ciclamino,live
 bul_late_0005,bul,late,5,,bul_late_0005.png,png,TRUE,仙人掌,Cactus,Cactus,live
+bra_early_0007,bra,early,7,,bra_early_0007.png,png,TRUE,,,,live
+bra_late_0007,bra,late,7,,bra_late_0007.png,png,TRUE,,,,live
+bra_early_0008,bra,early,8,,bra_early_0008.png,png,TRUE,,,,live
+bra_late_0008,bra,late,8,,bra_late_0008.png,png,TRUE,,,,live
+bra_early_0010,bra,early,10,,bra_early_0010.png,png,TRUE,,,,live
+bra_late_0010,bra,late,10,,bra_late_0010.png,png,TRUE,,,,live
+sha_early_0006,sha,early,6,,sha_early_0006.png,png,TRUE,,,,live
+sha_late_0006,sha,late,6,,sha_late_0006.png,png,TRUE,,,,live
+sha_early_0007,sha,early,7,,sha_early_0007.png,png,TRUE,,,,live
+sha_late_0007,sha,late,7,,sha_late_0007.png,png,TRUE,,,,live
+tap_early_0006,tap,early,6,,tap_early_0006.png,png,TRUE,,,,live
+tap_late_0006,tap,late,6,,tap_late_0006.png,png,TRUE,,,,live
+tap_early_0007,tap,early,7,,tap_early_0007.png,png,TRUE,,,,live
+tap_late_0007,tap,late,7,,tap_late_0007.png,png,TRUE,,,,live
+tap_early_0008,tap,early,8,,tap_early_0008.png,png,TRUE,,,,live
+tap_late_0009,tap,late,9,,tap_late_0009.png,png,TRUE,,,,live
+tap_early_0010,tap,early,10,,tap_early_0010.png,png,TRUE,,,,live
+tap_late_0010,tap,late,10,,tap_late_0010.png,png,TRUE,,,,live
+air_001,air,special,1,,air_001.png,png,TRUE,空气植物,Air Plant,Tillandsia,live

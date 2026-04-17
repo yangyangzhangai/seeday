@@ -495,15 +495,15 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
 export async function callUserAnalyticsDashboardAPI(days = 30): Promise<UserAnalyticsDashboardResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) throw new Error('Unauthorized');
-  const params = new URLSearchParams({ days: String(days) });
-  return getJson<UserAnalyticsDashboardResponse>(`/user-analytics?${params.toString()}`, { headers });
+  const params = new URLSearchParams({ module: 'user_analytics', days: String(days) });
+  return getJson<UserAnalyticsDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAnalyticsLookupResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) throw new Error('Unauthorized');
-  const params = new URLSearchParams({ type: 'user_lookup', query });
-  return getJson<UserAnalyticsLookupResponse>(`/user-analytics?${params.toString()}`, { headers });
+  const params = new URLSearchParams({ module: 'user_analytics', type: 'user_lookup', query });
+  return getJson<UserAnalyticsLookupResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 // ── Todo Decompose API ────────────────────────────────────────────────────────

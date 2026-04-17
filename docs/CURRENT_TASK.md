@@ -1,7 +1,15 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-15
+Last Updated: 2026-04-17
 Owner: current working session
+
+---
+
+## 会话更新（2026-04-17）
+
+- [x] Vercel Hobby 函数配额收口：将 User Analytics 从独立 `api/user-analytics.ts` 合并到 `GET /api/live-input-telemetry?module=user_analytics`，并保留 `type=user_lookup` 查询分支。
+- [x] 前端 User Analytics API 改道：`callUserAnalyticsDashboardAPI/callUserAnalyticsLookupAPI` 统一改为调用 `/api/live-input-telemetry`（带 `module=user_analytics` 参数）。
+- [x] 删除独立 serverless 入口 `api/user-analytics.ts`，将函数总数压回 Hobby 上限以内。
 
 ---
 

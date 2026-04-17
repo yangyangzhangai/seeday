@@ -4,6 +4,28 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-17 - Refactor: User Analytics 合并进 live-input telemetry 端点
+
+### Changed
+
+- `src/server/user-analytics-handler.ts`（新增）
+  - 将用户增长看板与用户查询逻辑抽到共享服务端 handler，复用现有 Supabase 鉴权与 admin 权限判定。
+- `api/live-input-telemetry.ts`
+  - `GET` 分支新增 `module=user_analytics` 路由分流：
+    - 默认仍返回 live input/plant/annotation/todo-decompose telemetry 聚合；
+    - `module=user_analytics` 返回增长看板；`type=user_lookup` 返回单用户诊断信息。
+- `src/api/client.ts`
+  - `callUserAnalyticsDashboardAPI()` / `callUserAnalyticsLookupAPI()` 改为调用 `/api/live-input-telemetry`（带 `module=user_analytics` 查询参数）。
+- `api/user-analytics.ts`（删除）
+  - 移除独立 serverless function，降低 Vercel 部署函数数量，适配 Hobby 12 函数上限。
+- `api/README.md` + `src/api/README.md`
+  - 同步 telemetry 端点新协议说明（`module=user_analytics` 与 `type=user_lookup`）。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
 ## 2026-04-16 - Fix: 活动/心情记录与日记入口字号可读性优化
 
 ### Changed
