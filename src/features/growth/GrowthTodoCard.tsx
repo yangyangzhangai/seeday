@@ -139,7 +139,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
   };
 
   const startEditTitle = () => {
-    if (todo.completed) return;
+    if (todo.completed || !expanded) return;
     setIsEditingTitle(true);
   };
 
@@ -253,6 +253,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
           data-no-drag="true"
           onDoubleClick={(e) => {
             e.stopPropagation();
+            if (!expanded) return;
             triggerLightHaptic();
             startEditTitle();
           }}

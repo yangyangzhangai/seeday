@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { playSound } from '../../services/sound/soundService';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import imgBirdZep02 from '../../assets/zep02.png';
 import imgBirdZep03 from '../../assets/zep03.png';
 import imgVan01 from '../../assets/morning-glory-01.png';
@@ -23,6 +23,7 @@ import type { StardustCardData } from '../../types/stardust';
 
 import { ChatInputBar } from './ChatInputBar';
 import { MagicPenSheet } from './MagicPenSheet';
+import { MagicPenUpgradeModal } from './MagicPenUpgradeModal';
 import { EditInsertModal } from './EditInsertModal';
 import { MoodPickerModal } from './MoodPickerModal';
 import { DatePicker } from './components/DatePicker';
@@ -50,12 +51,12 @@ export const ChatPage = () => {
   const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
   const fetchStardusts = useStardustStore(state => state.fetchStardusts);
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [input, setInput] = useState(() => localStorage.getItem('chat_input_draft') ?? '');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingDate, setIsLoadingDate] = useState(false);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
   const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
+  const [isMagicPenUpgradeOpen, setIsMagicPenUpgradeOpen] = useState(false);
   const [isMagicPenSending, setIsMagicPenSending] = useState(false);
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
@@ -445,13 +446,17 @@ export const ChatPage = () => {
           onKeyDown={handleKeyDown}
           onToggleMagicPenMode={() => {
             if (!isPlus) {
-              window.alert(t('profile_plus_only'));
-              navigate('/upgrade');
+              setIsMagicPenUpgradeOpen(true);
               return;
             }
             playSound('star');
             setIsMagicPenModeOn(v => !v);
           }}
+        />
+
+        <MagicPenUpgradeModal
+          isOpen={isMagicPenUpgradeOpen}
+          onClose={() => setIsMagicPenUpgradeOpen(false)}
         />
 
         {/* Edit/Insert Modal */}

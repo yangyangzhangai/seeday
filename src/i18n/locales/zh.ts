@@ -91,6 +91,10 @@ const zh: TranslationKeys = {
     chat_magic_pen_success_summary: '已补录 {{activityCount}} 条活动，新增 {{todoCount}} 条待办',
     chat_magic_pen_item_success: '写入成功',
     chat_magic_pen_item_error: '写入失败',
+    chat_magic_pen_upgrade_title: '魔法笔为 Plus 功能',
+    chat_magic_pen_upgrade_desc: '开通 Plus 后可使用魔法笔，一键整理输入并提取活动与待办。',
+    chat_magic_pen_upgrade_cta: '去开通 Plus',
+    chat_magic_pen_upgrade_later: '暂不开通',
 
     // ── 待办页面 ──
     todo_title: '待办管理',

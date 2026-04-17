@@ -91,6 +91,10 @@ const it: TranslationKeys = {
     chat_magic_pen_success_summary: 'Recuperate {{activityCount}} attività, aggiunti {{todoCount}} to-do',
     chat_magic_pen_item_success: 'Salvato',
     chat_magic_pen_item_error: 'Salvataggio fallito',
+    chat_magic_pen_upgrade_title: 'Penna magica e una funzione Plus',
+    chat_magic_pen_upgrade_desc: 'Passa a Plus per usare la Penna magica e trasformare una frase in attività e to-do.',
+    chat_magic_pen_upgrade_cta: 'Passa a Plus',
+    chat_magic_pen_upgrade_later: 'Forse dopo',
 
     // ── Pagina Attività ──
     todo_title: 'Attività',

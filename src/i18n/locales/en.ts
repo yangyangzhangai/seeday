@@ -89,6 +89,10 @@ const en = {
     chat_magic_pen_success_summary: 'Backfilled {{activityCount}} activities, added {{todoCount}} to-dos',
     chat_magic_pen_item_success: 'Saved',
     chat_magic_pen_item_error: 'Save failed',
+    chat_magic_pen_upgrade_title: 'Magic Pen is a Plus feature',
+    chat_magic_pen_upgrade_desc: 'Upgrade to Plus to use Magic Pen for extracting activities and to-dos from one sentence.',
+    chat_magic_pen_upgrade_cta: 'Upgrade to Plus',
+    chat_magic_pen_upgrade_later: 'Maybe later',
 
     // ── Todo Page ──
     todo_title: 'Tasks',

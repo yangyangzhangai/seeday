@@ -4,6 +4,35 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-17 - Fix: 魔法笔会员引导弹窗统一样式并修复关闭误跳转
+
+### Changed
+
+- `src/features/chat/MagicPenUpgradeModal.tsx`（新增）
+  - 新增聊天侧魔法笔专用会员引导弹窗，样式复用全局 modal theme（overlay/card/close/button），与项目其他弹窗视觉统一。
+  - 弹窗交互收口：支持遮罩关闭、右上角关闭、底部“稍后”关闭；仅“去开通 Plus”按钮执行 `/upgrade` 跳转。
+- `src/features/chat/ChatPage.tsx`
+  - Free 用户点击魔法笔时由 `window.alert + navigate('/upgrade')` 改为打开 `MagicPenUpgradeModal`。
+  - 修复“点击 close 仍跳转会员页”的门控 bug。
+- `src/i18n/locales/{zh,en,it}.ts`
+  - 新增魔法笔会员引导弹窗文案键（标题/描述/开通按钮/稍后按钮），补齐三语。
+
+## 2026-04-17 - Fix: Growth 待办标题仅在展开态可双击编辑
+
+### Changed
+
+- `src/features/growth/GrowthTodoCard.tsx`
+  - 标题编辑入口新增展开态门控：`expanded === true` 时双击标题才会进入编辑。
+  - 未展开卡片时双击标题不再触发编辑，避免误进入编辑态。
+
+## 2026-04-17 - Fix: 聊天时间线消息卡片删除按钮改为点击后显示
+
+### Changed
+
+- `src/features/chat/components/EventCard.tsx` + `src/features/chat/components/MoodCard.tsx`
+  - 删除 `X` 按钮显示逻辑改为与相机上传入口一致：仅在用户点击激活消息卡片后显示。
+  - 点击卡片外区域时随 `cardActive` 关闭而隐藏，避免时间线默认常显删除入口。
+
 ## 2026-04-17 - Feat: 作息独立为普通功能 + AI 专属记忆升级为 Plus 权益
 
 ### Changed

@@ -131,7 +131,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
             </>
           )}
           {/* Delete */}
-          {!readonly && (
+          {cardActive && !readonly && (
             <button onClick={e => { e.stopPropagation(); onDelete(message.id); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BAE6FD', padding: 0, display: 'flex' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>

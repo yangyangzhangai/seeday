@@ -200,7 +200,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             )
           )}
           {/* Delete */}
-          {!readonly && (
+          {cardActive && !readonly && (
             <button onClick={e => { e.stopPropagation(); onDelete(message.id); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: 0, display: 'flex' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
