@@ -72,11 +72,11 @@ export const MoodCard: React.FC<MoodCardProps> = ({
     <div
       ref={cardRef}
       data-message-id={message.id}
+      className="rounded-2xl"
       style={{
         background: 'linear-gradient(135deg, rgba(240,249,255,0.97) 0%, rgba(224,242,254,0.94) 100%)',
         backdropFilter: 'blur(20px) saturate(140%)',
         WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-        borderRadius: '2rem',
         border: 'none',
         boxShadow: 'none',
         position: 'relative',

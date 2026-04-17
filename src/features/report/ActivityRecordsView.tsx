@@ -35,7 +35,7 @@ export const ActivityRecordsView: React.FC<ActivityRecordsViewProps> = ({ report
     <div>
       <div className="text-[11px]">
         <h3 className="font-semibold mb-1 text-[11px] flex items-center gap-1">
-          <Clock size={14} /> {t('report_activity')}
+          <Clock size={16} strokeWidth={1.5} /> {t('report_activity')}
         </h3>
         <div className="bg-white rounded-lg border border-gray-100 overflow-hidden shadow-sm">
           {activityMessages.map((msg, index) => (

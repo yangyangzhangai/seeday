@@ -119,8 +119,8 @@ export const RegionSettingsPanel: React.FC<RegionSettingsPanelProps> = ({ onClos
 
   return (
     <div className="px-4 pb-3 pt-1">
-      <p className="text-[11px] text-slate-500">{t('profile_region_settings_desc')}</p>
-      <p className="mt-1 text-[11px] text-slate-500">{t('profile_region_current', { value: currentLabel })}</p>
+      <p className="text-xs text-slate-500">{t('profile_region_settings_desc')}</p>
+      <p className="mt-1 text-xs text-slate-500">{t('profile_region_current', { value: currentLabel })}</p>
 
       <div className="mt-2 flex items-center gap-2">
         <input

@@ -109,7 +109,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                             onCustomLabelClick();
                         }}
                         className={cn(
-                            'inline-flex items-center justify-center rounded-full border px-2.5 py-[3px] text-[10px] shadow-sm transition-colors',
+                            'inline-flex items-center justify-center rounded-full border px-2.5 py-[3px] text-xs shadow-sm transition-colors',
                              (showCustomLabelInput || customMoodApplied[moodPickerFor])
                                  ? 'text-[#1D4ED8]'
                                  : 'border-white/80 bg-white/85 text-[#2F3E33]',
@@ -133,7 +133,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                     }
                                 }}
                                 onBlur={() => onCustomLabelSave(customLabelInput)}
-                                className="w-16 bg-transparent text-[10px] text-[#1D4ED8] focus:outline-none"
+                                className="w-16 bg-transparent text-xs text-[#1D4ED8] focus:outline-none"
                                 autoFocus
                             />
                         ) : (

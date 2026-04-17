@@ -68,7 +68,7 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}>
       <div
-        className={cn(APP_MODAL_CARD_CLASS, 'relative mx-6 w-full max-w-sm rounded-3xl p-6')}
+        className={cn(APP_MODAL_CARD_CLASS, 'relative mx-6 w-full max-w-sm rounded-2xl p-6')}
         onTouchStart={handleLongPressStart}
         onTouchEnd={handleLongPressEnd}
         onMouseDown={handleLongPressStart}
@@ -76,10 +76,10 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
         onMouseLeave={handleLongPressEnd}
       >
         <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-4 top-4 p-1')}>
-          <X size={20} />
+          <X size={24} strokeWidth={1.5} />
         </button>
 
-        <h2 className="mb-2 text-center text-xl font-bold text-slate-800">
+        <h2 className="mb-2 text-center text-2xl font-bold text-slate-800">
           {t('growth_daily_goal_title')}
         </h2>
         <p className="mb-5 text-center text-sm text-slate-500">

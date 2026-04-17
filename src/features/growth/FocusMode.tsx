@@ -233,10 +233,10 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
         onClick={() => { if (isRunning || isResting) setShowConfirmEnd(true); else handleClose(); }}
         className="absolute right-6 top-6 text-white/60 transition hover:text-white"
       >
-        <X size={24} />
+        <X size={24} strokeWidth={1.5} />
       </button>
 
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-300/70">
+      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-sky-300/70">
         {isRunning ? t('growth_focus_start') : t('growth_focus_set_duration')}
       </p>
       <h2 className="mb-5 px-6 text-center text-lg font-semibold text-white/85">{activeTodo.title}</h2>
@@ -257,7 +257,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
                       : 'rgba(255,255,255,0.18)',
                 }}
               />
-              <span className="text-[9px] text-white/40 truncate max-w-[40px] text-center leading-tight">
+              <span className="text-xs text-white/40 truncate max-w-[40px] text-center leading-tight">
                 {qt.title.slice(0, 4)}
               </span>
             </div>
@@ -286,7 +286,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
             onClick={skipRest}
             className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
           >
-            <SkipForward size={15} />
+            <SkipForward size={16} strokeWidth={1.5} />
             {t('growth_focus_skip_rest')}
           </button>
         </div>
@@ -361,7 +361,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
               <span className="font-mono text-5xl font-bold tabular-nums text-white [text-shadow:0_0_24px_rgba(125,211,252,0.55)]">
                 {String(durationMinutes).padStart(2, '0')}:00
               </span>
-              <span className="mt-1 text-[11px] tracking-[0.08em] text-sky-200/55">{t('growth_focus_set_duration')}</span>
+              <span className="mt-1 text-xs tracking-[0.08em] text-sky-200/55">{t('growth_focus_set_duration')}</span>
             </div>
           </div>
 
@@ -389,13 +389,13 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
           <div className="flex gap-4">
             <button
               onClick={() => void handleStart(false)}
-              className="flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg"
+              className="flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg min-h-[44px]"
               style={{
                 background: 'linear-gradient(135deg, rgba(125,211,252,0.95) 0%, rgba(56,189,248,0.88) 100%)',
                 boxShadow: '0 4px 22px rgba(125,211,252,0.36), inset 0 2px 7px rgba(255,255,255,0.28)',
               }}
             >
-              <Play size={20} />
+              <Play size={24} strokeWidth={1.5} />
               {isQueueMode ? t('todo_sequential_focus') : t('growth_focus_start')}
             </button>
             {!isQueueMode && (
@@ -412,7 +412,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
 
       {showConfirmEnd && (isRunning || isResting) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
-          <div className="mx-8 w-full max-w-sm rounded-3xl bg-[#F7F9F8] p-6 shadow-2xl">
+          <div className="mx-8 w-full max-w-sm rounded-2xl bg-[#F7F9F8] p-6 shadow-2xl">
             <p className="mb-4 text-center text-sm font-semibold text-slate-700">
               {t('growth_focus_end_confirm')}
             </p>

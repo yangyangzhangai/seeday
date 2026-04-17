@@ -139,20 +139,20 @@ export const UserProfilePanel: React.FC<Props> = ({
   };
 
   return (
-    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       {showHeader ? (
         <button
           onClick={() => setExpanded((prev) => !prev)}
           className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
         >
           <div className="flex items-start gap-2.5 text-left">
-            <Sparkles size={16} className="mt-0.5 text-[#5F7A63]" />
+            <Sparkles size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
             <div>
               <p className="text-xs text-slate-700">{t('profile_user_profile_title')}</p>
               <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
             </div>
           </div>
-          {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+          {expanded ? <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" /> : <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />}
         </button>
       ) : null}
 
@@ -160,10 +160,10 @@ export const UserProfilePanel: React.FC<Props> = ({
         <div className={showHeader ? 'border-t border-slate-200/60 px-4 pb-4 pt-3' : 'px-4 pb-4 pt-3'}>
           <div className="space-y-3">
             <div>
-              <p className="mb-2 text-[11px] text-slate-600">{t('profile_user_profile_tab_schedule')}</p>
+              <p className="mb-2 text-xs text-slate-600">{t('profile_user_profile_tab_schedule')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_wake_time')}</span>
+                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_wake_time')}</span>
                   <input
                     type="time"
                     value={wakeTime}
@@ -172,7 +172,7 @@ export const UserProfilePanel: React.FC<Props> = ({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_sleep_time')}</span>
+                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_sleep_time')}</span>
                   <input
                     type="time"
                     value={sleepTime}
@@ -184,7 +184,7 @@ export const UserProfilePanel: React.FC<Props> = ({
 
               <div className="mt-2 grid grid-cols-3 gap-2">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_breakfast')}</span>
+                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_breakfast')}</span>
                   <input
                     type="time"
                     value={breakfastTime}
@@ -193,7 +193,7 @@ export const UserProfilePanel: React.FC<Props> = ({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_lunch')}</span>
+                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_lunch')}</span>
                   <input
                     type="time"
                     value={lunchTime}
@@ -202,7 +202,7 @@ export const UserProfilePanel: React.FC<Props> = ({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_dinner')}</span>
+                  <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_dinner')}</span>
                   <input
                     type="time"
                     value={dinnerTime}
@@ -214,7 +214,7 @@ export const UserProfilePanel: React.FC<Props> = ({
             </div>
 
             <label className="block">
-              <span className="mb-1 block text-[11px] text-slate-600">{t('profile_user_profile_tab_personalization')}</span>
+              <span className="mb-1 block text-xs text-slate-600">{t('profile_user_profile_tab_personalization')}</span>
               <textarea
                 value={freeText}
                 onChange={(event) => setFreeText(event.target.value)}
@@ -237,7 +237,7 @@ export const UserProfilePanel: React.FC<Props> = ({
               >
                 {saving ? t('profile_user_profile_saving') : t('profile_user_profile_save')}
               </button>
-              {saveText ? <p className="mt-2 text-[11px] text-slate-500">{saveText}</p> : null}
+              {saveText ? <p className="mt-2 text-xs text-slate-500">{saveText}</p> : null}
             </div>
           </div>
         </div>

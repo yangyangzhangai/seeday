@@ -120,7 +120,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
           <button
             onClick={handleDecompose}
             disabled={loading}
-            className="text-[10px] text-gray-400 hover:text-sky-500 transition-colors"
+            className="text-xs text-gray-400 hover:text-sky-500 transition-colors"
           >
             {loading ? t('todo_decompose_loading') : t('todo_decompose_regenerate_btn')}
           </button>
@@ -165,7 +165,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                   {sub.title}
                 </span>
                 {sub.suggestedDuration && !sub.completed && (
-                  <span className="text-[10px] text-gray-400 flex-shrink-0">
+                  <span className="text-xs text-gray-400 flex-shrink-0">
                     {sub.suggestedDuration}{t('todo_decompose_min')}
                   </span>
                 )}
@@ -177,7 +177,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                       onClick={(e) => { e.stopPropagation(); triggerLightHaptic(); onFocusSub(sub); }}
                       className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"
                     >
-                      <AlarmClock size={13} />
+                      <AlarmClock size={16} strokeWidth={1.5} />
                     </button>
                   </div>
                 )}
@@ -196,7 +196,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                 color: 'rgb(14, 116, 144)',
               }}
             >
-              <Play size={12} />
+              <Play size={16} strokeWidth={1.5} />
               {t('todo_sequential_focus')}
             </button>
           )}

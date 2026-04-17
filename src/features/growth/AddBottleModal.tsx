@@ -40,10 +40,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
 
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}>
-      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-in zoom-in-95 fade-in w-[min(92vw,420px)] max-h-[86vh] overflow-y-auto rounded-3xl p-6')}>
+      <div className={cn(APP_MODAL_CARD_CLASS, 'animate-in zoom-in-95 fade-in w-[min(92vw,420px)] max-h-[86vh] overflow-y-auto rounded-2xl p-6')}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-slate-800">{t('growth_add_bottle_modal_title')}</h3>
-          <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={20} /></button>
+          <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}><X size={24} strokeWidth={1.5} /></button>
         </div>
 
         <label className="block text-sm font-medium text-slate-600 mb-1">

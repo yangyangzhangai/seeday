@@ -35,7 +35,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose }) => {
       >
         <div className="px-5 pt-6 pb-4 flex flex-col items-center text-center">
           <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 border border-[#E6EBD8] bg-[#EEF4E8]">
-            <Crown size={24} className="text-[#5F7A63]" />
+            <Crown size={24} strokeWidth={1.5} className="text-[#5F7A63]" />
           </div>
           <h3 className="text-base font-bold text-slate-800 mb-1">{t('report_upgrade_title')}</h3>
           <p className="text-xs leading-relaxed text-slate-500">{t('report_upgrade_desc')}</p>
@@ -62,7 +62,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose }) => {
           onClick={onClose}
           className={cn(APP_MODAL_CLOSE_CLASS, 'absolute top-3 right-3 w-7 h-7 flex items-center justify-center')}
         >
-          <X size={16} />
+          <X size={16} strokeWidth={1.5} />
         </button>
       </div>
     </div>
