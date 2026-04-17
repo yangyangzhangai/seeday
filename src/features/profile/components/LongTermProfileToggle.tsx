@@ -29,10 +29,10 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-start space-x-2.5">
-            <Brain size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
+            <Brain size={36} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
             <div className="min-w-0">
-              <p className="text-xs text-slate-700">{t('profile_long_term_profile')}</p>
-              <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_long_term_profile_desc')}</p>
+              <p className="text-sm text-slate-700">{t('profile_long_term_profile')}</p>
+              <p className="mt-0.5 text-xs leading-tight text-slate-500">{t('profile_long_term_profile_desc')}</p>
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
           />
         </button>
       </div>
-      {statusText ? <p className="mt-1.5 pl-6 text-[10px] text-slate-500">{statusText}</p> : null}
+      {statusText ? <p className="mt-1.5 pl-6 text-xs text-slate-500">{statusText}</p> : null}
     </div>
   );
 };
