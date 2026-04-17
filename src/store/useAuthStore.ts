@@ -157,13 +157,35 @@ function languageFromMeta(meta: Record<string, any>): UiLanguage | null {
   return SUPPORTED_UI_LANGUAGES.includes(normalized) ? normalized : null;
 }
 
+function languageFromLocalStorage(): UiLanguage | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  const value = window.localStorage.getItem('i18nextLng');
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const normalized = normalizeUiLanguage(value);
+  return SUPPORTED_UI_LANGUAGES.includes(normalized) ? normalized : null;
+}
+
+function persistLanguageToLocalStorage(language: UiLanguage): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  window.localStorage.setItem('i18nextLng', language);
+}
+
 function syncI18nLanguageFromMeta(meta: Record<string, any>): void {
   const cloudLanguage = languageFromMeta(meta);
-  if (!cloudLanguage) return;
+  const localLanguage = languageFromLocalStorage();
   const current = normalizeUiLanguage(i18n.language);
+  if (localLanguage) {
+    if (current !== localLanguage) {
+      void i18n.changeLanguage(localLanguage);
+    }
+    persistLanguageToLocalStorage(localLanguage);
+    return;
+  }
+  if (!cloudLanguage) return;
   if (current !== cloudLanguage) {
     void i18n.changeLanguage(cloudLanguage);
   }
+  persistLanguageToLocalStorage(cloudLanguage);
 }
 
 async function ensureCloudLanguageMetadata(user: any | null): Promise<any | null> {
@@ -817,6 +839,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateLanguagePreference: async (language: string) => {
     const normalized = normalizeUiLanguage(language);
     await i18n.changeLanguage(normalized);
+    persistLanguageToLocalStorage(normalized);
 
     const currentUser = get().user;
     if (!currentUser) {
