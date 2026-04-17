@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
 
 /* ──────────────────────────── constants ──────────────────────────── */
-const COVER_BG = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
+const COVER_BG = "url('/assets/book.png') center/cover no-repeat";
 const SHELF_BG = '#7a9b7e';
 
 // Show exactly 2 books side-by-side with equal margins
