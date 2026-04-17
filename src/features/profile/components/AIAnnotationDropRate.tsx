@@ -52,7 +52,7 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false })
       <div className="flex items-center gap-2">
         <div className="flex items-center space-x-2.5 whitespace-nowrap flex-shrink-0">
           <Gauge size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
-          <span className="text-sm text-slate-700">
+          <span className="profile-fn-title">
             {t('profile_annotation_drop')}
           </span>
         </div>

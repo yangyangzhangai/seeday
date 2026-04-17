@@ -31,8 +31,8 @@ export const UserProfileSection: React.FC<Props> = ({ plain = false, locked = fa
         <div className="flex items-start gap-2.5 text-left">
           <Sparkles size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
-            <p className="text-xs text-slate-700">{t('profile_user_profile_title')}</p>
-            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
+            <p className="profile-fn-title">{t('profile_user_profile_title')}</p>
+            <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
           </div>
         </div>
         {locked ? (

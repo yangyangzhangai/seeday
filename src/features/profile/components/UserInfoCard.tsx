@@ -14,6 +14,15 @@ interface Props {
   isPlus: boolean;
 }
 
+const MEMBERSHIP_VIOLET = '#5242de';
+const MEMBERSHIP_VIOLET_DEEP = '#4058d5';
+const MEMBERSHIP_BLUE = '#4f8fff';
+const MEMBERSHIP_TEXT = '#3f43aa';
+const MEMBERSHIP_ICON = '#4c61d8';
+const MEMBERSHIP_TEXT_SUB = '#5e65b2';
+const MEMBERSHIP_TEXT_HINT = '#6675b6';
+const MEMBERSHIP_TEXT_HINT_SOFT = '#7884bc';
+
 // Returns local date string YYYY-MM-DD for a timestamp (ms)
 function toLocalDate(ts: number): string {
   const d = new Date(ts);
@@ -148,11 +157,11 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
   const plusCardStyle: React.CSSProperties = isPlus
     ? {
-      background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #dff0ff 100%)',
+      background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #e5f0ff 100%)',
       backdropFilter: 'blur(22px) saturate(145%)',
       WebkitBackdropFilter: 'blur(20px) saturate(140%)',
       border: 'none',
-      boxShadow: '0 8px 22px rgba(90,116,199,0.14)',
+      boxShadow: '0 8px 22px rgba(82,66,222,0.14)',
     }
     : {};
 
@@ -174,7 +183,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               width: 132,
               height: 132,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(124,101,255,0.42) 0%, rgba(124,101,255,0.12) 45%, rgba(124,101,255,0) 76%)',
+              background: 'radial-gradient(circle, rgba(82,66,222,0.40) 0%, rgba(82,66,222,0.12) 45%, rgba(82,66,222,0) 76%)',
               filter: 'blur(0.5px)',
               pointerEvents: 'none',
             }}
@@ -188,7 +197,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               width: 180,
               height: 100,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(129,180,255,0.34) 0%, rgba(129,180,255,0.08) 48%, rgba(129,180,255,0) 78%)',
+              background: 'radial-gradient(circle, rgba(79,143,255,0.34) 0%, rgba(79,143,255,0.08) 48%, rgba(79,143,255,0) 78%)',
               pointerEvents: 'none',
             }}
           />
@@ -235,13 +244,14 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 onChange={(e) => setNameValue(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown}
-                className="w-36 rounded-lg border border-[#8FAF92]/60 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 outline-none"
+                className="w-36 rounded-lg border border-[#8FAF92]/60 bg-white px-2 py-0.5 text-base font-semibold text-slate-700 outline-none"
               />
             ) : (
               <span
                 className={isPlus
-                  ? 'cursor-pointer truncate text-sm font-semibold text-[#3f43aa] transition-colors hover:text-[#3246a8]'
-                  : 'cursor-pointer truncate text-sm font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]'}
+                  ? 'cursor-pointer truncate text-base font-semibold transition-colors'
+                  : 'cursor-pointer truncate text-base font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]'}
+                style={isPlus ? { color: MEMBERSHIP_TEXT } : undefined}
                 onClick={handleNameClick}
               >
                 {displayName}
@@ -251,17 +261,17 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               <span
                 className="flex items-center space-x-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
                 style={{
-                  background: 'linear-gradient(135deg, #5242de 0%, #4156da 56%, #4f8fff 100%)',
+                  background: `linear-gradient(135deg, ${MEMBERSHIP_VIOLET} 0%, ${MEMBERSHIP_VIOLET_DEEP} 56%, ${MEMBERSHIP_BLUE} 100%)`,
                   color: '#f4f8ff',
-                  boxShadow: '0 5px 12px rgba(75,96,223,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
+                  boxShadow: '0 5px 12px rgba(82,66,222,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
                 }}
               >
                 <Crown size={10} strokeWidth={1.5} />
-                <span>PLUS</span>
+                <span>PRO</span>
               </span>
             )}
           </div>
-          <p className={isPlus ? 'mt-0.5 truncate text-xs text-[#5e65b2]' : 'mt-0.5 truncate text-xs text-slate-500'}>{user?.email}</p>
+          <p className={isPlus ? 'mt-0.5 truncate text-xs' : 'mt-0.5 truncate text-xs text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_SUB } : undefined}>{user?.email}</p>
         </div>
       </div>
 
@@ -277,8 +287,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 right: 0,
                 top: 0,
                 height: 1,
-                background: 'linear-gradient(90deg, rgba(140,160,245,0.08) 0%, rgba(118,136,235,0.82) 50%, rgba(140,160,245,0.08) 100%)',
-                boxShadow: '0 0 8px rgba(118,136,235,0.45)',
+                background: 'linear-gradient(90deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.82) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 8px rgba(82,66,222,0.42)',
                 pointerEvents: 'none',
               }}
             />
@@ -290,8 +300,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 top: 6,
                 bottom: 6,
                 width: 1,
-                background: 'linear-gradient(180deg, rgba(149,166,245,0.08) 0%, rgba(122,140,234,0.76) 50%, rgba(149,166,245,0.08) 100%)',
-                boxShadow: '0 0 7px rgba(124,142,236,0.36)',
+                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
                 pointerEvents: 'none',
               }}
             />
@@ -303,8 +313,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 top: 6,
                 bottom: 6,
                 width: 1,
-                background: 'linear-gradient(180deg, rgba(149,166,245,0.08) 0%, rgba(122,140,234,0.76) 50%, rgba(149,166,245,0.08) 100%)',
-                boxShadow: '0 0 7px rgba(124,142,236,0.36)',
+                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
                 pointerEvents: 'none',
               }}
             />
@@ -330,23 +340,23 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
         ) : null}
         <div className={isPlus ? 'grid grid-cols-3' : 'grid grid-cols-3'}>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_streak')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{weeklyLoginDays}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_streak')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{weeklyLoginDays}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_today_activities')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{todayActs}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_today_activities')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{todayActs}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_today_activities_hint', { count: todayActs })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[10px] text-[#6675b6]' : 'mt-0.5 text-[10px] text-slate-500'}>{t('profile_completed_goals')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold text-[#4f63cc]' : 'mt-0.5 text-base font-bold text-[#5F7A63]'}>{completedGoals}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[9px] leading-tight text-[#7884bc]' : 'mt-0.5 px-1 text-center text-[9px] leading-tight text-slate-400'}>
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_completed_goals')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{completedGoals}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_completed_goals_hint')}
           </span>
         </div>

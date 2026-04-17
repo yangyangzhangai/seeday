@@ -25,14 +25,14 @@ const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
 
 /* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
-const BASE_PAGE_H = 260;
+const BASE_PAGE_H = 255; // A5 ratio: 180 × (210/148) ≈ 255
 const FLIP_MS = 550;
 const BASE_SIDE_GAP = 6;
 const MAX_VIS = 4;
 const BASE_HEIGHT_SHRINK = 20;
 const PAPER_COLOR = '#ffffff';
-const COVER_COLOR = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
-const SHELF_BG = '#B8C2AE';
+const COVER_COLOR = "url('/assets/book.png') center/cover no-repeat";
+const SHELF_BG = '#7a9b7e';
 const SPINE_STRIP_W = 14;
 const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
@@ -772,13 +772,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
   /* ── scaling ── */
   const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
-  const baseWrapW = BASE_PAGE_W * 2 + baseSideMargin * 2;
-  const hMargin = Math.max(20, Math.round(viewport.width * 0.05)); // ≥20px, ~5% each side
-  const availableW = Math.max(240, viewport.width - hMargin * 2);
+  // Match shelf cover size: each page width = (min(vw,430) - padding*2 - gap) / 2
+  const shelfThumbW = (Math.min(viewport.width, 430) - 48 - 20) / 2;
+  const scaleFromCover = shelfThumbW / BASE_PAGE_W;
   const availableH = Math.max(220, viewport.height - 170); // ~90px header + ~80px footer/safe-area
-  const scaleW = availableW / baseWrapW;
   const scaleH = availableH / BASE_PAGE_H;
-  const scale = Math.max(0.62, Math.min(scaleW, scaleH, 1.8)); // allow up to 1.8× for large screens
+  const scale = Math.max(0.62, Math.min(scaleFromCover, scaleH, 1.8));
 
   const pageW = BASE_PAGE_W * scale;
   pageWRef.current = pageW;
