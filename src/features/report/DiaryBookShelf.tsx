@@ -11,8 +11,12 @@ import { DiaryBookViewer } from './DiaryBookViewer';
 const COVER_BG = 'linear-gradient(160deg, #f5edda 0%, #ecdfc6 100%)';
 const SHELF_BG = '#7a9b7e';
 
-const THUMB_W = 86;   // cover width
-const THUMB_H = 124;  // cover height (≈ 180:260 ratio)
+// Show exactly 2 books side-by-side with equal margins
+const SHELF_PAD = 24;  // left/right padding of scroll container
+const BOOK_GAP  = 20;  // gap between books
+// CSS calc: (min(100vw, 430px) - padding*2 - gap) / 2
+const THUMB_W_CSS = `calc((min(100vw, 430px) - ${SHELF_PAD * 2}px - ${BOOK_GAP}px) / 2)`;
+const ASPECT_RATIO = 148 / 210; // A5 width / height
 
 /* ──────────────────────────── month list ────────────────────────── */
 function buildMonthList(createdAt: Date | null): Date[] {
@@ -42,7 +46,7 @@ interface ThumbProps {
 }
 
 function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverClick, onStartEdit, onNameChange, divRef }: ThumbProps) {
-  const lifted = isCurrent || isSelected;
+  const lifted = isSelected;
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus input when editing starts
@@ -71,7 +75,7 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
         }}
       >
         {/* Book cover */}
-        <div style={{ position: 'relative', width: THUMB_W, height: THUMB_H }}>
+        <div style={{ position: 'relative', width: THUMB_W_CSS, aspectRatio: `${ASPECT_RATIO}` }}>
 
           {/* Golden glow selection ring */}
           {isSelected && (
@@ -88,9 +92,8 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
 
           {/* Cover face */}
           <div style={{
-            position: 'relative',
-            width: THUMB_W,
-            height: THUMB_H,
+            position: 'absolute',
+            inset: 0,
             background: COVER_BG,
             borderRadius: '2px 4px 4px 2px',
             display: 'flex',
@@ -186,7 +189,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
   const [openMonth, setOpenMonth] = useState<Date | null>(initialOpenMonth ?? null);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [editingIdx, setEditingIdx]   = useState<number | null>(null);
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -218,7 +221,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
   /* Keyboard navigation */
   const openSelected = useCallback(() => {
-    setOpenMonth(months[selectedIdx]);
+    if (selectedIdx !== null) setOpenMonth(months[selectedIdx]);
   }, [months, selectedIdx]);
 
   useEffect(() => {
@@ -227,11 +230,11 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         setEditingIdx(null);
-        setSelectedIdx(prev => Math.min(prev + 1, months.length - 1));
+        setSelectedIdx(prev => Math.min((prev ?? -1) + 1, months.length - 1));
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setEditingIdx(null);
-        setSelectedIdx(prev => Math.max(prev - 1, 0));
+        setSelectedIdx(prev => Math.max((prev ?? 1) - 1, 0));
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openSelected();
@@ -245,6 +248,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
   /* Scroll selected into view */
   useEffect(() => {
+    if (selectedIdx === null) return;
     bookRefs.current[selectedIdx]?.scrollIntoView({
       behavior: 'smooth', inline: 'center', block: 'nearest',
     });
@@ -300,19 +304,16 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       </div>
 
       {/* Shelf row */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ position: 'relative', width: '100%' }}>
           <div style={{
-            position: 'absolute', left: 0, right: 0, bottom: -18,
-            height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3,
-          }} />
-          <div style={{
             display: 'flex', flexDirection: 'row', alignItems: 'flex-end',
-            gap: 20,
+            gap: BOOK_GAP,
             overflowX: 'auto',
-            paddingLeft: 28, paddingRight: 28,
+            paddingLeft: SHELF_PAD, paddingRight: SHELF_PAD,
             paddingBottom: 24, paddingTop: 24,
             scrollSnapType: 'x mandatory',
+            scrollPaddingLeft: SHELF_PAD,
             WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
             msOverflowStyle: 'none' as React.CSSProperties['msOverflowStyle'],
             scrollbarWidth: 'none' as React.CSSProperties['scrollbarWidth'],
@@ -326,11 +327,11 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                 isEditing={idx === editingIdx}
                 bookName={getBookName(m)}
                 onCoverClick={() => {
-                  if (idx === selectedIdx) {
-                    setOpenMonth(m);
-                  } else {
+                  if (selectedIdx === null || idx !== selectedIdx) {
                     setEditingIdx(null);
                     setSelectedIdx(idx);
+                  } else {
+                    setOpenMonth(m);
                   }
                 }}
                 onStartEdit={() => { setSelectedIdx(idx); setEditingIdx(idx); }}
