@@ -75,6 +75,8 @@ const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_EN
 
 const LOCAL_DATA_OWNER_KEY = 'tshine:local-data-owner:v1';
 const SUPPORTED_UI_LANGUAGES: UiLanguage[] = ['zh', 'en', 'it'];
+const SUPPORTED_AI_MODES: AiCompanionMode[] = ['van', 'agnes', 'zep', 'momo'];
+const DEFAULT_FREE_AI_MODE: AiCompanionMode = 'van';
 
 type LocalDataOwner =
   | { type: 'anonymous'; userId: null }
@@ -157,13 +159,35 @@ function languageFromMeta(meta: Record<string, any>): UiLanguage | null {
   return SUPPORTED_UI_LANGUAGES.includes(normalized) ? normalized : null;
 }
 
+function languageFromLocalStorage(): UiLanguage | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  const value = window.localStorage.getItem('i18nextLng');
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const normalized = normalizeUiLanguage(value);
+  return SUPPORTED_UI_LANGUAGES.includes(normalized) ? normalized : null;
+}
+
+function persistLanguageToLocalStorage(language: UiLanguage): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  window.localStorage.setItem('i18nextLng', language);
+}
+
 function syncI18nLanguageFromMeta(meta: Record<string, any>): void {
   const cloudLanguage = languageFromMeta(meta);
-  if (!cloudLanguage) return;
+  const localLanguage = languageFromLocalStorage();
   const current = normalizeUiLanguage(i18n.language);
+  if (localLanguage) {
+    if (current !== localLanguage) {
+      void i18n.changeLanguage(localLanguage);
+    }
+    persistLanguageToLocalStorage(localLanguage);
+    return;
+  }
+  if (!cloudLanguage) return;
   if (current !== cloudLanguage) {
     void i18n.changeLanguage(cloudLanguage);
   }
+  persistLanguageToLocalStorage(cloudLanguage);
 }
 
 async function ensureCloudLanguageMetadata(user: any | null): Promise<any | null> {
@@ -316,11 +340,47 @@ async function ensureTodayLoginDay(user: any): Promise<any> {
 }
 
 function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
+  const rawAiMode = meta.ai_mode;
+  const normalizedAiMode: AiCompanionMode = (
+    typeof rawAiMode === 'string' && (SUPPORTED_AI_MODES as string[]).includes(rawAiMode)
+      ? rawAiMode
+      : DEFAULT_FREE_AI_MODE
+  );
+  const rawDropRate = meta.annotation_drop_rate;
+  const normalizedDropRate: AnnotationDropRate = (
+    rawDropRate === 'low' || rawDropRate === 'medium' || rawDropRate === 'high'
+      ? rawDropRate
+      : 'low'
+  );
   return {
-    aiMode: meta.ai_mode || 'van',
+    aiMode: normalizedAiMode,
     aiModeEnabled: meta.ai_mode_enabled ?? true,
     dailyGoalEnabled: meta.daily_goal_enabled ?? true,
-    annotationDropRate: meta.annotation_drop_rate || 'low',
+    annotationDropRate: normalizedDropRate,
+  };
+}
+
+function normalizePreferencesForMembership(
+  preferences: UserPreferences,
+  membership: MembershipState,
+): UserPreferences {
+  if (membership.isPlus) return preferences;
+  const nextAiMode = preferences.aiMode === DEFAULT_FREE_AI_MODE
+    ? preferences.aiMode
+    : DEFAULT_FREE_AI_MODE;
+  const nextAnnotationDropRate = preferences.annotationDropRate === 'low'
+    ? preferences.annotationDropRate
+    : 'low';
+  if (
+    nextAiMode === preferences.aiMode
+    && nextAnnotationDropRate === preferences.annotationDropRate
+  ) {
+    return preferences;
+  }
+  return {
+    ...preferences,
+    aiMode: nextAiMode,
+    annotationDropRate: nextAnnotationDropRate,
   };
 }
 
@@ -493,9 +553,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     sessionUser = await ensureCloudLanguageMetadata(sessionUser);
     const meta = sessionUser?.user_metadata || {};
-    const nextPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
+    const rawPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
     const profileState = profileStateFromMeta(meta);
     const membership = resolveMembershipState(sessionUser);
+    const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership);
     syncI18nLanguageFromMeta(meta);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
     set({
@@ -514,6 +575,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         plan: membership.plan,
         source: membership.source,
       });
+    }
+    if (
+      sessionUser
+      && (
+        rawPreferences.aiMode !== nextPreferences.aiMode
+        || rawPreferences.annotationDropRate !== nextPreferences.annotationDropRate
+      )
+    ) {
+      queuedPreferenceSnapshot = nextPreferences;
+      void flushQueuedPreferences();
     }
     if (session?.user) {
       const owner = readLocalDataOwner();
@@ -569,11 +640,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         currentUser = await ensureCloudLanguageMetadata(currentUser);
       }
 
-      const nextPreferences = currentUser
+      const rawPreferences = currentUser
         ? preferencesFromMeta(currentUser.user_metadata || {})
         : DEFAULT_PREFERENCES;
       const profileState = profileStateFromMeta(currentUser?.user_metadata || {});
       const membership = resolveMembershipState(currentUser);
+      const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership);
       syncI18nLanguageFromMeta(currentUser?.user_metadata || {});
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
       set({
@@ -592,6 +664,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           plan: membership.plan,
           source: membership.source,
         });
+      }
+      if (
+        currentUser
+        && (
+          rawPreferences.aiMode !== nextPreferences.aiMode
+          || rawPreferences.annotationDropRate !== nextPreferences.annotationDropRate
+        )
+      ) {
+        queuedPreferenceSnapshot = nextPreferences;
+        void flushQueuedPreferences();
       }
 
       if (event === 'SIGNED_IN' && currentUser) {
@@ -808,15 +890,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   updatePreferences: async (partial: Partial<UserPreferences>) => {
     const merged = { ...get().preferences, ...partial };
-    set({ preferences: merged });
-    syncAnnotationStateWithPreferences(merged, get().isPlus);
-    queuedPreferenceSnapshot = merged;
+    const normalized = normalizePreferencesForMembership(merged, {
+      plan: get().membershipPlan,
+      isPlus: get().isPlus,
+      source: get().membershipSource,
+    });
+    set({ preferences: normalized });
+    syncAnnotationStateWithPreferences(normalized, get().isPlus);
+    queuedPreferenceSnapshot = normalized;
     void flushQueuedPreferences();
   },
 
   updateLanguagePreference: async (language: string) => {
     const normalized = normalizeUiLanguage(language);
     await i18n.changeLanguage(normalized);
+    persistLanguageToLocalStorage(normalized);
 
     const currentUser = get().user;
     if (!currentUser) {
