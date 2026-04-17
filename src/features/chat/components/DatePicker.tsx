@@ -163,7 +163,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             style={{ background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
           >
-            <span style={{ fontSize: 17, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
+            <span className="text-base" style={{ fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
               {MONTHS[viewMonth]} {viewYear}
             </span>
             <span className="material-symbols-outlined"
@@ -189,7 +189,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_left</span>
                 </button>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{viewYear}</span>
+                <span className="text-xs" style={{ fontWeight: 700, color: '#1e293b' }}>{viewYear}</span>
                 <button onClick={() => { triggerLightHaptic(); nextMonth(); }} style={{ background: '#F1F5F9',
                   border: 'none', borderRadius: '50%',
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -201,11 +201,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   const isCur = idx === viewMonth;
                   return (
                     <button key={m} onClick={() => { triggerLightHaptic(); setViewMonth(idx); setShowMonthPicker(false); }}
+                      className="text-xs"
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
                         border: isCur ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
                         background: isCur ? BLUE_SELECTED_BG : '#F8FAFC',
                         boxShadow: isCur ? BLUE_SELECTED_SHADOW : 'none',
-                        color: isCur ? BLUE_SELECTED_TEXT : '#475569', fontSize: 10,
+                        color: isCur ? BLUE_SELECTED_TEXT : '#475569',
                         fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
                       {m.slice(0, 3)}
                     </button>
@@ -286,7 +287,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               }}
             >
               <LogIn size={15} />
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{t('header_login')}</span>
+              <span className="text-xs" style={{ fontWeight: 600 }}>{t('header_login')}</span>
             </button>
           )}
         </div>
@@ -344,17 +345,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 scrollSnapAlign: 'center',
               }}
             >
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
+              <span style={{ fontSize: 10, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
                 textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
-              <div style={{ width: 34, height: 34, borderRadius: '50%',
+              <div style={{ width: 32, height: 32, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: sel ? BLUE_SELECTED_BG : '#F8FAFC',
                 border: sel ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
                 boxShadow: sel ? BLUE_SELECTED_SHADOW : 'none',
                 transition: 'all 0.18s' }}>
-                <span style={{ fontSize: 12, fontWeight: sel ? 700 : 500,
+                <span style={{ fontSize: 12, lineHeight: 1, fontWeight: sel ? 700 : 500,
                   color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
                   {date}
                 </span>

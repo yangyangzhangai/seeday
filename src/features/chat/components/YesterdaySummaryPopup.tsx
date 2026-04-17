@@ -85,7 +85,7 @@ export const YesterdaySummaryPopup: React.FC = () => {
               <p className="text-xs font-semibold text-violet-50/95 mb-0.5">{t('yesterday_popup')}</p>
               <p className="text-sm text-white/95 truncate font-medium">{event.content}</p>
               {event.duration != null && (
-                <p className="text-[10px] text-violet-100/80 mt-0.5">
+                <p className="text-xs text-violet-100/80 mt-0.5">
                   {Math.round(event.duration)} min
                 </p>
               )}

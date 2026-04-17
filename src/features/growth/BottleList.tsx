@@ -100,7 +100,7 @@ export const BottleList = () => {
     <section className="mb-4">
       <div className="px-4 mb-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-[14px] font-extrabold text-[#1e293b]">{t('growth_bottle_section')}</h2>
+          <h2 className="text-sm font-extrabold text-[#1e293b]">{t('growth_bottle_section')}</h2>
           <button
             onClick={() => !isMaxReached && setShowAdd(true)}
             disabled={isMaxReached}
@@ -111,7 +111,7 @@ export const BottleList = () => {
             }}
             title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
           >
-            <Plus size={18} />
+            <Plus size={24} strokeWidth={1.5} />
           </button>
         </div>
         <p className="mt-1 text-xs text-[#94a3b8]">{t('growth_bottle_section_hint')}</p>
@@ -159,7 +159,7 @@ export const BottleList = () => {
       {/* 1. New habit auto-prompt */}
       {habitPromptBottle && (
         <div className={cn('fixed inset-0 z-50 flex items-center justify-center', APP_MODAL_OVERLAY_CLASS)}>
-          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-3xl p-6')}>
+          <div className={cn(APP_MODAL_CARD_CLASS, 'mx-8 w-full max-w-sm rounded-2xl p-6')}>
             <p className="text-slate-800 text-center mb-2 font-medium">{t('growth_habit_todo_prompt')}</p>
             <p className="text-slate-500 text-sm text-center mb-4">
               {t('growth_habit_todo_confirm', { name: habitPromptBottle.name })}

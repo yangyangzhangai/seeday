@@ -77,9 +77,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       <div className="app-scroll-container" style={{ flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80, opacity: 0.45 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 52, color: PRIMARY }}>event_note</span>
-        <p style={{ fontSize: 14, color: '#64748b', margin: 0, textAlign: 'center' }}>
+        <p className="text-sm" style={{ color: '#64748b', margin: 0, textAlign: 'center' }}>
           {t('new_day_start')}<br />
-          <span style={{ fontSize: 11, opacity: 0.7 }}>{t('record_what_you_do')}</span>
+          <span className="text-xs" style={{ opacity: 0.7 }}>{t('record_what_you_do')}</span>
         </p>
       </div>
     );
@@ -135,7 +135,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {/* Time label */}
               <div style={{ width: 44, paddingTop: 8, textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
                 <span
-                  style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8',
+                  className="text-xs"
+                  style={{ fontWeight: 700, color: '#94a3b8',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
                     cursor: (!cardReadonly && onTimeClick) ? 'pointer' : 'default' }}
                   onClick={() => { if (!cardReadonly && onTimeClick) onTimeClick(msg); }}

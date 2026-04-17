@@ -46,7 +46,7 @@ export const BottleDetailSheet = ({
 
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)} onClick={onClose}>
-      <div className={cn(APP_MODAL_CARD_CLASS, 'w-[min(92vw,420px)] rounded-3xl p-5')} onClick={(e) => e.stopPropagation()}>
+      <div className={cn(APP_MODAL_CARD_CLASS, 'w-[min(92vw,420px)] rounded-2xl p-5')} onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">{t(bottle.type === 'habit' ? 'growth_bottle_type_habit' : 'growth_bottle_type_goal')}</p>
@@ -54,7 +54,7 @@ export const BottleDetailSheet = ({
             <p className="mt-1 text-sm text-slate-500">{t('growth_bottle_stars', { stars: bottle.stars })}</p>
           </div>
           <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
-            <X size={20} />
+            <X size={24} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -64,21 +64,21 @@ export const BottleDetailSheet = ({
               <BarChart3 size={14} />
             </div>
             <p className="text-lg font-bold text-slate-800">{stats.last7Days}</p>
-            <p className="text-[11px] leading-4 text-slate-500">{t('growth_bottle_stats_last7')}</p>
+            <p className="text-xs leading-4 text-slate-500">{t('growth_bottle_stats_last7')}</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-3 text-center">
             <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-orange-600">
               <Flame size={14} />
             </div>
             <p className="text-lg font-bold text-slate-800">{stats.currentStreak}</p>
-            <p className="text-[11px] leading-4 text-slate-500">{t('growth_bottle_stats_streak_current')}</p>
+            <p className="text-xs leading-4 text-slate-500">{t('growth_bottle_stats_streak_current')}</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-3 text-center">
             <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-600">
               <Trophy size={14} />
             </div>
             <p className="text-lg font-bold text-slate-800">{stats.bestStreak}</p>
-            <p className="text-[11px] leading-4 text-slate-500">{t('growth_bottle_stats_streak_best')}</p>
+            <p className="text-xs leading-4 text-slate-500">{t('growth_bottle_stats_streak_best')}</p>
           </div>
         </div>
 
@@ -86,7 +86,7 @@ export const BottleDetailSheet = ({
           {bottle.status === 'active' ? (
             <button onClick={handleCreateTodo} className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}>
               <span className="inline-flex items-center gap-1">
-                <Sprout size={16} />
+                <Sprout size={16} strokeWidth={1.5} />
                 {t('growth_bottle_create_todo')}
               </span>
             </button>
@@ -110,7 +110,7 @@ export const BottleDetailSheet = ({
             className="w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100"
           >
             <span className="inline-flex items-center gap-1">
-              <Trash2 size={15} />
+              <Trash2 size={16} strokeWidth={1.5} />
               {t('growth_bottle_delete')}
             </span>
           </button>

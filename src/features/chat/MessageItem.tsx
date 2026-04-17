@@ -111,7 +111,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-[10px] text-gray-500">{format(msg.timestamp, 'HH:mm')}</div>
+                    <div className="text-xs text-gray-500">{format(msg.timestamp, 'HH:mm')}</div>
                 </div>
                 <div className={cn(
                     'absolute right-2 top-2 space-x-1 bg-white/80 backdrop-blur-sm rounded p-1 shadow-sm border border-gray-100',
@@ -162,7 +162,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             type="button"
                             onClick={() => onMoodPickerOpen(msg.id)}
                             className={cn(
-                                'inline-flex items-center justify-center px-2.5 py-[3px] text-[10px] rounded-full whitespace-nowrap shadow-sm transition-colors',
+                                'inline-flex items-center justify-center px-2.5 py-[3px] text-xs rounded-full whitespace-nowrap shadow-sm transition-colors',
                                 customMoodLabel[msg.id] || activityMood[msg.id]
                                     ? 'text-slate-700'
                                     : 'bg-gray-50 text-gray-400 border border-gray-200'
@@ -191,12 +191,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     {msg.duration == null && (
                         <button
                             onClick={() => onEndActivity(msg.id)}
-                            className="text-[9px] text-gray-500 border border-gray-200 rounded-full px-2 py-0.5 hover:bg-gray-50"
+                            className="text-xs text-gray-500 border border-gray-200 rounded-full px-2 py-0.5 hover:bg-gray-50"
                         >
                             {t('chat_end_activity')}
                         </button>
                     )}
-                    <div className="text-[10px] text-gray-500 whitespace-nowrap relative group/time cursor-pointer flex flex-col items-end">
+                    <div className="text-xs text-gray-500 whitespace-nowrap relative group/time cursor-pointer flex flex-col items-end">
                         <div>
                             {format(msg.timestamp, 'HH:mm')} - {msg.duration != null
                                 ? `${format(msg.timestamp + msg.duration * 60 * 1000, 'HH:mm')}`
@@ -205,7 +205,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                         {msg.duration != null && (
                             <div className="mt-1">
                                 <div
-                                    className="inline-flex items-center justify-center rounded-full border border-sky-300 text-sky-700 bg-white/80 text-[9px] font-semibold shadow-sm px-2 py-0.5 text-center"
+                                    className="inline-flex items-center justify-center rounded-full border border-sky-300 text-sky-700 bg-white/80 text-xs font-semibold shadow-sm px-2 py-0.5 text-center"
                                     style={{ minWidth: '11em' }}
                                 >
                                     {t('chat_duration_logged', { minutes: msg.duration })}

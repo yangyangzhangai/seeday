@@ -127,19 +127,19 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
           )}
         </div>
 
-        <p className="w-full truncate text-center text-[11px] font-medium text-gray-700">
+        <p className="w-full truncate text-center text-xs font-medium text-gray-700">
           {bottle.name}
         </p>
-        <p className="mt-0.5 text-[9px] text-gray-400">
+        <p className="mt-0.5 text-xs text-gray-400">
           {t('growth_bottle_stars', { stars: bottle.stars })}
         </p>
         {bottle.type === 'goal' && bottle.round > 1 && (
-          <span className="mt-0.5 text-[9px] text-blue-500">
+          <span className="mt-0.5 text-xs text-blue-500">
             {t('growth_bottle_round', { round: bottle.round })}
           </span>
         )}
         {isAchieved && (
-          <span className="mt-1 rounded-full bg-yellow-400 px-2 py-0.5 text-[9px] font-medium text-white">
+          <span className="mt-1 rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-medium text-white">
             {t('growth_bottle_achieved')}
           </span>
         )}

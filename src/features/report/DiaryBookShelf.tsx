@@ -124,8 +124,8 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
                   if (e.key === 'Enter') inputRef.current?.blur();
                 }}
                 maxLength={10}
+                className="text-xs"
                 style={{
-                  fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: 1.5,
                   color: '#6b5a3e',
@@ -142,7 +142,8 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
             ) : (
               <span
                 onClick={e => { e.stopPropagation(); onStartEdit(); }}
-                style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: '#6b5a3e', cursor: 'text' }}
+                className="text-xs font-bold"
+                style={{ letterSpacing: 2, color: '#6b5a3e', cursor: 'text' }}
               >
                 {bookName}
               </span>
@@ -156,9 +157,8 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
         </div>
 
         {/* Month label */}
-        <span style={{
+        <span className="text-xs" style={{
           paddingLeft: 2,
-          fontSize: 11,
           letterSpacing: 0.4,
           color: lifted ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)',
           fontWeight: lifted ? 600 : 400,
@@ -280,10 +280,10 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       }}>
         <div style={{ width: 32, height: 32 }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: 16, letterSpacing: 1 }}>
+          <div className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1 }}>
             {t('report_my_diary')}
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4 }}>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
             {months.length} 本
           </div>
         </div>
@@ -295,7 +295,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
             color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer',
           }}
         >
-          <X size={20} />
+          <X size={24} strokeWidth={1.5} />
         </button>
       </div>
 

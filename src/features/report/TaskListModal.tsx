@@ -38,7 +38,7 @@ export const TaskListModal: React.FC<TaskListModalProps> = ({
             {showTaskList === 'completed' ? t('report_completed_tasks') : t('report_all_tasks')}
           </h2>
           <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
-            <X size={24} />
+            <X size={24} strokeWidth={1.5} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
@@ -48,7 +48,7 @@ export const TaskListModal: React.FC<TaskListModalProps> = ({
             displayTodos.map((todo) => (
               <div key={todo.id} className="flex items-center p-3 bg-white/85 rounded-xl border border-white/70">
                 <div className={cn('mr-3', todo.completed ? 'text-green-500' : 'text-gray-300')}>
-                  {todo.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
+                  {todo.completed ? <CheckCircle size={16} strokeWidth={1.5} /> : <Circle size={16} strokeWidth={1.5} />}
                 </div>
                 <div className="flex-1">
                   <div className={cn('text-sm font-medium', todo.completed && 'line-through text-gray-400')}>

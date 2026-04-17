@@ -124,11 +124,11 @@ export const EventCard: React.FC<EventCardProps> = ({
     <div
       ref={cardRef}
       data-message-id={message.id}
+      className="rounded-2xl"
       style={{
         background: '#F7F9F8',
         backdropFilter: 'blur(20px) saturate(140%)',
         WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-        borderRadius: '2rem',
         border: 'none',
         boxShadow: 'none',
         position: 'relative',
@@ -183,7 +183,8 @@ export const EventCard: React.FC<EventCardProps> = ({
           {hasMoodChip ? (
             <button
               onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-              style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 9999,
+              className="text-xs"
+              style={{ fontWeight: 700, padding: '3px 8px', borderRadius: 9999,
                 background: moodTagBg, color: moodTagColor, border: `1px solid ${moodTagColor}30`,
                 cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
                 backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
@@ -237,7 +238,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             const moodStardust = stardustMemories.find(mem => mem.messageId === desc.id);
             return (
               <div key={desc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 3px', lineHeight: 1.45, fontStyle: 'italic', flex: 1 }}>
+                <p className="text-xs" style={{ color: '#64748b', margin: '0 0 3px', lineHeight: 1.45, fontStyle: 'italic', flex: 1 }}>
                   {desc.content}
                 </p>
                 {moodStardust?.emojiChar && onStardustSelect && (
@@ -269,7 +270,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       {/* ── Timer row ── */}
       {(isOngoing || message.duration != null) && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700,
+          <div className="text-xs" style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700,
             color: isOngoing ? '#B2EEDA' : 'rgba(71,85,105,0.65)' }}>
             <span className="material-symbols-outlined" style={{ fontSize: 13 }}>timer</span>
             <span>
@@ -287,7 +288,8 @@ export const EventCard: React.FC<EventCardProps> = ({
           {isOngoing && !readonly && (
             <button onClick={e => { e.stopPropagation(); playSound('ding'); onEndActivity(message.id); }}
               title={t('end_event_btn')}
-              style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 9999,
+              className="text-xs"
+              style={{ fontWeight: 800, padding: '3px 9px', borderRadius: 9999,
                 border: '1px solid rgba(244,192,194,0.3)', background: 'rgba(244,192,194,0.10)',
                 color: '#F4C0C2', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>stop_circle</span>

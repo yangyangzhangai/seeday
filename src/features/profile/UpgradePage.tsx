@@ -80,16 +80,16 @@ export const UpgradePage: React.FC = () => {
         >
           <div className="flex items-center gap-2">
             <button onClick={() => navigate(-1)} className="rounded-full p-1.5 active:opacity-70" aria-label={t('upgrade_back')}>
-              <ChevronLeft size={18} />
+              <ChevronLeft size={24} strokeWidth={1.5} />
             </button>
-            <h1 className="text-xl font-extrabold text-[#1e293b]" style={{ letterSpacing: '-0.02em' }}>
+            <h1 className="text-2xl font-extrabold text-[#1e293b]" style={{ letterSpacing: '-0.02em' }}>
               {t('upgrade_title')}
             </h1>
           </div>
         </header>
 
         <div className="space-y-4 px-4 py-4 pb-28">
-          <section className="rounded-3xl border border-white/70 bg-white/70 p-4 shadow-sm">
+          <section className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#64748b]">{t('upgrade_plan_label')}</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {(['monthly', 'annual'] as PaymentPlanType[]).map((plan) => {
@@ -98,7 +98,7 @@ export const UpgradePage: React.FC = () => {
                   <button
                     key={plan}
                     onClick={() => setSelectedPlan(plan)}
-                    className="rounded-2xl border px-3 py-3 text-left transition active:scale-[0.98]"
+                    className="rounded-xl border px-3 py-3 text-left transition active:scale-[0.98]"
                     style={{
                       borderColor: active ? '#5a67d8' : 'rgba(148, 163, 184, 0.35)',
                       background: active ? 'linear-gradient(145deg, rgba(90,103,216,0.12), rgba(14,165,233,0.12))' : 'rgba(255,255,255,0.7)',
@@ -109,9 +109,9 @@ export const UpgradePage: React.FC = () => {
                       {plan === 'monthly' ? t('upgrade_price_monthly') : t('upgrade_price_annual')}
                     </p>
                     {plan === 'monthly' ? (
-                      <p className="mt-1 text-[11px] text-[#64748b]">{t('upgrade_price_monthly_note')}</p>
+                      <p className="mt-1 text-xs text-[#64748b]">{t('upgrade_price_monthly_note')}</p>
                     ) : (
-                      <p className="mt-1 text-[11px] text-[#64748b]">{t('upgrade_price_annual_note')}</p>
+                      <p className="mt-1 text-xs text-[#64748b]">{t('upgrade_price_annual_note')}</p>
                     )}
                   </button>
                 );
@@ -119,24 +119,24 @@ export const UpgradePage: React.FC = () => {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-sm">
+          <section className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#64748b]">{t('upgrade_feature_label')}</p>
             <div className="mt-3 space-y-2">
               {MEMBERSHIP_FEATURES.map((feature) => (
                 <div key={feature.labelKey} className="flex items-center gap-2 text-sm text-[#334155]">
-                  <Check size={14} className="text-[#4f46e5]" />
+                  <Check size={16} strokeWidth={1.5} className="text-[#4f46e5]" />
                   <span>{t(feature.labelKey)}</span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/70 bg-white/70 p-4 shadow-sm">
+          <section className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm">
             <p className="text-xs text-[#64748b]">{t('upgrade_payment_source', { source: paymentSource.toUpperCase() })}</p>
             <button
               onClick={handlePurchase}
               disabled={loadingAction !== null}
-              className="mt-3 w-full rounded-2xl bg-[#4f46e5] px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 active:scale-[0.99]"
+              className="mt-3 w-full rounded-xl min-h-[44px] bg-[#4f46e5] px-4 py-3 text-sm font-bold text-white transition disabled:opacity-50 active:scale-[0.99]"
             >
               {loadingAction === 'purchase'
                 ? t('upgrade_processing')
@@ -147,9 +147,9 @@ export const UpgradePage: React.FC = () => {
               <button
                 onClick={handleRestore}
                 disabled={loadingAction !== null}
-                className="mt-2 flex w-full items-center justify-center gap-1 rounded-2xl border border-[#cbd5e1] bg-white px-4 py-2.5 text-xs font-semibold text-[#475569] transition disabled:opacity-50 active:scale-[0.99]"
+                className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl min-h-[44px] border border-[#cbd5e1] bg-white px-4 py-2.5 text-xs font-semibold text-[#475569] transition disabled:opacity-50 active:scale-[0.99]"
               >
-                <RefreshCw size={14} />
+                <RefreshCw size={16} strokeWidth={1.5} />
                 {loadingAction === 'restore' ? t('upgrade_processing') : t('upgrade_restore_button')}
               </button>
             ) : null}

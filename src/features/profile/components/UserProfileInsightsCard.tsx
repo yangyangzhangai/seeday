@@ -21,10 +21,10 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
   const latestRecall = snapshot.hiddenRecallMoments?.[0];
 
   return (
-    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-[1.5rem] border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <div className="px-4 py-3">
         <div className="flex items-start gap-2.5">
-          <BookHeart size={16} className="mt-0.5 text-[#5F7A63]" />
+          <BookHeart size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
             <p className="text-xs text-slate-700">{t('profile_snapshot_title')}</p>
             <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
@@ -35,10 +35,10 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
 
         <div className="mt-3 space-y-2.5 border-t border-slate-200/60 pt-2.5">
           <div className="flex items-start gap-2">
-            <CalendarClock size={13} className="mt-0.5 text-slate-500" />
+            <CalendarClock size={16} strokeWidth={1.5} className="mt-0.5 text-slate-500" />
             <div>
-              <p className="text-[11px] text-slate-600">{t('profile_snapshot_anniversary_title')}</p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-600">{t('profile_snapshot_anniversary_title')}</p>
+              <p className="text-xs text-slate-500">
                 {anniversaries.length > 0
                   ? anniversaries.map((item) => `${item.label} (${item.daysUntil}d)`).join(' | ')
                   : t('profile_snapshot_empty')}
@@ -47,8 +47,8 @@ export const UserProfileInsightsCard: React.FC<Props> = ({ plain = false }) => {
           </div>
 
           <div>
-            <p className="text-[11px] text-slate-600">{t('profile_snapshot_recall_title')}</p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-600">{t('profile_snapshot_recall_title')}</p>
+            <p className="text-xs text-slate-500">
               {latestRecall ? `${latestRecall.title} (${latestRecall.date})` : t('profile_snapshot_empty')}
             </p>
           </div>

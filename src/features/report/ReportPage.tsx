@@ -356,7 +356,7 @@ export const ReportPage = () => {
         }}
       >
         <div className="grid grid-cols-[1fr_auto] items-start gap-x-3">
-          <h1 className="text-xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
+          <h1 className="text-2xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
           <div ref={plantActionsRef} className="relative mt-[1px] flex flex-col items-end gap-1.5 flex-shrink-0">
             <button
               onClick={handleOpenDiaryBook}
@@ -413,7 +413,7 @@ export const ReportPage = () => {
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-semibold text-slate-700">{t('report_calendar_view')}</span>
               <button onClick={() => setShowCalendarModal(false)} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
-                <X size={18} />
+                <X size={24} strokeWidth={1.5} />
               </button>
             </div>
             <div className="calendar-wrapper flex justify-center">

@@ -285,17 +285,17 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
             </span>
           )}
           {dueBadge ? (
-            <span className={cn("inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-none mt-0.5", dueBadge.className)}>
+            <span className={cn("inline-block text-xs px-1.5 py-0.5 rounded-full font-medium leading-none mt-0.5", dueBadge.className)}>
               {dueBadge.label}
             </span>
           ) : dueStr ? (
-            <span className="text-[10px] text-gray-400">{dueStr}</span>
+            <span className="text-xs text-gray-400">{dueStr}</span>
           ) : null}
         </div>
 
         {/* Priority badge */}
         <span
-          className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}
+          className={cn("text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}
           onClick={(e) => e.stopPropagation()}
         >
           {t(`growth_todo_priority_${normalizedPriority}`)}
@@ -314,7 +314,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
                 className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
                 title={t('growth_todo_start')}
               >
-                <Play size={16} />
+                <Play size={16} strokeWidth={1.5} />
               </button>
             )}
             <button
@@ -325,7 +325,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
               }}
               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
             >
-              <AlarmClock size={16} />
+              <AlarmClock size={16} strokeWidth={1.5} />
             </button>
           </>
         )}
