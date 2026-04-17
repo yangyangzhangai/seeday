@@ -58,7 +58,7 @@ const ROOT_TYPE_DESC: Record<RootType, Record<Lang, string>> = {
   },
 };
 
-const FALLBACK_TEXT: Record<Lang, string> = {
+export const FREE_FALLBACK_TEXT: Record<Lang, string> = {
   zh: '今天的植物悄悄记录了你的每一步，根在土里稳稳延伸。',
   en: 'Your plant quietly noted each step today. Roots held steady beneath the surface.',
   it: 'La tua pianta ha custodito ogni passo di oggi. Le radici hanno tenuto saldo il terreno.',
@@ -279,7 +279,7 @@ export async function generatePlantDiaryWithFallback(
   }
 
   return {
-    diaryText: FALLBACK_TEXT[lang] ?? FALLBACK_TEXT.zh,
+    diaryText: FREE_FALLBACK_TEXT[lang] ?? FREE_FALLBACK_TEXT.zh,
     chosenPlantId: fallbackPlantId,
     diaryStatus: 'fallback',
   };

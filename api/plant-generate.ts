@@ -12,7 +12,7 @@ import { mapSourcesToPlantActivities } from '../src/lib/plantActivityMapper.js';
 import { getAvailablePlants, extractStageFromPlantId } from '../src/lib/plantRegistry.js';
 import type { PlantGenerateRequest, PlantGenerateResponse, RootType } from '../src/types/plant.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
-import { generatePlantDiaryWithFallback } from '../src/server/plant-diary-service.js';
+import { generatePlantDiaryWithFallback, FREE_FALLBACK_TEXT } from '../src/server/plant-diary-service.js';
 import {
   getDateInTimezone,
   isTooEarlyToGenerate,
@@ -165,24 +165,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const diary = await generatePlantDiaryWithFallback({
-    date,
-    activities: activities.map(item => ({
-      category: item.categoryKey,
-      duration: item.minutes,
-      focus: item.focus,
-    })),
-    totalDuration: metrics.totalMinutes,
-    rootType,
-    // plantStage is passed as context hint; actual stage is derived from AI's plantId choice
-    plantStage: 'early',
-    isSpecial: isAirDay || isEntertainmentDay,
-    isSupportVariant,
-    availablePlants: monthlyCandidates,
-    lang: body.lang,
-    aiMode: auth.user.user_metadata?.ai_mode,
-    userName: auth.user.user_metadata?.full_name,
-  });
+  // Free users skip AI — pick first candidate + static template text
+  const userMeta = auth.user.user_metadata ?? {};
+  const appMeta = (auth.user as { app_metadata?: Record<string, unknown> }).app_metadata ?? {};
+  const isPlus = ['plus', 'premium', true].includes(
+    appMeta.membership_plan ?? appMeta.membership_tier ?? appMeta.is_plus ??
+    userMeta.membership_plan ?? userMeta.membership_tier ?? userMeta.is_plus ?? false
+  );
+
+  const resolvedLang = (body.lang === 'zh' || body.lang === 'it') ? body.lang : 'en';
+  const diary = isPlus
+    ? await generatePlantDiaryWithFallback({
+        date,
+        activities: activities.map(item => ({
+          category: item.categoryKey,
+          duration: item.minutes,
+          focus: item.focus,
+        })),
+        totalDuration: metrics.totalMinutes,
+        rootType,
+        plantStage: 'early',
+        isSpecial: isAirDay || isEntertainmentDay,
+        isSupportVariant,
+        availablePlants: monthlyCandidates,
+        lang: body.lang,
+        aiMode: auth.user.user_metadata?.ai_mode,
+        userName: auth.user.user_metadata?.full_name,
+      })
+    : {
+        diaryText: FREE_FALLBACK_TEXT[resolvedLang],
+        chosenPlantId: monthlyCandidates[Math.floor(Math.random() * monthlyCandidates.length)]?.id
+          ?? monthlyCandidates[0]?.id ?? 'sha_early_0001',
+        diaryStatus: 'fallback' as const,
+      };
 
   // AI 返回的 plantId 包含了 stage 信息（如 fib_late_0001）
   const plantId = diary.chosenPlantId;

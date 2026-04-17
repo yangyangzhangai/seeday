@@ -15,6 +15,7 @@ import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } 
 import { computeActivityDistribution } from './reportPageHelpers';
 import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
+import { usePlantStore } from '../../store/usePlantStore';
 import { PlantImage } from './plant/PlantImage';
 
 const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
@@ -562,6 +563,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const globalMessages = useChatStore(state => state.messages);
   const dateCache = useChatStore(state => state.dateCache);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
+  const todayPlant = usePlantStore(state => state.todayPlant);
   const [plantRecords, setPlantRecords] = useState<DailyPlantRecord[]>([]);
 
   useEffect(() => {
@@ -575,6 +577,19 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
       .then(res => { if (res.success) setPlantRecords(res.records); })
       .catch(() => {});
   }, [currentMonth]);
+
+  // Keep today's plant in sync if it changes after the initial fetch (e.g. user just generated)
+  useEffect(() => {
+    if (!todayPlant) return;
+    setPlantRecords(prev => {
+      const idx = prev.findIndex(r => r.date === todayPlant.date);
+      if (idx === -1) return [...prev, todayPlant];
+      if (prev[idx].plant_id === todayPlant.plant_id) return prev;
+      const next = [...prev];
+      next[idx] = todayPlant;
+      return next;
+    });
+  }, [todayPlant]);
 
   // Use cached month messages if available, otherwise fall back to global messages
   const monthStartStr = (() => {

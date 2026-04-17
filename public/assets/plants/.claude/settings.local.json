@@ -27,7 +27,8 @@
       "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(11\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Tshine2-13-mainc\\\\Tshine2-13-mainc\\\\public\\\\assets\\\\plants\\\\bra_late_0005.png\")",
       "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(15\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Tshine2-13-mainc\\\\Tshine2-13-mainc\\\\public\\\\assets\\\\plants\\\\sha_early_0002.png\")",
       "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(16\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Tshine2-13-mainc\\\\Tshine2-13-mainc\\\\public\\\\assets\\\\plants\\\\sha_late_0002.png\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx tsc *)"
     ]
   }
 }

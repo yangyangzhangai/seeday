@@ -116,12 +116,6 @@ export const ReportPage = () => {
   };
 
   const handleGenerateDiary = async () => {
-    // Free users: show upgrade modal instead
-    if (!isPlus) {
-      setShowUpgrade(true);
-      return;
-    }
-
     const now = new Date();
     if (now.getHours() < 20) {
       setShowEarlyTip(true);
@@ -146,11 +140,13 @@ export const ReportPage = () => {
 
     setSelectedReportId(reportId);
 
-    // PLUS: auto-trigger AI diary generation if not already done
+    // Auto-trigger diary generation (full AI for plus, teaser for free)
     const report = useReportStore.getState().reports.find(r => r.id === reportId);
-    if (report && (report.analysisStatus === 'idle' || (!report.analysisStatus && !report.aiAnalysis))) {
-      generateAIDiary(reportId);
-    }
+    const needsGeneration = report && (
+      report.analysisStatus === 'idle' ||
+      (!report.analysisStatus && !report.aiAnalysis && !report.teaserText)
+    );
+    if (needsGeneration) generateAIDiary(reportId);
   };
 
   const plantIsTooEarly = new Date().getHours() < 20;
