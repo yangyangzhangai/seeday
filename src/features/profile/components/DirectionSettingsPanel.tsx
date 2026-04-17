@@ -89,7 +89,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
 
   return (
     <div className="px-4 pb-3 pt-1">
-      <p className="text-xs text-slate-500">{t('profile_root_direction_settings_desc')}</p>
+      <p className="text-[10px] font-light text-slate-500">{t('profile_root_direction_settings_desc')}</p>
 
       <div className="mt-2 space-y-1.5">
         {SLOTS.map(slot => {

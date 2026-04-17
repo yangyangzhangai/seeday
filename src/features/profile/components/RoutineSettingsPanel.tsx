@@ -78,6 +78,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [breakfastTime, lunchTime, dinnerTime]);
 
   const hasUnsavedChanges = currentSignature !== baselineSignature;
+  const timeInputClass =
+    'h-7 w-full rounded-md border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none cursor-pointer';
+
+  const handleTimePickerOpen = (event: React.MouseEvent<HTMLInputElement>) => {
+    const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+    input.showPicker?.();
+  };
 
   const handleSave = async () => {
     if (!hasUnsavedChanges) {
@@ -107,8 +114,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
         <div className="flex items-start gap-2.5 text-left">
           <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
-            <p className="text-xs text-slate-700">{t('profile_routine_title')}</p>
-            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_routine_desc')}</p>
+            <p className="profile-fn-title">{t('profile_routine_title')}</p>
+            <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_routine_desc')}</p>
           </div>
         </div>
         {expanded ? <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" /> : <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />}
@@ -124,7 +131,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   type="time"
                   value={wakeTime}
                   onChange={(event) => setWakeTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+                  onClick={handleTimePickerOpen}
+                  onFocus={(event) => event.currentTarget.showPicker?.()}
+                  inputMode="none"
+                  step={60}
+                  className={timeInputClass}
                 />
               </label>
               <label className="block">
@@ -133,7 +144,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   type="time"
                   value={sleepTime}
                   onChange={(event) => setSleepTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+                  onClick={handleTimePickerOpen}
+                  onFocus={(event) => event.currentTarget.showPicker?.()}
+                  inputMode="none"
+                  step={60}
+                  className={timeInputClass}
                 />
               </label>
             </div>
@@ -145,7 +160,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   type="time"
                   value={breakfastTime}
                   onChange={(event) => setBreakfastTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                  onClick={handleTimePickerOpen}
+                  onFocus={(event) => event.currentTarget.showPicker?.()}
+                  inputMode="none"
+                  step={60}
+                  className={timeInputClass}
                 />
               </label>
               <label className="block">
@@ -154,7 +173,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   type="time"
                   value={lunchTime}
                   onChange={(event) => setLunchTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                  onClick={handleTimePickerOpen}
+                  onFocus={(event) => event.currentTarget.showPicker?.()}
+                  inputMode="none"
+                  step={60}
+                  className={timeInputClass}
                 />
               </label>
               <label className="block">
@@ -163,7 +186,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   type="time"
                   value={dinnerTime}
                   onChange={(event) => setDinnerTime(event.target.value)}
-                  className="min-h-9 w-full rounded-lg border border-[#CBE7D7] bg-white/85 px-2 text-xs text-slate-700 outline-none"
+                  onClick={handleTimePickerOpen}
+                  onFocus={(event) => event.currentTarget.showPicker?.()}
+                  inputMode="none"
+                  step={60}
+                  className={timeInputClass}
                 />
               </label>
             </div>
