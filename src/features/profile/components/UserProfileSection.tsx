@@ -1,20 +1,31 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Sparkles } from 'lucide-react';
 import { UserProfilePanel } from './UserProfilePanel';
 
 interface Props {
   plain?: boolean;
+  locked?: boolean;
 }
 
-export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
+export const UserProfileSection: React.FC<Props> = ({ plain = false, locked = false }) => {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = React.useState(true);
+  const [expanded, setExpanded] = React.useState(!locked);
+
+  React.useEffect(() => {
+    if (locked) {
+      setExpanded(false);
+    }
+  }, [locked]);
 
   return (
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <button
-        onClick={() => setExpanded((prev) => !prev)}
+        onClick={() => {
+          if (locked) return;
+          setExpanded((prev) => !prev);
+        }}
+        disabled={locked}
         className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
       >
         <div className="flex items-start gap-2.5 text-left">
@@ -24,7 +35,13 @@ export const UserProfileSection: React.FC<Props> = ({ plain = false }) => {
             <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
           </div>
         </div>
-        {expanded ? <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" /> : <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />}
+        {locked ? (
+          <Lock size={10} strokeWidth={1.5} className="text-gray-400" />
+        ) : expanded ? (
+          <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" />
+        ) : (
+          <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />
+        )}
       </button>
 
       {expanded ? (

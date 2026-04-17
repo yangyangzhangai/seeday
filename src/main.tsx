@@ -29,6 +29,24 @@ if (typeof document !== "undefined") {
 void setupMobileAuthBridge();
 void setupKeyboardViewportFix();
 
+if (typeof document !== "undefined") {
+  const preventDefault = (event: Event) => {
+    event.preventDefault();
+  };
+
+  const blockedEvents: Array<keyof DocumentEventMap> = [
+    "copy",
+    "cut",
+    "contextmenu",
+    "selectstart",
+    "dragstart",
+  ];
+
+  blockedEvents.forEach((eventName) => {
+    document.addEventListener(eventName, preventDefault, { capture: true });
+  });
+}
+
 import { preloadSounds } from './services/sound/soundService';
 preloadSounds();
 

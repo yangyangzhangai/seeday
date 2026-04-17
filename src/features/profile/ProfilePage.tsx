@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Crown, Languages, Sparkles } from 'lucide-react';
+import { Languages } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
@@ -70,24 +70,8 @@ export const ProfilePage: React.FC = () => {
               </div>
             ) : null}
             {!isPlus ? (
-              <div className="px-4 py-3">
-                <div className="rounded-xl border border-[#E9D9A2] bg-[#FFF8E3] p-3">
-                  <div className="flex items-start gap-2.5">
-                    <Sparkles size={16} strokeWidth={1.5} className="mt-0.5 text-[#856404]" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-[#7A5D00]">{t('profile_ai_memory_locked_title')}</p>
-                      <p className="mt-0.5 text-[10px] leading-tight text-[#8A6D00]">{t('profile_ai_memory_locked_desc')}</p>
-                    </div>
-                    <Crown size={14} strokeWidth={1.5} className="text-[#A57D00]" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/upgrade')}
-                    className="mt-2 min-h-9 rounded-lg border border-[#E9D9A2] bg-white/80 px-3 text-xs font-semibold text-[#7A5D00]"
-                  >
-                    {t('profile_upgrade')}
-                  </button>
-                </div>
+              <div>
+                <UserProfileSection plain locked />
               </div>
             ) : null}
             {!isPlus ? (

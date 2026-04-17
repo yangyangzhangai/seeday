@@ -32,13 +32,13 @@ export const MagicPenUpgradeModal: React.FC<MagicPenUpgradeModalProps> = ({ isOp
 
   return (
     <div
-      className={cn('fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center sm:p-6', APP_MODAL_OVERLAY_CLASS)}
+      className={cn('fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in', APP_MODAL_OVERLAY_CLASS)}
       onClick={onClose}
     >
       <div
         className={cn(
           APP_MODAL_CARD_CLASS,
-          'relative w-full max-w-sm rounded-t-3xl px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-6 sm:rounded-3xl sm:pb-4 animate-in fade-in slide-in-from-bottom-10 sm:zoom-in-95',
+          'relative w-full max-w-xs rounded-3xl overflow-hidden animate-in zoom-in-95',
         )}
         onClick={(event) => event.stopPropagation()}
       >
@@ -52,7 +52,7 @@ export const MagicPenUpgradeModal: React.FC<MagicPenUpgradeModalProps> = ({ isOp
           <X size={16} strokeWidth={1.5} />
         </button>
 
-        <div className="mb-4 flex flex-col items-center text-center">
+        <div className="flex flex-col items-center px-5 pb-4 pt-6 text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[#E6EBD8] bg-[#EEF4E8]">
             <Crown size={24} strokeWidth={1.5} className="text-[#5F7A63]" />
           </div>
@@ -60,7 +60,7 @@ export const MagicPenUpgradeModal: React.FC<MagicPenUpgradeModalProps> = ({ isOp
           <p className="text-xs leading-relaxed text-slate-500">{t('chat_magic_pen_upgrade_desc')}</p>
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 px-5 py-4">
           <button
             type="button"
             onClick={handleUpgrade}

@@ -4,6 +4,26 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-17 - Fix: 全端禁止网页复制文字与图片
+
+### Changed
+
+- `src/index.css`
+  - 在 `html/body/#root` 全局增加 `user-select: none`、`-webkit-user-select: none`、`-webkit-touch-callout: none`，禁用桌面与移动端文本选中/长按复制。
+  - 为 `img` 增加 `-webkit-user-drag: none` 与 `user-select: none`，阻断图片拖拽复制。
+- `src/main.tsx`
+  - 新增文档级事件拦截：统一阻止 `copy`、`cut`、`contextmenu`、`selectstart`、`dragstart`，覆盖鼠标右键、快捷键复制、长按菜单与拖拽复制入口。
+
+## 2026-04-17 - Fix: 魔法笔会员弹窗居中与圆角样式修正
+
+### Changed
+
+- `src/features/chat/MagicPenUpgradeModal.tsx`
+  - 弹窗容器从移动端 `items-end` 改为全端 `items-center`，统一屏幕居中。
+  - 卡片样式从 `rounded-t-3xl` 改为完整 `rounded-3xl`，补齐底部圆角。
+  - 去除底部 safe-area 额外 padding，弹窗高度与项目常规居中弹窗一致。
+  - 卡片尺寸与分区对齐项目其他升级弹窗：宽度改为 `max-w-xs`，内容区/按钮区间距同步为 `px-5 pt-6 pb-4` + `px-5 py-4`。
+
 ## 2026-04-17 - Fix: 魔法笔会员引导弹窗统一样式并修复关闭误跳转
 
 ### Changed
@@ -32,6 +52,7 @@ All notable changes to this repository are documented here.
 - `src/features/chat/components/EventCard.tsx` + `src/features/chat/components/MoodCard.tsx`
   - 删除 `X` 按钮显示逻辑改为与相机上传入口一致：仅在用户点击激活消息卡片后显示。
   - 点击卡片外区域时随 `cardActive` 关闭而隐藏，避免时间线默认常显删除入口。
+  - 移动端补齐 `touchstart/pointerdown` 外部点击监听，并增加卡片激活互斥（同一时刻仅一个卡片保持激活），避免多个卡片操作区同时常驻。
 
 ## 2026-04-17 - Feat: 作息独立为普通功能 + AI 专属记忆升级为 Plus 权益
 
@@ -43,6 +64,9 @@ All notable changes to this repository are documented here.
   - `UserProfilePanel` 从“作息+记忆”调整为仅编辑 AI 专属记忆文本（`manual.freeText`）。
   - Profile 页面接入 `RoutineSettingsPanel`，并将 AI 专属记忆区域改为 Plus 门控（Free 显示升级引导，Plus 可用开关与编辑区）。
   - helper 拆分为 `buildRoutineManualPayload` / `buildAIMemoryManualPayload`，避免字段互相覆盖。
+- `src/features/profile/components/UserProfileSection.tsx` + `src/features/profile/ProfilePage.tsx`
+  - Free 端 AI 专属记忆 UI 改为恢复原模块形态：与会员界面同样的卡片样式，但标题行右侧显示统一小锁且禁用展开。
+  - Plus 端保持原有可展开编辑交互，不改变既有布局与文案结构。
 - `src/store/useAnnotationStore.ts` + `src/store/reportActions.ts`
   - 画像注入与周报触发画像提取统一升级为双门控：`isPlus && longTermProfileEnabled`。
 - `src/features/profile/components/MembershipCard.tsx` + `src/i18n/locales/{zh,en,it}.ts`

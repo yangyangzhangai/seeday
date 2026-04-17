@@ -15,6 +15,8 @@ import { useStardustStore } from '../../../store/useStardustStore';
 import { autoDetectMood } from '../../../lib/mood';
 import type { StardustCardData } from '../../../types/stardust';
 
+const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
+
 export interface EventCardProps {
   message: Message;
   moodDescriptions: MoodDescription[];
@@ -47,14 +49,33 @@ export const EventCard: React.FC<EventCardProps> = ({
   // Dismiss delete button when clicking outside the card
   useEffect(() => {
     if (!cardActive) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent | PointerEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setCardActive(false);
       }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('pointerdown', handler);
+    };
   }, [cardActive]);
+
+  useEffect(() => {
+    const handleOtherCardActivated = (event: Event) => {
+      const detail = (event as CustomEvent<{ messageId?: string }>).detail;
+      if (detail?.messageId !== message.id) {
+        setCardActive(false);
+      }
+    };
+    window.addEventListener(CHAT_CARD_ACTIVE_EVENT, handleOtherCardActivated as EventListener);
+    return () => {
+      window.removeEventListener(CHAT_CARD_ACTIVE_EVENT, handleOtherCardActivated as EventListener);
+    };
+  }, [message.id]);
 
   const rawLabel = (customMoodApplied[message.id] && customMoodLabel[message.id])
     ? customMoodLabel[message.id]
@@ -135,7 +156,11 @@ export const EventCard: React.FC<EventCardProps> = ({
         overflow: 'hidden',
         padding: '10px 13px 9px',
       }}
-      onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
+      onClick={() => {
+        if (readonly || cardActive) return;
+        window.dispatchEvent(new CustomEvent(CHAT_CARD_ACTIVE_EVENT, { detail: { messageId: message.id } }));
+        setCardActive(true);
+      }}
     >
       {/* ── Header row: title + mood tag + delete ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',

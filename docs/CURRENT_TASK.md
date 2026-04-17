@@ -7,8 +7,11 @@ Owner: current working session
 
 ## 会话更新（2026-04-17）
 
+- [x] 全端防复制收口：在 `src/index.css` 全局禁用文本选中与图片拖拽（`user-select: none` / `-webkit-touch-callout: none` / `-webkit-user-drag: none`），并在 `src/main.tsx` 拦截 `copy/cut/contextmenu/selectstart/dragstart` 事件，统一覆盖网页端在电脑/手机/平板的复制与长按复制入口。
 - [x] 聊天时间线消息卡片交互收口：活动卡与心情卡删除 `X` 改为仅在点击激活卡片后显示，未激活时隐藏；行为与相机上传按钮保持一致。
+- [x] 聊天时间线卡片激活态移动端修复：卡片外关闭监听补齐 `touchstart/pointerdown`，并新增“激活互斥”广播，避免移动端滚动/点按后多个卡片长期同时显示操作按钮。
 - [x] Profile「作息/AI专属记忆」能力拆分：新增独立作息编辑面板（起床/睡觉/三餐）并保持 Free 可用；AI 专属记忆改为 Plus 功能，Free 侧显示会员升级引导。
+- [x] Profile AI 专属记忆 UI 回调：Free 端改为与原版一致的“专属记忆模块”外观，使用统一小锁样式（不可展开）；Plus 保持原可展开编辑体验。
 - [x] AI 专属记忆会员门控收口：`useAnnotationStore` 与周报画像提取链路改为 `isPlus && longTermProfileEnabled` 双门控，避免 Free 继续注入/提取长期画像。
 - [x] 会员权益与规格文档同步：`MembershipCard/UpgradePage` 权益列表新增“AI 专属记忆”，并在 `docs/MEMBERSHIP_SPEC.md` 明确“作息 Free、AI 专属记忆 Plus”。
 - [x] 新增会员项目现状文档：`docs/MEMBERSHIP_PROJECT_STATUS.md`，沉淀“规格 vs 当前实现”对照、支付链路状态、Free/Plus 手测清单与已知差异，便于新同学快速接手。
@@ -20,6 +23,8 @@ Owner: current working session
 - [x] 删除独立 serverless 入口 `api/user-analytics.ts`，将函数总数压回 Hobby 上限以内。
 - [x] Growth 待办标题编辑交互收口：仅在待办卡片处于展开态时允许双击标题进入编辑；未展开态双击不再触发标题编辑。
 - [x] 聊天魔法笔会员门控弹窗收口：Free 点击魔法笔改为弹出统一风格会员引导弹窗；右上角关闭/稍后按钮只关闭弹窗不跳转，明确由“去开通 Plus”按钮触发 `/upgrade`。
+- [x] 聊天魔法笔会员弹窗样式微调：移动端从底部 sheet 改为屏幕居中展示，卡片下边角补齐圆角（统一 `rounded-3xl`），避免“底部无圆角/未居中”。
+- [x] 聊天魔法笔会员弹窗尺寸对齐：卡片宽度改为 `max-w-xs`，并按现有升级弹窗分区（标题区 `px-5 pt-6 pb-4` + 按钮区 `px-5 py-4`）统一视觉密度与高度。
 
 ---
 
