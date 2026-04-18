@@ -8,8 +8,8 @@ const IAP_PLANS: PaymentPlan[] = [
 ];
 
 const IAP_PRODUCT_IDS: Record<PaymentPlanType, string> = {
-  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'com.tshine.app.plus.monthly',
-  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'com.tshine.app.plus.annual',
+  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'com.plantime.app.plus.monthly',
+  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'com.plantime.app.plus.annual',
 };
 
 interface IapTransactionLike {
