@@ -5,6 +5,7 @@
     }
   },
   "rewrites": [
+    { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
