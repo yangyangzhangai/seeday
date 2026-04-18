@@ -161,7 +161,11 @@ export const ReportPage = () => {
       setPlantStatusHint((prev) => (
         prev
           ? null
-          : (currentLang === 'zh' ? '根系生长中，可在20:00后生成植物和日记' : t('plant_generate_locked_with_diary_hint'))
+          : (
+              currentLang === 'zh'
+                ? '20:00后尝试'
+                : (currentLang === 'en' ? t('plant_generate_try_after_20') : t('plant_generate_locked_with_diary_hint'))
+            )
       ));
       return;
     }
@@ -357,29 +361,31 @@ export const ReportPage = () => {
             <button
               onClick={handleOpenDiaryBook}
               className="rounded-full px-2 py-1 active:opacity-70 transition whitespace-nowrap"
-              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
+              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', fontWeight: 500, background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
             >
               {t('report_view_diary_book')}
             </button>
-            <button
-              onClick={handleGeneratePlant}
-              disabled={plantGenerateUi.disabled}
-              className="rounded-full px-2 py-1 transition whitespace-nowrap disabled:opacity-55 disabled:cursor-not-allowed active:opacity-70"
-              style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
-            >
-              {t(plantGenerateUi.buttonKey)}
-            </button>
-            {plantStatusHint ? (
-              <p className="pointer-events-none absolute right-0 top-full mt-1 text-right text-[10px] font-medium whitespace-nowrap" style={{ color: '#5f6f65' }}>
-                {plantStatusHint}
-              </p>
-            ) : null}
+            <div className="flex flex-col items-center" style={{ width: 'clamp(100px, 28vw, 116px)' }}>
+              <button
+                onClick={handleGeneratePlant}
+                disabled={plantGenerateUi.disabled}
+                className="rounded-full px-2 py-1 transition whitespace-nowrap disabled:opacity-55 disabled:cursor-not-allowed active:opacity-70"
+                style={{ width: '100%', fontSize: 'clamp(11px, 2.9vw, 13px)', fontWeight: 500, background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
+              >
+                {t(plantGenerateUi.buttonKey)}
+              </button>
+              {plantStatusHint ? (
+                <p className="pointer-events-none mt-0.5 w-full text-center text-[10px] font-medium whitespace-nowrap" style={{ color: '#5f6f65' }}>
+                  {plantStatusHint}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-2 text-left text-sm transition active:opacity-70"
-          style={{ color: '#64748b' }}
+          className="mt-2 text-left font-medium transition active:opacity-70"
+          style={{ fontSize: '14px', color: '#000000' }}
         >
           {format(today, currentLang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy', { locale: calendarLocale })}
         </button>

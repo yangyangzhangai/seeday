@@ -46,13 +46,18 @@ export const ProfilePage: React.FC = () => {
 
         <div className="space-y-3 px-3 py-3 pb-28">
           <UserInfoCard isPlus={isPlus} />
-          <div className="overflow-hidden">
+          <div className="overflow-visible">
             <div>
               <AIModeSection isPlus={isPlus} plain />
             </div>
             <div>
               <AIAnnotationDropRate isPlus={isPlus} plain />
             </div>
+            {!isPlus ? (
+              <div className="px-0 py-2">
+                <MembershipCard isPlus={isPlus} />
+              </div>
+            ) : null}
             <div>
               <DailyGoalToggle plain />
             </div>
@@ -72,11 +77,6 @@ export const ProfilePage: React.FC = () => {
             {!isPlus ? (
               <div>
                 <UserProfileSection plain locked />
-              </div>
-            ) : null}
-            {!isPlus ? (
-              <div className="px-0 py-2">
-                <MembershipCard isPlus={isPlus} />
               </div>
             ) : null}
             <div className="px-4 py-3 transition hover:bg-white/70">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Crown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { purchase } from '@payment';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { isEligibleForMembershipTrial } from '../membershipTrialEligibility';
 
@@ -29,9 +29,43 @@ interface Props {
 
 export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const user = useAuthStore((state) => state.user);
+  const initializeAuth = useAuthStore((state) => state.initialize);
   const showTrialCta = isEligibleForMembershipTrial(user, isPlus);
+
+  const handleDirectUpgrade = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await purchase('monthly');
+      if (!result.success) {
+        const code = result.code;
+        const errorKey = !code
+          ? 'upgrade_error_generic'
+          : code === 'iap_client_not_ready'
+            ? 'upgrade_error_iap_not_ready'
+            : code === 'subscription_failed'
+              ? 'upgrade_error_subscription_failed'
+              : code === 'activate_failed'
+                ? 'upgrade_error_activate_failed'
+                : code === 'restore_failed'
+                  ? 'upgrade_error_restore_failed'
+                  : code === 'stripe_not_ready'
+                    ? 'upgrade_error_stripe_not_ready'
+                    : code === 'stripe_not_supported'
+                      ? 'upgrade_error_stripe_not_supported'
+                      : 'upgrade_error_generic';
+        window.alert(t(errorKey));
+        return;
+      }
+
+      await initializeAuth();
+      window.alert(t('upgrade_purchase_success'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -119,16 +153,21 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
 
         {!isPlus ? (
           <button
-            onClick={() => navigate('/upgrade')}
+            onClick={() => { void handleDirectUpgrade(); }}
+            disabled={isSubmitting}
             className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-[11px] text-sm font-extrabold transition-all active:scale-[0.97]"
             style={{
               background: 'linear-gradient(130deg, rgba(147,51,234,0.56) 0%, rgba(168,85,247,0.5) 58%, rgba(236,72,153,0.48) 100%)',
               boxShadow: '0 4px 12px rgba(168,85,247,0.14)',
               color: 'rgba(248,250,255,0.94)',
               border: '0.5px solid rgba(255,255,255,0.84)',
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
             }}
           >
-            {showTrialCta ? t('profile_upgrade_trial') : t('profile_upgrade')}
+            {isSubmitting
+              ? t('upgrade_processing')
+              : (showTrialCta ? t('profile_upgrade_trial') : t('profile_upgrade'))}
           </button>
         ) : (
           <div className="flex w-full items-center justify-center gap-1.5">
