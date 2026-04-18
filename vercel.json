@@ -4,11 +4,18 @@
       "maxDuration": 20
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/supabase-proxy/:path*",
-      "destination": "https://oxsbukofipeoikirkyyy.supabase.co/:path*"
+      "src": "/supabase-proxy/(.*)",
+      "dest": "https://oxsbukofipeoikirkyyy.supabase.co/$1"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
