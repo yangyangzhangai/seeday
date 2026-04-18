@@ -147,11 +147,6 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
   const copy = DIARY_COPY[lang];
 
-  // Projective (homographic) transforms: map content rectangle corners → trapezoid corners
-  // Left page (back face): outer(left) edge tall, spine(right) edge short
-  //   (0,0)→(0,0)  (W,0)→(W,t)  (W,H)→(W,H-t)  (0,H)→(0,H)
-  // Right page (front face): spine(left) edge short, outer(right) edge tall
-  //   (0,0)→(0,t)  (W,0)→(W,0)  (W,H)→(W,H)  (0,H)→(0,H-t)
   const W = BASE_PAGE_W * scale;
   const H_p = BASE_PAGE_H * scale;
   const t = trapInset;
@@ -194,13 +189,11 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   }
   const isTodayPage = dayDate ? isSameDay(dayDate, new Date()) : false;
   if (isTodayPage && !dayPlant) {
-    // Today stays blank until user explicitly generates (plant record exists).
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
 
   const report = page.report;
   if (!report) {
-    // Un-generated day should stay blank in diary book.
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
   const dayStart = dayDate ? startOfDay(dayDate).getTime() : 0;
@@ -579,7 +572,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
       .catch(() => {});
   }, [currentMonth]);
 
-  // Keep today's plant in sync if it changes after the initial fetch (e.g. user just generated)
   useEffect(() => {
     if (!todayPlant) return;
     setPlantRecords(prev => {
@@ -592,7 +584,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     });
   }, [todayPlant]);
 
-  // Use cached month messages if available, otherwise fall back to global messages
   const monthStartStr = (() => {
     const d = startOfMonth(currentMonth);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -647,7 +638,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   /* ── double-click / double-tap to expand ── */
   const handleZoneClick = useCallback((side: 'left' | 'right') => {
     if (dblClickTimer.current?.side === side) {
-      // Second tap within 280ms → double click → expand
       clearTimeout(dblClickTimer.current.timer);
       dblClickTimer.current = null;
       if (isBookOpen) {
@@ -698,7 +688,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     e.preventDefault();
     const sheetIdx = side === 'right' ? flippedCount : flippedCount - 1;
     e.currentTarget.setPointerCapture(e.pointerId);
-    // Don't setLiveFlip yet — wait for actual drag movement to avoid cover-shift flash on simple clicks
     dragRef.current = { side, sheetIdx, startClientX: e.clientX, lastClientX: e.clientX, lastT: Date.now(), velDeg: 0, isDragging: false };
   }, [isAnimating, liveFlip, flippedCount, numSheets]);
 
@@ -707,7 +696,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     if (!drag) return;
     const pw = pageWRef.current;
     const deltaX = e.clientX - drag.startClientX;
-    // Only start live-flip once the pointer has moved enough (avoids flash on tap)
     if (Math.abs(deltaX) < 4 && !drag.isDragging) return;
     drag.isDragging = true;
     const now = Date.now();
@@ -772,7 +760,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
   /* ── scaling ── */
   const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
-  // Match shelf cover size: each page width = (min(vw,430) - padding*2 - gap) / 2
   const shelfThumbW = (Math.min(viewport.width, 430) - 48 - 20) / 2;
   const scaleFromCover = shelfThumbW / BASE_PAGE_W;
   const availableH = Math.max(220, viewport.height - 170); // ~90px header + ~80px footer/safe-area
@@ -789,6 +776,38 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const sideMargin = MAX_VIS * sideGap;
   const wrapW = pageW * 2 + sideMargin * 2;
   const spineX = sideMargin + pageW;
+
+  const isEdgeLiveFlip = !!liveFlip && (liveFlip.sheetIdx === 0 || liveFlip.sheetIdx === numSheets - 1);
+  const isEdgeSnapAnimating =
+    isAnimating &&
+    (
+      (lastFlipDir === 'next' && (flippedCount === 1 || flippedCount === numSheets)) ||
+      (lastFlipDir === 'prev' && (flippedCount === 0 || flippedCount === numSheets - 1))
+    );
+  const bookShiftX = (() => {
+    let effectiveCount = flippedCount;
+    if (isEdgeLiveFlip && liveFlip) {
+      if (liveFlip.sheetIdx === 0) effectiveCount = flippedCount <= 0 ? 0 : 1;
+      else if (liveFlip.sheetIdx === numSheets - 1) effectiveCount = flippedCount >= numSheets ? numSheets : numSheets - 1;
+    } else if (isEdgeSnapAnimating) {
+      const sourceCount = lastFlipDir === 'next' ? flippedCount - 1 : flippedCount + 1;
+      effectiveCount = Math.max(0, Math.min(numSheets, sourceCount));
+    }
+    if (effectiveCount <= 0) return -pageW / 2;
+    if (effectiveCount >= numSheets) return pageW / 2;
+    return 0;
+  })();
+
+  const isCoverFullyClosed = flippedCount === 0 && !isAnimating && !liveFlip;
+  const isBackFullyClosed = flippedCount >= numSheets && !isAnimating && !liveFlip;
+  const hideAllEdgeStacks = isCoverFullyClosed || isBackFullyClosed;
+
+  const hideEdgeSpineBarsDuringDrag = !!liveFlip && (flippedCount <= 1 || flippedCount >= numSheets - 1);
+  const isNearCoverClosingDrag =
+    !!liveFlip && flippedCount === 1 && liveFlip.sheetIdx === 0 && liveFlip.rotY > -18;
+  const isNearBackClosingDrag =
+    !!liveFlip && flippedCount === numSheets - 1 && liveFlip.sheetIdx === numSheets - 1 && liveFlip.rotY < -162;
+  const isolateActiveDragSheet = isNearCoverClosingDrag || isNearBackClosingDrag;
 
   return (
     <div style={{
@@ -838,38 +857,38 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
         <div style={{ position: 'relative', width: wrapW, height: pageH, transformStyle: 'preserve-3d', transform: 'rotateX(0deg)' }}>
 
           {/* Fixed spine bars */}
-          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount > 0 && (
+          {!hideAllEdgeStacks && !hideEdgeSpineBarsDuringDrag && (isBookOpen || isAnimating || !!liveFlip) && flippedCount > 0 && (
             isAnimating && lastFlipDir === 'prev'
               ? flippedCount < numSheets - 1
               : flippedCount < numSheets
           ) && (
-            <div style={{ position: 'absolute', left: spineX, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', left: spineX + bookShiftX, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
-          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount < numSheets && (
+          {!hideAllEdgeStacks && !hideEdgeSpineBarsDuringDrag && (isBookOpen || isAnimating || !!liveFlip) && flippedCount < numSheets && (
             isAnimating && lastFlipDir === 'next'
               ? flippedCount > 1
               : flippedCount > 0
           ) && (
-            <div style={{ position: 'absolute', left: spineX - sideGap - sheetSpineOverlap, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', left: spineX + bookShiftX - sideGap - sheetSpineOverlap, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
 
           {/* Sheets */}
           {Array.from({ length: numSheets }, (_, i) => {
             const isFlipped = i < flippedCount;
             const dist = isFlipped ? (flippedCount - 1 - i) : (i - flippedCount);
+            if (isolateActiveDragSheet && liveFlip && i !== liveFlip.sheetIdx) return null;
+            if (isCoverFullyClosed && i !== 0) return null;
+            if (isBackFullyClosed && i !== numSheets - 1) return null;
             const vis = Math.min(dist, MAX_VIS);
-            const isOnCover = flippedCount === 0;
-            const isOnBackCover = flippedCount >= numSheets;
-            const isFullyClosedCover = isOnCover && liveFlip?.sheetIdx !== i;
-            const isFullyClosedBack = isOnBackCover && liveFlip?.sheetIdx !== i;
-            if ((isFullyClosedCover || isFullyClosedBack) && dist > 0) return null;
             if (dist > MAX_VIS) return null;
 
             const stackZ = (MAX_VIS - vis) * 4 * scale;
             const rotY = isFlipped ? -180 : 0;
+            const isLive = liveFlip?.sheetIdx === i;
+            const isSnap = snapDur?.sheetIdx === i;
+            const effectiveRotY = isLive ? liveFlip!.rotY : rotY;
             const offset = dist === 0 ? 0 : vis * sideGap;
-            const shiftX = isFlipped ? -offset : offset;
-            const coverShiftLeft = isFullyClosedCover ? -pageW / 2 : isFullyClosedBack ? pageW / 2 : 0;
+            const shiftX = (isEdgeLiveFlip || isEdgeSnapAnimating) ? 0 : (isFlipped ? -offset : offset);
             const isCurrent = dist === 0;
             const layerShrink = isCurrent ? 0 : (dist - 1) * heightShrink;
             const sheetH = isCurrent ? pageH : pageH - 2 * trapezoidInset - layerShrink;
@@ -880,13 +899,9 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
               ? `polygon(0 ${trapezoidInset}px, 100% 0, 100% 100%, 0 calc(100% - ${trapezoidInset}px))` : undefined;
             const backClip = (isCurrent && !isBackCoverBack)
               ? `polygon(0 0, 100% ${trapezoidInset}px, 100% calc(100% - ${trapezoidInset}px), 0 100%)` : undefined;
-
-            const isLive = liveFlip?.sheetIdx === i;
-            const isSnap = snapDur?.sheetIdx === i;
-            const effectiveRotY = isLive ? liveFlip!.rotY : rotY;
             const effectiveDur = isSnap ? snapDur!.ms : FLIP_MS;
             return (
-              <div key={i} style={{ position: 'absolute', left: spineX + coverShiftLeft, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
+              <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
                   <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
                 </div>
@@ -898,10 +913,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           })}
 
           {/* Center spine divider — thin line between left and right pages */}
-          {isBookOpen && (
+          {isBookOpen && !isolateActiveDragSheet && (
             <div style={{
               position: 'absolute',
-              left: spineX,
+              left: spineX + bookShiftX,
               top: trapezoidInset,
               width: 0.5,
               height: pageH - trapezoidInset * 2,
@@ -918,7 +933,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             onPointerUp={onZonePointerUp}
             onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
             onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('left'); pointerUpWasDrag.current = false; }}
-            style={{ position: 'absolute', left: 0, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount > 0 ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
+            style={{ position: 'absolute', left: bookShiftX, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount > 0 ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
           <div
             onPointerDown={(e) => onZonePointerDown('right', e)}
@@ -926,7 +941,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             onPointerUp={onZonePointerUp}
             onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
             onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('right'); pointerUpWasDrag.current = false; }}
-            style={{ position: 'absolute', left: sideMargin + pageW, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount < numSheets ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
+            style={{ position: 'absolute', left: bookShiftX + sideMargin + pageW, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount < numSheets ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
         </div>
         {/* Shadow beneath the book */}
