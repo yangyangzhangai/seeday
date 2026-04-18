@@ -17,6 +17,26 @@ All notable changes to this repository are documented here.
 
 - `npm run lint:max-lines` ✅
 - `npx tsc --noEmit` ✅
+## 2026-04-18 - Feat: 主动提醒系统 Phase 1（PROACTIVE_REMINDER_SPEC）
+
+### Added
+
+- `@capacitor/local-notifications` 安装
+- `src/services/notifications/localNotificationService.ts`：注册 5 种 iOS 通知类别（CONFIRM_DENY / EVENING_CHECK / WEEKEND_CHECK / IDLE_NUDGE / SESSION_CHECK）、idle nudge 调度/取消、批量通知调度、动作回调注册
+- `src/services/reminder/reminderTypes.ts`：`ReminderType` 联合类型（20 种）、`ScheduledReminder`、`ActivityRecordCategory`
+- `src/services/reminder/reminderCopy.ts`：4 人格 × 20 种提醒类型固定文案表 + `getReminderCopy()` 模板替换
+- `src/services/reminder/reminderScheduler.ts`：`buildReminderQueue`（工作日/周末）、`scheduleRemindersForToday`、`getIsFreeDay`（含 localStorage 缓存）
+- `src/store/useReminderStore.ts`：当日已响应集合（localStorage 持久化）、弹窗状态、QuickActivityPicker 状态
+- `src/components/ReminderPopup.tsx`：`ReminderPopup`（AI头像 + ✓/✗ + 快捷输入框）、`EveningCheckPopup`（晚间总结专用）
+- `src/hooks/useReminderSystem.ts`：App 级 Hook，统一管理通知类别注册、idle nudge、原生通知调度、前台定时弹窗
+- `api/check-holiday.ts`：`GET /api/check-holiday?date=&country=`，返回 `{ isFreeDay, reason, name? }`
+
+### Changed
+
+- `src/types/userProfile.ts`：新增 `UserProfileManualV2`（扩展 `hasWorkSchedule / hasClassSchedule / workStart / workEnd / lunchStart / lunchEnd / dinnerTime / lunchTime / reminderEnabled / classSchedule`）、`ClassSchedule`、`TimeRange`
+- `src/features/profile/components/UserProfilePanel.tsx`：新增「我的日程」勾选区块、作息时间扩展字段（工作/课表条件显示）、「主动提醒」开关
+- `src/App.tsx`：用 `useReminderSystem()` 替换旧 `useNightReminder()`，接入新 `ReminderPopup` / `EveningCheckPopup`
+- `src/i18n/locales/{zh,en,it}.ts`：新增 reminder_popup_* / evening_check_* / profile_schedule_* 等约 25 个 i18n key
 
 ## 2026-04-17 - Style: 日记预览页背景绿更新
 

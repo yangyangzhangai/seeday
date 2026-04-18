@@ -5,6 +5,23 @@ Owner: current working session
 
 ---
 
+## 会话更新（2026-04-18）
+
+- [x] 主动提醒系统 Phase 1 落地（`docs/PROACTIVE_REMINDER_SPEC(1).md`）：
+  - 安装 `@capacitor/local-notifications`
+  - 新建 `src/services/notifications/localNotificationService.ts`：5 种通知类别注册、idle_nudge 调度/取消、批量调度、动作回调
+  - 新建 `src/services/reminder/reminderTypes.ts` / `reminderCopy.ts`（4 人格 × 20 提醒类型）/ `reminderScheduler.ts`（工作日/周末队列、节假日检测）
+  - 新建 `src/store/useReminderStore.ts`（当日已响应、弹窗状态）
+  - 新建 `src/components/ReminderPopup.tsx`（AI头像 + ✓/✗ + 快捷输入框 + 晚间总结弹窗）
+  - 新建 `src/hooks/useReminderSystem.ts`（App 级 Hook，前后台 idle 调度 + 前台定时弹窗）
+  - 新建 `api/check-holiday.ts`（节假日检测端点）
+  - 扩展 `src/types/userProfile.ts`：`UserProfileManualV2 / ClassSchedule / TimeRange`
+  - 扩展 `UserProfilePanel.tsx`：日程勾选区块、作息扩展字段、提醒开关
+  - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
+  - 新增三语 i18n key（约 25 个）
+
+---
+
 ## 会话更新（2026-04-17）
 
 - [x] 预提交 max-lines 修复：`useAuthStore.ts` 将登录/活跃连续天数计算 helper 拆分到 `authStreakHelpers.ts`，主 store 行数降至 1000 行以内（当前 942 行），不改变现有登录与 streak 逻辑。
