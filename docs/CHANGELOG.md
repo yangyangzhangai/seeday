@@ -4,6 +4,20 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-18 - Refactor: 拆分 useAuthStore streak helpers 以通过 max-lines pre-commit
+
+### Changed
+
+- `src/store/useAuthStore.ts`
+  - 将连续活跃天数与登录 streak 相关 helper 抽离，主 store 仅保留状态与认证编排逻辑，文件行数从 1000+ 降到 942。
+- `src/store/authStreakHelpers.ts`（新增）
+  - 新增 `fetchActivityStreak()` 与 `updateLoginStreak()`，复用原有 Supabase 查询、当日缓存与 DEV 日志行为，功能保持不变。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-17 - Style: 日记预览页背景绿更新
 
 ### Changed

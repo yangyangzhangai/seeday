@@ -23,6 +23,7 @@ import {
   profileStateFromMeta,
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
+import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = 'zh' | 'en' | 'it';
@@ -213,6 +214,11 @@ async function ensureCloudLanguageMetadata(user: any | null): Promise<any | null
   return data.user;
 }
 
+function toLocalDateStr(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function getTodayDateStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -342,8 +348,8 @@ async function ensureTodayLoginDay(user: any): Promise<any> {
 function preferencesFromMeta(meta: Record<string, any>): UserPreferences {
   const rawAiMode = meta.ai_mode;
   const normalizedAiMode: AiCompanionMode = (
-    typeof rawAiMode === 'string' && (SUPPORTED_AI_MODES as string[]).includes(rawAiMode)
-      ? rawAiMode
+    typeof rawAiMode === 'string' && SUPPORTED_AI_MODES.includes(rawAiMode as AiCompanionMode)
+      ? (rawAiMode as AiCompanionMode)
       : DEFAULT_FREE_AI_MODE
   );
   const rawDropRate = meta.annotation_drop_rate;
@@ -933,86 +939,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// ── Helper: local date string from timestamp (ms) ─────────────
-function toLocalDateStr(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/**
- * Fetch consecutive activity days from Supabase (full history, no date limit).
- * Cached in localStorage — only re-fetches on the first open of each calendar day.
- * Pass force=true to bypass the cache (e.g. after recording a new activity).
- */
-async function fetchActivityStreak(userId: string, force = false): Promise<number> {
-  const today = toLocalDateStr(Date.now());
-  const dateKey  = `streakDate_${userId}`;
-  const valueKey = `streakValue_${userId}`;
-
-  // Return cached value if already fetched today (and not forced)
-  if (!force && localStorage.getItem(dateKey) === today) {
-    const cached = localStorage.getItem(valueKey);
-    return cached !== null ? Number(cached) : 0;
-  }
-
-  try {
-    // Fetch ALL activity timestamps (no date filter) to compute full streak
-    const { data } = await supabase
-      .from('messages')
-      .select('timestamp, activity_type')
-      .eq('user_id', userId)
-      .eq('is_mood', false);
-
-    if (!data) return 0;
-    const dates = new Set(
-      data
-        .filter((row) => !isLegacyChatActivityType(row.activity_type))
-        .map((row) => toLocalDateStr(Number(row.timestamp)))
-    );
-
-    let streak = 0;
-    const d = new Date();
-    while (dates.has(toLocalDateStr(d.getTime()))) {
-      streak++;
-      d.setDate(d.getDate() - 1);
-    }
-
-    // Cache result so we skip the query for the rest of today
-    localStorage.setItem(dateKey,  today);
-    localStorage.setItem(valueKey, String(streak));
-    return streak;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Upsert user_stats with updated login streak.
- * - If last_login_date was yesterday → streak + 1
- * - If last_login_date is today      → no change (already counted)
- * - Otherwise                        → streak resets to 1
- */
-async function updateLoginStreak(userId: string): Promise<void> {
-  try {
-    const today = toLocalDateStr(Date.now());
-    const { data } = await supabase
-      .from('user_stats')
-      .select('login_streak, last_login_date')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (data?.last_login_date === today) return; // Already counted today
-
-    const yesterday = toLocalDateStr(Date.now() - 86_400_000);
-    const newStreak = data?.last_login_date === yesterday
-      ? (data.login_streak ?? 0) + 1
-      : 1;
-
-    await supabase.from('user_stats').upsert(
-      { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
-    );
-  } catch (err) {
-    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
-  }
-}
