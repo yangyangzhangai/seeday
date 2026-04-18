@@ -87,8 +87,8 @@ function isActiveSubscription(payload: AppleTransactionPayload): boolean {
 }
 
 function productIdByPlan(planType: PlanType): string {
-  const monthly = process.env.APPLE_IAP_PRODUCT_MONTHLY || 'com.seeday.app.pro.monthly';
-  const annual = process.env.APPLE_IAP_PRODUCT_ANNUAL || 'com.seeday.app.pro.annual';
+  const monthly = process.env.APPLE_IAP_PRODUCT_MONTHLY || 'seeday.pro.monthly';
+  const annual = process.env.APPLE_IAP_PRODUCT_ANNUAL || 'seeday.pro.annual';
   return planType === 'annual' ? annual : monthly;
 }
 
