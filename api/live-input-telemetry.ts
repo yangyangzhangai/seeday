@@ -4,46 +4,7 @@ import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.
 import { handleLiveInputDashboard } from '../src/server/live-input-dashboard-handler.js';
 import { handleUserAnalyticsDashboard } from '../src/server/user-analytics-handler.js';
 import type { LiveInputTelemetryIngestRequest } from '../src/services/input/liveInputTelemetryApi.js';
-import Holidays from 'date-holidays';
-
-function handleHolidayCheckGet(req: VercelRequest, res: VercelResponse): void {
-  const { date, country = 'CN' } = req.query;
-  const isoDate = String(date ?? '');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-    jsonError(res, 400, 'Invalid date format, expected YYYY-MM-DD');
-    return;
-  }
-
-  const checkDate = new Date(`${isoDate}T12:00:00`);
-  const dayOfWeek = checkDate.getDay();
-
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    res.status(200).json({ isFreeDay: true, reason: 'weekend' });
-    return;
-  }
-
-  try {
-    const holidayResolver = new Holidays(String(country).toUpperCase());
-    const holidays = holidayResolver.isHoliday(checkDate);
-    if (holidays) {
-      const legalHoliday = Array.isArray(holidays)
-        ? holidays.find((item) => item.type === 'public')
-        : null;
-      if (legalHoliday) {
-        res.status(200).json({
-          isFreeDay: true,
-          reason: 'legal_holiday',
-          name: legalHoliday.name,
-        });
-        return;
-      }
-    }
-  } catch {
-    // ignore unsupported country code and fallback to weekday
-  }
-
-  res.status(200).json({ isFreeDay: false, reason: null });
-}
+import type { PlantAssetTelemetryRequest } from '../src/types/plant.js';
 
 function normalizeReasons(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -81,6 +42,33 @@ function normalizeInputLength(raw: unknown, fallbackText?: string): number {
   return fallbackText?.length ?? 0;
 }
 
+function normalizeFallbackLevel(raw: unknown): 1 | 2 | 3 | 4 | null {
+  if (raw === 1 || raw === 2 || raw === 3 || raw === 4) {
+    return raw;
+  }
+  return null;
+}
+
+function shouldHandlePlantAssetTelemetry(payload: {
+  eventType?: unknown;
+  requestedPlantId?: unknown;
+  resolvedAssetUrl?: unknown;
+  rootType?: unknown;
+  plantStage?: unknown;
+  fallbackLevel?: unknown;
+}): boolean {
+  if (payload.eventType === 'plant_asset') return true;
+  // Backward compatibility: old client payload has no eventType and posts only plant asset fields.
+  return (
+    payload.eventType == null
+    && typeof payload.requestedPlantId !== 'undefined'
+    && typeof payload.resolvedAssetUrl !== 'undefined'
+    && typeof payload.rootType !== 'undefined'
+    && typeof payload.plantStage !== 'undefined'
+    && typeof payload.fallbackLevel !== 'undefined'
+  );
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(res, ['GET', 'POST']);
 
@@ -104,9 +92,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const payload = (req.body ?? {}) as Partial<LiveInputTelemetryIngestRequest>;
+  const payload = (req.body ?? {}) as Partial<LiveInputTelemetryIngestRequest & PlantAssetTelemetryRequest> & {
+    eventType?: string;
+  };
   const client = auth.adminClient ?? auth.userClient;
   const shouldStoreRawText = process.env.LIVE_INPUT_TELEMETRY_STORE_RAW_TEXT === 'true';
+
+  if (shouldHandlePlantAssetTelemetry(payload)) {
+    const requestedPlantId = normalizeOptionalString(payload.requestedPlantId, 128);
+    const resolvedAssetUrl = normalizeOptionalString(payload.resolvedAssetUrl, 256);
+    const rootType = normalizeOptionalString(payload.rootType, 16);
+    const plantStage = normalizeOptionalString(payload.plantStage, 16);
+    const lang = normalizeOptionalString(payload.lang, 16);
+    const fallbackLevel = normalizeFallbackLevel(payload.fallbackLevel);
+
+    if (!requestedPlantId || !resolvedAssetUrl || !rootType || !plantStage || !fallbackLevel) {
+      jsonError(res, 400, 'Missing required plant asset telemetry fields');
+      return;
+    }
+
+    const row = {
+      user_id: auth.user.id,
+      requested_plant_id: requestedPlantId,
+      resolved_asset_url: resolvedAssetUrl,
+      fallback_level: fallbackLevel,
+      root_type: rootType,
+      plant_stage: plantStage,
+      lang,
+    };
+
+    const { data, error } = await client
+      .from('plant_asset_events')
+      .insert(row)
+      .select('id')
+      .single();
+
+    if (error) {
+      if (error.message?.toLowerCase().includes('relation') && error.message?.includes('plant_asset_events')) {
+        res.status(200).json({ success: false, skipped: true });
+        return;
+      }
+      jsonError(res, 500, 'Failed to persist plant asset telemetry', error.message);
+      return;
+    }
+
+    res.status(200).json({ success: true, id: data?.id });
+    return;
+  }
 
   if (payload.eventType === 'classification') {
     const rawInput = typeof payload.rawInput === 'string' ? payload.rawInput.trim() : '';

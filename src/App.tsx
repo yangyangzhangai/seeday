@@ -68,10 +68,13 @@ const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ chi
 /** Thin wrapper around Outlet that fades in on route change */
 const PageOutlet: React.FC = () => {
   const { pathname } = useLocation();
+  const disablePageInAnimation = pathname === '/upgrade';
   return (
     <main
       key={pathname}
-      className="relative flex-1 overflow-hidden animate-[pageIn_0.18s_ease-out] md:pb-8"
+      className={`relative flex-1 overflow-hidden md:pb-8 ${
+        disablePageInAnimation ? '' : 'animate-[pageIn_0.18s_ease-out]'
+      }`}
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)' }}
     >
       <Outlet />

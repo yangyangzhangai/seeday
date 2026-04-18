@@ -163,7 +163,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
             style={{ background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
           >
-            <span className="text-base" style={{ fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
+            <span className="text-base" style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
               {MONTHS[viewMonth]} {viewYear}
             </span>
             <span className="material-symbols-outlined"

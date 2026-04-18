@@ -4,18 +4,19 @@
       "maxDuration": 20
     }
   },
-  "routes": [
+  "rewrites": [
+    { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
     {
-      "src": "/supabase-proxy/(.*)",
-      "dest": "https://oxsbukofipeoikirkyyy.supabase.co/$1"
+      "source": "/supabase-proxy/(.*)",
+      "destination": "https://oxsbukofipeoikirkyyy.supabase.co/$1"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
