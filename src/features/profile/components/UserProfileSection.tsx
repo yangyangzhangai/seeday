@@ -32,15 +32,14 @@ export const UserProfileSection: React.FC<Props> = ({ plain = false, locked = fa
           <Sparkles size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
             <p className="profile-fn-title">{t('profile_user_profile_title')}</p>
-            <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_user_profile_desc')}</p>
           </div>
         </div>
         {locked ? (
           <Lock size={10} strokeWidth={1.5} className="text-gray-400" />
         ) : expanded ? (
-          <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" />
+          <ChevronUp size={16} strokeWidth={1.5} className="text-slate-600" />
         ) : (
-          <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />
+          <ChevronDown size={16} strokeWidth={1.5} className="text-slate-600" />
         )}
       </button>
 

@@ -803,16 +803,31 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
               onClick={onBackToShelf}
               style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', color: 'rgba(255,255,255,0.78)', background: 'none', border: 'none', padding: 0 }}
             >
-              <ChevronLeft size={24} strokeWidth={1.5} />
+              <ChevronLeft size={28} strokeWidth={2.2} />
             </button>
           ) : null}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
+          <div className="font-medium" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1, fontSize: 16 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
           <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={24} strokeWidth={1.5} /></button>
+          <button
+            onClick={onClose}
+            style={{
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.72)',
+              background: 'rgba(0,0,0,0.08)',
+              border: 'none',
+              borderRadius: 9999,
+            }}
+          >
+            <X size={20} strokeWidth={2.2} />
+          </button>
         </div>
       </div>
 
@@ -931,7 +946,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronLeft size={24} strokeWidth={1.5} />
+              <ChevronLeft size={28} strokeWidth={2.2} />
             </button>
             <span className="text-sm" style={{ color: 'rgba(255,255,255,0.55)', minWidth: 56, textAlign: 'center' }}>
               {getIndicator()}
@@ -945,7 +960,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount >= daysInMonth ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronRight size={24} strokeWidth={1.5} />
+              <ChevronRight size={28} strokeWidth={2.2} />
             </button>
           </div>
         ) : (
