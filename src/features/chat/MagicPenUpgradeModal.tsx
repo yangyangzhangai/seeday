@@ -26,8 +26,11 @@ export const MagicPenUpgradeModal: React.FC<MagicPenUpgradeModalProps> = ({ isOp
   }
 
   const handleUpgrade = () => {
-    onClose();
-    navigate('/upgrade');
+    navigate('/upgrade', {
+      state: {
+        disableInitialAnimation: true,
+      },
+    });
   };
 
   return (

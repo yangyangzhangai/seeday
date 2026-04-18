@@ -16,6 +16,72 @@ import { autoDetectMood } from '../../../lib/mood';
 import type { StardustCardData } from '../../../types/stardust';
 
 const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
+const MOOD_TAG_FALLBACK_COLOR = '#0F766E';
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const safeS = clamp01(s);
+  const safeL = clamp01(l);
+  const a = safeS * Math.min(safeL, 1 - safeL);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = safeL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3
+    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
+    : cleaned;
+  if (normalized.length !== 6) return null;
+
+  const r = parseInt(normalized.slice(0, 2), 16) / 255;
+  const g = parseInt(normalized.slice(2, 4), 16) / 255;
+  const b = parseInt(normalized.slice(4, 6), 16) / 255;
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s, l };
+}
+
+function withHexAlpha(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3
+    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
+    : cleaned;
+  if (normalized.length !== 6) return hex;
+  const alphaHex = Math.round(clamp01(alpha) * 255).toString(16).padStart(2, '0');
+  return `#${normalized}${alphaHex}`;
+}
+
+function getStrongerMoodTagColor(hex: string | undefined): string {
+  const parsed = hex ? hexToHsl(hex) : null;
+  if (!parsed) return MOOD_TAG_FALLBACK_COLOR;
+  const strongerS = Math.max(0.6, Math.min(1, parsed.s * 1.45));
+  const strongerL = Math.max(0.25, Math.min(0.42, parsed.l - 0.24));
+  return hslToHex(parsed.h, strongerS, strongerL);
+}
 
 export interface EventCardProps {
   message: Message;
@@ -138,8 +204,9 @@ export const EventCard: React.FC<EventCardProps> = ({
     }
   };
 
-  const moodTagBg = `${moodColor}18`;
-  const moodTagColor = moodColor;
+  const moodTagColor = getStrongerMoodTagColor(moodColor);
+  const moodTagBg = withHexAlpha(moodTagColor, 0.2);
+  const moodTagShadow = withHexAlpha(moodTagColor, 0.22);
 
   return (
     <div
@@ -209,11 +276,12 @@ export const EventCard: React.FC<EventCardProps> = ({
             <button
               onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
               className="text-xs"
-              style={{ fontWeight: 700, padding: '3px 8px', borderRadius: 9999,
-                background: moodTagBg, color: moodTagColor, border: `1px solid ${moodTagColor}30`,
+              style={{ fontWeight: 400, padding: '3px 8px', borderRadius: 9999,
+                background: moodTagBg, color: moodTagColor, border: 'none',
                 cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
                 backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-                letterSpacing: '0.03em', transition: 'all 0.15s' }}
+                letterSpacing: '0.03em', transition: 'all 0.15s',
+                boxShadow: `0 1px 2px ${moodTagShadow}` }}
             >
               {getTranslatedMood(displayLabel)}
             </button>

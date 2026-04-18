@@ -210,7 +210,7 @@ function NavBar({
 function DateHeader({ date }: { date: string }) {
   return (
     <div style={{ flexShrink: 0, marginBottom: '8px' }}>
-      <h1 className="text-base font-bold text-center" style={{ color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif' }}>
+      <h1 className="text-center font-medium" style={{ fontSize: '14px', color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif' }}>
         {date}
       </h1>
       <div style={{ borderTop: '0.5px solid #AEAABF' }} />
