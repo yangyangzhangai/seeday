@@ -21,8 +21,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     @objc private func capacitorDidLoad(_ notification: Notification) {
-        guard let bridge = notification.object as? CAPBridgeViewController else { return }
-        bridge.registerPluginInstance(TshineIAPPlugin())
+        guard let vc = notification.object as? CAPBridgeViewController else { return }
+        vc.bridge?.registerPluginInstance(TshineIAPPlugin())
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
