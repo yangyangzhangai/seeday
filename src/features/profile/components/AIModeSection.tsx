@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import {
@@ -51,11 +52,6 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
     border: '0.5px solid transparent',
     boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
   };
-  const enabledSwitchStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
-    boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
-    border: 'none',
-  };
 
   const handleModeClick = (key: AiCompanionMode, free: boolean) => {
     triggerLightHaptic();
@@ -83,15 +79,13 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
         </div>
         <button
           onClick={() => { void handleToggleEnabled(); }}
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors ${
-            enabled ? 'border-transparent' : 'border-transparent bg-slate-300'
-          }`}
-          style={enabled ? enabledSwitchStyle : undefined}
+          className="relative w-9 h-5 rounded-full border border-transparent transition-colors"
+          style={enabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}
         >
-          <span
-            className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
-              enabled ? 'translate-x-4' : 'translate-x-0.5'
-            }`}
+          <motion.div
+            animate={{ x: enabled ? 16 : 2 }}
+            className="absolute left-0 w-4 h-4 rounded-full bg-white shadow-sm"
+            style={{ top: '50%', marginTop: '-8px' }}
           />
         </button>
       </div>

@@ -22,6 +22,8 @@ import { scheduleRemindersForToday } from '../services/reminder/reminderSchedule
 import { getReminderCopy } from '../services/reminder/reminderCopy';
 import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import { useTimingStore } from '../store/useTimingStore';
+import type { TimingType } from '../services/timing/timingSessionService';
 
 // ─────────────────────────────────────────────
 // 工具：判断植物/日记今日是否已生成
@@ -39,6 +41,41 @@ function isDiaryDoneToday(reports: { type: string; date: string; aiAnalysis?: st
   return reports.some(
     (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
   );
+}
+
+// ─────────────────────────────────────────────
+// 提醒类型 → 计时动作映射
+// ─────────────────────────────────────────────
+
+type TimingAction =
+  | { kind: 'start'; type: TimingType }
+  | { kind: 'end' }
+  | null;
+
+function getTimingAction(reminderType: ReminderType): TimingAction {
+  switch (reminderType) {
+    case 'work_start':
+    case 'class_morning_start':
+    case 'class_afternoon_start':
+    case 'class_evening_start':
+      return { kind: 'start', type: 'work' };
+    case 'lunch_start':
+    case 'meal_lunch':
+      return { kind: 'start', type: 'lunch' };
+    case 'lunch_end':
+      return { kind: 'start', type: 'work' };
+    case 'work_end':
+    case 'class_morning_end':
+    case 'class_afternoon_end':
+    case 'class_evening_end':
+      return { kind: 'end' };
+    case 'meal_dinner':
+      return { kind: 'start', type: 'dinner' };
+    case 'sleep':
+      return { kind: 'end' };
+    default:
+      return null;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -86,15 +123,25 @@ function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[
   return entries.sort((a, b) => a.triggerTime.getTime() - b.triggerTime.getTime());
 }
 
-export function useReminderSystem() {
+export function useReminderSystem(navigate: (path: string) => void) {
   const user = useAuthStore((s) => s.user);
   const preferences = useAuthStore((s) => s.preferences);
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
   const { showPopup, shouldSkipReminder } = useReminderStore();
+  const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
   const reports = useReportStore((s) => s.reports);
 
+  // Keep navigateRef current so the stable listener closure can always call latest navigate
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // ── 加载今日计时 sessions ──
+  useEffect(() => {
+    if (!user?.id) return;
+    void useTimingStore.getState().loadToday(user.id);
+  }, [user?.id]);
 
   // ── 注册通知类别（一次） ──
   useEffect(() => {
@@ -104,14 +151,36 @@ export function useReminderSystem() {
   // ── 注册通知动作回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
-      onConfirm: (type) => useReminderStore.getState().markConfirmed(type),
-      onDeny: (type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
-      onViewReport: () => { window.location.hash = '/report'; },
-      onGrowPlant: () => { window.location.hash = '/growth'; },
-      onOpenChat: () => { window.location.hash = '/chat'; },
+      onConfirm: (type) => {
+        useReminderStore.getState().markConfirmed(type);
+        navigateRef.current('/chat');
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const timing = useTimingStore.getState();
+            if (action.kind === 'start') {
+              void timing.start(userId, action.type, 'reminder_confirm');
+            } else {
+              void timing.endActive(userId);
+            }
+          }
+        }
+      },
+      onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+      onViewReport: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/report');
+      },
+      onGrowPlant: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/growth');
+      },
+      onOpenChat: () => navigateRef.current('/chat'),
       onStillYes: () => { /* session_check 重调度（Phase 2）*/ },
       onStillNo: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── App 前后台切换：idle nudge ──
