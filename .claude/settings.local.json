@@ -42,7 +42,9 @@
       "Bash(wc -l /Users/annie/Tshine2-13-new/src/features/auth/AuthPage.tsx /Users/annie/Tshine2-13-new/src/features/profile/ProfilePage.tsx /Users/annie/Tshine2-13-new/src/features/profile/components/*.tsx /Users/annie/Tshine2-13-new/src/features/profile/UpgradePage.tsx)",
       "Bash(identify public/assets/book.png)",
       "Bash(sips -g all public/assets/book.png)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(open ios/App/App.xcworkspace)",
+      "Bash(open ios/App/App.xcodeproj)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
