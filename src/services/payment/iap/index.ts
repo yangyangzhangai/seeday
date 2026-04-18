@@ -34,7 +34,7 @@ function getBridge(): IapBridge | null {
   };
   const plugins = globalAny.Capacitor?.Plugins;
   if (!plugins) return null;
-  return (plugins.TshineIAP || plugins.IAP || null) as IapBridge | null;
+  return (plugins.SeedayIAP || plugins.IAP || null) as IapBridge | null;
 }
 
 function toActionResult(error: unknown): PaymentActionResult {

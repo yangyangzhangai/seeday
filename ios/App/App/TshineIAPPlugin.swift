@@ -3,12 +3,12 @@ import Capacitor
 import StoreKit
 
 /// Capacitor bridge plugin for Apple In-App Purchases (StoreKit 2).
-/// Exposed to JS as window.Capacitor.Plugins.TshineIAP
+/// Exposed to JS as window.Capacitor.Plugins.SeedayIAP
 /// Methods: purchaseProduct, restorePurchases
-@objc(TshineIAP)
-public class TshineIAPPlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "TshineIAPPlugin"
-    public let jsName = "TshineIAP"
+@objc(SeedayIAP)
+public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "SeedayIAPPlugin"
+    public let jsName = "SeedayIAP"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "purchaseProduct", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restorePurchases", returnType: CAPPluginReturnPromise),

@@ -7,7 +7,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Register TshineIAP plugin before Capacitor bridge loads
+        // Register SeedayIAP plugin before Capacitor bridge loads
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(capacitorDidLoad(_:)),
@@ -22,7 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     @objc private func capacitorDidLoad(_ notification: Notification) {
         guard let vc = notification.object as? CAPBridgeViewController else { return }
-        vc.bridge?.registerPluginInstance(TshineIAPPlugin())
+        vc.bridge?.registerPluginInstance(SeedayIAPPlugin())
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

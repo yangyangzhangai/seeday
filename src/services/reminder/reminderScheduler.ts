@@ -177,7 +177,7 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
 
     return {
       id: makeNotificationId(type),
-      title: opts.notificationTitle ?? 'Tshine',
+      title: opts.notificationTitle ?? 'Seeday',
       body,
       at: timeStringToToday(time),
       actionTypeId,
