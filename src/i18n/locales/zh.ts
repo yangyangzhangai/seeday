@@ -166,7 +166,7 @@ const zh: TranslationKeys = {
     report_close_detail: '关闭报告详情',
     report_error_unknown: '未知错误',
     report_activity_category: '活动分类',
-    report_view_diary_book: '查看日记本',
+    report_view_diary_book: '日记本',
     report_generate_button: '生成日记',
     report_early_tip: '日记只可生成一次，可以在 20:00 之后再来看看哦～',
     report_early_tip_ok: '知道了',

@@ -420,7 +420,7 @@ export async function callPlantAssetTelemetryAPI(
   if (!headers.Authorization) {
     return { success: false, skipped: true };
   }
-  return postJson<PlantAssetTelemetryRequest, PlantAssetTelemetryResponse>('/plant-asset-telemetry', request, { headers });
+  return postJson<PlantAssetTelemetryRequest, PlantAssetTelemetryResponse>('/live-input-telemetry', request, { headers });
 }
 
 export async function callLiveInputTelemetryIngestAPI(

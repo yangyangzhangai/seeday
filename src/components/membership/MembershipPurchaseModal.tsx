@@ -83,6 +83,7 @@ interface MembershipPurchaseModalProps {
   onClose: () => void;
   onPurchase?: (planId: 'monthly' | 'yearly') => void | Promise<void>;
   ctaLabel?: string;
+  disableInitialAnimation?: boolean;
 }
 
 export function MembershipPurchaseModal({
@@ -90,6 +91,7 @@ export function MembershipPurchaseModal({
   onClose,
   onPurchase,
   ctaLabel,
+  disableInitialAnimation = false,
 }: MembershipPurchaseModalProps) {
   const [selectedPlan, setSelectedPlan] = useState('yearly');
   const navigate = useNavigate();
@@ -112,14 +114,14 @@ export function MembershipPurchaseModal({
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence initial={!disableInitialAnimation}>
       {isOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
           style={{ isolation: 'isolate' }}
         >
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={disableInitialAnimation ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
@@ -127,7 +129,7 @@ export function MembershipPurchaseModal({
           />
 
           <motion.div
-            initial={{ y: '100%' }}
+            initial={disableInitialAnimation ? false : { y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}

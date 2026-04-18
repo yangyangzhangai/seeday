@@ -196,6 +196,7 @@ const en = {
     plant_section_generated_badge: 'Generated today',
     plant_generate_button: 'Generate Plant',
     plant_generate_done_button: 'Generated Today',
+    plant_generate_try_after_20: 'Try after 20:00',
     plant_generate_locked_hint: 'Roots are still growing. Come back after 8 PM.',
     plant_generate_locked_with_diary_hint: 'Roots are still growing. After 8:00 PM you can generate both today\'s plant and diary.',
     plant_generate_ready_hint: 'Your roots are ready. You can generate today\'s plant now.',

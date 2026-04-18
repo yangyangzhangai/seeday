@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/profile/README.md
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { purchase } from '@payment';
 import { useAuthStore } from '../../store/useAuthStore';
 import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
@@ -20,7 +20,11 @@ function resolvePaymentResultKey(code: string | undefined): string {
 export const UpgradePage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const disableInitialAnimation = Boolean(
+    (location.state as { disableInitialAnimation?: boolean } | null)?.disableInitialAnimation,
+  );
 
   const handlePurchase = async (planId: 'monthly' | 'yearly') => {
     if (isSubmitting) return;
@@ -47,6 +51,7 @@ export const UpgradePage: React.FC = () => {
         onClose={() => navigate(-1)}
         onPurchase={handlePurchase}
         ctaLabel={isSubmitting ? t('upgrade_processing') : t('membership_purchase_cta')}
+        disableInitialAnimation={disableInitialAnimation}
       />
     </div>
   );

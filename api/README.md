@@ -25,7 +25,7 @@
 | `GET` | `/api/plant-history` | `plant-history.ts` | `{ success, records }` |
 | `POST` | `/api/plant-asset-telemetry` | `plant-asset-telemetry.ts` | `{ success, id }` (`{ success: false, skipped: true }` when table not provisioned) |
 | `POST` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | `{ success, id }` |
-| `GET` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | default: `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }`; when `module=user_analytics`: `{ overview, dailySeries, retention, generatedAt }` or `{ found, user }` (`type=user_lookup`) |
+| `GET` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | default: `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }`; when `module=user_analytics`: `{ overview, dailySeries, retention, generatedAt }` or `{ found, user }` (`type=user_lookup`); when `module=holiday_check`: `{ isFreeDay, reason, name? }` |
 | `POST` | `/api/subscription` | `subscription.ts` | `{ success, plan, isPlus, expiresAt, verificationEnvironment }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
@@ -49,6 +49,7 @@ Annotation event payload now supports todo-completion context fields in `eventDa
 Annotation suggestion payload may include reward metadata (`rewardStars`, `rewardBottleId`, `recoveryKey`) so frontend can grant one-time bonus stars after completion. For stale todo suggestions, payload may also include pre-decompose metadata (`decomposeReady`, `decomposeSourceTodoId`, `decomposeSteps[]`) generated before suggestion is shown.
 Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-input-telemetry`) and use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates `live_input_events`, `plant_asset_events`, and `telemetry_events` (`diary_sticker_*` + annotation telemetry events such as `density_scored/event_triggered/lateral_sampled`) as a unified telemetry view.
 `/api/live-input-telemetry` `GET` now also supports `module=user_analytics` to return growth/premium/retention metrics and `type=user_lookup` user diagnostics without a separate `/api/user-analytics` function.
+`/api/live-input-telemetry` `GET` also supports `module=holiday_check&date=YYYY-MM-DD&country=XX` for reminder scheduling (weekend/legal holiday check), replacing standalone `/api/check-holiday` to keep Hobby deployment within the function limit.
 
 当前 provider 映射：
 
