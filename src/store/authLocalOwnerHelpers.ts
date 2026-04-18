@@ -1,4 +1,4 @@
-const LOCAL_DATA_OWNER_KEY = 'tshine:local-data-owner:v1';
+const LOCAL_DATA_OWNER_KEY = 'seeday:local-data-owner:v1';
 
 export type LocalDataOwner =
   | { type: 'anonymous'; userId: null }

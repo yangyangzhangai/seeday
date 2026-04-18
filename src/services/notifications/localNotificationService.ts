@@ -205,7 +205,7 @@ export async function scheduleIdleNudge(body: string): Promise<void> {
 
   await scheduleLocalNotification({
     id: IDLE_NUDGE_ID,
-    title: 'Tshine',
+    title: 'Seeday',
     body,
     at: triggerAt,
     actionTypeId: 'IDLE_NUDGE',
