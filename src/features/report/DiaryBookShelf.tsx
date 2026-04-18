@@ -311,13 +311,11 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         </div>
         <button
           onClick={onClose}
-          style={{
-            width: 32, height: 32,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer',
-          }}
+          className="rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10"
+          aria-label={t('auth_close')}
+          style={{ color: 'rgba(255,255,255,0.72)' }}
         >
-          <X size={24} strokeWidth={1.5} />
+          <X size={20} />
         </button>
       </div>
 
