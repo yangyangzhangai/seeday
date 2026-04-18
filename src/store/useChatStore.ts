@@ -25,6 +25,7 @@ import {
 import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
+import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
@@ -436,6 +437,8 @@ export const useChatStore = create<ChatState>()(
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
+          // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
+          void useTimingStore.getState().endActive(session.user.id);
         }
 
         if (!options?.skipMoodDetection) {

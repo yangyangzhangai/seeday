@@ -20,12 +20,14 @@ export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') return;
     if (!loading && !user) {
       navigate('/auth');
     }
   }, [user, loading, navigate]);
 
-  if (loading || !user) return null;
+  const devPreview = import.meta.env.DEV && localStorage.getItem('dev_preview') === '1';
+  if (!devPreview && (loading || !user)) return null;
 
   return (
     <div className="relative flex h-full items-center justify-center bg-transparent px-0 md:px-8">

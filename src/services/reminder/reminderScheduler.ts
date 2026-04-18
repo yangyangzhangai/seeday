@@ -187,4 +187,5 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
 
   await scheduleBatchNotifications(payloads);
   localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
+  localStorage.setItem('reminder_today_count', String(payloads.length));
 }

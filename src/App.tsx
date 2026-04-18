@@ -7,6 +7,7 @@ import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
+import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
@@ -27,6 +28,7 @@ import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
 import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
 import { useReminderStore } from './store/useReminderStore';
 import { getReminderCopy } from './services/reminder/reminderCopy';
+import { QuickActivityPicker } from './components/QuickActivityPicker';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
@@ -35,11 +37,21 @@ const BlankScreen: React.FC = () => (
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
   const location = useLocation();
+
+  // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
+  if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') {
+    return children;
+  }
 
   if (loading) return <BlankScreen />;
   if (!user) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+  }
+  // 新用户（profile 尚未创建）→ 强制走 onboarding
+  if (userProfileV2 === null) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return children;
@@ -53,6 +65,20 @@ const AuthRoute: React.FC = () => {
   if (user) return <Navigate to="/chat" replace />;
 
   return <AuthPage />;
+};
+
+/** 仅允许已登录但尚未完成 onboarding 的用户访问 */
+const OnboardingRoute: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
+
+  if (loading) return <BlankScreen />;
+  if (!user) return <Navigate to="/auth" replace />;
+  // 已完成 onboarding → 直接进首页
+  if (userProfileV2 !== null) return <Navigate to="/chat" replace />;
+
+  return <OnboardingFlow />;
 };
 
 const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -85,7 +111,7 @@ const MainLayout = () => {
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
-  useReminderSystem();
+  useReminderSystem(navigate);
   useMidnightAutoGenerate();
   const activePopupType = useReminderStore((s) => s.activePopupType);
   const markConfirmed = useReminderStore((s) => s.markConfirmed);
@@ -271,6 +297,7 @@ const MainLayout = () => {
           onClose={() => { markConfirmed(activePopupType); }}
         />
       )}
+      <QuickActivityPicker />
     </div>
   );
 };
@@ -310,6 +337,7 @@ function App() {
           <Route path="telemetry/user-analytics" element={<RequireTelemetryAdmin><UserAnalyticsDashboardPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
+        <Route path="/onboarding" element={<OnboardingRoute />} />
       </Routes>
     </BrowserRouter>
   );
