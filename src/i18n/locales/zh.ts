@@ -611,6 +611,32 @@ const zh: TranslationKeys = {
     night_reminder_go: '去生成',
     night_reminder_dismiss: '稍后再说',
 
+    // ── 主动提醒系统 ──
+    reminder_popup_confirm: '确认',
+    reminder_popup_deny: '我在做别的',
+    reminder_popup_or_tell_me: '或者直接告诉我',
+    reminder_popup_input_placeholder: '写点什么...',
+    evening_check_event_count: '你今天记录了 {{count}} 件事',
+    evening_check_grow_plant: '生成今日植物',
+    evening_check_view_report: '查看今日日报',
+    evening_check_snooze: '稍后提醒',
+
+    // ── 日程与提醒（Profile 设置）──
+    profile_schedule_section_title: '我的日程',
+    profile_user_profile_has_work_schedule: '有固定的上班 / 工作时间',
+    profile_user_profile_has_class_schedule: '有固定的上课时间',
+    profile_user_profile_work_start: '上班开始',
+    profile_user_profile_work_end: '上班结束',
+    profile_user_profile_lunch_start: '午休开始',
+    profile_user_profile_lunch_end: '午休结束',
+    profile_schedule_dinner_time: '晚餐',
+    profile_schedule_work_fields: '工作时间',
+    profile_schedule_class_fields: '课程时间',
+    profile_schedule_class_phase2_hint: '课表导入功能即将上线，敬请期待',
+    profile_user_profile_reminder_enable: '开启定时提醒',
+    profile_user_profile_reminder_permission: '通知权限',
+    profile_user_profile_reminder_today_count: '今日提醒',
+
     // ── Telemetry 看板 ──
     telemetry_hub_title: 'Telemetry 中心',
     telemetry_hub_desc: '埋点看板统一入口。选择业务模块后可查看关键指标、事件语义与运营决策提示。',

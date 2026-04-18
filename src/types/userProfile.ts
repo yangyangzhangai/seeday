@@ -33,6 +33,42 @@ export interface ConfidenceSignal<T = string> {
   lastSeenAt: string;
 }
 
+export interface TimeRange {
+  start: string; // 'HH:MM'
+  end: string;   // 'HH:MM'
+}
+
+export interface ClassSchedule {
+  weekdays: number[];      // [1,2,3,4,5] = 周一至周五
+  morning?: TimeRange;
+  afternoon?: TimeRange;
+  evening?: TimeRange;
+}
+
+/** 扩展后的 manual 字段，兼容旧版 UserProfileManual */
+export interface UserProfileManualV2 extends UserProfileManual {
+  // 日程开关（仅用于调度逻辑，不在 UI 展示为"身份"标签）
+  hasWorkSchedule?: boolean;
+  hasClassSchedule?: boolean;
+
+  // 工作日程字段
+  workStart?: string;    // 'HH:MM'
+  workEnd?: string;
+  lunchStart?: string;
+  lunchEnd?: string;
+
+  // 课表字段
+  classSchedule?: ClassSchedule;
+  classScheduleSource?: 'image' | 'manual';
+
+  // 通用作息（dinner 补充）
+  dinnerTime?: string;   // 'HH:MM'
+  lunchTime?: string;    // 无工作日程时使用
+
+  // 提醒开关
+  reminderEnabled?: boolean;
+}
+
 export interface UserProfileManual {
   primaryUse?: PrimaryUse;
   lifeStage?: LifeStage;

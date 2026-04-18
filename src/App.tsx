@@ -22,16 +22,11 @@ import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
-import { useNightReminder } from './hooks/useNightReminder';
+import { useReminderSystem } from './hooks/useReminderSystem';
 import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
-import { useTranslation } from 'react-i18next';
-import { cn } from './lib/utils';
-import {
-  APP_MODAL_OVERLAY_CLASS,
-  APP_MODAL_CARD_CLASS,
-  APP_MODAL_PRIMARY_BUTTON_CLASS,
-  APP_MODAL_SECONDARY_BUTTON_CLASS,
-} from './lib/modalTheme';
+import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
+import { useReminderStore } from './store/useReminderStore';
+import { getReminderCopy } from './services/reminder/reminderCopy';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
@@ -76,7 +71,8 @@ const PageOutlet: React.FC = () => {
   return (
     <main
       key={pathname}
-      className="relative flex-1 overflow-hidden pb-24 animate-[pageIn_0.18s_ease-out] md:pb-8"
+      className="relative flex-1 overflow-hidden animate-[pageIn_0.18s_ease-out] md:pb-8"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)' }}
     >
       <Outlet />
     </main>
@@ -88,10 +84,14 @@ const MainLayout = () => {
   const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
-  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { showReminder, dismiss } = useNightReminder();
+  useReminderSystem();
   useMidnightAutoGenerate();
+  const activePopupType = useReminderStore((s) => s.activePopupType);
+  const markConfirmed = useReminderStore((s) => s.markConfirmed);
+  const showPickerForDeny = useReminderStore((s) => s.showPickerForDeny);
+  const aiMode = useAuthStore((s) => s.preferences.aiMode);
+  const userName = (useAuthStore((s) => s.userProfileV2?.manual?.freeText) as string | undefined) ?? undefined;
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;
@@ -252,28 +252,24 @@ const MainLayout = () => {
         emojiChar={animationState.emojiChar}
         onComplete={handleAnimationComplete}
       />
-      {/* 晚间生成提醒 */}
-      {showReminder && (
-        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={dismiss}>
-          <div className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-3xl p-6 text-center animate-in fade-in zoom-in-95')} onClick={e => e.stopPropagation()}>
-            <p className="text-base font-semibold text-slate-800 mb-2">{t('night_reminder_title')}</p>
-            <p className="text-sm text-slate-600 leading-relaxed mb-5">{t('night_reminder_body')}</p>
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={dismiss}
-                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'px-4 py-2 text-sm rounded-full active:opacity-70')}
-              >
-                {t('night_reminder_dismiss')}
-              </button>
-              <button
-                onClick={() => { dismiss(); navigate('/report'); }}
-                className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'px-4 py-2 text-sm rounded-full active:opacity-70')}
-              >
-                {t('night_reminder_go')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* 主动提醒弹窗 */}
+      {activePopupType && activePopupType !== 'evening_check' && activePopupType !== 'weekend_evening_check' && (
+        <ReminderPopup
+          type={activePopupType}
+          copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
+          onConfirm={() => markConfirmed(activePopupType)}
+          onDeny={() => showPickerForDeny()}
+        />
+      )}
+      {(activePopupType === 'evening_check' || activePopupType === 'weekend_evening_check') && (
+        <EveningCheckPopup
+          copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
+          todayEventCount={messages.filter((m) => m.mode === 'record').length}
+          onViewReport={() => { markConfirmed(activePopupType); navigate('/report'); }}
+          onGrowPlant={() => { markConfirmed(activePopupType); navigate('/growth'); }}
+          onSnooze={() => { markConfirmed(activePopupType); }}
+          onClose={() => { markConfirmed(activePopupType); }}
+        />
       )}
     </div>
   );

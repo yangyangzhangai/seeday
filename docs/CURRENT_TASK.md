@@ -5,6 +5,23 @@ Owner: current working session
 
 ---
 
+## 会话更新（2026-04-18）
+
+- [x] 主动提醒系统 Phase 1 落地（`docs/PROACTIVE_REMINDER_SPEC(1).md`）：
+  - 安装 `@capacitor/local-notifications`
+  - 新建 `src/services/notifications/localNotificationService.ts`：5 种通知类别注册、idle_nudge 调度/取消、批量调度、动作回调
+  - 新建 `src/services/reminder/reminderTypes.ts` / `reminderCopy.ts`（4 人格 × 20 提醒类型）/ `reminderScheduler.ts`（工作日/周末队列、节假日检测）
+  - 新建 `src/store/useReminderStore.ts`（当日已响应、弹窗状态）
+  - 新建 `src/components/ReminderPopup.tsx`（AI头像 + ✓/✗ + 快捷输入框 + 晚间总结弹窗）
+  - 新建 `src/hooks/useReminderSystem.ts`（App 级 Hook，前后台 idle 调度 + 前台定时弹窗）
+  - 新建 `api/check-holiday.ts`（节假日检测端点）
+  - 扩展 `src/types/userProfile.ts`：`UserProfileManualV2 / ClassSchedule / TimeRange`
+  - 扩展 `UserProfilePanel.tsx`：日程勾选区块、作息扩展字段、提醒开关
+  - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
+  - 新增三语 i18n key（约 25 个）
+
+---
+
 ## 会话更新（2026-04-17）
 
 - [x] 全端防复制收口：在 `src/index.css` 全局禁用文本选中与图片拖拽（`user-select: none` / `-webkit-touch-callout: none` / `-webkit-user-drag: none`），并在 `src/main.tsx` 拦截 `copy/cut/contextmenu/selectstart/dragstart` 事件，统一覆盖网页端在电脑/手机/平板的复制与长按复制入口。
