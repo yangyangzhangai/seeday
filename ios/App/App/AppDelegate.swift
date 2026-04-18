@@ -7,10 +7,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Register TshineIAP plugin before Capacitor bridge loads
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(capacitorDidLoad(_:)),
+            name: Notification.Name("capacitorDidLoad"),
+            object: nil
+        )
         DispatchQueue.main.async { [weak self] in
             self?.applyWebViewScrollBehavior()
         }
         return true
+    }
+
+    @objc private func capacitorDidLoad(_ notification: Notification) {
+        guard let bridge = notification.object as? CAPBridgeViewController else { return }
+        bridge.registerPluginInstance(TshineIAPPlugin())
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
