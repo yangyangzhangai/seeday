@@ -19,6 +19,7 @@ Owner: current working session
   - 扩展 `UserProfilePanel.tsx`：日程勾选区块、作息扩展字段、提醒开关
   - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
   - 新增三语 i18n key（约 25 个）
+- [x] Vercel Hobby 函数配额收口（二次）：移除独立 `api/check-holiday.ts`，将 `holiday_check` 查询分支并入 `GET /api/live-input-telemetry?module=holiday_check&date=&country=`；`reminderScheduler` 改道到合并端点，函数总数压回 12。
 
 ---
 

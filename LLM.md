@@ -81,6 +81,7 @@
 - AI 请求统一走 `src/api/client.ts` → `api/*` serverless handler
 - 密钥只从 `process.env` 读取，任何形式的硬编码都是违规
 - 新页面只能放在 `src/features/*`，禁止在其他位置新建
+- Vercel Hobby 部署红线：Serverless Functions 总数上限 12。**默认禁止新增独立 `api/*.ts` 函数文件**；如需新能力，优先并入现有端点查询/路由分支，或先删除/合并旧函数后再新增（除非用户明确要求迁移 Team Pro）
 
 ### 代码质量
 

@@ -48,7 +48,7 @@ export async function getIsFreeDay(date: Date, countryCode: string): Promise<boo
 
   try {
     const res = await fetch(
-      `/api/check-holiday?date=${date.toISOString().slice(0, 10)}&country=${countryCode}`,
+      `/api/live-input-telemetry?module=holiday_check&date=${date.toISOString().slice(0, 10)}&country=${countryCode}`,
     );
     if (res.ok) {
       const { isFreeDay } = (await res.json()) as { isFreeDay: boolean };

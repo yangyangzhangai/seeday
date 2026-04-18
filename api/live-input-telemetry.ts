@@ -4,6 +4,46 @@ import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.
 import { handleLiveInputDashboard } from '../src/server/live-input-dashboard-handler.js';
 import { handleUserAnalyticsDashboard } from '../src/server/user-analytics-handler.js';
 import type { LiveInputTelemetryIngestRequest } from '../src/services/input/liveInputTelemetryApi.js';
+import Holidays from 'date-holidays';
+
+function handleHolidayCheckGet(req: VercelRequest, res: VercelResponse): void {
+  const { date, country = 'CN' } = req.query;
+  const isoDate = String(date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    jsonError(res, 400, 'Invalid date format, expected YYYY-MM-DD');
+    return;
+  }
+
+  const checkDate = new Date(`${isoDate}T12:00:00`);
+  const dayOfWeek = checkDate.getDay();
+
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    res.status(200).json({ isFreeDay: true, reason: 'weekend' });
+    return;
+  }
+
+  try {
+    const holidayResolver = new Holidays(String(country).toUpperCase());
+    const holidays = holidayResolver.isHoliday(checkDate);
+    if (holidays) {
+      const legalHoliday = Array.isArray(holidays)
+        ? holidays.find((item) => item.type === 'public')
+        : null;
+      if (legalHoliday) {
+        res.status(200).json({
+          isFreeDay: true,
+          reason: 'legal_holiday',
+          name: legalHoliday.name,
+        });
+        return;
+      }
+    }
+  } catch {
+    // ignore unsupported country code and fallback to weekday
+  }
+
+  res.status(200).json({ isFreeDay: false, reason: null });
+}
 
 function normalizeReasons(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -46,6 +86,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (handlePreflight(req, res)) return;
   if (req.method === 'GET') {
+    if (req.query.module === 'holiday_check') {
+      handleHolidayCheckGet(req, res);
+      return;
+    }
     if (req.query.module === 'user_analytics') {
       await handleUserAnalyticsDashboard(req, res);
       return;

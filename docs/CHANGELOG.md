@@ -4,6 +4,24 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-18 - Refactor: 合并 holiday-check 端点以满足 Vercel Hobby 12 函数限制
+
+### Changed
+
+- `api/live-input-telemetry.ts`
+  - 新增 `GET module=holiday_check` 分支，接管原节假日查询能力，返回 `{ isFreeDay, reason, name? }`。
+  - 保留既有 `module=user_analytics` 与默认 telemetry dashboard 查询逻辑不变。
+- `src/services/reminder/reminderScheduler.ts`
+  - `getIsFreeDay()` 请求地址从 `/api/check-holiday` 改为 `/api/live-input-telemetry?module=holiday_check`。
+- `api/check-holiday.ts`
+  - 删除独立 serverless 入口，减少函数数量以适配 Hobby 配额。
+- `api/README.md`
+  - 更新 `/api/live-input-telemetry` 的 `holiday_check` 查询契约说明。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-18 - Refactor: 拆分 useAuthStore streak helpers 以通过 max-lines pre-commit
 
 ### Changed
