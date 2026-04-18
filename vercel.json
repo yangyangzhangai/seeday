@@ -6,6 +6,10 @@
   },
   "rewrites": [
     { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
+    {
+      "source": "/supabase-proxy/:path*",
+      "destination": "https://oxsbukofipeoikirkyyy.supabase.co/:path*"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

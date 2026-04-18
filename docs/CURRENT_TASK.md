@@ -19,11 +19,13 @@ Owner: current working session
   - 扩展 `UserProfilePanel.tsx`：日程勾选区块、作息扩展字段、提醒开关
   - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
   - 新增三语 i18n key（约 25 个）
+- [x] Vercel Hobby 函数配额收口（二次）：移除独立 `api/check-holiday.ts`，将 `holiday_check` 查询分支并入 `GET /api/live-input-telemetry?module=holiday_check&date=&country=`；`reminderScheduler` 改道到合并端点，函数总数压回 12。
 
 ---
 
 ## 会话更新（2026-04-17）
 
+- [x] 预提交 max-lines 修复：`useAuthStore.ts` 将登录/活跃连续天数计算 helper 拆分到 `authStreakHelpers.ts`，主 store 行数降至 1000 行以内（当前 942 行），不改变现有登录与 streak 逻辑。
 - [x] 全端防复制收口：在 `src/index.css` 全局禁用文本选中与图片拖拽（`user-select: none` / `-webkit-touch-callout: none` / `-webkit-user-drag: none`），并在 `src/main.tsx` 拦截 `copy/cut/contextmenu/selectstart/dragstart` 事件，统一覆盖网页端在电脑/手机/平板的复制与长按复制入口。
 - [x] 聊天时间线消息卡片交互收口：活动卡与心情卡删除 `X` 改为仅在点击激活卡片后显示，未激活时隐藏；行为与相机上传按钮保持一致。
 - [x] 聊天时间线卡片激活态移动端修复：卡片外关闭监听补齐 `touchstart/pointerdown`，并新增“激活互斥”广播，避免移动端滚动/点按后多个卡片长期同时显示操作按钮。
