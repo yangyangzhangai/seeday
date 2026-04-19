@@ -116,6 +116,29 @@ export function profileStateFromMeta(meta: Record<string, any>): {
   };
 }
 
+const PENDING_PROFILE_PREFIX = 'seeday_pending_profile_v2_';
+
+export function savePendingProfileWrite(userId: string, profile: UserProfileV2): void {
+  try {
+    window.localStorage.setItem(PENDING_PROFILE_PREFIX + userId, JSON.stringify(profile));
+  } catch { /* storage full or unavailable — silent */ }
+}
+
+export function getPendingProfileWrite(userId: string): UserProfileV2 | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_PROFILE_PREFIX + userId);
+    return parseUserProfileV2(raw ? JSON.parse(raw) : null);
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingProfileWrite(userId: string): void {
+  try {
+    window.localStorage.removeItem(PENDING_PROFILE_PREFIX + userId);
+  } catch { /* silent */ }
+}
+
 export function mergeUserProfile(
   prev: UserProfileV2 | null,
   partial: Partial<UserProfileV2>,

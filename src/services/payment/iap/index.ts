@@ -8,8 +8,8 @@ const IAP_PLANS: PaymentPlan[] = [
 ];
 
 const IAP_PRODUCT_IDS: Record<PaymentPlanType, string> = {
-  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'com.seeday.app.plus.monthly',
-  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'com.seeday.app.plus.annual',
+  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'seeday.pro.monthly',
+  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'seeday.pro.annual',
 };
 
 interface IapTransactionLike {

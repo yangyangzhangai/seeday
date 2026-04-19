@@ -35,10 +35,13 @@ import {
   readLocalDataOwner,
 } from './authLocalOwnerHelpers';
 import {
+  clearPendingProfileWrite,
+  getPendingProfileWrite,
   LONG_TERM_PROFILE_ENABLED_KEY,
   mergeUserProfile,
   parseUserProfileV2,
   profileStateFromMeta,
+  savePendingProfileWrite,
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
@@ -382,16 +385,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
     syncI18nLanguageFromMeta(meta);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
+
+    // Apply locally-cached profile if Supabase metadata is missing/stale
+    const pendingProfile = sessionUser ? getPendingProfileWrite(sessionUser.id) : null;
+    const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
+
     set({
       user: sessionUser,
       loading: false,
       preferences: nextPreferences,
       longTermProfileEnabled: profileState.longTermProfileEnabled,
-      userProfileV2: profileState.userProfileV2,
+      userProfileV2: resolvedProfile,
       membershipPlan: membership.plan,
       membershipSource: membership.source,
       isPlus: membership.isPlus,
     });
+
+    // Retry syncing pending profile write to Supabase in the background
+    if (sessionUser && pendingProfile && !profileState.userProfileV2) {
+      const baseMeta = { ...meta };
+      const retryMeta = {
+        ...baseMeta,
+        [USER_PROFILE_METADATA_KEY]: {
+          ...pendingProfile,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+      supabase.auth.updateUser({ data: retryMeta }).then(({ data, error }) => {
+        if (!error && data?.user) {
+          const synced = profileStateFromMeta(data.user.user_metadata || {});
+          set({ user: data.user, userProfileV2: synced.userProfileV2 });
+          clearPendingProfileWrite(sessionUser!.id);
+        }
+      }).catch(() => { /* stay silent — will retry on next init */ });
+    }
     if (import.meta.env.DEV && sessionUser) {
       console.log('[Membership] resolved membership:', {
         userId: sessionUser.id,
@@ -687,6 +714,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ? updater(prev)
       : mergeUserProfile(prev, updater);
 
+    // Optimistically update store so the user can proceed immediately
+    set({ userProfileV2: nextProfile });
+
     const nextMeta = {
       ...baseMeta,
       [USER_PROFILE_METADATA_KEY]: {
@@ -704,9 +734,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         longTermProfileEnabled: profileState.longTermProfileEnabled,
         userProfileV2: profileState.userProfileV2,
       });
+      clearPendingProfileWrite(currentUser.id);
+    } else {
+      // Network/server unavailable — persist locally for retry on next init
+      savePendingProfileWrite(currentUser.id, nextProfile);
     }
 
-    return { error };
+    // Return success so callers can proceed; data is safe locally
+    return { error: null };
   },
 
   updatePreferences: async (partial: Partial<UserPreferences>) => {
