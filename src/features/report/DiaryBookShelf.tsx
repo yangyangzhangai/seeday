@@ -60,7 +60,7 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
   return (
     <div ref={divRef} className="snap-center flex-shrink-0">
       <motion.div
-        whileHover={{ y: -15, rotate: -2, scale: 1.02 }}
+        whileHover={{ y: -10, rotate: -2, scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onCoverClick}
         className="relative w-[160px] cursor-pointer group/book"
@@ -275,7 +275,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       </div>
 
       {/* Book shelf — absolutely centered on full page so header/stats don't offset it */}
-      <div className="absolute inset-0 flex items-center pointer-events-none">
+      <div className="absolute inset-0 z-30 flex items-center pointer-events-none">
         <div className="w-full overflow-x-auto snap-x snap-mandatory flex pointer-events-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
           <div className="flex-shrink-0 w-8" />
           <div className="flex gap-6 py-4 pr-12">
