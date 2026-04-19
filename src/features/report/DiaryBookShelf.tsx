@@ -2,26 +2,22 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { format, startOfMonth, subMonths, isSameMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
 
 /* ──────────────────────────── constants ──────────────────────────── */
-const COVER_BG = "url('/assets/book.png') center/cover no-repeat";
-const SHELF_BG = '#7a9b7e';
-const COVER_BORDER = 'rgba(117, 80, 45, 0.45)';
-const COVER_TEXT = '#6A4A2C';
-const COVER_SUBTEXT = 'rgba(106, 74, 44, 0.58)';
-const SPINE_BG = '#9E4A3A';
-const SPINE_DARK = 'rgba(72, 36, 28, 0.45)';
+const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
+const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
 
-// Show exactly 2 books side-by-side with equal margins
-const SHELF_PAD = 24;  // left/right padding of scroll container
-const BOOK_GAP  = 20;  // gap between books
-// CSS calc: (min(100vw, 430px) - padding*2 - gap) / 2
-const THUMB_W_CSS = `calc((min(100vw, 430px) - ${SHELF_PAD * 2}px - ${BOOK_GAP}px) / 2)`;
-const ASPECT_RATIO = 148 / 210; // A5 width / height
+const COVER_COLORS = ['#4a5d4c', '#8fae91', '#b08040', '#1e293b', '#7c9a92', '#a67c52', '#5b6e8a', '#8b5e52'];
+
+function coverColor(month: Date): string {
+  const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
+  return COVER_COLORS[idx];
+}
 
 /* ──────────────────────────── month list ────────────────────────── */
 function buildMonthList(createdAt: Date | null): Date[] {
@@ -34,13 +30,12 @@ function buildMonthList(createdAt: Date | null): Date[] {
     list.push(new Date(cursor));
     cursor = subMonths(cursor, 1);
   }
-  return list; // index 0 = newest
+  return list;
 }
 
 /* ──────────────────────────── BookThumb ────────────────────────── */
 interface ThumbProps {
   month: Date;
-  isCurrent: boolean;
   isSelected: boolean;
   isEditing: boolean;
   bookName: string;
@@ -50,11 +45,11 @@ interface ThumbProps {
   divRef: (el: HTMLDivElement | null) => void;
 }
 
-function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverClick, onStartEdit, onNameChange, divRef }: ThumbProps) {
-  const lifted = isSelected;
+function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onStartEdit, onNameChange, divRef }: ThumbProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const color = coverColor(month);
+  const subtitle = format(month, 'yyyy · MM月', { locale: zhCN });
 
-  // Auto-focus input when editing starts
   useEffect(() => {
     if (isEditing) {
       const t = setTimeout(() => inputRef.current?.focus(), 30);
@@ -63,131 +58,90 @@ function BookThumb({ month, isCurrent, isSelected, isEditing, bookName, onCoverC
   }, [isEditing]);
 
   return (
-    <div ref={divRef} style={{ scrollSnapAlign: 'start', flexShrink: 0 }}>
-      <div
+    <div ref={divRef} className="snap-center flex-shrink-0">
+      <motion.div
+        whileHover={{ y: -15, rotate: -2, scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onCoverClick}
-        style={{
-          padding: 0,
-          cursor: 'pointer',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 10,
-          transform: lifted ? 'translateY(-8px)' : 'none',
-          transition: 'transform 0.25s ease',
-          WebkitTapHighlightColor: 'transparent',
-          userSelect: 'none',
-        }}
+        className="relative w-[160px] cursor-pointer group/book"
+        style={{ WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
       >
-        {/* Book cover */}
-        <div style={{ position: 'relative', width: THUMB_W_CSS, aspectRatio: `${ASPECT_RATIO}` }}>
+        {/* Shadow layers */}
+        <div className="absolute bottom-0 left-[5%] right-[5%] h-1 bg-black/60 blur-[2.5px] rounded-full opacity-80 transition-opacity group-hover/book:opacity-30" />
+        <div className="absolute bottom-[-4px] left-[10%] right-[10%] h-4 bg-black/30 blur-[10px] rounded-full opacity-50 transition-opacity group-hover/book:opacity-20" />
 
-          {/* Golden glow selection ring */}
-          {isSelected && (
-            <div style={{
-              position: 'absolute',
-              inset: -3,
-              borderRadius: '4px 6px 6px 4px',
-              border: '2px solid rgba(218,165,32,0.9)',
-              boxShadow: '0 0 8px 3px rgba(218,165,32,0.45), 0 0 18px 6px rgba(218,165,32,0.2)',
-              pointerEvents: 'none',
-              zIndex: 1,
-            }} />
-          )}
+        {/* 3D spine thickness */}
+        <div className="absolute left-[-5px] top-[2px] bottom-[2px] w-[20px] bg-black/30 rounded-l-lg blur-[1px] z-0" />
 
-          {/* Cover face */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: COVER_BG,
-            border: `1px solid ${COVER_BORDER}`,
-            borderRadius: '2px 4px 4px 2px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            overflow: 'hidden',
-            filter: lifted
-              ? 'drop-shadow(0 1px 0 rgba(34, 44, 28, 0.28)) drop-shadow(5px 8px 0 rgba(44, 58, 36, 0.18)) drop-shadow(14px 22px 16px rgba(22, 30, 18, 0.34))'
-              : 'drop-shadow(0 1px 0 rgba(34, 44, 28, 0.22)) drop-shadow(3px 5px 0 rgba(44, 58, 36, 0.12)) drop-shadow(9px 14px 12px rgba(22, 30, 18, 0.28))',
-            transition: 'filter 0.25s ease',
-          }}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: '2px 4px 4px 2px',
-                boxShadow: 'inset 0 0 0 1px rgba(255, 239, 220, 0.14), inset 0 -10px 18px rgba(118, 78, 42, 0.12)',
-                backgroundImage: 'radial-gradient(rgba(88, 60, 34, 0.1) 0.65px, transparent 0.65px)',
-                backgroundSize: '3px 3px',
-                pointerEvents: 'none',
-              }}
-            />
-            {/* Spine strip — two thin dark vertical lines */}
-            <div style={{
-              position: 'absolute', left: 0, top: 0, width: 9, height: '100%',
-              background: SPINE_BG,
-              backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.14) 0px, rgba(255,255,255,0.04) 1px, transparent 2px), repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px), linear-gradient(90deg, transparent 3px, rgba(72,36,28,0.55) 3px, rgba(72,36,28,0.55) 3.6px, transparent 3.6px, transparent 5px, rgba(72,36,28,0.45) 5px, rgba(72,36,28,0.45) 5.6px, transparent 5.6px)',
-              boxShadow: `inset -1px 0 0 ${SPINE_DARK}`,
-              borderRadius: '2px 0 0 2px',
-            }} />
+        {/* Selection ring */}
+        {isSelected && (
+          <div className="absolute inset-[-3px] rounded-r-2xl rounded-l-[4px] border-2 border-amber-400/90 pointer-events-none z-10"
+            style={{ boxShadow: '0 0 8px 3px rgba(218,165,32,0.45), 0 0 18px 6px rgba(218,165,32,0.2)' }}
+          />
+        )}
 
-            {/* Cover title — click text to edit */}
+        {/* Book body — A5 ratio 1:1.41 */}
+        <div
+          className="relative overflow-hidden shadow-[10px_15px_35px_rgba(0,0,0,0.18)] transition-all group-hover/book:shadow-[22px_35px_55px_rgba(0,0,0,0.22)]"
+          style={{
+            aspectRatio: '1/1.41',
+            backgroundColor: color,
+            borderRadius: '4px 12px 12px 4px',
+          }}
+        >
+          {/* Spine system */}
+          <div className="absolute left-0 top-0 bottom-0 w-[35px] z-20 pointer-events-none">
+            <div className="absolute inset-y-0 left-0 w-[22px] bg-gradient-to-r from-black/45 via-black/15 to-transparent opacity-80" />
+            <div className="absolute inset-y-0 left-0 w-[1px] bg-white/20 blur-[0.5px]" />
+            <div className="absolute inset-y-0 left-[18px] w-[5px] flex">
+              <div className="w-[0.5px] h-full bg-black/40" />
+              <div className="w-[1px] h-full bg-white/10" />
+              <div className="flex-1 h-full bg-gradient-to-r from-black/20 to-transparent" />
+            </div>
+            <div className="absolute inset-y-0 left-[3px] w-[8px] bg-white/5 blur-[3px]" />
+          </div>
+
+          {/* Cover text */}
+          <div className="absolute inset-0 p-6 flex flex-col justify-center items-center text-center z-10">
             {isEditing ? (
               <input
                 ref={inputRef}
                 value={bookName}
                 onChange={e => onNameChange(e.target.value)}
                 onClick={e => e.stopPropagation()}
-                onKeyDown={e => {
-                  e.stopPropagation();
-                  if (e.key === 'Enter') inputRef.current?.blur();
-                }}
+                onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') inputRef.current?.blur(); }}
                 maxLength={10}
-                className="text-xs"
-                style={{
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  color: COVER_TEXT,
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: '1px solid rgba(106,74,44,0.35)',
-                  textAlign: 'center',
-                  width: 62,
-                  outline: 'none',
-                  padding: '1px 2px',
-                  cursor: 'text',
-                }}
+                className="bg-transparent border-b border-white/40 text-white text-sm font-bold text-center outline-none w-20"
+                style={{ letterSpacing: '0.1em' }}
               />
             ) : (
-              <span
+              <h3
                 onClick={e => { e.stopPropagation(); onStartEdit(); }}
-                className="text-xs font-bold"
-                style={{ letterSpacing: 2, color: COVER_TEXT, cursor: 'text' }}
+                className="text-white font-black text-sm leading-tight tracking-tight drop-shadow-md cursor-text"
               >
                 {bookName}
-              </span>
+              </h3>
             )}
-
-            <span style={{ fontSize: 7.5, letterSpacing: 1, color: COVER_SUBTEXT }}>
-              Diary
-            </span>
+            <p className="text-white/30 text-[8px] font-bold uppercase tracking-[0.2em] mt-2">{subtitle}</p>
           </div>
 
+          {/* Texture overlays */}
+          <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay pointer-events-none"
+            style={{ backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover' }} />
+          <div className="absolute inset-0 opacity-[0.35] mix-blend-multiply pointer-events-none"
+            style={{ backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover' }} />
+
+          {/* Sheen */}
+          <div className="absolute top-0 left-[20px] right-0 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none"
+            style={{ transform: 'skewX(-15deg)' }} />
         </div>
 
         {/* Month label */}
-        <span className="text-xs" style={{
-          paddingLeft: 2,
-          letterSpacing: 0.4,
-          color: lifted ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)',
-          fontWeight: lifted ? 600 : 400,
-          transition: 'color 0.2s ease',
-        }}>
+        <p className="mt-3 text-center text-[11px]"
+          style={{ color: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', fontWeight: isSelected ? 600 : 400, transition: 'color 0.2s' }}>
           {format(month, 'yyyy年M月', { locale: zhCN })}
-        </span>
-      </div>
+        </p>
+      </motion.div>
     </div>
   );
 }
@@ -213,7 +167,9 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const toDateKey = useCallback((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, []);
-  const diaryDateSet = useMemo(() => new Set(reports.filter(report => report.type === 'daily').map(report => toDateKey(new Date(report.date)))), [reports, toDateKey]);
+  const diaryDateSet = useMemo(() => new Set(reports.filter(r => r.type === 'daily').map(r => toDateKey(new Date(r.date)))), [reports, toDateKey]);
+
+  const totalEntries = useMemo(() => reports.filter(r => r.type === 'daily').length, [reports]);
 
   const getBookName = (m: Date) => bookNames[m.getTime()] ?? '日记本';
   const setBookName = (m: Date, name: string) =>
@@ -223,7 +179,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
-      const now     = new Date();
+      const now = new Date();
       const next1st = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       timer = setTimeout(() => {
         const newMonth = startOfMonth(new Date());
@@ -285,60 +241,54 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
     );
   }
 
-  const currentMonth = startOfMonth(new Date());
-
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      background: SHELF_BG,
-      display: 'flex', flexDirection: 'column',
-      userSelect: 'none', touchAction: 'pan-x pan-y',
-    }}>
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#f4f7f4]" style={{ userSelect: 'none' }}>
+      {/* Ambient glow */}
+      <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-[#8fae9115] blur-[140px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-5%] left-[-5%] w-[500px] h-[500px] bg-white blur-[120px] rounded-full pointer-events-none" />
 
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `calc(env(safe-area-inset-top, 0px) + 16px) 20px 0`, flexShrink: 0,
-      }}>
-        <div style={{ width: 32, height: 32 }} />
-        <div style={{ textAlign: 'center' }}>
-          <div className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1 }}>
-            {t('report_my_diary')}
-          </div>
-          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
-            {months.length} 本
-          </div>
+      <header className="relative z-20 flex items-center justify-between px-6 pb-6"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
+        <div>
+          <h1 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('report_my_diary')}</h1>
+          <p className="text-xs text-[#4a5d4c]/40 mt-0.5">{months.length} 本日记</p>
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onClose}
-          className="rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10"
-          aria-label={t('auth_close')}
-          style={{ color: 'rgba(255,255,255,0.72)' }}
+          className="p-3.5 bg-white/90 backdrop-blur-xl rounded-[22px] text-[#4a5d4c] shadow-[0_8px_20px_rgba(0,0,0,0.04)] border border-white/80"
         >
           <X size={20} />
-        </button>
+        </motion.button>
+      </header>
+
+      {/* Stats cards */}
+      <div className="flex gap-3 px-6 mb-6 justify-center">
+        <div className="flex-1 max-w-[160px] bg-white/60 backdrop-blur-md border border-white p-4 rounded-[28px] shadow-[0_10px_25px_rgba(0,0,0,0.02)]">
+          <p className="text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-widest mb-1 text-center">总计篇目</p>
+          <p className="text-xl font-black text-[#4a5d4c] text-center">
+            {totalEntries} <span className="text-[10px] font-medium opacity-30 uppercase">pcs</span>
+          </p>
+        </div>
+        <div className="flex-1 max-w-[160px] bg-white/60 backdrop-blur-md border border-white p-4 rounded-[28px] shadow-[0_10px_25px_rgba(0,0,0,0.02)]">
+          <p className="text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-widest mb-1 text-center">总计本书</p>
+          <p className="text-xl font-black text-[#4a5d4c] text-center">
+            {months.length} <span className="text-[10px] font-medium opacity-30 uppercase">vols</span>
+          </p>
+        </div>
       </div>
 
-      {/* Shelf row */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ position: 'relative', width: '100%' }}>
-          <div style={{
-            display: 'flex', flexDirection: 'row', alignItems: 'flex-end',
-            gap: BOOK_GAP,
-            overflowX: 'auto',
-            paddingLeft: SHELF_PAD, paddingRight: SHELF_PAD,
-            paddingBottom: 24, paddingTop: 24,
-            scrollSnapType: 'x mandatory',
-            scrollPaddingLeft: SHELF_PAD,
-            WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-            msOverflowStyle: 'none' as React.CSSProperties['msOverflowStyle'],
-            scrollbarWidth: 'none' as React.CSSProperties['scrollbarWidth'],
-          }}>
+      {/* Book shelf scroll */}
+      <div className="flex-1 overflow-y-auto flex flex-col justify-center">
+        <div className="w-full overflow-x-auto snap-x snap-mandatory flex" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
+          <div className="flex-shrink-0 w-8" />
+          <div className="flex gap-6 py-12 pr-12">
             {months.map((m, idx) => (
               <BookThumb
                 key={m.getTime()}
                 month={m}
-                isCurrent={isSameMonth(m, currentMonth)}
                 isSelected={idx === selectedIdx}
                 isEditing={idx === editingIdx}
                 bookName={getBookName(m)}
@@ -358,6 +308,8 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           </div>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `.no-scrollbar::-webkit-scrollbar { display: none; }` }} />
     </div>
   );
 };
