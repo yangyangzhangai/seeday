@@ -497,12 +497,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
       syncI18nLanguageFromMeta(currentUser?.user_metadata || {});
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
+      // Fall back to localStorage pending write if cloud metadata is still empty
+      const pendingProfile = currentUser ? getPendingProfileWrite(currentUser.id) : null;
+      const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
       set({
         user: currentUser,
         loading: false,
         preferences: nextPreferences,
         longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
+        userProfileV2: resolvedProfile,
         membershipPlan: membership.plan,
         membershipSource: membership.source,
         isPlus: membership.isPlus,
@@ -607,6 +610,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithApple: async () => {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
+        const result = await SignInWithApple.authorize({
+          clientId: 'com.seeday.app',
+          redirectURI: 'https://placeholder.seeday.app',
+          scopes: 'email name',
+        });
+        const identityToken = result.response?.identityToken;
+        if (!identityToken) return { error: new Error('No identity token') };
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: identityToken,
+        });
+        return { error };
+      } catch (e: any) {
+        return { error: e };
+      }
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo: resolveOAuthRedirectUrl() },
