@@ -653,7 +653,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    // Clear local session immediately — no network required
+    await supabase.auth.signOut({ scope: 'local' });
+    // Invalidate server-side token in background when network is available
+    supabase.auth.signOut({ scope: 'global' }).catch(() => {});
   },
 
   updateAvatar: async (avatarDataUrl: string) => {
