@@ -158,7 +158,11 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        set({ isLoading: true });
+        // Only block UI with skeleton on truly first load (no persisted data yet).
+        // Background sync after cold-start should show local data immediately.
+        if (!get().hasInitialized) {
+          set({ isLoading: true });
+        }
         try {
           const nowMs = Date.now();
           try {
@@ -242,14 +246,22 @@ export const useChatStore = create<ChatState>()(
             };
           }
 
+          // Merge cloud messages with any local-only messages (e.g. in-flight writes).
+          // Cloud wins for same ID; local-only messages are kept until next sync.
+          const cloudIdSet = new Set(messages.map((m) => m.id));
+          const localOnlyMessages = get().messages.filter((m) => !cloudIdSet.has(m.id));
+          const mergedMessages = [...messages, ...localOnlyMessages].sort(
+            (a, b) => a.timestamp - b.timestamp,
+          );
+
           set({
-            messages,
+            messages: mergedMessages,
             oldestLoadedDate: todayStr,
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
-            activeViewDateStr: todayStr,
-            dateCache: new Map(get().dateCache).set(todayStr, messages),
+            activeViewDateStr: get().activeViewDateStr ?? todayStr,
+            dateCache: new Map(get().dateCache).set(todayStr, mergedMessages),
           });
         } catch (error) {
           console.error('Error fetching messages:', error);

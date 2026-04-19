@@ -26,6 +26,7 @@ import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useReminderSystem } from './hooks/useReminderSystem';
 import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
+import { useNetworkSync } from './hooks/useNetworkSync';
 import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
 import { useReminderStore } from './store/useReminderStore';
 import { getReminderCopy } from './services/reminder/reminderCopy';
@@ -128,6 +129,7 @@ const MainLayout = () => {
   const navigate = useNavigate();
   useReminderSystem(navigate);
   useMidnightAutoGenerate();
+  useNetworkSync();
   const activePopupType = useReminderStore((s) => s.activePopupType);
   const markConfirmed = useReminderStore((s) => s.markConfirmed);
   const showPickerForDeny = useReminderStore((s) => s.showPickerForDeny);

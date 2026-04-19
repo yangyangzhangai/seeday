@@ -14,8 +14,9 @@ import {
   toHour,
 } from '../profile/components/userProfilePanelHelpers';
 import type { UserProfileManualV2 } from '../../types/userProfile';
+import { StepTodo } from './components/StepTodo';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
   <div className="flex gap-1.5 mb-6">
@@ -106,6 +107,14 @@ export const OnboardingFlow: React.FC = () => {
     navigate('/chat', { replace: true });
   };
 
+  if (step === 3) {
+    return (
+      <div className="fixed inset-0 z-50 flex bg-[#f4f7f4]">
+        <StepTodo onNext={next} />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FCFAF7] px-5">
       <div className={`${APP_MODAL_CARD_CLASS} w-full max-w-sm rounded-3xl px-6 py-8`}>
@@ -143,7 +152,7 @@ export const OnboardingFlow: React.FC = () => {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-4">
             <div className="text-center space-y-2">
               <p className="text-2xl">📅</p>
@@ -177,7 +186,7 @@ export const OnboardingFlow: React.FC = () => {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="space-y-4">
             <div className="text-center space-y-2">
               <p className="text-2xl">🌅</p>
@@ -214,7 +223,7 @@ export const OnboardingFlow: React.FC = () => {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="space-y-4">
             <div className="text-center space-y-2">
               <p className="text-2xl">✨</p>

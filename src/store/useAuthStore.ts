@@ -454,11 +454,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
-      await updateLoginStreak(session.user.id);
-      // Existing session restore should also rehydrate cloud state.
-      // Otherwise persisted local caches can stay stale until next manual sign-in.
-      const [activityStreak] = await Promise.all([
-        fetchActivityStreak(session.user.id),
+      // Non-blocking background sync: local persist data shows immediately,
+      // cloud data merges in silently when ready.
+      void updateLoginStreak(session.user.id).catch(() => {});
+      fetchActivityStreak(session.user.id)
+        .then((streak) => set({ activityStreak: streak }))
+        .catch(() => {});
+      void Promise.all([
         useAnnotationStore.getState().fetchAnnotations(),
         useChatStore.getState().fetchMessages(),
         useTodoStore.getState().fetchTodos(),
@@ -466,11 +468,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useMoodStore.getState().fetchMoods(),
         useGrowthStore.getState().fetchBottles(),
         useFocusStore.getState().fetchSessions(),
-      ]);
-      set({ activityStreak });
-
-      await useStardustStore.getState().syncPendingStardusts();
-      await useStardustStore.getState().fetchStardusts();
+      ]).catch(() => {});
+      void Promise.resolve().then(async () => {
+        await useStardustStore.getState().syncPendingStardusts();
+        await useStardustStore.getState().fetchStardusts();
+      }).catch(() => {});
       markLocalDataOwnerUser(session.user.id);
     } else {
       const owner = readLocalDataOwner();
@@ -555,28 +557,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
         }
 
-        // 更新连续登录天数
-        await updateLoginStreak(currentUser.id);
+        // 更新连续登录天数（后台写，不阻塞 UI）
+        void updateLoginStreak(currentUser.id).catch(() => {});
 
-        // 先同步本地 annotation 到云端
-        await useAnnotationStore.getState().syncLocalAnnotations(currentUser.id);
-        // syncLocalAnnotations 成功后内部会调用 fetchAnnotations
-
-        // 拉取各云端数据（并行执行互不依赖的部分）
-        const [activityStreak] = await Promise.all([
-          fetchActivityStreak(currentUser.id),
+        // 先同步本地 annotation 到云端，再后台拉取所有云端数据
+        void useAnnotationStore.getState().syncLocalAnnotations(currentUser.id).catch(() => {});
+        fetchActivityStreak(currentUser.id)
+          .then((streak) => set({ activityStreak: streak }))
+          .catch(() => {});
+        void Promise.all([
           useChatStore.getState().fetchMessages(),
           useTodoStore.getState().fetchTodos(),
           useReportStore.getState().fetchReports(),
           useMoodStore.getState().fetchMoods(),
           useGrowthStore.getState().fetchBottles(),
           useFocusStore.getState().fetchSessions(),
-        ]);
-        set({ activityStreak });
-
-        // Stardust 同步（顺序关键：先推本地 pending，再拉云端全量）
-        await useStardustStore.getState().syncPendingStardusts();
-        await useStardustStore.getState().fetchStardusts();
+        ]).catch(() => {});
+        void Promise.resolve().then(async () => {
+          await useStardustStore.getState().syncPendingStardusts();
+          await useStardustStore.getState().fetchStardusts();
+        }).catch(() => {});
         markLocalDataOwnerUser(currentUser.id);
       }
       else if (event === 'SIGNED_OUT') {
