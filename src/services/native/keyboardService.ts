@@ -20,6 +20,8 @@ export async function setupKeyboardViewportFix(): Promise<void> {
   }
 
   const root = document.documentElement;
+  root.classList.remove(KEYBOARD_CLASS);
+  setKeyboardHeight(0);
 
   await Keyboard.setScroll({ isDisabled: true }).catch(() => {});
 

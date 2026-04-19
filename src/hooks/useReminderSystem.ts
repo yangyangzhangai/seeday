@@ -143,14 +143,25 @@ export function useReminderSystem(navigate: (path: string) => void) {
     void useTimingStore.getState().loadToday(user.id);
   }, [user?.id]);
 
-  // ── 注册通知类别（一次） ──
-  useEffect(() => {
-    void registerNotificationCategories();
-  }, []);
-
-  // ── 注册通知动作回调（一次） ──
+  // ── 注册通知点击回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
+      onTap: (type) => {
+        // 用户点击系统通知横幅 → 进入聊天
+        navigateRef.current('/chat');
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const timing = useTimingStore.getState();
+            if (action.kind === 'start') {
+              void timing.start(userId, action.type, 'reminder_tap');
+            } else {
+              void timing.endActive(userId);
+            }
+          }
+        }
+      },
       onConfirm: (type) => {
         useReminderStore.getState().markConfirmed(type);
         navigateRef.current('/chat');
@@ -205,19 +216,24 @@ export function useReminderSystem(navigate: (path: string) => void) {
     };
   }, [user?.id, preferences.aiMode, userProfileV2?.manual]);
 
-  // ── 调度原生通知（今日队列） ──
+  // ── 注册通知类别 + 调度原生通知（串行，类别必须先注册完才能调度）──
   useEffect(() => {
     if (!user?.id || !userProfileV2) return;
     const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
     const reminderEnabled = manual.reminderEnabled !== false;
 
-    void scheduleRemindersForToday({
-      manual,
-      aiMode: preferences.aiMode,
-      countryCode: preferences.countryCode ?? 'CN',
-      reminderEnabled,
-      getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
-    });
+    const run = async () => {
+      // 先确保 iOS action categories 注册完毕，再调度通知
+      await registerNotificationCategories();
+      await scheduleRemindersForToday({
+        manual,
+        aiMode: preferences.aiMode,
+        countryCode: preferences.countryCode ?? 'CN',
+        reminderEnabled,
+        getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+      });
+    };
+    void run();
   }, [user?.id, userProfileV2, preferences.aiMode, preferences.countryCode]);
 
   // ── 前台定时弹窗（用户 App 打开时的兜底） ──

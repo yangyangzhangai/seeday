@@ -4,6 +4,24 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Fix: iOS 聊天输入框跟随键盘上移
+
+### Changed
+
+- `src/features/chat/ChatInputBar.tsx`
+  - 底部固定容器由 `bottom: 0` 调整为 `bottom: var(--keyboard-height, 0px)`，并增加 `bottom` 过渡，确保 iOS 键盘弹出时输入栏随键盘同步上移，不再被遮挡。
+  - 聊天页内底部导航容器新增 `chat-input-bottom-nav` 标记，配合 `keyboard-open` 状态在键盘弹起时自动隐藏，减少输入期误触与遮挡。
+- `src/services/native/keyboardService.ts`
+  - 初始化键盘修复时显式重置 `keyboard-open` class 与 `--keyboard-height` 为 0，避免热重载或异常中断后残留偏移。
+- `src/components/layout/BottomNav.tsx`
+  - 全局底部导航容器新增 `app-bottom-nav` 标记，键盘弹起时与聊天页导航保持一致自动隐藏。
+- `src/index.css`
+  - 新增 `.app-bottom-nav/.chat-input-bottom-nav` 的键盘联动样式：`html.keyboard-open` 下透明并禁用 pointer-events，键盘收起后恢复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-19 - Refactor: 合并 todo-decompose 到 classify 以回收 Vercel 函数配额
 
 ### Changed

@@ -13,7 +13,7 @@ export const BottomNav = () => {
 
   return (
     <nav
-      className="pointer-events-none fixed bottom-0 left-1/2 z-40 w-full max-w-[960px] -translate-x-1/2"
+      className="app-bottom-nav pointer-events-none fixed bottom-0 left-1/2 z-40 w-full max-w-[960px] -translate-x-1/2"
       style={{
         paddingLeft: 'var(--app-page-gutter-x)',
         paddingRight: 'var(--app-page-gutter-x-right)',
