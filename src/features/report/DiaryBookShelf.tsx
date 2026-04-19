@@ -80,7 +80,7 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
             aspectRatio: '1/1.41',
             backgroundColor: color,
             borderRadius: '4px 12px 12px 4px',
-            boxShadow: '-6px 0 8px -2px rgba(0,0,0,0.2), 0 8px 8px -2px rgba(0,0,0,0.18)',
+            boxShadow: '-7px 0 10px -1px rgba(0,0,0,0.38), 0 9px 10px -1px rgba(0,0,0,0.35)',
           }}
         >
           {/* Spine system */}
