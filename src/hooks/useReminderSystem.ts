@@ -36,7 +36,9 @@ function isPlantDoneToday(todayPlant: { date: string } | null): boolean {
   return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
 }
 
-function isDiaryDoneToday(reports: { type: string; date: string; aiAnalysis?: string | null }[]): boolean {
+function isDiaryDoneToday(
+  reports: Array<{ type: string; date: number | string; aiAnalysis?: string | null }>,
+): boolean {
   const now = new Date();
   return reports.some(
     (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
@@ -127,6 +129,7 @@ export function useReminderSystem(navigate: (path: string) => void) {
   const user = useAuthStore((s) => s.user);
   const preferences = useAuthStore((s) => s.preferences);
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
+  const metadataCountryCode = useAuthStore((s) => s.user?.user_metadata?.country_code);
   const { showPopup, shouldSkipReminder } = useReminderStore();
   const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
@@ -140,6 +143,10 @@ export function useReminderSystem(navigate: (path: string) => void) {
     if (!user?.id || !userProfileV2) return;
     const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
     const reminderEnabled = manual.reminderEnabled !== false;
+    const countryCode =
+      typeof metadataCountryCode === 'string' && /^[A-Za-z]{2}$/.test(metadataCountryCode.trim())
+        ? metadataCountryCode.trim().toUpperCase()
+        : 'CN';
 
     void (async () => {
       // Ensure iOS action categories are registered before scheduling notifications.
@@ -147,12 +154,12 @@ export function useReminderSystem(navigate: (path: string) => void) {
       await scheduleRemindersForToday({
         manual,
         aiMode: preferences.aiMode,
-        countryCode: preferences.countryCode ?? 'CN',
+        countryCode,
         reminderEnabled,
         getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
       });
     })();
-  }, [user?.id, userProfileV2, preferences.aiMode, preferences.countryCode]);
+  }, [user?.id, userProfileV2, preferences.aiMode, metadataCountryCode]);
 
   // ── 加载今日计时 sessions ──
   useEffect(() => {
@@ -172,7 +179,7 @@ export function useReminderSystem(navigate: (path: string) => void) {
           if (userId) {
             const timing = useTimingStore.getState();
             if (action.kind === 'start') {
-              void timing.start(userId, action.type, 'reminder_tap');
+              void timing.start(userId, action.type, 'reminder_popup_input');
             } else {
               void timing.endActive(userId);
             }
