@@ -643,6 +643,7 @@ const en = {
     onboarding_step5_title: 'All set',
     onboarding_step5_desc: 'Your reminders are configured. Seeday will check in with you at key moments each day.',
     onboarding_step5_cta: 'Start using Seeday',
+    onboarding_save_error: 'Network error, please try again',
     onboarding_next: 'Next',
     onboarding_back: 'Back',
     onboarding_skip: 'Skip',

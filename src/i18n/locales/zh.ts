@@ -646,6 +646,7 @@ const zh: TranslationKeys = {
     onboarding_step5_title: '一切就绪',
     onboarding_step5_desc: '你的提醒已配置好，每天关键时刻 Seeday 都会轻轻叫你一声。',
     onboarding_step5_cta: '开始使用',
+    onboarding_save_error: '网络异常，请重试',
     onboarding_next: '下一步',
     onboarding_back: '上一步',
     onboarding_skip: '跳过',

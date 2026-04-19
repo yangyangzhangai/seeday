@@ -644,6 +644,7 @@ const it: TranslationKeys = {
     onboarding_step5_title: 'Tutto pronto',
     onboarding_step5_desc: 'I tuoi promemoria sono configurati. Seeday ti contatterà nei momenti chiave di ogni giornata.',
     onboarding_step5_cta: 'Inizia a usare Seeday',
+    onboarding_save_error: 'Errore di rete, riprova',
     onboarding_next: 'Avanti',
     onboarding_back: 'Indietro',
     onboarding_skip: 'Salta',

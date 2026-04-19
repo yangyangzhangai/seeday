@@ -34,6 +34,13 @@ const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
 );
 
+/** 账号创建不足 72 小时且尚无 profile → 视为新用户需要 onboarding */
+function isNewUserAccount(createdAt?: string | null): boolean {
+  if (!createdAt) return false;
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  return ageMs < 72 * 60 * 60 * 1000;
+}
+
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
@@ -49,8 +56,8 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   if (!user) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
   }
-  // 新用户（profile 尚未创建）→ 强制走 onboarding
-  if (userProfileV2 === null) {
+  // 仅在账号 < 72h 且无 profile 时才强制走 onboarding；老账号直接放行
+  if (userProfileV2 === null && isNewUserAccount(user.created_at)) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -75,8 +82,10 @@ const OnboardingRoute: React.FC = () => {
 
   if (loading) return <BlankScreen />;
   if (!user) return <Navigate to="/auth" replace />;
-  // 已完成 onboarding → 直接进首页
-  if (userProfileV2 !== null) return <Navigate to="/chat" replace />;
+  // 已完成 onboarding 或老账号 → 直接进首页
+  if (userProfileV2 !== null || !isNewUserAccount(user.created_at)) {
+    return <Navigate to="/chat" replace />;
+  }
 
   return <OnboardingFlow />;
 };
