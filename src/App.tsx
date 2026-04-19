@@ -56,7 +56,10 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
 
   if (loading) return <BlankScreen />;
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+    const hasOnboarded = localStorage.getItem('seeday_onboarded') === 'true';
+    return hasOnboarded
+      ? <Navigate to="/auth" replace state={{ from: location.pathname }} />
+      : <Navigate to="/onboarding" replace />;
   }
   // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
   const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
@@ -77,18 +80,19 @@ const AuthRoute: React.FC = () => {
   return <AuthPage />;
 };
 
-/** 仅允许已登录但尚未完成 onboarding 的用户访问 */
+/** 新版引导流：允许未登录（StepAuth 处理鉴权），已完成 onboarding 的已登录用户直接进首页 */
 const OnboardingRoute: React.FC = () => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
   const userProfileV2 = useAuthStore(state => state.userProfileV2);
 
   if (loading) return <BlankScreen />;
-  if (!user) return <Navigate to="/auth" replace />;
-  // 已完成 onboarding 或老账号或有本地兜底 → 直接进首页
-  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
-  if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
-    return <Navigate to="/chat" replace />;
+  // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
+  if (user) {
+    const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+    if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
+      return <Navigate to="/chat" replace />;
+    }
   }
 
   return <OnboardingFlow />;

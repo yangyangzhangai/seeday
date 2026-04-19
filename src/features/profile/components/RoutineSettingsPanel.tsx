@@ -417,17 +417,15 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   );
 
   return (
-    <>
-      {/* 触发行 */}
-      <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8]'}>
-        <button onClick={() => setShowModal(true)}
-          className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70">
-          <div className="flex items-start gap-2.5 text-left">
-            <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
-            <div>
-              <p className="profile-fn-title">{t('profile_routine_title')}</p>
-              <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_routine_desc')}</p>
-            </div>
+    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
+      >
+        <div className="flex items-start gap-2.5 text-left">
+          <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
+          <div>
+            <p className="profile-fn-title">{t('profile_routine_title')}</p>
           </div>
           <ChevronRight size={16} strokeWidth={1.5} className="text-slate-400" />
         </button>

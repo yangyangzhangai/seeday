@@ -45,7 +45,9 @@
       "Bash(pip3 install:*)",
       "Bash(open ios/App/App.xcworkspace)",
       "Bash(open ios/App/App.xcodeproj)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh repo *)",
+      "Bash(gh api *)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

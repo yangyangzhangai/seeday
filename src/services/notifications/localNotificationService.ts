@@ -145,8 +145,10 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
         },
       ],
     });
-  } catch {
-    // 静默失败
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[local-notification] scheduleLocalNotification failed', error);
+    }
   }
 }
 
@@ -170,8 +172,10 @@ export async function scheduleBatchNotifications(
         extra: p.extra,
       })),
     });
-  } catch {
-    // 静默失败
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[local-notification] scheduleBatchNotifications failed', error);
+    }
   }
 }
 
