@@ -66,6 +66,13 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         className="relative w-[160px] cursor-pointer group/book"
         style={{ WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
       >
+        {/* Physical layered shadows */}
+        <div className="absolute bottom-0 left-[5%] right-[5%] h-1 bg-black/60 blur-[2.5px] rounded-full opacity-80 transition-opacity group-hover/book:opacity-30" />
+        <div className="absolute bottom-[-4px] left-[10%] right-[10%] h-4 bg-black/30 blur-[10px] rounded-full opacity-50 transition-opacity group-hover/book:opacity-20" />
+
+        {/* 3D spine thickness */}
+        <div className="absolute left-[-5px] top-[2px] bottom-[2px] w-[20px] bg-black/30 rounded-l-lg blur-[1px] z-0" />
+
         {/* Selection ring */}
         {isSelected && (
           <div className="absolute inset-[-3px] rounded-r-2xl rounded-l-[4px] border-2 border-amber-400/90 pointer-events-none z-10"
@@ -75,12 +82,11 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
 
         {/* Book body — A5 ratio 1:1.41 */}
         <div
-          className="relative overflow-hidden transition-all"
+          className="relative overflow-hidden shadow-[10px_15px_35px_rgba(0,0,0,0.18)] transition-all group-hover/book:shadow-[22px_35px_55px_rgba(0,0,0,0.22)]"
           style={{
             aspectRatio: '1/1.41',
             backgroundColor: color,
             borderRadius: '4px 12px 12px 4px',
-            boxShadow: '4px 6px 0 rgba(0,0,0,0.18), 8px 16px 28px rgba(0,0,0,0.22)',
           }}
         >
           {/* Spine system */}
