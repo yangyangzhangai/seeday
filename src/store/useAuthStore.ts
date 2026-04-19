@@ -35,12 +35,16 @@ import {
   readLocalDataOwner,
 } from './authLocalOwnerHelpers';
 import {
+  clearPendingProfileWrite,
+  getPendingProfileWrite,
   LONG_TERM_PROFILE_ENABLED_KEY,
   mergeUserProfile,
   parseUserProfileV2,
   profileStateFromMeta,
+  savePendingProfileWrite,
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
+import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = SupportedUiLanguage;
@@ -76,7 +80,7 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
 
 const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
-const IOS_OAUTH_REDIRECT_URL = import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.tshine.app://auth/callback';
+const IOS_OAUTH_REDIRECT_URL = import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback';
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
 
@@ -113,6 +117,10 @@ interface AuthState {
   refreshActivityStreak: () => Promise<void>;
 }
 
+function toLocalDateStr(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function getTodayDateStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -377,16 +385,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
     syncI18nLanguageFromMeta(meta);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
+
+    // Apply locally-cached profile if Supabase metadata is missing/stale
+    const pendingProfile = sessionUser ? getPendingProfileWrite(sessionUser.id) : null;
+    const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
+
     set({
       user: sessionUser,
       loading: false,
       preferences: nextPreferences,
       longTermProfileEnabled: profileState.longTermProfileEnabled,
-      userProfileV2: profileState.userProfileV2,
+      userProfileV2: resolvedProfile,
       membershipPlan: membership.plan,
       membershipSource: membership.source,
       isPlus: membership.isPlus,
     });
+
+    // Retry syncing pending profile write to Supabase in the background
+    if (sessionUser && pendingProfile && !profileState.userProfileV2) {
+      const baseMeta = { ...meta };
+      const retryMeta = {
+        ...baseMeta,
+        [USER_PROFILE_METADATA_KEY]: {
+          ...pendingProfile,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+      supabase.auth.updateUser({ data: retryMeta }).then(({ data, error }) => {
+        if (!error && data?.user) {
+          const synced = profileStateFromMeta(data.user.user_metadata || {});
+          set({ user: data.user, userProfileV2: synced.userProfileV2 });
+          clearPendingProfileWrite(sessionUser!.id);
+        }
+      }).catch(() => { /* stay silent — will retry on next init */ });
+    }
     if (import.meta.env.DEV && sessionUser) {
       console.log('[Membership] resolved membership:', {
         userId: sessionUser.id,
@@ -465,12 +497,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
       syncI18nLanguageFromMeta(currentUser?.user_metadata || {});
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
+      // Fall back to localStorage pending write if cloud metadata is still empty
+      const pendingProfile = currentUser ? getPendingProfileWrite(currentUser.id) : null;
+      const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
       set({
         user: currentUser,
         loading: false,
         preferences: nextPreferences,
         longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
+        userProfileV2: resolvedProfile,
         membershipPlan: membership.plan,
         membershipSource: membership.source,
         isPlus: membership.isPlus,
@@ -575,6 +610,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithApple: async () => {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
+        const result = await SignInWithApple.authorize({
+          clientId: 'com.seeday.app',
+          redirectURI: 'https://placeholder.seeday.app',
+          scopes: 'email name',
+        });
+        const identityToken = result.response?.identityToken;
+        if (!identityToken) return { error: new Error('No identity token') };
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: identityToken,
+        });
+        return { error };
+      } catch (e: any) {
+        return { error: e };
+      }
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo: resolveOAuthRedirectUrl() },
@@ -598,7 +653,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    // Reset store + local state immediately — no network required
+    clearLocalDomainStores();
+    markLocalDataOwnerAnonymous();
+    set({
+      user: null,
+      preferences: DEFAULT_PREFERENCES,
+      longTermProfileEnabled: false,
+      userProfileV2: null,
+      membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
+      membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
+      isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
+      activityStreak: null,
+    });
+    // Clear Supabase local session keys so app doesn't restore session on reload
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch { /* storage unavailable */ }
+    // Invalidate server-side token in background
+    supabase.auth.signOut({ scope: 'global' }).catch(() => {});
   },
 
   updateAvatar: async (avatarDataUrl: string) => {
@@ -675,12 +752,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: new Error('Not signed in') };
     }
 
-    const latestSession = await getSupabaseSession();
-    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
+    // Use cached user_metadata — no network call here
+    const baseMeta: Record<string, any> = currentUser.user_metadata || {};
     const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
     const nextProfile = typeof updater === 'function'
       ? updater(prev)
       : mergeUserProfile(prev, updater);
+
+    // 1. Update store + localStorage immediately — user proceeds without waiting
+    set({ userProfileV2: nextProfile });
+    savePendingProfileWrite(currentUser.id, nextProfile);
 
     const nextMeta = {
       ...baseMeta,
@@ -691,17 +772,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     };
 
-    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
-    if (!error && data?.user) {
-      const profileState = profileStateFromMeta(data.user.user_metadata || {});
-      set({
-        user: data.user,
-        longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
-      });
-    }
+    // 2. Sync to Supabase in background — don't block the caller
+    const userId = currentUser.id;
+    supabase.auth.updateUser({ data: nextMeta }).then(({ data, error }) => {
+      if (!error && data?.user) {
+        const profileState = profileStateFromMeta(data.user.user_metadata || {});
+        set({
+          user: data.user,
+          longTermProfileEnabled: profileState.longTermProfileEnabled,
+          userProfileV2: profileState.userProfileV2,
+        });
+        clearPendingProfileWrite(userId);
+      }
+    }).catch(() => { /* will retry on next initialize() */ });
 
-    return { error };
+    return { error: null };
   },
 
   updatePreferences: async (partial: Partial<UserPreferences>) => {
@@ -744,86 +829,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// ── Helper: local date string from timestamp (ms) ─────────────
-function toLocalDateStr(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/**
- * Fetch consecutive activity days from Supabase (full history, no date limit).
- * Cached in localStorage — only re-fetches on the first open of each calendar day.
- * Pass force=true to bypass the cache (e.g. after recording a new activity).
- */
-async function fetchActivityStreak(userId: string, force = false): Promise<number> {
-  const today = toLocalDateStr(Date.now());
-  const dateKey  = `streakDate_${userId}`;
-  const valueKey = `streakValue_${userId}`;
-
-  // Return cached value if already fetched today (and not forced)
-  if (!force && localStorage.getItem(dateKey) === today) {
-    const cached = localStorage.getItem(valueKey);
-    return cached !== null ? Number(cached) : 0;
-  }
-
-  try {
-    // Fetch ALL activity timestamps (no date filter) to compute full streak
-    const { data } = await supabase
-      .from('messages')
-      .select('timestamp, activity_type')
-      .eq('user_id', userId)
-      .eq('is_mood', false);
-
-    if (!data) return 0;
-    const dates = new Set(
-      data
-        .filter((row) => !isLegacyChatActivityType(row.activity_type))
-        .map((row) => toLocalDateStr(Number(row.timestamp)))
-    );
-
-    let streak = 0;
-    const d = new Date();
-    while (dates.has(toLocalDateStr(d.getTime()))) {
-      streak++;
-      d.setDate(d.getDate() - 1);
-    }
-
-    // Cache result so we skip the query for the rest of today
-    localStorage.setItem(dateKey,  today);
-    localStorage.setItem(valueKey, String(streak));
-    return streak;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Upsert user_stats with updated login streak.
- * - If last_login_date was yesterday → streak + 1
- * - If last_login_date is today      → no change (already counted)
- * - Otherwise                        → streak resets to 1
- */
-async function updateLoginStreak(userId: string): Promise<void> {
-  try {
-    const today = toLocalDateStr(Date.now());
-    const { data } = await supabase
-      .from('user_stats')
-      .select('login_streak, last_login_date')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (data?.last_login_date === today) return; // Already counted today
-
-    const yesterday = toLocalDateStr(Date.now() - 86_400_000);
-    const newStreak = data?.last_login_date === yesterday
-      ? (data.login_streak ?? 0) + 1
-      : 1;
-
-    await supabase.from('user_stats').upsert(
-      { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
-    );
-  } catch (err) {
-    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
-  }
-}

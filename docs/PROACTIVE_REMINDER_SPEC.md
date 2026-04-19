@@ -858,11 +858,11 @@ profile_user_profile_reminder_today_count
 
 **节假日检测复用现有 `holiday-resolver.ts` 能力**（`src/server/holiday-resolver.ts`，基于 `date-holidays` 包，已在 annotation 链路运行）。
 
-由于 `holiday-resolver.ts` 仅能在 Node.js 服务端运行，前端通过一个薄薄的 serverless 端点来调用：
+由于 `holiday-resolver.ts` 仅能在 Node.js 服务端运行，前端通过已有 serverless 端点的查询分支来调用：
 
 ```ts
-// api/check-holiday.ts（新建，约 20 行）
-// GET /api/check-holiday?date=2026-05-01&country=CN
+// api/live-input-telemetry.ts（GET module=holiday_check 分支）
+// GET /api/live-input-telemetry?module=holiday_check&date=2026-05-01&country=CN
 // Response: { isFreeDay: boolean, reason: 'weekend' | 'legal_holiday' | 'social_holiday' | null, name?: string }
 import { resolveHoliday } from '../src/server/holiday-resolver.js';
 
@@ -880,7 +880,7 @@ export default async function handler(req, res) {
 }
 ```
 
-前端 `reminderScheduler.ts` 在每日调度时（App 启动 / 00:10 定时）**调用一次** `/api/check-holiday`，缓存结果到 `localStorage` 当日有效，避免重复请求：
+前端 `reminderScheduler.ts` 在每日调度时（App 启动 / 00:10 定时）**调用一次** `module=holiday_check` 分支，缓存结果到 `localStorage` 当日有效，避免重复请求：
 
 ```ts
 // src/services/reminder/reminderScheduler.ts
@@ -888,7 +888,7 @@ async function getIsFreeDay(date: Date, countryCode: string): Promise<boolean> {
   const key = `freeDay_${date.toISOString().slice(0, 10)}`;
   const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
-  const res = await fetch(`/api/check-holiday?date=${date.toISOString().slice(0, 10)}&country=${countryCode}`);
+  const res = await fetch(`/api/live-input-telemetry?module=holiday_check&date=${date.toISOString().slice(0, 10)}&country=${countryCode}`);
   const { isFreeDay } = await res.json();
   localStorage.setItem(key, String(isFreeDay));
   return isFreeDay;
@@ -1291,8 +1291,8 @@ export function updateWidgetData(data: {
 - `src/services/schedule/scheduleParser.ts`（合并课间逻辑）
 
 ### 7.4 提醒系统
-- `api/check-holiday.ts`（新建，复用 `holiday-resolver.ts`；`GET ?date=&country=` → `{ isFreeDay, reason, name? }`）
-- `src/services/reminder/reminderScheduler.ts`（根据作息生成每日提醒队列；调用 `check-holiday` 判断是否自由作息日）
+- `api/live-input-telemetry.ts`（扩展 `GET module=holiday_check` 分支；`?date=&country=` → `{ isFreeDay, reason, name? }`）
+- `src/services/reminder/reminderScheduler.ts`（根据作息生成每日提醒队列；调用 `module=holiday_check` 判断是否自由作息日）
 - `src/services/reminder/reminderTypes.ts`（`ReminderType` 枚举）
 - `src/services/reminder/reminderCopy.ts`（**4 人格 × 18 种提醒类型**的固定文案表 + `getReminderCopy()`，含3种周末专用类型）
 - `src/components/ReminderPopup.tsx`（统一弹窗组件，**左侧显示 AI 头像**）
@@ -1346,7 +1346,7 @@ export function updateWidgetData(data: {
 
 ## 10. 待确认问题
 
-1. ~~**节假日处理**：v1 是否要区分工作日/周末？~~ **已决策：v1 复用现有 `holiday-resolver.ts`（`date-holidays`），通过 `/api/check-holiday` 桥接到前端调度器；周末 + 法定节假日均切自由作息，社交节日不切换。见 §4.9。**
+1. ~~**节假日处理**：v1 是否要区分工作日/周末？~~ **已决策：v1 复用现有 `holiday-resolver.ts`（`date-holidays`），通过 `/api/live-input-telemetry?module=holiday_check` 桥接到前端调度器；周末 + 法定节假日均切自由作息，社交节日不切换。见 §4.9。**
 2. **多 session 冲突**：用户 10:00 开始工作，10:30 又确认"开始上课" → 如何处理？
 3. **提醒最小间隔**：两个相邻提醒间距应 ≥ 多少分钟才合理？（避免 08:00 起床 + 08:15 上班过于密集）
 4. **计时精度**：最小单位到"分钟"还是"5 分钟"？

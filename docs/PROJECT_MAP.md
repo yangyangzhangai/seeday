@@ -53,10 +53,9 @@ src/
 
 - `report.ts` -> `POST /api/report`
 - `annotation.ts` -> `POST /api/annotation`
-- `classify.ts` -> `POST /api/classify`
+- `classify.ts` -> `POST /api/classify`（并承载 `POST /api/todo-decompose` 的兼容分支）
 - `diary.ts` -> `POST /api/diary`
 - `magic-pen-parse.ts` -> `POST /api/magic-pen-parse`
-- `todo-decompose.ts` -> `POST /api/todo-decompose`
 - `plant-generate.ts` -> `POST /api/plant-generate`
 - `plant-diary.ts` -> `POST /api/plant-diary`
 - `plant-history.ts` -> `GET /api/plant-history`

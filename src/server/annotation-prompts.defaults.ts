@@ -113,17 +113,17 @@ const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
   },
 };
 
-const FALLBACK_SYSTEM_PROMPT_ZH = `你在生成一条 Timeshine 批注。
+const FALLBACK_SYSTEM_PROMPT_ZH = `你在生成一条 Seeday 批注。
 - 只输出批注正文，不要解释、分析、标签或前缀。
 - 长度保持精炼，约 15-55 个中文字符。
 - 句末必须且只能有一个 emoji。`;
 
-const FALLBACK_SYSTEM_PROMPT_EN = `You are generating a Timeshine annotation.
+const FALLBACK_SYSTEM_PROMPT_EN = `You are generating a Seeday annotation.
 - Output only the annotation itself. No explanation, labels, prefixes, or analysis.
 - Keep it tight: roughly 10-35 words.
 - End with exactly one emoji.`;
 
-const FALLBACK_SYSTEM_PROMPT_IT = `Stai generando un'annotazione Timeshine.
+const FALLBACK_SYSTEM_PROMPT_IT = `Stai generando un'annotazione Seeday.
 - Stampa solo l'annotazione. Niente prefissi, etichette, spiegazioni o analisi.
 - Mantienila concisa: circa 10-35 parole.
 - Chiudi con esattamente una emoji.`;

@@ -5,7 +5,7 @@
  * - App 前后台切换：调度/取消 idle nudge
  * - 前台时：到时间弹 App 内弹窗
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
@@ -22,6 +22,8 @@ import { scheduleRemindersForToday } from '../services/reminder/reminderSchedule
 import { getReminderCopy } from '../services/reminder/reminderCopy';
 import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import { useTimingStore } from '../store/useTimingStore';
+import type { TimingType } from '../services/timing/timingSessionService';
 
 // ─────────────────────────────────────────────
 // 工具：判断植物/日记今日是否已生成
@@ -34,11 +36,48 @@ function isPlantDoneToday(todayPlant: { date: string } | null): boolean {
   return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
 }
 
-function isDiaryDoneToday(reports: { type: string; date: string; aiAnalysis?: string | null }[]): boolean {
+function isDiaryDoneToday(
+  reports: Array<{ type: string; date: number | string; aiAnalysis?: string | null }>,
+): boolean {
   const now = new Date();
   return reports.some(
     (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
   );
+}
+
+// ─────────────────────────────────────────────
+// 提醒类型 → 计时动作映射
+// ─────────────────────────────────────────────
+
+type TimingAction =
+  | { kind: 'start'; type: TimingType }
+  | { kind: 'end' }
+  | null;
+
+function getTimingAction(reminderType: ReminderType): TimingAction {
+  switch (reminderType) {
+    case 'work_start':
+    case 'class_morning_start':
+    case 'class_afternoon_start':
+    case 'class_evening_start':
+      return { kind: 'start', type: 'work' };
+    case 'lunch_start':
+    case 'meal_lunch':
+      return { kind: 'start', type: 'lunch' };
+    case 'lunch_end':
+      return { kind: 'start', type: 'work' };
+    case 'work_end':
+    case 'class_morning_end':
+    case 'class_afternoon_end':
+    case 'class_evening_end':
+      return { kind: 'end' };
+    case 'meal_dinner':
+      return { kind: 'start', type: 'dinner' };
+    case 'sleep':
+      return { kind: 'end' };
+    default:
+      return null;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -86,32 +125,97 @@ function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[
   return entries.sort((a, b) => a.triggerTime.getTime() - b.triggerTime.getTime());
 }
 
-export function useReminderSystem() {
+export function useReminderSystem(navigate: (path: string) => void) {
   const user = useAuthStore((s) => s.user);
   const preferences = useAuthStore((s) => s.preferences);
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
+  const metadataCountryCode = useAuthStore((s) => s.user?.user_metadata?.country_code);
   const { showPopup, shouldSkipReminder } = useReminderStore();
+  const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
   const reports = useReportStore((s) => s.reports);
 
+  // Keep navigateRef current so the stable listener closure can always call latest navigate
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const scheduleTodayNativeReminders = useCallback(() => {
+    if (!user?.id || !userProfileV2) return;
+    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
+    const reminderEnabled = manual.reminderEnabled !== false;
+    const countryCode =
+      typeof metadataCountryCode === 'string' && /^[A-Za-z]{2}$/.test(metadataCountryCode.trim())
+        ? metadataCountryCode.trim().toUpperCase()
+        : 'CN';
 
-  // ── 注册通知类别（一次） ──
+    void (async () => {
+      // Ensure iOS action categories are registered before scheduling notifications.
+      await registerNotificationCategories();
+      await scheduleRemindersForToday({
+        manual,
+        aiMode: preferences.aiMode,
+        countryCode,
+        reminderEnabled,
+        getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+      });
+    })();
+  }, [user?.id, userProfileV2, preferences.aiMode, metadataCountryCode]);
+
+  // ── 加载今日计时 sessions ──
   useEffect(() => {
-    void registerNotificationCategories();
-  }, []);
+    if (!user?.id) return;
+    void useTimingStore.getState().loadToday(user.id);
+  }, [user?.id]);
 
-  // ── 注册通知动作回调（一次） ──
+  // ── 注册通知点击回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
-      onConfirm: (type) => useReminderStore.getState().markConfirmed(type),
-      onDeny: (type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
-      onViewReport: () => { window.location.hash = '/report'; },
-      onGrowPlant: () => { window.location.hash = '/growth'; },
-      onOpenChat: () => { window.location.hash = '/chat'; },
+      onTap: (type) => {
+        // 用户点击系统通知横幅 → 进入聊天
+        navigateRef.current('/chat');
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const timing = useTimingStore.getState();
+            if (action.kind === 'start') {
+              void timing.start(userId, action.type, 'reminder_popup_input');
+            } else {
+              void timing.endActive(userId);
+            }
+          }
+        }
+      },
+      onConfirm: (type) => {
+        useReminderStore.getState().markConfirmed(type);
+        navigateRef.current('/chat');
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const timing = useTimingStore.getState();
+            if (action.kind === 'start') {
+              void timing.start(userId, action.type, 'reminder_confirm');
+            } else {
+              void timing.endActive(userId);
+            }
+          }
+        }
+      },
+      onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+      onViewReport: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/report');
+      },
+      onGrowPlant: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/growth');
+      },
+      onOpenChat: () => navigateRef.current('/chat'),
       onStillYes: () => { /* session_check 重调度（Phase 2）*/ },
       onStillNo: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── App 前后台切换：idle nudge ──
@@ -125,6 +229,8 @@ export function useReminderSystem() {
 
       if (isActive) {
         void cancelIdleNudge();
+        // Re-check daily schedule on foreground (cross-day / cold wake safety net)
+        scheduleTodayNativeReminders();
       } else {
         const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
         void scheduleIdleNudge(body);
@@ -134,22 +240,12 @@ export function useReminderSystem() {
     return () => {
       void listener.then((l) => l.remove());
     };
-  }, [user?.id, preferences.aiMode, userProfileV2?.manual]);
+  }, [user?.id, preferences.aiMode, userProfileV2?.manual, scheduleTodayNativeReminders]);
 
-  // ── 调度原生通知（今日队列） ──
+  // ── 注册通知类别 + 调度原生通知（串行，类别必须先注册完才能调度）──
   useEffect(() => {
-    if (!user?.id || !userProfileV2) return;
-    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
-    const reminderEnabled = manual.reminderEnabled !== false;
-
-    void scheduleRemindersForToday({
-      manual,
-      aiMode: preferences.aiMode,
-      countryCode: preferences.countryCode ?? 'CN',
-      reminderEnabled,
-      getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
-    });
-  }, [user?.id, userProfileV2, preferences.aiMode, preferences.countryCode]);
+    scheduleTodayNativeReminders();
+  }, [scheduleTodayNativeReminders]);
 
   // ── 前台定时弹窗（用户 App 打开时的兜底） ──
   useEffect(() => {

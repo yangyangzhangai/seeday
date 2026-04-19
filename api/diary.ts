@@ -21,65 +21,10 @@ const openai = new OpenAI();
  * }
  */
 
-const DIARY_CORE_PROMPT_ZH = `【系统规则】
-- 上面的陪伴模式决定你整篇日记的声音、语气、节奏和观察角度——每一个版块都必须用那个人设的说话方式来写，不要切换成默认叙述腔。
-- 你是从 AI 角色的视角，写”我眼中的这个人今天”，是故事化纪念，不是数据报告。
-- 准确使用 structuredData、rawInput 和 historyContext 的事实，不重算、不虚构不存在的记录。
-- 用 AI 角色的”我”叙述，把用户写成被观察的第三者，全程使用用户昵称称呼。
-- 严禁说教、贬低、PUA、打鸡血式空话。
-
-【输出结构】（四个版块，顺序固定，每个版块都用上面陪伴模式的语气写）
-
-AI 日记
-[日期]
-
-【今天的一帧画面】
-从今天的记录里挑一个最有画面感的具体时刻，用 1-2 句描述出来。不是概括，是一个场景——什么时候、在做什么、有什么细节。没有足够数据时，从最长的那项活动里提炼。
-
-【AI 的观察】
-3-5 句主体观察。必须包含一个用户自己可能没意识到的规律或细节（比如时间分配的倾斜、能量曲线的规律、情绪和活动的关联）。如果有历史数据，自然融入成长变化；没有就聚焦今天本身。
-
-【今天的一个小赢】
-只写 1 句。不管今天多普通，找出一件具体做了就是进步的事，说清楚是什么、为什么算赢。不能是空洞夸奖，必须对应今天的真实记录。
-
-【明天可以试试】
-只写 1 句。一个非常小、非常具体、明天就能做到的行动建议。不是鸡汤，不是大方向，是一个小动作。如果今天数据不足以支撑建议，可省略此版块。
-
-【落款】
-用 AI 角色自己的方式收尾，1 句话。必须符合人设：Van 可能是撒娇的小尾巴，Agnes 可能是一句诗意短语，Zep 可能是一个冷笑话或毒舌收场，Momo 可能是一句松弛的陪伴感。不要写真实姓名，只签 AI 角色的身份。`;
-
-const DIARY_CORE_PROMPT_EN = `System rules:
-- The companion mode above determines the voice, tone, pacing, and angle for every section — write each block in that persona's style, not a generic narrator voice.
-- Write from the AI character's first-person "I" perspective, observing the user as a third person (always use their name).
-- Use facts from structuredData, rawInput, and historyContext only. Do not invent or distort records.
-- Story-like observation, not a report. Grounded in real details: timing, tasks, moods, energy shifts.
-- No lecturing, no PUA, no hollow cheerleading.
-
-Output structure (four fixed sections, all written in the companion mode's voice):
-
-AI Diary
-[Date]
-
-[One Frame From Today]
-Pick one specific, vivid moment from today's records. Describe it in 1-2 sentences as a scene — when, what was happening, what detail stood out. Not a summary — a snapshot.
-
-[What I Noticed]
-3-5 sentences of core observation. Must include at least one pattern or detail the user likely didn't notice themselves (a time allocation tilt, an energy curve, a mood-activity link). Weave in growth trends naturally if historyContext exists.
-
-[Today's Small Win]
-Exactly 1 sentence. No matter how ordinary the day, find one specific thing they did that counts as progress. Name what it was and why it matters. Must be grounded in today's actual records — no generic praise.
-
-[Try This Tomorrow]
-Exactly 1 sentence. One tiny, concrete, doable action for tomorrow. Not a mindset shift — a small move. Omit this section entirely if the data doesn't support a meaningful suggestion.
-
-[Sign-off]
-One closing line written entirely in the companion's voice. Must match the persona: Van might leave a playful little tail, Agnes a poetic phrase, Zep a dry joke or sarcastic closer, Momo a quiet companionable murmur. Sign as the AI character's identity only — no real names.`;
-
-function buildDiaryModePrompt(lang: string, _userName?: string, aiMode?: string): string {
+function buildDiaryModePrompt(lang: string, addressee: string, aiMode?: string): string {
   const normalizedLang = normalizeAiCompanionLang(lang);
   const modePrompt = buildAiCompanionModePrompt(normalizedLang, normalizeAiCompanionMode(aiMode), 'diary');
-  const corePrompt = normalizedLang === 'zh' ? DIARY_CORE_PROMPT_ZH : DIARY_CORE_PROMPT_EN;
-  return `${modePrompt}\n\n${corePrompt}`;
+  return modePrompt.replace(/__ADDRESSEE__/g, addressee);
 }
 
 const FALLBACK_ADDRESSEE: Record<'zh' | 'en' | 'it', string> = {
@@ -116,14 +61,14 @@ function resolveDiaryAddressee(lang: 'zh' | 'en' | 'it', userName: unknown): str
   return cleaned.slice(0, 24);
 }
 
-function buildAddresseeRule(lang: 'zh' | 'en' | 'it', addressee: string): string {
+function buildDiaryAddresseeUserRule(lang: 'zh' | 'en' | 'it', addressee: string): string {
   if (lang === 'zh') {
-    return `\n\n【最重要指令】：对方称呼统一为“${addressee}”。你在日记正文中，绝对禁止使用“ta”或“用户”来称呼对方，必须全程使用“${addressee}”。`;
+    return `对方称呼统一为"${addressee}"。`;
   }
   if (lang === 'it') {
-    return `\n\n[REGOLA CRITICA]: Il nome da usare e "${addressee}". Non usare riferimenti generici come "utente" o "l'utente". Usa sempre "${addressee}" nel testo del diario.`;
+    return `Il nome da usare e solo "${addressee}".`;
   }
-  return `\n\n[IMPORTANT CRITICAL RULE]: The addressee name is "${addressee}". Do not use generic references like "the user", "they", "them", or "my host". Always use "${addressee}" throughout the diary body.`;
+  return `The only addressee name is "${addressee}".`;
 }
 
 function stripModelSignoff(content: string): string {
@@ -162,30 +107,6 @@ function forceAddresseeReplacement(content: string, lang: 'zh' | 'en' | 'it', ad
     .replace(/\bthey\b/gi, addressee)
     .replace(/\bthem\b/gi, addressee)
     .replace(/\btheir\b/gi, `${addressee}'s`);
-}
-
-async function rewriteAddresseeIfNeeded(
-  lang: 'zh' | 'en' | 'it',
-  content: string,
-  addressee: string,
-): Promise<string> {
-  const systemPrompt = lang === 'zh'
-    ? `你是文案重写器。任务：不改变原文结构、段落、语气和长度，只做称呼替换。把所有“用户/ta”替换为“${addressee}”，并保持其他内容不变。只输出重写后的正文。`
-    : lang === 'it'
-      ? `Sei un riscrittore minimale. Mantieni struttura, tono e lunghezza del testo. Sostituisci tutti i riferimenti generici all'utente con "${addressee}". Non aggiungere spiegazioni; restituisci solo il testo riscritto.`
-      : `You are a minimal rewriter. Keep structure, tone, and length unchanged. Replace all generic user references with "${addressee}". Return only the rewritten diary text.`;
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content },
-    ],
-    temperature: 0.1,
-    max_tokens: 1200,
-  });
-
-  return (completion.choices?.[0]?.message?.content || '').trim();
 }
 
 function hasAnySignoff(content: string): boolean {
@@ -301,10 +222,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     userContent += '\n\n【历史观测背景】\n' + historyContext;
   }
 
-  // 如果提供了用户昵称，在使用 system prompt 前给出强制指令（保留原逻辑作为双重保险）
   const addressee = resolveDiaryAddressee(normalizedLang, userName);
-  let finalSystemPrompt = buildDiaryModePrompt(normalizedLang, addressee, normalizedMode);
-  finalSystemPrompt += buildAddresseeRule(normalizedLang, addressee);
+  const addresseeUserRule = buildDiaryAddresseeUserRule(normalizedLang, addressee);
+  userContent += `\n\n[Addressee rule]\n${addresseeUserRule}`;
+
+  // 用户称呼规则通过 system prompt 占位符与 user prompt 显式规则双重注入。
+  const finalSystemPrompt = buildDiaryModePrompt(normalizedLang, addressee, normalizedMode);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -329,17 +252,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     content = stripModelSignoff(removeThinkingTags(content));
 
     if (containsGenericUserRefs(content, normalizedLang)) {
-      try {
-        const rewritten = await rewriteAddresseeIfNeeded(normalizedLang, content, addressee);
-        if (rewritten) {
-          content = rewritten;
-        }
-      } catch (rewriteError) {
-        console.error('Diary addressee rewrite failed:', rewriteError);
-      }
+      content = forceAddresseeReplacement(content, normalizedLang, addressee);
     }
 
-    content = forceAddresseeReplacement(content, normalizedLang, addressee);
     content = ensureDiarySignoff(content, normalizedLang, normalizedMode);
 
     res.status(200).json({

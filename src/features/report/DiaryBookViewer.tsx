@@ -10,13 +10,12 @@ import type { Message } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { normalizeMoodKey } from '../../lib/moodOptions';
-import { cn } from '../../lib/utils';
-import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { computeActivityDistribution } from './reportPageHelpers';
 import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
 import { usePlantStore } from '../../store/usePlantStore';
 import { PlantImage } from './plant/PlantImage';
+import { DiaryBookViewerExpandedView, type ExpandTarget } from './DiaryBookViewerExpandedView';
 
 const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
 const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
@@ -31,8 +30,14 @@ const BASE_SIDE_GAP = 6;
 const MAX_VIS = 4;
 const BASE_HEIGHT_SHRINK = 20;
 const PAPER_COLOR = '#ffffff';
-const COVER_COLOR = "url('/assets/book.png') center/cover no-repeat";
-const SHELF_BG = '#7a9b7e';
+const SHELF_BG = '#f4f7f4';
+const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
+const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
+const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
+function coverColor(month: Date): string {
+  const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
+  return COVER_COLORS[idx];
+}
 const SPINE_STRIP_W = 14;
 const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
@@ -136,7 +141,7 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 }
 
 /* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale, allMessages, plantRecords }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[] }) {
+function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string }) {
   const px = (n: number) => n * scale;
   const { i18n, t: tr } = useTranslation();
   const navigate = useNavigate();
@@ -147,11 +152,6 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
   const copy = DIARY_COPY[lang];
 
-  // Projective (homographic) transforms: map content rectangle corners → trapezoid corners
-  // Left page (back face): outer(left) edge tall, spine(right) edge short
-  //   (0,0)→(0,0)  (W,0)→(W,t)  (W,H)→(W,H-t)  (0,H)→(0,H)
-  // Right page (front face): spine(left) edge short, outer(right) edge tall
-  //   (0,0)→(0,t)  (W,0)→(W,0)  (W,H)→(W,H)  (0,H)→(0,H-t)
   const W = BASE_PAGE_W * scale;
   const H_p = BASE_PAGE_H * scale;
   const t = trapInset;
@@ -163,10 +163,20 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   /* ── cover ── */
   if (page.type === 'cover') {
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: '#6b5a3e' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, width: px(SPINE_STRIP_W), height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
-        <div style={{ fontSize: px(18), fontWeight: 700, letterSpacing: 3 }}>日记本</div>
-        <div style={{ fontSize: px(11), opacity: 0.55, marginTop: px(6) }}>Diary</div>
+      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        {/* Spine */}
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to right, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
+        {/* Sheen */}
+        <div style={{ position: 'absolute', left: px(20), right: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)', transform: 'skewX(-15deg)', pointerEvents: 'none' }} />
+        {/* Text */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
+          <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>日记本</div>
+          <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Diary</div>
+        </div>
       </div>
     );
   }
@@ -174,8 +184,13 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   /* ── back cover ── */
   if (page.type === 'back') {
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR }}>
-        <div style={{ position: 'absolute', right: 0, top: 0, width: px(SPINE_STRIP_W), height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
+      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden' }}>
+        {/* Spine on right for back */}
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to left, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
       </div>
     );
   }
@@ -194,13 +209,11 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   }
   const isTodayPage = dayDate ? isSameDay(dayDate, new Date()) : false;
   if (isTodayPage && !dayPlant) {
-    // Today stays blank until user explicitly generates (plant record exists).
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
 
   const report = page.report;
   if (!report) {
-    // Un-generated day should stay blank in diary book.
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
   const dayStart = dayDate ? startOfDay(dayDate).getTime() : 0;
@@ -458,105 +471,6 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   return null;
 }
 
-/* ──────────────────────────── expanded overlay ────────────────────────── */
-type ExpandTarget = { side: 'left' | 'right'; page: PageData } | null;
-
-function ExpandedView({ target, onClose, plantRecords }: { target: ExpandTarget; onClose: () => void; plantRecords: DailyPlantRecord[] }) {
-  if (!target) return null;
-  const { side, page } = target;
-  const { date, report } = page;
-  const dayPlant = date ? plantRecords.find(p => p.date === format(date, 'yyyy-MM-dd')) : null;
-
-  return (
-    <div
-      className={cn('fixed inset-0 z-[200] flex items-end', APP_MODAL_OVERLAY_CLASS)}
-      onClick={onClose}
-    >
-      <div
-        className={cn(APP_MODAL_CARD_CLASS, 'w-full max-h-[88vh] rounded-t-3xl overflow-y-auto')}
-        style={{ padding: '20px 20px 48px', boxSizing: 'border-box' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <span className="text-base font-bold" style={{ color: '#4a3a2a' }}>
-            {date && format(date, 'yyyy年M月d日 EEEE', { locale: zhCN })}
-          </span>
-          <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')} style={{ cursor: 'pointer' }}>
-            <X size={24} strokeWidth={1.5} />
-          </button>
-        </div>
-
-        {side === 'left' ? (
-          /* ── Left expanded: plant + AI观察日记 + tasks ── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Plant image */}
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
-              {dayPlant ? (
-                <PlantImage
-                  plantId={dayPlant.plantId}
-                  rootType={dayPlant.rootType}
-                  plantStage={dayPlant.plantStage}
-                  imgClassName="max-h-40 max-w-full object-contain"
-                />
-              ) : (
-                <span style={{ fontSize: 36, opacity: 0.18 }}>🌱</span>
-              )}
-            </div>
-
-            {/* AI 观察日记 */}
-            <div>
-              <div className="text-sm font-bold" style={{ color: '#3d5a8a', marginBottom: 10 }}>AI 观察笔记</div>
-              {report?.aiAnalysis ? (
-                <p className="text-sm" style={{ margin: 0, color: '#4a5a7a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.aiAnalysis}</p>
-              ) : (
-                <p className="text-sm" style={{ margin: 0, color: 'rgba(61,90,138,0.4)', fontStyle: 'italic' }}>
-                  {report ? 'AI 正在整理笔记…' : '暂无 AI 笔记'}
-                </p>
-              )}
-            </div>
-
-            {!report && (
-              <div className="text-sm text-center" style={{ color: 'rgba(0,0,0,0.3)', padding: '24px 0' }}>
-                {date && isSameDay(date, new Date()) ? '今日日记将在 20:00 后生成' : '暂无日记记录'}
-              </div>
-            )}
-          </div>
-        ) : (
-          /* ── Right expanded: activity/mood + user diary ── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {report?.stats?.actionSummary && (
-              <div>
-                <div className="text-xs font-bold" style={{ color: '#4a3a2a', marginBottom: 6 }}>活动分类</div>
-                <p className="text-sm" style={{ margin: 0, color: '#5a4a3a', lineHeight: 1.65 }}>{report.stats.actionSummary}</p>
-              </div>
-            )}
-            {report?.stats?.moodSummary && (
-              <div>
-                <div className="text-xs font-bold" style={{ color: '#4a3a2a', marginBottom: 6 }}>今日心情</div>
-                <p className="text-sm" style={{ margin: 0, color: '#7a6a5a', lineHeight: 1.65 }}>{report.stats.moodSummary}</p>
-              </div>
-            )}
-
-            <div style={{ height: 1, background: 'rgba(0,0,0,0.08)' }} />
-
-            <div>
-              <div className="text-sm font-bold" style={{ color: '#4a3a2a', marginBottom: 10 }}>我的日记</div>
-              {report?.userNote ? (
-                <p className="text-sm" style={{ margin: 0, color: '#4a3a2a', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{report.userNote}</p>
-              ) : (
-                <p className="text-sm" style={{ margin: 0, color: 'rgba(0,0,0,0.2)', lineHeight: '28px' }}>
-                  {report ? '未留下文字…' : '暂无日记'}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ──────────────────────────── main viewer ────────────────────────────── */
 export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
   const today = new Date();
@@ -579,20 +493,18 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
       .catch(() => {});
   }, [currentMonth]);
 
-  // Keep today's plant in sync if it changes after the initial fetch (e.g. user just generated)
   useEffect(() => {
     if (!todayPlant) return;
     setPlantRecords(prev => {
       const idx = prev.findIndex(r => r.date === todayPlant.date);
       if (idx === -1) return [...prev, todayPlant];
-      if (prev[idx].plant_id === todayPlant.plant_id) return prev;
+      if (prev[idx].plantId === todayPlant.plantId) return prev;
       const next = [...prev];
       next[idx] = todayPlant;
       return next;
     });
   }, [todayPlant]);
 
-  // Use cached month messages if available, otherwise fall back to global messages
   const monthStartStr = (() => {
     const d = startOfMonth(currentMonth);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -647,7 +559,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   /* ── double-click / double-tap to expand ── */
   const handleZoneClick = useCallback((side: 'left' | 'right') => {
     if (dblClickTimer.current?.side === side) {
-      // Second tap within 280ms → double click → expand
       clearTimeout(dblClickTimer.current.timer);
       dblClickTimer.current = null;
       if (isBookOpen) {
@@ -698,7 +609,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     e.preventDefault();
     const sheetIdx = side === 'right' ? flippedCount : flippedCount - 1;
     e.currentTarget.setPointerCapture(e.pointerId);
-    // Don't setLiveFlip yet — wait for actual drag movement to avoid cover-shift flash on simple clicks
     dragRef.current = { side, sheetIdx, startClientX: e.clientX, lastClientX: e.clientX, lastT: Date.now(), velDeg: 0, isDragging: false };
   }, [isAnimating, liveFlip, flippedCount, numSheets]);
 
@@ -707,7 +617,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     if (!drag) return;
     const pw = pageWRef.current;
     const deltaX = e.clientX - drag.startClientX;
-    // Only start live-flip once the pointer has moved enough (avoids flash on tap)
     if (Math.abs(deltaX) < 4 && !drag.isDragging) return;
     drag.isDragging = true;
     const now = Date.now();
@@ -772,7 +681,6 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
   /* ── scaling ── */
   const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
-  // Match shelf cover size: each page width = (min(vw,430) - padding*2 - gap) / 2
   const shelfThumbW = (Math.min(viewport.width, 430) - 48 - 20) / 2;
   const scaleFromCover = shelfThumbW / BASE_PAGE_W;
   const availableH = Math.max(220, viewport.height - 170); // ~90px header + ~80px footer/safe-area
@@ -790,6 +698,38 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const wrapW = pageW * 2 + sideMargin * 2;
   const spineX = sideMargin + pageW;
 
+  const isEdgeLiveFlip = !!liveFlip && (liveFlip.sheetIdx === 0 || liveFlip.sheetIdx === numSheets - 1);
+  const isEdgeSnapAnimating =
+    isAnimating &&
+    (
+      (lastFlipDir === 'next' && (flippedCount === 1 || flippedCount === numSheets)) ||
+      (lastFlipDir === 'prev' && (flippedCount === 0 || flippedCount === numSheets - 1))
+    );
+  const bookShiftX = (() => {
+    let effectiveCount = flippedCount;
+    if (isEdgeLiveFlip && liveFlip) {
+      if (liveFlip.sheetIdx === 0) effectiveCount = flippedCount <= 0 ? 0 : 1;
+      else if (liveFlip.sheetIdx === numSheets - 1) effectiveCount = flippedCount >= numSheets ? numSheets : numSheets - 1;
+    } else if (isEdgeSnapAnimating) {
+      const sourceCount = lastFlipDir === 'next' ? flippedCount - 1 : flippedCount + 1;
+      effectiveCount = Math.max(0, Math.min(numSheets, sourceCount));
+    }
+    if (effectiveCount <= 0) return -pageW / 2;
+    if (effectiveCount >= numSheets) return pageW / 2;
+    return 0;
+  })();
+
+  const isCoverFullyClosed = flippedCount === 0 && !isAnimating && !liveFlip;
+  const isBackFullyClosed = flippedCount >= numSheets && !isAnimating && !liveFlip;
+  const hideAllEdgeStacks = isCoverFullyClosed || isBackFullyClosed;
+
+  const hideEdgeSpineBarsDuringDrag = !!liveFlip && (flippedCount <= 1 || flippedCount >= numSheets - 1);
+  const isNearCoverClosingDrag =
+    !!liveFlip && flippedCount === 1 && liveFlip.sheetIdx === 0 && liveFlip.rotY > -18;
+  const isNearBackClosingDrag =
+    !!liveFlip && flippedCount === numSheets - 1 && liveFlip.sheetIdx === numSheets - 1 && liveFlip.rotY < -162;
+  const isolateActiveDragSheet = isNearCoverClosingDrag || isNearBackClosingDrag;
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column',
@@ -801,18 +741,23 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           {onBackToShelf ? (
             <button
               onClick={onBackToShelf}
-              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', color: 'rgba(255,255,255,0.78)', background: 'none', border: 'none', padding: 0 }}
+              style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
             >
-              <ChevronLeft size={24} strokeWidth={1.5} />
+              <ChevronLeft size={20} strokeWidth={2.2} />
             </button>
           ) : null}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
-          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{daysInMonth} 天</div>
+          <div className="font-black" style={{ color: '#4a5d4c', letterSpacing: 1, fontSize: 16 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
+          <div className="text-xs" style={{ color: 'rgba(74,93,76,0.4)', marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}><X size={24} strokeWidth={1.5} /></button>
+          <button
+            onClick={onClose}
+            style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+          >
+            <X size={20} strokeWidth={2.2} />
+          </button>
         </div>
       </div>
 
@@ -823,38 +768,38 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
         <div style={{ position: 'relative', width: wrapW, height: pageH, transformStyle: 'preserve-3d', transform: 'rotateX(0deg)' }}>
 
           {/* Fixed spine bars */}
-          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount > 0 && (
+          {!hideAllEdgeStacks && !hideEdgeSpineBarsDuringDrag && (isBookOpen || isAnimating || !!liveFlip) && flippedCount > 0 && (
             isAnimating && lastFlipDir === 'prev'
               ? flippedCount < numSheets - 1
               : flippedCount < numSheets
           ) && (
-            <div style={{ position: 'absolute', left: spineX, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', left: spineX + bookShiftX, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
-          {(isBookOpen || isAnimating || !!liveFlip) && flippedCount < numSheets && (
+          {!hideAllEdgeStacks && !hideEdgeSpineBarsDuringDrag && (isBookOpen || isAnimating || !!liveFlip) && flippedCount < numSheets && (
             isAnimating && lastFlipDir === 'next'
               ? flippedCount > 1
               : flippedCount > 0
           ) && (
-            <div style={{ position: 'absolute', left: spineX - sideGap - sheetSpineOverlap, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', left: spineX + bookShiftX - sideGap - sheetSpineOverlap, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
 
           {/* Sheets */}
           {Array.from({ length: numSheets }, (_, i) => {
             const isFlipped = i < flippedCount;
             const dist = isFlipped ? (flippedCount - 1 - i) : (i - flippedCount);
+            if (isolateActiveDragSheet && liveFlip && i !== liveFlip.sheetIdx) return null;
+            if (isCoverFullyClosed && i !== 0) return null;
+            if (isBackFullyClosed && i !== numSheets - 1) return null;
             const vis = Math.min(dist, MAX_VIS);
-            const isOnCover = flippedCount === 0;
-            const isOnBackCover = flippedCount >= numSheets;
-            const isFullyClosedCover = isOnCover && liveFlip?.sheetIdx !== i;
-            const isFullyClosedBack = isOnBackCover && liveFlip?.sheetIdx !== i;
-            if ((isFullyClosedCover || isFullyClosedBack) && dist > 0) return null;
             if (dist > MAX_VIS) return null;
 
             const stackZ = (MAX_VIS - vis) * 4 * scale;
             const rotY = isFlipped ? -180 : 0;
+            const isLive = liveFlip?.sheetIdx === i;
+            const isSnap = snapDur?.sheetIdx === i;
+            const effectiveRotY = isLive ? liveFlip!.rotY : rotY;
             const offset = dist === 0 ? 0 : vis * sideGap;
-            const shiftX = isFlipped ? -offset : offset;
-            const coverShiftLeft = isFullyClosedCover ? -pageW / 2 : isFullyClosedBack ? pageW / 2 : 0;
+            const shiftX = (isEdgeLiveFlip || isEdgeSnapAnimating) ? 0 : (isFlipped ? -offset : offset);
             const isCurrent = dist === 0;
             const layerShrink = isCurrent ? 0 : (dist - 1) * heightShrink;
             const sheetH = isCurrent ? pageH : pageH - 2 * trapezoidInset - layerShrink;
@@ -865,28 +810,24 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
               ? `polygon(0 ${trapezoidInset}px, 100% 0, 100% 100%, 0 calc(100% - ${trapezoidInset}px))` : undefined;
             const backClip = (isCurrent && !isBackCoverBack)
               ? `polygon(0 0, 100% ${trapezoidInset}px, 100% calc(100% - ${trapezoidInset}px), 0 100%)` : undefined;
-
-            const isLive = liveFlip?.sheetIdx === i;
-            const isSnap = snapDur?.sheetIdx === i;
-            const effectiveRotY = isLive ? liveFlip!.rotY : rotY;
             const effectiveDur = isSnap ? snapDur!.ms : FLIP_MS;
             return (
-              <div key={i} style={{ position: 'absolute', left: spineX + coverShiftLeft, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
+              <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: frontClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
+                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
                 </div>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: backClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
+                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
                 </div>
               </div>
             );
           })}
 
           {/* Center spine divider — thin line between left and right pages */}
-          {isBookOpen && (
+          {isBookOpen && !isolateActiveDragSheet && (
             <div style={{
               position: 'absolute',
-              left: spineX,
+              left: spineX + bookShiftX,
               top: trapezoidInset,
               width: 0.5,
               height: pageH - trapezoidInset * 2,
@@ -903,7 +844,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             onPointerUp={onZonePointerUp}
             onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
             onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('left'); pointerUpWasDrag.current = false; }}
-            style={{ position: 'absolute', left: 0, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount > 0 ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
+            style={{ position: 'absolute', left: bookShiftX, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount > 0 ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
           <div
             onPointerDown={(e) => onZonePointerDown('right', e)}
@@ -911,7 +852,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             onPointerUp={onZonePointerUp}
             onPointerCancel={() => { dragRef.current = null; setLiveFlip(null); pointerUpWasDrag.current = true; }}
             onClick={() => { if (!pointerUpWasDrag.current) handleZoneClick('right'); pointerUpWasDrag.current = false; }}
-            style={{ position: 'absolute', left: sideMargin + pageW, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount < numSheets ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
+            style={{ position: 'absolute', left: bookShiftX + sideMargin + pageW, top: 0, width: sideMargin + pageW, height: pageH, cursor: liveFlip ? 'grabbing' : flippedCount < numSheets ? 'grab' : 'default', transform: `translateZ(${(MAX_VIS + 3) * 18 * scale}px)`, touchAction: 'none' }}
           />
         </div>
         {/* Shadow beneath the book */}
@@ -931,7 +872,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronLeft size={24} strokeWidth={1.5} />
+              <ChevronLeft size={28} strokeWidth={2.2} />
             </button>
             <span className="text-sm" style={{ color: 'rgba(255,255,255,0.55)', minWidth: 56, textAlign: 'center' }}>
               {getIndicator()}
@@ -945,7 +886,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                 cursor: flippedCount >= daysInMonth ? 'default' : 'pointer', display: 'flex', alignItems: 'center',
               }}
             >
-              <ChevronRight size={24} strokeWidth={1.5} />
+              <ChevronRight size={28} strokeWidth={2.2} />
             </button>
           </div>
         ) : (
@@ -959,7 +900,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
       </div>
 
       {/* Expanded overlay */}
-      <ExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} plantRecords={plantRecords} />
+      <DiaryBookViewerExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} plantRecords={plantRecords} />
     </div>
   );
 };

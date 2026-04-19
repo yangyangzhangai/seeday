@@ -156,6 +156,24 @@ describe('classifyLiveInput hobby and standalone noun activity cases', () => {
 });
 
 describe('classifyLiveInput zh operational lexicon additions', () => {
+  it('classifies 修改订单 as activity (verb+object)', () => {
+    const result = classify('修改订单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 支付账单 as activity (verb+object)', () => {
+    const result = classify('支付账单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 核对账单 as activity', () => {
+    const result = classify('核对账单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
   it('classifies 查询日志 as activity', () => {
     const result = classify('查询日志');
     expect(result.kind).toBe('activity');

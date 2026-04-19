@@ -7,6 +7,8 @@ import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
+import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
+import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
@@ -27,19 +29,41 @@ import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
 import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
 import { useReminderStore } from './store/useReminderStore';
 import { getReminderCopy } from './services/reminder/reminderCopy';
+import { QuickActivityPicker } from './components/QuickActivityPicker';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
 );
 
+/** 账号创建不足 72 小时且尚无 profile → 视为新用户需要 onboarding */
+function isNewUserAccount(createdAt?: string | null): boolean {
+  if (!createdAt) return false;
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  return ageMs < 72 * 60 * 60 * 1000;
+}
+
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
   const location = useLocation();
+
+  // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
+  if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') {
+    return children;
+  }
 
   if (loading) return <BlankScreen />;
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+    const hasOnboarded = localStorage.getItem('seeday_onboarded') === 'true';
+    return hasOnboarded
+      ? <Navigate to="/auth" replace state={{ from: location.pathname }} />
+      : <Navigate to="/onboarding" replace />;
+  }
+  // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
+  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+  if (userProfileV2 === null && !hasPendingProfile && isNewUserAccount(user.created_at)) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return children;
@@ -53,6 +77,24 @@ const AuthRoute: React.FC = () => {
   if (user) return <Navigate to="/chat" replace />;
 
   return <AuthPage />;
+};
+
+/** 新版引导流：允许未登录（StepAuth 处理鉴权），已完成 onboarding 的已登录用户直接进首页 */
+const OnboardingRoute: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
+
+  if (loading) return <BlankScreen />;
+  // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
+  if (user) {
+    const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+    if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
+      return <Navigate to="/chat" replace />;
+    }
+  }
+
+  return <OnboardingFlow />;
 };
 
 const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -88,7 +130,7 @@ const MainLayout = () => {
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
-  useReminderSystem();
+  useReminderSystem(navigate);
   useMidnightAutoGenerate();
   const activePopupType = useReminderStore((s) => s.activePopupType);
   const markConfirmed = useReminderStore((s) => s.markConfirmed);
@@ -274,6 +316,7 @@ const MainLayout = () => {
           onClose={() => { markConfirmed(activePopupType); }}
         />
       )}
+      <QuickActivityPicker />
     </div>
   );
 };
@@ -313,6 +356,7 @@ function App() {
           <Route path="telemetry/user-analytics" element={<RequireTelemetryAdmin><UserAnalyticsDashboardPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
+        <Route path="/onboarding" element={<OnboardingRoute />} />
       </Routes>
     </BrowserRouter>
   );

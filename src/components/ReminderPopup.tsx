@@ -51,7 +51,7 @@ export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDe
 
   return (
     <div
-      className={APP_MODAL_OVERLAY_CLASS}
+      className={`fixed inset-0 z-[120] flex items-center justify-center ${APP_MODAL_OVERLAY_CLASS}`}
       onClick={handleDeny}
     >
       <div
@@ -149,7 +149,7 @@ export const EveningCheckPopup: React.FC<EveningCheckPopupProps> = ({
   const visual = AI_COMPANION_VISUALS[aiMode];
 
   return (
-    <div className={APP_MODAL_OVERLAY_CLASS} onClick={onClose}>
+    <div className={`fixed inset-0 z-[120] flex items-center justify-center ${APP_MODAL_OVERLAY_CLASS}`} onClick={onClose}>
       <div
         className="w-full max-w-xs mx-4 rounded-3xl bg-white p-5 shadow-xl"
         style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.14)' }}

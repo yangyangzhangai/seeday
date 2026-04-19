@@ -4,6 +4,187 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Feat: 活动识别补强“动词+对象”覆盖（zh/en/it）
+
+### Changed
+
+- `src/services/input/lexicon/activityLexicon.zh.ts`
+  - 扩充活动动词：新增运营/财务相关动词（如 `修改/核对/校对/复核/对账/付款/支付/缴费`）并补充单字动作 `付/核`，让“动词+对象”路径优先命中常见输入。
+- `src/services/input/liveInputRules.zh.ts`
+  - 扩充对象词：新增 `账目/账务/流水/支付记录/付款单/款项/费用/金额/账户/账号`，提升“修改/核对/支付 + 对象”组合识别率。
+- `src/services/input/liveInputRules.en.ts`
+  - 新增英文短语壳规则：支持 `modify|verify|reconcile|pay|submit + object` 的短句识别（如 `verify invoice`、`make payment` 同类输入）。
+- `src/services/input/liveInputRules.it.ts`
+  - 新增意大利语短语壳规则：支持 `modificare|verificare|riconciliare|pagare + object` 的短句识别（如 `verificare fattura`）。
+- `src/services/input/signals/latinSignalExtractor.ts`
+  - 扩充意大利语语言信号词，补足支付/核对相关 token 的语言识别稳定性。
+- `src/services/input/liveInputClassifier.test.ts`
+  - 新增中文“动词+对象”回归用例（`修改订单`、`支付账单`、`核对账单`）。
+- `src/services/input/liveInputClassifier.i18n.test.ts`
+  - 新增 EN/IT 运营财务短语回归用例（`make payment`、`verify invoice`、`fare pagamento`、`verificare fattura`）。
+
+### Validation
+
+- `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputClassifier.i18n.test.ts` ✅
+
+## 2026-04-19 - Fix: iOS 聊天输入框跟随键盘上移
+
+### Changed
+
+- `src/features/chat/ChatInputBar.tsx`
+  - 底部固定容器由 `bottom: 0` 调整为 `bottom: var(--keyboard-height, 0px)`，并增加 `bottom` 过渡，确保 iOS 键盘弹出时输入栏随键盘同步上移，不再被遮挡。
+  - 聊天页内底部导航容器新增 `chat-input-bottom-nav` 标记，配合 `keyboard-open` 状态在键盘弹起时自动隐藏，减少输入期误触与遮挡。
+- `src/services/native/keyboardService.ts`
+  - 初始化键盘修复时显式重置 `keyboard-open` class 与 `--keyboard-height` 为 0，避免热重载或异常中断后残留偏移。
+- `src/components/layout/BottomNav.tsx`
+  - 全局底部导航容器新增 `app-bottom-nav` 标记，键盘弹起时与聊天页导航保持一致自动隐藏。
+- `src/index.css`
+  - 新增 `.app-bottom-nav/.chat-input-bottom-nav` 的键盘联动样式：`html.keyboard-open` 下透明并禁用 pointer-events，键盘收起后恢复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Refactor: 合并 todo-decompose 到 classify 以回收 Vercel 函数配额
+
+### Changed
+
+- `api/classify.ts`
+  - 新增 `todo_decompose` 分支：当请求体包含 `module=todo_decompose`（或仅含 `title/lang`）时，走待办拆解链路并返回 `{ steps, parseStatus, model, provider }`。
+  - 保留原有分类能力（`rawInput` + habit/goal 语义匹配）不变。
+- `api/todo-decompose.ts`
+  - 删除独立 serverless 入口，减少函数数量。
+- `vercel.json`
+  - 新增 `/api/todo-decompose -> /api/classify` rewrite，保持旧调用路径兼容。
+- `api/README.md`
+  - 更新 `/api/todo-decompose` 归属文件与分支说明。
+- `src/api/README.md`
+  - 更新前端 API 文档，注明 todo-decompose 通过 rewrite 命中 classify 分支。
+- `docs/PROJECT_MAP.md`
+  - 更新服务端端点映射，去除 `todo-decompose.ts` 独立入口。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:max-lines` ✅
+
+## 2026-04-19 - Refactor: 拆分 DiaryBookViewer 放大弹层以通过 max-lines pre-commit
+
+### Changed
+
+- `src/features/report/DiaryBookViewer.tsx`
+  - 抽离 expanded overlay 逻辑与 UI，主文件行数从 1000+ 降至 907，翻页、双击放大与拖拽翻页行为保持不变。
+  - 维持现有月视图数据加载、分页渲染与交互状态管理，不改动业务流。
+- `src/features/report/DiaryBookViewerExpandedView.tsx`（新增）
+  - 承载放大查看弹层渲染（左右页内容、植物图、AI 观察笔记、我的日记），并复用原有 modal 主题样式。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+
+## 2026-04-19 - Fix: 作息面板移动端适配与保存抖动修复
+
+### Changed
+
+- `src/features/profile/components/RoutineSettingsPanel.tsx`
+  - 作息弹窗改为移动端优先的底部 sheet 布局（`items-end` + safe-area padding + `100dvh` 高度约束），修复手机端显示不全与底部操作区被遮挡。
+  - 去除自动保存定时器，保存动作改为显式手动触发，修复 `保存中` 与 `保存` 文案反复切换造成的交互抖动。
+  - 保存脏检查从“仅基础作息 5 项”扩展为“完整表单签名”（身份、工作/课程时间、提醒开关 + 基础作息），修复部分时间修改后无法保存的问题。
+  - 时间滚轮每次打开前先回填当前值，确保小时/分钟默认对齐已有时间，避免从 `00:00` 重新滚动选择。
+  - 保存成功后清理 `reminder_scheduled_date`，让同日内修改作息后可重新触发本地通知排程。
+- `src/components/ReminderPopup.tsx`
+  - `ReminderPopup` 与 `EveningCheckPopup` 增加全屏 fixed overlay 与更高层级 z-index，修复移动端前台提醒弹窗偶发不显示/被页面遮挡。
+- `src/services/notifications/localNotificationService.ts`
+  - 本地通知调度前新增权限兜底：先 `checkPermissions()`，若状态为 `prompt` 则自动 `requestPermissions()`，仅在最终 `granted` 时执行调度，修复后台系统通知因未授权而静默失效。
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 完成 onboarding 时的 profile 写入改为非阻塞（`void updateUserProfile(...)`），优先导航进入 `/chat`，避免弱网场景下“Start using Seeday”点击后停留在引导页。
+- `ios/App/CapApp-SPM/Package.swift`
+  - 执行 `npx cap sync ios` 后同步写入 `@capacitor/local-notifications` 插件依赖，确保 iOS 原生工程包含本地通知能力。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ❌（当前工作区环境缺少 `@capacitor/local-notifications` 模块解析，报错源于既有 `OnboardingFlow.tsx` 动态导入链路，不属于本次改动引入）
+
+## 2026-04-18 - Refactor: 日记称呼主语句从 system prompt 迁移到 user prompt
+
+### Changed
+
+- `api/diary.ts`
+  - 新增 `buildDiaryAddresseeUserRule()`，按 `zh/en/it` 生成称呼规则句（例如 zh: `对方称呼统一为"昵称"。`）。
+  - diary 主链路在组装 `userContent` 时追加 `[Addressee rule]` 段，把称呼主语句放入 user prompt。
+- `src/lib/aiCompanion/prompts/{van,agnes,zep,momo}.ts`
+  - 从三语 diary system prompt 中移除“对方称呼统一为"__ADDRESSEE__" / The only addressee name is "__ADDRESSEE__" / Il nome da usare e solo "__ADDRESSEE__"”这条主语句。
+  - 保留其余“禁止泛称呼 + 全文使用昵称”的规则不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 日记称呼替换改为纯规则（移除二次 LLM 重写）
+
+### Changed
+
+- `api/diary.ts`
+  - 删除 `rewriteAddresseeIfNeeded()`：不再调用 `gpt-4o-mini` 对整段日记做二次改写。
+  - 命中泛称呼（如 `用户/ta/the user/l'utente`）后，改为直接走 `forceAddresseeReplacement()` 规则替换为昵称。
+  - 保留末端落款补全逻辑，确保人格签名行为不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 日记 prompt 改为人格单模板直出
+
+### Changed
+
+- `api/diary.ts`
+  - 移除 `DIARY_CORE_PROMPT_ZH/EN` 与运行时 `buildAddresseeRule()` 拼接逻辑。
+  - `buildDiaryModePrompt()` 改为直接使用人格 diary prompt，并仅做 `__ADDRESSEE__` 占位符替换。
+- `src/lib/aiCompanion/prompts/van.ts`
+  - `VAN_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/agnes.ts`
+  - `AGNES_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/zep.ts`
+  - `ZEP_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/momo.ts`
+  - `MOMO_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 合并 holiday-check 端点以满足 Vercel Hobby 12 函数限制
+
+### Changed
+
+- `api/live-input-telemetry.ts`
+  - 新增 `GET module=holiday_check` 分支，接管原节假日查询能力，返回 `{ isFreeDay, reason, name? }`。
+  - 保留既有 `module=user_analytics` 与默认 telemetry dashboard 查询逻辑不变。
+- `src/services/reminder/reminderScheduler.ts`
+  - `getIsFreeDay()` 请求地址从 `/api/check-holiday` 改为 `/api/live-input-telemetry?module=holiday_check`。
+- `api/check-holiday.ts`
+  - 删除独立 serverless 入口，减少函数数量以适配 Hobby 配额。
+- `api/README.md`
+  - 更新 `/api/live-input-telemetry` 的 `holiday_check` 查询契约说明。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 拆分 useAuthStore streak helpers 以通过 max-lines pre-commit
+
+### Changed
+
+- `src/store/useAuthStore.ts`
+  - 将连续活跃天数与登录 streak 相关 helper 抽离，主 store 仅保留状态与认证编排逻辑，文件行数从 1000+ 降到 942。
+- `src/store/authStreakHelpers.ts`（新增）
+  - 新增 `fetchActivityStreak()` 与 `updateLoginStreak()`，复用原有 Supabase 查询、当日缓存与 DEV 日志行为，功能保持不变。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+- `npx tsc --noEmit` ✅
 ## 2026-04-18 - Feat: 主动提醒系统 Phase 1（PROACTIVE_REMINDER_SPEC）
 
 ### Added

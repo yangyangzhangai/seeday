@@ -5,7 +5,19 @@
     }
   },
   "rewrites": [
+    { "source": "/api/todo-decompose", "destination": "/api/classify" },
     { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/supabase-proxy/(.*)",
+      "destination": "https://oxsbukofipeoikirkyyy.supabase.co/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

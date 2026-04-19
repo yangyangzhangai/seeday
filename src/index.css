@@ -132,6 +132,18 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   overflow: auto;
 }
 
+.app-bottom-nav,
+.chat-input-bottom-nav {
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+
+html.keyboard-open .app-bottom-nav,
+html.keyboard-open .chat-input-bottom-nav {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
 @media (max-width: 767px) {
   .app-mobile-page-frame {
     width: 100% !important;

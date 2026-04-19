@@ -184,7 +184,9 @@ export const enActivityLexicon: ActivityLexicon = {
     'birthday party', 'wedding', 'baby shower', 'funeral',
     // Query / edit / submit / auth operational phrases
     'query logs', 'query data', 'search records', 'look up order', 'track package', 'filter results', 'refine query',
-    'edit document', 'modify config', 'update profile', 'revise copy',
+    'edit document', 'modify config', 'update profile', 'revise copy', 'modify', 'editing', 'revising',
+    'make payment', 'made payment', 'payment', 'pay invoice', 'paid invoice', 'process payment', 'wire transfer', 'bank transfer', 'settle bill',
+    'check order', 'verify order', 'check invoice', 'verify invoice', 'reconcile account', 'reconcile accounts', 'reconciliation', 'cross-check data',
     'submit ticket', 'submit request', 'submit pr', 'submit for review',
     'verify identity', 'identity verification', 'two-factor authentication', 'sign in', 'sign out', 'reset password',
     'bind phone number', 'unlink device', 'upload file', 'export report',

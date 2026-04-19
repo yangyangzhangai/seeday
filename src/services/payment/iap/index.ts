@@ -8,8 +8,8 @@ const IAP_PLANS: PaymentPlan[] = [
 ];
 
 const IAP_PRODUCT_IDS: Record<PaymentPlanType, string> = {
-  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'com.tshine.app.plus.monthly',
-  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'com.tshine.app.plus.annual',
+  monthly: import.meta.env.VITE_IAP_PRODUCT_MONTHLY || 'seeday.pro.monthly',
+  annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'seeday.pro.annual',
 };
 
 interface IapTransactionLike {
@@ -34,7 +34,7 @@ function getBridge(): IapBridge | null {
   };
   const plugins = globalAny.Capacitor?.Plugins;
   if (!plugins) return null;
-  return (plugins.TshineIAP || plugins.IAP || null) as IapBridge | null;
+  return (plugins.SeedayIAP || plugins.IAP || null) as IapBridge | null;
 }
 
 function toActionResult(error: unknown): PaymentActionResult {

@@ -74,6 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (handlePreflight(req, res)) return;
   if (req.method === 'GET') {
+    if (req.query.module === 'holiday_check') {
+      handleHolidayCheckGet(req, res);
+      return;
+    }
     if (req.query.module === 'user_analytics') {
       await handleUserAnalyticsDashboard(req, res);
       return;
