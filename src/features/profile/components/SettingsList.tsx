@@ -22,6 +22,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   const handleLogout = () => {
     if (window.confirm(t('header_confirm_logout'))) {
       signOut();
+      navigate('/auth', { replace: true });
     }
   };
 

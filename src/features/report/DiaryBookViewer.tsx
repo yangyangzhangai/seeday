@@ -31,8 +31,14 @@ const BASE_SIDE_GAP = 6;
 const MAX_VIS = 4;
 const BASE_HEIGHT_SHRINK = 20;
 const PAPER_COLOR = '#ffffff';
-const COVER_COLOR = "url('/assets/book.png') center/cover no-repeat";
-const SHELF_BG = '#7a9b7e';
+const SHELF_BG = '#f4f7f4';
+const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
+const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
+const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
+function coverColor(month: Date): string {
+  const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
+  return COVER_COLORS[idx];
+}
 const SPINE_STRIP_W = 14;
 const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
@@ -136,7 +142,7 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 }
 
 /* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale, allMessages, plantRecords }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[] }) {
+function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string }) {
   const px = (n: number) => n * scale;
   const { i18n, t: tr } = useTranslation();
   const navigate = useNavigate();
@@ -158,10 +164,20 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   /* ── cover ── */
   if (page.type === 'cover') {
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: '#6b5a3e' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, width: px(SPINE_STRIP_W), height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
-        <div style={{ fontSize: px(18), fontWeight: 700, letterSpacing: 3 }}>日记本</div>
-        <div style={{ fontSize: px(11), opacity: 0.55, marginTop: px(6) }}>Diary</div>
+      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        {/* Spine */}
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to right, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
+        {/* Sheen */}
+        <div style={{ position: 'absolute', left: px(20), right: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)', transform: 'skewX(-15deg)', pointerEvents: 'none' }} />
+        {/* Text */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
+          <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>日记本</div>
+          <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Diary</div>
+        </div>
       </div>
     );
   }
@@ -169,8 +185,13 @@ function PageContent({ page, scale, allMessages, plantRecords }: { page: PageDat
   /* ── back cover ── */
   if (page.type === 'back') {
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: COVER_COLOR }}>
-        <div style={{ position: 'absolute', right: 0, top: 0, width: px(SPINE_STRIP_W), height: '100%', background: 'rgba(0,0,0,0.15)', backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1.5px, transparent 1.5px, transparent 4px)' }} />
+      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden' }}>
+        {/* Spine on right for back */}
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to left, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
       </div>
     );
   }
@@ -820,30 +841,20 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           {onBackToShelf ? (
             <button
               onClick={onBackToShelf}
-              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', color: 'rgba(255,255,255,0.78)', background: 'none', border: 'none', padding: 0 }}
+              style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
             >
-              <ChevronLeft size={28} strokeWidth={2.2} />
+              <ChevronLeft size={20} strokeWidth={2.2} />
             </button>
           ) : null}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div className="font-medium" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: 1, fontSize: 16 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
-          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{daysInMonth} 天</div>
+          <div className="font-black" style={{ color: '#4a5d4c', letterSpacing: 1, fontSize: 16 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
+          <div className="text-xs" style={{ color: 'rgba(74,93,76,0.4)', marginTop: 2 }}>{daysInMonth} 天</div>
         </div>
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            style={{
-              width: 36,
-              height: 36,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'rgba(255,255,255,0.72)',
-              background: 'rgba(0,0,0,0.08)',
-              border: 'none',
-              borderRadius: 9999,
-            }}
+            style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
           >
             <X size={20} strokeWidth={2.2} />
           </button>
@@ -902,11 +913,11 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             const effectiveDur = isSnap ? snapDur!.ms : FLIP_MS;
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: frontClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
+                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
                 </div>
-                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} />
+                <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: backClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
+                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
                 </div>
               </div>
             );
