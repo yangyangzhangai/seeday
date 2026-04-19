@@ -66,12 +66,8 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         className="relative w-[160px] cursor-pointer group/book"
         style={{ WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
       >
-        {/* Physical layered shadows */}
-        <div className="absolute bottom-0 left-[5%] right-[5%] h-1 bg-black/60 blur-[2.5px] rounded-full opacity-80 transition-opacity group-hover/book:opacity-30" />
-        <div className="absolute bottom-[-4px] left-[10%] right-[10%] h-4 bg-black/30 blur-[10px] rounded-full opacity-50 transition-opacity group-hover/book:opacity-20" />
-
         {/* 3D spine thickness */}
-        <div className="absolute left-[-5px] top-[2px] bottom-[2px] w-[20px] bg-black/30 rounded-l-lg blur-[1px] z-0" />
+        <div className="absolute left-[-4px] top-[3px] bottom-[3px] w-[14px] bg-black/25 rounded-l-lg blur-[1px] z-0" />
 
         {/* Selection ring */}
         {isSelected && (
@@ -82,7 +78,8 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
 
         {/* Book body — A5 ratio 1:1.41 */}
         <div
-          className="relative overflow-hidden shadow-[10px_15px_35px_rgba(0,0,0,0.18)] transition-all group-hover/book:shadow-[22px_35px_55px_rgba(0,0,0,0.22)]"
+          className="relative overflow-hidden transition-all"
+          style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.28)) drop-shadow(2px 8px 12px rgba(0,0,0,0.16))' }}
           style={{
             aspectRatio: '1/1.41',
             backgroundColor: color,
