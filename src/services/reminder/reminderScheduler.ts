@@ -31,6 +31,18 @@ function makeNotificationId(type: ReminderType): number {
   return REMINDER_ID_BASE + reminderTypeToIndex(type);
 }
 
+function resolveActionTypeId(
+  type: ReminderType,
+): LocalNotificationPayload['actionTypeId'] {
+  if (type === 'evening_check' || type === 'weekend_evening_check') {
+    return 'EVENING_CHECK';
+  }
+  if (type === 'weekend_morning_check' || type === 'weekend_afternoon_check') {
+    return 'WEEKEND_CHECK';
+  }
+  return 'CONFIRM_DENY';
+}
+
 // ─────────────────────────────────────────────
 // 节假日检测（结果缓存到 localStorage，当日有效）
 // ─────────────────────────────────────────────
@@ -162,6 +174,7 @@ function buildPayloads(
     title: opts.notificationTitle ?? 'Seeday',
     body: opts.getCopyFn(type, { name: opts.userName }),
     at: timeStringToDate(time, baseDate),
+    actionTypeId: resolveActionTypeId(type),
     extra: { reminderType: type },
   }));
 }
