@@ -8,6 +8,7 @@ import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
+import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
@@ -56,8 +57,9 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   if (!user) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
   }
-  // 仅在账号 < 72h 且无 profile 时才强制走 onboarding；老账号直接放行
-  if (userProfileV2 === null && isNewUserAccount(user.created_at)) {
+  // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
+  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+  if (userProfileV2 === null && !hasPendingProfile && isNewUserAccount(user.created_at)) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -82,8 +84,9 @@ const OnboardingRoute: React.FC = () => {
 
   if (loading) return <BlankScreen />;
   if (!user) return <Navigate to="/auth" replace />;
-  // 已完成 onboarding 或老账号 → 直接进首页
-  if (userProfileV2 !== null || !isNewUserAccount(user.created_at)) {
+  // 已完成 onboarding 或老账号或有本地兜底 → 直接进首页
+  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+  if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
     return <Navigate to="/chat" replace />;
   }
 
