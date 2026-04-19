@@ -653,9 +653,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    // Clear local session immediately — no network required
-    await supabase.auth.signOut({ scope: 'local' });
-    // Invalidate server-side token in background when network is available
+    // Reset store + local state immediately — no network required
+    clearLocalDomainStores();
+    markLocalDataOwnerAnonymous();
+    set({
+      user: null,
+      preferences: DEFAULT_PREFERENCES,
+      longTermProfileEnabled: false,
+      userProfileV2: null,
+      membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
+      membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
+      isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
+      activityStreak: null,
+    });
+    // Clear Supabase local session keys so app doesn't restore session on reload
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch { /* storage unavailable */ }
+    // Invalidate server-side token in background
     supabase.auth.signOut({ scope: 'global' }).catch(() => {});
   },
 
