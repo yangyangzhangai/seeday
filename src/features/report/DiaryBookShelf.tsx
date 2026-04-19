@@ -259,7 +259,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       </header>
 
       {/* Stats cards */}
-      <div className="flex gap-3 px-6 mb-6 justify-center">
+      <div className="flex gap-3 px-6 mb-2 justify-center">
         <div className="flex-1 max-w-[160px] bg-white/60 backdrop-blur-md border border-white p-4 rounded-[28px] shadow-[0_10px_25px_rgba(0,0,0,0.02)]">
           <p className="text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-widest mb-1 text-center">总计篇目</p>
           <p className="text-xl font-black text-[#4a5d4c] text-center">
@@ -275,10 +275,10 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       </div>
 
       {/* Book shelf scroll */}
-      <div className="flex-1 overflow-y-auto flex flex-col justify-center">
+      <div className="flex-1 flex items-center overflow-hidden">
         <div className="w-full overflow-x-auto snap-x snap-mandatory flex" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
           <div className="flex-shrink-0 w-8" />
-          <div className="flex gap-6 py-12 pr-12">
+          <div className="flex gap-6 py-4 pr-12">
             {months.map((m, idx) => (
               <BookThumb
                 key={m.getTime()}
