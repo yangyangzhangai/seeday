@@ -196,6 +196,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [showModal]);
 
   const [identity, setIdentity] = React.useState<IdentityType>('none');
+  const [pendingIdentity, setPendingIdentity] = React.useState<IdentityType | null>(null);
   const [wakeTime, setWakeTime] = React.useState(DEFAULT_WAKE_TIME);
   const [sleepTime, setSleepTime] = React.useState(DEFAULT_SLEEP_TIME);
   const [breakfastTime, setBreakfastTime] = React.useState(DEFAULT_BREAKFAST);
@@ -282,6 +283,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [breakfastTime, lunchTime, dinnerTime]);
 
   const hasUnsavedChanges = currentSig !== baselineSig;
+  const savedIdentity = React.useMemo<IdentityType>(() => {
+    const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
+    return v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
+  }, [userProfileV2?.manual]);
+
   const baselineFullSig = React.useMemo(() => {
     const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
     const baselineIdentity: IdentityType = v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
@@ -387,6 +393,10 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   };
   const requestCloseModal = () => {
     if (saving) return;
+    if (pendingIdentity !== null) {
+      setPendingIdentity(null);
+      return;
+    }
     if (hasFullUnsavedChanges) {
       void performSave();
       return;
@@ -458,19 +468,68 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                       { id: 'none', label: t('profile_schedule_identity_free') },
                       { id: 'work', label: t('profile_schedule_identity_work') },
                       { id: 'class', label: t('profile_schedule_identity_class') },
-                    ] as const).map((item) => (
-                      <button key={item.id} onClick={() => setIdentity(item.id)}
-                        className={`flex items-center justify-center py-2 rounded-lg border text-xs font-medium transition-all ${identity === item.id ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
-                        style={identity === item.id ? {
-                          background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-                          border: '0.5px solid transparent',
-                          boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
-                          color: '#426D56',
-                        } : undefined}>
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
+                    ] as const).map((item) => {
+                      const isCurrent = item.id === savedIdentity;
+                      const isSelected = item.id === identity;
+                      return (
+                        <button key={item.id}
+                          onClick={() => {
+                            if (item.id === identity) return;
+                            if (item.id !== savedIdentity) {
+                              setPendingIdentity(item.id);
+                            } else {
+                              setIdentity(item.id);
+                              setPendingIdentity(null);
+                            }
+                          }}
+                          className={`relative flex flex-col items-center justify-center py-2.5 rounded-lg border text-xs font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
+                          style={isSelected ? {
+                            background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+                            border: '0.5px solid transparent',
+                            boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+                            color: '#426D56',
+                          } : undefined}>
+                          {isCurrent && (
+                            <span className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-[#8fae91]">
+                              {t('profile_schedule_identity_current')}
+                            </span>
+                          )}
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {/* 身份切换确认条 */}
+                  <AnimatePresence>
+                    {pendingIdentity !== null && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="mt-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3 space-y-2"
+                      >
+                        <p className="text-[11px] font-bold text-amber-800">{t('profile_schedule_identity_switch_title')}</p>
+                        <p className="text-[11px] text-amber-700 leading-snug">
+                          {t('profile_schedule_identity_switch_body', {
+                            name: t(`profile_schedule_identity_${pendingIdentity}`),
+                          })}
+                        </p>
+                        <div className="flex gap-2 pt-0.5">
+                          <button
+                            onClick={() => setPendingIdentity(null)}
+                            className="flex-1 py-1.5 rounded-xl text-[10px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 transition-colors">
+                            {t('cancel')}
+                          </button>
+                          <button
+                            onClick={() => { setIdentity(pendingIdentity); setPendingIdentity(null); }}
+                            className="flex-1 py-1.5 rounded-xl text-[10px] font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
+                            {t('confirm')}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </section>
 
                 {/* 基础作息 */}

@@ -4,6 +4,29 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Feat: 活动识别补强“动词+对象”覆盖（zh/en/it）
+
+### Changed
+
+- `src/services/input/lexicon/activityLexicon.zh.ts`
+  - 扩充活动动词：新增运营/财务相关动词（如 `修改/核对/校对/复核/对账/付款/支付/缴费`）并补充单字动作 `付/核`，让“动词+对象”路径优先命中常见输入。
+- `src/services/input/liveInputRules.zh.ts`
+  - 扩充对象词：新增 `账目/账务/流水/支付记录/付款单/款项/费用/金额/账户/账号`，提升“修改/核对/支付 + 对象”组合识别率。
+- `src/services/input/liveInputRules.en.ts`
+  - 新增英文短语壳规则：支持 `modify|verify|reconcile|pay|submit + object` 的短句识别（如 `verify invoice`、`make payment` 同类输入）。
+- `src/services/input/liveInputRules.it.ts`
+  - 新增意大利语短语壳规则：支持 `modificare|verificare|riconciliare|pagare + object` 的短句识别（如 `verificare fattura`）。
+- `src/services/input/signals/latinSignalExtractor.ts`
+  - 扩充意大利语语言信号词，补足支付/核对相关 token 的语言识别稳定性。
+- `src/services/input/liveInputClassifier.test.ts`
+  - 新增中文“动词+对象”回归用例（`修改订单`、`支付账单`、`核对账单`）。
+- `src/services/input/liveInputClassifier.i18n.test.ts`
+  - 新增 EN/IT 运营财务短语回归用例（`make payment`、`verify invoice`、`fare pagamento`、`verificare fattura`）。
+
+### Validation
+
+- `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputClassifier.i18n.test.ts` ✅
+
 ## 2026-04-19 - Fix: iOS 聊天输入框跟随键盘上移
 
 ### Changed

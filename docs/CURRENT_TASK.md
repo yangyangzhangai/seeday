@@ -20,6 +20,7 @@ Owner: current working session
 - [x] Vercel 函数配额收口（13 -> 12）：删除独立 `api/todo-decompose.ts`，将待办拆解并入 `api/classify.ts` 的 `todo_decompose` 分支，并通过 `vercel.json` rewrite 继续兼容 `/api/todo-decompose` 旧路径。
 - [x] 修复 iOS 聊天输入框被键盘遮挡：聊天底部输入容器改为跟随 `--keyboard-height` 上移，`setupKeyboardViewportFix` 初始化时重置键盘变量，确保键盘弹出时输入框同步抬升。
 - [x] iOS 键盘弹起时隐藏底部导航：全局 `BottomNav` 与聊天页内底部导航增加 `keyboard-open` 联动隐藏，避免键盘期导航挤压输入区与误触。
+- [x] 输入分类词库补强（zh/en/it）：按“动词+对象”优先扩充运营/财务高频动作（如 修改订单 / 支付账单 / 核对账单，EN/IT 对应 verify/pay/reconcile + object 短语），并补齐回归测试。
 
 ---
 
