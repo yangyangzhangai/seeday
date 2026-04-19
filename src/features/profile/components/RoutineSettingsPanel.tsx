@@ -353,6 +353,10 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     if (!hasFullUnsavedChanges) { setSaveText(t('profile_routine_no_changes')); return; }
     setSaveText('');
     setSaving(true);
+    // Persist locally first, then sync to Supabase in background.
+    writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime });
+    localStorage.removeItem('reminder_scheduled_date');
+
     const hasWork = identity === 'work';
     const hasClass = identity === 'class';
     const baseManual = buildRoutineManualPayload(userProfileV2?.manual, {
@@ -373,12 +377,21 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
       classScheduleSource: hasClass ? 'manual' : undefined,
     };
     const { error } = await updateUserProfile({ manual: { ...baseManual, ...v2Extra } as UserProfileManualV2 });
+    if (error) {
+      // Keep local save result; cloud sync can retry later.
+      console.warn('[RoutineSettingsPanel] local save done, cloud sync failed:', error);
+    }
     setSaving(false);
-    if (error) { setSaveText(t('profile_routine_save_failed')); return; }
-    writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime });
-    localStorage.removeItem('reminder_scheduled_date');
     setSaveText(t('profile_routine_saved'));
     setTimeout(() => setShowModal(false), 600);
+  };
+  const requestCloseModal = () => {
+    if (saving) return;
+    if (hasFullUnsavedChanges) {
+      void performSave();
+      return;
+    }
+    setShowModal(false);
   };
 
   const SectionLabel = ({ title }: { title: string }) => (
@@ -415,7 +428,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" />
+              onClick={requestCloseModal} className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -429,7 +442,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               {/* 标题 */}
               <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-black tracking-tighter text-black uppercase">{t('profile_routine_title')}</h2>
-                <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-black/5 transition-colors">
+                <button onClick={requestCloseModal} className="p-2 rounded-full hover:bg-black/5 transition-colors">
                   <X size={18} className="text-black" />
                 </button>
               </div>
