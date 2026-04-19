@@ -4,6 +4,35 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Fix: 日记本饼图改为复用日报快照口径
+
+### Changed
+
+- `src/features/report/DiaryBookViewer.tsx`
+  - 活动/心情饼图改为优先使用 `report.stats.actionAnalysis` 与 `report.stats.moodDistribution`，确保与白天报告页圆环一致，不再依赖临时消息缓存重算。
+  - 仅在历史报告缺少 stats 快照时，才回退到消息侧重算。
+  - 回退路径补齐 `customMoodLabel/customMoodApplied` 处理，避免自定义心情被漏算。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Fix: 日报心情圆环与报告生成口径对齐
+
+### Changed
+
+- `src/features/report/reportPageHelpers.ts`
+  - `getDailyMoodDistribution()` 入参从仅 `activityMood` 扩展为完整 mood 快照（`activityMood/customMoodLabel/customMoodApplied`），与 `reportHelpers.computeMoodDistribution()` 保持一致。
+  - 新增 custom label 生效逻辑，并过滤 0 分钟心情项，修复心情圆环偶发漏计/被单一心情占满的问题。
+- `src/features/report/ReportDetailModal.tsx`
+  - 心情分布计算改为传入完整 mood 快照，避免“活动正确但心情少算”。
+- `src/features/report/ReportPage.tsx`
+  - 同步更新 `getDailyMoodDistribution()` 调用签名，确保列表页与详情页口径一致。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-19 - Feat: Onboarding 接入待办引导页 UI
 
 ### Added
@@ -17,6 +46,14 @@ All notable changes to this repository are documented here.
 - `src/features/onboarding/OnboardingFlow.tsx`
   - Onboarding 总步数由 5 步扩展为 6 步，并将待办引导页作为第 3 步插入流程。
   - 原有日程/作息/完成步骤后移，保持保存资料与完成引导逻辑不变。
+  - 重写首条记录引导页（StepJournal）：替换为拟物录入卡样式、AI 感应提示、发送中状态，并改为写入 `localStorage.at_activities` 后延迟 1.2s 进入下一步。
+  - 重写注册引导页（StepAuth）：替换为新稿视觉与交互（手机号/邮箱单输入、Apple/Google 按钮、协议提示、输入非空可继续）。
+- `src/features/onboarding/OnboardingStepRoutine.tsx`
+  - 重写作息设置页 UI：接入滚轮时间选择器（小时/分钟）、状态切换（自由/工作/学生）、条件化办公/课程时间块与提醒开关。
+  - 保存按钮文案与样式对齐新稿（`保存并继续`），并保留保存中禁用态。
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 对齐新作息结构：`RoutineState` 收敛为 `classStart/classEnd` 与 `remindMe`，并将 `remindMe` 写入 `manual.reminderEnabled`。
+  - `classSchedule` 写回策略调整为基于 `classStart/classEnd` 生成 morning 段，移除旧多时段输入依赖。
 
 ### Validation
 

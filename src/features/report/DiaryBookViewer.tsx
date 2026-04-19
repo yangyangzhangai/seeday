@@ -21,6 +21,7 @@ const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549
 const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
 const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
 const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
+const CUSTOM_MOOD_LABEL = '自定义';
 
 /* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
@@ -147,6 +148,8 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page
   const navigate = useNavigate();
   const isPlus = useAuthStore((state) => state.isPlus);
   const activityMood = useMoodStore(state => state.activityMood);
+  const customMoodLabel = useMoodStore(state => state.customMoodLabel);
+  const customMoodApplied = useMoodStore(state => state.customMoodApplied);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
   const langRaw = i18n.language?.split('-')[0] ?? 'en';
   const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
@@ -223,10 +226,19 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page
     .sort((a, b) => a.timestamp - b.timestamp);
   const actDist = computeActivityDistribution(dayMsgs);
 
+  const actionAnalysis = (report?.stats?.actionAnalysis ?? [])
+    .filter((item) => item.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
+
   const moodMinutes: Record<string, number> = {};
   dayMsgs.forEach(msg => {
     if (msg.isActive) return;
-    const mood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
+    const baseMood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
+    const customLabel = customMoodLabel[msg.id];
+    const useCustom = customMoodApplied[msg.id] === true;
+    const mood = useCustom && customLabel && customLabel.trim() && customLabel.trim() !== CUSTOM_MOOD_LABEL
+      ? customLabel.trim()
+      : baseMood;
     if (mood && msg.duration && msg.duration > 0) {
       const key = normalizeMoodKey(mood) || mood;
       moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
@@ -237,17 +249,31 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page
     .filter(d => d.minutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
 
-  const activitySlices = actDist.length > 0
-    ? actDist.slice(0, 5).map((d, index) => ({
+  const moodDistribution = (report?.stats?.moodDistribution ?? [])
+    .filter((item) => item.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
+
+  const activitySlices = actionAnalysis.length > 0
+    ? actionAnalysis.slice(0, 5).map((d, index) => ({
       color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
       value: d.minutes,
     }))
+    : actDist.length > 0
+      ? actDist.slice(0, 5).map((d, index) => ({
+      color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
+      value: d.minutes,
+      }))
     : [{ color: '#E5E7EB', value: 1 }];
-  const moodSlices = moodDist.length > 0
-    ? moodDist.slice(0, 4).map((d, index) => ({
+  const moodSlices = moodDistribution.length > 0
+    ? moodDistribution.slice(0, 4).map((d, index) => ({
       color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
       value: d.minutes,
     }))
+    : moodDist.length > 0
+      ? moodDist.slice(0, 4).map((d, index) => ({
+      color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
+      value: d.minutes,
+      }))
     : [{ color: '#E5E7EB', value: 1 }];
   const buildConic = (slices: Array<{ color: string; value: number }>) => {
     const total = slices.reduce((sum, item) => sum + item.value, 0) || 1;

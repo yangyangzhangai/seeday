@@ -417,9 +417,10 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   );
 
   return (
-    <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+    <>
+      <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <button
-        onClick={() => setExpanded((prev) => !prev)}
+        onClick={() => setShowModal(true)}
         className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
       >
         <div className="flex items-start gap-2.5 text-left">
@@ -427,8 +428,9 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
           <div>
             <p className="profile-fn-title">{t('profile_routine_title')}</p>
           </div>
-          <ChevronRight size={16} strokeWidth={1.5} className="text-slate-400" />
-        </button>
+        </div>
+        <ChevronRight size={16} strokeWidth={1.5} className="text-slate-400" />
+      </button>
       </div>
 
       {/* 弹窗 */}

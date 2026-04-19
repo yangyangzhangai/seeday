@@ -16,6 +16,14 @@ export interface MoodDistributionItem {
   minutes: number;
 }
 
+interface MoodSnapshot {
+  activityMood: Record<string, string | undefined>;
+  customMoodLabel: Record<string, string | undefined>;
+  customMoodApplied?: Record<string, boolean | undefined>;
+}
+
+const CUSTOM_MOOD_LABEL = '自定义';
+
 export function getReportRange(report: Report): { start: number; end: number } {
   return {
     start: report.startDate || startOfDay(new Date(report.date)).getTime(),
@@ -38,7 +46,7 @@ export function getMessagesForReport(
 
 export function getDailyMoodDistribution(
   messages: Message[],
-  activityMood: Record<string, string>,
+  moodSnapshot: MoodSnapshot,
   report: Report | null
 ): MoodDistributionItem[] {
   if (!report || report.type !== 'daily') return [];
@@ -56,16 +64,24 @@ export function getDailyMoodDistribution(
         m.duration !== undefined
     )
     .forEach((m) => {
-      const mood = activityMood[m.id];
+      const baseMood = moodSnapshot.activityMood[m.id];
+      const customLabel = moodSnapshot.customMoodLabel[m.id];
+      const useCustom = moodSnapshot.customMoodApplied?.[m.id] === true;
+      const mood = useCustom && customLabel && customLabel.trim() && customLabel.trim() !== CUSTOM_MOOD_LABEL
+        ? customLabel.trim()
+        : baseMood;
       if (!mood) return;
       const minutes = m.duration || 0;
       moodMinutes[mood] = (moodMinutes[mood] || 0) + minutes;
     });
 
-  return Object.entries(moodMinutes).map(([mood, minutes]) => ({
-    mood,
-    minutes,
-  }));
+  return Object.entries(moodMinutes)
+    .map(([mood, minutes]) => ({
+      mood,
+      minutes,
+    }))
+    .filter((entry) => entry.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
 }
 
 export function getDailyActivityDistribution(

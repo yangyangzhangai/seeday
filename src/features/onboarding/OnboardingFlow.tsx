@@ -3,11 +3,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Sparkles, Mail, Lock, ChevronRight, Crown, Plus, Trash2, Check, TrendingUp, Brain, Zap, Rocket } from 'lucide-react';
+import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useTodoStore } from '../../store/useTodoStore';
-import { useChatStore } from '../../store/useChatStore';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
 import {
   DEFAULT_WAKE_TIME, DEFAULT_SLEEP_TIME,
@@ -22,12 +20,12 @@ import { StepTodo } from './components/StepTodo';
 const TOTAL_STEPS = 6;
 const ONBOARDED_KEY = 'seeday_onboarded';
 
-function buildClassSchedule(ms: string, me: string, as_: string, ae: string, es: string, ee: string): ClassSchedule | undefined {
-  const morning = ms && me ? { start: ms, end: me } : undefined;
-  const afternoon = as_ && ae ? { start: as_, end: ae } : undefined;
-  const evening = es && ee ? { start: es, end: ee } : undefined;
-  if (!morning && !afternoon && !evening) return undefined;
-  return { weekdays: [1, 2, 3, 4, 5], morning, afternoon, evening };
+function buildClassSchedule(start: string, end: string): ClassSchedule | undefined {
+  if (!start || !end) return undefined;
+  return {
+    weekdays: [1, 2, 3, 4, 5],
+    morning: { start, end },
+  };
 }
 
 const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
@@ -40,82 +38,92 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
 
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
-  const { t } = useTranslation();
-  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuthStore();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [error, setError] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-
-  const handleSubmit = async () => {
-    if (!email.trim() || !password.trim() || loading) return;
-    setLoading(true); setError('');
-    const { error: upErr } = await signUp(email.trim(), password);
-    if (!upErr) { onNext(); return; }
-    if (upErr.message?.toLowerCase().includes('already') || upErr.message?.toLowerCase().includes('registered')) {
-      const { error: inErr } = await signIn(email.trim(), password);
-      if (!inErr) { onNext(); return; }
-    }
-    setError(t('onboarding2_auth_error'));
-    setLoading(false);
-  };
-
-  const handleOAuth = async (provider: 'apple' | 'google') => {
-    setLoading(true);
-    const { error: err } = provider === 'apple' ? await signInWithApple() : await signInWithGoogle();
-    if (!err) { onNext(); return; }
-    setError(t('onboarding2_auth_error'));
-    setLoading(false);
-  };
+  const [identifier, setIdentifier] = React.useState('');
 
   return (
-    <div className="flex-1 flex flex-col px-8 pt-10 pb-12">
-      <div className="mb-10">
-        <div className="w-16 h-16 bg-[#8fae91]/20 rounded-[24px] flex items-center justify-center mb-6">
+    <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
+      <div className="mb-12">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="w-16 h-16 bg-[#8fae91]/20 rounded-[24px] flex items-center justify-center mb-6 shadow-inner"
+        >
           <Sparkles className="text-[#4a5d4c]" size={32} />
-        </div>
-        <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight whitespace-pre-line">{t('onboarding2_auth_title')}</h2>
-        <p className="text-[#4a5d4c]/60 mt-4 text-sm leading-relaxed whitespace-pre-line">{t('onboarding2_auth_desc')}</p>
+        </motion.div>
+
+        <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">
+          开启您的
+          <br />
+          高端生活追踪
+        </h2>
+
+        <p className="text-[#4a5d4c]/60 mt-4 text-sm leading-relaxed">
+          记录每一刻的灵感与成长，
+          <br />
+          让 AI 成为您的数字双生子。
+        </p>
       </div>
 
-      <div className="space-y-3">
-        <div className="bg-white/60 backdrop-blur-xl border border-white p-4 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] transition-all">
-          <Mail size={18} className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] shrink-0" />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('onboarding2_auth_placeholder')}
-            className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm" />
+      <div className="space-y-4">
+        <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
+          <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
+            <Mail size={20} />
+          </div>
+          <input
+            type="text"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="手机号 / 邮箱"
+            className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
+          />
         </div>
-        <div className="bg-white/60 backdrop-blur-xl border border-white p-4 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] transition-all">
-          <Lock size={18} className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] shrink-0" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('onboarding2_auth_password')}
-            onKeyDown={(e) => { if (e.key === 'Enter') { void handleSubmit(); } }}
-            className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm" />
+
+        <div className="flex items-center gap-4 py-2">
+          <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
+          <span className="text-[10px] font-bold text-[#4a5d4c]/20 uppercase tracking-[0.2em]">或者通过</span>
+          <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
         </div>
-        <div className="flex gap-3 pt-1">
-          <button onClick={() => { void handleOAuth('apple'); }} disabled={loading}
-            className="flex-1 bg-white/60 backdrop-blur-xl border border-white py-3.5 rounded-[20px] flex items-center justify-center gap-2 text-sm font-bold text-[#4a5d4c] shadow-sm hover:bg-white/80 transition-all">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-            Apple
-          </button>
-          <button onClick={() => { void handleOAuth('google'); }} disabled={loading}
-            className="flex-1 bg-white/60 backdrop-blur-xl border border-white py-3.5 rounded-[20px] flex items-center justify-center gap-2 text-sm font-bold text-[#4a5d4c] shadow-sm hover:bg-white/80 transition-all">
-            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Google
-          </button>
+
+        <div className="flex gap-4">
+          <AuthButton icon={<Apple size={20} fill="currentColor" />} text="Apple" className="flex-1" />
+          <AuthButton icon={<Chrome size={20} />} text="Google" className="flex-1" />
         </div>
-        {error && <p className="text-red-500 text-xs text-center font-bold pt-1">{error}</p>}
       </div>
 
-      <div className="mt-auto pt-6">
-        <button onClick={() => { void handleSubmit(); }} disabled={!email.trim() || !password.trim() || loading}
+      <div className="mt-auto">
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={onNext}
+          disabled={!identifier.trim()}
           className={`w-full py-5 rounded-[28px] font-bold text-lg shadow-xl transition-all flex items-center justify-center gap-2 ${
-            email.trim() && password.trim() && !loading ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20' : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 shadow-none'
+            identifier.trim()
+              ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20 hover:bg-[#3d4d3f]'
+              : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 shadow-none cursor-not-allowed'
           }`}>
-          {t('onboarding2_auth_cta')} <ChevronRight size={20} />
-        </button>
+          立即体验 <ChevronRight size={20} />
+        </motion.button>
+
+        <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.1em]">
+          登录即代表同意 <span className="underline decoration-[#4a5d4c]/10">服务协议</span> 与{' '}
+          <span className="underline decoration-[#4a5d4c]/10">隐私政策</span>
+        </p>
       </div>
     </div>
   );
 };
+
+function AuthButton({ icon, text, className = '' }: { icon: React.ReactNode; text: string; className?: string }) {
+  return (
+    <motion.button
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.98 }}
+      className={`bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] flex items-center justify-center gap-3 text-[#4a5d4c] font-bold shadow-sm transition-all hover:bg-white hover:shadow-md ${className}`}
+    >
+      {icon} <span className="text-sm">{text}</span>
+    </motion.button>
+  );
+}
 
 // ── StepAI ────────────────────────────────────────────────────
 const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
@@ -170,201 +178,127 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
 // ── StepJournal ───────────────────────────────────────────────
 const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
-  const { t } = useTranslation();
-  const sendMessage = useChatStore((s) => s.sendMessage);
   const [content, setContent] = React.useState('');
-  const [sending, setSending] = React.useState(false);
+  const [isSending, setIsSending] = React.useState(false);
 
-  const handleSend = async () => {
-    if (!content.trim() || sending) return;
-    setSending(true);
-    await sendMessage(content.trim());
-    onNext();
+  const handleSend = () => {
+    if (!content.trim()) return;
+    setIsSending(true);
+
+    const existing = JSON.parse(localStorage.getItem('at_activities') || '[]');
+    const newEntry = {
+      id: Date.now().toString(),
+      time: `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`,
+      title: '心情记录',
+      tag: 'Personal',
+      tagColor: '#f59e0b',
+      tagBg: 'rgba(245,158,11,0.10)',
+      duration: '',
+      moods: [content],
+      moodTag: '😊 开心',
+      moodTagColor: '#f59e0b',
+      moodTagBg: 'rgba(245,158,11,0.12)',
+      timing: false,
+      elapsed: 0,
+    };
+
+    localStorage.setItem('at_activities', JSON.stringify([newEntry, ...existing]));
+
+    setTimeout(() => {
+      onNext();
+    }, 1200);
   };
 
   return (
-    <div className="flex-1 flex flex-col px-6 pt-10 pb-10">
-      <div className="mb-6 px-2">
-        <h2 className="text-2xl font-black text-[#4a5d4c]">{t('onboarding2_journal_title')}</h2>
+    <div className="flex-1 flex flex-col px-6 pt-12 pb-10 bg-[#f8faf8]">
+      <div className="mb-8 px-2">
+        <motion.h2
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-2xl font-black text-[#4a5d4c] tracking-tight"
+        >
+          记录今天第一件事
+        </motion.h2>
+        <p className="text-[#4a5d4c]/50 text-sm mt-2 font-medium">
+          无论大小，或是当下的细微心情，AI 会为您分类
+        </p>
       </div>
-      <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-xl rounded-[32px] shadow-sm border border-white overflow-hidden">
-        <textarea value={content} onChange={(e) => setContent(e.target.value)}
-          className="flex-1 p-6 bg-transparent border-none outline-none resize-none text-base text-[#4a5d4c] font-medium placeholder:text-[#4a5d4c]/25"
-          placeholder={t('onboarding2_journal_placeholder')} />
-        <div className="p-5 border-t border-[#4a5d4c]/5">
-          <button onClick={() => { void handleSend(); }} disabled={!content.trim() || sending}
-            className={`w-full py-4 rounded-[24px] font-black text-base transition-all ${
-              content.trim() && !sending ? 'bg-[#4a5d4c] text-white shadow-lg shadow-[#4a5d4c]/20' : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/25'
-            }`}>
-            {t('onboarding2_journal_cta')}
-          </button>
-        </div>
-      </div>
-      <p className="mt-5 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-widest">Powered by Van AI Engine</p>
-    </div>
-  );
-};
 
-// ── StepTodo ──────────────────────────────────────────────────
-const StepTodo: React.FC<{ onNext: () => void }> = ({ onNext }) => {
-  const { t } = useTranslation();
-  const addTodo = useTodoStore((s) => s.addTodo);
-  const [input, setInput] = React.useState('');
-  const [items, setItems] = React.useState<string[]>([]);
-
-  const handleAdd = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    addTodo({ title: trimmed, priority: 'medium' });
-    setItems((prev) => [...prev, trimmed]);
-    setInput('');
-  };
-
-  return (
-    <div className="flex-1 flex flex-col px-8 pt-16 pb-12 overflow-y-auto">
-      <h2 className="text-2xl font-black text-[#4a5d4c] mb-8">{t('onboarding2_todo_title')}</h2>
-
-      {/* 待办列表 */}
-      <div className="space-y-3">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-3 bg-white/60 backdrop-blur-xl border border-white px-4 py-3.5 rounded-[20px]">
-            <div className="w-4 h-4 rounded-full border-2 border-[#8fae91] shrink-0" />
-            <span className="flex-1 text-sm font-bold text-[#4a5d4c]">{item}</span>
-            <button
-              onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
-              className="text-[#4a5d4c]/20 hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
+      <div className="flex-1 flex flex-col">
+        <div className="relative flex-1 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-[#4a5d4c]/5 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-[#4a5d4c]/5 flex items-center justify-between bg-zinc-50/50">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#8fae91] animate-pulse" />
+              <span className="text-[10px] font-black text-[#4a5d4c]/30 uppercase tracking-widest">同步感应中</span>
+            </div>
+            <div className="text-[10px] font-bold text-[#4a5d4c]/30 uppercase tracking-widest">
+              {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}
+            </div>
           </div>
-        ))}
 
-        {/* 输入区域 */}
-        <div className="bg-white/60 backdrop-blur-xl border border-white p-3 rounded-[24px] flex items-center gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-            placeholder={t('onboarding2_todo_add_placeholder')}
-            className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-[#4a5d4c] placeholder:text-[#4a5d4c]/20 px-2"
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            autoFocus
+            className="flex-1 p-6 bg-transparent border-none outline-none resize-none text-[#4a5d4c] text-lg font-medium leading-relaxed placeholder:text-[#4a5d4c]/15"
+            placeholder="输入任何内容，例如：‘刚刚开启了新的一周，感觉充满活力！’"
           />
-          <button
-            onClick={handleAdd}
-            disabled={!input.trim()}
-            className={`p-2.5 rounded-[16px] transition-all ${input.trim() ? 'bg-[#4a5d4c] text-white' : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20'}`}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
 
-<<<<<<< HEAD
-        {step === 4 && (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <p className="text-2xl">📅</p>
-              <h2 className="text-xl font-bold text-slate-800">{t('onboarding_step3_title')}</h2>
-              <p className="text-sm text-slate-500 leading-relaxed">{t('onboarding_step3_desc')}</p>
-            </div>
-            <div className="space-y-3 rounded-2xl bg-[#F7F9F8] px-4 py-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={hasWorkSchedule}
-                  onChange={(e) => setHasWorkSchedule(e.target.checked)}
-                  className="w-4 h-4 accent-[#5F7A63]" />
-                <span className="text-sm text-slate-700">💼 有固定的上班 / 工作时间</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={hasClassSchedule}
-                  onChange={(e) => setHasClassSchedule(e.target.checked)}
-                  className="w-4 h-4 accent-[#5F7A63]" />
-                <span className="text-sm text-slate-700">📚 有固定的上课时间</span>
-              </label>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <button onClick={back} className="flex-1 rounded-2xl py-2.5 text-sm text-slate-500 border border-slate-200">
-                {t('onboarding_back')}
-              </button>
-              <button onClick={next}
-                className="flex-1 rounded-2xl py-2.5 text-sm font-semibold text-[#2F3E33]"
-                style={{ background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)', boxShadow: '0 4px 12px rgba(103,154,121,0.15)' }}>
-                {t('onboarding_next')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <p className="text-2xl">🌅</p>
-              <h2 className="text-xl font-bold text-slate-800">{t('onboarding_step4_title')}</h2>
-              <p className="text-sm text-slate-500">{t('onboarding_step4_desc')}</p>
-            </div>
-            <div className="space-y-3 rounded-2xl bg-[#F7F9F8] px-4 py-3">
-              <div className="grid grid-cols-2 gap-2">
-                <TimeInput label="🌅 起床" value={wakeTime} onChange={setWakeTime} />
-                <TimeInput label="🌙 睡觉" value={sleepTime} onChange={setSleepTime} />
-                <TimeInput label="🍞 早餐" value={breakfastTime} onChange={setBreakfastTime} />
-                <TimeInput label="🍜 午餐" value={lunchTime} onChange={setLunchTime} />
-                <TimeInput label="🍲 晚餐" value={dinnerTime} onChange={setDinnerTime} />
+          <div className="p-6 pt-0">
+            <motion.div
+              animate={{ opacity: content.length > 0 ? 1 : 0.5 }}
+              className="flex items-center gap-3 p-4 bg-[#8fae91]/5 rounded-2xl border border-[#8fae91]/10 transition-all"
+            >
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#4a5d4c] shadow-sm">
+                <Sparkles size={16} className={content.length > 5 ? 'animate-spin-slow' : ''} />
               </div>
-              {hasWorkSchedule && (
-                <div className="border-t border-slate-200 pt-3 grid grid-cols-2 gap-2">
-                  <TimeInput label="💼 上班开始" value={workStart} onChange={setWorkStart} />
-                  <TimeInput label="💼 上班结束" value={workEnd} onChange={setWorkEnd} />
-                  <TimeInput label="🛋 午休开始" value={lunchStart} onChange={setLunchStart} />
-                  <TimeInput label="🛋 午休结束" value={lunchEnd} onChange={setLunchEnd} />
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={back} className="flex-1 rounded-2xl py-2.5 text-sm text-slate-500 border border-slate-200">
-                {t('onboarding_back')}
-              </button>
-              <button onClick={next}
-                className="flex-1 rounded-2xl py-2.5 text-sm font-semibold text-[#2F3E33]"
-                style={{ background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)', boxShadow: '0 4px 12px rgba(103,154,121,0.15)' }}>
-                {t('onboarding_next')}
-              </button>
-            </div>
+              <p className="text-[11px] text-[#4a5d4c]/60 leading-tight font-medium">
+                {content.length > 5
+                  ? 'Van 已经感应到了这段能量，准备好同步了吗？'
+                  : '试着描述一下当下的具体动作或某种情绪...'}
+              </p>
+            </motion.div>
           </div>
-        )}
 
-        {step === 6 && (
-          <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <p className="text-2xl">✨</p>
-              <h2 className="text-xl font-bold text-slate-800">{t('onboarding_step5_title')}</h2>
-              <p className="text-sm text-slate-500 leading-relaxed">{t('onboarding_step5_desc')}</p>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button onClick={back} className="flex-1 rounded-2xl py-2.5 text-sm text-slate-500 border border-slate-200">
-                {t('onboarding_back')}
-              </button>
-              <button
-                onClick={() => { void handleComplete(); }}
-                disabled={saving}
-                className="flex-1 rounded-2xl py-2.5 text-sm font-semibold text-[#2F3E33] disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)', boxShadow: '0 4px 12px rgba(103,154,121,0.15)' }}>
-                {saving ? '保存中...' : t('onboarding_step5_cta')}
-              </button>
-            </div>
-=======
-      <div className="mt-auto pt-8">
-        {items.length > 0 ? (
-          <button
-            onClick={onNext}
-            className="w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20 flex items-center justify-center gap-2"
-          >
-            {t('onboarding2_todo_cta')} <ChevronRight size={20} />
-          </button>
-        ) : (
-          <div className="py-5 text-center text-[11px] text-[#4a5d4c]/30 font-bold">
-            {t('onboarding2_todo_hint')}
->>>>>>> c18c16a18507ceac4fc0cc23a349a1982ce543a5
+          <div className="px-6 pb-6">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSend}
+              disabled={!content.trim() || isSending}
+              className={`w-full py-5 rounded-[24px] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-3 ${
+                content.trim() && !isSending
+                  ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20'
+                  : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 cursor-not-allowed shadow-none'
+              }`}
+            >
+              {isSending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>同步数据中...</span>
+                </>
+              ) : (
+                <>
+                  <Rocket size={18} />
+                  <span>发送至今日时间流</span>
+                </>
+              )}
+            </motion.button>
           </div>
-        )}
+        </div>
+        <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.3em]">
+          Powered by Van AI Engine
+        </p>
       </div>
+
+      <style>{`
+        .animate-spin-slow {
+          animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -527,15 +461,16 @@ export const OnboardingFlow: React.FC = () => {
   const [routine, setRoutine] = React.useState<RoutineState>({
     region: '北京',
     identity: 'none',
+    remindMe: true,
     wakeTime: DEFAULT_WAKE_TIME,
     sleepTime: DEFAULT_SLEEP_TIME,
     breakfastTime: DEFAULT_BREAKFAST,
     lunchTime: DEFAULT_LUNCH,
     dinnerTime: DEFAULT_DINNER,
-    workStart: '09:00', workLunchStart: '12:00', workLunchEnd: '13:30', workEnd: '18:00',
-    classMorningStart: '08:30', classMorningEnd: '11:45',
-    classAfternoonStart: '14:00', classAfternoonEnd: '17:30',
-    classEveningStart: '19:00', classEveningEnd: '21:00',
+    workStart: '09:00',
+    workEnd: '18:00',
+    classStart: '08:30',
+    classEnd: '17:30',
   });
 
   const handleRoutineChange = <K extends keyof RoutineState>(key: K, val: RoutineState[K]) =>
@@ -568,14 +503,10 @@ export const OnboardingFlow: React.FC = () => {
       hasClassSchedule: hasClass,
       workStart: hasWork ? (routine.workStart || undefined) : undefined,
       workEnd: hasWork ? (routine.workEnd || undefined) : undefined,
-      lunchStart: hasWork ? (routine.workLunchStart || undefined) : undefined,
-      lunchEnd: hasWork ? (routine.workLunchEnd || undefined) : undefined,
-      classSchedule: hasClass ? buildClassSchedule(
-        routine.classMorningStart, routine.classMorningEnd,
-        routine.classAfternoonStart, routine.classAfternoonEnd,
-        routine.classEveningStart, routine.classEveningEnd,
-      ) : undefined,
-      reminderEnabled: true,
+      lunchStart: undefined,
+      lunchEnd: undefined,
+      classSchedule: hasClass ? buildClassSchedule(routine.classStart, routine.classEnd) : undefined,
+      reminderEnabled: routine.remindMe,
     };
     void updateUserProfile({ manual });
     await requestNotificationPermission();

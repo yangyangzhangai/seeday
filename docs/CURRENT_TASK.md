@@ -22,6 +22,11 @@ Owner: current working session
 - [x] iOS 键盘弹起时隐藏底部导航：全局 `BottomNav` 与聊天页内底部导航增加 `keyboard-open` 联动隐藏，避免键盘期导航挤压输入区与误触。
 - [x] 输入分类词库补强（zh/en/it）：按“动词+对象”优先扩充运营/财务高频动作（如 修改订单 / 支付账单 / 核对账单，EN/IT 对应 verify/pay/reconcile + object 短语），并补齐回归测试。
 - [x] Onboarding 新增「待办引导页」：接入同事提供的 UI 与交互（待办输入/时间/重复/紧急程度/推荐项/继续按钮），并在引导流程中插入为独立步骤。
+- [x] Onboarding 重写「首条记录引导页」：按新稿接入拟物输入卡、AI 感应提示、发送同步态与 `at_activities` 本地落盘逻辑。
+- [x] Onboarding 重写「作息设置页」：按新稿接入滚轮时间选择器、身份切换区、提醒开关与「保存并继续」交互，并将提醒开关接入 profile 保存链路。
+- [x] Onboarding 重写「注册/登录引导页」：按新稿替换首屏视觉与输入区（手机号/邮箱 + Apple/Google 入口 + 协议提示），并保持“输入后可继续”门控交互。
+- [x] 修复日报心情圆环漏计：`getDailyMoodDistribution` 对齐报告生成链路，支持 `customMoodLabel/customMoodApplied`，并过滤 0 分钟项，避免“开心+专注”被收敛成 `100% 专注`。
+- [x] 修复日记本活动/心情饼图丢失：`DiaryBookViewer` 饼图改为优先读取 `report.stats.actionAnalysis/moodDistribution` 快照（与白天环一致），仅在历史空快照时回退消息重算。
 
 ---
 
