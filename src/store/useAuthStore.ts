@@ -752,12 +752,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: new Error('Not signed in') };
     }
 
-    let baseMeta: Record<string, any> = currentUser.user_metadata || {};
-    try {
-      const latestSession = await getSupabaseSession();
-      baseMeta = (latestSession?.user?.user_metadata || baseMeta) as Record<string, any>;
-    } catch { /* offline — fall back to cached user_metadata */ }
-
+    // Use cached user_metadata — no network call here
+    const baseMeta: Record<string, any> = currentUser.user_metadata || {};
     const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
     const nextProfile = typeof updater === 'function'
       ? updater(prev)
