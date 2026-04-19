@@ -17,6 +17,20 @@ async function getPlugin() {
   }
 }
 
+async function ensureNotificationPermission(): Promise<boolean> {
+  const plugin = await getPlugin();
+  if (!plugin) return false;
+  try {
+    const current = await plugin.checkPermissions();
+    if (current.display === 'granted') return true;
+    if (current.display === 'denied') return false;
+    const requested = await plugin.requestPermissions();
+    return requested.display === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 /** App 启动时调用一次，注册 iOS 可操作通知类别 */
 export async function registerNotificationCategories(): Promise<void> {
   const plugin = await getPlugin();
@@ -110,6 +124,8 @@ export interface LocalNotificationPayload {
 export async function scheduleLocalNotification(payload: LocalNotificationPayload): Promise<void> {
   const plugin = await getPlugin();
   if (!plugin) return;
+  const hasPermission = await ensureNotificationPermission();
+  if (!hasPermission) return;
 
   try {
     await plugin.schedule({
@@ -135,6 +151,8 @@ export async function scheduleBatchNotifications(
 ): Promise<void> {
   const plugin = await getPlugin();
   if (!plugin || payloads.length === 0) return;
+  const hasPermission = await ensureNotificationPermission();
+  if (!hasPermission) return;
 
   try {
     await plugin.schedule({

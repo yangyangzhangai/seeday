@@ -5,6 +5,7 @@
     }
   },
   "rewrites": [
+    { "source": "/api/todo-decompose", "destination": "/api/classify" },
     { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
     {
       "source": "/supabase-proxy/(.*)",

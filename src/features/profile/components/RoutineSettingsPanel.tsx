@@ -25,6 +25,26 @@ interface RoutineSnapshot {
   breakfastTime: string; lunchTime: string; dinnerTime: string;
 }
 
+interface RoutineFormSignature {
+  identity: IdentityType;
+  wakeTime: string;
+  sleepTime: string;
+  breakfastTime: string;
+  lunchTime: string;
+  dinnerTime: string;
+  workStart: string;
+  workLunchStart: string;
+  workLunchEnd: string;
+  workEnd: string;
+  classMorningStart: string;
+  classMorningEnd: string;
+  classAfternoonStart: string;
+  classAfternoonEnd: string;
+  classEveningStart: string;
+  classEveningEnd: string;
+  reminderEnabled: boolean;
+}
+
 const ROUTINE_STORAGE_PREFIX = 'profile:routine:v1:';
 const TIME_TEXT_PATTERN = /^\d{2}:\d{2}$/;
 
@@ -56,6 +76,7 @@ function buildClassSchedule(
   return { weekdays: [1, 2, 3, 4, 5], morning, afternoon, evening };
 }
 function routineSig(v: RoutineSnapshot) { return JSON.stringify(v); }
+function fullRoutineSig(v: RoutineFormSignature) { return JSON.stringify(v); }
 
 // ─── DrumColumn ───────────────────────────────────────────────
 const ITEM_H = 40;
@@ -117,9 +138,16 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
   }, [value, isOpen]);
 
   const save = () => { onChange(`${tempHour}:${tempMinute}`); setIsOpen(false); };
+  const openPicker = () => {
+    const [hour = '00', minute = '00'] = value.split(':');
+    setTempHour(hour);
+    setTempMinute(minute);
+    setIsOpen(true);
+  };
+
   return (
     <div className={`relative transition-all duration-300 ${isOpen ? 'z-[60]' : 'z-0'}`}>
-      <button onClick={() => setIsOpen(!isOpen)}
+      <button onClick={() => { if (isOpen) setIsOpen(false); else openPicker(); }}
         className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 border-2 ${isOpen ? 'bg-white border-black shadow-xl shadow-black/5' : 'bg-zinc-50 border-transparent hover:border-black/10'} text-sm font-bold text-black group relative z-[2]`}>
         <span>{value}</span>
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-black/20 group-hover:text-black transition-colors">
@@ -158,9 +186,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   const [showModal, setShowModal] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saveText, setSaveText] = React.useState('');
-  const autoSaveTimerRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const autoSaveReadyRef = React.useRef(false);
-
   // Lock body scroll when modal is open to prevent scroll-through on mobile
   React.useEffect(() => {
     if (showModal) {
@@ -207,7 +232,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
 
   const localSnapshot = React.useMemo(
     () => readRoutineSnapshot(storageKey),
-    [storageKey, userProfileV2?.manual?.updatedAt],
+    [storageKey, userProfileV2],
   );
   const resolved = localSnapshot || cloudSnapshot;
   const baselineSig = React.useMemo(() => routineSig(resolved), [resolved]);
@@ -257,12 +282,76 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [breakfastTime, lunchTime, dinnerTime]);
 
   const hasUnsavedChanges = currentSig !== baselineSig;
+  const baselineFullSig = React.useMemo(() => {
+    const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
+    const baselineIdentity: IdentityType = v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
+    return fullRoutineSig({
+      identity: baselineIdentity,
+      wakeTime: resolved.wakeTime,
+      sleepTime: resolved.sleepTime,
+      breakfastTime: resolved.breakfastTime,
+      lunchTime: resolved.lunchTime,
+      dinnerTime: resolved.dinnerTime,
+      workStart: v2?.workStart ?? '09:00',
+      workLunchStart: v2?.lunchStart ?? '12:00',
+      workLunchEnd: v2?.lunchEnd ?? '13:30',
+      workEnd: v2?.workEnd ?? '18:00',
+      classMorningStart: v2?.classSchedule?.morning?.start ?? '08:30',
+      classMorningEnd: v2?.classSchedule?.morning?.end ?? '11:45',
+      classAfternoonStart: v2?.classSchedule?.afternoon?.start ?? '14:00',
+      classAfternoonEnd: v2?.classSchedule?.afternoon?.end ?? '17:30',
+      classEveningStart: v2?.classSchedule?.evening?.start ?? '19:00',
+      classEveningEnd: v2?.classSchedule?.evening?.end ?? '21:00',
+      reminderEnabled: v2?.reminderEnabled ?? true,
+    });
+  }, [
+    resolved,
+    userProfileV2?.manual,
+  ]);
+  const currentFullSig = React.useMemo(() => fullRoutineSig({
+    identity,
+    wakeTime,
+    sleepTime,
+    breakfastTime,
+    lunchTime,
+    dinnerTime,
+    workStart,
+    workLunchStart,
+    workLunchEnd,
+    workEnd,
+    classMorningStart,
+    classMorningEnd,
+    classAfternoonStart,
+    classAfternoonEnd,
+    classEveningStart,
+    classEveningEnd,
+    reminderEnabled,
+  }), [
+    identity,
+    wakeTime,
+    sleepTime,
+    breakfastTime,
+    lunchTime,
+    dinnerTime,
+    workStart,
+    workLunchStart,
+    workLunchEnd,
+    workEnd,
+    classMorningStart,
+    classMorningEnd,
+    classAfternoonStart,
+    classAfternoonEnd,
+    classEveningStart,
+    classEveningEnd,
+    reminderEnabled,
+  ]);
 
-  const performSave = async (mode: 'manual' | 'auto') => {
+  const hasFullUnsavedChanges = hasUnsavedChanges || currentFullSig !== baselineFullSig;
+
+  const performSave = async () => {
     if (saving) return;
-    if (!hasUnsavedChanges && mode === 'manual') { setSaveText(t('profile_routine_no_changes')); return; }
-    if (!hasUnsavedChanges) return;
-    if (mode === 'manual') setSaveText('');
+    if (!hasFullUnsavedChanges) { setSaveText(t('profile_routine_no_changes')); return; }
+    setSaveText('');
     setSaving(true);
     const hasWork = identity === 'work';
     const hasClass = identity === 'class';
@@ -285,19 +374,12 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     };
     const { error } = await updateUserProfile({ manual: { ...baseManual, ...v2Extra } as UserProfileManualV2 });
     setSaving(false);
-    if (error) { if (mode === 'manual') setSaveText(t('profile_routine_save_failed')); return; }
+    if (error) { setSaveText(t('profile_routine_save_failed')); return; }
     writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime });
-    if (!reminderEnabled) localStorage.removeItem('reminder_scheduled_date');
-    if (mode === 'manual') { setSaveText(t('profile_routine_saved')); setTimeout(() => setShowModal(false), 600); }
+    localStorage.removeItem('reminder_scheduled_date');
+    setSaveText(t('profile_routine_saved'));
+    setTimeout(() => setShowModal(false), 600);
   };
-
-  React.useEffect(() => {
-    if (!autoSaveReadyRef.current) { if (!hasUnsavedChanges) autoSaveReadyRef.current = true; return; }
-    if (!hasUnsavedChanges || saving) return;
-    if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = window.setTimeout(() => { void performSave('auto'); }, 700);
-    return () => { if (autoSaveTimerRef.current) { window.clearTimeout(autoSaveTimerRef.current); autoSaveTimerRef.current = null; } };
-  }, [hasUnsavedChanges, saving, wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime, userProfileV2]);
 
   const SectionLabel = ({ title }: { title: string }) => (
     <div className="flex items-center gap-2 mb-4 px-1">
@@ -331,7 +413,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
       {/* 弹窗 */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" />
             <motion.div
@@ -339,13 +421,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col mx-4"
-              style={{ maxHeight: '85vh' }}
+              className="relative w-full sm:max-w-sm bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
+              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 8px)' }}
             >
               <style dangerouslySetInnerHTML={{ __html: `.cr-scroll::-webkit-scrollbar{width:4px}.cr-scroll::-webkit-scrollbar-thumb{background:#8fae9130;border-radius:20px}` }} />
 
               {/* 标题 */}
-              <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
+              <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-black tracking-tighter text-black uppercase">{t('profile_routine_title')}</h2>
                 <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-black/5 transition-colors">
                   <X size={18} className="text-black" />
@@ -353,7 +435,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 滚动内容 */}
-              <div className="flex-1 overflow-y-auto px-8 py-2 space-y-10 pb-6 cr-scroll">
+              <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-2 space-y-8 sm:space-y-10 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-6 cr-scroll">
 
                 {/* 身份 */}
                 <section className="relative z-10">
@@ -456,9 +538,9 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 保存按钮 */}
-              <div className="px-8 pb-8 pt-4 shrink-0">
+              <div className="px-5 sm:px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-8 pt-4 shrink-0">
                 {saveText && <p className="mb-2 text-center text-[11px] text-slate-500">{saveText}</p>}
-                <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave('manual'); }} disabled={saving}
+                <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave(); }} disabled={saving}
                   className="w-full py-3 rounded-2xl text-sm font-semibold disabled:opacity-60"
                   style={{ background: 'rgba(144, 212, 122, 0.20)', boxShadow: '0px 2px 2px #C8C8C8', color: '#5F7A63' }}>
                   {saving ? t('profile_routine_saving') : t('profile_routine_save')}

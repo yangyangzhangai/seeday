@@ -1,7 +1,23 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-17
+Last Updated: 2026-04-19
 Owner: current working session
+
+---
+
+## 会话更新（2026-04-19）
+
+- [x] 修复 Profile「我的作息」弹窗在手机端显示不全：弹层改为移动端底部 sheet + 安全区内边距 + `100dvh` 高度约束，避免底部按钮和内容被裁切。
+- [x] 修复作息保存状态反复横跳：移除自动保存定时器，统一改为手动点击保存，避免 `保存中/保存` 循环切换导致面板不可操作。
+- [x] 修复“修改时间偶发不生效”：作息脏检查从仅比较起床/睡觉/三餐，扩展为覆盖身份（自由/上班/上学）、工作时间、课程时间、提醒开关，确保所有改动都能触发保存。
+- [x] 修复时间选择器默认定位：每次打开时间滚轮时先同步到当前已保存时间（小时/分钟），不再从 `00:00` 开始重新滚动。
+- [x] 修复移动端主动提醒弹窗不稳定显示：`ReminderPopup/EveningCheckPopup` 补齐全屏 fixed overlay + z-index，保证 ✓/✗ 弹窗在 App 顶层可见。
+- [x] 修复 App 退到后台后系统通知不稳定：调度本地通知前先执行权限校验（`granted/prompt/denied`），`prompt` 场景自动申请授权，避免静默调度失败。
+- [x] 修复同日修改作息后通知不刷新：作息保存成功后清理 `reminder_scheduled_date`，触发当日重新排程，确保修改的时间当天生效。
+- [x] 修复 Onboarding 最后一步偶发卡住：`Start using Seeday` 点击后改为非阻塞写入 profile（不等待云端返回），先进入 `/chat`，避免网络抖动导致无法进入 App。
+- [x] 本地通知插件环境修复：补装 `@capacitor/local-notifications` 依赖并执行 `npx cap sync ios`，确保 iOS 原生工程已链接通知插件。
+- [x] 修复 `lint:max-lines` 阻断：将 `DiaryBookViewer` 的放大查看弹层拆分到独立组件文件，主文件降至 1000 行以内（当前 907 行），功能行为不变。
+- [x] Vercel 函数配额收口（13 -> 12）：删除独立 `api/todo-decompose.ts`，将待办拆解并入 `api/classify.ts` 的 `todo_decompose` 分支，并通过 `vercel.json` rewrite 继续兼容 `/api/todo-decompose` 旧路径。
 
 ---
 
@@ -20,6 +36,9 @@ Owner: current working session
   - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
   - 新增三语 i18n key（约 25 个）
 - [x] Vercel Hobby 函数配额收口（二次）：移除独立 `api/check-holiday.ts`，将 `holiday_check` 查询分支并入 `GET /api/live-input-telemetry?module=holiday_check&date=&country=`；`reminderScheduler` 改道到合并端点，函数总数压回 12。
+- [x] 日记 system prompt 组装重构：移除 `api/diary.ts` 中“人格 + core + 称呼规则”的运行时拼接；将 core 规则与称呼硬约束内嵌进四人格 `diary` prompt 文本（`src/lib/aiCompanion/prompts/{van,agnes,zep,momo}.ts`），服务端仅做 `__ADDRESSEE__` 占位符注入。
+- [x] 日记称呼替换去 LLM 化：删除 `api/diary.ts` 的 `rewriteAddresseeIfNeeded` 二次模型重写链路；改为纯规则检测+替换（命中 `用户/ta/the user/l'utente` 等表达时直接替换为昵称），避免额外 token 成本与措辞漂移。
+- [x] 日记称呼规则注入位置调整：将“对方称呼统一为 `__ADDRESSEE__`”从四人格 `diary` system prompt 移除，改为在 `api/diary.ts` 组装 diary `user` prompt 时按 `zh/en/it` 注入同义规则句（system 仍保留泛称呼禁用规则与末端规则替换兜底）。
 
 ---
 

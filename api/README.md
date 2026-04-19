@@ -18,7 +18,7 @@
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
 | `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
-| `POST` | `/api/todo-decompose` | `todo-decompose.ts` | `{ success: true, steps, parseStatus, model, provider }` |
+| `POST` | `/api/todo-decompose` | `classify.ts`（`module=todo_decompose` 分支；`vercel.json` 重写兼容旧路径） | `{ success: true, steps, parseStatus, model, provider }` |
 | `POST` | `/api/extract-profile` | `extract-profile.ts` | `{ success: true, profile, skipped?, reason? }` |
 | `POST` | `/api/plant-generate` | `plant-generate.ts` | `{ success, status, plant, diaryStatus?, message? }` |
 | `POST` | `/api/plant-diary` | `plant-diary.ts` | `{ success, diaryText, diaryStatus }` |

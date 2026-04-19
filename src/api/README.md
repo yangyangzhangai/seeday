@@ -61,7 +61,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Annotation prompt assembly now goes through `src/server/annotation-prompt-builder.ts`, which centralizes prompt packaging for both annotation/suggestion paths and returns a unified `{ model, instructions, input }` payload to the LLM call.
 - Annotation model/provider 路由：`zh` 使用 `deepseek-chat`（`DEEPSEEK_API_KEY` + 可选 `ANNOTATION_DEEPSEEK_BASE_URL`，走 `chat.completions`），`en/it` 使用 `gpt-4.1-mini`（`OPENAI_API_KEY` + 可选 `OPENAI_BASE_URL`）。
 - Annotation 事件层新增待办完成透传：完成待办时会发送 `activity_completed`，并在 `eventData` 附带 `todoCompletionContext`（important/recurrence/createdAt/threeMonth）与按条件附加的紧凑 `summary`，普通输入继续走 `activity_recorded`。
-- `callTodoDecomposeAPI()` routes to `/api/todo-decompose`; zh defaults to DashScope `qwen-plus` (`QWEN_API_KEY`, override via `TODO_DECOMPOSE_MODEL_ZH`), en/it default to Gemini `gemini-2.5-flash` (`GEMINI_API_KEY`, override via `TODO_DECOMPOSE_MODEL`, auto-fallback via `TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`).
+- `callTodoDecomposeAPI()` routes to `/api/todo-decompose`（由 `vercel.json` rewrite 到 `/api/classify` 的 `todo_decompose` 分支）；zh defaults to DashScope `qwen-plus` (`QWEN_API_KEY`, override via `TODO_DECOMPOSE_MODEL_ZH`), en/it default to Gemini `gemini-2.5-flash` (`GEMINI_API_KEY`, override via `TODO_DECOMPOSE_MODEL`, auto-fallback via `TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`).
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.
 

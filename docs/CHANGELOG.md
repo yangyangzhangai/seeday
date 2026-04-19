@@ -4,6 +4,115 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Refactor: 合并 todo-decompose 到 classify 以回收 Vercel 函数配额
+
+### Changed
+
+- `api/classify.ts`
+  - 新增 `todo_decompose` 分支：当请求体包含 `module=todo_decompose`（或仅含 `title/lang`）时，走待办拆解链路并返回 `{ steps, parseStatus, model, provider }`。
+  - 保留原有分类能力（`rawInput` + habit/goal 语义匹配）不变。
+- `api/todo-decompose.ts`
+  - 删除独立 serverless 入口，减少函数数量。
+- `vercel.json`
+  - 新增 `/api/todo-decompose -> /api/classify` rewrite，保持旧调用路径兼容。
+- `api/README.md`
+  - 更新 `/api/todo-decompose` 归属文件与分支说明。
+- `src/api/README.md`
+  - 更新前端 API 文档，注明 todo-decompose 通过 rewrite 命中 classify 分支。
+- `docs/PROJECT_MAP.md`
+  - 更新服务端端点映射，去除 `todo-decompose.ts` 独立入口。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:max-lines` ✅
+
+## 2026-04-19 - Refactor: 拆分 DiaryBookViewer 放大弹层以通过 max-lines pre-commit
+
+### Changed
+
+- `src/features/report/DiaryBookViewer.tsx`
+  - 抽离 expanded overlay 逻辑与 UI，主文件行数从 1000+ 降至 907，翻页、双击放大与拖拽翻页行为保持不变。
+  - 维持现有月视图数据加载、分页渲染与交互状态管理，不改动业务流。
+- `src/features/report/DiaryBookViewerExpandedView.tsx`（新增）
+  - 承载放大查看弹层渲染（左右页内容、植物图、AI 观察笔记、我的日记），并复用原有 modal 主题样式。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+
+## 2026-04-19 - Fix: 作息面板移动端适配与保存抖动修复
+
+### Changed
+
+- `src/features/profile/components/RoutineSettingsPanel.tsx`
+  - 作息弹窗改为移动端优先的底部 sheet 布局（`items-end` + safe-area padding + `100dvh` 高度约束），修复手机端显示不全与底部操作区被遮挡。
+  - 去除自动保存定时器，保存动作改为显式手动触发，修复 `保存中` 与 `保存` 文案反复切换造成的交互抖动。
+  - 保存脏检查从“仅基础作息 5 项”扩展为“完整表单签名”（身份、工作/课程时间、提醒开关 + 基础作息），修复部分时间修改后无法保存的问题。
+  - 时间滚轮每次打开前先回填当前值，确保小时/分钟默认对齐已有时间，避免从 `00:00` 重新滚动选择。
+  - 保存成功后清理 `reminder_scheduled_date`，让同日内修改作息后可重新触发本地通知排程。
+- `src/components/ReminderPopup.tsx`
+  - `ReminderPopup` 与 `EveningCheckPopup` 增加全屏 fixed overlay 与更高层级 z-index，修复移动端前台提醒弹窗偶发不显示/被页面遮挡。
+- `src/services/notifications/localNotificationService.ts`
+  - 本地通知调度前新增权限兜底：先 `checkPermissions()`，若状态为 `prompt` 则自动 `requestPermissions()`，仅在最终 `granted` 时执行调度，修复后台系统通知因未授权而静默失效。
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 完成 onboarding 时的 profile 写入改为非阻塞（`void updateUserProfile(...)`），优先导航进入 `/chat`，避免弱网场景下“Start using Seeday”点击后停留在引导页。
+- `ios/App/CapApp-SPM/Package.swift`
+  - 执行 `npx cap sync ios` 后同步写入 `@capacitor/local-notifications` 插件依赖，确保 iOS 原生工程包含本地通知能力。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ❌（当前工作区环境缺少 `@capacitor/local-notifications` 模块解析，报错源于既有 `OnboardingFlow.tsx` 动态导入链路，不属于本次改动引入）
+
+## 2026-04-18 - Refactor: 日记称呼主语句从 system prompt 迁移到 user prompt
+
+### Changed
+
+- `api/diary.ts`
+  - 新增 `buildDiaryAddresseeUserRule()`，按 `zh/en/it` 生成称呼规则句（例如 zh: `对方称呼统一为"昵称"。`）。
+  - diary 主链路在组装 `userContent` 时追加 `[Addressee rule]` 段，把称呼主语句放入 user prompt。
+- `src/lib/aiCompanion/prompts/{van,agnes,zep,momo}.ts`
+  - 从三语 diary system prompt 中移除“对方称呼统一为"__ADDRESSEE__" / The only addressee name is "__ADDRESSEE__" / Il nome da usare e solo "__ADDRESSEE__"”这条主语句。
+  - 保留其余“禁止泛称呼 + 全文使用昵称”的规则不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 日记称呼替换改为纯规则（移除二次 LLM 重写）
+
+### Changed
+
+- `api/diary.ts`
+  - 删除 `rewriteAddresseeIfNeeded()`：不再调用 `gpt-4o-mini` 对整段日记做二次改写。
+  - 命中泛称呼（如 `用户/ta/the user/l'utente`）后，改为直接走 `forceAddresseeReplacement()` 规则替换为昵称。
+  - 保留末端落款补全逻辑，确保人格签名行为不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-18 - Refactor: 日记 prompt 改为人格单模板直出
+
+### Changed
+
+- `api/diary.ts`
+  - 移除 `DIARY_CORE_PROMPT_ZH/EN` 与运行时 `buildAddresseeRule()` 拼接逻辑。
+  - `buildDiaryModePrompt()` 改为直接使用人格 diary prompt，并仅做 `__ADDRESSEE__` 占位符替换。
+- `src/lib/aiCompanion/prompts/van.ts`
+  - `VAN_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/agnes.ts`
+  - `AGNES_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/zep.ts`
+  - `ZEP_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+- `src/lib/aiCompanion/prompts/momo.ts`
+  - `MOMO_DIARY_PROMPT_{ZH,EN,IT}` 内嵌原 core 日记规则、固定输出结构与称呼硬规则。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-18 - Refactor: 合并 holiday-check 端点以满足 Vercel Hobby 12 函数限制
 
 ### Changed

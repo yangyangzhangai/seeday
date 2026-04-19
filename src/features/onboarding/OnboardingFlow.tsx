@@ -101,7 +101,7 @@ export const OnboardingFlow: React.FC = () => {
       reminderEnabled: true,
     };
 
-    await updateUserProfile({ manual, onboardingCompleted: true });
+    void updateUserProfile({ manual, onboardingCompleted: true });
     setSaving(false);
     navigate('/chat', { replace: true });
   };

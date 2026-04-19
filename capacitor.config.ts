@@ -10,7 +10,8 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    contentInset: 'never'
+    contentInset: 'never',
+    scheme: 'com.seeday.app'
   }
 };
 
