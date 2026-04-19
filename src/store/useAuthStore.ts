@@ -497,12 +497,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
       syncI18nLanguageFromMeta(currentUser?.user_metadata || {});
       syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
+      // Fall back to localStorage pending write if cloud metadata is still empty
+      const pendingProfile = currentUser ? getPendingProfileWrite(currentUser.id) : null;
+      const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
       set({
         user: currentUser,
         loading: false,
         preferences: nextPreferences,
         longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
+        userProfileV2: resolvedProfile,
         membershipPlan: membership.plan,
         membershipSource: membership.source,
         isPlus: membership.isPlus,
