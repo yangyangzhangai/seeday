@@ -12,7 +12,7 @@ import { DiaryBookViewer } from './DiaryBookViewer';
 const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
 const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
 
-const COVER_COLORS = ['#4a5d4c', '#8fae91', '#b08040', '#1e293b', '#7c9a92', '#a67c52', '#5b6e8a', '#8b5e52'];
+const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
 
 function coverColor(month: Date): string {
   const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
@@ -66,13 +66,6 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         className="relative w-[160px] cursor-pointer group/book"
         style={{ WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
       >
-        {/* Selection ring */}
-        {isSelected && (
-          <div className="absolute inset-[-3px] rounded-r-2xl rounded-l-[4px] border-2 border-amber-400/90 pointer-events-none z-10"
-            style={{ boxShadow: '0 0 8px 3px rgba(218,165,32,0.45), 0 0 18px 6px rgba(218,165,32,0.2)' }}
-          />
-        )}
-
         {/* Book body — A5 ratio 1:1.41 */}
         <div
           className="relative overflow-hidden transition-all"
@@ -257,22 +250,6 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           <X size={20} />
         </motion.button>
       </header>
-
-      {/* Stats cards */}
-      <div className="relative z-20 flex gap-3 px-6 mb-2 justify-center">
-        <div className="flex-1 max-w-[160px] bg-white/60 backdrop-blur-md border border-white p-4 rounded-[28px] shadow-[0_10px_25px_rgba(0,0,0,0.02)]">
-          <p className="text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-widest mb-1 text-center">总计篇目</p>
-          <p className="text-xl font-black text-[#4a5d4c] text-center">
-            {totalEntries} <span className="text-[10px] font-medium opacity-30 uppercase">pcs</span>
-          </p>
-        </div>
-        <div className="flex-1 max-w-[160px] bg-white/60 backdrop-blur-md border border-white p-4 rounded-[28px] shadow-[0_10px_25px_rgba(0,0,0,0.02)]">
-          <p className="text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-widest mb-1 text-center">总计本书</p>
-          <p className="text-xl font-black text-[#4a5d4c] text-center">
-            {months.length} <span className="text-[10px] font-medium opacity-30 uppercase">vols</span>
-          </p>
-        </div>
-      </div>
 
       {/* Book shelf — absolutely centered on full page so header/stats don't offset it */}
       <div className="absolute inset-0 z-30 flex items-center pointer-events-none">

@@ -44,7 +44,8 @@
       "Bash(sips -g all public/assets/book.png)",
       "Bash(pip3 install:*)",
       "Bash(open ios/App/App.xcworkspace)",
-      "Bash(open ios/App/App.xcodeproj)"
+      "Bash(open ios/App/App.xcodeproj)",
+      "mcp__Claude_Preview__preview_start"
     ],
     "deny": [
       "Bash(rm -rf:*)",
