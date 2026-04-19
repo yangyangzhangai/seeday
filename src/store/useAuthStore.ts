@@ -607,6 +607,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithApple: async () => {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
+        const result = await SignInWithApple.authorize({
+          clientId: 'com.seeday.app',
+          redirectURI: 'https://placeholder.seeday.app',
+          scopes: 'email name',
+        });
+        const identityToken = result.response?.identityToken;
+        if (!identityToken) return { error: new Error('No identity token') };
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: identityToken,
+        });
+        return { error };
+      } catch (e: any) {
+        return { error: e };
+      }
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo: resolveOAuthRedirectUrl() },
