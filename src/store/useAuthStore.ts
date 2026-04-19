@@ -754,7 +754,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
 
     try {
-      const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 5000),
+      );
+      const { data, error } = await Promise.race([
+        supabase.auth.updateUser({ data: nextMeta }),
+        timeout,
+      ]);
       if (!error && data?.user) {
         const profileState = profileStateFromMeta(data.user.user_metadata || {});
         set({
@@ -767,7 +773,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         savePendingProfileWrite(currentUser.id, nextProfile);
       }
     } catch {
-      // Network threw — data is safe in localStorage, retry on next init
+      // Network error or timeout — data is safe in localStorage, retry on next init
       savePendingProfileWrite(currentUser.id, nextProfile);
     }
 
