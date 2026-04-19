@@ -221,7 +221,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
           <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
             <p className="profile-fn-title">{t('profile_routine_title')}</p>
-            <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_routine_desc')}</p>
           </div>
         </div>
         {expanded ? <ChevronUp size={16} strokeWidth={1.5} className="text-slate-400" /> : <ChevronDown size={16} strokeWidth={1.5} className="text-slate-400" />}
