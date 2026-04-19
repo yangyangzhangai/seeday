@@ -707,8 +707,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: new Error('Not signed in') };
     }
 
-    const latestSession = await getSupabaseSession();
-    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
+    let baseMeta: Record<string, any> = currentUser.user_metadata || {};
+    try {
+      const latestSession = await getSupabaseSession();
+      baseMeta = (latestSession?.user?.user_metadata || baseMeta) as Record<string, any>;
+    } catch { /* offline — fall back to cached user_metadata */ }
+
     const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
     const nextProfile = typeof updater === 'function'
       ? updater(prev)
@@ -726,21 +730,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     };
 
-    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
-    if (!error && data?.user) {
-      const profileState = profileStateFromMeta(data.user.user_metadata || {});
-      set({
-        user: data.user,
-        longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
-      });
-      clearPendingProfileWrite(currentUser.id);
-    } else {
-      // Network/server unavailable — persist locally for retry on next init
+    try {
+      const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+      if (!error && data?.user) {
+        const profileState = profileStateFromMeta(data.user.user_metadata || {});
+        set({
+          user: data.user,
+          longTermProfileEnabled: profileState.longTermProfileEnabled,
+          userProfileV2: profileState.userProfileV2,
+        });
+        clearPendingProfileWrite(currentUser.id);
+      } else {
+        savePendingProfileWrite(currentUser.id, nextProfile);
+      }
+    } catch {
+      // Network threw — data is safe in localStorage, retry on next init
       savePendingProfileWrite(currentUser.id, nextProfile);
     }
 
-    // Return success so callers can proceed; data is safe locally
+    // Always return success — data is guaranteed safe locally
     return { error: null };
   },
 

@@ -57,13 +57,65 @@ function buildClassSchedule(
 }
 function routineSig(v: RoutineSnapshot) { return JSON.stringify(v); }
 
+// ─── DrumColumn ───────────────────────────────────────────────
+const ITEM_H = 40;
+
+const DrumColumn: React.FC<{
+  items: string[];
+  selected: string;
+  onSelect: (v: string) => void;
+}> = ({ items, selected, onSelect }) => {
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  // Scroll to initial position on mount
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const idx = items.indexOf(selected);
+    if (idx >= 0) el.scrollTop = idx * ITEM_H;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / ITEM_H);
+    const clamped = Math.max(0, Math.min(items.length - 1, idx));
+    if (items[clamped] !== selected) onSelect(items[clamped]);
+  };
+
+  return (
+    <div ref={ref} onScroll={handleScroll}
+      className="flex-1 h-full overflow-y-auto no-scrollbar snap-y snap-mandatory py-16"
+      style={{ overscrollBehavior: 'contain' }}>
+      {items.map((item) => (
+        <div key={item}
+          className={`h-10 flex items-center justify-center snap-center transition-all duration-150 ${
+            selected === item ? 'text-black text-lg font-black' : 'text-black/20 text-sm'
+          }`}>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ─── TimePicker ───────────────────────────────────────────────
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
 const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [tempHour, setTempHour] = React.useState(value.split(':')[0]);
   const [tempMinute, setTempMinute] = React.useState(value.split(':')[1]);
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+  // Sync temp values when picker is closed and external value changes
+  React.useEffect(() => {
+    if (!isOpen) {
+      setTempHour(value.split(':')[0]);
+      setTempMinute(value.split(':')[1]);
+    }
+  }, [value, isOpen]);
+
   const save = () => { onChange(`${tempHour}:${tempMinute}`); setIsOpen(false); };
   return (
     <div className={`relative transition-all duration-300 ${isOpen ? 'z-[60]' : 'z-0'}`}>
@@ -82,19 +134,9 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
               className="absolute left-0 right-0 mt-2 rounded-[24px] bg-white border border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-[50] overflow-hidden">
               <div className="flex justify-center items-center h-40 relative px-6 gap-2 border-b border-zinc-50">
                 <div className="absolute inset-x-8 h-10 border-y border-black/5 pointer-events-none" />
-                <div className="flex-1 h-full overflow-y-auto no-scrollbar snap-y snap-mandatory py-16">
-                  {hours.map((h) => (
-                    <div key={h} onClick={(e) => { e.stopPropagation(); setTempHour(h); }}
-                      className={`h-10 flex items-center justify-center snap-center cursor-pointer transition-all ${tempHour === h ? 'text-black text-lg font-black' : 'text-black/20 text-sm'}`}>{h}</div>
-                  ))}
-                </div>
+                <DrumColumn items={HOURS} selected={tempHour} onSelect={setTempHour} />
                 <span className="text-lg font-black text-black">:</span>
-                <div className="flex-1 h-full overflow-y-auto no-scrollbar snap-y snap-mandatory py-16">
-                  {minutes.map((m) => (
-                    <div key={m} onClick={(e) => { e.stopPropagation(); setTempMinute(m); }}
-                      className={`h-10 flex items-center justify-center snap-center cursor-pointer transition-all ${tempMinute === m ? 'text-black text-lg font-black' : 'text-black/20 text-sm'}`}>{m}</div>
-                  ))}
-                </div>
+                <DrumColumn items={MINUTES} selected={tempMinute} onSelect={setTempMinute} />
               </div>
               <div className="p-2 flex gap-2 bg-zinc-50/20">
                 <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[9px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.2em]">取消</button>
@@ -118,6 +160,15 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   const [saveText, setSaveText] = React.useState('');
   const autoSaveTimerRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const autoSaveReadyRef = React.useRef(false);
+
+  // Lock body scroll when modal is open to prevent scroll-through on mobile
+  React.useEffect(() => {
+    if (showModal) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [showModal]);
 
   const [identity, setIdentity] = React.useState<IdentityType>('none');
   const [wakeTime, setWakeTime] = React.useState(DEFAULT_WAKE_TIME);
