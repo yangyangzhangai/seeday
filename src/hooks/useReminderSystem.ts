@@ -5,7 +5,7 @@
  * - App 前后台切换：调度/取消 idle nudge
  * - 前台时：到时间弹 App 内弹窗
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
@@ -136,6 +136,19 @@ export function useReminderSystem(navigate: (path: string) => void) {
   useEffect(() => { navigateRef.current = navigate; }, [navigate]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const scheduleTodayNativeReminders = useCallback(() => {
+    if (!user?.id || !userProfileV2) return;
+    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
+    const reminderEnabled = manual.reminderEnabled !== false;
+
+    void scheduleRemindersForToday({
+      manual,
+      aiMode: preferences.aiMode,
+      countryCode: preferences.countryCode ?? 'CN',
+      reminderEnabled,
+      getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+    });
+  }, [user?.id, userProfileV2, preferences.aiMode, preferences.countryCode]);
 
   // ── 加载今日计时 sessions ──
   useEffect(() => {
@@ -194,6 +207,8 @@ export function useReminderSystem(navigate: (path: string) => void) {
 
       if (isActive) {
         void cancelIdleNudge();
+        // Re-check daily schedule on foreground (cross-day / cold wake safety net)
+        scheduleTodayNativeReminders();
       } else {
         const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
         void scheduleIdleNudge(body);
@@ -203,22 +218,12 @@ export function useReminderSystem(navigate: (path: string) => void) {
     return () => {
       void listener.then((l) => l.remove());
     };
-  }, [user?.id, preferences.aiMode, userProfileV2?.manual]);
+  }, [user?.id, preferences.aiMode, userProfileV2?.manual, scheduleTodayNativeReminders]);
 
   // ── 调度原生通知（今日队列） ──
   useEffect(() => {
-    if (!user?.id || !userProfileV2) return;
-    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
-    const reminderEnabled = manual.reminderEnabled !== false;
-
-    void scheduleRemindersForToday({
-      manual,
-      aiMode: preferences.aiMode,
-      countryCode: preferences.countryCode ?? 'CN',
-      reminderEnabled,
-      getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
-    });
-  }, [user?.id, userProfileV2, preferences.aiMode, preferences.countryCode]);
+    scheduleTodayNativeReminders();
+  }, [scheduleTodayNativeReminders]);
 
   // ── 前台定时弹窗（用户 App 打开时的兜底） ──
   useEffect(() => {
