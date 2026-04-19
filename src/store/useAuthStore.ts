@@ -741,8 +741,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ? updater(prev)
       : mergeUserProfile(prev, updater);
 
-    // Optimistically update store so the user can proceed immediately
+    // 1. Update store + localStorage immediately — user proceeds without waiting
     set({ userProfileV2: nextProfile });
+    savePendingProfileWrite(currentUser.id, nextProfile);
 
     const nextMeta = {
       ...baseMeta,
@@ -753,8 +754,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     };
 
-    try {
-      const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
+    // 2. Sync to Supabase in background — don't block the caller
+    const userId = currentUser.id;
+    supabase.auth.updateUser({ data: nextMeta }).then(({ data, error }) => {
       if (!error && data?.user) {
         const profileState = profileStateFromMeta(data.user.user_metadata || {});
         set({
@@ -762,16 +764,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           longTermProfileEnabled: profileState.longTermProfileEnabled,
           userProfileV2: profileState.userProfileV2,
         });
-        clearPendingProfileWrite(currentUser.id);
-      } else {
-        savePendingProfileWrite(currentUser.id, nextProfile);
+        clearPendingProfileWrite(userId);
       }
-    } catch {
-      // Network threw — data is safe in localStorage, retry on next init
-      savePendingProfileWrite(currentUser.id, nextProfile);
-    }
+    }).catch(() => { /* will retry on next initialize() */ });
 
-    // Always return success — data is guaranteed safe locally
     return { error: null };
   },
 
