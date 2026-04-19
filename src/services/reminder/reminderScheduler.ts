@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROACTIVE_REMINDER_SPEC.md -> src/services/reminder/reminderTypes.ts
 import type { ScheduledReminder, ReminderType } from './reminderTypes';
 import type { UserProfileManualV2 } from '../../types/userProfile';
+import { toLocalDateStr } from '../../lib/dateUtils';
 import {
   scheduleBatchNotifications,
   cancelAllNotifications,
@@ -35,7 +36,8 @@ function makeNotificationId(type: ReminderType): number {
 // ─────────────────────────────────────────────
 
 export async function getIsFreeDay(date: Date, countryCode: string): Promise<boolean> {
-  const key = `freeDay_${date.toISOString().slice(0, 10)}`;
+  const localDate = toLocalDateStr(date);
+  const key = `freeDay_${localDate}`;
   const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
 
@@ -48,7 +50,7 @@ export async function getIsFreeDay(date: Date, countryCode: string): Promise<boo
 
   try {
     const res = await fetch(
-      `/api/live-input-telemetry?module=holiday_check&date=${date.toISOString().slice(0, 10)}&country=${countryCode}`,
+      `/api/live-input-telemetry?module=holiday_check&date=${localDate}&country=${countryCode}`,
     );
     if (res.ok) {
       const { isFreeDay } = (await res.json()) as { isFreeDay: boolean };
@@ -167,7 +169,7 @@ function buildPayloads(
 export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<void> {
   if (opts.reminderEnabled === false) return;
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = toLocalDateStr(new Date());
   // 已经调度过今天的则跳过（重启 App 不重复调度）
   if (localStorage.getItem(SCHEDULE_DONE_KEY) === todayKey) return;
 
