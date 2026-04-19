@@ -4,6 +4,24 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Feat: Onboarding 接入待办引导页 UI
+
+### Added
+
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 按设计稿新增待办引导页：支持待办标题输入、执行时间、是否重复、紧急程度、推荐待办快捷填充、列表展示与删除。
+  - 新增入门待办本地落盘：写入 `localStorage.at_todos`，字段与页面展示保持一致。
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - Onboarding 总步数由 5 步扩展为 6 步，并将待办引导页作为第 3 步插入流程。
+  - 原有日程/作息/完成步骤后移，保持保存资料与完成引导逻辑不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-19 - Feat: 活动识别补强“动词+对象”覆盖（zh/en/it）
 
 ### Changed

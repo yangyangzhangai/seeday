@@ -21,6 +21,7 @@ Owner: current working session
 - [x] 修复 iOS 聊天输入框被键盘遮挡：聊天底部输入容器改为跟随 `--keyboard-height` 上移，`setupKeyboardViewportFix` 初始化时重置键盘变量，确保键盘弹出时输入框同步抬升。
 - [x] iOS 键盘弹起时隐藏底部导航：全局 `BottomNav` 与聊天页内底部导航增加 `keyboard-open` 联动隐藏，避免键盘期导航挤压输入区与误触。
 - [x] 输入分类词库补强（zh/en/it）：按“动词+对象”优先扩充运营/财务高频动作（如 修改订单 / 支付账单 / 核对账单，EN/IT 对应 verify/pay/reconcile + object 短语），并补齐回归测试。
+- [x] Onboarding 新增「待办引导页」：接入同事提供的 UI 与交互（待办输入/时间/重复/紧急程度/推荐项/继续按钮），并在引导流程中插入为独立步骤。
 
 ---
 
