@@ -66,9 +66,6 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         className="relative w-[160px] cursor-pointer group/book"
         style={{ WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
       >
-        {/* 3D spine thickness */}
-        <div className="absolute left-[-4px] top-[3px] bottom-[3px] w-[14px] bg-black/25 rounded-l-lg blur-[1px] z-0" />
-
         {/* Selection ring */}
         {isSelected && (
           <div className="absolute inset-[-3px] rounded-r-2xl rounded-l-[4px] border-2 border-amber-400/90 pointer-events-none z-10"
@@ -79,7 +76,6 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         {/* Book body — A5 ratio 1:1.41 */}
         <div
           className="relative overflow-hidden transition-all"
-          style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.28)) drop-shadow(2px 8px 12px rgba(0,0,0,0.16))' }}
           style={{
             aspectRatio: '1/1.41',
             backgroundColor: color,
