@@ -144,6 +144,15 @@ html.keyboard-open .chat-input-bottom-nav {
   pointer-events: none;
 }
 
+/* ChatInputBar 内嵌底部导航在键盘弹起时需要折叠，否则会留下空白占位 */
+html.keyboard-open .chat-input-bottom-nav {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+
 @media (max-width: 767px) {
   .app-mobile-page-frame {
     width: 100% !important;

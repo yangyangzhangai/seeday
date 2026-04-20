@@ -193,6 +193,33 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   // 只保留触发时间在未来的提醒
   const future = queue.filter(({ time }) => timeStringToToday(time) > now);
 
+  // 若今天已标记完成，先检查 pending 是否完整，完整则直接跳过。
+  if (wasMarkedToday) {
+    const pendingIds = await getPendingNotificationIds();
+
+    if (future.length > 0) {
+      const expectedTodayIds = buildPayloads(future, now, opts).map((item) => item.id);
+      const todayAlreadyScheduled =
+        expectedTodayIds.length > 0 && expectedTodayIds.every((id) => pendingIds.includes(id));
+      if (todayAlreadyScheduled) {
+        localStorage.setItem('reminder_today_count', String(expectedTodayIds.length));
+        return;
+      }
+    } else {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode);
+      const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
+      const expectedTomorrowIds = buildPayloads(tomorrowQueue, tomorrow, opts).map((item) => item.id);
+      const tomorrowAlreadyScheduled =
+        expectedTomorrowIds.length === 0 || expectedTomorrowIds.every((id) => pendingIds.includes(id));
+      if (tomorrowAlreadyScheduled) {
+        localStorage.setItem('reminder_today_count', '0');
+        return;
+      }
+    }
+  }
+
   // 取消旧通知（cancelAllNotifications 已排除 idle_nudge）
   await cancelAllNotifications();
 
@@ -204,48 +231,17 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
     const tomorrowPayloads = buildPayloads(tomorrowQueue, tomorrow, opts);
     if (tomorrowPayloads.length > 0) {
-      await scheduleBatchNotifications(tomorrowPayloads);
+      const scheduled = await scheduleBatchNotifications(tomorrowPayloads);
+      if (!scheduled) return;
     }
     localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
     localStorage.setItem('reminder_today_count', '0');
     return;
   }
 
-  // 取消旧通知（不含 idle_nudge，它有独立 ID 999001）
-  await cancelAllNotifications();
-
-  const payloads: LocalNotificationPayload[] = future.map(({ type, time }) => {
-    const body = opts.getCopyFn(type, { name: opts.userName });
-    const actionTypeId =
-      type === 'evening_check' || type === 'weekend_evening_check'
-        ? 'EVENING_CHECK'
-        : type === 'weekend_morning_check' || type === 'weekend_afternoon_check'
-        ? 'WEEKEND_CHECK'
-        : 'CONFIRM_DENY';
-
-    return {
-      id: makeNotificationId(type),
-      title: opts.notificationTitle ?? 'Seeday',
-      body,
-      at: timeStringToToday(time),
-      actionTypeId,
-      extra: { reminderType: type },
-    };
-  });
-
-  if (wasMarkedToday) {
-    const pendingIds = await getPendingNotificationIds();
-    const expectedIds = payloads.map((item) => item.id);
-    const alreadyScheduled = expectedIds.length > 0 && expectedIds.every((id) => pendingIds.includes(id));
-    if (alreadyScheduled) {
-      localStorage.setItem('reminder_today_count', String(payloads.length));
-      return;
-    }
-  }
-
+  const payloads = buildPayloads(future, now, opts);
   const scheduled = await scheduleBatchNotifications(payloads);
   if (!scheduled) return;
-
   localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
   localStorage.setItem('reminder_today_count', String(payloads.length));
 }

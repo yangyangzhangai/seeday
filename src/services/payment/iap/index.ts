@@ -28,13 +28,87 @@ interface IapBridge {
   >;
 }
 
+interface CapacitorRuntimeLike {
+  Plugins?: Record<string, unknown>;
+  nativePromise?: (pluginId: string, methodName: string, options?: Record<string, unknown>) => Promise<unknown>;
+}
+
+const NATIVE_PLUGIN_IDS = ['SeedayIAP', 'SeedayIAPPlugin', 'IAP'] as const;
+
+function readCapacitorRuntime(): CapacitorRuntimeLike | null {
+  const globalAny = window as unknown as { Capacitor?: CapacitorRuntimeLike };
+  return globalAny.Capacitor ?? null;
+}
+
+function isPluginMissingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('not implemented') ||
+    normalized.includes('is not implemented') ||
+    normalized.includes('does not have an implementation') ||
+    normalized.includes('plugin is not implemented') ||
+    normalized.includes('no such plugin') ||
+    normalized.includes('unable to find plugin')
+  );
+}
+
+async function callNativeBridge(
+  methodName: 'purchaseProduct' | 'restorePurchases',
+  options?: Record<string, unknown>,
+): Promise<unknown> {
+  const capacitor = readCapacitorRuntime();
+  const nativePromise = capacitor?.nativePromise;
+  if (typeof nativePromise !== 'function') return null;
+
+  let lastError: unknown = null;
+  for (const pluginId of NATIVE_PLUGIN_IDS) {
+    try {
+      return await nativePromise(pluginId, methodName, options ?? {});
+    } catch (error) {
+      lastError = error;
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError) throw lastError;
+  return null;
+}
+
 function getBridge(): IapBridge | null {
-  const globalAny = window as unknown as {
-    Capacitor?: { Plugins?: Record<string, unknown> };
-  };
-  const plugins = globalAny.Capacitor?.Plugins;
+  const capacitor = readCapacitorRuntime();
+  const plugins = capacitor?.Plugins;
   if (!plugins) return null;
-  return (plugins.SeedayIAP || plugins.IAP || null) as IapBridge | null;
+
+  const pluginBridge = (
+    plugins.SeedayIAP ||
+    plugins.SeedayIAPPlugin ||
+    plugins.IAP ||
+    null
+  ) as IapBridge | null;
+
+  if (pluginBridge?.purchaseProduct || pluginBridge?.restorePurchases) {
+    return pluginBridge;
+  }
+
+  // Fallback: call Capacitor native bridge directly even when plugin JS proxy
+  // was not injected into window.Capacitor.Plugins due registration timing.
+  return {
+    purchaseProduct: async (params) => {
+      const raw = await callNativeBridge('purchaseProduct', params as unknown as Record<string, unknown>);
+      return raw as IapTransactionLike | null | undefined;
+    },
+    restorePurchases: async () => {
+      const raw = await callNativeBridge('restorePurchases');
+      return raw as
+        | IapTransactionLike
+        | { transactions?: IapTransactionLike[] }
+        | null
+        | undefined;
+    },
+  };
 }
 
 function toActionResult(error: unknown): PaymentActionResult {
