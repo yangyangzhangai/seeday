@@ -47,7 +47,12 @@
       "Bash(open ios/App/App.xcodeproj)",
       "mcp__Claude_Preview__preview_start",
       "Bash(gh repo *)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(md5 public/assets/plants/*.png)",
+      "Bash(sort -k4)",
+      "Bash(awk '{print $4, $NF}')",
+      "Bash(sort -k1)",
+      "Bash(awk 'prev==$1{print \"DUPLICATE:\", prev_file, \"==\", $2} {prev=$1; prev_file=$2}')"
     ],
     "deny": [
       "Bash(rm -rf:*)",
