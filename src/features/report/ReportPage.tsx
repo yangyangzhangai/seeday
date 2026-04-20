@@ -297,20 +297,47 @@ export const ReportPage = () => {
         </div>
         <button
           onClick={() => setShowCalendarModal(true)}
-          className="mt-2 text-left transition active:opacity-60 select-none"
-          style={{ background: 'none', border: 'none', padding: '2px 0', display: 'block' }}
+          aria-label={t('report_calendar_view')}
+          className="mt-2 text-left transition active:scale-[0.99] active:opacity-90 select-none"
+          style={{
+            border: '1px solid rgba(134,168,143,0.48)',
+            borderRadius: 20,
+            padding: '10px 12px 11px',
+            display: 'inline-flex',
+            flexDirection: 'column',
+            gap: 4,
+            background: 'linear-gradient(155deg, rgba(255,255,255,0.82), rgba(233,244,235,0.78))',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 20px rgba(98,132,108,0.14)',
+          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', color: '#7a9b7e', textTransform: 'uppercase', lineHeight: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.11em', color: '#6e9275', textTransform: 'uppercase', lineHeight: 1 }}>
               {format(today, 'EEEE', { locale: calendarLocale })}
             </span>
-            <ChevronDown size={9} strokeWidth={2.5} style={{ color: '#5F7A63', flexShrink: 0 }} />
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 999,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(122,155,126,0.14)',
+                border: '1px solid rgba(122,155,126,0.24)',
+                color: '#5F7A63',
+                flexShrink: 0,
+              }}
+            >
+              <ChevronDown size={12} strokeWidth={2.6} />
+            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <span style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.03em', color: '#1e293b', lineHeight: 1.05 }}>
+            <span style={{ fontSize: 'clamp(36px,8vw,42px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#1f2b44', lineHeight: 0.98 }}>
               {format(today, currentLang === 'zh' ? 'M月d日' : 'MMMM d', { locale: calendarLocale })}
             </span>
-            <span style={{ fontSize: '13px', fontWeight: 500, color: '#7a9b7e', letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 'clamp(24px,5.4vw,28px)', fontWeight: 500, color: '#6f9273', letterSpacing: '-0.01em' }}>
               {format(today, 'yyyy')}
             </span>
           </div>

@@ -4,6 +4,69 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-20 - Fix: Free 日记 Teaser 情绪词兜底与正负向匹配
+
+### Changed
+
+- `src/server/diaryTeasers.ts`
+  - 移除 `{情绪词}/{mood}/{umore}` 的固定兜底词（原先统一回填“有点累 / a bit tired / un po' stanco”）。
+  - 新增三语情绪词匹配词表（zh/en/it），按输入内容提取更贴近上下文的情绪词。
+  - 新增桶位情绪极性策略：A 桶优先负向词，B 桶优先正向词，其他桶优先命中任意情绪词，未命中时回退中性词。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Teaser 情绪词匹配修复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Improve: Report 顶部日期入口点击感与排版层级
+
+### Changed
+
+- `src/features/report/ReportPage.tsx`
+  - 将顶部日期入口从纯文本排版改为可点击玻璃卡片样式（圆角、边框、渐变、阴影、blur），强化可交互暗示。
+  - 星期行改为“文字 + 圆形下拉指示器”结构，提升“点此打开日历”的识别度。
+  - 调整日期/年份字号层级与行内对齐，优化信息主次，避免原有视觉挤压与不协调。
+  - 新增日期按钮 `aria-label`（复用 `report_calendar_view`），提升可访问性语义。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Report 日期入口重设计。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Improve: Profile 作息面板信息密度与同屏预览
+
+### Changed
+
+- `src/features/profile/components/RoutineSettingsPanel.tsx`
+  - 收紧作息弹层头部/内容/底部留白与网格间距，减少纵向滚动距离，同时保持触控尺寸与可读性。
+  - 时间输入标签字号与按钮文案字号上调，避免压缩后出现“看不清”问题。
+  - 新增“上班/上学”双预览卡同屏展示（工作段与课程三时段），无需切换身份即可快速对比两类日程。
+  - 保留当前身份下的详细编辑区（上班或上学），在不牺牲编辑精度的前提下降低滚动与切换成本。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次作息面板 UI 密度优化。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: 日记书架日期搜索面板重叠文案与热度配色质感
+
+### Changed
+
+- `src/features/report/DiaryBookShelf.tsx`
+  - 日期输入框移除占位层叠渲染方案，改为单层输入 + 底部提示行，并关闭输入自动补全（`autoComplete="off"`）以减少灰字重叠干扰。
+  - 日期搜索输入区与搜索按钮改为绿色玻璃拟态风格（轻渐变 + blur + 内高光），与书架整体配色更一致。
+  - 月视图热度格升级为三档绿色层次（浅/中/深）+ 深绿选中态，补充边框与柔和阴影，提升状态辨识度与视觉质感。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次日记书架视觉修复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-20 - Fix: i18n locale 文件行数超限导致 pre-commit 失败
 
 ### Changed

@@ -14,8 +14,10 @@ const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b11355
 const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
 
 const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
-const DAY_MARK_LIGHT = 'rgba(143, 174, 145, 0.42)';
-const DAY_MARK_DEEP = '#6f9273';
+const DAY_MARK_LIGHT = 'linear-gradient(160deg, rgba(228, 239, 231, 0.92), rgba(205, 223, 210, 0.88))';
+const DAY_MARK_MID = 'linear-gradient(160deg, rgba(191, 212, 197, 0.92), rgba(168, 195, 177, 0.88))';
+const DAY_MARK_DEEP = 'linear-gradient(160deg, rgba(120, 152, 131, 0.96), rgba(98, 131, 111, 0.94))';
+const DAY_MARK_SELECTED = 'linear-gradient(165deg, #46624f, #3a5444)';
 
 type ParsedDateInput = {
   year: number | null;
@@ -488,27 +490,31 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     placeholder="2026 / 04 / 20"
                     className="w-full outline-none"
                     inputMode="numeric"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     style={{
                       borderRadius: '16px',
-                      border: '1.5px solid #c8d9c4',
-                      background: 'rgba(255,255,255,0.95)',
+                      border: '1.5px solid rgba(171,199,178,0.78)',
+                      background: 'linear-gradient(155deg, rgba(255,255,255,0.9), rgba(242,249,244,0.82))',
                       padding: '11px 16px',
                       fontSize: '16px',
                       fontWeight: 600,
                       letterSpacing: '0.06em',
                       color: '#2e4431',
-                      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.04)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(164,190,171,0.32), 0 8px 16px rgba(88,121,96,0.08)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
                     }}
-                    onFocus={(e) => { e.target.style.borderColor = '#8fae91'; e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.04), 0 0 0 3px rgba(143,174,145,0.2)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = '#c8d9c4'; e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.04)'; }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#8aac93';
+                      e.target.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.86), inset 0 -1px 0 rgba(154,186,164,0.4), 0 0 0 3px rgba(135,171,146,0.18), 0 10px 20px rgba(88,121,96,0.12)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'rgba(171,199,178,0.78)';
+                      e.target.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(164,190,171,0.32), 0 8px 16px rgba(88,121,96,0.08)';
+                    }}
                   />
-                  {!searchInput && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center px-4">
-                      <span style={{ fontSize: '13px', color: 'rgba(74,93,76,0.35)', letterSpacing: '0.04em' }}>
-                        {i18n.language?.split('-')[0] === 'zh' ? '仅输入数字，如 20260420' : i18n.language?.split('-')[0] === 'it' ? 'Solo numeri, es. 20260420' : 'Digits only, e.g. 20260420'}
-                      </span>
-                    </div>
-                  )}
                 </div>
                 <button
                   type="button"
@@ -516,17 +522,23 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                   disabled={!parsedDateInput.selectedDate}
                   style={{
                     width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0,
-                    background: parsedDateInput.selectedDate ? '#4a5d4c' : 'rgba(255,255,255,0.85)',
-                    border: parsedDateInput.selectedDate ? 'none' : '1.5px solid #c8d9c4',
+                    background: parsedDateInput.selectedDate ? DAY_MARK_SELECTED : 'rgba(255,255,255,0.72)',
+                    border: parsedDateInput.selectedDate ? '1px solid rgba(63,91,73,0.42)' : '1.5px solid rgba(171,199,178,0.7)',
                     color: parsedDateInput.selectedDate ? '#ffffff' : '#4a5d4c',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.2s, border 0.2s',
+                    transition: 'background 0.2s, border 0.2s, box-shadow 0.2s',
                     cursor: parsedDateInput.selectedDate ? 'pointer' : 'not-allowed',
                     opacity: parsedDateInput.selectedDate ? 1 : 0.5,
+                    boxShadow: parsedDateInput.selectedDate ? '0 10px 20px rgba(58,84,68,0.22), inset 0 1px 0 rgba(255,255,255,0.14)' : 'inset 0 1px 0 rgba(255,255,255,0.86)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
                   }}
                 >
                   <Search size={18} strokeWidth={2.2} />
                 </button>
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(74,93,76,0.55)', letterSpacing: '0.03em' }}>
+                {i18n.language?.split('-')[0] === 'zh' ? '仅输入数字，如 20260420' : i18n.language?.split('-')[0] === 'it' ? 'Solo numeri, es. 20260420' : 'Digits only, e.g. 20260420'}
               </div>
             </div>
 
@@ -640,18 +652,28 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                       if (!inMonth) {
                         bg = 'transparent';
                       } else if (isSelected) {
-                        bg = '#3d5244';
+                        bg = DAY_MARK_SELECTED;
                         textColor = '#ffffff';
-                        shadow = '0 3px 10px rgba(61,82,68,0.3)';
+                        borderStyle = '1px solid rgba(56,81,65,0.45)';
+                        shadow = '0 8px 16px rgba(58,84,68,0.22), inset 0 1px 0 rgba(255,255,255,0.18)';
                       } else if (count > 5) {
-                        bg = 'rgba(111,146,115,0.55)';
-                        textColor = '#1e3422';
+                        bg = DAY_MARK_DEEP;
+                        textColor = '#1f3525';
+                        borderStyle = '1px solid rgba(97,129,109,0.42)';
+                        shadow = '0 4px 12px rgba(95,130,106,0.16), inset 0 1px 0 rgba(255,255,255,0.32)';
+                      } else if (count >= 3) {
+                        bg = DAY_MARK_MID;
+                        textColor = '#2b4430';
+                        borderStyle = '1px solid rgba(144,175,153,0.42)';
+                        shadow = '0 3px 10px rgba(110,142,119,0.12), inset 0 1px 0 rgba(255,255,255,0.45)';
                       } else if (count > 0) {
-                        bg = 'rgba(143,174,145,0.28)';
-                        borderStyle = '1.5px solid rgba(111,146,115,0.3)';
+                        bg = DAY_MARK_LIGHT;
+                        borderStyle = '1px solid rgba(171,199,178,0.45)';
+                        shadow = 'inset 0 1px 0 rgba(255,255,255,0.5)';
                       } else {
-                        bg = 'rgba(255,255,255,0.7)';
-                        borderStyle = '1px solid rgba(200,217,196,0.5)';
+                        bg = 'linear-gradient(160deg, rgba(255,255,255,0.82), rgba(246,250,247,0.74))';
+                        borderStyle = '1px solid rgba(194,213,199,0.56)';
+                        shadow = 'inset 0 1px 0 rgba(255,255,255,0.72)';
                       }
 
                       return (
@@ -683,6 +705,8 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                             justifyContent: 'center',
                             cursor: inMonth ? 'pointer' : 'default',
                             position: 'relative',
+                            backdropFilter: inMonth ? 'blur(8px)' : undefined,
+                            WebkitBackdropFilter: inMonth ? 'blur(8px)' : undefined,
                           }}
                         >
                           {inMonth && date.getDate()}

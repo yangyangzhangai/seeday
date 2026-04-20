@@ -6,6 +6,98 @@
 
 type Lang = 'zh' | 'en' | 'it';
 type BucketKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J';
+type MoodPolarity = 'positive' | 'negative';
+type MoodEntry = { pattern: RegExp; value: string };
+
+const MOOD_MATCHERS: Record<Lang, Record<MoodPolarity, MoodEntry[]>> = {
+  zh: {
+    positive: [
+      { pattern: /开心|高兴|兴奋|满足|自豪|轻松|平静|踏实|愉快/, value: '开心' },
+      { pattern: /放松|松弛|安稳|心安/, value: '轻松' },
+    ],
+    negative: [
+      { pattern: /焦虑|焦躁|紧张|不安/, value: '焦虑' },
+      { pattern: /难过|低落|沮丧|失落/, value: '难过' },
+      { pattern: /崩溃|烦躁|委屈|压抑/, value: '烦躁' },
+      { pattern: /疲惫|心累|很累|太累/, value: '疲惫' },
+    ],
+  },
+  en: {
+    positive: [
+      { pattern: /\b(happy|glad|joyful|content|excited|proud)\b/i, value: 'happy' },
+      { pattern: /\b(calm|relieved|peaceful|grateful)\b/i, value: 'calm' },
+    ],
+    negative: [
+      { pattern: /\b(anxious|worried|stressed|overwhelmed|uneasy)\b/i, value: 'anxious' },
+      { pattern: /\b(sad|down|upset|low|hurt)\b/i, value: 'sad' },
+      { pattern: /\b(irritated|frustrated|angry)\b/i, value: 'frustrated' },
+      { pattern: /\b(tired|exhausted|drained|burned\s?out|burnt\s?out)\b/i, value: 'tired' },
+    ],
+  },
+  it: {
+    positive: [
+      { pattern: /\b(felice|content[oa]|soddisfatt[oa]|orgoglios[oa]|entusiast[ao])\b/i, value: 'felice' },
+      { pattern: /\b(seren[oa]|tranquill[oa]|sollevat[oa]|grat[oa])\b/i, value: 'sereno' },
+    ],
+    negative: [
+      { pattern: /\b(ansios[oa]|preoccupat[oa]|stressat[oa]|sopraffatt[oa])\b/i, value: 'ansioso' },
+      { pattern: /\b(triste|giu|abbattut[oa]|ferit[oa])\b/i, value: 'triste' },
+      { pattern: /\b(irritat[oa]|frustrat[oa]|arrabbiat[oa])\b/i, value: 'frustrato' },
+      { pattern: /\b(stanc[oa]|esaust[oa]|sfiancat[oa])\b/i, value: 'stanco' },
+    ],
+  },
+};
+
+const MOOD_FALLBACKS: Record<Lang, Record<MoodPolarity | 'neutral', string>> = {
+  zh: {
+    positive: '开心',
+    negative: '难过',
+    neutral: '平静',
+  },
+  en: {
+    positive: 'happy',
+    negative: 'sad',
+    neutral: 'calm',
+  },
+  it: {
+    positive: 'felice',
+    negative: 'triste',
+    neutral: 'sereno',
+  },
+};
+
+function pickMoodWordFromEntries(source: string, entries: MoodEntry[]): string | undefined {
+  let bestIndex = Number.POSITIVE_INFINITY;
+  let bestValue: string | undefined;
+
+  entries.forEach((entry) => {
+    const match = source.match(entry.pattern);
+    if (match?.index !== undefined && match.index < bestIndex) {
+      bestIndex = match.index;
+      bestValue = entry.value;
+    }
+  });
+
+  return bestValue;
+}
+
+function resolveMoodWord(lang: Lang, source: string, bucket: BucketKey): string {
+  const matcherByLang = MOOD_MATCHERS[lang];
+
+  if (bucket === 'A') {
+    return pickMoodWordFromEntries(source, matcherByLang.negative) || MOOD_FALLBACKS[lang].negative;
+  }
+
+  if (bucket === 'B') {
+    return pickMoodWordFromEntries(source, matcherByLang.positive) || MOOD_FALLBACKS[lang].positive;
+  }
+
+  const anyMood = pickMoodWordFromEntries(source, [
+    ...matcherByLang.positive,
+    ...matcherByLang.negative,
+  ]);
+  return anyMood || MOOD_FALLBACKS[lang].neutral;
+}
 
 const TEASERS: Record<Lang, Record<BucketKey, string[]>> = {
   zh: {
@@ -232,7 +324,7 @@ export function buildDiaryTeaser(lang: Lang, structuredData: string, rawInput?: 
   const pool = TEASERS[lang][bucket];
   const template = pool[Math.floor(Math.random() * pool.length)] || TEASERS[lang].J[0];
 
-  const moodWord     = lang === 'zh' ? '有点累'           : lang === 'it' ? 'un po\' stanco'    : 'a bit tired';
+  const moodWord = resolveMoodWord(lang, source, bucket);
   const personWord   = lang === 'zh' ? '朋友'             : lang === 'it' ? 'qualcuno di caro'  : 'someone close';
   const activityWord = lang === 'zh' ? '工作'             : lang === 'it' ? 'il lavoro'         : 'work';
   const durationWord = lang === 'zh' ? '3小时'            : lang === 'it' ? '3 ore'             : '3 hours';

@@ -166,7 +166,7 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
   return (
     <div className={`relative transition-all duration-300 ${isOpen ? 'z-[60]' : 'z-0'}`}>
       <button onClick={() => { if (isOpen) setIsOpen(false); else openPicker(); }}
-        className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 border-2 ${isOpen ? 'bg-white border-black shadow-xl shadow-black/5' : 'bg-zinc-50 border-transparent hover:border-black/10'} text-sm font-bold text-black group relative z-[2]`}>
+        className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 border-2 ${isOpen ? 'bg-white border-black shadow-xl shadow-black/5' : 'bg-zinc-50 border-transparent hover:border-black/10'} text-sm font-bold text-black group relative z-[2]`}>
         <span>{value}</span>
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-black/20 group-hover:text-black transition-colors">
           <ChevronDown size={14} />
@@ -185,8 +185,8 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
                 <DrumColumn items={MINUTES} selected={tempMinute} onSelect={setTempMinute} />
               </div>
               <div className="p-2 flex gap-2 bg-zinc-50/20">
-                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[9px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.2em]">取消</button>
-                <button onClick={save} className="flex-1 py-2 rounded-xl bg-black text-white text-[9px] font-bold shadow-sm uppercase tracking-[0.2em]">确定</button>
+                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.16em]">取消</button>
+                <button onClick={save} className="flex-1 py-2 rounded-xl bg-black text-white text-[11px] font-bold shadow-sm uppercase tracking-[0.16em]">确定</button>
               </div>
             </motion.div>
           </>
@@ -420,13 +420,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   };
 
   const SectionLabel = ({ title }: { title: string }) => (
-    <div className="flex items-center gap-2 mb-4 px-1">
+    <div className="flex items-center gap-2 mb-3 px-1">
       <h3 className="text-[10px] font-black text-black uppercase tracking-[0.2em]">{title}</h3>
     </div>
   );
   const TimeInput = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => (
-    <div className="space-y-1.5">
-      <p className="text-[10px] font-bold text-black/40 px-1 uppercase tracking-widest">{label}</p>
+    <div className="space-y-1">
+      <p className="text-[11px] font-bold text-black/45 px-1 uppercase tracking-[0.12em]">{label}</p>
       <TimePicker value={value} onChange={onChange} />
     </div>
   );
@@ -459,13 +459,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="relative w-full sm:max-w-sm bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full sm:max-w-md bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
               style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 8px)' }}
             >
               <style dangerouslySetInnerHTML={{ __html: `.cr-scroll::-webkit-scrollbar{width:4px}.cr-scroll::-webkit-scrollbar-thumb{background:#8fae9130;border-radius:20px}` }} />
 
               {/* 标题 */}
-              <div className="px-5 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between shrink-0">
+              <div className="px-5 sm:px-7 pt-5 sm:pt-6 pb-3.5 flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-black tracking-tighter text-black uppercase">{t('profile_routine_title')}</h2>
                 <button onClick={requestCloseModal} className="p-2 rounded-full hover:bg-black/5 transition-colors">
                   <X size={18} className="text-black" />
@@ -473,12 +473,12 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 滚动内容 */}
-              <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-2 space-y-8 sm:space-y-10 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-6 cr-scroll">
+              <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
 
                 {/* 身份 */}
                 <section className="relative z-10">
                   <SectionLabel title={t('profile_schedule_section_title')} />
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {([
                       { id: 'none', label: t('profile_schedule_identity_free') },
                       { id: 'work', label: t('profile_schedule_identity_work') },
@@ -497,7 +497,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                               setPendingIdentity(null);
                             }
                           }}
-                          className={`relative flex flex-col items-center justify-center py-2.5 rounded-lg border text-xs font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
+                          className={`relative flex flex-col items-center justify-center py-2 rounded-lg border text-[12px] font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
                           style={isSelected ? {
                             background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
                             border: '0.5px solid transparent',
@@ -513,6 +513,24 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                         </button>
                       );
                     })}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div
+                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'work' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_work')}</p>
+                      <p className="mt-1 text-[13px] font-semibold text-black/80">{workStart} - {workEnd}</p>
+                      <p className="text-[12px] text-black/55">{workLunchStart} - {workLunchEnd}</p>
+                    </div>
+                    <div
+                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'class' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_class')}</p>
+                      <p className="mt-1 text-[12px] text-black/70">{classMorningStart} - {classMorningEnd}</p>
+                      <p className="text-[12px] text-black/70">{classAfternoonStart} - {classAfternoonEnd}</p>
+                      <p className="text-[12px] text-black/70">{classEveningStart} - {classEveningEnd}</p>
+                    </div>
                   </div>
 
                   {/* 身份切换确认弹窗 */}
@@ -563,12 +581,12 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                 {/* 基础作息 */}
                 <section className="relative z-[9]">
                   <SectionLabel title={t('profile_routine_time_section')} />
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3.5">
+                    <div className="grid grid-cols-2 gap-3">
                       <TimeInput label={t('profile_user_profile_wake_time')} value={wakeTime} onChange={setWakeTime} />
                       <TimeInput label={t('profile_user_profile_breakfast')} value={breakfastTime} onChange={setBreakfastTime} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <TimeInput label={t('profile_user_profile_lunch')} value={lunchTime} onChange={setLunchTime} />
                       <TimeInput label={t('profile_user_profile_dinner')} value={dinnerTime} onChange={setDinnerTime} />
                     </div>
@@ -581,7 +599,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   {identity === 'work' && (
                     <motion.section key="work" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-[8]">
                       <SectionLabel title={t('profile_schedule_work_fields')} />
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
                         <TimeInput label={t('profile_user_profile_work_start')} value={workStart} onChange={setWorkStart} />
                         <TimeInput label={t('profile_user_profile_lunch_start')} value={workLunchStart} onChange={setWorkLunchStart} />
                         <TimeInput label={t('profile_user_profile_lunch_end')} value={workLunchEnd} onChange={setWorkLunchEnd} />
@@ -592,16 +610,16 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   {identity === 'class' && (
                     <motion.section key="class" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-[8]">
                       <SectionLabel title={t('profile_schedule_class_fields')} />
-                      <div className="space-y-5">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3.5">
+                        <div className="grid grid-cols-2 gap-3">
                           <TimeInput label={t('profile_user_profile_class_morning_start')} value={classMorningStart} onChange={setClassMorningStart} />
                           <TimeInput label={t('profile_user_profile_class_morning_end')} value={classMorningEnd} onChange={setClassMorningEnd} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           <TimeInput label={t('profile_user_profile_class_afternoon_start')} value={classAfternoonStart} onChange={setClassAfternoonStart} />
                           <TimeInput label={t('profile_user_profile_class_afternoon_end')} value={classAfternoonEnd} onChange={setClassAfternoonEnd} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           <TimeInput label={t('profile_user_profile_class_evening_start')} value={classEveningStart} onChange={setClassEveningStart} />
                           <TimeInput label={t('profile_user_profile_class_evening_end')} value={classEveningEnd} onChange={setClassEveningEnd} />
                         </div>
@@ -611,7 +629,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                 </AnimatePresence>
 
                 {/* 提醒开关 */}
-                <div className="border-t border-black/5 pt-5 space-y-2 relative z-0">
+                <div className="border-t border-black/5 pt-4 space-y-1.5 relative z-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Bell size={13} className="text-[#8fae91]" />
@@ -638,7 +656,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 保存按钮 */}
-              <div className="px-5 sm:px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-8 pt-4 shrink-0">
+              <div className="px-5 sm:px-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-6 pt-3.5 shrink-0">
                 {saveText && <p className="mb-2 text-center text-[11px] text-slate-500">{saveText}</p>}
                 <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave(); }} disabled={saving}
                   className="w-full py-3 rounded-2xl text-sm font-semibold disabled:opacity-60"
