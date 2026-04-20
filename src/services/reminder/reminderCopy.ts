@@ -94,6 +94,40 @@ export const REMINDER_COPY: Record<AiCompanionMode, Record<ReminderType, string>
   },
 };
 
+type ReminderActionHint = {
+  activity: string;
+  mode: 'start' | 'end';
+};
+
+const REMINDER_ACTION_HINTS: Partial<Record<ReminderType, ReminderActionHint>> = {
+  work_start: { activity: '工作', mode: 'start' },
+  lunch_start: { activity: '午饭', mode: 'start' },
+  meal_lunch: { activity: '午饭', mode: 'start' },
+  lunch_end: { activity: '工作', mode: 'start' },
+  work_end: { activity: '工作', mode: 'end' },
+  class_morning_start: { activity: '学习', mode: 'start' },
+  class_afternoon_start: { activity: '学习', mode: 'start' },
+  class_evening_start: { activity: '学习', mode: 'start' },
+  class_morning_end: { activity: '学习', mode: 'end' },
+  class_afternoon_end: { activity: '学习', mode: 'end' },
+  class_evening_end: { activity: '学习', mode: 'end' },
+  meal_dinner: { activity: '晚饭', mode: 'start' },
+  sleep: { activity: '休息', mode: 'end' },
+};
+
+function buildReminderActionHintCopy(
+  type: ReminderType,
+  vars: { name?: string },
+): string | null {
+  const hint = REMINDER_ACTION_HINTS[type];
+  if (!hint) return null;
+  const prefix = vars.name ? `${vars.name}，` : '';
+  if (hint.mode === 'start') {
+    return `${prefix}现在在做${hint.activity}吗？长按通知可一键开始计时。`;
+  }
+  return `${prefix}现在准备结束${hint.activity}了吗？长按通知可一键结束计时。`;
+}
+
 /**
  * 根据人格和提醒类型获取文案，替换 {name} 和 {activity} 占位符
  * - 无昵称时去掉 "{name}，" 前缀
@@ -103,6 +137,9 @@ export function getReminderCopy(
   type: ReminderType,
   vars: { name?: string; activity?: string } = {},
 ): string {
+  const actionHintCopy = buildReminderActionHintCopy(type, vars);
+  if (actionHintCopy) return actionHintCopy;
+
   const template = REMINDER_COPY[mode]?.[type] ?? REMINDER_COPY.van[type];
   return template
     .replace('{name}', vars.name ?? '')

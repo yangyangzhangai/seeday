@@ -8,27 +8,27 @@
 
 import type { ReminderType } from '../reminder/reminderTypes';
 
-const REMINDER_ERROR_LOG_KEY = 'reminder_error_log';
+const ERROR_LOG_KEY = 'reminder_error_log';
+const MAX_ERROR_ENTRIES = 20;
 let actionTypesRegistered = false;
 let actionTypesRegisterPromise: Promise<void> | null = null;
 
-function appendReminderErrorLog(stage: string, details: Record<string, unknown>): void {
-  if (typeof window === 'undefined') return;
+function logReminderError(label: string, error: unknown): void {
   try {
-    const raw = window.localStorage.getItem(REMINDER_ERROR_LOG_KEY);
-    const list = raw ? JSON.parse(raw) as Array<Record<string, unknown>> : [];
-    const next = [
-      ...list.slice(-49),
-      {
-        ts: new Date().toISOString(),
-        stage,
-        ...details,
-      },
-    ];
-    window.localStorage.setItem(REMINDER_ERROR_LOG_KEY, JSON.stringify(next));
+    const entry = {
+      t: new Date().toISOString(),
+      label,
+      msg: error instanceof Error ? error.message : String(error),
+    };
+    const raw = localStorage.getItem(ERROR_LOG_KEY);
+    const list: typeof entry[] = raw ? (JSON.parse(raw) as typeof entry[]) : [];
+    list.push(entry);
+    if (list.length > MAX_ERROR_ENTRIES) list.splice(0, list.length - MAX_ERROR_ENTRIES);
+    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(list));
   } catch {
-    // ignore localStorage failures
+    // localStorage 不可用时放弃记录
   }
+  if (import.meta.env.DEV) console.warn(`[local-notification] ${label}`, error);
 }
 
 // 动态导入避免 Web 环境报错
@@ -39,9 +39,8 @@ interface LocalNotificationsPluginRef {
 async function getPlugin() {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
-    // Important: do NOT return LocalNotifications directly from an async function.
-    // Capacitor plugin proxy can look like a thenable on iOS, which triggers
-    // an invalid "LocalNotifications.then()" call during Promise resolution.
+    // Do not return Capacitor plugin proxy directly from async function.
+    // On iOS the proxy can be treated as thenable and triggers `LocalNotifications.then()` errors.
     return { plugin: LocalNotifications } as LocalNotificationsPluginRef;
   } catch {
     return null;
@@ -76,41 +75,40 @@ export async function registerNotificationCategories(): Promise<void> {
     const pluginRef = await getPlugin();
     if (!pluginRef) return;
     const { plugin } = pluginRef;
-
     await plugin.registerActionTypes({
       types: [
         {
           id: 'CONFIRM_DENY',
           actions: [
-            { id: 'confirm', title: '✓ 确认' },
-            { id: 'deny', title: '我在做别的' },
+            { id: 'confirm', title: '✓ 确认', foreground: false },
+            { id: 'deny', title: '我在做别的', foreground: false },
           ],
         },
         {
           id: 'EVENING_CHECK',
           actions: [
-            { id: 'view_report', title: '看日报' },
-            { id: 'grow_plant', title: '种植物' },
+            { id: 'view_report', title: '看日报', foreground: true },
+            { id: 'grow_plant', title: '种植物', foreground: true },
           ],
         },
         {
           id: 'WEEKEND_CHECK',
           actions: [
-            { id: 'confirm', title: '记一下' },
-            { id: 'deny', title: '忽略' },
+            { id: 'confirm', title: '记一下', foreground: false },
+            { id: 'deny', title: '忽略', foreground: false },
           ],
         },
         {
           id: 'IDLE_NUDGE',
           actions: [
-            { id: 'open_chat', title: '打开聊天' },
+            { id: 'open_chat', title: '打开聊天', foreground: true },
           ],
         },
         {
           id: 'SESSION_CHECK',
           actions: [
-            { id: 'still_yes', title: '✓ 还在' },
-            { id: 'still_no', title: '我在做别的' },
+            { id: 'still_yes', title: '✓ 还在', foreground: false },
+            { id: 'still_no', title: '我在做别的', foreground: false },
           ],
         },
       ],
@@ -118,9 +116,7 @@ export async function registerNotificationCategories(): Promise<void> {
     actionTypesRegistered = true;
   })()
     .catch((error) => {
-      appendReminderErrorLog('register_action_types_failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      logReminderError('registerNotificationCategories failed', error);
       throw error;
     })
     .finally(() => {
@@ -178,10 +174,7 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
   if (!pluginRef) return false;
   const { plugin } = pluginRef;
   const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) {
-    appendReminderErrorLog('schedule_single_skipped_no_permission', { id: payload.id });
-    return false;
-  }
+  if (!hasPermission) return false;
 
   try {
     await registerNotificationCategories();
@@ -198,8 +191,8 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
       ],
     });
     return true;
-  } catch {
-    appendReminderErrorLog('schedule_single_failed', { id: payload.id });
+  } catch (error) {
+    logReminderError('scheduleLocalNotification failed', error);
     return false;
   }
 }
@@ -212,12 +205,7 @@ export async function scheduleBatchNotifications(
   if (!pluginRef || payloads.length === 0) return false;
   const { plugin } = pluginRef;
   const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) {
-    appendReminderErrorLog('schedule_batch_skipped_no_permission', {
-      count: payloads.length,
-    });
-    return false;
-  }
+  if (!hasPermission) return false;
 
   try {
     await registerNotificationCategories();
@@ -232,11 +220,8 @@ export async function scheduleBatchNotifications(
       })),
     });
     return true;
-  } catch {
-    appendReminderErrorLog('schedule_batch_failed', {
-      count: payloads.length,
-      ids: payloads.map((p) => p.id),
-    });
+  } catch (error) {
+    logReminderError('scheduleBatchNotifications failed', error);
     return false;
   }
 }
@@ -335,7 +320,6 @@ export async function setupNotificationActionListener(handlers: {
   onViewReport?: () => void;
   onGrowPlant?: () => void;
   onOpenChat?: () => void;
-  onOpenReminder?: (reminderType: ReminderType) => void;
   onStillYes?: (reminderType: ReminderType, activityType?: string) => void;
   onStillNo?: (reminderType: ReminderType, activityType?: string) => void;
 }): Promise<void> {
@@ -361,12 +345,27 @@ export async function setupNotificationActionListener(handlers: {
       if (actionId === 'open_chat') handlers.onOpenChat?.();
       if (actionId === 'still_yes') handlers.onStillYes?.(reminderType, extra.activityType);
       if (actionId === 'still_no') handlers.onStillNo?.(reminderType, extra.activityType);
-      if (actionId === 'tap') handlers.onOpenReminder?.(reminderType);
     });
+  } catch {
+    // 静默失败
+  }
+}
+
+/** 注册通知到达回调（前台收到通知时触发） */
+export async function setupNotificationReceivedListener(handlers: {
+  onReceived?: (reminderType: ReminderType) => void;
+}): Promise<void> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return;
+  const { plugin } = pluginRef;
+
+  try {
     plugin.addListener('localNotificationReceived', (event) => {
-      const extra = (event.extra ?? {}) as { reminderType?: ReminderType };
-      const reminderType = extra.reminderType;
-      if (reminderType) handlers.onOpenReminder?.(reminderType);
+      const extra = (event.extra ?? {}) as {
+        reminderType?: ReminderType;
+      };
+      const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
+      handlers.onReceived?.(reminderType);
     });
   } catch {
     // 静默失败
