@@ -80,35 +80,35 @@ export async function registerNotificationCategories(): Promise<void> {
         {
           id: 'CONFIRM_DENY',
           actions: [
-            { id: 'confirm', title: '✓ 确认' },
-            { id: 'deny', title: '我在做别的' },
+            { id: 'confirm', title: '✓ 确认', foreground: false },
+            { id: 'deny', title: '我在做别的', foreground: false },
           ],
         },
         {
           id: 'EVENING_CHECK',
           actions: [
-            { id: 'view_report', title: '看日报' },
-            { id: 'grow_plant', title: '种植物' },
+            { id: 'view_report', title: '看日报', foreground: true },
+            { id: 'grow_plant', title: '种植物', foreground: true },
           ],
         },
         {
           id: 'WEEKEND_CHECK',
           actions: [
-            { id: 'confirm', title: '记一下' },
-            { id: 'deny', title: '忽略' },
+            { id: 'confirm', title: '记一下', foreground: false },
+            { id: 'deny', title: '忽略', foreground: false },
           ],
         },
         {
           id: 'IDLE_NUDGE',
           actions: [
-            { id: 'open_chat', title: '打开聊天' },
+            { id: 'open_chat', title: '打开聊天', foreground: true },
           ],
         },
         {
           id: 'SESSION_CHECK',
           actions: [
-            { id: 'still_yes', title: '✓ 还在' },
-            { id: 'still_no', title: '我在做别的' },
+            { id: 'still_yes', title: '✓ 还在', foreground: false },
+            { id: 'still_no', title: '我在做别的', foreground: false },
           ],
         },
       ],
@@ -345,6 +345,27 @@ export async function setupNotificationActionListener(handlers: {
       if (actionId === 'open_chat') handlers.onOpenChat?.();
       if (actionId === 'still_yes') handlers.onStillYes?.(reminderType, extra.activityType);
       if (actionId === 'still_no') handlers.onStillNo?.(reminderType, extra.activityType);
+    });
+  } catch {
+    // 静默失败
+  }
+}
+
+/** 注册通知到达回调（前台收到通知时触发） */
+export async function setupNotificationReceivedListener(handlers: {
+  onReceived?: (reminderType: ReminderType) => void;
+}): Promise<void> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return;
+  const { plugin } = pluginRef;
+
+  try {
+    plugin.addListener('localNotificationReceived', (event) => {
+      const extra = (event.extra ?? {}) as {
+        reminderType?: ReminderType;
+      };
+      const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
+      handlers.onReceived?.(reminderType);
     });
   } catch {
     // 静默失败

@@ -17,6 +17,7 @@ import {
   scheduleIdleNudge,
   cancelIdleNudge,
   setupNotificationActionListener,
+  setupNotificationReceivedListener,
 } from '../services/notifications/localNotificationService';
 import { scheduleRemindersForToday } from '../services/reminder/reminderScheduler';
 import { getReminderCopy } from '../services/reminder/reminderCopy';
@@ -77,6 +78,34 @@ function getTimingAction(reminderType: ReminderType): TimingAction {
       return { kind: 'end' };
     default:
       return null;
+  }
+}
+
+const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
+const PENDING_NOTIFICATION_CONFIRM_MAX_AGE = 10 * 60 * 1000;
+
+function queuePendingNotificationConfirm(type: ReminderType): void {
+  try {
+    localStorage.setItem(
+      PENDING_NOTIFICATION_CONFIRM_KEY,
+      JSON.stringify({ type, createdAt: Date.now() }),
+    );
+  } catch {
+    // ignore localStorage failures
+  }
+}
+
+function consumePendingNotificationConfirm(): ReminderType | null {
+  try {
+    const raw = localStorage.getItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    const parsed = JSON.parse(raw) as { type?: ReminderType; createdAt?: number };
+    if (!parsed?.type || typeof parsed.createdAt !== 'number') return null;
+    if (Date.now() - parsed.createdAt > PENDING_NOTIFICATION_CONFIRM_MAX_AGE) return null;
+    return parsed.type;
+  } catch {
+    return null;
   }
 }
 
@@ -167,38 +196,50 @@ export function useReminderSystem(navigate: (path: string) => void) {
     void useTimingStore.getState().loadToday(user.id);
   }, [user?.id]);
 
+  // ── 兜底：若通知动作触发时用户态尚未恢复，恢复后补执行一次计时动作 ──
+  useEffect(() => {
+    if (!user?.id) return;
+    const pendingType = consumePendingNotificationConfirm();
+    if (!pendingType) return;
+    const action = getTimingAction(pendingType);
+    if (!action) return;
+    const timing = useTimingStore.getState();
+    if (action.kind === 'start') {
+      void timing.start(user.id, action.type, 'reminder_confirm');
+    } else {
+      void timing.endActive(user.id);
+    }
+  }, [user?.id]);
+
   // ── 注册通知点击回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
       onTap: (type) => {
-        // 用户点击系统通知横幅 → 进入聊天
-        navigateRef.current('/chat');
-        const action = getTimingAction(type);
-        if (action) {
-          const userId = useAuthStore.getState().user?.id;
-          if (userId) {
-            const timing = useTimingStore.getState();
-            if (action.kind === 'start') {
-              void timing.start(userId, action.type, 'reminder_popup_input');
-            } else {
-              void timing.endActive(userId);
-            }
-          }
+        // 点击通知进入 App：直接弹出与前台一致的操作面板
+        // （长按通知仍可直接一键开始/结束计时）
+        if (type === 'idle_nudge') {
+          navigateRef.current('/chat');
+          return;
+        }
+        const reminder = useReminderStore.getState();
+        if (!reminder.shouldSkipReminder(type)) {
+          reminder.showPopup(type);
         }
       },
       onConfirm: (type) => {
         useReminderStore.getState().markConfirmed(type);
-        navigateRef.current('/chat');
         const action = getTimingAction(type);
         if (action) {
           const userId = useAuthStore.getState().user?.id;
-          if (userId) {
-            const timing = useTimingStore.getState();
-            if (action.kind === 'start') {
-              void timing.start(userId, action.type, 'reminder_confirm');
-            } else {
-              void timing.endActive(userId);
-            }
+          if (!userId) {
+            queuePendingNotificationConfirm(type);
+            return;
+          }
+          const timing = useTimingStore.getState();
+          if (action.kind === 'start') {
+            void timing.start(userId, action.type, 'reminder_confirm');
+          } else {
+            void timing.endActive(userId);
           }
         }
       },
@@ -214,6 +255,17 @@ export function useReminderSystem(navigate: (path: string) => void) {
       onOpenChat: () => navigateRef.current('/chat'),
       onStillYes: () => { /* session_check 重调度（Phase 2）*/ },
       onStillNo: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+    });
+
+    // 前台收到原生通知时，补一次 App 内弹窗兜底（避免仅依赖定时器）
+    void setupNotificationReceivedListener({
+      onReceived: (type) => {
+        if (type === 'idle_nudge') return;
+        const reminder = useReminderStore.getState();
+        if (reminder.shouldSkipReminder(type)) return;
+        if (reminder.activePopupType === type) return;
+        reminder.showPopup(type);
+      },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
