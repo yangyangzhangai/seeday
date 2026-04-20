@@ -7,7 +7,7 @@ import StoreKit
 /// Methods: purchaseProduct, restorePurchases
 @objc(SeedayIAP)
 public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "SeedayIAPPlugin"
+    public let identifier = "SeedayIAP"
     public let jsName = "SeedayIAP"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "purchaseProduct", returnType: CAPPluginReturnPromise),
