@@ -7,6 +7,8 @@ import { mapSourcesToPlantActivities, toPlantCategoryKey } from '../../../lib/pl
 import { useChatStore } from '../../../store/useChatStore';
 import { useReportStore } from '../../../store/useReportStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../../store/usePlantStore';
+import { buildPlantGenerateUiState } from './plantGenerateUi';
+import { playLoopSound, stopSound } from '../../../services/sound/soundService';
 import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantFlipCard } from './PlantFlipCard';
 import { SoilCanvas } from './SoilCanvas';
@@ -33,12 +35,15 @@ interface PlantRootSectionProps {
 }
 
 export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDiary, onDiaryDraftChange }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language?.split('-')[0] || 'en';
   const reports = useReportStore(state => state.reports);
   const updateReport = useReportStore(state => state.updateReport);
   const generateReport = useReportStore(state => state.generateReport);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
+  const isPlantGenerating = usePlantStore(state => state.isGenerating);
+  const generatePlant = usePlantStore(state => state.generatePlant);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
   const directionOrder = usePlantStore(state => state.directionOrder);
   const loadTodayData = usePlantStore(state => state.loadTodayData);
@@ -51,8 +56,10 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const [myDiaryText, setMyDiaryText] = useState('');
   const [isDiaryEditing, setIsDiaryEditing] = useState(false);
   const [isDiarySaving, setIsDiarySaving] = useState(false);
+  const [plantStatusHint, setPlantStatusHint] = useState<string | null>(null);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
+  const plantActionsRef = useRef<HTMLDivElement | null>(null);
 
   const todayDailyReport = useMemo(
     () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
@@ -199,6 +206,47 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     return `${format(startTs, 'HH:mm')}-${format(endTs, 'HH:mm')}`;
   }, [selectedMessage, selectedSegment]);
 
+  const plantIsTooEarly = new Date().getHours() < 20;
+  const plantGenerateUi = buildPlantGenerateUiState({
+    hasTodayPlant: Boolean(todayPlant),
+    isGenerating: isPlantGenerating,
+    isTooEarly: plantIsTooEarly,
+  });
+
+  const handleGeneratePlant = useCallback(async () => {
+    if (plantIsTooEarly) {
+      setPlantStatusHint(prev =>
+        prev ? null : (currentLang === 'zh' ? '20:00后尝试' : (currentLang === 'en' ? t('plant_generate_try_after_20') : t('plant_generate_locked_with_diary_hint')))
+      );
+      return;
+    }
+    if (!window.confirm(t('plant_generate_confirm'))) return;
+    playLoopSound('plantGrow');
+    try {
+      const response = await generatePlant();
+      stopSound('plantGrow');
+      if (response.status === 'generated') { setPlantStatusHint(t('plant_generate_success')); return; }
+      if (response.status === 'already_generated') { setPlantStatusHint(t('plant_generate_already')); return; }
+      if (response.status === 'empty_day') { setPlantStatusHint(t('plant_generate_empty_day_fallback')); return; }
+      if (response.status === 'monthly_exhausted') { setPlantStatusHint(t('plant_generate_monthly_exhausted')); return; }
+      setPlantStatusHint(response.message ?? t('plant_generate_locked_hint'));
+    } catch {
+      stopSound('plantGrow');
+      setPlantStatusHint(t('plant_generate_failed'));
+    }
+  }, [currentLang, generatePlant, plantIsTooEarly, t]);
+
+  useEffect(() => {
+    if (!plantStatusHint) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target || plantActionsRef.current?.contains(target)) return;
+      setPlantStatusHint(null);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [plantStatusHint]);
+
   /* ── When plant is generated: show flip card only ── */
   if (todayPlant) {
     return (
@@ -250,6 +298,23 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
               <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
             </div>
           </div>
+        ) : null}
+      </div>
+
+      {/* ── Plant generate button ── */}
+      <div ref={plantActionsRef} className="flex flex-col items-center gap-1 py-3">
+        <button
+          onClick={handleGeneratePlant}
+          disabled={plantGenerateUi.disabled}
+          className="rounded-full px-5 py-1.5 text-sm font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
+          style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
+        >
+          {t(plantGenerateUi.buttonKey)}
+        </button>
+        {plantStatusHint ? (
+          <p className="pointer-events-none text-[10px] font-medium text-center" style={{ color: '#5f6f65' }}>
+            {plantStatusHint}
+          </p>
         ) : null}
       </div>
 

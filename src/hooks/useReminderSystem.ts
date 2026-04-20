@@ -7,8 +7,10 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
+import i18next from 'i18next';
 import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
+import { useChatStore } from '../store/useChatStore';
 import { usePlantStore } from '../store/usePlantStore';
 import { useReportStore } from '../store/useReportStore';
 import { isSameDay } from 'date-fns';
@@ -79,6 +81,12 @@ function getTimingAction(reminderType: ReminderType): TimingAction {
     default:
       return null;
   }
+}
+
+function getActivityTextForType(type: ReminderType): string | null {
+  const key = `reminder_activity_${type}`;
+  const translated = i18next.t(key, { defaultValue: '' });
+  return translated || null;
 }
 
 const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
@@ -154,7 +162,11 @@ function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[
   return entries.sort((a, b) => a.triggerTime.getTime() - b.triggerTime.getTime());
 }
 
-export function useReminderSystem(navigate: (path: string) => void) {
+interface UseReminderSystemResult {
+  confirmReminderFromPopup: (type: ReminderType) => void;
+}
+
+export function useReminderSystem(navigate: (path: string) => void): UseReminderSystemResult {
   const user = useAuthStore((s) => s.user);
   const preferences = useAuthStore((s) => s.preferences);
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
@@ -243,6 +255,10 @@ export function useReminderSystem(navigate: (path: string) => void) {
             void timing.endActive(userId);
           }
         }
+        const activityText = getActivityTextForType(type);
+        if (activityText) {
+          void useChatStore.getState().sendAutoRecognizedInput(activityText);
+        }
       },
       onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
       onViewReport: () => {
@@ -284,6 +300,24 @@ export function useReminderSystem(navigate: (path: string) => void) {
         void cancelIdleNudge();
         // Re-check daily schedule on foreground (cross-day / cold wake safety net)
         scheduleTodayNativeReminders();
+        // Show in-app popup if a reminder fired in the last 5 minutes while app was in background
+        const foregroundManual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
+        const foregroundSchedule = buildFrontendCheckSchedule(foregroundManual);
+        const foregroundNow = Date.now();
+        const FOREGROUND_GRACE_MS = 5 * 60 * 1000;
+        const foregroundDateKey = new Date().toISOString().slice(0, 10);
+        const reminderState = useReminderStore.getState();
+        for (const entry of foregroundSchedule) {
+          const diff = foregroundNow - entry.triggerTime.getTime();
+          if (diff >= 0 && diff <= FOREGROUND_GRACE_MS) {
+            const dedupeKey = `${foregroundDateKey}:${entry.type}`;
+            if (!shownPopupKeysRef.current.has(dedupeKey) && !reminderState.shouldSkipReminder(entry.type)) {
+              shownPopupKeysRef.current.add(dedupeKey);
+              reminderState.showPopup(entry.type);
+              break;
+            }
+          }
+        }
       } else {
         const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
         void scheduleIdleNudge(body);
@@ -362,4 +396,24 @@ export function useReminderSystem(navigate: (path: string) => void) {
       timersRef.current = [];
     };
   }, [user?.id, userProfileV2, todayPlant, reports]);
+
+  // ── 前台弹窗 ✓ 确认：标记已响应 + 记录活动 + 计时 ──
+  const confirmReminderFromPopup = useCallback((type: ReminderType) => {
+    useReminderStore.getState().markConfirmed(type);
+    const action = getTimingAction(type);
+    if (action && user?.id) {
+      const timing = useTimingStore.getState();
+      if (action.kind === 'start') {
+        void timing.start(user.id, action.type, 'reminder_confirm');
+      } else {
+        void timing.endActive(user.id);
+      }
+    }
+    const activityText = getActivityTextForType(type);
+    if (activityText) {
+      void useChatStore.getState().sendAutoRecognizedInput(activityText);
+    }
+  }, [user?.id]);
+
+  return { confirmReminderFromPopup };
 }

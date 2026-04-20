@@ -16,20 +16,24 @@ const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
 export interface MoodCardProps {
   message: Message; // isMood: true, detached: true
   onReturnToEvent: (id: string) => void;
+  allowReturnToEvent?: boolean;
   onConvertToEvent: (id: string) => void;
   onDelete: (id: string) => void;
   onMoodClick: (messageId: string) => void;
   readonly?: boolean;
+  alwaysShowActions?: boolean;
   onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const MoodCard: React.FC<MoodCardProps> = ({
   message,
   onReturnToEvent,
+  allowReturnToEvent = true,
   onConvertToEvent,
   onDelete,
   onMoodClick,
   readonly,
+  alwaysShowActions,
   onStardustSelect,
 }) => {
   const { t } = useTranslation();
@@ -78,6 +82,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
     : activityMood[message.id];
   const moodKey   = normalizeMoodKey(rawLabel);
   const moodColor = getMoodColor(rawLabel) || '#38BDF8';
+  const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
   void onMoodClick;
   void moodKey;
 
@@ -141,13 +146,15 @@ export const MoodCard: React.FC<MoodCardProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           {/* Return / convert buttons — shown when cardActive */}
-          {!readonly && cardActive && (
+          {showActionButtons && (
             <>
-              <button onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }} title={t('mood_return_event')}
-                style={{ background: 'none', border: '1px solid rgba(56,189,248,0.4)', borderRadius: '50%',
-                  padding: 4, cursor: 'pointer', color: '#38BDF8', display: 'flex' }}>
-                <ArrowLeft size={12} />
-              </button>
+              {allowReturnToEvent && (
+                <button onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }} title={t('mood_return_event')}
+                  style={{ background: 'none', border: '1px solid rgba(56,189,248,0.4)', borderRadius: '50%',
+                    padding: 4, cursor: 'pointer', color: '#38BDF8', display: 'flex' }}>
+                  <ArrowLeft size={12} />
+                </button>
+              )}
               <button onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }} title={t('mood_to_event')}
                 style={{ background: 'none', border: '1px solid rgba(52,211,153,0.4)', borderRadius: '50%',
                   padding: 4, cursor: 'pointer', color: '#34D399', display: 'flex' }}>

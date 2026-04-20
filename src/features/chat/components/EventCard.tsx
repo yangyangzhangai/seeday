@@ -92,11 +92,12 @@ export interface EventCardProps {
   onDelete: (id: string) => void;
   allowConvertToMood: boolean;
   readonly?: boolean;
+  alwaysShowActions?: boolean;
   onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
-  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood, readonly, onStardustSelect,
+  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood, readonly, alwaysShowActions, onStardustSelect,
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
@@ -207,6 +208,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   const moodTagColor = getStrongerMoodTagColor(moodColor);
   const moodTagBg = withHexAlpha(moodTagColor, 0.2);
   const moodTagShadow = withHexAlpha(moodTagColor, 0.22);
+  const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
 
   return (
     <div
@@ -257,14 +259,14 @@ export const EventCard: React.FC<EventCardProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-          {cardActive && !readonly && canUploadImage && (
+          {showActionButtons && canUploadImage && (
             <button onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }} title={t('image_upload')}
               style={{ width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%', border: 'none', cursor: 'pointer',
                 color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Camera size={10} />
             </button>
           )}
-          {cardActive && !readonly && allowConvertToMood && (
+          {showActionButtons && allowConvertToMood && (
             <button onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }} title={t('event_to_mood')}
               style={{ width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%', border: 'none', cursor: 'pointer',
                 color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

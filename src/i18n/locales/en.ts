@@ -10,22 +10,18 @@ const en = {
     close: 'Close',
     loading: 'Loading…',
     no_data: 'No data available',
-
     // ── Duration formatting ──
     duration_hours_minutes: '{{hours}}h {{mins}}m',
     duration_minutes: '{{mins}}m',
     duration_label: 'Duration {{duration}}',
     elapsed_label: 'Duration: {{duration}}',
-
     // ── Header ──
     header_login: 'Log in / Sign up',
     header_confirm_logout: 'Are you sure you want to log out?',
-
     // ── Bottom Nav ──
     nav_record: 'Track',
     nav_report: 'Reports',
     nav_profile: 'Profile',
-
     // ── Chat / Record Page ──
     chat_title: 'Track',
     chat_history_readonly: 'Viewing a past date — switch back to today to add records',
@@ -93,7 +89,6 @@ const en = {
     chat_magic_pen_upgrade_desc: 'Upgrade to Pro to use Magic Pen for extracting activities and to-dos from one sentence.',
     chat_magic_pen_upgrade_cta: 'Upgrade to Pro',
     chat_magic_pen_upgrade_later: 'Maybe later',
-
     // ── Todo Page ──
     todo_title: 'Tasks',
     todo_filter_daily: 'Today',
@@ -118,19 +113,16 @@ const en = {
     todo_unpin: 'Unpin',
     todo_start: 'Start timer',
     todo_in_progress: 'In progress',
-
     // Priority labels
     priority_urgent_important: 'Urgent & Important',
     priority_important_not_urgent: 'Important, Not Urgent',
     priority_urgent_not_important: 'Urgent, Not Important',
     priority_not_important_not_urgent: 'Not Important, Not Urgent',
-
     // Recurrence labels
     recurrence_none: 'Never',
     recurrence_daily: 'Daily',
     recurrence_weekly: 'Weekly',
     recurrence_monthly: 'Monthly',
-
     // ── Report Page ──
     report_title: 'Diary',
     report_calendar_view: 'Calendar',
@@ -244,7 +236,6 @@ const en = {
     plant_save_card: 'Save Card',
     plant_tap_to_flip: 'Tap to flip',
     plant_card_diary_button: 'Generate Diary',
-
     // ── Auth Page ──
     auth_welcome_back: 'Welcome Back',
     auth_create_account: 'Create Account',
@@ -275,19 +266,16 @@ const en = {
     auth_google_signin: 'Continue with Google',
     auth_apple_signin: 'Continue with Apple',
     auth_or_divider: 'or',
-
     // ── AI Annotation Bubble ──
     annotation_condensing: 'Crystallizing…',
     annotation_condense: 'Crystallize',
     annotation_condensed: 'Crystallized',
     annotation_hover_pause: 'Paused on hover',
     annotation_suggestion_started: 'Started ✓',
-
     // ── Stardust Card ──
     stardust_loading: 'Retrieving memory…',
     stardust_error_default: 'Failed to load memory — please try again later',
     stardust_from: 'From {{name}} · {{date}}',
-
     // ── Todo Categories ──
     category_study: 'Study',
     category_work: 'Work',
@@ -295,7 +283,6 @@ const en = {
     category_life: 'Life',
     category_entertainment: 'Entertainment',
     category_health: 'Health',
-
     // ── Mood Labels ──
     mood_happy: 'Happy',
     mood_calm: 'Calm',
@@ -305,12 +292,10 @@ const en = {
     mood_anxious: 'Anxious',
     mood_bored: 'Bored',
     mood_down: 'Down',
-
     // ── Language Switcher ──
     language_switch: 'Language',
     language_en: 'EN',
     language_zh: '中',
-
     // ── Growth Page ──
     nav_growth: 'Growth',
     growth_title: 'Growth',
@@ -404,7 +389,6 @@ const en = {
     growth_bottle_delete_confirm: 'Delete "{{name}}"?',
     growth_bottle_sync_pending: 'Syncing',
     growth_bottle_sync_failed: 'Sync failed',
-
     // ── Profile Page ──
     profile_title: 'Profile',
     profile_streak: 'Back to Greenhouse',
@@ -566,7 +550,6 @@ const en = {
     profile_root_direction_save_error: 'Save failed. Please try again.',
     profile_logout: 'Log Out',
     profile_plus_only: 'Upgrade to Pro to unlock',
-
     // ── Membership features ──
     membership_feat_basic_analysis: 'Basic Analysis',
     membership_feat_daily_plant: 'Daily Plant',
@@ -577,7 +560,6 @@ const en = {
     membership_feat_weekly_report: 'Weekly Report',
     membership_feat_monthly_report: 'Monthly Report',
     membership_feat_yearly_report: 'Yearly Report',
-
     // ── Timeline / DatePicker / EventCard (v1.2) ──
     date_picker_title: 'Select Date',
     month_grid_title: 'Select Month',
@@ -596,7 +578,6 @@ const en = {
     image_crop_title: 'Crop Image',
     image_crop_hint: 'Drag to reposition',
     image_recrop: 'Re-crop',
-
     // ── Yesterday Review (New Day) ──
     yesterday_summary: 'You logged {{count}} entries yesterday',
     previous_day_summary: 'On {{date}}, you logged {{count}} entries',
@@ -604,18 +585,31 @@ const en = {
     yesterday_tap_to_view: 'Tap to view that day\'s entries',
     new_day_start: 'Start your day with a new record',
     record_what_you_do: "Record what you're doing",
-
     // ── Night Reminder ──
     night_reminder_title: "Today isn't complete yet",
     night_reminder_body: "Your plant and diary haven't been generated. Take a moment tonight to capture your day~",
     night_reminder_go: 'Generate now',
     night_reminder_dismiss: 'Maybe later',
-
     // ── Proactive reminder system ──
     reminder_popup_confirm: 'Confirm',
     reminder_popup_deny: "I'm doing something else",
     reminder_popup_or_tell_me: 'Or just tell me',
     reminder_popup_input_placeholder: 'Write something...',
+    reminder_activity_wake: 'Woke up',
+    reminder_activity_meal_breakfast: 'Having breakfast',
+    reminder_activity_meal_lunch: 'Having lunch',
+    reminder_activity_meal_dinner: 'Having dinner',
+    reminder_activity_work_start: 'Started work',
+    reminder_activity_lunch_start: 'Lunch break',
+    reminder_activity_lunch_end: 'Back to work',
+    reminder_activity_work_end: 'Finished work',
+    reminder_activity_sleep: 'Going to sleep',
+    reminder_activity_class_morning_start: 'Morning class started',
+    reminder_activity_class_morning_end: 'Morning class ended',
+    reminder_activity_class_afternoon_start: 'Afternoon class started',
+    reminder_activity_class_afternoon_end: 'Afternoon class ended',
+    reminder_activity_class_evening_start: 'Evening study started',
+    reminder_activity_class_evening_end: 'Evening study ended',
     evening_check_event_count: 'You logged {{count}} events today',
     evening_check_grow_plant: "Generate today's plant",
     evening_check_view_report: "View today's diary",
@@ -628,7 +622,6 @@ const en = {
     quick_activity_social: 'Social',
     quick_activity_other: 'Other',
     quick_activity_input_placeholder: 'Or just tell me...',
-
     onboarding_step1_title: 'Nice to meet you',
     onboarding_step1_desc: 'Seeday will check in at key moments to help you track your day with ease.',
     onboarding_step1_cta: 'Get started',
@@ -647,7 +640,6 @@ const en = {
     onboarding_next: 'Next',
     onboarding_back: 'Back',
     onboarding_skip: 'Skip',
-
     // ── Onboarding v2 ──
     onboarding2_language_title: 'Choose the language you feel at home in',
     onboarding2_language_desc: 'We will use this language for onboarding and app content. You can change it anytime in Settings.',
@@ -689,13 +681,33 @@ const en = {
     onboarding_j3_shown_desc: 'Meet the two buttons on the card',
     onboarding_j3_tip_camera: 'You can also attach a photo to this card',
     onboarding_j3_tip_convert: 'Wrong type? Tap to switch it to a mood',
+    onboarding_j3_tip_duration: 'Duration: {{duration}}',
+    onboarding_j3_tip_duration_mode: 'Duration: {{duration}} (it ends automatically when you log the next activity, or you can tap End manually)',
+    onboarding_j3_tip_duration_prefix: 'Duration: {{duration}} (it ends automatically when you log the next activity, or tap',
+    onboarding_j3_tip_duration_suffix: 'to end manually)',
+    onboarding_j3_tip_end_manual: 'Tap End when you finish this activity',
+    onboarding_j3_tip_end_auto: 'If you start the next activity, this one ends automatically and time is saved',
+    onboarding_j3_tip_end_both: 'You can tap End, or just start the next activity and we will end this one automatically',
+    onboarding_j3_tip_camera_story: 'Add a photo to remember this moment',
+    onboarding_j3_tip_camera_crop: 'Choose the part shown on the card; tapping still opens the full photo',
+    onboarding_j3_tip_convert_intent: 'Want this entry as a mood instead? Switch to mood mode (for specific feelings, ideas, or quick thoughts; no timer)',
+    onboarding_j3_tip_mood_tag: 'This mood tag records how you felt during this activity, and you can also customize it',
+    onboarding_j3_tip_mood_mode: 'Mood mode does not run a timer. Use it for feelings, ideas, or quick thoughts',
+    onboarding_j3_tip_mood_linked: 'This feeling is linked under the activity card',
+    onboarding_j3_tip_switch_back_event_continue: 'You are testing now. Tap to switch back to an activity to continue',
+    onboarding_j3_tip_switch_back_mood_continue: 'You are testing now. Tap to switch back to a mood to continue',
+    onboarding_j3_tip_mood_return: 'Move this mood back under your latest activity',
+    onboarding_j3_tip_mood_to_event: 'Turn this mood into an activity and start timing',
+    onboarding_j3_tip_mood_detach_prefix: 'Tap the',
+    onboarding_j3_tip_mood_detach_suffix: 'button next to the mood to split it into a standalone mood card',
+    onboarding_j3_delete_blocked: 'This onboarding sample record cannot be deleted in this step',
     onboarding_j3_tip_cta: 'Got it, continue',
     onboarding_j3_mood_title: 'Now log how you feel',
     onboarding_j3_mood_hint: 'e.g. Happy, Tired, Focused',
     onboarding_j3_mood_placeholder: 'Type a feeling, e.g. Happy',
     onboarding_j3_mood_skip: 'Skip',
-    onboarding_j3_complete_title: "You're all set!",
-    onboarding_j3_complete_desc: "This is how Seeday works",
+    onboarding_j3_complete_title: 'Keep exploring',
+    onboarding_j3_complete_desc: 'You can still try card actions in this step',
     onboarding_j3_start_btn: 'Start using Seeday',
     onboarding_j3_send: 'Send',
     onboarding2_todo_title: 'Set one doable intention for today',
@@ -737,7 +749,6 @@ const en = {
     onboarding2_sub_feat_growth_desc: 'Track mental and behavioural growth',
     onboarding2_sub_feat_memory_label: 'AI Personal Memory',
     onboarding2_sub_feat_memory_desc: 'Deep resonance and continuous feedback',
-
     profile_schedule_section_title: 'My Schedule',
     profile_user_profile_has_work_schedule: 'I have fixed work hours',
     profile_user_profile_has_class_schedule: 'I have a class schedule',
@@ -767,7 +778,6 @@ const en = {
     profile_user_profile_reminder_enable: 'Enable timed reminders',
     profile_user_profile_reminder_permission: 'Notification permission',
     profile_user_profile_reminder_today_count: "Today's reminders",
-
     // ── Telemetry Center ──
     telemetry_hub_title: 'Telemetry Center',
     telemetry_hub_desc: 'Unified entry for instrumentation dashboards. Choose a business module to inspect detailed metrics, event semantics, and operational decision hints.',
@@ -789,7 +799,6 @@ const en = {
     telemetry_common_na: 'n/a',
     telemetry_common_yes: 'yes',
     telemetry_common_no: 'no',
-
     // ── Live Input Telemetry ──
     telemetry_live_title: 'Live Input Telemetry',
     telemetry_live_desc: 'Module dashboard for classification, correction, and plant fallback events from Supabase. Diary sticker operations and AI annotation telemetry are merged from',
@@ -836,7 +845,6 @@ const en = {
     telemetry_live_table_plant_assets: 'Plant Assets',
     telemetry_live_table_diary_stickers: 'Diary Stickers',
     telemetry_live_table_users: 'Users',
-
     // ── AI Annotation Telemetry ──
     telemetry_ai_title: 'AI Annotation Telemetry',
     telemetry_ai_desc: 'This board tracks low-narrative scoring, lateral-association sampling, event triggering, and downstream condensation.',
@@ -864,7 +872,6 @@ const en = {
     telemetry_ai_breakdown_association_types: 'Association Types',
     telemetry_ai_breakdown_association_types_desc: 'Which lateral association dimensions are being sampled in production.',
     telemetry_ai_breakdown_association_types_empty: 'No association type events yet.',
-
     // ── Todo Decompose Telemetry ──
     telemetry_todo_title: 'Todo Decompose Telemetry',
     telemetry_todo_desc: 'Product-facing quality board for AI todo breakdown. Every metric includes plain-language meaning and optimization hints so PMs can make decisions without reading code.',
@@ -927,7 +934,6 @@ const en = {
     telemetry_todo_table_parse_failed: 'Parse Failed',
     telemetry_todo_table_failed: 'Failed',
     telemetry_todo_table_regenerate: 'Regenerate',
-
     // ── User Analytics Dashboard ──
     ua_title: 'User Analytics',
     ua_updated: 'Updated',
@@ -972,7 +978,6 @@ const en = {
     ua_field_never: 'Never',
     ua_field_plan_unknown: 'plan unknown',
 } as const;
-
 // Key-set type: zh.ts must have the same keys, but values can be any string
 export type TranslationKeys = Record<keyof typeof en, string>;
 export default en;

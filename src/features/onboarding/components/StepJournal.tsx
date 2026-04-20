@@ -1,61 +1,15 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/chat/components/EventCard.tsx -> src/features/chat/components/MoodCard.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Camera, ArrowRightLeft, ChevronRight } from 'lucide-react';
+import { Camera, ArrowLeft, ArrowRightLeft, ChevronRight, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '../../../store/useChatStore';
+import { useMoodStore, type MoodOption } from '../../../store/useMoodStore';
+import { EventCard } from '../../chat/components/EventCard';
+import { MoodCard } from '../../chat/components/MoodCard';
+import { MoodPickerModal } from '../../chat/MoodPickerModal';
 
 type Phase = 'activity' | 'activity_shown' | 'mood' | 'complete';
-
-// ── Lightweight preview cards matching real card visual styles ──
-
-const PreviewEventCard: React.FC<{ text: string; highlight?: boolean }> = ({ text, highlight }) => (
-  <div className="rounded-2xl" style={{ background: '#F7F9F8', padding: '10px 13px 9px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-      <h3 style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', margin: 0, flex: 1, minWidth: 0, paddingRight: 6 }}>
-        {text}
-      </h3>
-      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-        <div style={{
-          width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: highlight ? '0 0 0 4px rgba(14,165,233,0.25)' : 'none',
-          transition: 'box-shadow 0.3s',
-        }}>
-          <Camera size={10} color="#fff" />
-        </div>
-        <div style={{
-          width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: highlight ? '0 0 0 4px rgba(139,92,246,0.25)' : 'none',
-          transition: 'box-shadow 0.3s',
-        }}>
-          <ArrowRightLeft size={10} color="#fff" />
-        </div>
-      </div>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#B2EEDA' }}>timer</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#B2EEDA' }}>{'< 1m'}</span>
-      <span style={{
-        width: 6, height: 6, borderRadius: '50%', background: '#B2EEDA',
-        animation: 'pulse 1s infinite', display: 'inline-block', marginLeft: 2,
-      }} />
-    </div>
-  </div>
-);
-
-const PreviewMoodCard: React.FC<{ text: string }> = ({ text }) => (
-  <div className="rounded-2xl" style={{
-    background: 'linear-gradient(135deg, rgba(240,249,255,0.97) 0%, rgba(224,242,254,0.94) 100%)',
-    padding: '10px 13px 9px',
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38BDF8', flexShrink: 0 }} />
-      <h3 style={{ fontWeight: 600, fontSize: 14, color: '#1e293b', margin: 0 }}>{text}</h3>
-    </div>
-  </div>
-);
 
 // ── Shared input block ──
 
@@ -65,9 +19,10 @@ const InputBlock: React.FC<{
   placeholder: string;
   onSend: () => void;
   autoFocus?: boolean;
-}> = ({ value, onChange, placeholder, onSend, autoFocus }) => {
+  submitting?: boolean;
+}> = ({ value, onChange, placeholder, onSend, autoFocus, submitting }) => {
   const { t } = useTranslation();
-  const canSend = value.trim().length > 0;
+  const canSend = value.trim().length > 0 && !submitting;
   return (
     <div className="bg-white rounded-[24px] border border-[#4a5d4c]/5 shadow-sm overflow-hidden">
       <textarea
@@ -103,44 +58,163 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const { t } = useTranslation();
   const sendMessage = useChatStore(s => s.sendMessage);
   const sendMood    = useChatStore(s => s.sendMood);
+  const endActivity = useChatStore(s => s.endActivity);
+  const reattachMoodToEvent = useChatStore(s => s.reattachMoodToEvent);
+  const convertMoodToEvent = useChatStore(s => s.convertMoodToEvent);
+  const messages = useChatStore(s => s.messages);
+  const setMood = useMoodStore(s => s.setMood);
+  const setCustomMoodLabel = useMoodStore(s => s.setCustomMoodLabel);
+  const setCustomMoodApplied = useMoodStore(s => s.setCustomMoodApplied);
+  const customMoodLabel = useMoodStore(s => s.customMoodLabel);
+  const customMoodApplied = useMoodStore(s => s.customMoodApplied);
 
   const [phase, setPhase]             = useState<Phase>('activity');
   const [activityText, setActivityText] = useState('');
+  const [activityMessageId, setActivityMessageId] = useState<string | null>(null);
+  const [moodMessageId, setMoodMessageId] = useState<string | null>(null);
   const [moodText, setMoodText]         = useState('');
   const [input, setInput]               = useState('');
   const [isSending, setIsSending]       = useState(false);
+  const [moodPickerFor, setMoodPickerFor] = useState<string | null>(null);
+  const [selectedMoodOpt, setSelectedMoodOpt] = useState<string | null>(null);
+  const [customLabelInput, setCustomLabelInput] = useState('');
+  const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
 
-  const handleSendActivity = () => {
+  const activityMessage = activityMessageId
+    ? messages.find((msg) => msg.id === activityMessageId)
+    : undefined;
+  const linkedMoodDescription = activityMessage?.moodDescriptions?.length
+    ? [...activityMessage.moodDescriptions].sort((a, b) => b.timestamp - a.timestamp)[0]
+    : undefined;
+  const previewMoodId = moodMessageId || linkedMoodDescription?.id || null;
+  const previewMoodMessage = previewMoodId
+    ? messages.find((msg) => msg.id === previewMoodId)
+    : undefined;
+  const convertedToMoodCard = !!activityMessage?.isMood;
+  const detachedMoodInPreview = !!previewMoodMessage?.detached;
+  const previewMoodConvertedToEvent = !!previewMoodMessage && !previewMoodMessage.isMood;
+  const linkedMoodInPreview = !!linkedMoodDescription && !detachedMoodInPreview;
+  const mustRestoreBeforeNext = convertedToMoodCard || previewMoodConvertedToEvent;
+  const customLabelDefault = t('chat_custom_label_default');
+  const moodPickerReadonly = false;
+  const isDefaultCustomLabel = (label: string) =>
+    !label || label === customLabelDefault || label === '自定义';
+
+  useEffect(() => {
+    if (!activityMessageId) return;
+    if (!activityMessage) {
+      setActivityMessageId(null);
+      setMoodMessageId(null);
+      setActivityText('');
+      setMoodText('');
+      setInput('');
+      setPhase('activity');
+      return;
+    }
+    if (activityMessage.isMood && phase !== 'complete') {
+      setMoodText((prev) => prev || activityMessage.content);
+      setPhase('complete');
+    }
+  }, [activityMessageId, activityMessage, phase]);
+
+  useEffect(() => {
+    if (moodMessageId && !previewMoodMessage) {
+      setMoodMessageId(linkedMoodDescription?.id || null);
+      setMoodText('');
+      return;
+    }
+
+    if (!moodMessageId && linkedMoodDescription?.id) {
+      setMoodMessageId(linkedMoodDescription.id);
+    }
+  }, [moodMessageId, previewMoodMessage, linkedMoodDescription]);
+
+  const handleSendActivity = async () => {
     const text = input.trim();
     if (!text) return;
-    setActivityText(text);
-    setInput('');
-    setPhase('activity_shown');
+    setIsSending(true);
+    try {
+      const messageId = await sendMessage(text, undefined, { skipAnnotation: true });
+      if (!messageId) return;
+      setActivityText(text);
+      setActivityMessageId(messageId);
+      setMoodMessageId(null);
+      setMoodText('');
+      setInput('');
+      setPhase('activity_shown');
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleSendMood = () => {
+  const handleSendMood = async () => {
     const text = input.trim();
     if (!text) return;
-    setMoodText(text);
-    setInput('');
-    setPhase('complete');
+    setIsSending(true);
+    try {
+      const createdMoodId = await sendMood(text, activityMessageId ? { relatedActivityId: activityMessageId } : undefined);
+      if (!createdMoodId) return;
+      setMoodText(text);
+      setMoodMessageId(createdMoodId);
+      setInput('');
+      setPhase('complete');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleFinish = async () => {
     setIsSending(true);
     try {
-      const actId = await sendMessage(activityText, undefined, { skipAnnotation: true });
-      if (moodText) await sendMood(moodText, actId ? { relatedActivityId: actId } : undefined);
+      // no-op: onboarding state already committed in realtime
     } finally {
       setTimeout(() => onNext(), 200);
     }
+  };
+
+  const handleMoodClick = (msgId: string) => {
+    setMoodPickerFor(msgId);
+    const moodState = useMoodStore.getState();
+    const isCustom = moodState.customMoodApplied[msgId];
+    const current = moodState.activityMood[msgId] || null;
+    setSelectedMoodOpt(isCustom ? '__custom__' : current);
+    const label = moodState.customMoodLabel[msgId] || '';
+    setCustomLabelInput(isCustom && label ? label : '');
+    setShowCustomLabelInput(false);
+  };
+
+  const saveCustomLabel = (value: string) => {
+    const next = value.trim();
+    setCustomLabelInput(next);
+    if (moodPickerFor) {
+      if (!next) {
+        setCustomMoodLabel(moodPickerFor, undefined);
+        setCustomMoodApplied(moodPickerFor, false);
+        const moodState = useMoodStore.getState();
+        setSelectedMoodOpt(moodState.activityMood[moodPickerFor] || null);
+      } else {
+        setCustomMoodLabel(moodPickerFor, next);
+        setCustomMoodApplied(moodPickerFor, !isDefaultCustomLabel(next));
+        setSelectedMoodOpt('__custom__');
+      }
+    }
+    setShowCustomLabelInput(false);
+  };
+
+  const handleBlockedDelete = () => {
+    window.alert(t('onboarding_j3_delete_blocked'));
   };
 
   const headerMap: Record<Phase, { title: string; desc: string }> = {
     activity:       { title: t('onboarding_j3_activity_title'), desc: t('onboarding_j3_activity_hint') },
     activity_shown: { title: `✨ ${t('onboarding_j3_shown_title')}`, desc: t('onboarding_j3_shown_desc') },
     mood:           { title: t('onboarding_j3_mood_title'), desc: t('onboarding_j3_mood_hint') },
-    complete:       { title: t('onboarding_j3_complete_title'), desc: t('onboarding_j3_complete_desc') },
+    complete:       {
+      title: t('onboarding_j3_complete_title'),
+      desc: convertedToMoodCard
+        ? `${t('event_to_mood')} · ${t('mood_to_event')}`
+        : t('onboarding_j3_complete_desc'),
+    },
   };
 
   const { title, desc } = headerMap[phase];
@@ -168,7 +242,66 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 280, damping: 28 }}>
-              <PreviewEventCard text={activityText} highlight={phase === 'activity_shown'} />
+              {activityMessage?.isMood ? (
+                <MoodCard
+                  message={activityMessage}
+                  onReturnToEvent={() => {}}
+                  allowReturnToEvent={false}
+                  onConvertToEvent={id => void convertMoodToEvent(id)}
+                  alwaysShowActions
+                  onDelete={() => handleBlockedDelete()}
+                  onMoodClick={handleMoodClick}
+                />
+              ) : activityMessage ? (
+                <EventCard
+                  message={activityMessage}
+                  moodDescriptions={activityMessage.moodDescriptions || []}
+                  onEndActivity={id => void endActivity(id)}
+                  onConvertMood={(id) => setMoodMessageId(id)}
+                  onMoodClick={handleMoodClick}
+                  onDelete={() => handleBlockedDelete()}
+                  allowConvertToMood
+                  alwaysShowActions
+                />
+              ) : (
+                <div className="rounded-2xl" style={{ background: '#F7F9F8', padding: '10px 13px 9px' }}>
+                  <h3 style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', margin: 0, lineHeight: 1.4 }}>
+                    {activityText}
+                  </h3>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {phase === 'complete' && previewMoodMessage && (previewMoodMessage.detached || previewMoodConvertedToEvent) && (
+            <motion.div key="detached-mood-card"
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.06 }}>
+              {previewMoodConvertedToEvent ? (
+                <EventCard
+                  message={previewMoodMessage}
+                  moodDescriptions={previewMoodMessage.moodDescriptions || []}
+                  onEndActivity={id => void endActivity(id)}
+                  onConvertMood={(id) => setMoodMessageId(id)}
+                  onMoodClick={handleMoodClick}
+                  onDelete={() => handleBlockedDelete()}
+                  allowConvertToMood
+                  alwaysShowActions
+                />
+              ) : (
+                <MoodCard
+                  message={previewMoodMessage}
+                  onReturnToEvent={id => void reattachMoodToEvent(id)}
+                  allowReturnToEvent
+                  onConvertToEvent={id => void convertMoodToEvent(id)}
+                  alwaysShowActions
+                  onDelete={() => handleBlockedDelete()}
+                  onMoodClick={handleMoodClick}
+                />
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -181,33 +314,106 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
               exit={{ opacity: 0 }} transition={{ delay: 0.15 }}
               className="flex flex-col gap-2 px-1 py-1">
               <div className="flex items-center gap-3">
+                <div style={{ width: 28, height: 28, background: '#B2EEDA', borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#4a5d4c' }}>timer</span>
+                </div>
+                <span className="text-sm text-[#4a5d4c]/70 font-medium">
+                  {t('onboarding_j3_tip_duration_prefix', { duration: '< 1m' })}
+                  <span className="inline-flex items-center rounded-full border border-[#F4C0C2]/60 bg-[#F4C0C2]/10 px-2 py-0.5 text-xs font-semibold text-[#F4C0C2] mx-1 align-middle">
+                    <span className="material-symbols-outlined" style={{ fontSize: 12, lineHeight: 1 }}>stop_circle</span>
+                  </span>
+                  {t('onboarding_j3_tip_duration_suffix')}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
                 <div style={{ width: 28, height: 28, background: '#0EA5E9', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Camera size={12} color="#fff" />
                 </div>
-                <span className="text-sm text-[#4a5d4c]/70 font-medium">{t('onboarding_j3_tip_camera')}</span>
+                <span className="text-sm text-[#4a5d4c]/70 font-medium">{t('onboarding_j3_tip_camera_story')}</span>
               </div>
               <div className="flex items-center gap-3">
                 <div style={{ width: 28, height: 28, background: '#8B5CF6', borderRadius: '50%',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <ArrowRightLeft size={12} color="#fff" />
                 </div>
-                <span className="text-sm text-[#4a5d4c]/70 font-medium">{t('onboarding_j3_tip_convert')}</span>
+                <span className="text-sm text-[#4a5d4c]/70 font-medium">{t('onboarding_j3_tip_convert_intent')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[#4a5d4c]/70 font-medium">
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 bg-[#EAF5FF] text-[#2563EB] text-xs font-semibold">
+                  Calm
+                </span>
+                <span>{t('onboarding_j3_tip_mood_tag')}</span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
-          {phase === 'complete' && moodText && (
-            <motion.div key="mood-card"
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.1 }}>
-              <PreviewMoodCard text={moodText} />
+          {phase === 'complete' && (
+            <motion.div key="mood-tips"
+              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }} transition={{ delay: 0.1 }}
+              className="flex flex-col gap-2 px-1 py-1">
+              {convertedToMoodCard ? (
+                <>
+                  <div className="flex items-center gap-3 text-sm text-[#4a5d4c]/70 font-medium">
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(52,211,153,0.4)',
+                      color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Zap size={12} />
+                    </div>
+                    <span>{t('onboarding_j3_tip_mood_to_event')}</span>
+                  </div>
+                </>
+              ) : previewMoodConvertedToEvent ? (
+                <>
+                  <div className="flex items-center gap-3 text-sm text-[#4a5d4c]/70 font-medium">
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(139,92,246,0.4)',
+                      color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ArrowRightLeft size={12} />
+                    </div>
+                    <span>{t('onboarding_j3_tip_convert')}</span>
+                  </div>
+                </>
+              ) : detachedMoodInPreview ? (
+                <>
+                  <div className="flex items-center gap-3 text-sm text-[#4a5d4c]/70 font-medium">
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(56,189,248,0.4)',
+                      color: '#38BDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ArrowLeft size={12} />
+                    </div>
+                    <span>{t('onboarding_j3_tip_mood_return')}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-[#4a5d4c]/70 font-medium">
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '1px solid rgba(52,211,153,0.4)',
+                      color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Zap size={12} />
+                    </div>
+                    <span>{t('onboarding_j3_tip_mood_to_event')}</span>
+                  </div>
+                </>
+              ) : linkedMoodInPreview ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-[#4a5d4c]/70 font-medium">
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 bg-[#E6F7F1] text-[#2F6F5B] text-xs font-semibold">
+                      {t('chat_magic_pen_linked_mood_label')}
+                    </span>
+                    <span>{t('onboarding_j3_tip_mood_linked')}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[#4a5d4c]/70 font-medium">
+                    <span>{t('onboarding_j3_tip_mood_detach_prefix')}</span>
+                    <span className="inline-flex items-center justify-center text-[#38BDF8]" style={{ width: 16, height: 16 }}>
+                      <ArrowRightLeft size={13} />
+                    </span>
+                    <span>{t('onboarding_j3_tip_mood_detach_suffix')}</span>
+                  </div>
+                </>
+              ) : null}
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
 
       {/* Input / CTA */}
@@ -217,6 +423,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
             value={input} onChange={setInput} autoFocus
             placeholder={t('onboarding_j3_activity_placeholder')}
             onSend={handleSendActivity}
+            submitting={isSending}
           />
         )}
 
@@ -236,6 +443,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
               value={input} onChange={setInput}
               placeholder={t('onboarding_j3_mood_placeholder')}
               onSend={handleSendMood}
+              submitting={isSending}
             />
             <button
               onClick={() => setPhase('complete')}
@@ -246,16 +454,67 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
         )}
 
         {phase === 'complete' && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            onClick={() => void handleFinish()}
-            disabled={isSending}
-            className="w-full py-5 rounded-[28px] bg-[#4a5d4c] text-white font-bold text-lg flex items-center justify-center gap-2 shadow-xl shadow-[#4a5d4c]/20">
-            {isSending
-              ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <><ChevronRight size={20} />{t('onboarding_j3_start_btn')}</>
-            }
-          </motion.button>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+            {mustRestoreBeforeNext && (
+              <div className="rounded-2xl border border-[#F4C0C2]/45 bg-[#F4C0C2]/10 px-4 py-3 text-sm font-medium text-[#4a5d4c]/75">
+                {convertedToMoodCard
+                  ? t('onboarding_j3_tip_switch_back_event_continue')
+                  : t('onboarding_j3_tip_switch_back_mood_continue')}
+              </div>
+            )}
+            <button
+              onClick={() => void handleFinish()}
+              disabled={isSending || mustRestoreBeforeNext}
+              className={`w-full py-5 rounded-[28px] font-bold text-lg flex items-center justify-center gap-2 shadow-xl transition-all ${
+                isSending || mustRestoreBeforeNext
+                  ? 'bg-[#4a5d4c]/25 text-white/70 shadow-[#4a5d4c]/10 cursor-not-allowed'
+                  : 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20'
+              }`}>
+              {isSending
+                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : <><ChevronRight size={20} />{t('onboarding_j3_start_btn')}</>
+              }
+            </button>
+          </motion.div>
+        )}
+
+        {moodPickerFor && (
+          <MoodPickerModal
+            moodPickerFor={moodPickerFor}
+            moodPickerReadonly={moodPickerReadonly}
+            selectedMoodOpt={selectedMoodOpt}
+            customLabelInput={customLabelInput}
+            showCustomLabelInput={showCustomLabelInput}
+            customMoodLabel={customMoodLabel}
+            customMoodApplied={customMoodApplied}
+            onClose={() => setMoodPickerFor(null)}
+            onSelectMood={(msgId, opt) => {
+              setMood(msgId, opt as MoodOption, 'manual');
+              setCustomMoodApplied(msgId, false);
+              setShowCustomLabelInput(false);
+              setSelectedMoodOpt(opt);
+            }}
+            onCustomLabelClick={() => {
+              if (!moodPickerFor) return;
+              setShowCustomLabelInput(true);
+              const existing = (customMoodApplied[moodPickerFor] && customMoodLabel[moodPickerFor])
+                ? (customMoodLabel[moodPickerFor] || '')
+                : '';
+              setCustomLabelInput(existing);
+              setSelectedMoodOpt('__custom__');
+            }}
+            onCustomLabelChange={(value) => {
+              setCustomLabelInput(value);
+              if (moodPickerFor) {
+                const next = value.trim();
+                setCustomMoodLabel(moodPickerFor, next || undefined);
+                const applied = !!next && !isDefaultCustomLabel(next);
+                setCustomMoodApplied(moodPickerFor, applied);
+                setSelectedMoodOpt('__custom__');
+              }
+            }}
+            onCustomLabelSave={saveCustomLabel}
+          />
         )}
       </div>
     </div>

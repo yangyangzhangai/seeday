@@ -292,18 +292,24 @@ export const ChatPage = () => {
     const current  = ms.activityMood[msgId] || null;
     setSelectedMoodOpt(isCustom ? '__custom__' : current);
     const label = ms.customMoodLabel[msgId] || '';
-    setCustomLabelInput(isCustom && label ? label : customLabelDefault);
+    setCustomLabelInput(isCustom && label ? label : '');
     setShowCustomLabelInput(false);
   }, [customLabelDefault]);
 
   const saveCustomLabel = (value: string) => {
-    const next = value.trim() || customLabelDefault;
+    const next = value.trim();
     setCustomLabelInput(next);
     if (moodPickerFor) {
-      setCustomMoodLabel(moodPickerFor, next);
-      const applied = !isDefaultCustomLabel(next);
-      setCustomMoodApplied(moodPickerFor, applied);
-      if (applied) setSelectedMoodOpt('__custom__');
+      if (!next) {
+        setCustomMoodLabel(moodPickerFor, undefined);
+        setCustomMoodApplied(moodPickerFor, false);
+        const moodState = useMoodStore.getState();
+        setSelectedMoodOpt(moodState.activityMood[moodPickerFor] || null);
+      } else {
+        setCustomMoodLabel(moodPickerFor, next);
+        setCustomMoodApplied(moodPickerFor, !isDefaultCustomLabel(next));
+        setSelectedMoodOpt('__custom__');
+      }
     }
     setShowCustomLabelInput(false);
   };
@@ -496,21 +502,20 @@ export const ChatPage = () => {
             onCustomLabelClick={() => {
               if (!moodPickerFor) return;
               setShowCustomLabelInput(true);
-              const next = customMoodLabel[moodPickerFor] || customLabelInput || customLabelDefault;
-              setCustomLabelInput(next);
-              setCustomMoodLabel(moodPickerFor, next);
-              const applied = !isDefaultCustomLabel(next);
-              setCustomMoodApplied(moodPickerFor, applied);
-              if (applied) setSelectedMoodOpt('__custom__');
+              const existing = (customMoodApplied[moodPickerFor] && customMoodLabel[moodPickerFor])
+                ? (customMoodLabel[moodPickerFor] || '')
+                : '';
+              setCustomLabelInput(existing);
+              setSelectedMoodOpt('__custom__');
             }}
             onCustomLabelChange={(value) => {
               setCustomLabelInput(value);
               if (moodPickerFor) {
-                const next = value.trim() || customLabelDefault;
-                setCustomMoodLabel(moodPickerFor, next);
-                const applied = !isDefaultCustomLabel(next);
+                const next = value.trim();
+                setCustomMoodLabel(moodPickerFor, next || undefined);
+                const applied = !!next && !isDefaultCustomLabel(next);
                 setCustomMoodApplied(moodPickerFor, applied);
-                if (applied) setSelectedMoodOpt('__custom__');
+                setSelectedMoodOpt('__custom__');
               }
             }}
             onCustomLabelSave={saveCustomLabel}

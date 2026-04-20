@@ -1,5 +1,4 @@
 import type { TranslationKeys } from './en';
-
 const zh: TranslationKeys = {
     // ── 通用 ──
     app_name: 'Seeday',
@@ -12,22 +11,18 @@ const zh: TranslationKeys = {
     close: '关闭',
     loading: '加载中…',
     no_data: '暂无数据',
-
     // ── 时间格式 ──
     duration_hours_minutes: '{{hours}}小时{{mins}}分钟',
     duration_minutes: '{{mins}}分钟',
     duration_label: '耗时 {{duration}}',
     elapsed_label: '已持续 {{duration}}',
-
     // ── Header ──
     header_login: '登录/注册',
     header_confirm_logout: '确定要退出登录吗？',
-
     // ── 底部导航 ──
     nav_record: '记录',
     nav_report: '日记',
     nav_profile: '我的',
-
     // ── 聊天 / 记录页面 ──
     chat_title: '记录',
     chat_history_readonly: '已切换到历史日期，切换回今日可继续记录',
@@ -95,7 +90,6 @@ const zh: TranslationKeys = {
     chat_magic_pen_upgrade_desc: '开通 Pro 后可使用魔法笔，一键整理输入并提取活动与待办。',
     chat_magic_pen_upgrade_cta: '去开通 Pro',
     chat_magic_pen_upgrade_later: '暂不开通',
-
     // ── 待办页面 ──
     todo_title: '待办管理',
     todo_filter_daily: '今日',
@@ -120,19 +114,16 @@ const zh: TranslationKeys = {
     todo_unpin: '取消置顶',
     todo_start: '开始计时',
     todo_in_progress: '进行中',
-
     // 优先级标签
     priority_urgent_important: '紧急重要',
     priority_important_not_urgent: '重要不紧急',
     priority_urgent_not_important: '紧急不重要',
     priority_not_important_not_urgent: '不重要不紧急',
-
     // 重复标签
     recurrence_none: '不重复',
     recurrence_daily: '每天',
     recurrence_weekly: '每周',
     recurrence_monthly: '每月',
-
     // ── 报告页面 ──
     report_title: '日记',
     report_calendar_view: '日历视图',
@@ -246,7 +237,6 @@ const zh: TranslationKeys = {
     plant_save_card: '保存卡片',
     plant_tap_to_flip: '轻点翻转',
     plant_card_diary_button: '生成日记',
-
     // ── 认证页面 ──
     auth_welcome_back: '欢迎回来',
     auth_create_account: '创建账号',
@@ -277,19 +267,16 @@ const zh: TranslationKeys = {
     auth_google_signin: '使用 Google 继续',
     auth_apple_signin: '使用 Apple 继续',
     auth_or_divider: '或',
-
     // ── AI 批注气泡 ──
     annotation_condensing: '凝结中...',
     annotation_condense: '凝结',
     annotation_condensed: '已凝结',
     annotation_hover_pause: '悬停中，暂停消失',
     annotation_suggestion_started: '已开始 ✓',
-
     // ── 星尘珍藏卡片 ──
     stardust_loading: '正在读取记忆...',
     stardust_error_default: '记忆加载失败，请稍后重试',
     stardust_from: '来自 {{name}} · {{date}}',
-
     // ── 待办分类 ──
     category_study: '学习',
     category_work: '工作',
@@ -297,7 +284,6 @@ const zh: TranslationKeys = {
     category_life: '生活',
     category_entertainment: '娱乐',
     category_health: '健康',
-
     // ── 心情标签 ──
     mood_happy: '开心',
     mood_calm: '平静',
@@ -307,12 +293,10 @@ const zh: TranslationKeys = {
     mood_anxious: '焦虑',
     mood_bored: '无聊',
     mood_down: '低落',
-
     // ── 语言切换 ──
     language_switch: '语言',
     language_en: 'EN',
     language_zh: '中',
-
     // ── 成长页面 ──
     nav_growth: '成长',
     growth_title: '成长',
@@ -406,7 +390,6 @@ const zh: TranslationKeys = {
     growth_bottle_delete_confirm: '确认删除「{{name}}」吗？',
     growth_bottle_sync_pending: '同步中',
     growth_bottle_sync_failed: '同步失败',
-
     // ── 我的页面 ──
     profile_title: '个人中心',
     profile_streak: '回到温室',
@@ -568,7 +551,6 @@ const zh: TranslationKeys = {
     profile_root_direction_save_error: '保存失败，请稍后重试',
     profile_logout: '退出登录',
     profile_plus_only: '升级 Pro 解锁',
-
     // ── 会员权益 ──
     membership_feat_basic_analysis: '基础活动观察',
     membership_feat_daily_plant: '每日植物生成',
@@ -579,7 +561,6 @@ const zh: TranslationKeys = {
     membership_feat_weekly_report: '每周温室报告',
     membership_feat_monthly_report: '每月温室报告',
     membership_feat_yearly_report: '年度生长档案',
-
     // ── Timeline / DatePicker / EventCard (v1.2) ──
     date_picker_title: '选择日期',
     month_grid_title: '选择月份',
@@ -598,7 +579,6 @@ const zh: TranslationKeys = {
     image_crop_title: '裁剪图片',
     image_crop_hint: '拖动调整位置',
     image_recrop: '重新裁剪',
-
     // ── 昨日回顾 (新的一天) ──
     yesterday_summary: '昨天你记录了 {{count}} 件事',
     previous_day_summary: '{{date}} 你记录了 {{count}} 件事',
@@ -606,23 +586,35 @@ const zh: TranslationKeys = {
     yesterday_tap_to_view: '点击查看该日记录',
     new_day_start: '新的一天，从一条记录开始',
     record_what_you_do: '记录你正在做的事情',
-
     // ── 晚间提醒 ──
     night_reminder_title: '今日还没完成哦',
     night_reminder_body: '植物和日记还没有生成，趁着晚上去记录一下今天吧～',
     night_reminder_go: '去生成',
     night_reminder_dismiss: '稍后再说',
-
     // ── 主动提醒系统 ──
     reminder_popup_confirm: '确认',
     reminder_popup_deny: '我在做别的',
     reminder_popup_or_tell_me: '或者直接告诉我',
     reminder_popup_input_placeholder: '写点什么...',
+    reminder_activity_wake: '起床',
+    reminder_activity_meal_breakfast: '吃早饭',
+    reminder_activity_meal_lunch: '吃午饭',
+    reminder_activity_meal_dinner: '吃晚饭',
+    reminder_activity_work_start: '开始上班',
+    reminder_activity_lunch_start: '午休吃饭',
+    reminder_activity_lunch_end: '午休结束，继续工作',
+    reminder_activity_work_end: '下班了',
+    reminder_activity_sleep: '准备睡觉',
+    reminder_activity_class_morning_start: '上午课开始',
+    reminder_activity_class_morning_end: '上午课结束',
+    reminder_activity_class_afternoon_start: '下午课开始',
+    reminder_activity_class_afternoon_end: '下午课结束',
+    reminder_activity_class_evening_start: '晚自习开始',
+    reminder_activity_class_evening_end: '晚自习结束',
     evening_check_event_count: '你今天记录了 {{count}} 件事',
     evening_check_grow_plant: '生成今日植物',
     evening_check_view_report: '查看今日日报',
     evening_check_snooze: '稍后提醒',
-
     // ── Onboarding 引导流程 ──
     quick_activity_picker_title: '现在在做什么？',
     quick_activity_meal: '吃饭',
@@ -632,7 +624,6 @@ const zh: TranslationKeys = {
     quick_activity_social: '社交',
     quick_activity_other: '其他',
     quick_activity_input_placeholder: '或者直接告诉我...',
-
     onboarding_step1_title: '认识一下',
     onboarding_step1_desc: 'Seeday 会在关键时间节点主动询问，帮你轻松记录每天的大小事。',
     onboarding_step1_cta: '开始设置',
@@ -651,7 +642,6 @@ const zh: TranslationKeys = {
     onboarding_next: '下一步',
     onboarding_back: '上一步',
     onboarding_skip: '跳过',
-
     // ── 新版引导流 v2 ──
     onboarding2_language_title: '先选一种你更舒服的语言',
     onboarding2_language_desc: '后续引导与应用内容都会按这个语言呈现，可随时在设置中切换。',
@@ -693,13 +683,33 @@ const zh: TranslationKeys = {
     onboarding_j3_shown_desc: '认识一下卡片上的两个按钮',
     onboarding_j3_tip_camera: '也可以拍照记录，上传到活动卡',
     onboarding_j3_tip_convert: '识别错了？点这里把活动转成心情',
+    onboarding_j3_tip_duration: '持续时长：{{duration}}',
+    onboarding_j3_tip_duration_mode: '持续时长：{{duration}}（录入下一条活动会自动结算，也可点结束按钮手动结束）',
+    onboarding_j3_tip_duration_prefix: '持续时长：{{duration}}（录入下一条活动会自动结算，或可点击',
+    onboarding_j3_tip_duration_suffix: '手动结束）',
+    onboarding_j3_tip_end_manual: '做完这件事时，可以点结束按钮手动结束计时',
+    onboarding_j3_tip_end_auto: '如果你开始记录下一条活动，系统也会自动结束当前活动并记录时长',
+    onboarding_j3_tip_end_both: '可手动点结束；也可直接开始下一条活动，系统会自动结束并记录时长',
+    onboarding_j3_tip_camera_story: '为这件事拍张照片，留住当下',
+    onboarding_j3_tip_camera_crop: '可选择卡片展示区域；点击图片仍可查看完整原图',
+    onboarding_j3_tip_convert_intent: '如果你更想把这条记录成心情，可切换为心情模式（用于记录具体心情、灵感或想法，不计时）',
+    onboarding_j3_tip_mood_tag: '这个心情标签用于记录做这件活动时的心情或状态，也可以自定义',
+    onboarding_j3_tip_mood_mode: '心情模式不计时，适合记录你的心情、灵感或想法',
+    onboarding_j3_tip_mood_linked: '这条心情会先关联在活动卡片下',
+    onboarding_j3_tip_switch_back_event_continue: '你现在在测试中，请先点按钮切换回活动后再继续',
+    onboarding_j3_tip_switch_back_mood_continue: '你现在在测试中，请先点按钮切换回心情后再继续',
+    onboarding_j3_tip_mood_return: '把这条心情归回最近一条活动卡片',
+    onboarding_j3_tip_mood_to_event: '把这条心情转成活动，并开始计时',
+    onboarding_j3_tip_mood_detach_prefix: '点击心情旁边的',
+    onboarding_j3_tip_mood_detach_suffix: '按钮，可将这条心情单独拆分成心情卡片',
+    onboarding_j3_delete_blocked: '这条是引导示例记录，当前步骤不能删除',
     onboarding_j3_tip_cta: '了解了，继续',
     onboarding_j3_mood_title: '再记录一下心情',
     onboarding_j3_mood_hint: '例如：开心、疲惫、专注',
     onboarding_j3_mood_placeholder: '输入心情，例如：开心',
     onboarding_j3_mood_skip: '跳过',
-    onboarding_j3_complete_title: '很棒！',
-    onboarding_j3_complete_desc: '这就是 Seeday 的记录方式',
+    onboarding_j3_complete_title: '继续体验一下',
+    onboarding_j3_complete_desc: '这一步还可以试试卡片操作',
     onboarding_j3_start_btn: '开始使用',
     onboarding_j3_send: '发送',
     onboarding2_todo_title: '给今天立一个可完成的小目标',
@@ -741,7 +751,6 @@ const zh: TranslationKeys = {
     onboarding2_sub_feat_growth_desc: '全维度追踪心理与行为成长',
     onboarding2_sub_feat_memory_label: 'AI 专属记忆',
     onboarding2_sub_feat_memory_desc: '提供深度共鸣与持续反馈',
-
     // ── 日程与提醒（Profile 设置）──
     profile_schedule_section_title: '我的日程',
     profile_user_profile_has_work_schedule: '有固定的上班 / 工作时间',
@@ -772,7 +781,6 @@ const zh: TranslationKeys = {
     profile_user_profile_reminder_enable: '开启定时提醒',
     profile_user_profile_reminder_permission: '通知权限',
     profile_user_profile_reminder_today_count: '今日提醒',
-
     // ── Telemetry 看板 ──
     telemetry_hub_title: 'Telemetry 中心',
     telemetry_hub_desc: '埋点看板统一入口。选择业务模块后可查看关键指标、事件语义与运营决策提示。',
@@ -794,7 +802,6 @@ const zh: TranslationKeys = {
     telemetry_common_na: '无',
     telemetry_common_yes: '是',
     telemetry_common_no: '否',
-
     // ── 实时输入看板 ──
     telemetry_live_title: '实时输入看板',
     telemetry_live_desc: '分类、纠错与植物素材兜底事件看板。日记贴纸与 AI 批注埋点已合并自',
@@ -841,7 +848,6 @@ const zh: TranslationKeys = {
     telemetry_live_table_plant_assets: '植物素材',
     telemetry_live_table_diary_stickers: '日记贴纸',
     telemetry_live_table_users: '用户',
-
     // ── AI 批注看板 ──
     telemetry_ai_title: 'AI 批注看板',
     telemetry_ai_desc: '用于追踪低叙事密度评分、横向联想采样、事件触发与后续凝结。',
@@ -869,7 +875,6 @@ const zh: TranslationKeys = {
     telemetry_ai_breakdown_association_types: '联想类型',
     telemetry_ai_breakdown_association_types_desc: '查看线上实际采样到的横向联想维度。',
     telemetry_ai_breakdown_association_types_empty: '暂无联想类型事件。',
-
     // ── 待办拆解看板 ──
     telemetry_todo_title: '待办拆解看板',
     telemetry_todo_desc: '面向产品的 AI 拆解质量看板。每个指标都包含业务解释与优化建议，便于快速决策。',
@@ -932,7 +937,6 @@ const zh: TranslationKeys = {
     telemetry_todo_table_parse_failed: '解析失败',
     telemetry_todo_table_failed: '失败',
     telemetry_todo_table_regenerate: '重拆',
-
     // ── 用户数据看板 ──
     ua_title: '用户看板',
     ua_updated: '更新于',
@@ -977,5 +981,4 @@ const zh: TranslationKeys = {
     ua_field_never: '从未活跃',
     ua_field_plan_unknown: '套餐未知',
 };
-
 export default zh;

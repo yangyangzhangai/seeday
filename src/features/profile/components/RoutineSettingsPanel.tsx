@@ -484,7 +484,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                       { id: 'work', label: t('profile_schedule_identity_work') },
                       { id: 'class', label: t('profile_schedule_identity_class') },
                     ] as const).map((item) => {
-                      const isCurrent = item.id === savedIdentity;
+                      const isCurrent = item.id === identity;
                       const isSelected = item.id === identity;
                       return (
                         <button key={item.id}
@@ -515,33 +515,46 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                     })}
                   </div>
 
-                  {/* 身份切换确认条 */}
+                  {/* 身份切换确认弹窗 */}
                   <AnimatePresence>
                     {pendingIdentity !== null && (
                       <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        className="mt-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3 space-y-2"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.32)', backdropFilter: 'blur(4px)' }}
+                        onClick={() => setPendingIdentity(null)}
                       >
-                        <p className="text-[11px] font-bold text-amber-800">{t('profile_schedule_identity_switch_title')}</p>
-                        <p className="text-[11px] text-amber-700 leading-snug">
-                          {t('profile_schedule_identity_switch_body', {
-                            name: t(`profile_schedule_identity_${pendingIdentity}`),
-                          })}
-                        </p>
-                        <div className="flex gap-2 pt-0.5">
-                          <button
-                            onClick={() => setPendingIdentity(null)}
-                            className="flex-1 py-1.5 rounded-xl text-[10px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 transition-colors">
-                            {t('cancel')}
-                          </button>
-                          <button
-                            onClick={() => { setIdentity(pendingIdentity); setPendingIdentity(null); }}
-                            className="flex-1 py-1.5 rounded-xl text-[10px] font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors">
-                            {t('confirm')}
-                          </button>
-                        </div>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.94, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.94, y: 10 }}
+                          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+                          className="w-full max-w-xs mx-5 rounded-3xl bg-white p-6"
+                          style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.14)' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-sm font-black text-[#1C2E24] mb-1.5">{t('profile_schedule_identity_switch_title')}</p>
+                          <p className="text-[13px] text-[#4A7560] leading-relaxed mb-5">
+                            {t('profile_schedule_identity_switch_body', {
+                              name: t(`profile_schedule_identity_${pendingIdentity}`),
+                            })}
+                          </p>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => setPendingIdentity(null)}
+                              className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-[#4A7560] border border-[#CBE7D7] bg-white transition active:scale-95">
+                              {t('cancel')}
+                            </button>
+                            <button
+                              onClick={() => { setIdentity(pendingIdentity); setPendingIdentity(null); }}
+                              className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white transition active:scale-95"
+                              style={{ background: 'linear-gradient(135deg, #6D9B74 0%, #4E7A57 100%)' }}>
+                              {t('confirm')}
+                            </button>
+                          </div>
+                        </motion.div>
                       </motion.div>
                     )}
                   </AnimatePresence>

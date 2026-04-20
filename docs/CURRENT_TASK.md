@@ -7,6 +7,15 @@ Owner: current working session
 
 ## 会话更新（2026-04-20）
 
+- [x] 修复 pre-commit `lint:max-lines` 阻断（i18n 词条文件）：对 `src/i18n/locales/{zh,en,it}.ts` 执行无语义压缩（移除空行），将三份 locale 行数降到 1000 行以内并通过 max-lines 校验。
+- [x] `/chat` 提醒 Hook 合约正修复：恢复 `useReminderSystem` 对 `confirmReminderFromPopup` 的显式返回类型与稳定返回对象，并将 `App` 从临时可选兜底改回标准解构调用，彻底对齐调用方与 Hook 返回契约（不再依赖可选链止血）。
+- [x] 修复 `/chat` 页面渲染崩溃兜底：`MainLayout` 中对 `useReminderSystem(navigate)` 返回值增加空值保护，避免在异常返回 `undefined` 时解构 `confirmReminderFromPopup` 直接触发白屏；提醒弹窗确认回调同步改为可选调用。
+- [x] Onboarding 测试态阻断提示文案更新：完成态禁用提示改为“当前在测试中，需先切换回目标卡片再继续”，并按状态区分“切回活动继续 / 切回心情继续”，避免沿用“Wrong type”造成误解。
+- [x] Onboarding 心情转换回路补齐：当首条活动被转为心情卡时，完成态新增“请先转回活动再继续”提示并锁定下一步按钮；当独立心情卡被转为活动时，不再消失，改为继续展示活动卡并提示“请转回心情继续体验”，未转回前同样禁止进入下一步。
+- [x] Onboarding 关联心情状态提示补齐：`StepJournal` 完成态改为优先跟随活动卡 `moodDescriptions` 推导“已关联”状态，并在无本地 `moodMessageId` 时自动回填；确保关联态稳定显示 linked 提示 + 拆分按钮说明，拆分为独立心情卡后切换为“回归活动/转为活动”双按钮说明，回归后恢复 linked 提示。
+- [x] Onboarding 首条记录完成态文案降温：`onboarding_j3_complete_title/desc` 三语由“已完成”改为“继续体验卡片操作”，避免在引导未结束时出现“all set”误导。
+- [x] 日记书架新增日期搜索入口：书架页头部加入圆形搜索按钮，弹出数字日期输入（`YYYY MM DD`）+ 同步日历视图；支持 `6/06`、`1/01` 等零填充混输识别，输入年/月/日时分别联动年视图、月视图与选中日。
+- [x] 日记书架日期热度可视化：搜索日历按当日记录条数分层显示（0 条空心、1-5 条浅色、5+ 条深色），同色系并与现有书架绿色视觉保持一致；点击已选中日期可直接跳转到对应书页。
 - [x] Onboarding 首屏语言改为自动检测：移除强制语言选择步骤，首启基于系统语言自动落盘（i18n detector 增加 navigator），引导流程由 8 步收敛为 7 步（Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription）。
 - [x] Onboarding 文案与语言链路重构：首屏强制语言选择（zh/en/it），并将 Auth / Journal / Todo / Routine 关键文案全面接入 i18n 三语 key，去除硬编码中文与语义错位 CTA。
 - [x] 修复 Onboarding「心情输入不可编辑」：首条记录页新增独立心情输入框，支持“仅心情”或“活动+心情”双轨写入时间流。
@@ -17,6 +26,21 @@ Owner: current working session
 - [x] 修复 Onboarding 首条活动/待办不同步：引导内录入改为直接写入 `useChatStore` 与 `useTodoStore`，进入 App 后可在聊天时间线与 Growth 待办列表立即看到。
 - [x] Onboarding AI 选择页扩展为 4 个人设（Van/Agnes/Zep/Momo）：引导阶段支持直接点选并写入 `preferences.aiMode`，不再固定只落 `van`。
 - [x] 增加新手引导测试开关：访问 `/onboarding?forceOnboarding=1`（或构建时设置 `VITE_FORCE_ONBOARDING=1`）可强制预览引导页，老账号/新账号都可进入。
+- [x] Onboarding 首条记录卡片改为真实交互：`StepJournal` 发送活动后直接落盘并渲染真实 `EventCard/MoodCard`，活动卡相机/转换按钮在引导页默认常显且可直接点击；补充绿色时长说明（复用 `elapsed_label`）。
+- [x] Onboarding 心情卡片交互引导补齐：展示“关联在活动下的心情”和“独立心情卡”两类形态；支持在引导页直接点击体验「从活动中提出」「回归活动」「转为活动」等真实按钮逻辑。
+- [x] Onboarding 转心情后的说明文案分流：当活动已转为心情卡时，说明区改为匹配右上角新按钮（`mood_return_event` / `mood_to_event`）的专属解释，不再沿用活动卡阶段文案。
+- [x] Onboarding 心情卡按钮可用性收口：当当前上下文没有可回归的活动卡时，隐藏 `mood_return_event` 按钮与对应解释，避免新手误以为按钮失效。
+- [x] Onboarding Journal 说明文案升级：补充活动时长、手动结束与“下一条活动自动结束并计时”、照片记录（含卡片节选显示 + 点击看原图）、活动转心情用途与“心情模式不计时”解释；转心情后按钮说明改为心情卡专属语义。
+- [x] Onboarding 心情标签交互对齐真实业务：活动卡右侧心情标签可点击打开真实 MoodPicker（可选预置心情 + 自定义标签），并新增对应说明文案。
+- [x] Onboarding Journal 文案进一步精简：将“手动结束 + 自动结束”合并到时长同一行；将“心情模式不计时”并入“转为心情”说明；移除裁切说明行，降低信息密度。
+- [x] MoodPicker 选中态修正：切入自定义时仅高亮自定义标签（不再与预置心情同时高亮）；自定义输入默认空白，用户可直接输入无需先删除“Custom/自定义”。
+- [x] Onboarding 文案排版微调：时长说明行内插入“结束按钮”可视化示意；并按产品语义区分“心情模式（记录具体心情/灵感，不计时）”与“活动心情标签（记录活动中的状态，可自定义）”。
+- [x] Onboarding 转心情后按钮收口：在新手引导场景中，首条活动转为心情后仅保留“转回活动（`mood_to_event`）”按钮与说明，不再展示“回归上一个活动（`mood_return_event`）”。
+- [x] Onboarding 完成态文案降噪：移除“Linked mood”标签后方解释句，仅保留标签本身，减少视觉干扰。
+- [x] Onboarding 完成态继续降噪：移除“Linked mood”标签本身，完成态不再展示该区块。
+- [x] Onboarding 转心情回路强制单路径：移除引导页内 `reattachMoodToEvent` 调用与所有“Return to Event”分支，避免热更新残留时再次显示回归入口。
+- [x] Onboarding 首条记录删除限制：点击卡片右上角删除按钮时改为弹出提示（不可删除引导示例记录），并阻断实际删除行为。
+- [x] Onboarding 完成态补全“关联心情 -> 独立心情卡”教学：当心情仍关联活动时显示 Linked 状态与拆分按钮说明；拆分后切换为独立心情卡按钮说明（回归活动 / 转为活动），并随 linked 状态实时更新。
 
 ## 会话更新（2026-04-19）
 

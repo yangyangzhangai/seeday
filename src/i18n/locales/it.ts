@@ -1,5 +1,4 @@
 import type { TranslationKeys } from './en';
-
 const it: TranslationKeys = {
     // ── Comune ──
     app_name: 'Seeday',
@@ -12,22 +11,18 @@ const it: TranslationKeys = {
     close: 'Chiudi',
     loading: 'Caricamento…',
     no_data: 'Nessun dato disponibile',
-
     // ── Formattazione durata ──
     duration_hours_minutes: '{{hours}}h {{mins}}m',
     duration_minutes: '{{mins}}m',
     duration_label: 'Durata {{duration}}',
     elapsed_label: 'Trascorso {{duration}}',
-
     // ── Intestazione ──
     header_login: 'Accedi / Registrati',
     header_confirm_logout: 'Sei sicuro di voler uscire?',
-
     // ── Navigazione inferiore ──
     nav_record: 'Registro',
     nav_report: 'Rapporto',
     nav_profile: 'Profilo',
-
     // ── Chat / Pagina Registro ──
     chat_title: 'Registro',
     chat_history_readonly: 'Visualizzando una data passata — torna a oggi per aggiungere record',
@@ -95,7 +90,6 @@ const it: TranslationKeys = {
     chat_magic_pen_upgrade_desc: 'Passa a Pro per usare la Penna magica e trasformare una frase in attività e to-do.',
     chat_magic_pen_upgrade_cta: 'Passa a Pro',
     chat_magic_pen_upgrade_later: 'Forse dopo',
-
     // ── Pagina Attività ──
     todo_title: 'Attività',
     todo_filter_daily: 'Oggi',
@@ -120,19 +114,16 @@ const it: TranslationKeys = {
     todo_unpin: 'Rimuovi',
     todo_start: 'Avvia timer',
     todo_in_progress: 'In corso',
-
     // Etichette priorità
     priority_urgent_important: 'Urgente e Importante',
     priority_important_not_urgent: 'Importante, Non Urgente',
     priority_urgent_not_important: 'Urgente, Non Importante',
     priority_not_important_not_urgent: 'Non Importante, Non Urgente',
-
     // Etichette ricorrenza
     recurrence_none: 'Nessuna ripetizione',
     recurrence_daily: 'Ogni giorno',
     recurrence_weekly: 'Ogni settimana',
     recurrence_monthly: 'Ogni mese',
-
     // ── Pagina Rapporto ──
     report_title: 'Diario',
     report_calendar_view: 'Vista Calendario',
@@ -246,7 +237,6 @@ const it: TranslationKeys = {
     plant_save_card: 'Salva Biglietto',
     plant_tap_to_flip: 'Tocca per girare',
     plant_card_diary_button: 'Genera Diario',
-
     // ── Pagina Autenticazione ──
     auth_welcome_back: 'Bentornato',
     auth_create_account: 'Crea Account',
@@ -277,19 +267,16 @@ const it: TranslationKeys = {
     auth_google_signin: 'Continua con Google',
     auth_apple_signin: 'Continua con Apple',
     auth_or_divider: 'oppure',
-
     // ── Bolla Annotazione AI ──
     annotation_condensing: 'Cristallizzando…',
     annotation_condense: 'Cristallizza',
     annotation_condensed: 'Cristallizzato',
     annotation_hover_pause: 'In pausa al passaggio del mouse',
     annotation_suggestion_started: 'Iniziato ✓',
-
     // ── Scheda Stardust ──
     stardust_loading: 'Recupero memoria…',
     stardust_error_default: 'Caricamento memoria fallito — riprova più tardi',
     stardust_from: 'Da {{name}} · {{date}}',
-
     // ── Categorie Attività ──
     category_study: 'Studio',
     category_work: 'Lavoro',
@@ -297,7 +284,6 @@ const it: TranslationKeys = {
     category_life: 'Vita',
     category_entertainment: 'Intrattenimento',
     category_health: 'Salute',
-
     // ── Etichette umore ──
     mood_happy: 'Felice',
     mood_calm: 'Calmo',
@@ -307,12 +293,10 @@ const it: TranslationKeys = {
     mood_anxious: 'Ansioso',
     mood_bored: 'Annoiato',
     mood_down: 'Giù',
-
     // ── Selettore Lingua ──
     language_switch: 'Lingua',
     language_en: 'EN',
     language_zh: '中',
-
     // ── Pagina Crescita ──
     nav_growth: 'Crescita',
     growth_title: 'Crescita',
@@ -406,7 +390,6 @@ const it: TranslationKeys = {
     growth_bottle_delete_confirm: 'Eliminare "{{name}}"?',
     growth_bottle_sync_pending: 'Sincronizzazione in corso',
     growth_bottle_sync_failed: 'Sincronizzazione non riuscita',
-
     // ── Pagina Profilo ──
     profile_title: 'Profilo',
     profile_streak: 'Ritorno in Serra',
@@ -568,7 +551,6 @@ const it: TranslationKeys = {
     profile_root_direction_save_error: 'Salvataggio non riuscito. Riprova.',
     profile_logout: 'Esci',
     profile_plus_only: 'Passa a Pro per sbloccare',
-
     // ── Funzionalità abbonamento ──
     membership_feat_basic_analysis: 'Analisi Base',
     membership_feat_daily_plant: 'Pianta Giornaliera',
@@ -579,7 +561,6 @@ const it: TranslationKeys = {
     membership_feat_weekly_report: 'Report Settimanale',
     membership_feat_monthly_report: 'Report Mensile',
     membership_feat_yearly_report: 'Report Annuale',
-
     // ── Timeline / DatePicker / EventCard (v1.2) ──
     date_picker_title: 'Seleziona Data',
     month_grid_title: 'Seleziona Mese',
@@ -598,7 +579,6 @@ const it: TranslationKeys = {
     image_crop_title: 'Ritaglia immagine',
     image_crop_hint: 'Trascina per riposizionare',
     image_recrop: 'Ritaglia',
-
     // ── Riepilogo di ieri (Nuovo giorno) ──
     yesterday_summary: 'Ieri hai registrato {{count}} attività',
     previous_day_summary: 'Il {{date}} hai registrato {{count}} attività',
@@ -606,18 +586,31 @@ const it: TranslationKeys = {
     yesterday_tap_to_view: 'Tocca per vedere i record di quel giorno',
     new_day_start: 'Inizia la tua giornata con un nuovo record',
     record_what_you_do: 'Registra ciò che stai facendo',
-
     // ── Promemoria serale ──
     night_reminder_title: 'Ancora da completare oggi',
     night_reminder_body: 'La pianta e il diario non sono ancora stati generati. Prenditi un momento questa sera per registrare la tua giornata~',
     night_reminder_go: 'Genera ora',
     night_reminder_dismiss: 'Più tardi',
-
     // ── Sistema promemoria attivo ──
     reminder_popup_confirm: 'Confermo',
     reminder_popup_deny: 'Sto facendo altro',
     reminder_popup_or_tell_me: 'Oppure dimmi direttamente',
     reminder_popup_input_placeholder: 'Scrivi qualcosa...',
+    reminder_activity_wake: 'Svegliato',
+    reminder_activity_meal_breakfast: 'Colazione',
+    reminder_activity_meal_lunch: 'Pranzo',
+    reminder_activity_meal_dinner: 'Cena',
+    reminder_activity_work_start: 'Iniziato a lavorare',
+    reminder_activity_lunch_start: 'Pausa pranzo',
+    reminder_activity_lunch_end: 'Ritorno al lavoro',
+    reminder_activity_work_end: 'Fine lavoro',
+    reminder_activity_sleep: 'Andare a dormire',
+    reminder_activity_class_morning_start: 'Lezione mattutina iniziata',
+    reminder_activity_class_morning_end: 'Fine lezione mattutina',
+    reminder_activity_class_afternoon_start: 'Lezione pomeridiana iniziata',
+    reminder_activity_class_afternoon_end: 'Fine lezione pomeridiana',
+    reminder_activity_class_evening_start: 'Studio serale iniziato',
+    reminder_activity_class_evening_end: 'Fine studio serale',
     evening_check_event_count: 'Hai registrato {{count}} eventi oggi',
     evening_check_grow_plant: 'Genera la pianta di oggi',
     evening_check_view_report: 'Vedi il diario di oggi',
@@ -630,7 +623,6 @@ const it: TranslationKeys = {
     quick_activity_social: 'Sociale',
     quick_activity_other: 'Altro',
     quick_activity_input_placeholder: 'Oppure dimmelo tu...',
-
     onboarding_step1_title: 'Piacere di conoscerti',
     onboarding_step1_desc: 'Seeday ti contatterà nei momenti chiave della giornata per aiutarti a registrare le tue attività.',
     onboarding_step1_cta: 'Inizia',
@@ -649,7 +641,6 @@ const it: TranslationKeys = {
     onboarding_next: 'Avanti',
     onboarding_back: 'Indietro',
     onboarding_skip: 'Salta',
-
     // ── Onboarding v2 ──
     onboarding2_language_title: 'Scegli la lingua in cui ti senti a casa',
     onboarding2_language_desc: 'Useremo questa lingua per onboarding e app. Potrai cambiarla in qualsiasi momento dalle impostazioni.',
@@ -691,13 +682,33 @@ const it: TranslationKeys = {
     onboarding_j3_shown_desc: 'Scopri i due pulsanti sulla scheda',
     onboarding_j3_tip_camera: 'Puoi anche aggiungere una foto alla scheda',
     onboarding_j3_tip_convert: "Tipo sbagliato? Tocca per convertirla in emozione",
+    onboarding_j3_tip_duration: 'Durata: {{duration}}',
+    onboarding_j3_tip_duration_mode: 'Durata: {{duration}} (si chiude automaticamente quando registri l\'attività successiva, oppure puoi toccare Fine)',
+    onboarding_j3_tip_duration_prefix: 'Durata: {{duration}} (si chiude automaticamente quando registri l\'attività successiva, oppure tocca',
+    onboarding_j3_tip_duration_suffix: 'per terminarla manualmente)',
+    onboarding_j3_tip_end_manual: 'Quando finisci l\'attività, tocca Fine per fermare il timer',
+    onboarding_j3_tip_end_auto: 'Se inizi l\'attività successiva, questa si chiude automaticamente e la durata viene salvata',
+    onboarding_j3_tip_end_both: 'Puoi toccare Fine, oppure iniziare la prossima attività: questa si chiude automaticamente',
+    onboarding_j3_tip_camera_story: 'Aggiungi una foto per ricordare questo momento',
+    onboarding_j3_tip_camera_crop: 'Scegli la parte mostrata sulla scheda; toccando la foto vedi comunque l\'immagine completa',
+    onboarding_j3_tip_convert_intent: 'Se preferisci registrare questa voce come emozione, passa alla modalità emozione (per emozioni specifiche, idee o pensieri veloci; senza timer)',
+    onboarding_j3_tip_mood_tag: 'Questa etichetta registra l\'emozione o lo stato durante l\'attività, e puoi anche personalizzarla',
+    onboarding_j3_tip_mood_mode: 'La modalità emozione non usa timer. Serve per emozioni, idee o pensieri veloci',
+    onboarding_j3_tip_mood_linked: 'Questa emozione resta collegata alla scheda attività',
+    onboarding_j3_tip_switch_back_event_continue: 'Ora sei in modalità test. Tocca per tornare ad attività e continuare',
+    onboarding_j3_tip_switch_back_mood_continue: 'Ora sei in modalità test. Tocca per tornare a emozione e continuare',
+    onboarding_j3_tip_mood_return: 'Riporta questa emozione sotto la tua attività più recente',
+    onboarding_j3_tip_mood_to_event: 'Trasforma questa emozione in attività e avvia il timer',
+    onboarding_j3_tip_mood_detach_prefix: 'Tocca il pulsante',
+    onboarding_j3_tip_mood_detach_suffix: 'accanto all\'emozione per separarla in una scheda emozione autonoma',
+    onboarding_j3_delete_blocked: 'Questo record di esempio onboarding non può essere eliminato in questo passaggio',
     onboarding_j3_tip_cta: 'Capito, continua',
     onboarding_j3_mood_title: 'Ora registra come ti senti',
     onboarding_j3_mood_hint: 'Es. Felice, Stanco, Concentrato',
     onboarding_j3_mood_placeholder: "Scrivi un'emozione, es. Felice",
     onboarding_j3_mood_skip: 'Salta',
-    onboarding_j3_complete_title: 'Ottimo!',
-    onboarding_j3_complete_desc: 'Ecco come funziona Seeday',
+    onboarding_j3_complete_title: 'Continua a esplorare',
+    onboarding_j3_complete_desc: 'In questo passaggio puoi ancora provare le azioni della card',
     onboarding_j3_start_btn: 'Inizia a usare Seeday',
     onboarding_j3_send: 'Invia',
     onboarding2_todo_title: 'Scegli una piccola intenzione realistica per oggi',
@@ -739,7 +750,6 @@ const it: TranslationKeys = {
     onboarding2_sub_feat_growth_desc: 'Traccia la crescita mentale e comportamentale',
     onboarding2_sub_feat_memory_label: 'Memoria AI personale',
     onboarding2_sub_feat_memory_desc: 'Risonanza profonda e feedback continuo',
-
     profile_schedule_section_title: 'I miei orari',
     profile_user_profile_has_work_schedule: 'Ho orari di lavoro fissi',
     profile_user_profile_has_class_schedule: 'Ho un orario delle lezioni',
@@ -769,7 +779,6 @@ const it: TranslationKeys = {
     profile_user_profile_reminder_enable: 'Attiva promemoria programmati',
     profile_user_profile_reminder_permission: 'Permesso notifiche',
     profile_user_profile_reminder_today_count: 'Promemoria di oggi',
-
     // ── Centro Telemetry ──
     telemetry_hub_title: 'Centro Telemetry',
     telemetry_hub_desc: 'Ingresso unificato per le dashboard di telemetry. Scegli un modulo business per vedere metriche, semantica eventi e suggerimenti operativi.',
@@ -791,7 +800,6 @@ const it: TranslationKeys = {
     telemetry_common_na: 'n/d',
     telemetry_common_yes: 'sì',
     telemetry_common_no: 'no',
-
     // ── Live Input Telemetry ──
     telemetry_live_title: 'Live Input Telemetry',
     telemetry_live_desc: 'Dashboard modulo per eventi di classificazione, correzione e fallback pianta da Supabase. Le operazioni sticker diario e la telemetry AI annotation sono unite da',
@@ -838,7 +846,6 @@ const it: TranslationKeys = {
     telemetry_live_table_plant_assets: 'Asset Pianta',
     telemetry_live_table_diary_stickers: 'Sticker Diario',
     telemetry_live_table_users: 'Utenti',
-
     // ── AI Annotation Telemetry ──
     telemetry_ai_title: 'AI Annotation Telemetry',
     telemetry_ai_desc: 'Questa dashboard traccia low-narrative scoring, campionamento lateral-association, trigger evento e condensa downstream.',
@@ -866,7 +873,6 @@ const it: TranslationKeys = {
     telemetry_ai_breakdown_association_types: 'Tipi di Associazione',
     telemetry_ai_breakdown_association_types_desc: 'Quali dimensioni lateral association sono campionate in produzione.',
     telemetry_ai_breakdown_association_types_empty: 'Nessun evento association type.',
-
     // ── Todo Decompose Telemetry ──
     telemetry_todo_title: 'Todo Decompose Telemetry',
     telemetry_todo_desc: 'Dashboard qualità orientata al prodotto per breakdown AI dei todo. Ogni metrica include significato e azioni di ottimizzazione.',
@@ -929,7 +935,6 @@ const it: TranslationKeys = {
     telemetry_todo_table_parse_failed: 'Parse Falliti',
     telemetry_todo_table_failed: 'Falliti',
     telemetry_todo_table_regenerate: 'Rigenera',
-
     // ── Dashboard Analisi Utenti ──
     ua_title: 'Analisi Utenti',
     ua_updated: 'Aggiornato',
@@ -974,5 +979,4 @@ const it: TranslationKeys = {
     ua_field_never: 'Mai',
     ua_field_plan_unknown: 'piano sconosciuto',
 };
-
 export default it;

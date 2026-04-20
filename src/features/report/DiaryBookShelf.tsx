@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { format, startOfMonth, subMonths, isSameMonth } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
-import { X } from 'lucide-react';
+import { format, startOfMonth, subMonths, isSameMonth, getDaysInMonth, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
+import { zhCN, enUS, it as itLocale } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useChatStore } from '../../store/useChatStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
 
 /* ──────────────────────────── constants ──────────────────────────── */
@@ -13,6 +14,108 @@ const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b11355
 const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
 
 const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
+const DAY_MARK_LIGHT = 'rgba(143, 174, 145, 0.42)';
+const DAY_MARK_DEEP = '#6f9273';
+
+type ParsedDateInput = {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+  selectedDate: Date | null;
+  isValid: boolean;
+};
+
+function parseContinuousMonthDay(restDigits: string): { month: number | null; day: number | null } {
+  if (!restDigits) return { month: null, day: null };
+  if (restDigits.length === 1) {
+    return { month: Number(restDigits), day: null };
+  }
+  if (restDigits.length === 2) {
+    const asMonth = Number(restDigits);
+    if (asMonth >= 1 && asMonth <= 12) {
+      return { month: asMonth, day: null };
+    }
+    const month = Number(restDigits[0]);
+    const dayDigit = Number(restDigits[1]);
+    if (month >= 1 && month <= 9) {
+      if (dayDigit === 0) {
+        return { month, day: null };
+      }
+      return { month, day: dayDigit };
+    }
+    return { month: asMonth, day: null };
+  }
+  if (restDigits.length === 3) {
+    return { month: Number(restDigits[0]), day: Number(restDigits.slice(1, 3)) };
+  }
+  return {
+    month: Number(restDigits.slice(0, 2)),
+    day: Number(restDigits.slice(2, 4)),
+  };
+}
+
+function parseDateInput(rawInput: string): ParsedDateInput {
+  const cleaned = rawInput.trim();
+  if (!cleaned) return { year: null, month: null, day: null, selectedDate: null, isValid: false };
+
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  if (digitsOnly.length < 4) return { year: null, month: null, day: null, selectedDate: null, isValid: false };
+
+  const year = Number(digitsOnly.slice(0, 4));
+  if (!Number.isFinite(year) || year < 1000 || year > 9999) {
+    return { year: null, month: null, day: null, selectedDate: null, isValid: false };
+  }
+
+  const tokens = cleaned.split(/\D+/).filter(Boolean);
+  let month: number | null = null;
+  let day: number | null = null;
+
+  if (tokens.length >= 2) {
+    if (tokens.length === 2 && tokens[1].length >= 3) {
+      const parsed = parseContinuousMonthDay(tokens[1]);
+      month = parsed.month;
+      day = parsed.day;
+    } else {
+      month = Number(tokens[1]);
+    }
+  }
+  if (tokens.length >= 3) {
+    day = Number(tokens[2]);
+  }
+
+  if (tokens.length <= 1) {
+    const rest = digitsOnly.slice(4);
+    const parsed = parseContinuousMonthDay(rest);
+    month = parsed.month;
+    day = parsed.day;
+  }
+
+  if (month != null && (!Number.isFinite(month) || month < 1 || month > 12)) {
+    return { year, month, day, selectedDate: null, isValid: false };
+  }
+
+  if (month != null && day != null) {
+    const maxDay = getDaysInMonth(new Date(year, month - 1, 1));
+    if (!Number.isFinite(day) || day < 1 || day > maxDay) {
+      return { year, month, day, selectedDate: null, isValid: false };
+    }
+    return {
+      year,
+      month,
+      day,
+      selectedDate: new Date(year, month - 1, day),
+      isValid: true,
+    };
+  }
+
+  return {
+    year,
+    month,
+    day: null,
+    selectedDate: null,
+    isValid: true,
+  };
+}
 
 function coverColor(month: Date): string {
   const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
@@ -143,24 +246,101 @@ interface Props {
 }
 
 export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryPage, initialOpenMonth, initialOpenFlippedCount }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const user = useAuthStore(s => s.user);
+  const getMessagesForDateRange = useChatStore(s => s.getMessagesForDateRange);
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
   const [openMonth, setOpenMonth] = useState<Date | null>(initialOpenMonth ?? null);
+  const [viewerFlippedCount, setViewerFlippedCount] = useState<number | undefined>(initialOpenFlippedCount);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [editingIdx, setEditingIdx]   = useState<number | null>(null);
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [dayRecordCount, setDayRecordCount] = useState<Record<string, number>>({});
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const loadedYearsRef = useRef<Set<number>>(new Set());
 
   const toDateKey = useCallback((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, []);
-  const diaryDateSet = useMemo(() => new Set(reports.filter(r => r.type === 'daily').map(r => toDateKey(new Date(r.date)))), [reports, toDateKey]);
-
-  const totalEntries = useMemo(() => reports.filter(r => r.type === 'daily').length, [reports]);
+  const parsedDateInput = useMemo(() => parseDateInput(searchInput), [searchInput]);
+  const activeYear = parsedDateInput.year ?? new Date().getFullYear();
+  const activeMonth = parsedDateInput.month;
+  const showMonthView = activeMonth != null && parsedDateInput.isValid;
+  const calendarLocale = useMemo(() => {
+    const lang = i18n.language?.split('-')[0] ?? 'en';
+    if (lang === 'zh') return zhCN;
+    if (lang === 'it') return itLocale;
+    return enUS;
+  }, [i18n.language]);
+  const weekLabelStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
+  const weekdayLabels = useMemo(
+    () => Array.from({ length: 7 }).map((_, idx) => format(addDays(weekLabelStart, idx), 'EEEEE', { locale: calendarLocale })),
+    [calendarLocale, weekLabelStart],
+  );
 
   const getBookName = (m: Date) => bookNames[m.getTime()] ?? '日记本';
   const setBookName = (m: Date, name: string) =>
     setBookNames(prev => ({ ...prev, [m.getTime()]: name }));
+
+  const openMonthByDate = useCallback((targetDate: Date) => {
+    const monthDate = startOfMonth(targetDate);
+    setViewerFlippedCount(targetDate.getDate());
+    setOpenMonth(monthDate);
+    setSearchOpen(false);
+    const idx = months.findIndex((m) => isSameMonth(m, monthDate));
+    if (idx >= 0) {
+      setSelectedIdx(idx);
+      setEditingIdx(null);
+    }
+  }, [months]);
+
+  const handleSearchSubmit = useCallback(() => {
+    if (parsedDateInput.selectedDate) {
+      openMonthByDate(parsedDateInput.selectedDate);
+    }
+  }, [openMonthByDate, parsedDateInput.selectedDate]);
+
+  const getCountByDate = useCallback((date: Date) => dayRecordCount[toDateKey(date)] ?? 0, [dayRecordCount, toDateKey]);
+
+  const monthCells = useMemo(() => {
+    if (!activeMonth || !parsedDateInput.isValid) return [] as Date[];
+    const first = new Date(activeYear, activeMonth - 1, 1);
+    const gridStart = startOfWeek(first, { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(new Date(activeYear, activeMonth, 0), { weekStartsOn: 1 });
+    const cells: Date[] = [];
+    let cursor = gridStart;
+    while (cursor <= gridEnd) {
+      cells.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    return cells;
+  }, [activeMonth, activeYear, parsedDateInput.isValid]);
+
+  useEffect(() => {
+    if (!searchOpen || !parsedDateInput.year || !parsedDateInput.isValid) return;
+    if (loadedYearsRef.current.has(parsedDateInput.year)) return;
+    let cancelled = false;
+    const year = parsedDateInput.year;
+    void getMessagesForDateRange(new Date(year, 0, 1), new Date(year, 11, 31, 23, 59, 59, 999))
+      .then((messages) => {
+        if (cancelled) return;
+        const next: Record<string, number> = {};
+        messages.forEach((msg) => {
+          if (msg.type === 'system' || msg.mode !== 'record') return;
+          const key = toDateKey(new Date(msg.timestamp));
+          next[key] = (next[key] ?? 0) + 1;
+        });
+        setDayRecordCount((prev) => ({ ...prev, ...next }));
+        loadedYearsRef.current.add(year);
+      })
+      .catch(() => {
+        loadedYearsRef.current.add(year);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getMessagesForDateRange, parsedDateInput.isValid, parsedDateInput.year, searchOpen, toDateKey]);
 
   /* Auto-add new month at midnight on the 1st */
   useEffect(() => {
@@ -182,7 +362,10 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
   /* Keyboard navigation */
   const openSelected = useCallback(() => {
-    if (selectedIdx !== null) setOpenMonth(months[selectedIdx]);
+    if (selectedIdx !== null) {
+      setViewerFlippedCount(undefined);
+      setOpenMonth(months[selectedIdx]);
+    }
   }, [months, selectedIdx]);
 
   useEffect(() => {
@@ -222,7 +405,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         onBackToShelf={() => setOpenMonth(null)}
         reports={reports}
         initialMonth={openMonth}
-        initialFlippedCount={initialOpenFlippedCount}
+        initialFlippedCount={viewerFlippedCount}
         onOpenDiaryPage={onOpenDiaryPage}
       />
     );
@@ -235,21 +418,306 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
       <div className="absolute bottom-[-5%] left-[-5%] w-[500px] h-[500px] bg-white blur-[120px] rounded-full pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-20 flex items-center justify-between px-6 pb-6"
+      <header className="relative z-20 flex items-center gap-3 px-6 pb-6"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
-        <div>
-          <h1 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('report_my_diary')}</h1>
-          <p className="text-xs text-[#4a5d4c]/40 mt-0.5">{months.length} 本日记</p>
-        </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onClose}
-          className="p-3.5 bg-white/90 backdrop-blur-xl rounded-[22px] text-[#4a5d4c] shadow-[0_8px_20px_rgba(0,0,0,0.04)] border border-white/80"
+          className="flex-shrink-0 p-3.5 bg-white/90 backdrop-blur-xl rounded-[22px] text-[#4a5d4c] shadow-[0_8px_20px_rgba(0,0,0,0.04)] border border-white/80"
         >
-          <X size={20} />
+          <ChevronLeft size={20} />
+        </motion.button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('report_my_diary')}</h1>
+          <p className="text-xs text-[#4a5d4c]/40 mt-0.5">{months.length} 本日记</p>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={() => setSearchOpen(true)}
+          aria-label={t('diary_shelf_open_calendar')}
+          className="flex-shrink-0 h-14 w-14 bg-white/90 backdrop-blur-xl rounded-full text-[#4a5d4c] shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-white/80 flex items-center justify-center"
+        >
+          <Search size={24} strokeWidth={2.2} />
         </motion.button>
       </header>
+
+      {searchOpen && (
+        <div
+          className="absolute inset-0 z-40"
+          style={{ background: 'rgba(30,45,32,0.18)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+          onClick={() => setSearchOpen(false)}
+        >
+          <div
+            className="absolute left-4 right-4 overflow-hidden"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 84px)',
+              borderRadius: '28px',
+              background: 'rgba(255,255,255,0.96)',
+              border: '1px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.5), inset 0 1px 1px rgba(255,255,255,0.8), 0 24px 64px rgba(30,50,35,0.22)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Input section */}
+            <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(210,225,210,0.6)', background: 'linear-gradient(to bottom, #f8faf7, #f2f7f1)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(74,93,76,0.55)', textTransform: 'uppercase' }}>{t('diary_shelf_open_calendar')}</span>
+                {showMonthView && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput(String(activeYear))}
+                    style={{ fontSize: '11px', fontWeight: 600, color: '#5f7a62', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                  >
+                    {i18n.language?.split('-')[0] === 'zh' ? '← 返回年份' : i18n.language?.split('-')[0] === 'it' ? '← Anni' : '← Years'}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value.replace(/[^\d\s\-/.]/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchSubmit();
+                      }
+                    }}
+                    placeholder="2026 / 04 / 20"
+                    className="w-full outline-none"
+                    inputMode="numeric"
+                    style={{
+                      borderRadius: '16px',
+                      border: '1.5px solid #c8d9c4',
+                      background: 'rgba(255,255,255,0.95)',
+                      padding: '11px 16px',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      color: '#2e4431',
+                      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.04)',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = '#8fae91'; e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.04), 0 0 0 3px rgba(143,174,145,0.2)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = '#c8d9c4'; e.target.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.04)'; }}
+                  />
+                  {!searchInput && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center px-4">
+                      <span style={{ fontSize: '13px', color: 'rgba(74,93,76,0.35)', letterSpacing: '0.04em' }}>
+                        {i18n.language?.split('-')[0] === 'zh' ? '仅输入数字，如 20260420' : i18n.language?.split('-')[0] === 'it' ? 'Solo numeri, es. 20260420' : 'Digits only, e.g. 20260420'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSearchSubmit}
+                  disabled={!parsedDateInput.selectedDate}
+                  style={{
+                    width: '46px', height: '46px', borderRadius: '14px', flexShrink: 0,
+                    background: parsedDateInput.selectedDate ? '#4a5d4c' : 'rgba(255,255,255,0.85)',
+                    border: parsedDateInput.selectedDate ? 'none' : '1.5px solid #c8d9c4',
+                    color: parsedDateInput.selectedDate ? '#ffffff' : '#4a5d4c',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.2s, border 0.2s',
+                    cursor: parsedDateInput.selectedDate ? 'pointer' : 'not-allowed',
+                    opacity: parsedDateInput.selectedDate ? 1 : 0.5,
+                  }}
+                >
+                  <Search size={18} strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
+
+            {/* Calendar body */}
+            <div className="px-4 py-4" style={{ background: '#f5f8f3' }}>
+              {!showMonthView ? (
+                /* Year view — month grid */
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput(String(activeYear - 1))}
+                      style={{ width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(200,217,196,0.8)', color: '#4a5d4c' }}
+                    >
+                      <ChevronLeft size={16} strokeWidth={2} />
+                    </button>
+                    <span style={{ fontSize: '17px', fontWeight: 800, color: '#2e4431', letterSpacing: '-0.02em' }}>{activeYear}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput(String(activeYear + 1))}
+                      style={{ width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(200,217,196,0.8)', color: '#4a5d4c' }}
+                    >
+                      <ChevronRight size={16} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 12 }).map((_, idx) => {
+                      const monthNum = idx + 1;
+                      const isPicked = parsedDateInput.month === monthNum;
+                      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                      const monthNamesZh = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+                      const lang = i18n.language?.split('-')[0] ?? 'en';
+                      const label = lang === 'zh' ? monthNamesZh[idx] : monthNames[idx];
+                      return (
+                        <button
+                          key={monthNum}
+                          type="button"
+                          onClick={() => setSearchInput(`${activeYear} ${monthNum}`)}
+                          style={{
+                            borderRadius: '14px',
+                            padding: '10px 6px',
+                            fontSize: '13px',
+                            fontWeight: isPicked ? 700 : 500,
+                            background: isPicked ? '#3d5244' : 'rgba(255,255,255,0.85)',
+                            border: isPicked ? 'none' : '1.5px solid rgba(200,217,196,0.7)',
+                            color: isPicked ? '#ffffff' : '#3f5142',
+                            boxShadow: isPicked ? '0 4px 12px rgba(61,82,68,0.25)' : 'none',
+                            transition: 'background 0.15s, color 0.15s',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* Month view — day grid */
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prevMonth = activeMonth! - 1;
+                        if (prevMonth < 1) {
+                          setSearchInput(`${activeYear - 1} 12`);
+                        } else {
+                          setSearchInput(`${activeYear} ${prevMonth}`);
+                        }
+                      }}
+                      style={{ width: '30px', height: '30px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(200,217,196,0.8)', color: '#4a5d4c' }}
+                    >
+                      <ChevronLeft size={15} strokeWidth={2} />
+                    </button>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#2e4431', letterSpacing: '-0.01em' }}>
+                      {format(new Date(activeYear, (activeMonth ?? 1) - 1, 1), i18n.language?.split('-')[0] === 'zh' ? 'yyyy年M月' : 'MMMM yyyy', { locale: calendarLocale })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextMonth = activeMonth! + 1;
+                        if (nextMonth > 12) {
+                          setSearchInput(`${activeYear + 1} 1`);
+                        } else {
+                          setSearchInput(`${activeYear} ${nextMonth}`);
+                        }
+                      }}
+                      style={{ width: '30px', height: '30px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(200,217,196,0.8)', color: '#4a5d4c' }}
+                    >
+                      <ChevronRight size={15} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1" style={{ marginBottom: '6px' }}>
+                    {weekdayLabels.map((label) => (
+                      <div key={label} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 700, color: 'rgba(74,93,76,0.45)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingBottom: '4px' }}>
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {monthCells.map((date) => {
+                      const inMonth = date.getMonth() + 1 === activeMonth;
+                      const count = inMonth ? getCountByDate(date) : 0;
+                      const isSelected = parsedDateInput.selectedDate ? isSameDay(date, parsedDateInput.selectedDate) : false;
+
+                      let bg = 'transparent';
+                      let textColor = inMonth ? '#2f4232' : 'rgba(100,120,100,0.25)';
+                      let borderStyle = 'none';
+                      let shadow = 'none';
+
+                      if (!inMonth) {
+                        bg = 'transparent';
+                      } else if (isSelected) {
+                        bg = '#3d5244';
+                        textColor = '#ffffff';
+                        shadow = '0 3px 10px rgba(61,82,68,0.3)';
+                      } else if (count > 5) {
+                        bg = 'rgba(111,146,115,0.55)';
+                        textColor = '#1e3422';
+                      } else if (count > 0) {
+                        bg = 'rgba(143,174,145,0.28)';
+                        borderStyle = '1.5px solid rgba(111,146,115,0.3)';
+                      } else {
+                        bg = 'rgba(255,255,255,0.7)';
+                        borderStyle = '1px solid rgba(200,217,196,0.5)';
+                      }
+
+                      return (
+                        <button
+                          key={date.toISOString()}
+                          type="button"
+                          disabled={!inMonth}
+                          onClick={() => {
+                            if (!inMonth) return;
+                            if (isSelected) {
+                              openMonthByDate(date);
+                              return;
+                            }
+                            setSearchInput(`${activeYear} ${activeMonth} ${date.getDate()}`);
+                          }}
+                          style={{
+                            height: '36px',
+                            width: '100%',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? 700 : count > 0 ? 600 : 400,
+                            background: bg,
+                            border: borderStyle,
+                            color: textColor,
+                            boxShadow: shadow,
+                            transition: 'background 0.12s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: inMonth ? 'pointer' : 'default',
+                            position: 'relative',
+                          }}
+                        >
+                          {inMonth && date.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {parsedDateInput.selectedDate && (
+                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={handleSearchSubmit}
+                        style={{
+                          width: '100%', borderRadius: '14px', padding: '11px',
+                          background: '#3d5244', color: '#ffffff',
+                          fontSize: '14px', fontWeight: 700, border: 'none',
+                          boxShadow: '0 4px 14px rgba(61,82,68,0.3)',
+                        }}
+                      >
+                        {(() => {
+                          const lang = i18n.language?.split('-')[0] ?? 'en';
+                          const d = parsedDateInput.selectedDate!;
+                          if (lang === 'zh') return `打开 ${format(d, 'M月d日')}`;
+                          if (lang === 'it') return `Apri ${format(d, 'd MMM', { locale: calendarLocale })}`;
+                          return `Open ${format(d, 'MMM d', { locale: calendarLocale })}`;
+                        })()}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Book shelf — absolutely centered on full page so header/stats don't offset it */}
       <div className="absolute inset-0 z-30 flex items-center pointer-events-none">
@@ -268,6 +736,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     setEditingIdx(null);
                     setSelectedIdx(idx);
                   } else {
+                    setViewerFlippedCount(undefined);
                     setOpenMonth(m);
                   }
                 }}

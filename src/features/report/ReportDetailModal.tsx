@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
@@ -188,11 +188,13 @@ function NavBar({
   onLeft,
   onRight,
   rightDisabled,
+  onClose,
 }: {
   title: string;
   onLeft: () => void;
   onRight: () => void;
   rightDisabled: boolean;
+  onClose: () => void;
 }) {
   return (
     <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
@@ -200,9 +202,15 @@ function NavBar({
         <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
       </button>
       <h2 className="text-2xl font-bold" style={{ color: '#1A1A1A' }}>{title}</h2>
-      <button className="p-1" onClick={onRight} disabled={rightDisabled} style={{ opacity: rightDisabled ? 0.35 : 1 }}>
-        <ChevronRight size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
-      </button>
+      {rightDisabled ? (
+        <button className="p-1" onClick={onClose}>
+          <X size={22} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
+        </button>
+      ) : (
+        <button className="p-1" onClick={onRight}>
+          <ChevronRight size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
+        </button>
+      )}
     </div>
   );
 }
@@ -575,7 +583,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         style={{ scrollSnapType: 'x mandatory' }}
       >
           <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
+            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} onClose={onClose} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <DateHeader date={dateLabel} />
@@ -649,7 +657,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           </div>
 
           <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} />
+            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} onClose={onClose} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <DateHeader date={dateLabel} />

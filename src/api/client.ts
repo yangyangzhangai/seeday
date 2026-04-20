@@ -30,7 +30,9 @@ import type {
   AnnotationResponse,
 } from '../types/annotation';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE
+  ? `${(import.meta.env.VITE_API_BASE as string).replace(/\/$/, '')}/api`
+  : '/api';
 
 interface ApiErrorShape {
   error?: string;

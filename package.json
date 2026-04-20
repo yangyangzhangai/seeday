@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:vite": "vite",
     "build": "vite build",
-    "build:ios": "cross-env VITE_PAYMENT_MODE=iap vite build",
+    "build:ios": "cross-env VITE_PAYMENT_MODE=iap VITE_API_BASE=https://tshine2-13-new.vercel.app vite build",
     "build:web": "cross-env VITE_PAYMENT_MODE=stripe vite build",
     "preview": "vite preview",
     "lint:max-lines": "node ./scripts/check-max-lines.mjs",

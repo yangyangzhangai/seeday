@@ -126,8 +126,6 @@ export const DayEcoSphere: React.FC = () => {
     return normalizeChartPercents(items);
   }, [activityRaw, t]);
 
-  const isNight = new Date().getHours() >= 20;
-
   return (
     <div className="pointer-events-none">
       <div ref={containerRef} className="pointer-events-auto relative overflow-hidden" style={{ height: 190 }}>
@@ -149,13 +147,6 @@ export const DayEcoSphere: React.FC = () => {
           />
         </div>
       </div>
-
-      {isNight && (
-        <p className="pointer-events-none text-center px-6 pb-1 text-xs"
-          style={{ color: 'rgba(245,235,210,0.75)' }}>
-          {t('eco_sphere_night_hint')}
-        </p>
-      )}
     </div>
   );
 };

@@ -4,6 +4,175 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-20 - Fix: i18n locale 文件行数超限导致 pre-commit 失败
+
+### Changed
+
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 对三份 locale 词条文件做无语义结构压缩：移除空行，保持 key/value 不变。
+  - 行数降至 max-lines 硬阈值（1000 行）以内，解除 pre-commit 阻断。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 max-lines 修复。
+
+### Validation
+
+- `npm run lint:max-lines` ✅
+
+## 2026-04-20 - Fix: useReminderSystem 返回契约对齐（正修复）
+
+### Changed
+
+- `src/hooks/useReminderSystem.ts`
+  - 增加 `UseReminderSystemResult` 显式返回类型，明确要求返回 `confirmReminderFromPopup`。
+  - `useReminderSystem` 函数签名收口为稳定返回对象，避免调用方与 hook 合约漂移。
+- `src/App.tsx`
+  - 撤销临时可选链兜底，恢复标准解构调用：`const { confirmReminderFromPopup } = useReminderSystem(navigate)`。
+  - `ReminderPopup` 的确认回调恢复直接调用 `confirmReminderFromPopup`，与 hook 正式契约保持一致。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次从“兜底止血”到“契约正修复”的收口。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: `/chat` 提醒系统解构空值崩溃兜底
+
+### Changed
+
+- `src/App.tsx`
+  - `MainLayout` 中不再直接解构 `useReminderSystem(navigate)` 返回值，改为先拿 hook 返回对象，再可选读取 `confirmReminderFromPopup`。
+  - `ReminderPopup` 的 `onConfirm` 改为可选调用，避免极端异常下 `confirmReminderFromPopup` 缺失导致页面渲染直接崩溃。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 `/chat` 渲染报错兜底修复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding 测试态切换回路提示文案
+
+### Changed
+
+- `src/features/onboarding/components/StepJournal.tsx`
+  - 完成态禁用提示改为专用测试文案，不再复用 `onboarding_j3_tip_convert`（"Wrong type" 语义），避免用户误解为识别错误而非引导测试步骤。
+  - 阻断提示按状态分流：活动被转为心情时提示“切回活动继续”；独立心情被转为活动时提示“切回心情继续”。
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 新增 `onboarding_j3_tip_switch_back_event_continue` / `onboarding_j3_tip_switch_back_mood_continue` 三语文案。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次测试态提示文案更新。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding 心情转活动后的展示与下一步门控
+
+### Changed
+
+- `src/features/onboarding/components/StepJournal.tsx`
+  - 修复“独立心情卡 -> 转为活动”后卡片消失：完成态现在会继续展示该条已转为活动的卡片（复用 `EventCard`），不再出现“点完就没了”的断层。
+  - 完成态新增回路提示与门控：
+    - 首条活动被转为心情卡时，提示用户先执行 `mood_to_event`（转回活动）；
+    - 独立心情卡被转为活动时，提示用户先执行 `event_to_mood`（转回心情）；
+    - 未恢复到引导目标形态前，底部“下一步”按钮禁用。
+  - 保持真实业务按钮可点（可正向/反向转换），但引导流程在状态未回到目标前不允许继续，避免用户跳过关键教学。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Onboarding 转换回路与下一步门控修复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding 关联心情状态提示与按钮说明联动稳定
+
+### Changed
+
+- `src/features/onboarding/components/StepJournal.tsx`
+  - 完成态中的关联心情提示不再仅依赖本地 `moodMessageId`，改为优先从活动卡 `moodDescriptions` 推导 linked 状态，并在缺失时自动回填当前心情消息 ID。
+  - 关联态下稳定展示“linked 状态 + 拆分按钮说明”；拆分为独立心情卡后自动切换为“回归活动 / 转为活动”双按钮说明；回归后自动恢复 linked 提示。
+  - 独立心情卡预览改为跟随统一 `previewMoodMessage`，确保引导页展示逻辑与真实业务状态一致。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Onboarding Journal 状态提示联动修复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding Journal 完成态文案避免过早“all set”
+
+### Changed
+
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 调整 `onboarding_j3_complete_title` 与 `onboarding_j3_complete_desc` 三语文案，语气从“已完成”改为“继续体验当前步骤”，避免用户在 Onboarding 未结束时被误导为流程已全部完成。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Onboarding 文案语义修正。
+
+### Validation
+
+- 文案 key 仍复用原有 i18n 键，无新增键。
+
+## 2026-04-20 - Fix: Onboarding 首条活动卡片接入真实按钮交互
+
+### Changed
+
+- `src/features/onboarding/components/StepJournal.tsx`
+  - 首条活动发送后改为立即写入 `useChatStore.sendMessage()` 并记录消息 ID，预览区不再使用静态拟态卡片，改为直接渲染真实 `EventCard/MoodCard`。
+  - 卡片内相机上传与活动→心情转换按钮改为默认常显且可点击，复用聊天时间线同一套业务逻辑（图片上传、`reclassifyRecentInput`、心情卡回转等）。
+  - 新增绿色时长说明行，放在按钮说明区上方，复用现有 i18n key `elapsed_label` 表达“该数字为持续时长”。
+  - 心情引导阶段改为实时写入 `sendMood` 并展示两种形态：活动下关联心情 + 独立心情卡；可在引导页直接尝试「提出为独立」「回归活动」「转为活动」。
+  - 活动转换成心情卡后，说明文案改为专门解释心情卡右上角按钮（`mood_return_event` / `mood_to_event`），并同步替换完成态副标题，避免继续显示活动卡文案。
+  - 活动阶段说明文案补齐：覆盖时长含义、结束按钮（手动结束 + 下一条活动自动结束）、照片记录（卡片节选显示 + 点击查看原图）与“转为心情模式不计时”的使用语义。
+  - 活动卡心情标签改为可点击打开真实 MoodPicker（预置 + 自定义），并补充对应引导文案。
+  - 引导说明继续降噪：将“自动结束 + 手动结束”合并到时长单行，将“心情模式不计时”并入“转为心情”说明，移除照片裁切说明行。
+  - 时长说明行新增内嵌“结束按钮”示意，明确“点击哪个按钮手动结束”；并细化“心情模式”与“活动心情标签”的文案边界。
+  - Onboarding 中首条活动转心情后收口为单一回转路径：隐藏 `mood_return_event`，仅保留 `mood_to_event`，避免“无上一个活动却可回归”的误导。
+  - 完成态“Linked mood”区域移除解释文案，仅保留标签，降低信息密度。
+  - 完成态进一步移除“Linked mood”标签本身，避免无效信息占位。
+  - Onboarding 中彻底移除 `mood_return_event` 交互分支（含文案与 handler），确保首条活动转心情后只保留 `mood_to_event`。
+  - Onboarding 中点击删除按钮不再执行删除：统一改为提示“当前步骤不可删除引导示例记录”。
+  - Onboarding 完成态新增 linked 状态联动说明：关联心情态展示拆分按钮说明；拆分为独立心情卡后展示回归/转活动按钮说明，并随状态实时切换。
+- `src/features/chat/components/EventCard.tsx`
+- `src/features/chat/components/MoodCard.tsx`
+  - 新增 `alwaysShowActions` 可选参数，允许在特定页面（Onboarding）默认展示操作按钮，同时不影响聊天主时间线原有“点击卡片后展示”的行为。
+  - `MoodCard` 新增 `allowReturnToEvent` 可选参数；无可回归活动时可隐藏回归按钮，避免无效操作入口。
+- `src/features/chat/ChatPage.tsx`
+- `src/features/onboarding/components/StepJournal.tsx`
+  - MoodPicker 交互与选中态修正：切换到自定义时改为仅高亮自定义；自定义输入默认空白（若已有自定义则回填已有值），避免出现“自定义 + 预置心情”双高亮与手动删默认词的问题。
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 新增 onboarding J3 说明 key（时长/结束/照片/转心情/心情模式/心情卡按钮解释/心情标签交互）并同步三语。
+  - 新增 `onboarding_j3_delete_blocked` 三语提示文案。
+  - 新增 `onboarding_j3_tip_mood_detach_prefix/suffix` 三语文案，解释从关联心情拆分为独立心情卡的入口按钮。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Onboarding Journal 卡片交互改造与时长说明补充。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-20 - Feat: 日记书架新增数字日期搜索与同步日历
+
+### Changed
+
+- `src/features/report/DiaryBookShelf.tsx`
+  - 在日记书架页头新增圆形搜索按钮，点击后弹出日期搜索层，输入框预设 `YYYY MM DD` 以明确“按日期搜索”的交互语义。
+  - 新增纯数字日期解析器，支持用户输入 `6/06`、`1/01`、`20260610`、`2026 6 10` 等混合形式，自动归一化识别年/月/日并与日历视图实时同步。
+  - 搜索层增加“年 -> 月 -> 日”联动视图：仅输入年份显示全年月份；补充月份后切换月历；补充日后自动选中对应日期。
+  - 月历日期格增加记录密度分层样式：0 条为空心、1-5 条浅色填充、5 条以上深色填充；已选日期保留清晰外圈选中态。
+  - 点击已选日期（或输入完整日期按回车/搜索）可直接打开对应月份与当日书页，保持与既有翻页链路兼容。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-20 - Fix: Onboarding 语言首步改为系统自动检测（无强制确认）
 
 ### Changed
