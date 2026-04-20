@@ -126,7 +126,7 @@ function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[
     const [hh, mm] = hhmm.split(':').map(Number);
     const t = new Date();
     t.setHours(hh, mm, 0, 0);
-    if (t > new Date()) entries.push({ type, triggerTime: t });
+    entries.push({ type, triggerTime: t });
   };
 
   const day = new Date().getDay();
@@ -163,6 +163,7 @@ export function useReminderSystem(navigate: (path: string) => void) {
   const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
   const reports = useReportStore((s) => s.reports);
+  const shownPopupKeysRef = useRef<Set<string>>(new Set());
 
   // Keep navigateRef current so the stable listener closure can always call latest navigate
   useEffect(() => { navigateRef.current = navigate; }, [navigate]);
@@ -312,10 +313,34 @@ export function useReminderSystem(navigate: (path: string) => void) {
 
     const schedule = buildFrontendCheckSchedule(manual);
     const now = Date.now();
+    const POPUP_GRACE_MS = 90 * 1000;
+    const todayDateKey = new Date().toISOString().slice(0, 10);
+
+    const triggerPopupOnce = (type: ReminderType) => {
+      const dedupeKey = `${todayDateKey}:${type}`;
+      if (shownPopupKeysRef.current.has(dedupeKey)) return;
+      if (shouldSkipReminder(type)) return;
+      shownPopupKeysRef.current.add(dedupeKey);
+      showPopup(type);
+    };
 
     for (const entry of schedule) {
       const delay = entry.triggerTime.getTime() - now;
-      if (delay <= 0) continue;
+      if (delay <= 0) {
+        // 刚过点（如秒级误差）时立刻补弹一次，避免错过提醒
+        // evening_check 需额外检查植物/日记是否已生成
+        if (
+          (entry.type === 'evening_check' || entry.type === 'weekend_evening_check')
+          && isPlantDoneToday(todayPlant)
+          && isDiaryDoneToday(reports)
+        ) {
+          continue;
+        }
+        if (Math.abs(delay) <= POPUP_GRACE_MS) {
+          triggerPopupOnce(entry.type);
+        }
+        continue;
+      }
 
       const timer = setTimeout(() => {
         // evening_check 需额外检查植物/日记是否已生成
@@ -326,9 +351,7 @@ export function useReminderSystem(navigate: (path: string) => void) {
         ) {
           return;
         }
-        if (!shouldSkipReminder(entry.type)) {
-          showPopup(entry.type);
-        }
+        triggerPopupOnce(entry.type);
       }, delay);
 
       timersRef.current.push(timer);
