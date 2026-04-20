@@ -4,6 +4,221 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-20 - Fix: Onboarding 全链路文案三语化 + 情绪输入可编辑
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 新增引导首屏语言选择（`zh/en/it`），进入后续步骤前写入 `updateLanguagePreference`，确保后续引导实时使用目标语言。
+  - 流程升级为 8 步：`Language -> Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`；已登录用户在语言页后自动跳过 Auth。
+  - 首条记录页新增独立可编辑心情输入框，支持“活动 + 心情”联合提交；修复此前“心情看得到但无法输入”的交互断层。
+  - Auth 页核心文案与占位文案改为 i18n key（登录/注册态文案、协议提示、占位符、切换按钮），移除硬编码中文。
+- `src/features/onboarding/OnboardingStepRoutine.tsx`
+  - 作息页标题、分组、身份标签、时段字段、通知文案、TimePicker 按钮与保存状态全部 i18n 化，三语一致。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 待办页标题/字段/提示/CTA 全量接入 i18n，CTA 收口为“下一步”以匹配新增瓶子步骤后的真实流程。
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 补齐 onboarding 新增 key（语言页、Journal 心情输入、Routine 分组、TimePicker 操作、Auth 协议与占位符等），并统一润色为更自然语气。
+  - 补齐缺失 key：`plant_generate_try_after_20`（zh/it），对齐 `TranslationKeys`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-20 - Fix: Onboarding 心情输入可编辑 + 首屏语言选择 + 待办 CTA 收口
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 引导总步数由 7 调整为 8，新增首屏语言选择步骤（`zh/en/it`）并在进入后续步骤前调用 `updateLanguagePreference`。
+  - 流程顺序调整为：`Language -> Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`；已登录用户在语言选择后自动跳过 Auth。
+  - 修复首条记录页心情输入不可用：新增可点击心情输入框，并支持仅心情发送或“活动 + 心情”联合写入（`sendMessage` + `sendMood`）。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 待办页 CTA 由“全部计划完毕”改为通用“下一步”，避免和后续步骤语义冲突。
+  - 待办页标题、字段标签与提示改为使用现有 i18n key（`onboarding2_* / growth_* / onboarding_*`），移除硬编码推荐语句区块。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-20 - Feat: Onboarding 新增目标/习惯瓶子步骤并调整顺序
+
+### Added
+
+- `src/features/onboarding/components/StepBottle.tsx`
+  - 新增引导步骤：支持输入瓶子名称、选择 `habit/goal`、本地预览列表与删除，至少添加一条后可进入下一步。
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - Onboarding 总步数由 6 调整为 7，并将流程顺序调整为：`Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`。
+  - 新增 `handleBottleNext()`：将 StepBottle 草稿写入 `useGrowthStore.addBottle()`，确保进入 App 后 Growth 页可直接看到已创建瓶子。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding 活动/待办录入改为直接同步到 App Store
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - StepJournal 发送首条记录时改为调用 `useChatStore.sendMessage()`（跳过批注），不再写入临时 `localStorage.at_activities`。
+  - 新增 `handleTodoNext()`：将引导页待办草稿批量写入 `useTodoStore.addTodo()`，并按表单时间生成 `dueAt`，支持 `repeat -> recurrence(daily/once)` 映射。
+  - Step 5 接线改为 `StepTodo onNext={handleTodoNext}`，确保“继续”后待办进入 Growth 正式数据流。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - `onNext` 回调签名改为携带草稿数组；移除 `localStorage.at_todos` 旁路存储，避免引导数据停留在孤立缓存。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding AI 选择扩展到 4 个人设
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - StepAI 从固定展示 2 张卡片改为基于 `AI_COMPANION_ORDER` 渲染 4 张可选卡（`Van/Agnes/Zep/Momo`），并复用头像资源与人设文案 key。
+  - 新增 onboarding 内部选中态；点击卡片可切换目标人设，继续按钮写入 `preferences.aiMode=<selectedMode>`，不再固定落 `van`。
+  - 保留 `aiModeEnabled: true` 的引导完成行为不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Dev: Onboarding 强制预览开关（便于 UI 测试）
+
+### Changed
+
+- `src/App.tsx`
+  - 新增 onboarding 预览开关：`/onboarding?forceOnboarding=1` 或构建时 `VITE_FORCE_ONBOARDING=1` 时，老账号也可进入引导流进行测试。
+- `.env.example`
+  - 增加 `VITE_FORCE_ONBOARDING` 说明与默认值。
+
+### Validation
+
+- `npx.cmd tsc --noEmit` ✅
+
+## 2026-04-19 - Feat: Stripe Web Checkout 首版闭环（不影响 iOS IAP 构建）
+
+### Changed
+
+- `api/subscription.ts`
+  - 保持单函数入口不新增 `api/*.ts` 文件，在现有 `/api/subscription` 中新增 `source='stripe'` 的 `stripe_checkout`/`stripe_finalize` 分支。
+  - `stripe_checkout` 按月/年价格 ID 创建 Stripe Checkout Session 并返回 `checkoutUrl`；`stripe_finalize` 按回跳 `stripe_session_id` 校验订阅并写回 `membership_*` metadata。
+- `src/server/stripe-subscription.ts`（新增）
+  - 新增 Stripe Server API 调用与会话/订阅校验 helper（create checkout session + verify checkout session/subscription）。
+- `src/services/payment/stripe/index.ts`
+  - 由占位返回改为真实 Web 支付链路：调用 `/api/subscription` 创建 checkout，跳转 Stripe 托管收银台，回跳后读取 `stripe_session_id` 并 finalize。
+- `src/services/payment/iap/index.ts` + `src/types/payment.d.ts` + `src/features/profile/UpgradePage.tsx` + `src/features/profile/components/MembershipCard.tsx`
+  - 支付适配层新增“待 finalize session”统一签名；升级页支持 Stripe 回跳自动 finalize；Profile 卡片点击升级时兼容 Stripe 跳转态。
+- `src/api/client.ts` + `src/api/README.md` + `api/README.md` + `.env.example`
+  - 前端 API 新增 `callStripeCheckoutAPI/callStripeFinalizeAPI`；文档与环境变量补齐 `STRIPE_SECRET_KEY`、`STRIPE_PRICE_MONTHLY`、`STRIPE_PRICE_ANNUAL`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Fix: 日记本饼图改为复用日报快照口径
+
+### Changed
+
+- `src/features/report/DiaryBookViewer.tsx`
+  - 活动/心情饼图改为优先使用 `report.stats.actionAnalysis` 与 `report.stats.moodDistribution`，确保与白天报告页圆环一致，不再依赖临时消息缓存重算。
+  - 仅在历史报告缺少 stats 快照时，才回退到消息侧重算。
+  - 回退路径补齐 `customMoodLabel/customMoodApplied` 处理，避免自定义心情被漏算。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Fix: 日报心情圆环与报告生成口径对齐
+
+### Changed
+
+- `src/features/report/reportPageHelpers.ts`
+  - `getDailyMoodDistribution()` 入参从仅 `activityMood` 扩展为完整 mood 快照（`activityMood/customMoodLabel/customMoodApplied`），与 `reportHelpers.computeMoodDistribution()` 保持一致。
+  - 新增 custom label 生效逻辑，并过滤 0 分钟心情项，修复心情圆环偶发漏计/被单一心情占满的问题。
+- `src/features/report/ReportDetailModal.tsx`
+  - 心情分布计算改为传入完整 mood 快照，避免“活动正确但心情少算”。
+- `src/features/report/ReportPage.tsx`
+  - 同步更新 `getDailyMoodDistribution()` 调用签名，确保列表页与详情页口径一致。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Feat: Onboarding 接入待办引导页 UI
+
+### Added
+
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 按设计稿新增待办引导页：支持待办标题输入、执行时间、是否重复、紧急程度、推荐待办快捷填充、列表展示与删除。
+  - 新增入门待办本地落盘：写入 `localStorage.at_todos`，字段与页面展示保持一致。
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - Onboarding 总步数由 5 步扩展为 6 步，并将待办引导页作为第 3 步插入流程。
+  - 原有日程/作息/完成步骤后移，保持保存资料与完成引导逻辑不变。
+  - 重写首条记录引导页（StepJournal）：替换为拟物录入卡样式、AI 感应提示、发送中状态，并改为写入 `localStorage.at_activities` 后延迟 1.2s 进入下一步。
+  - 重写注册引导页（StepAuth）：替换为新稿视觉与交互（手机号/邮箱单输入、Apple/Google 按钮、协议提示、输入非空可继续）。
+- `src/features/onboarding/OnboardingStepRoutine.tsx`
+  - 重写作息设置页 UI：接入滚轮时间选择器（小时/分钟）、状态切换（自由/工作/学生）、条件化办公/课程时间块与提醒开关。
+  - 保存按钮文案与样式对齐新稿（`保存并继续`），并保留保存中禁用态。
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 对齐新作息结构：`RoutineState` 收敛为 `classStart/classEnd` 与 `remindMe`，并将 `remindMe` 写入 `manual.reminderEnabled`。
+  - `classSchedule` 写回策略调整为基于 `classStart/classEnd` 生成 morning 段，移除旧多时段输入依赖。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-19 - Feat: 活动识别补强“动词+对象”覆盖（zh/en/it）
+
+### Changed
+
+- `src/services/input/lexicon/activityLexicon.zh.ts`
+  - 扩充活动动词：新增运营/财务相关动词（如 `修改/核对/校对/复核/对账/付款/支付/缴费`）并补充单字动作 `付/核`，让“动词+对象”路径优先命中常见输入。
+- `src/services/input/liveInputRules.zh.ts`
+  - 扩充对象词：新增 `账目/账务/流水/支付记录/付款单/款项/费用/金额/账户/账号`，提升“修改/核对/支付 + 对象”组合识别率。
+- `src/services/input/liveInputRules.en.ts`
+  - 新增英文短语壳规则：支持 `modify|verify|reconcile|pay|submit + object` 的短句识别（如 `verify invoice`、`make payment` 同类输入）。
+- `src/services/input/liveInputRules.it.ts`
+  - 新增意大利语短语壳规则：支持 `modificare|verificare|riconciliare|pagare + object` 的短句识别（如 `verificare fattura`）。
+- `src/services/input/signals/latinSignalExtractor.ts`
+  - 扩充意大利语语言信号词，补足支付/核对相关 token 的语言识别稳定性。
+- `src/services/input/liveInputClassifier.test.ts`
+  - 新增中文“动词+对象”回归用例（`修改订单`、`支付账单`、`核对账单`）。
+- `src/services/input/liveInputClassifier.i18n.test.ts`
+  - 新增 EN/IT 运营财务短语回归用例（`make payment`、`verify invoice`、`fare pagamento`、`verificare fattura`）。
+
+### Validation
+
+- `npm run test:unit -- src/services/input/liveInputClassifier.test.ts src/services/input/liveInputClassifier.i18n.test.ts` ✅
+
+## 2026-04-19 - Fix: iOS 聊天输入框跟随键盘上移
+
+### Changed
+
+- `src/features/chat/ChatInputBar.tsx`
+  - 底部固定容器由 `bottom: 0` 调整为 `bottom: var(--keyboard-height, 0px)`，并增加 `bottom` 过渡，确保 iOS 键盘弹出时输入栏随键盘同步上移，不再被遮挡。
+  - 聊天页内底部导航容器新增 `chat-input-bottom-nav` 标记，配合 `keyboard-open` 状态在键盘弹起时自动隐藏，减少输入期误触与遮挡。
+- `src/services/native/keyboardService.ts`
+  - 初始化键盘修复时显式重置 `keyboard-open` class 与 `--keyboard-height` 为 0，避免热重载或异常中断后残留偏移。
+- `src/components/layout/BottomNav.tsx`
+  - 全局底部导航容器新增 `app-bottom-nav` 标记，键盘弹起时与聊天页导航保持一致自动隐藏。
+- `src/index.css`
+  - 新增 `.app-bottom-nav/.chat-input-bottom-nav` 的键盘联动样式：`html.keyboard-open` 下透明并禁用 pointer-events，键盘收起后恢复。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-19 - Refactor: 合并 todo-decompose 到 classify 以回收 Vercel 函数配额
 
 ### Changed

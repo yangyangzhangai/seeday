@@ -197,12 +197,57 @@ interface SubscriptionResponse {
   verificationEnvironment?: 'production' | 'sandbox' | 'unknown';
 }
 
+interface StripeCheckoutResponse {
+  success: boolean;
+  checkoutUrl: string;
+}
+
 export async function callSubscriptionAPI(request: SubscriptionRequest): Promise<SubscriptionResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
     throw new Error('Unauthorized');
   }
   return postJson<SubscriptionRequest, SubscriptionResponse>('/subscription', request, { headers });
+}
+
+export async function callStripeCheckoutAPI(planType: SubscriptionPlanType): Promise<StripeCheckoutResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<
+  {
+    action: 'stripe_checkout';
+    source: 'stripe';
+    planType: SubscriptionPlanType;
+    returnPath: '/upgrade';
+  },
+  StripeCheckoutResponse
+  >('/subscription', {
+    action: 'stripe_checkout',
+    source: 'stripe',
+    planType,
+    returnPath: '/upgrade',
+  }, { headers });
+}
+
+export async function callStripeFinalizeAPI(sessionId: string): Promise<SubscriptionResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<
+  {
+    action: 'stripe_finalize';
+    source: 'stripe';
+    sessionId: string;
+  },
+  SubscriptionResponse
+  >('/subscription', {
+    action: 'stripe_finalize',
+    source: 'stripe',
+    sessionId,
+  }, { headers });
 }
 
 interface ReportRequest {

@@ -265,6 +265,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const chatMessages = useChatStore((state) => state.messages);
   const dateCache = useChatStore((state) => state.dateCache);
   const activityMood = useMoodStore((state) => state.activityMood);
+  const customMoodLabel = useMoodStore((state) => state.customMoodLabel);
+  const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [todoInsight, setTodoInsight] = useState('');
@@ -298,8 +300,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     [reportMessages, selectedReport],
   );
   const moodDistribution = useMemo(
-    () => getDailyMoodDistribution(reportMessages, activityMood, selectedReport),
-    [reportMessages, activityMood, selectedReport],
+    () => getDailyMoodDistribution(reportMessages, { activityMood, customMoodLabel, customMoodApplied }, selectedReport),
+    [reportMessages, activityMood, customMoodLabel, customMoodApplied, selectedReport],
   );
   const dayMinutes = 24 * 60;
   const todoCompleted = selectedReport?.stats?.completedTodos ?? 0;

@@ -32,7 +32,6 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
             <Brain size={36} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
             <div className="min-w-0">
               <p className="profile-fn-title">{t('profile_long_term_profile')}</p>
-              <p className="mt-0.5 text-[10px] font-light leading-tight text-slate-500">{t('profile_long_term_profile_desc')}</p>
             </div>
           </div>
         </div>

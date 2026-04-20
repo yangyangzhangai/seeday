@@ -3,7 +3,7 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { youwareVitePlugin } from '@youware/vite-plugin-react';
 
-const paymentMode = process.env.VITE_PAYMENT_MODE === 'iap' ? 'iap' : 'stripe';
+const paymentMode = process.env.VITE_PAYMENT_MODE === 'stripe' ? 'stripe' : 'iap';
 const paymentAlias = paymentMode === 'iap'
   ? path.resolve(__dirname, './src/services/payment/iap')
   : path.resolve(__dirname, './src/services/payment/stripe');

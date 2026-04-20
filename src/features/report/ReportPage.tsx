@@ -43,6 +43,8 @@ export const ReportPage = () => {
   const dateCache = useChatStore((state) => state.dateCache);
   const loadMessagesForDateRange = useChatStore((state) => state.loadMessagesForDateRange);
   const activityMood = useMoodStore((state) => state.activityMood);
+  const customMoodLabel = useMoodStore((state) => state.customMoodLabel);
+  const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
   const isPlus = useAuthStore((state) => state.isPlus);
   const user = useAuthStore((state) => state.user);
   const todayPlant = usePlantStore((state) => state.todayPlant);
@@ -82,8 +84,8 @@ export const ReportPage = () => {
   );
 
   const dailyMoodDistribution = useMemo(
-    () => getDailyMoodDistribution(reportMessages, activityMood, selectedReport),
-    [reportMessages, activityMood, selectedReport]
+    () => getDailyMoodDistribution(reportMessages, { activityMood, customMoodLabel, customMoodApplied }, selectedReport),
+    [reportMessages, activityMood, customMoodLabel, customMoodApplied, selectedReport]
   );
 
   const handleDateClick = async (value: Date) => {

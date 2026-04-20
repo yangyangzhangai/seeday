@@ -53,8 +53,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
   return (
     <div style={{
-      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+      position: 'fixed', left: '50%', transform: 'translateX(-50%)',
       width: '100%', maxWidth: 960, zIndex: 30, pointerEvents: 'none',
+      bottom: 'var(--keyboard-height, 0px)',
+      transition: 'bottom 180ms ease-out',
     }}>
       <div style={{
         background: 'linear-gradient(to top, rgba(252,250,247,0.58) 55%, rgba(252,250,247,0))',
@@ -152,7 +154,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         </div>
 
         {/* Nav bar */}
-        <div style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)', pointerEvents: 'auto' }}>
+        <div className="chat-input-bottom-nav" style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)', pointerEvents: 'auto' }}>
           <nav style={{
             width: '100%', height: 64, borderRadius: 9999,
             display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0 8px',

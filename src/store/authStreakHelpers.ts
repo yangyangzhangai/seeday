@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
 import { supabase } from '../api/supabase';
 import { isLegacyChatActivityType } from '../lib/activityType';
+import { withDbRetry } from '../lib/dbRetry';
 
 function toLocalDateStr(ts: number): string {
   const d = new Date(ts);
@@ -47,7 +48,7 @@ export async function fetchActivityStreak(userId: string, force = false): Promis
 }
 
 export async function updateLoginStreak(userId: string): Promise<void> {
-  try {
+  await withDbRetry('AuthStore:loginStreak', async () => {
     const today = toLocalDateStr(Date.now());
     const { data } = await supabase
       .from('user_stats')
@@ -58,15 +59,12 @@ export async function updateLoginStreak(userId: string): Promise<void> {
     if (data?.last_login_date === today) return;
 
     const yesterday = toLocalDateStr(Date.now() - 86_400_000);
-    const newStreak = data?.last_login_date === yesterday
-      ? (data.login_streak ?? 0) + 1
-      : 1;
+    const newStreak = data?.last_login_date === yesterday ? (data.login_streak ?? 0) + 1 : 1;
 
-    await supabase.from('user_stats').upsert(
+    const { error } = await supabase.from('user_stats').upsert(
       { user_id: userId, login_streak: newStreak, last_login_date: today, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' },
     );
-  } catch (err) {
-    if (import.meta.env.DEV) console.warn('[AuthStore] updateLoginStreak failed', err);
-  }
+    if (error) throw new Error(error.message);
+  });
 }

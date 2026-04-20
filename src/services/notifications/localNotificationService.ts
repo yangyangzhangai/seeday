@@ -3,6 +3,7 @@
  * iOS 原生本地通知服务
  * - Web 环境静默降级（不抛错）
  * - App 前台时由 ReminderPopup 组件接管，不重复推送
+ * - 通知类别不含 input 字段，长按只显示操作按钮，不弹文字输入框
  */
 
 import type { ReminderType } from '../reminder/reminderTypes';
@@ -62,7 +63,11 @@ async function ensureNotificationPermission(): Promise<boolean> {
   }
 }
 
-/** App 启动时调用一次，注册 iOS 可操作通知类别 */
+/**
+ * App 启动时调用一次，注册 iOS 可操作通知类别。
+ * 必须在 scheduleRemindersForToday 之前 await 完成，避免 actionTypeId 引用未注册类别。
+ * 所有 actions 不含 input:true，长按不会出现文字输入框。
+ */
 export async function registerNotificationCategories(): Promise<void> {
   if (actionTypesRegistered) return;
   if (actionTypesRegisterPromise) return actionTypesRegisterPromise;
@@ -186,7 +191,7 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
           id: payload.id,
           title: payload.title,
           body: payload.body,
-          schedule: { at: payload.at },
+          schedule: { at: payload.at, allowWhileIdle: true },
           actionTypeId: payload.actionTypeId,
           extra: payload.extra,
         },
@@ -221,7 +226,7 @@ export async function scheduleBatchNotifications(
         id: p.id,
         title: p.title,
         body: p.body,
-        schedule: { at: p.at },
+        schedule: { at: p.at, allowWhileIdle: true },
         actionTypeId: p.actionTypeId,
         extra: p.extra,
       })),
@@ -249,7 +254,7 @@ export async function cancelNotifications(ids: number[]): Promise<void> {
   }
 }
 
-/** 取消所有本地通知 */
+/** 取消除 idle_nudge 之外的所有本地通知 */
 export async function cancelAllNotifications(): Promise<void> {
   const pluginRef = await getPlugin();
   if (!pluginRef) return;
@@ -257,11 +262,12 @@ export async function cancelAllNotifications(): Promise<void> {
 
   try {
     const { notifications } = await plugin.getPending();
-    if (notifications.length > 0) {
-      await plugin.cancel({ notifications: notifications.map((n) => ({ id: n.id })) });
+    const toCancel = notifications.filter((n) => n.id !== IDLE_NUDGE_ID);
+    if (toCancel.length > 0) {
+      await plugin.cancel({ notifications: toCancel.map((n) => ({ id: n.id })) });
     }
-  } catch {
-    // 静默失败
+  } catch (error) {
+    logReminderError('cancelAllNotifications failed', error);
   }
 }
 
@@ -323,6 +329,7 @@ export async function cancelIdleNudge(): Promise<void> {
 
 /** 注册通知动作回调（App 启动时执行一次） */
 export async function setupNotificationActionListener(handlers: {
+  onTap?: (reminderType: ReminderType) => void;
   onConfirm?: (reminderType: ReminderType) => void;
   onDeny?: (reminderType: ReminderType, activityType?: string) => void;
   onViewReport?: () => void;
@@ -346,6 +353,7 @@ export async function setupNotificationActionListener(handlers: {
       };
       const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
 
+      if (actionId === 'tap') handlers.onTap?.(reminderType);
       if (actionId === 'confirm') handlers.onConfirm?.(reminderType);
       if (actionId === 'deny') handlers.onDeny?.(reminderType, extra.activityType);
       if (actionId === 'view_report') handlers.onViewReport?.();

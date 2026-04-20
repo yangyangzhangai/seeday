@@ -555,6 +555,18 @@ describe('classifyLiveInput IT Phase 1 — verb forms and go+place', () => {
 });
 
 describe('classifyLiveInput operational lexicon additions (en/it)', () => {
+  it('classifies English ops phrase: make payment', () => {
+    const result = classify('make payment');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies English ops phrase: verify invoice', () => {
+    const result = classify('verify invoice');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
   it('classifies English operational work phrase: query logs', () => {
     const result = classify('query logs');
     expect(result.kind).toBe('activity');
@@ -575,6 +587,18 @@ describe('classifyLiveInput operational lexicon additions (en/it)', () => {
 
   it('classifies Italian operational work phrase: cercare log', () => {
     const result = classify('cercare log');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian ops phrase: fare pagamento', () => {
+    const result = classify('fare pagamento');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies Italian ops phrase: verificare fattura', () => {
+    const result = classify('verificare fattura');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
   });

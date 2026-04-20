@@ -40,7 +40,9 @@ function isPlantDoneToday(todayPlant: { date: string } | null): boolean {
   return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
 }
 
-function isDiaryDoneToday(reports: { type: string; date: string; aiAnalysis?: string | null }[]): boolean {
+function isDiaryDoneToday(
+  reports: Array<{ type: string; date: number | string; aiAnalysis?: string | null }>,
+): boolean {
   const now = new Date();
   return reports.some(
     (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
@@ -308,6 +310,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   const user = useAuthStore((s) => s.user);
   const preferences = useAuthStore((s) => s.preferences);
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
+  const metadataCountryCode = useAuthStore((s) => s.user?.user_metadata?.country_code);
   const { showPopup, shouldSkipReminder } = useReminderStore();
   const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
@@ -396,14 +399,25 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     void useTimingStore.getState().loadToday(user.id);
   }, [user?.id]);
 
-  // ── 注册通知类别（一次） ──
-  useEffect(() => {
-    void registerNotificationCategories();
-  }, []);
-
-  // ── 注册通知动作回调（一次） ──
+  // ── 注册通知点击回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
+      onTap: (type) => {
+        // 用户点击系统通知横幅 → 进入聊天
+        navigateRef.current('/chat');
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const timing = useTimingStore.getState();
+            if (action.kind === 'start') {
+              void timing.start(userId, action.type, 'reminder_popup_input');
+            } else {
+              void timing.endActive(userId);
+            }
+          }
+        }
+      },
       onConfirm: (type) => {
         enqueuePendingReminderConfirm(type, Date.now());
         void flushPendingReminderConfirms();
@@ -456,7 +470,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     };
   }, [flushPendingReminderConfirms, reminderManual, preferences.aiMode, scheduleTodayNativeReminders]);
 
-  // ── 调度原生通知（今日队列） ──
+  // ── 注册通知类别 + 调度原生通知（串行，类别必须先注册完才能调度）──
   useEffect(() => {
     if (!reminderManual) return;
     let cancelled = false;

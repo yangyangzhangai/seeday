@@ -1,9 +1,21 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-19
+Last Updated: 2026-04-20
 Owner: current working session
 
 ---
+
+## 会话更新（2026-04-20）
+
+- [x] Onboarding 文案与语言链路重构：首屏强制语言选择（zh/en/it），并将 Auth / Journal / Todo / Routine 关键文案全面接入 i18n 三语 key，去除硬编码中文与语义错位 CTA。
+- [x] 修复 Onboarding「心情输入不可编辑」：首条记录页新增独立心情输入框，支持“仅心情”或“活动+心情”双轨写入时间流。
+- [x] Onboarding 新增首屏语言选择（zh/en/it）：流程调整为先选语言，再进入后续引导；已登录用户跳过登录步直接进入 AI 选择。
+- [x] 修复 Onboarding「心情输入无法点击」：首条记录页增加可编辑心情输入栏，支持“仅心情”或“活动+心情”共同写入聊天时间线。
+- [x] 修正 Onboarding 待办页 CTA 语义错位：按钮文案改为通用“下一步”，移除“全部计划完毕”误导文案，并接入现有 i18n key。
+- [x] Onboarding 新增「目标/习惯瓶子」引导页：放在待办之后、作息之前，支持先创建瓶子并同步写入 Growth store。
+- [x] 修复 Onboarding 首条活动/待办不同步：引导内录入改为直接写入 `useChatStore` 与 `useTodoStore`，进入 App 后可在聊天时间线与 Growth 待办列表立即看到。
+- [x] Onboarding AI 选择页扩展为 4 个人设（Van/Agnes/Zep/Momo）：引导阶段支持直接点选并写入 `preferences.aiMode`，不再固定只落 `van`。
+- [x] 增加新手引导测试开关：访问 `/onboarding?forceOnboarding=1`（或构建时设置 `VITE_FORCE_ONBOARDING=1`）可强制预览引导页，老账号/新账号都可进入。
 
 ## 会话更新（2026-04-19）
 
@@ -18,6 +30,16 @@ Owner: current working session
 - [x] 本地通知插件环境修复：补装 `@capacitor/local-notifications` 依赖并执行 `npx cap sync ios`，确保 iOS 原生工程已链接通知插件。
 - [x] 修复 `lint:max-lines` 阻断：将 `DiaryBookViewer` 的放大查看弹层拆分到独立组件文件，主文件降至 1000 行以内（当前 907 行），功能行为不变。
 - [x] Vercel 函数配额收口（13 -> 12）：删除独立 `api/todo-decompose.ts`，将待办拆解并入 `api/classify.ts` 的 `todo_decompose` 分支，并通过 `vercel.json` rewrite 继续兼容 `/api/todo-decompose` 旧路径。
+- [x] 修复 iOS 聊天输入框被键盘遮挡：聊天底部输入容器改为跟随 `--keyboard-height` 上移，`setupKeyboardViewportFix` 初始化时重置键盘变量，确保键盘弹出时输入框同步抬升。
+- [x] iOS 键盘弹起时隐藏底部导航：全局 `BottomNav` 与聊天页内底部导航增加 `keyboard-open` 联动隐藏，避免键盘期导航挤压输入区与误触。
+- [x] 输入分类词库补强（zh/en/it）：按“动词+对象”优先扩充运营/财务高频动作（如 修改订单 / 支付账单 / 核对账单，EN/IT 对应 verify/pay/reconcile + object 短语），并补齐回归测试。
+- [x] Onboarding 新增「待办引导页」：接入同事提供的 UI 与交互（待办输入/时间/重复/紧急程度/推荐项/继续按钮），并在引导流程中插入为独立步骤。
+- [x] Onboarding 重写「首条记录引导页」：按新稿接入拟物输入卡、AI 感应提示、发送同步态与 `at_activities` 本地落盘逻辑。
+- [x] Onboarding 重写「作息设置页」：按新稿接入滚轮时间选择器、身份切换区、提醒开关与「保存并继续」交互，并将提醒开关接入 profile 保存链路。
+- [x] Onboarding 重写「注册/登录引导页」：按新稿替换首屏视觉与输入区（手机号/邮箱 + Apple/Google 入口 + 协议提示），并保持“输入后可继续”门控交互。
+- [x] 修复日报心情圆环漏计：`getDailyMoodDistribution` 对齐报告生成链路，支持 `customMoodLabel/customMoodApplied`，并过滤 0 分钟项，避免“开心+专注”被收敛成 `100% 专注`。
+- [x] 修复日记本活动/心情饼图丢失：`DiaryBookViewer` 饼图改为优先读取 `report.stats.actionAnalysis/moodDistribution` 快照（与白天环一致），仅在历史空快照时回退消息重算。
+- [x] Stripe Web 支付首版闭环：`/api/subscription` 新增 `stripe_checkout/stripe_finalize` 分支，前端 `src/services/payment/stripe/index.ts` 接入跳转 Checkout + 回跳后自动 finalize；iOS 构建仍通过 `VITE_PAYMENT_MODE=iap` 走 IAP 适配层，不打包 Stripe 实现。
 
 ---
 

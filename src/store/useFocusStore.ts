@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { withDbRetry } from '../lib/dbRetry';
 
 export interface FocusSession {
   id: string;
@@ -77,23 +78,20 @@ export const useFocusStore = create<FocusState>()(
         }));
 
         // Persist completed session to Supabase
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            await supabase.from('focus_sessions').insert([{
-              id: completed.id,
-              user_id: session.user.id,
-              todo_id: completed.todoId || null,
-              started_at: new Date(completed.startedAt).toISOString(),
-              ended_at: new Date(completed.endedAt!).toISOString(),
-              set_duration: completed.setDuration,
-              actual_duration: completed.actualDuration,
-            }]);
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[FocusStore] insert session failed', err);
-          }
-        })();
+        void withDbRetry('FocusStore', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { error } = await supabase.from('focus_sessions').insert([{
+            id: completed.id,
+            user_id: session.user.id,
+            todo_id: completed.todoId || null,
+            started_at: new Date(completed.startedAt).toISOString(),
+            ended_at: new Date(completed.endedAt!).toISOString(),
+            set_duration: completed.setDuration,
+            actual_duration: completed.actualDuration,
+          }]);
+          if (error) throw new Error(error.message);
+        });
 
         return completed;
       },
