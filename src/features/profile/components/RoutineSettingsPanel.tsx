@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Clock3, X, ChevronDown, Bell } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { checkNotificationPermission, requestNotificationPermission } from '../../../services/notifications/localNotificationService';
 import { useAuthStore } from '../../../store/useAuthStore';
 import {
   buildRoutineManualPayload,
@@ -266,10 +267,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     const count = localStorage.getItem('reminder_today_count');
     if (count !== null) setTodayCount(Number(count));
     if (!Capacitor.isNativePlatform()) return;
-    import('@capacitor/local-notifications')
-      .then(({ LocalNotifications }) => LocalNotifications.checkPermissions())
-      .then((res) => setNotifPermission(res.display))
-      .catch(() => {});
+    checkNotificationPermission().then((status) => setNotifPermission(status)).catch(() => {});
   }, []);
 
   const currentSig = React.useMemo(
@@ -599,7 +597,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   </div>
                   {Capacitor.isNativePlatform() && notifPermission !== null && notifPermission !== 'granted' && (
                     <button type="button" className="text-[11px] text-blue-500 underline"
-                      onClick={() => { import('@capacitor/local-notifications').then(({ LocalNotifications }) => { void LocalNotifications.requestPermissions(); }).catch(() => {}); }}>
+                      onClick={() => { void requestNotificationPermission().then((granted) => { if (granted) setNotifPermission('granted'); }).catch(() => {}); }}>
                       去授权通知权限
                     </button>
                   )}

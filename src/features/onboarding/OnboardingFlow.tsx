@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
 import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -616,12 +617,9 @@ export const OnboardingFlow: React.FC = () => {
   const handleRoutineChange = <K extends keyof RoutineState>(key: K, val: RoutineState[K]) =>
     setRoutine((prev) => ({ ...prev, [key]: val }));
 
-  const requestNotificationPermission = async () => {
+  const handleRequestNotificationPermission = async () => {
     if (Capacitor.isNativePlatform()) {
-      try {
-        const { LocalNotifications } = await import('@capacitor/local-notifications');
-        await LocalNotifications.requestPermissions();
-      } catch { /* web fallback */ }
+      await requestNotificationPermission();
     }
   };
 
@@ -649,7 +647,7 @@ export const OnboardingFlow: React.FC = () => {
       reminderEnabled: routine.remindMe,
     };
     void updateUserProfile({ manual });
-    await requestNotificationPermission();
+    await handleRequestNotificationPermission();
     setSaving(false);
     setStep((s) => s + 1);
   };
