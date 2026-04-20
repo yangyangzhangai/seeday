@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> src/features/onboarding/OnboardingFlow.tsx -> src/features/profile/components/RoutineSettingsPanel.tsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Briefcase,
   ChevronDown,
@@ -36,6 +37,7 @@ interface Props {
 }
 
 function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   const [tempHour, setTempHour] = React.useState(value.split(':')[0]);
   const [tempMinute, setTempMinute] = React.useState(value.split(':')[1]);
@@ -116,13 +118,13 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
                   onClick={() => setIsOpen(false)}
                   className="flex-1 py-2 rounded-xl text-[9px] font-bold text-[#4a5d4c]/40 uppercase tracking-[0.2em]"
                 >
-                  取消
+                  {t('onboarding_timepicker_cancel')}
                 </button>
                 <button
                   onClick={save}
                   className="flex-1 py-2 rounded-xl bg-[#4a5d4c] text-white text-[9px] font-bold uppercase tracking-[0.2em]"
                 >
-                  确定
+                  {t('onboarding_timepicker_confirm')}
                 </button>
               </div>
             </motion.div>
@@ -134,34 +136,35 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext, saving }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex-1 flex flex-col px-8 pt-12 pb-8 overflow-y-auto no-scrollbar bg-[#f4f7f4]">
       <div className="mb-8 text-center">
-        <h2 className="text-2xl font-black text-[#4a5d4c] uppercase tracking-tighter italic">MY ROUTINE</h2>
-        <p className="text-[#4a5d4c]/50 text-sm mt-2">建立您的每日节奏，让 AI 更好地服务于您</p>
+        <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('onboarding2_routine_title')}</h2>
+        <p className="text-[#4a5d4c]/50 text-sm mt-2">{t('onboarding2_routine_desc')}</p>
       </div>
 
       <div className="space-y-8 pb-24">
         <section>
-          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">所在地区</h3>
+          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">{t('onboarding2_routine_region')}</h3>
           <div className="bg-white/60 backdrop-blur-xl border border-white p-4 rounded-[24px] shadow-sm flex items-center gap-3 focus-within:border-[#8fae91] transition-all">
             <MapPin size={18} className="text-[#4a5d4c]/30 shrink-0" />
             <input
               value={state.region}
               onChange={(e) => onChange('region', e.target.value)}
               className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold text-sm"
-              placeholder="您的居住地"
+              placeholder={t('onboarding2_routine_region_placeholder')}
             />
           </div>
         </section>
 
         <section>
-          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">当前状态</h3>
+          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">{t('onboarding2_routine_identity_title')}</h3>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'none' as const, label: '自由', icon: LayoutGrid },
-              { id: 'work' as const, label: '工作', icon: Briefcase },
-              { id: 'class' as const, label: '学生', icon: GraduationCap },
+              { id: 'none' as const, label: t('profile_schedule_identity_free'), icon: LayoutGrid },
+              { id: 'work' as const, label: t('profile_schedule_identity_work'), icon: Briefcase },
+              { id: 'class' as const, label: t('profile_schedule_identity_class'), icon: GraduationCap },
             ].map((item) => (
               <button
                 key={item.id}
@@ -179,25 +182,25 @@ export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext
         </section>
 
         <section>
-          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">基础日程</h3>
+          <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">{t('onboarding2_routine_basic_title')}</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">起床</p>
+                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_wake_time')}</p>
                 <TimePicker value={state.wakeTime} onChange={(v) => onChange('wakeTime', v)} />
               </div>
               <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">早餐</p>
+                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_breakfast')}</p>
                 <TimePicker value={state.breakfastTime} onChange={(v) => onChange('breakfastTime', v)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">午餐</p>
+                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_lunch')}</p>
                 <TimePicker value={state.lunchTime} onChange={(v) => onChange('lunchTime', v)} />
               </div>
               <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">入睡</p>
+                <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_sleep_time')}</p>
                 <TimePicker value={state.sleepTime} onChange={(v) => onChange('sleepTime', v)} />
               </div>
             </div>
@@ -212,14 +215,14 @@ export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext
               exit={{ opacity: 0, y: -10 }}
               key="work"
             >
-              <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">办公设置</h3>
+              <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">{t('profile_schedule_work_fields')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">上班</p>
+                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_work_start')}</p>
                   <TimePicker value={state.workStart} onChange={(v) => onChange('workStart', v)} />
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">下班</p>
+                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_work_end')}</p>
                   <TimePicker value={state.workEnd} onChange={(v) => onChange('workEnd', v)} />
                 </div>
               </div>
@@ -233,14 +236,14 @@ export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext
               exit={{ opacity: 0, y: -10 }}
               key="class"
             >
-              <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">课程设置</h3>
+              <h3 className="text-[10px] font-black text-[#4a5d4c] uppercase tracking-[0.2em] mb-4 px-1">{t('profile_schedule_class_fields')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">晨课开始</p>
+                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_class_morning_start')}</p>
                   <TimePicker value={state.classStart} onChange={(v) => onChange('classStart', v)} />
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">晚课结束</p>
+                  <p className="text-[10px] font-bold text-[#4a5d4c]/40 px-1 uppercase tracking-widest">{t('profile_user_profile_class_evening_end')}</p>
                   <TimePicker value={state.classEnd} onChange={(v) => onChange('classEnd', v)} />
                 </div>
               </div>
@@ -249,7 +252,7 @@ export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext
         </AnimatePresence>
 
         <div className="pt-6 border-t border-[#4a5d4c]/5 flex items-center justify-between">
-          <span className="text-[11px] font-black text-[#4a5d4c] uppercase tracking-[0.2em]">开启作息通知提醒</span>
+          <span className="text-[11px] font-black text-[#4a5d4c] uppercase tracking-[0.2em]">{t('profile_user_profile_reminder_enable')}</span>
           <button
             onClick={() => onChange('remindMe', !state.remindMe)}
             className={`w-14 h-8 rounded-full transition-colors relative ${state.remindMe ? 'bg-[#4a5d4c]' : 'bg-white/40'}`}
@@ -268,7 +271,7 @@ export const OnboardingStepRoutine: React.FC<Props> = ({ state, onChange, onNext
           disabled={saving}
           className="w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20 flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-60"
         >
-          {saving ? '保存中...' : '保存并继续'} {!saving && <ChevronRight size={20} />}
+          {saving ? t('onboarding2_routine_saving') : t('onboarding2_routine_cta')} {!saving && <ChevronRight size={20} />}
         </button>
       </div>
     </div>

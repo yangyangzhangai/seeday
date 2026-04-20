@@ -1,9 +1,21 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-19
+Last Updated: 2026-04-20
 Owner: current working session
 
 ---
+
+## 会话更新（2026-04-20）
+
+- [x] Onboarding 文案与语言链路重构：首屏强制语言选择（zh/en/it），并将 Auth / Journal / Todo / Routine 关键文案全面接入 i18n 三语 key，去除硬编码中文与语义错位 CTA。
+- [x] 修复 Onboarding「心情输入不可编辑」：首条记录页新增独立心情输入框，支持“仅心情”或“活动+心情”双轨写入时间流。
+- [x] Onboarding 新增首屏语言选择（zh/en/it）：流程调整为先选语言，再进入后续引导；已登录用户跳过登录步直接进入 AI 选择。
+- [x] 修复 Onboarding「心情输入无法点击」：首条记录页增加可编辑心情输入栏，支持“仅心情”或“活动+心情”共同写入聊天时间线。
+- [x] 修正 Onboarding 待办页 CTA 语义错位：按钮文案改为通用“下一步”，移除“全部计划完毕”误导文案，并接入现有 i18n key。
+- [x] Onboarding 新增「目标/习惯瓶子」引导页：放在待办之后、作息之前，支持先创建瓶子并同步写入 Growth store。
+- [x] 修复 Onboarding 首条活动/待办不同步：引导内录入改为直接写入 `useChatStore` 与 `useTodoStore`，进入 App 后可在聊天时间线与 Growth 待办列表立即看到。
+- [x] Onboarding AI 选择页扩展为 4 个人设（Van/Agnes/Zep/Momo）：引导阶段支持直接点选并写入 `preferences.aiMode`，不再固定只落 `van`。
+- [x] 增加新手引导测试开关：访问 `/onboarding?forceOnboarding=1`（或构建时设置 `VITE_FORCE_ONBOARDING=1`）可强制预览引导页，老账号/新账号都可进入。
 
 ## 会话更新（2026-04-19）
 
