@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 import { type MoodKey, normalizeMoodKey } from '../lib/moodOptions';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { withDbRetry } from '../lib/dbRetry';
 
 const MAX_MOOD_ENTRIES = 500;
 
@@ -190,16 +191,15 @@ async function persistMoodRow(
     source?: string;
   }
 ): Promise<void> {
-  try {
+  await withDbRetry('MoodStore', async () => {
     const session = await getSupabaseSession();
     if (!session) return;
-    await supabase.from('moods').upsert(
+    const { error } = await supabase.from('moods').upsert(
       { user_id: session.user.id, message_id: messageId, ...patch },
       { onConflict: 'user_id,message_id' }
     );
-  } catch (err) {
-    if (import.meta.env.DEV) console.warn('[MoodStore] Supabase upsert failed', err);
-  }
+    if (error) throw new Error(error.message);
+  });
 }
 
 export const useMoodStore = create<MoodState>()(

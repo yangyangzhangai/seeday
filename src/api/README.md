@@ -19,6 +19,8 @@
 - `callPlantAssetTelemetryAPI()` (records resolved plant image fallback level)
 - `callExtractProfileAPI()` (weekly report trigger; extracts `observed/dynamic/memory` profile patch, supports `lang` routing)
 - `callSubscriptionAPI()` (membership activate/restore/cancel bridge for payment adapters)
+- `callStripeCheckoutAPI()` (web stripe adapter: create checkout session URL via `/api/subscription`)
+- `callStripeFinalizeAPI()` (web stripe adapter: finalize returned checkout session and persist plus metadata)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
 
@@ -51,6 +53,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `callAnnotationAPI()` and `callDiaryAPI()` now automatically attach the current `preferences.aiMode` so annotation and diary prompts stay aligned with the selected companion persona.
 - `callDiaryAPI()` now supports `mode: 'full' | 'teaser'`; `teaser` returns low-cost copy used for Free diary blur-lock surface.
 - `callSubscriptionAPI()` posts to `/api/subscription` with auth header; iOS IAP adapter uses it to persist `membership_plan` after server-side verification.
+- Stripe web checkout now also uses `/api/subscription` in two authenticated actions: `stripe_checkout` (returns `checkoutUrl`) and `stripe_finalize` (verifies `stripe_session_id` then writes `membership_plan`).
 - Stardust creation no longer calls a dedicated emoji model endpoint; the emoji is reused from annotation content in store layer with local fallback (`✨`).
 - `callAnnotationAPI()` request context now includes `statusSummary/contextHints/frequentActivities/todayContext/characterStateText/characterStateMeta/currentDate/countryCode/holiday` plus optional `latitude/longitude` and optional env fields (`weatherContext/seasonContext/weatherAlerts`), along with suggestion-gating fields (`allowSuggestion`, `consecutiveTextCount`). `pendingTodos[*]` additionally supports `createdAt/ageDays` for stale-todo detection; response supports `suggestion` payload for actionable AI bubbles.
 - `callAnnotationAPI()` `userContext` now also supports `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), gated by `user_metadata.long_term_profile_enabled` on the client side.

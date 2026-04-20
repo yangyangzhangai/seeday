@@ -27,6 +27,7 @@ Owner: current working session
 - [x] Onboarding 重写「注册/登录引导页」：按新稿替换首屏视觉与输入区（手机号/邮箱 + Apple/Google 入口 + 协议提示），并保持“输入后可继续”门控交互。
 - [x] 修复日报心情圆环漏计：`getDailyMoodDistribution` 对齐报告生成链路，支持 `customMoodLabel/customMoodApplied`，并过滤 0 分钟项，避免“开心+专注”被收敛成 `100% 专注`。
 - [x] 修复日记本活动/心情饼图丢失：`DiaryBookViewer` 饼图改为优先读取 `report.stats.actionAnalysis/moodDistribution` 快照（与白天环一致），仅在历史空快照时回退消息重算。
+- [x] Stripe Web 支付首版闭环：`/api/subscription` 新增 `stripe_checkout/stripe_finalize` 分支，前端 `src/services/payment/stripe/index.ts` 接入跳转 Checkout + 回跳后自动 finalize；iOS 构建仍通过 `VITE_PAYMENT_MODE=iap` 走 IAP 适配层，不打包 Stripe 实现。
 
 ---
 

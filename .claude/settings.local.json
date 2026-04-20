@@ -47,7 +47,8 @@
       "Bash(open ios/App/App.xcodeproj)",
       "mcp__Claude_Preview__preview_start",
       "Bash(gh repo *)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(identify /c/Users/yangy/Desktop/Tshine2-13-mainc/Tshine2-13-mainc/public/assets/soil.png)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { withDbRetry } from '../lib/dbRetry';
 import { playSound } from '../services/sound/soundService';
 
 export type BottleType = 'habit' | 'goal';
@@ -152,40 +153,31 @@ export const useGrowthStore = create<GrowthState>()(
         };
         set((s) => ({ bottles: [...s.bottles, bottle] }));
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            const payload = toDbBottle(bottle, session.user.id);
-            const { error } = await supabase.from('bottles').insert([payload]);
-            if (error) {
-              if (!isMissingCheckinDatesColumnError(error)) throw error;
-              const fallback = await supabase.from('bottles').insert([removeCheckinDatesField(payload)]);
-              if (fallback.error) throw fallback.error;
-            }
-            set((s) => ({
-              bottles: s.bottles.map((b) =>
-                b.id === bottle.id
-                  ? { ...b, syncState: 'synced', syncError: null }
-                  : b
-              ),
-            }));
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] insert bottle failed', err);
-            set((s) => ({
-              bottles: s.bottles.map((b) =>
-                b.id === bottle.id
-                  ? {
-                    ...b,
-                    syncState: 'failed',
-                    syncError: err instanceof Error ? err.message : 'growth_sync_failed',
-                  }
-                  : b
-              ),
-              lastSyncError: err instanceof Error ? err.message : 'growth_sync_failed',
-            }));
+        void withDbRetry('GrowthStore:addBottle', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const payload = toDbBottle(bottle, session.user.id);
+          const { error } = await supabase.from('bottles').insert([payload]);
+          if (error) {
+            if (!isMissingCheckinDatesColumnError(error)) throw error;
+            const fallback = await supabase.from('bottles').insert([removeCheckinDatesField(payload)]);
+            if (fallback.error) throw fallback.error;
           }
-        })();
+          set((s) => ({
+            bottles: s.bottles.map((b) =>
+              b.id === bottle.id ? { ...b, syncState: 'synced', syncError: null } : b
+            ),
+          }));
+        }).catch((err: unknown) => {
+          set((s) => ({
+            bottles: s.bottles.map((b) =>
+              b.id === bottle.id
+                ? { ...b, syncState: 'failed', syncError: err instanceof Error ? err.message : 'growth_sync_failed' }
+                : b
+            ),
+            lastSyncError: err instanceof Error ? err.message : 'growth_sync_failed',
+          }));
+        });
 
         return bottle;
       },
@@ -193,20 +185,16 @@ export const useGrowthStore = create<GrowthState>()(
       removeBottle: (id) => {
         set((s) => ({ bottles: s.bottles.filter((b) => b.id !== id) }));
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            // 软删除：UPDATE deleted_at，保留云端记录用于多设备同步
-            await supabase
-              .from('bottles')
-              .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-              .eq('id', id)
-              .eq('user_id', session.user.id);
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] delete bottle failed', err);
-          }
-        })();
+        void withDbRetry('GrowthStore:removeBottle', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { error } = await supabase
+            .from('bottles')
+            .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', session.user.id);
+          if (error) throw new Error(error.message);
+        });
       },
 
       incrementBottleStar: (id) => {
@@ -232,36 +220,24 @@ export const useGrowthStore = create<GrowthState>()(
         }));
         if (willAchieve) setTimeout(() => playSound('ding'), 400);
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            const updated = get().bottles.find(b => b.id === id);
-            if (!updated) return;
-            const payload = {
-              stars: updated.stars,
-              status: updated.status,
-              bottle_checkin_dates: normalizeCheckinDates(updated.checkinDates),
-              updated_at: new Date().toISOString(),
-            };
-            const { error } = await supabase
-              .from('bottles')
-              .update(payload)
-              .eq('id', id)
-              .eq('user_id', session.user.id);
-            if (error) {
-              if (!isMissingCheckinDatesColumnError(error)) throw error;
-              const fallback = await supabase
-                .from('bottles')
-                .update(removeCheckinDatesField(payload))
-                .eq('id', id)
-                .eq('user_id', session.user.id);
-              if (fallback.error) throw fallback.error;
-            }
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] update stars failed', err);
+        void withDbRetry('GrowthStore:incrementStars', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const updated = get().bottles.find(b => b.id === id);
+          if (!updated) return;
+          const payload = {
+            stars: updated.stars,
+            status: updated.status,
+            bottle_checkin_dates: normalizeCheckinDates(updated.checkinDates),
+            updated_at: new Date().toISOString(),
+          };
+          const { error } = await supabase.from('bottles').update(payload).eq('id', id).eq('user_id', session.user.id);
+          if (error) {
+            if (!isMissingCheckinDatesColumnError(error)) throw error;
+            const fallback = await supabase.from('bottles').update(removeCheckinDatesField(payload)).eq('id', id).eq('user_id', session.user.id);
+            if (fallback.error) throw fallback.error;
           }
-        })();
+        });
       },
 
       markBottleAchieved: (id) => {
@@ -271,38 +247,30 @@ export const useGrowthStore = create<GrowthState>()(
           ),
         }));
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            await supabase
-              .from('bottles')
-              .update({ status: 'achieved', updated_at: new Date().toISOString() })
-              .eq('id', id)
-              .eq('user_id', session.user.id);
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] markAchieved failed', err);
-          }
-        })();
+        void withDbRetry('GrowthStore:markAchieved', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { error } = await supabase
+            .from('bottles')
+            .update({ status: 'achieved', updated_at: new Date().toISOString() })
+            .eq('id', id).eq('user_id', session.user.id);
+          if (error) throw new Error(error.message);
+        });
       },
 
       // 浇灌后归档移除瓶子（本地删除，云端标记为 irrigated 保留历史）
       markBottleIrrigated: (id) => {
         set((s) => ({ bottles: s.bottles.filter((b) => b.id !== id) }));
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            await supabase
-              .from('bottles')
-              .update({ status: 'irrigated', updated_at: new Date().toISOString() })
-              .eq('id', id)
-              .eq('user_id', session.user.id);
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] markIrrigated failed', err);
-          }
-        })();
+        void withDbRetry('GrowthStore:markIrrigated', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { error } = await supabase
+            .from('bottles')
+            .update({ status: 'irrigated', updated_at: new Date().toISOString() })
+            .eq('id', id).eq('user_id', session.user.id);
+          if (error) throw new Error(error.message);
+        });
       },
 
       // 继续追踪：重置星星，进入下一轮
@@ -315,21 +283,17 @@ export const useGrowthStore = create<GrowthState>()(
           ),
         }));
 
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
-            const updated = get().bottles.find(b => b.id === id);
-            if (!updated) return;
-            await supabase
-              .from('bottles')
-              .update({ status: 'active', stars: 0, round: updated.round, updated_at: new Date().toISOString() })
-              .eq('id', id)
-              .eq('user_id', session.user.id);
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('[GrowthStore] continueBottle failed', err);
-          }
-        })();
+        void withDbRetry('GrowthStore:continueBottle', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const updated = get().bottles.find(b => b.id === id);
+          if (!updated) return;
+          const { error } = await supabase
+            .from('bottles')
+            .update({ status: 'active', stars: 0, round: updated.round, updated_at: new Date().toISOString() })
+            .eq('id', id).eq('user_id', session.user.id);
+          if (error) throw new Error(error.message);
+        });
       },
 
       setDailyGoal: (goal) => set({ dailyGoal: goal, goalDate: todayDateStr() }),

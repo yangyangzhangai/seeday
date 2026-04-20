@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { purchase } from '@payment';
+import { clearPendingCheckoutSession, finalizePendingCheckout, getPendingCheckoutSessionId, purchase } from '@payment';
 import { useAuthStore } from '../../store/useAuthStore';
 import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
 
@@ -22,17 +22,52 @@ export const UpgradePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const disableInitialAnimation = Boolean(
     (location.state as { disableInitialAnimation?: boolean } | null)?.disableInitialAnimation,
   );
 
+  React.useEffect(() => {
+    const sessionId = getPendingCheckoutSessionId();
+    if (!sessionId) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setIsFinalizing(true);
+      try {
+        const result = await finalizePendingCheckout(sessionId);
+        clearPendingCheckoutSession();
+
+        if (cancelled) return;
+        if (!result.success) {
+          window.alert(t(resolvePaymentResultKey(result.code)));
+          return;
+        }
+
+        await useAuthStore.getState().initialize();
+        window.alert(t('upgrade_purchase_success'));
+        navigate('/profile', { replace: true });
+      } finally {
+        if (!cancelled) {
+          setIsFinalizing(false);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, t]);
+
   const handlePurchase = async (planId: 'monthly' | 'yearly') => {
-    if (isSubmitting) return;
+    if (isSubmitting || isFinalizing) return;
     setIsSubmitting(true);
     try {
       const paymentPlan = planId === 'yearly' ? 'annual' : 'monthly';
       const result = await purchase(paymentPlan);
       if (!result.success) {
+        if (result.code === 'payment_redirect') return;
         window.alert(t(resolvePaymentResultKey(result.code)));
         return;
       }
@@ -50,7 +85,7 @@ export const UpgradePage: React.FC = () => {
         isOpen
         onClose={() => navigate(-1)}
         onPurchase={handlePurchase}
-        ctaLabel={isSubmitting ? t('upgrade_processing') : t('membership_purchase_cta')}
+        ctaLabel={isSubmitting || isFinalizing ? t('upgrade_processing') : t('membership_purchase_cta')}
         disableInitialAnimation={disableInitialAnimation}
       />
     </div>

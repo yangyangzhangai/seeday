@@ -40,6 +40,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
     try {
       const result = await purchase('monthly');
       if (!result.success) {
+        if (result.code === 'payment_redirect') {
+          return;
+        }
         const code = result.code;
         const errorKey = !code
           ? 'upgrade_error_generic'

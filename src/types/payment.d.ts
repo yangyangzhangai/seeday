@@ -5,6 +5,9 @@ declare module '@payment' {
   export function listPlans(): PaymentPlan[];
   export function getPaymentSource(): 'iap' | 'stripe';
   export function canRestorePurchase(): boolean;
+  export function getPendingCheckoutSessionId(): string | null;
+  export function clearPendingCheckoutSession(): void;
+  export function finalizePendingCheckout(sessionId: string): Promise<PaymentActionResult>;
   export function purchase(plan: PaymentPlanType): Promise<PaymentActionResult>;
   export function restorePurchase(): Promise<PaymentActionResult>;
 }
