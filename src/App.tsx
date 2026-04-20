@@ -44,6 +44,11 @@ function isNewUserAccount(createdAt?: string | null): boolean {
   return ageMs < 72 * 60 * 60 * 1000;
 }
 
+function isTruthyEnv(v: unknown): boolean {
+  const s = String(v ?? '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+}
+
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
@@ -86,8 +91,19 @@ const OnboardingRoute: React.FC = () => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
   const userProfileV2 = useAuthStore(state => state.userProfileV2);
+  const location = useLocation();
 
   if (loading) return <BlankScreen />;
+
+  // DEV/Test override: allow preview onboarding even for "old accounts"
+  // - URL: /onboarding?forceOnboarding=1
+  // - Env: VITE_FORCE_ONBOARDING=1 (build-time)
+  const forceOnboardingByQuery = new URLSearchParams(location.search).get('forceOnboarding') === '1';
+  const forceOnboardingByEnv = isTruthyEnv(import.meta.env.VITE_FORCE_ONBOARDING);
+  if (forceOnboardingByQuery || forceOnboardingByEnv) {
+    return <OnboardingFlow />;
+  }
+
   // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
   if (user) {
     const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
@@ -132,7 +148,7 @@ const MainLayout = () => {
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
-  useReminderSystem(navigate);
+  const { confirmReminderFromPopup } = useReminderSystem(navigate);
   useMidnightAutoGenerate();
   useNetworkSync();
   const activePopupType = useReminderStore((s) => s.activePopupType);
@@ -305,7 +321,7 @@ const MainLayout = () => {
         <ReminderPopup
           type={activePopupType}
           copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
-          onConfirm={() => markConfirmed(activePopupType)}
+          onConfirm={() => { void confirmReminderFromPopup(activePopupType); }}
           onDeny={() => showPickerForDeny()}
         />
       )}

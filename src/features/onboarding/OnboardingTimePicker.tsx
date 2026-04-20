@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> src/features/onboarding/OnboardingFlow.tsx -> src/features/onboarding/OnboardingStepRoutine.tsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
@@ -54,6 +55,7 @@ export const OnboardingTimePicker: React.FC<{
   value: string;
   onChange: (v: string) => void;
 }> = ({ value, onChange }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   const [tempHour, setTempHour] = React.useState(value.split(':')[0] ?? '07');
   const [tempMinute, setTempMinute] = React.useState(value.split(':')[1] ?? '00');
@@ -103,8 +105,8 @@ export const OnboardingTimePicker: React.FC<{
                 <DrumColumn items={MINUTES} selected={tempMinute} onSelect={setTempMinute} />
               </div>
               <div className="p-2 flex gap-2 bg-zinc-50/20">
-                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[9px] font-bold text-[#4a5d4c]/40 hover:text-[#4a5d4c] transition-colors uppercase tracking-[0.2em]">取消</button>
-                <button onClick={save} className="flex-1 py-2 rounded-xl bg-[#4a5d4c] text-white text-[9px] font-bold shadow-sm uppercase tracking-[0.2em]">确定</button>
+                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[9px] font-bold text-[#4a5d4c]/40 hover:text-[#4a5d4c] transition-colors uppercase tracking-[0.2em]">{t('onboarding_timepicker_cancel')}</button>
+                <button onClick={save} className="flex-1 py-2 rounded-xl bg-[#4a5d4c] text-white text-[9px] font-bold shadow-sm uppercase tracking-[0.2em]">{t('onboarding_timepicker_confirm')}</button>
               </div>
             </motion.div>
           </>

@@ -24,6 +24,7 @@ type IdentityType = 'none' | 'work' | 'class';
 interface RoutineSnapshot {
   wakeTime: string; sleepTime: string;
   breakfastTime: string; lunchTime: string; dinnerTime: string;
+  reminderEnabled?: boolean;
 }
 
 interface RoutineFormSignature {
@@ -60,7 +61,15 @@ function readRoutineSnapshot(key: string): RoutineSnapshot | null {
     const p = JSON.parse(raw) as Partial<RoutineSnapshot>;
     const ok = (v: unknown) => typeof v === 'string' && TIME_TEXT_PATTERN.test(v);
     if (!ok(p.wakeTime) || !ok(p.sleepTime) || !ok(p.breakfastTime) || !ok(p.lunchTime) || !ok(p.dinnerTime)) return null;
-    return p as RoutineSnapshot;
+    const reminderEnabled = typeof p.reminderEnabled === 'boolean' ? p.reminderEnabled : undefined;
+    return {
+      wakeTime: p.wakeTime as string,
+      sleepTime: p.sleepTime as string,
+      breakfastTime: p.breakfastTime as string,
+      lunchTime: p.lunchTime as string,
+      dinnerTime: p.dinnerTime as string,
+      ...(typeof reminderEnabled === 'boolean' ? { reminderEnabled } : {}),
+    };
   } catch { return null; }
 }
 function writeRoutineSnapshot(key: string, s: RoutineSnapshot) {
@@ -76,7 +85,15 @@ function buildClassSchedule(
   if (!morning && !afternoon && !evening) return undefined;
   return { weekdays: [1, 2, 3, 4, 5], morning, afternoon, evening };
 }
-function routineSig(v: RoutineSnapshot) { return JSON.stringify(v); }
+function routineSig(v: RoutineSnapshot) {
+  return JSON.stringify({
+    wakeTime: v.wakeTime,
+    sleepTime: v.sleepTime,
+    breakfastTime: v.breakfastTime,
+    lunchTime: v.lunchTime,
+    dinnerTime: v.dinnerTime,
+  });
+}
 function fullRoutineSig(v: RoutineFormSignature) { return JSON.stringify(v); }
 
 // ─── DrumColumn ───────────────────────────────────────────────
@@ -260,8 +277,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     setClassAfternoonEnd(v2?.classSchedule?.afternoon?.end ?? '17:30');
     setClassEveningStart(v2?.classSchedule?.evening?.start ?? '19:00');
     setClassEveningEnd(v2?.classSchedule?.evening?.end ?? '21:00');
-    setReminderEnabled(v2?.reminderEnabled ?? true);
-  }, [userProfileV2]);
+    setReminderEnabled(v2?.reminderEnabled ?? localSnapshot?.reminderEnabled ?? true);
+  }, [userProfileV2, localSnapshot?.reminderEnabled]);
 
   React.useEffect(() => {
     const count = localStorage.getItem('reminder_today_count');
@@ -358,7 +375,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     setSaveText('');
     setSaving(true);
     // Persist locally first, then sync to Supabase in background.
-    writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime });
+    writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime, reminderEnabled });
     localStorage.removeItem('reminder_scheduled_date');
 
     const hasWork = identity === 'work';

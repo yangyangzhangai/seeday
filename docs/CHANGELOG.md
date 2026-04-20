@@ -4,6 +4,105 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-20 - Fix: Onboarding 全链路文案三语化 + 情绪输入可编辑
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 新增引导首屏语言选择（`zh/en/it`），进入后续步骤前写入 `updateLanguagePreference`，确保后续引导实时使用目标语言。
+  - 流程升级为 8 步：`Language -> Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`；已登录用户在语言页后自动跳过 Auth。
+  - 首条记录页新增独立可编辑心情输入框，支持“活动 + 心情”联合提交；修复此前“心情看得到但无法输入”的交互断层。
+  - Auth 页核心文案与占位文案改为 i18n key（登录/注册态文案、协议提示、占位符、切换按钮），移除硬编码中文。
+- `src/features/onboarding/OnboardingStepRoutine.tsx`
+  - 作息页标题、分组、身份标签、时段字段、通知文案、TimePicker 按钮与保存状态全部 i18n 化，三语一致。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 待办页标题/字段/提示/CTA 全量接入 i18n，CTA 收口为“下一步”以匹配新增瓶子步骤后的真实流程。
+- `src/i18n/locales/zh.ts`
+- `src/i18n/locales/en.ts`
+- `src/i18n/locales/it.ts`
+  - 补齐 onboarding 新增 key（语言页、Journal 心情输入、Routine 分组、TimePicker 操作、Auth 协议与占位符等），并统一润色为更自然语气。
+  - 补齐缺失 key：`plant_generate_try_after_20`（zh/it），对齐 `TranslationKeys`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-20 - Fix: Onboarding 心情输入可编辑 + 首屏语言选择 + 待办 CTA 收口
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 引导总步数由 7 调整为 8，新增首屏语言选择步骤（`zh/en/it`）并在进入后续步骤前调用 `updateLanguagePreference`。
+  - 流程顺序调整为：`Language -> Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`；已登录用户在语言选择后自动跳过 Auth。
+  - 修复首条记录页心情输入不可用：新增可点击心情输入框，并支持仅心情发送或“活动 + 心情”联合写入（`sendMessage` + `sendMood`）。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - 待办页 CTA 由“全部计划完毕”改为通用“下一步”，避免和后续步骤语义冲突。
+  - 待办页标题、字段标签与提示改为使用现有 i18n key（`onboarding2_* / growth_* / onboarding_*`），移除硬编码推荐语句区块。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
+## 2026-04-20 - Feat: Onboarding 新增目标/习惯瓶子步骤并调整顺序
+
+### Added
+
+- `src/features/onboarding/components/StepBottle.tsx`
+  - 新增引导步骤：支持输入瓶子名称、选择 `habit/goal`、本地预览列表与删除，至少添加一条后可进入下一步。
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - Onboarding 总步数由 6 调整为 7，并将流程顺序调整为：`Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`。
+  - 新增 `handleBottleNext()`：将 StepBottle 草稿写入 `useGrowthStore.addBottle()`，确保进入 App 后 Growth 页可直接看到已创建瓶子。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding 活动/待办录入改为直接同步到 App Store
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - StepJournal 发送首条记录时改为调用 `useChatStore.sendMessage()`（跳过批注），不再写入临时 `localStorage.at_activities`。
+  - 新增 `handleTodoNext()`：将引导页待办草稿批量写入 `useTodoStore.addTodo()`，并按表单时间生成 `dueAt`，支持 `repeat -> recurrence(daily/once)` 映射。
+  - Step 5 接线改为 `StepTodo onNext={handleTodoNext}`，确保“继续”后待办进入 Growth 正式数据流。
+- `src/features/onboarding/components/StepTodo.tsx`
+  - `onNext` 回调签名改为携带草稿数组；移除 `localStorage.at_todos` 旁路存储，避免引导数据停留在孤立缓存。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Fix: Onboarding AI 选择扩展到 4 个人设
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - StepAI 从固定展示 2 张卡片改为基于 `AI_COMPANION_ORDER` 渲染 4 张可选卡（`Van/Agnes/Zep/Momo`），并复用头像资源与人设文案 key。
+  - 新增 onboarding 内部选中态；点击卡片可切换目标人设，继续按钮写入 `preferences.aiMode=<selectedMode>`，不再固定落 `van`。
+  - 保留 `aiModeEnabled: true` 的引导完成行为不变。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-20 - Dev: Onboarding 强制预览开关（便于 UI 测试）
+
+### Changed
+
+- `src/App.tsx`
+  - 新增 onboarding 预览开关：`/onboarding?forceOnboarding=1` 或构建时 `VITE_FORCE_ONBOARDING=1` 时，老账号也可进入引导流进行测试。
+- `.env.example`
+  - 增加 `VITE_FORCE_ONBOARDING` 说明与默认值。
+
+### Validation
+
+- `npx.cmd tsc --noEmit` ✅
+
 ## 2026-04-19 - Feat: Stripe Web Checkout 首版闭环（不影响 iOS IAP 构建）
 
 ### Changed

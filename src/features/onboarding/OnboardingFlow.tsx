@@ -7,6 +7,9 @@ import { requestNotificationPermission } from '../../services/notifications/loca
 import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useChatStore } from '../../store/useChatStore';
+import { useTodoStore } from '../../store/useTodoStore';
+import { useGrowthStore } from '../../store/useGrowthStore';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
 import {
   DEFAULT_WAKE_TIME, DEFAULT_SLEEP_TIME,
@@ -16,10 +19,26 @@ import {
 import type { UserProfileManualV2, ClassSchedule } from '../../types/userProfile';
 import profileVanAvatar from '../../assets/profile-ai-companions/van.png';
 import profileAgnesAvatar from '../../assets/profile-ai-companions/agnes.png';
-import { StepTodo } from './components/StepTodo';
+import profileZepAvatar from '../../assets/profile-ai-companions/zep.png';
+import profileMomoAvatar from '../../assets/profile-ai-companions/momo.png';
+import { StepTodo, type OnboardingTodoDraft } from './components/StepTodo';
+import { StepBottle, type OnboardingBottleDraft } from './components/StepBottle';
+import {
+  AI_COMPANION_ORDER,
+  AI_COMPANION_VISUALS,
+} from '../../constants/aiCompanionVisuals';
+import type { AiCompanionMode } from '../../lib/aiCompanion';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 8;
 const ONBOARDED_KEY = 'seeday_onboarded';
+
+function toDueAtFromTime(time: string): number | undefined {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return undefined;
+  const date = new Date();
+  date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return date.getTime();
+}
 
 function buildClassSchedule(start: string, end: string): ClassSchedule | undefined {
   if (!start || !end) return undefined;
@@ -36,6 +55,63 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
     ))}
   </div>
 );
+
+const StepLanguage: React.FC<{ onNext: () => void }> = ({ onNext }) => {
+  const { t, i18n } = useTranslation();
+  const { updateLanguagePreference } = useAuthStore();
+  const normalizedLang = (i18n.language || 'zh').split('-')[0];
+  const [selectedLang, setSelectedLang] = React.useState<'zh' | 'en' | 'it'>(
+    normalizedLang === 'en' || normalizedLang === 'it' ? normalizedLang : 'zh',
+  );
+
+  const options: Array<{ code: 'zh' | 'en' | 'it'; label: string }> = [
+    { code: 'zh', label: '中文' },
+    { code: 'en', label: 'English' },
+    { code: 'it', label: 'Italiano' },
+  ];
+
+  const handleNext = async () => {
+    await updateLanguagePreference(selectedLang);
+    onNext();
+  };
+
+  return (
+    <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
+      <div className="mb-10 text-center">
+        <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('onboarding2_language_title')}</h2>
+        <p className="text-[#4a5d4c]/55 text-sm mt-2">{t('onboarding2_language_desc')}</p>
+      </div>
+
+      <div className="space-y-3">
+        {options.map((option) => {
+          const selected = selectedLang === option.code;
+          return (
+            <button
+              key={option.code}
+              type="button"
+              onClick={() => setSelectedLang(option.code)}
+              className={`w-full p-5 rounded-[24px] border text-left font-bold transition-all ${
+                selected
+                  ? 'bg-[#4a5d4c] border-[#4a5d4c] text-white shadow-xl shadow-[#4a5d4c]/20'
+                  : 'bg-white/60 border-white text-[#4a5d4c]'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => { void handleNext(); }}
+        className="mt-auto pt-6 w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20"
+      >
+        {t('onboarding_next')}
+      </button>
+    </div>
+  );
+};
 
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
@@ -126,12 +202,11 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         </motion.div>
 
         <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">
-          {isLogin ? '欢迎回来' : '开启您的'}
-          {!isLogin && <><br />高端生活追踪</>}
+          {isLogin ? t('auth_welcome_back') : t('auth_create_account')}
         </h2>
 
         <p className="text-[#4a5d4c]/60 mt-4 text-sm leading-relaxed">
-          {isLogin ? '登录以同步您的数据' : '注册以开始云端同步'}
+          {isLogin ? t('auth_login_subtitle') : t('auth_register_subtitle')}
         </p>
       </div>
 
@@ -145,7 +220,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="手机号 / 邮箱"
+            placeholder={t('onboarding2_auth_account_placeholder')}
             className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
           />
         </div>
@@ -160,7 +235,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="昵称（选填）"
+              placeholder={t('auth_nickname_placeholder')}
               className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
             />
           </div>
@@ -176,7 +251,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
-            placeholder="密码（至少 6 位）"
+            placeholder={t('onboarding2_auth_password_placeholder')}
             className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
           />
         </div>
@@ -187,19 +262,18 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
         {/* 切换登录/注册 */}
         <p className="text-center text-xs text-[#4a5d4c]/40 pt-1">
-          {isLogin ? '还没有账号？' : '已有账号？'}
           <button
             type="button"
             onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }}
             className="text-[#4a5d4c] font-bold underline decoration-[#4a5d4c]/20 ml-1"
           >
-            {isLogin ? '立即注册' : '去登录'}
+            {isLogin ? t('auth_switch_to_register') : t('auth_switch_to_login')}
           </button>
         </p>
 
         <div className="flex items-center gap-4 py-1">
           <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
-          <span className="text-[10px] font-bold text-[#4a5d4c]/20 uppercase tracking-[0.2em]">或者通过</span>
+          <span className="text-[10px] font-bold text-[#4a5d4c]/20 uppercase tracking-[0.2em]">{t('auth_or_divider')}</span>
           <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
         </div>
 
@@ -233,13 +307,12 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           }`}>
           {loading
             ? <Loader2 size={20} className="animate-spin" />
-            : <>{isLogin ? '登录' : '注册'} <ChevronRight size={20} /></>
+            : <>{isLogin ? t('auth_login_button') : t('auth_register_button')} <ChevronRight size={20} /></>
           }
         </motion.button>
 
         <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.1em]">
-          登录即代表同意 <span className="underline decoration-[#4a5d4c]/10">服务协议</span> 与{' '}
-          <span className="underline decoration-[#4a5d4c]/10">隐私政策</span>
+          {t('onboarding2_auth_agreement')}
         </p>
       </div>
     </div>
@@ -270,9 +343,24 @@ function AuthButton({ icon, text, className = '', onClick, disabled = false }: {
 const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const { t } = useTranslation();
   const { updatePreferences } = useAuthStore();
+  const [selectedMode, setSelectedMode] = React.useState<AiCompanionMode>('van');
+
+  const onboardingAvatars: Record<AiCompanionMode, string> = {
+    van: profileVanAvatar,
+    agnes: profileAgnesAvatar,
+    zep: profileZepAvatar,
+    momo: profileMomoAvatar,
+  };
+
+  const subtitleKeyMap: Record<AiCompanionMode, string> = {
+    van: 'profile_ai_mode_van_subtitle',
+    agnes: 'profile_ai_mode_agnes_subtitle',
+    zep: 'profile_ai_mode_zep_subtitle',
+    momo: 'profile_ai_mode_momo_subtitle',
+  };
 
   const handleSelect = () => {
-    void updatePreferences({ aiMode: 'van', aiModeEnabled: true });
+    void updatePreferences({ aiMode: selectedMode, aiModeEnabled: true });
     onNext();
   };
 
@@ -282,32 +370,51 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         <h2 className="text-2xl font-black text-[#4a5d4c]">{t('onboarding2_ai_title')}</h2>
       </div>
 
-      <div className="space-y-4">
-        <div className="p-6 bg-[#4a5d4c] rounded-[32px] shadow-2xl">
-          <div className="flex items-start justify-between">
-            <div className="w-14 h-14 bg-white/10 rounded-[20px] overflow-hidden">
-              <img src={profileVanAvatar} className="w-full h-full object-cover opacity-80" alt="Van" />
-            </div>
-            <span className="bg-[#8fae91] text-white text-[10px] px-3 py-1 rounded-full font-black">{t('onboarding2_ai_van_badge')}</span>
-          </div>
-          <div className="mt-5">
-            <h4 className="text-xl font-black text-white">Van (喇叭花)</h4>
-            <p className="text-white/60 text-xs mt-2 leading-relaxed">{t('onboarding2_ai_van_desc')}</p>
-          </div>
-        </div>
-
-        <div className="p-6 bg-white/60 backdrop-blur-xl border border-white rounded-[32px] opacity-70">
-          <div className="flex items-start justify-between">
-            <div className="w-14 h-14 bg-[#4a5d4c]/5 rounded-[20px] overflow-hidden">
-              <img src={profileAgnesAvatar} className="w-full h-full object-cover opacity-50" alt="Agnes" />
-            </div>
-            <span className="bg-[#4a5d4c]/10 text-[#4a5d4c]/40 text-[10px] px-3 py-1 rounded-full font-black">{t('onboarding2_ai_agnes_badge')}</span>
-          </div>
-          <div className="mt-5">
-            <h4 className="text-xl font-black text-[#4a5d4c]/60">Agnes (龙血树)</h4>
-            <p className="text-[#4a5d4c]/40 text-xs mt-2 leading-relaxed">{t('onboarding2_ai_agnes_desc')}</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        {AI_COMPANION_ORDER.map((modeKey) => {
+          const mode = AI_COMPANION_VISUALS[modeKey];
+          const selected = selectedMode === modeKey;
+          const badgeKey = mode.free ? 'onboarding2_ai_van_badge' : 'onboarding2_ai_agnes_badge';
+          return (
+            <button
+              key={modeKey}
+              type="button"
+              onClick={() => setSelectedMode(modeKey)}
+              className={`p-5 rounded-[28px] border text-left transition-all ${
+                selected
+                  ? 'bg-[#4a5d4c] border-[#4a5d4c] shadow-2xl'
+                  : 'bg-white/60 backdrop-blur-xl border-white hover:bg-white'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className={`w-12 h-12 rounded-[16px] overflow-hidden ${selected ? 'bg-white/10' : 'bg-[#4a5d4c]/5'}`}>
+                  <img
+                    src={onboardingAvatars[modeKey]}
+                    className={`w-full h-full object-cover ${selected ? 'opacity-80' : 'opacity-70'}`}
+                    alt={mode.name}
+                  />
+                </div>
+                <span
+                  className={`text-[10px] px-2.5 py-1 rounded-full font-black ${
+                    selected
+                      ? 'bg-[#8fae91] text-white'
+                      : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/60'
+                  }`}
+                >
+                  {t(badgeKey)}
+                </span>
+              </div>
+              <div className="mt-4">
+                <h4 className={`text-lg font-black ${selected ? 'text-white' : 'text-[#4a5d4c]'}`}>
+                  {mode.name}
+                </h4>
+                <p className={`text-xs mt-1 leading-relaxed ${selected ? 'text-white/70' : 'text-[#4a5d4c]/55'}`}>
+                  {t(subtitleKeyMap[modeKey])}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <button onClick={handleSelect} className="mt-auto pt-6 w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20">
@@ -319,35 +426,29 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
 // ── StepJournal ───────────────────────────────────────────────
 const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
+  const { t } = useTranslation();
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const sendMood = useChatStore((state) => state.sendMood);
   const [content, setContent] = React.useState('');
+  const [moodContent, setMoodContent] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
+  const canSend = Boolean(content.trim() || moodContent.trim());
 
-  const handleSend = () => {
-    if (!content.trim()) return;
+  const handleSend = async () => {
+    if (!canSend) return;
     setIsSending(true);
-
-    const existing = JSON.parse(localStorage.getItem('at_activities') || '[]');
-    const newEntry = {
-      id: Date.now().toString(),
-      time: `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`,
-      title: '心情记录',
-      tag: 'Personal',
-      tagColor: '#f59e0b',
-      tagBg: 'rgba(245,158,11,0.10)',
-      duration: '',
-      moods: [content],
-      moodTag: '😊 开心',
-      moodTagColor: '#f59e0b',
-      moodTagBg: 'rgba(245,158,11,0.12)',
-      timing: false,
-      elapsed: 0,
-    };
-
-    localStorage.setItem('at_activities', JSON.stringify([newEntry, ...existing]));
-
-    setTimeout(() => {
-      onNext();
-    }, 1200);
+    try {
+      const activityMessageId = content.trim()
+        ? await sendMessage(content.trim(), undefined, { skipAnnotation: true })
+        : null;
+      if (moodContent.trim()) {
+        await sendMood(moodContent.trim(), activityMessageId ? { relatedActivityId: activityMessageId } : undefined);
+      }
+    } finally {
+      setTimeout(() => {
+        onNext();
+      }, 300);
+    }
   };
 
   return (
@@ -358,10 +459,10 @@ const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           animate={{ opacity: 1, y: 0 }}
           className="text-2xl font-black text-[#4a5d4c] tracking-tight"
         >
-          记录今天第一件事
+          {t('onboarding2_journal_title')}
         </motion.h2>
-        <p className="text-[#4a5d4c]/50 text-sm mt-2 font-medium">
-          无论大小，或是当下的细微心情，AI 会为您分类
+        <p className="text-[#4a5d4c]/55 text-sm mt-2 font-medium">
+          {t('onboarding2_journal_desc')}
         </p>
       </div>
 
@@ -370,7 +471,7 @@ const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           <div className="px-6 py-4 border-b border-[#4a5d4c]/5 flex items-center justify-between bg-zinc-50/50">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#8fae91] animate-pulse" />
-              <span className="text-[10px] font-black text-[#4a5d4c]/30 uppercase tracking-widest">同步感应中</span>
+              <span className="text-[10px] font-black text-[#4a5d4c]/30 uppercase tracking-widest">{t('onboarding2_journal_sync_badge')}</span>
             </div>
             <div className="text-[10px] font-bold text-[#4a5d4c]/30 uppercase tracking-widest">
               {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}
@@ -382,22 +483,24 @@ const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
             onChange={(e) => setContent(e.target.value)}
             autoFocus
             className="flex-1 p-6 bg-transparent border-none outline-none resize-none text-[#4a5d4c] text-lg font-medium leading-relaxed placeholder:text-[#4a5d4c]/15"
-            placeholder="输入任何内容，例如：‘刚刚开启了新的一周，感觉充满活力！’"
+            placeholder={t('onboarding2_journal_placeholder')}
           />
 
           <div className="p-6 pt-0">
             <motion.div
-              animate={{ opacity: content.length > 0 ? 1 : 0.5 }}
+              animate={{ opacity: moodContent.length > 0 ? 1 : 0.75 }}
               className="flex items-center gap-3 p-4 bg-[#8fae91]/5 rounded-2xl border border-[#8fae91]/10 transition-all"
             >
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#4a5d4c] shadow-sm">
-                <Sparkles size={16} className={content.length > 5 ? 'animate-spin-slow' : ''} />
+                <Sparkles size={16} className={moodContent.length > 3 ? 'animate-spin-slow' : ''} />
               </div>
-              <p className="text-[11px] text-[#4a5d4c]/60 leading-tight font-medium">
-                {content.length > 5
-                  ? 'Van 已经感应到了这段能量，准备好同步了吗？'
-                  : '试着描述一下当下的具体动作或某种情绪...'}
-              </p>
+              <input
+                type="text"
+                value={moodContent}
+                onChange={(e) => setMoodContent(e.target.value)}
+                className="w-full bg-transparent border-none outline-none text-sm font-medium text-[#4a5d4c] placeholder:text-[#4a5d4c]/45"
+                placeholder={t('onboarding2_journal_mood_placeholder')}
+              />
             </motion.div>
           </div>
 
@@ -405,9 +508,9 @@ const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleSend}
-              disabled={!content.trim() || isSending}
+              disabled={!canSend || isSending}
               className={`w-full py-5 rounded-[24px] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-3 ${
-                content.trim() && !isSending
+                canSend && !isSending
                   ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20'
                   : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 cursor-not-allowed shadow-none'
               }`}
@@ -415,19 +518,19 @@ const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
               {isSending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>同步数据中...</span>
+                  <span>{t('onboarding2_journal_syncing')}</span>
                 </>
               ) : (
                 <>
                   <Rocket size={18} />
-                  <span>发送至今日时间流</span>
+                  <span>{t('onboarding2_journal_cta')}</span>
                 </>
               )}
             </motion.button>
           </div>
         </div>
         <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.3em]">
-          Powered by Van AI Engine
+          {t('onboarding2_journal_footer')}
         </p>
       </div>
 
@@ -590,13 +693,15 @@ const StepSubscription: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
 // ── Main OnboardingFlow ───────────────────────────────────────
 export const OnboardingFlow: React.FC = () => {
   const { user, updateUserProfile, userProfileV2 } = useAuthStore();
+  const addTodo = useTodoStore((state) => state.addTodo);
+  const addBottle = useGrowthStore((state) => state.addBottle);
   const navigate = useNavigate();
 
-  const [step, setStep] = React.useState(user ? 2 : 1);
+  const [step, setStep] = React.useState(1);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (user && step === 1) setStep(2);
+    if (user && step === 2) setStep(3);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [routine, setRoutine] = React.useState<RoutineState>({
@@ -658,14 +763,46 @@ export const OnboardingFlow: React.FC = () => {
     navigate('/chat', { replace: true });
   };
 
+  const handleTodoNext = (todos: OnboardingTodoDraft[]) => {
+    todos.forEach((todo) => {
+      addTodo({
+        title: todo.text,
+        priority: todo.urgency,
+        recurrence: todo.repeat ? 'daily' : 'once',
+        dueAt: toDueAtFromTime(todo.time),
+      });
+    });
+    next();
+  };
+
+  const handleBottleNext = (bottles: OnboardingBottleDraft[]) => {
+    bottles.forEach((bottle) => {
+      addBottle(bottle.name, bottle.type);
+    });
+    next();
+  };
+
+  const handleLanguageNext = () => {
+    if (user) {
+      setStep(3);
+      return;
+    }
+    next();
+  };
+
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(160deg, #eef3ef 0%, #e6ede7 100%)' }}>
-      <ProgressBar step={step} />
+        <ProgressBar step={step} />
       <div className="flex-1 overflow-hidden flex flex-col">
-        {step === 1 && <StepAuth onNext={next} />}
-        {step === 2 && (
+        {step === 1 && <StepLanguage onNext={handleLanguageNext} />}
+        {step === 2 && <StepAuth onNext={next} />}
+        {step === 3 && <StepAI onNext={next} />}
+        {step === 4 && <StepJournal onNext={next} />}
+        {step === 5 && <StepTodo onNext={handleTodoNext} />}
+        {step === 6 && <StepBottle onNext={handleBottleNext} />}
+        {step === 7 && (
           <OnboardingStepRoutine
             state={routine}
             onChange={handleRoutineChange}
@@ -673,10 +810,7 @@ export const OnboardingFlow: React.FC = () => {
             saving={saving}
           />
         )}
-        {step === 3 && <StepAI onNext={next} />}
-        {step === 4 && <StepJournal onNext={next} />}
-        {step === 5 && <StepTodo onNext={next} />}
-        {step === 6 && <StepSubscription onFinish={handleComplete} />}
+        {step === 8 && <StepSubscription onFinish={handleComplete} />}
       </div>
     </div>
   );
