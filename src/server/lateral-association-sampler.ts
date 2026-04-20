@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/timeshine_lateral_association_spec_v1.1 (1).docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/seeday_lateral_association_spec_v1.1 (1).docx
 
 export type CharacterId = 'van' | 'momo' | 'agnes' | 'zep';
 export type AssociationLang = 'zh' | 'en' | 'it';

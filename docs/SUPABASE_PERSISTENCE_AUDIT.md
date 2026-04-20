@@ -1,4 +1,4 @@
-# TimeShine Supabase 数据持久化审计报告
+# Seeday Supabase 数据持久化审计报告
 
 > 日期: 2026-03-19
 > 范围: 全部 Zustand Store → Supabase 同步状态

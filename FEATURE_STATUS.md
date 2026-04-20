@@ -1,4 +1,4 @@
-# Tshine 功能状态（Feature Status）
+# Seeday 功能状态（Feature Status）
 
 - 更新时间: 2026-03-22
 - 状态等级:
@@ -54,7 +54,7 @@
   - `src/store/usePlantStore.ts`
 - 说明:
   - 支持按日/周/月/自定义区间生成报告。
-  - 支持观察手记生成（Timeshine Diary 三步流程）与内嵌植物根系互动区。
+  - 支持观察手记生成（Seeday Diary 三步流程）与内嵌植物根系互动区。
   - 已完成页面与 store 大体量拆分（C3/C4/C6）。
   - 已修复报告详情标题语言不一致问题（动态 i18n 标题）。
 

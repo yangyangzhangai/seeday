@@ -7,7 +7,6 @@ import { requestNotificationPermission } from '../../services/notifications/loca
 import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
@@ -23,13 +22,14 @@ import profileZepAvatar from '../../assets/profile-ai-companions/zep.png';
 import profileMomoAvatar from '../../assets/profile-ai-companions/momo.png';
 import { StepTodo, type OnboardingTodoDraft } from './components/StepTodo';
 import { StepBottle, type OnboardingBottleDraft } from './components/StepBottle';
+import { StepJournal } from './components/StepJournal';
 import {
   AI_COMPANION_ORDER,
   AI_COMPANION_VISUALS,
 } from '../../constants/aiCompanionVisuals';
 import type { AiCompanionMode } from '../../lib/aiCompanion';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 const ONBOARDED_KEY = 'seeday_onboarded';
 
 function toDueAtFromTime(time: string): number | undefined {
@@ -55,63 +55,6 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
     ))}
   </div>
 );
-
-const StepLanguage: React.FC<{ onNext: () => void }> = ({ onNext }) => {
-  const { t, i18n } = useTranslation();
-  const { updateLanguagePreference } = useAuthStore();
-  const normalizedLang = (i18n.language || 'zh').split('-')[0];
-  const [selectedLang, setSelectedLang] = React.useState<'zh' | 'en' | 'it'>(
-    normalizedLang === 'en' || normalizedLang === 'it' ? normalizedLang : 'zh',
-  );
-
-  const options: Array<{ code: 'zh' | 'en' | 'it'; label: string }> = [
-    { code: 'zh', label: '中文' },
-    { code: 'en', label: 'English' },
-    { code: 'it', label: 'Italiano' },
-  ];
-
-  const handleNext = async () => {
-    await updateLanguagePreference(selectedLang);
-    onNext();
-  };
-
-  return (
-    <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
-      <div className="mb-10 text-center">
-        <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('onboarding2_language_title')}</h2>
-        <p className="text-[#4a5d4c]/55 text-sm mt-2">{t('onboarding2_language_desc')}</p>
-      </div>
-
-      <div className="space-y-3">
-        {options.map((option) => {
-          const selected = selectedLang === option.code;
-          return (
-            <button
-              key={option.code}
-              type="button"
-              onClick={() => setSelectedLang(option.code)}
-              className={`w-full p-5 rounded-[24px] border text-left font-bold transition-all ${
-                selected
-                  ? 'bg-[#4a5d4c] border-[#4a5d4c] text-white shadow-xl shadow-[#4a5d4c]/20'
-                  : 'bg-white/60 border-white text-[#4a5d4c]'
-              }`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => { void handleNext(); }}
-        className="mt-auto pt-6 w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20"
-      >
-        {t('onboarding_next')}
-      </button>
-    </div>
-  );
-};
 
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
@@ -424,129 +367,6 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   );
 };
 
-// ── StepJournal ───────────────────────────────────────────────
-const StepJournal: React.FC<{ onNext: () => void }> = ({ onNext }) => {
-  const { t } = useTranslation();
-  const sendMessage = useChatStore((state) => state.sendMessage);
-  const sendMood = useChatStore((state) => state.sendMood);
-  const [content, setContent] = React.useState('');
-  const [moodContent, setMoodContent] = React.useState('');
-  const [isSending, setIsSending] = React.useState(false);
-  const canSend = Boolean(content.trim() || moodContent.trim());
-
-  const handleSend = async () => {
-    if (!canSend) return;
-    setIsSending(true);
-    try {
-      const activityMessageId = content.trim()
-        ? await sendMessage(content.trim(), undefined, { skipAnnotation: true })
-        : null;
-      if (moodContent.trim()) {
-        await sendMood(moodContent.trim(), activityMessageId ? { relatedActivityId: activityMessageId } : undefined);
-      }
-    } finally {
-      setTimeout(() => {
-        onNext();
-      }, 300);
-    }
-  };
-
-  return (
-    <div className="flex-1 flex flex-col px-6 pt-12 pb-10 bg-[#f8faf8]">
-      <div className="mb-8 px-2">
-        <motion.h2
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-2xl font-black text-[#4a5d4c] tracking-tight"
-        >
-          {t('onboarding2_journal_title')}
-        </motion.h2>
-        <p className="text-[#4a5d4c]/55 text-sm mt-2 font-medium">
-          {t('onboarding2_journal_desc')}
-        </p>
-      </div>
-
-      <div className="flex-1 flex flex-col">
-        <div className="relative flex-1 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-[#4a5d4c]/5 overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-[#4a5d4c]/5 flex items-center justify-between bg-zinc-50/50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#8fae91] animate-pulse" />
-              <span className="text-[10px] font-black text-[#4a5d4c]/30 uppercase tracking-widest">{t('onboarding2_journal_sync_badge')}</span>
-            </div>
-            <div className="text-[10px] font-bold text-[#4a5d4c]/30 uppercase tracking-widest">
-              {new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}
-            </div>
-          </div>
-
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            autoFocus
-            className="flex-1 p-6 bg-transparent border-none outline-none resize-none text-[#4a5d4c] text-lg font-medium leading-relaxed placeholder:text-[#4a5d4c]/15"
-            placeholder={t('onboarding2_journal_placeholder')}
-          />
-
-          <div className="p-6 pt-0">
-            <motion.div
-              animate={{ opacity: moodContent.length > 0 ? 1 : 0.75 }}
-              className="flex items-center gap-3 p-4 bg-[#8fae91]/5 rounded-2xl border border-[#8fae91]/10 transition-all"
-            >
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#4a5d4c] shadow-sm">
-                <Sparkles size={16} className={moodContent.length > 3 ? 'animate-spin-slow' : ''} />
-              </div>
-              <input
-                type="text"
-                value={moodContent}
-                onChange={(e) => setMoodContent(e.target.value)}
-                className="w-full bg-transparent border-none outline-none text-sm font-medium text-[#4a5d4c] placeholder:text-[#4a5d4c]/45"
-                placeholder={t('onboarding2_journal_mood_placeholder')}
-              />
-            </motion.div>
-          </div>
-
-          <div className="px-6 pb-6">
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleSend}
-              disabled={!canSend || isSending}
-              className={`w-full py-5 rounded-[24px] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-3 ${
-                canSend && !isSending
-                  ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20'
-                  : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 cursor-not-allowed shadow-none'
-              }`}
-            >
-              {isSending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>{t('onboarding2_journal_syncing')}</span>
-                </>
-              ) : (
-                <>
-                  <Rocket size={18} />
-                  <span>{t('onboarding2_journal_cta')}</span>
-                </>
-              )}
-            </motion.button>
-          </div>
-        </div>
-        <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.3em]">
-          {t('onboarding2_journal_footer')}
-        </p>
-      </div>
-
-      <style>{`
-        .animate-spin-slow {
-          animation: spin 3s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
-  );
-};
-
 // ── StepSubscription ──────────────────────────────────────────
 const StepSubscription: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
   const { t } = useTranslation();
@@ -701,7 +521,7 @@ export const OnboardingFlow: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (user && step === 2) setStep(3);
+    if (user && step === 1) setStep(2);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [routine, setRoutine] = React.useState<RoutineState>({
@@ -782,27 +602,18 @@ export const OnboardingFlow: React.FC = () => {
     next();
   };
 
-  const handleLanguageNext = () => {
-    if (user) {
-      setStep(3);
-      return;
-    }
-    next();
-  };
-
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(160deg, #eef3ef 0%, #e6ede7 100%)' }}>
         <ProgressBar step={step} />
       <div className="flex-1 overflow-hidden flex flex-col">
-        {step === 1 && <StepLanguage onNext={handleLanguageNext} />}
-        {step === 2 && <StepAuth onNext={next} />}
-        {step === 3 && <StepAI onNext={next} />}
-        {step === 4 && <StepJournal onNext={next} />}
-        {step === 5 && <StepTodo onNext={handleTodoNext} />}
-        {step === 6 && <StepBottle onNext={handleBottleNext} />}
-        {step === 7 && (
+        {step === 1 && <StepAuth onNext={next} />}
+        {step === 2 && <StepAI onNext={next} />}
+        {step === 3 && <StepJournal onNext={next} />}
+        {step === 4 && <StepTodo onNext={handleTodoNext} />}
+        {step === 5 && <StepBottle onNext={handleBottleNext} />}
+        {step === 6 && (
           <OnboardingStepRoutine
             state={routine}
             onChange={handleRoutineChange}
@@ -810,7 +621,7 @@ export const OnboardingFlow: React.FC = () => {
             saving={saving}
           />
         )}
-        {step === 8 && <StepSubscription onFinish={handleComplete} />}
+        {step === 7 && <StepSubscription onFinish={handleComplete} />}
       </div>
     </div>
   );

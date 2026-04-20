@@ -1,4 +1,4 @@
-# DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> src/features/chat/README.md
+# DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/SEEDAY_DEV_SPEC.md -> src/features/chat/README.md
 # 活动 / 心情自动识别需求与开发规划
 
 - 文档版本: v1.4

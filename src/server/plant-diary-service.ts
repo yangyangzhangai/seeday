@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, type AiCompanionMode } from '../lib/aiCompanion.js';
 import { removeThinkingTags } from '../lib/aiParser.js';
 import type { PlantEntry } from '../lib/plantRegistry.js';

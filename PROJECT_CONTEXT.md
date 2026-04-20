@@ -1,12 +1,12 @@
-# Tshine 项目上下文（Project Context）
+# Seeday 项目上下文（Project Context）
 
 - 更新时间: 2026-03-22
-- 适用范围: `Tshine2-13-mainc` 全仓
+- 适用范围: `Seeday2-13-mainc` 全仓
 - 目标: 让接手人 30 分钟内建立可执行心智模型
 
 ## 1. 产品定位
 
-Tshine 是一个围绕时间记录的应用，核心闭环是：
+Seeday 是一个围绕时间记录的应用，核心闭环是：
 
 1. 在 `/chat` 记录活动与心情。
 2. 在 `/growth` 管理任务、成长瓶与专注流程，并形成完成数据（`/todo` 当前为兼容重定向）。
@@ -94,7 +94,7 @@ Tshine 是一个围绕时间记录的应用，核心闭环是：
 
 ## 9. 接手建议
 
-1. **先读 `docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范，包含技术栈、分层架构、移动端 UI 规则、App Store 审核风险规避。
+1. **先读 `docs/SEEDAY_DEV_SPEC.md`**：iOS 开发规范，包含技术栈、分层架构、移动端 UI 规则、App Store 审核风险规避。
 2. 再读 `docs/CURRENT_TASK.md` 的阶段清单与下一步断点。
 3. 再看 `README.md` 与 `docs/ARCHITECTURE.md` 建立运行/分层认知。
 4. 开发时遵守单主题提交，改动后至少执行 `npx tsc --noEmit` 与 `npm run build`。

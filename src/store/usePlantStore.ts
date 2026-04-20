@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';

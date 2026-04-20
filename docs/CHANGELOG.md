@@ -4,6 +4,22 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-20 - Fix: Onboarding 语言首步改为系统自动检测（无强制确认）
+
+### Changed
+
+- `src/features/onboarding/OnboardingFlow.tsx`
+  - 移除首屏“手动语言选择”步骤，引导总步数由 8 收敛为 7。
+  - 流程顺序调整为：`Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription`。
+  - 已登录用户自动跳过 Auth 的步进逻辑同步前移到新第 1 步。
+- `src/i18n/index.ts`
+  - i18n 语言检测顺序由仅 `localStorage` 调整为 `localStorage -> navigator`，首启无本地语言缓存时自动采用系统语言，并继续缓存到本地。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+
 ## 2026-04-20 - Fix: Onboarding 全链路文案三语化 + 情绪输入可编辑
 
 ### Changed
@@ -1359,7 +1375,7 @@ All notable changes to this repository are documented here.
 
 - 更新 `docs/CURRENT_TASK.md`：新增“横向联想中间层”主线与 P0-P7 任务拆解。
 - 更新 `src/store/README.md`、`src/api/README.md`、`api/README.md`：同步横向联想接入与 `userContext.userId` 契约。
-- 更新 `docs/timeshine_lateral_association_spec_v1.1 (1).extracted.txt`：将 5.3 常量修正为与第 3 章权重表一致。
+- 更新 `docs/seeday_lateral_association_spec_v1.1 (1).extracted.txt`：将 5.3 常量修正为与第 3 章权重表一致。
 
 ## 2026-04-09 - Fix: suggestion 待办高亮丢失与长期待办预拆解漏触发
 
@@ -1491,7 +1507,7 @@ All notable changes to this repository are documented here.
 
 ### Doc Sync
 
-- 更新 `docs/TIMESHINE_AI活人感系统_天气与季节_实现方案.md` 为开发交付版 v2.0（最小契约 + 多标签天气 + 预警数据源与阈值）。
+- 更新 `docs/SEEDAY_AI活人感系统_天气与季节_实现方案.md` 为开发交付版 v2.0（最小契约 + 多标签天气 + 预警数据源与阈值）。
 - 更新 `docs/PROJECT_MAP.md`、`api/README.md`、`src/api/README.md`、`docs/CURRENT_TASK.md`，对齐新模块与 annotation 契约。
 
 ## 2026-04-08 - Feat: annotation 国家与节假日上下文（法定+社会）
@@ -1615,7 +1631,7 @@ All notable changes to this repository are documented here.
 ### Changed
 
 - `src/store/useAuthStore.ts`
-  - OAuth 登录 `redirectTo` 改为平台感知：Web 使用 `window.location.origin`，原生套壳使用 `VITE_IOS_OAUTH_REDIRECT_URL`（默认 `com.tshine.app://auth/callback`）。
+  - OAuth 登录 `redirectTo` 改为平台感知：Web 使用 `window.location.origin`，原生套壳使用 `VITE_IOS_OAUTH_REDIRECT_URL`（默认 `com.seeday.app://auth/callback`）。
 - `src/lib/mobileAuthBridge.ts`（新增） + `src/main.tsx`
   - 新增 Capacitor `appUrlOpen` 桥接，支持处理 OAuth deep link 回调并执行 Supabase 会话恢复（`exchangeCodeForSession` / `setSession`）。
 - `src/features/auth/AuthPage.tsx`
@@ -1625,7 +1641,7 @@ All notable changes to this repository are documented here.
 - `src/index.css`
   - iOS 防缩放规则扩展到页面级 `input/textarea/select`，统一移动端输入字号下限，降低聚焦自动放大概率。
 - `ios/App/App/Info.plist` + `.env.example`
-  - 增加 iOS URL scheme（`com.tshine.app`）配置并补充 OAuth redirect 环境变量示例。
+  - 增加 iOS URL scheme（`com.seeday.app`）配置并补充 OAuth redirect 环境变量示例。
 
 ### Validation
 
@@ -2383,7 +2399,7 @@ All notable changes to this repository are documented here.
 
 - 本次改动涉及 `src/**`、`api/**`、`docs/**` 多处契约与状态文档，已同步 `docs/CURRENT_TASK.md` 与本文件。
 
-## 2026-03-29 - UI: 同步 Tshine UI 的专注页与我的页视觉
+## 2026-03-29 - UI: 同步 Seeday UI 的专注页与我的页视觉
 
 ### Changed
 
@@ -2482,7 +2498,7 @@ All notable changes to this repository are documented here.
 
 - `npx tsc --noEmit` ✅
 
-## 2026-03-28 - UI: 对齐 Tshine UI 原型视觉（保留现有业务逻辑）
+## 2026-03-28 - UI: 对齐 Seeday UI 原型视觉（保留现有业务逻辑）
 
 ### Changed
 
@@ -2637,7 +2653,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 - Extended `ReportStats` to carry `spectrum?: SpectrumItem[]` and `lightQuality?: LightQuality`:
   - `src/store/useReportStore.ts` — interface extension + import
-  - `src/store/useReportStore.ts` — `generateTimeshineDiary` now saves `computed.spectrum` + `computed.light_quality` into report stats after diary generation
+  - `src/store/useReportStore.ts` — `generateSeedayDiary` now saves `computed.spectrum` + `computed.light_quality` into report stats after diary generation
 
 - V7: Integrated three new visualization components into `ReportDetailModal` Page 1 (after existing sections):
   - `src/features/report/ReportDetailModal.tsx` — imports + conditional render blocks
@@ -2680,8 +2696,8 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 - Added structured daily todo breakdown, splitting todos into four groups based on bottle linkage and recurrence:
   - `src/store/reportHelpers.ts` — added `computeDailyTodoStats`, `HabitCheckinItem`, `GoalProgressItem`, `DailyTodoStats`
-  - `src/store/useReportStore.ts` — added `habitCheckin`, `goalProgress`, `independentRecurring`, `oneTimeTasks` to `ReportStats`; imported `useGrowthStore` in `generateReport` and `generateTimeshineDiary`
-  - `src/store/reportActions.ts` — `createGeneratedReport` now accepts `bottles: BottleSnapshot[]` and calls `computeDailyTodoStats` for daily reports; `runTimeshineDiary` accepts `bottles` and computes breakdown for AI input; `buildRawInput` rewritten to include habit check-in, goal progress, completed task titles
+  - `src/store/useReportStore.ts` — added `habitCheckin`, `goalProgress`, `independentRecurring`, `oneTimeTasks` to `ReportStats`; imported `useGrowthStore` in `generateReport` and `generateSeedayDiary`
+  - `src/store/reportActions.ts` — `createGeneratedReport` now accepts `bottles: BottleSnapshot[]` and calls `computeDailyTodoStats` for daily reports; `runSeedayDiary` accepts `bottles` and computes breakdown for AI input; `buildRawInput` rewritten to include habit check-in, goal progress, completed task titles
   - `src/features/report/ReportStatsView.tsx` — daily UI now shows: habit checkin list, goal progress with star bar, independent recurring count bar, one-time task priority breakdown with completed-title chips
 
 - Updated docs:
@@ -2930,7 +2946,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 ### Doc-sync impact
 
 - Updated `src/features/chat/README.md` ("Store Refactor Update" section) to document the new `chatTimelineActions.ts` file and the updated file layout.
-- No change to `docs/TSHINE_DEV_SPEC.md` or `docs/ARCHITECTURE.md` since no architectural contract changed — only internal file decomposition.
+- No change to `docs/SEEDAY_DEV_SPEC.md` or `docs/ARCHITECTURE.md` since no architectural contract changed — only internal file decomposition.
 
 ## 2026-03-20 — Multi-language Lexicon Optimization & Unified Architecture
 
@@ -2952,7 +2968,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 - Updated `src/services/input/magicPenTodoSalvage.ts` to use `zhMoodLexicon` for consistent mood detection.
 - Updated `src/services/input/magicPenDraftBuilder.ts` to correctly flag `missing_time` when time resolution is missing, fixing a parsing regression.
 - Updated `docs/ACTIVITY_LEXICON.md` and `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` to point to the new centralized lexicon architecture.
-- Updated `docs/TSHINE_DEV_SPEC.md` to include the `lexicon/` folder in the project structure.
+- Updated `docs/SEEDAY_DEV_SPEC.md` to include the `lexicon/` folder in the project structure.
 
 ### Validation
 
@@ -3053,7 +3069,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 - Updated `src/store/usePlantStore.ts` root refresh gating: removed the `20:00` hard stop so ungenerated days continue mapping completed activities to roots until day rollover (`00:00`), while keeping "generated today" lock behavior unchanged.
 - Updated `docs/CURRENT_TASK.md` timing description/checklist wording to align with the implemented rule: root realtime updates continue within the current day and stop on generate-lock or next-day reset.
-- Updated product/spec source docs `docs/TimeShine_植物生长_PRD_v1_8.docx` and `docs/TimeShine_植物生长_技术实现文档_v1.7.docx` to unify timing wording: roots keep updating until `24:00` if not generated, and lock immediately after manual/auto generation.
+- Updated product/spec source docs `docs/Seeday_植物生长_PRD_v1_8.docx` and `docs/Seeday_植物生长_技术实现文档_v1.7.docx` to unify timing wording: roots keep updating until `24:00` if not generated, and lock immediately after manual/auto generation.
 
 ### Validation
 
@@ -3061,7 +3077,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 ### Doc-sync impact
 
-- Synced timing-rule behavior between code path (`src/store/usePlantStore.ts`) and task/spec docs (`docs/CURRENT_TASK.md`, `docs/TimeShine_植物生长_PRD_v1_8.docx`, `docs/TimeShine_植物生长_技术实现文档_v1.7.docx`, `docs/CHANGELOG.md`).
+- Synced timing-rule behavior between code path (`src/store/usePlantStore.ts`) and task/spec docs (`docs/CURRENT_TASK.md`, `docs/Seeday_植物生长_PRD_v1_8.docx`, `docs/Seeday_植物生长_技术实现文档_v1.7.docx`, `docs/CHANGELOG.md`).
 
 ## 2026-03-18 — Plant System Phase 3 (UI Polish + Test Backfill)
 
@@ -3576,7 +3592,7 @@ Code audit against `docs/DIARY_REBUILD_PLAN.md` revealed two tasks already fully
 
 ### Added
 
-- Added `scripts/evaluate_live_input_gold.py` to run offline classifier evaluation against parent-level `timeshine_gold_samples.xlsx`, including accuracy, mismatch pairs, and per-label recall breakdown.
+- Added `scripts/evaluate_live_input_gold.py` to run offline classifier evaluation against parent-level `seeday_gold_samples.xlsx`, including accuracy, mismatch pairs, and per-label recall breakdown.
 - Added `npm run eval:live-input:gold` in `package.json` to rerun zh baseline checks quickly.
 - Added gold-driven zh regression cases in `src/services/input/liveInputClassifier.test.ts` for colloquial activity terms, non-activity intent guards, and short context-evaluation mood cases.
 

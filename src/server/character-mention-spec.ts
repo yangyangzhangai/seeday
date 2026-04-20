@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/timeshine_角色互提系统规范_v3.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/seeday_角色互提系统规范_v3.docx
 
 import type { CharacterId } from './lateral-association-sampler.js';
 

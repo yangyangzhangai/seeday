@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_PRD_v1_8.docx -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_PRD_v1_8.docx -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import type { DirectionIndex, FocusLevel, RootSegment } from '../types/plant';
 
 export interface RootRenderActivityInput {

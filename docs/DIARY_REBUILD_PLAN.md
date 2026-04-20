@@ -11,12 +11,12 @@
 
 | 模块 | 状态 | 文件路径 | 说明 |
 |------|------|----------|------|
-| Report Store | ✅ 完整 | `src/store/useReportStore.ts` | Report / ReportStats 接口定义完整，generateReport / generateTimeshineDiary 流程可用 |
-| Report Actions | ✅ 完整 | `src/store/reportActions.ts` | createGeneratedReport / runTimeshineDiary / buildRawInput 三步走流程均在 |
+| Report Store | ✅ 完整 | `src/store/useReportStore.ts` | Report / ReportStats 接口定义完整，generateReport / generateSeedayDiary 流程可用 |
+| Report Actions | ✅ 完整 | `src/store/reportActions.ts` | createGeneratedReport / runSeedayDiary / buildRawInput 三步走流程均在 |
 | Report Helpers | ✅ 完整 | `src/store/reportHelpers.ts` | classifyActivities / computeMoodDistribution / computeDailyTodoStats 均在 |
 | Report Calculator | ✅ 完整 | `src/lib/report-calculator/` | computeSpectrum / computeLightQuality / detectGravityMismatch / formatForDiaryAI 均在 |
 | Classifier API | ✅ 完整 | `api/classify.ts` | AI 分类器端点 |
-| Diary API | ✅ 完整 | `api/diary.ts` | Timeshine 观察手记生成端点，含中英文系统 prompt |
+| Diary API | ✅ 完整 | `api/diary.ts` | Seeday 观察手记生成端点，含中英文系统 prompt |
 | Report API | ✅ 完整 | `api/report.ts` | 旧版 AI 分析端点 |
 | DB Sync | ✅ 完整 | `syncReportToSupabase` | reports 表同步逻辑在 |
 
@@ -53,7 +53,7 @@
 
 2. **DiaryClassifierCategory**（8 类，AI 分类器输出）：`deep_focus | recharge | body | necessary | social_duty | self_talk | dopamine | dissolved`
    - 文件：`src/lib/report-calculator/types.ts`
-   - 用途：Timeshine 日记的光谱分布
+   - 用途：Seeday 日记的光谱分布
 
 3. **适配层**：`src/lib/categoryAdapters.ts` 负责两套体系的映射
 
@@ -168,7 +168,7 @@
 - **需读文件**：
   - `src/features/report/ReportPage.tsx`（现有布局参考）
   - `src/features/report/ReportDetailModal.tsx`（现有详情展示）
-  - `docs/TSHINE_DEV_SPEC.md`（iOS UI 规范）
+  - `docs/SEEDAY_DEV_SPEC.md`（iOS UI 规范）
 - **完成标准**：产出 wireframe 或组件树结构
 
 #### ✅ 任务 V2：实现活动分类圆环图组件
@@ -213,7 +213,7 @@
 ### 4.1 当前管线（已有，三步走）
 
 ```
-用户活动/心情/待办 → buildRawInput() → callClassifierAPI() → computeAll() → formatForDiaryAI() → callDiaryAPI() → Timeshine 观察手记
+用户活动/心情/待办 → buildRawInput() → callClassifierAPI() → computeAll() → formatForDiaryAI() → callDiaryAPI() → Seeday 观察手记
 ```
 
 ### 4.2 传递给 AI 的数据清单
@@ -284,7 +284,7 @@
 #### ✅ 任务 D2：增强 buildRawInput - 纳入每日目标
 - **具体操作**：将 `useGrowthStore.dailyGoal` 加入 rawInput
 - **需读文件**：`src/store/useGrowthStore.ts`
-- **需改文件**：`src/store/reportActions.ts`（buildRawInput 签名需增加 dailyGoal 参数）、调用处 `runTimeshineDiary`
+- **需改文件**：`src/store/reportActions.ts`（buildRawInput 签名需增加 dailyGoal 参数）、调用处 `runSeedayDiary`
 - **完成标准**：rawInput 中包含 "今日目标：XXX"
 
 #### ⚠️ 任务 D3：增强 buildRawInput - 多语言支持审查（部分完成）

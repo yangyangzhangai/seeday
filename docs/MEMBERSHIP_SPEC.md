@@ -1,4 +1,4 @@
-# Tshine 会员体系规格文档 v1.1
+# Seeday 会员体系规格文档 v1.1
 
 > 最后更新：2026-04-17
 > 状态：规格已锁定，开发计划待实施
@@ -661,9 +661,9 @@ Body: {
 
 **IAP 产品 ID：**
 ```
-com.tshine.app.plus.monthly.intro   $7.99 内测月付
-com.tshine.app.plus.monthly         $9.99 正式月付
-com.tshine.app.plus.annual          $99.99 年付
+com.seeday.app.plus.monthly.intro   $7.99 内测月付
+com.seeday.app.plus.monthly         $9.99 正式月付
+com.seeday.app.plus.annual          $99.99 年付
 ```
 
 **新建：** `src/services/payment/iap/index.ts`

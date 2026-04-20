@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/timeshine_doc1_低叙事密度判定规范.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/seeday_doc1_低叙事密度判定规范.docx
 
 import { NARRATIVE_DENSITY_WEIGHTS } from './narrative-density-constants.js';
 import type { NarrativeScoreResult } from './narrative-density-types.js';

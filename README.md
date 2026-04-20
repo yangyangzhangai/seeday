@@ -1,12 +1,12 @@
-# Tshine
+# Seeday
 
-Tshine 是一个以「记录时间线 + Growth 任务 + 周期复盘」为核心的时间记录应用。
+Seeday 是一个以「记录时间线 + Growth 任务 + 周期复盘」为核心的时间记录应用。
 
 ## 功能概览
 
 - Chat (`/chat`): 记录活动、心情标签与 Magic Pen 整理流，支持 AI 辅助分类。
 - Growth (`/growth`): 承载任务管理主页面，包含 Todo CRUD、优先级/状态、成长瓶（Bottle）与 Focus 模式；`/todo` 当前保留为兼容重定向。
-- Report (`/report`): 按日/周/月/自定义区间生成报告，内嵌植物根系互动区，支持观察员分析（Timeshine Diary）。
+- Report (`/report`): 按日/周/月/自定义区间生成报告，内嵌植物根系互动区，支持观察员分析（Seeday Diary）。
 - Profile (`/profile`): 管理 AI 模式、批注掉落率、每日目标开关与植物方向配置等个人偏好。
 - Auth (`/auth`): 基于 Supabase 的登录/注册与会话初始化。
 - i18n: 内置 `zh / en / it` 三语切换。

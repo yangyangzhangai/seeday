@@ -1,4 +1,4 @@
-# DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/TSHINE_DEV_SPEC.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx -> src/features/report/README.md
+# DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/SEEDAY_DEV_SPEC.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx -> src/features/report/README.md
 
 ## Session-31 Discussion Override (2026-03-14)
 

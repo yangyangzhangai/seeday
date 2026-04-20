@@ -1,6 +1,6 @@
 # LLM Entry
 
-这是 Tshine 仓库的 AI/LLM 唯一入口文档。**每次新会话开始时，必须先读完本文件，再做任何其他事情。**
+这是 Seeday 仓库的 AI/LLM 唯一入口文档。**每次新会话开始时，必须先读完本文件，再做任何其他事情。**
 
 > 本文件是 `LLM.md` 的 Claude Code 专用副本，由 Claude Code 在启动时自动加载。内容与 `LLM.md` 保持同步，**以 `LLM.md` 为主版本**，修改时两份同步更新。
 
@@ -8,7 +8,7 @@
 
 ## 🧭 项目一句话简介
 
-**Tshine** 是一款 iOS 优先的 AI 陪伴日记应用，用户通过聊天输入日常记录，AI 自动提取活动/心情/待办，生成日报，并以 4 个个性化 AI 人格（`van`、`agnes`、`zep`、`momo`）提供回应。技术栈：React 18 + TypeScript + Vite + Zustand + Supabase + Vercel Serverless + Capacitor（iOS 套壳）。
+**Seeday** 是一款 iOS 优先的 AI 陪伴日记应用，用户通过聊天输入日常记录，AI 自动提取活动/心情/待办，生成日报，并以 4 个个性化 AI 人格（`van`、`agnes`、`zep`、`momo`）提供回应。技术栈：React 18 + TypeScript + Vite + Zustand + Supabase + Vercel Serverless + Capacitor（iOS 套壳）。
 
 ---
 
@@ -21,7 +21,7 @@
 1. **本文件 `CLAUDE.md`**：权威顺序、硬性约束、禁止事项（正在读）
 2. **`docs/CURRENT_TASK.md`**：当前任务焦点与断点恢复锚点
 3. **`docs/PROJECT_MAP.md`**：目录结构、边界、核心路径
-4. **`docs/TSHINE_DEV_SPEC.md`**：iOS 开发规范（技术栈、分层架构、移动端 UI、App Store 审核规避）
+4. **`docs/SEEDAY_DEV_SPEC.md`**：iOS 开发规范（技术栈、分层架构、移动端 UI、App Store 审核规避）
 
 ### Step 2 — 模块层（L2，按任务选读）
 
@@ -161,7 +161,7 @@ npm run build                   # 构建验证（关键改动后执行）
 |------|------|
 | `docs/CURRENT_TASK.md` | 当前任务焦点，新会话从这里恢复断点 |
 | `docs/PROJECT_MAP.md` | 目录职责、核心边界、核心路径索引 |
-| `docs/TSHINE_DEV_SPEC.md` | **iOS 开发规范**（技术栈、分层架构、移动端 UI、App Store 审核规避）|
+| `docs/SEEDAY_DEV_SPEC.md` | **iOS 开发规范**（技术栈、分层架构、移动端 UI、App Store 审核规避）|
 | `docs/CHANGELOG.md` | 变更记录，每 PR 更新一次 |
 | `docs/ARCHITECTURE.md` | 架构说明（真实实现，非愿景） |
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（AI 提取 + 前端校验 + draft review） |
