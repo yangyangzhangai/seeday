@@ -26,7 +26,7 @@
 | `POST` | `/api/plant-asset-telemetry` | `plant-asset-telemetry.ts` | `{ success, id }` (`{ success: false, skipped: true }` when table not provisioned) |
 | `POST` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | `{ success, id }` |
 | `GET` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | default: `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }`; when `module=user_analytics`: `{ overview, dailySeries, retention, generatedAt }` or `{ found, user }` (`type=user_lookup`); when `module=holiday_check`: `{ isFreeDay, reason, name? }` |
-| `POST` | `/api/subscription` | `subscription.ts` | `{ success, plan, isPlus, expiresAt, verificationEnvironment }` |
+| `POST` | `/api/subscription` | `subscription.ts` | iap: `{ success, plan, isPlus, expiresAt, verificationEnvironment }`; stripe checkout: `{ success, checkoutUrl }`; stripe finalize: `{ success, plan, isPlus, expiresAt, verificationEnvironment }` |
 
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
@@ -36,7 +36,7 @@ Plant endpoints require `Authorization: Bearer <supabase access token>` and vali
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 `/api/diary` now supports `mode: 'full' | 'teaser'`; teaser mode uses deterministic template selection (no LLM call) for Free diary teaser rendering.
-`/api/subscription` requires `Authorization: Bearer <supabase access token>` and `SUPABASE_SERVICE_ROLE_KEY`; iOS flow currently supports `source='iap'` (`activate`/`restore`/`cancel`) and writes membership fields into `auth.users.user_metadata`.
+`/api/subscription` requires `Authorization: Bearer <supabase access token>` and `SUPABASE_SERVICE_ROLE_KEY`; iOS flow supports `source='iap'` (`activate`/`restore`/`cancel`) and web stripe flow supports `source='stripe'` with `action='stripe_checkout'` (create checkout session URL) + `action='stripe_finalize'` (verify returned `stripe_session_id` then persist membership metadata).
 Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `characterStateText`, `characterStateMeta`, `currentDate`, `countryCode`, `holiday`, optional `latitude`/`longitude`, optional env context (`weatherContext`/`seasonContext`/`weatherAlerts`), `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders. `pendingTodos[*]` also supports `createdAt/ageDays` so suggestion mode can detect stale todos.
 Annotation request `userContext` now also supports optional `userProfileSnapshot` (long-term profile snapshot text + meal-time hints), which is injected into prompt when `long_term_profile_enabled=true`.
 Annotation request `userContext` additionally supports optional `userId` for lateral-association state partitioning (`userId + aiMode`); server samples one association focus per call and injects it into prompt U4. State is persisted in `auth.users.user_metadata.lateral_association_state_v1` when `SUPABASE_SERVICE_ROLE_KEY` is available, otherwise it falls back to in-memory cache.
@@ -60,7 +60,7 @@ Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-i
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底
-- `/api/subscription` -> Apple App Store Server API（`APPLE_IAP_ISSUER_ID`、`APPLE_IAP_KEY_ID`、`APPLE_IAP_PRIVATE_KEY`、`APPLE_IAP_BUNDLE_ID`）
+- `/api/subscription` -> Apple App Store Server API（`APPLE_IAP_ISSUER_ID`、`APPLE_IAP_KEY_ID`、`APPLE_IAP_PRIVATE_KEY`、`APPLE_IAP_BUNDLE_ID`）+ Stripe API（`STRIPE_SECRET_KEY`、`STRIPE_PRICE_MONTHLY`、`STRIPE_PRICE_ANNUAL`）
 
 ## 本地调试（Windows）
 

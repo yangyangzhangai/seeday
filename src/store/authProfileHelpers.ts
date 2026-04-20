@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/types/userProfile.ts
-import type { UserProfileV2 } from '../types/userProfile';
+import type { UserProfileV2, ClassSchedule } from '../types/userProfile';
 
 export const USER_PROFILE_METADATA_KEY = 'user_profile_v2';
 export const LONG_TERM_PROFILE_ENABLED_KEY = 'long_term_profile_enabled';
@@ -26,6 +26,31 @@ function normalizeMealTimesText(raw: unknown): string[] | undefined {
   return normalized;
 }
 
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function isHHMM(v: unknown): v is string {
+  return typeof v === 'string' && HHMM_RE.test(v);
+}
+
+function sanitizeClassSchedule(raw: unknown): ClassSchedule | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const v = raw as Record<string, unknown>;
+  const sanitizeRange = (r: unknown) => {
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return undefined;
+    const rr = r as Record<string, unknown>;
+    if (!isHHMM(rr.start) || !isHHMM(rr.end)) return undefined;
+    return { start: rr.start, end: rr.end };
+  };
+  const weekdays = Array.isArray(v.weekdays)
+    ? v.weekdays.filter((d): d is number => typeof d === 'number' && d >= 0 && d <= 6)
+    : [];
+  return {
+    weekdays,
+    ...(sanitizeRange(v.morning) ? { morning: sanitizeRange(v.morning)! } : {}),
+    ...(sanitizeRange(v.afternoon) ? { afternoon: sanitizeRange(v.afternoon)! } : {}),
+    ...(sanitizeRange(v.evening) ? { evening: sanitizeRange(v.evening)! } : {}),
+  };
+}
+
 function sanitizeManual(raw: unknown): UserProfileV2['manual'] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const value = raw as Record<string, unknown>;
@@ -37,17 +62,30 @@ function sanitizeManual(raw: unknown): UserProfileV2['manual'] {
   const lifeStage = typeof value.lifeStage === 'string' && LIFE_STAGE_VALUES.has(value.lifeStage)
     ? (value.lifeStage as UserProfileV2['manual']['lifeStage'])
     : undefined;
+  const classSchedule = sanitizeClassSchedule(value.classSchedule);
   return {
     ...(primaryUse ? { primaryUse } : {}),
     ...(lifeStage ? { lifeStage } : {}),
-    ...(typeof value.wakeTime === 'string' ? { wakeTime: value.wakeTime } : {}),
-    ...(typeof value.sleepTime === 'string' ? { sleepTime: value.sleepTime } : {}),
+    ...(isHHMM(value.wakeTime) ? { wakeTime: value.wakeTime } : {}),
+    ...(isHHMM(value.sleepTime) ? { sleepTime: value.sleepTime } : {}),
     ...(mealTimes ? { mealTimes } : {}),
     ...(mealTimesText ? { mealTimesText } : {}),
     ...(typeof value.currentGoal === 'string' ? { currentGoal: value.currentGoal } : {}),
     ...(typeof value.lifeGoal === 'string' ? { lifeGoal: value.lifeGoal } : {}),
     ...(Array.isArray(value.tags) ? { tags: value.tags.filter((tag): tag is string => typeof tag === 'string') } : {}),
     ...(typeof value.freeText === 'string' ? { freeText: value.freeText } : {}),
+    // V2 作息调度字段
+    ...(typeof value.hasWorkSchedule === 'boolean' ? { hasWorkSchedule: value.hasWorkSchedule } : {}),
+    ...(typeof value.hasClassSchedule === 'boolean' ? { hasClassSchedule: value.hasClassSchedule } : {}),
+    ...(isHHMM(value.workStart) ? { workStart: value.workStart } : {}),
+    ...(isHHMM(value.workEnd) ? { workEnd: value.workEnd } : {}),
+    ...(isHHMM(value.lunchStart) ? { lunchStart: value.lunchStart } : {}),
+    ...(isHHMM(value.lunchEnd) ? { lunchEnd: value.lunchEnd } : {}),
+    ...(isHHMM(value.lunchTime) ? { lunchTime: value.lunchTime } : {}),
+    ...(isHHMM(value.dinnerTime) ? { dinnerTime: value.dinnerTime } : {}),
+    ...(classSchedule ? { classSchedule } : {}),
+    ...(typeof value.classScheduleSource === 'string' ? { classScheduleSource: value.classScheduleSource as 'image' | 'manual' } : {}),
+    ...(typeof value.reminderEnabled === 'boolean' ? { reminderEnabled: value.reminderEnabled } : {}),
   };
 }
 

@@ -26,6 +26,16 @@ import {
 } from '../store/useMoodStore';
 import { useGrowthStore, type Bottle, type BottleType, type BottleStatus } from '../store/useGrowthStore';
 import { fromDbAnnotation, fromDbMessage, fromDbReport, fromDbStardust, fromDbTodo } from '../lib/dbMappers';
+import { autoDetectMood } from '../lib/mood';
+import i18n from '../i18n';
+import type { SupportedLang } from '../i18n';
+
+function resolveLangForContent(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  const lang = i18n.language?.split('-')[0] ?? 'zh';
+  return (lang === 'zh' || lang === 'en' || lang === 'it') ? lang as SupportedLang : 'zh';
+}
 
 export function useRealtimeSync() {
   const user = useAuthStore(s => s.user);
@@ -56,6 +66,13 @@ export function useRealtimeSync() {
             if (state.messages.some(m => m.id === msg.id)) return state; // already present
             return { messages: [...state.messages, msg] };
           });
+          // Auto-detect mood for incoming activity messages that don't have one yet
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null) {
+            const moodStore = useMoodStore.getState();
+            if (!moodStore.getMood(msg.id)) {
+              moodStore.setMood(msg.id, autoDetectMood(msg.content, msg.duration, resolveLangForContent(msg.content)), 'auto');
+            }
+          }
         },
       )
       .on(

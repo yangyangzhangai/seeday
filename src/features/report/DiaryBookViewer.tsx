@@ -15,6 +15,7 @@ import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
 import { usePlantStore } from '../../store/usePlantStore';
 import { PlantImage } from './plant/PlantImage';
+import { DiaryPlantFlipModal } from './plant/DiaryPlantFlipModal';
 import { DiaryBookViewerExpandedView, type ExpandTarget } from './DiaryBookViewerExpandedView';
 
 const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
@@ -142,7 +143,7 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
 }
 
 /* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string }) {
+function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFlipCard }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string; onOpenFlipCard?: (plant: DailyPlantRecord, msgs: Message[]) => void }) {
   const px = (n: number) => n * scale;
   const { i18n, t: tr } = useTranslation();
   const navigate = useNavigate();
@@ -433,7 +434,9 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg }: { page
                 height: px(64),
                 margin: `0 ${px(3)}px ${px(2)}px 0`,
                 opacity: 0.92,
+                cursor: dayPlant ? 'pointer' : 'default',
               }}
+              onClick={() => dayPlant && onOpenFlipCard?.(dayPlant, dayMsgs)}
             >
               {dayPlant ? (
                 <PlantImage
@@ -540,6 +543,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');
   const [expandTarget, setExpandTarget] = useState<ExpandTarget>(null);
+  const [flipModal, setFlipModal] = useState<{ plant: DailyPlantRecord; dayMessages: Message[] } | null>(null);
   const dblClickTimer = useRef<{ side: 'left' | 'right'; timer: ReturnType<typeof setTimeout> } | null>(null);
   const pointerUpWasDrag = useRef(false); // true when pointer-up followed a real drag
   const dragRef = useRef<{
@@ -840,7 +844,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: frontClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
+                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} onOpenFlipCard={(plant, msgs) => setFlipModal({ plant, dayMessages: msgs })} />
                 </div>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: backClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
                   <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
@@ -927,6 +931,13 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
       {/* Expanded overlay */}
       <DiaryBookViewerExpandedView target={expandTarget} onClose={() => setExpandTarget(null)} plantRecords={plantRecords} />
+      {flipModal && (
+        <DiaryPlantFlipModal
+          plant={flipModal.plant}
+          dayMessages={flipModal.dayMessages}
+          onClose={() => setFlipModal(null)}
+        />
+      )}
     </div>
   );
 };

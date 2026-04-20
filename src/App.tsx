@@ -24,6 +24,7 @@ import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { useAppForegroundRefresh } from './hooks/useAppForegroundRefresh';
 import { useReminderSystem } from './hooks/useReminderSystem';
 import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
 import { useNetworkSync } from './hooks/useNetworkSync';
@@ -332,6 +333,8 @@ function App() {
 
   // Multi-device realtime sync: subscribes when signed in, unsubscribes on sign-out
   useRealtimeSync();
+  // iOS/Android: re-fetch core data when app returns from background
+  useAppForegroundRefresh();
 
   return (
     <BrowserRouter>

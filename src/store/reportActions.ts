@@ -6,6 +6,7 @@ import { callDiaryAPI, callExtractProfileAPI, callReportAPI, type ExtractProfile
 import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
+import { withDbRetry } from '../lib/dbRetry';
 import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 import i18n from '../i18n';
 import { useAuthStore } from './useAuthStore';
@@ -208,17 +209,14 @@ export function mergeReportIntoList(reports: Report[], type: ReportType, date: n
 }
 
 export async function syncReportToSupabase(report: Report): Promise<void> {
-  const session = await getSupabaseSession();
-
-  if (!session) return;
-
-  const { error } = await supabase
-    .from('reports')
-    .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
-
-  if (error) {
-    console.error('Error syncing new report to Supabase:', error);
-  }
+  await withDbRetry('ReportStore', async () => {
+    const session = await getSupabaseSession();
+    if (!session) return;
+    const { error } = await supabase
+      .from('reports')
+      .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
+    if (error) throw new Error(error.message);
+  });
 }
 
 export async function runReportAIAnalysis(report: Report, todos: Todo[], messages: Message[]): Promise<string> {

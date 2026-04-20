@@ -90,6 +90,18 @@ export function canRestorePurchase(): boolean {
   return true;
 }
 
+export function getPendingCheckoutSessionId(): string | null {
+  return null;
+}
+
+export function clearPendingCheckoutSession(): void {
+  // no-op for iap build
+}
+
+export async function finalizePendingCheckout(): Promise<PaymentActionResult> {
+  return { success: false, code: 'iap_client_not_ready', message: 'iap_client_not_ready' };
+}
+
 export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResult> {
   try {
     const transaction = await runBridgePurchase(plan);

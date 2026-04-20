@@ -49,6 +49,17 @@ function normalizeFallbackLevel(raw: unknown): 1 | 2 | 3 | 4 | null {
   return null;
 }
 
+function handleHolidayCheckGet(req: VercelRequest, res: VercelResponse): void {
+  const date = typeof req.query.date === 'string' ? req.query.date : '';
+  if (!date) {
+    res.status(400).json(jsonError('missing date'));
+    return;
+  }
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 6=Sat
+  res.status(200).json({ isFreeDay: day === 0 || day === 6 });
+}
+
 function shouldHandlePlantAssetTelemetry(payload: {
   eventType?: unknown;
   requestedPlantId?: unknown;

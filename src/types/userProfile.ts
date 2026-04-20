@@ -103,7 +103,7 @@ export interface UserProfileDynamicSignals {
 }
 
 export interface UserProfileV2 {
-  manual: UserProfileManual;
+  manual: UserProfileManualV2;
   observed?: UserProfileObserved;
   dynamicSignals?: UserProfileDynamicSignals;
   anniversariesVisible?: VisibleAnniversary[];

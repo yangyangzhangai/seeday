@@ -4,6 +4,26 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-19 - Feat: Stripe Web Checkout 首版闭环（不影响 iOS IAP 构建）
+
+### Changed
+
+- `api/subscription.ts`
+  - 保持单函数入口不新增 `api/*.ts` 文件，在现有 `/api/subscription` 中新增 `source='stripe'` 的 `stripe_checkout`/`stripe_finalize` 分支。
+  - `stripe_checkout` 按月/年价格 ID 创建 Stripe Checkout Session 并返回 `checkoutUrl`；`stripe_finalize` 按回跳 `stripe_session_id` 校验订阅并写回 `membership_*` metadata。
+- `src/server/stripe-subscription.ts`（新增）
+  - 新增 Stripe Server API 调用与会话/订阅校验 helper（create checkout session + verify checkout session/subscription）。
+- `src/services/payment/stripe/index.ts`
+  - 由占位返回改为真实 Web 支付链路：调用 `/api/subscription` 创建 checkout，跳转 Stripe 托管收银台，回跳后读取 `stripe_session_id` 并 finalize。
+- `src/services/payment/iap/index.ts` + `src/types/payment.d.ts` + `src/features/profile/UpgradePage.tsx` + `src/features/profile/components/MembershipCard.tsx`
+  - 支付适配层新增“待 finalize session”统一签名；升级页支持 Stripe 回跳自动 finalize；Profile 卡片点击升级时兼容 Stripe 跳转态。
+- `src/api/client.ts` + `src/api/README.md` + `api/README.md` + `.env.example`
+  - 前端 API 新增 `callStripeCheckoutAPI/callStripeFinalizeAPI`；文档与环境变量补齐 `STRIPE_SECRET_KEY`、`STRIPE_PRICE_MONTHLY`、`STRIPE_PRICE_ANNUAL`。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-19 - Fix: 日记本饼图改为复用日报快照口径
 
 ### Changed
