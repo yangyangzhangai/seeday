@@ -10,6 +10,8 @@ import type { ReminderType } from '../reminder/reminderTypes';
 
 const ERROR_LOG_KEY = 'reminder_error_log';
 const MAX_ERROR_ENTRIES = 20;
+let actionTypesRegistered = false;
+let actionTypesRegisterPromise: Promise<void> | null = null;
 
 function logReminderError(label: string, error: unknown): void {
   try {
@@ -30,18 +32,25 @@ function logReminderError(label: string, error: unknown): void {
 }
 
 // 动态导入避免 Web 环境报错
+interface LocalNotificationsPluginRef {
+  plugin: Awaited<ReturnType<typeof import('@capacitor/local-notifications')>>['LocalNotifications'];
+}
+
 async function getPlugin() {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
-    return LocalNotifications;
+    // Do not return Capacitor plugin proxy directly from async function.
+    // On iOS the proxy can be treated as thenable and triggers `LocalNotifications.then()` errors.
+    return { plugin: LocalNotifications } as LocalNotificationsPluginRef;
   } catch {
     return null;
   }
 }
 
 async function ensureNotificationPermission(): Promise<boolean> {
-  const plugin = await getPlugin();
-  if (!plugin) return false;
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return false;
+  const { plugin } = pluginRef;
   try {
     const current = await plugin.checkPermissions();
     if (current.display === 'granted') return true;
@@ -59,10 +68,13 @@ async function ensureNotificationPermission(): Promise<boolean> {
  * 所有 actions 不含 input:true，长按不会出现文字输入框。
  */
 export async function registerNotificationCategories(): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  if (actionTypesRegistered) return;
+  if (actionTypesRegisterPromise) return actionTypesRegisterPromise;
 
-  try {
+  actionTypesRegisterPromise = (async () => {
+    const pluginRef = await getPlugin();
+    if (!pluginRef) return;
+    const { plugin } = pluginRef;
     await plugin.registerActionTypes({
       types: [
         {
@@ -101,15 +113,24 @@ export async function registerNotificationCategories(): Promise<void> {
         },
       ],
     });
-  } catch (error) {
-    logReminderError('registerNotificationCategories failed', error);
-  }
+    actionTypesRegistered = true;
+  })()
+    .catch((error) => {
+      logReminderError('registerNotificationCategories failed', error);
+      throw error;
+    })
+    .finally(() => {
+      actionTypesRegisterPromise = null;
+    });
+
+  return actionTypesRegisterPromise;
 }
 
 /** 请求通知权限 */
 export async function requestNotificationPermission(): Promise<boolean> {
-  const plugin = await getPlugin();
-  if (!plugin) return false;
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return false;
+  const { plugin } = pluginRef;
 
   try {
     const { display } = await plugin.requestPermissions();
@@ -121,8 +142,9 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /** 检查通知权限状态 */
 export async function checkNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
-  const plugin = await getPlugin();
-  if (!plugin) return 'denied';
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return 'denied';
+  const { plugin } = pluginRef;
 
   try {
     const { display } = await plugin.checkPermissions();
@@ -147,13 +169,15 @@ export interface LocalNotificationPayload {
 }
 
 /** 调度单条本地通知 */
-export async function scheduleLocalNotification(payload: LocalNotificationPayload): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin) return;
+export async function scheduleLocalNotification(payload: LocalNotificationPayload): Promise<boolean> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return false;
+  const { plugin } = pluginRef;
   const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) return;
+  if (!hasPermission) return false;
 
   try {
+    await registerNotificationCategories();
     await plugin.schedule({
       notifications: [
         {
@@ -166,21 +190,25 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
         },
       ],
     });
+    return true;
   } catch (error) {
     logReminderError('scheduleLocalNotification failed', error);
+    return false;
   }
 }
 
 /** 批量调度通知（今日提醒队列） */
 export async function scheduleBatchNotifications(
   payloads: LocalNotificationPayload[],
-): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin || payloads.length === 0) return;
+): Promise<boolean> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef || payloads.length === 0) return false;
+  const { plugin } = pluginRef;
   const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) return;
+  if (!hasPermission) return false;
 
   try {
+    await registerNotificationCategories();
     await plugin.schedule({
       notifications: payloads.map((p) => ({
         id: p.id,
@@ -191,15 +219,18 @@ export async function scheduleBatchNotifications(
         extra: p.extra,
       })),
     });
+    return true;
   } catch (error) {
     logReminderError('scheduleBatchNotifications failed', error);
+    return false;
   }
 }
 
 /** 按 ID 取消通知 */
 export async function cancelNotifications(ids: number[]): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin || ids.length === 0) return;
+  const pluginRef = await getPlugin();
+  if (!pluginRef || ids.length === 0) return;
+  const { plugin } = pluginRef;
 
   try {
     await plugin.cancel({ notifications: ids.map((id) => ({ id })) });
@@ -210,8 +241,9 @@ export async function cancelNotifications(ids: number[]): Promise<void> {
 
 /** 取消除 idle_nudge 之外的所有本地通知 */
 export async function cancelAllNotifications(): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return;
+  const { plugin } = pluginRef;
 
   try {
     const { notifications } = await plugin.getPending();
@@ -221,6 +253,22 @@ export async function cancelAllNotifications(): Promise<void> {
     }
   } catch (error) {
     logReminderError('cancelAllNotifications failed', error);
+  }
+}
+
+/** 读取当前待触发通知 ID 列表 */
+export async function getPendingNotificationIds(): Promise<number[]> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return [];
+  const { plugin } = pluginRef;
+
+  try {
+    const { notifications } = await plugin.getPending();
+    return notifications
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isFinite(id));
+  } catch {
+    return [];
   }
 }
 
@@ -275,8 +323,9 @@ export async function setupNotificationActionListener(handlers: {
   onStillYes?: (reminderType: ReminderType, activityType?: string) => void;
   onStillNo?: (reminderType: ReminderType, activityType?: string) => void;
 }): Promise<void> {
-  const plugin = await getPlugin();
-  if (!plugin) return;
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return;
+  const { plugin } = pluginRef;
 
   try {
     plugin.addListener('localNotificationActionPerformed', (event) => {
