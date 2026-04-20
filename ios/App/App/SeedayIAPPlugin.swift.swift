@@ -13,6 +13,16 @@ public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "purchaseProduct", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restorePurchases", returnType: CAPPluginReturnPromise),
     ]
+    private var transactionUpdatesTask: Task<Void, Never>?
+
+    public override func load() {
+        super.load()
+        startTransactionUpdatesListenerIfNeeded()
+    }
+
+    deinit {
+        transactionUpdatesTask?.cancel()
+    }
 
     // MARK: - purchaseProduct
 
@@ -83,5 +93,37 @@ public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("No active subscriptions found")
             }
         }
+    }
+
+    // MARK: - Transaction updates
+
+    private func startTransactionUpdatesListenerIfNeeded() {
+        guard transactionUpdatesTask == nil else { return }
+
+        transactionUpdatesTask = Task.detached(priority: .background) { [weak self] in
+            for await result in Transaction.updates {
+                if Task.isCancelled { break }
+
+                switch result {
+                case .verified(let transaction):
+                    await transaction.finish()
+                    let payload = Self.makeTransactionPayload(transaction)
+                    await MainActor.run {
+                        self?.notifyListeners("iapTransactionUpdated", data: payload)
+                    }
+                case .unverified(_, let error):
+                    CAPLog.print("⚡️  SeedayIAP: unverified transaction update: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private static func makeTransactionPayload(_ transaction: Transaction) -> [String: Any] {
+        [
+            "transactionId": String(transaction.id),
+            "originalTransactionId": String(transaction.originalID),
+            "productId": transaction.productID,
+            "purchaseDateMs": Int(transaction.purchaseDate.timeIntervalSince1970 * 1000),
+        ]
     }
 }
