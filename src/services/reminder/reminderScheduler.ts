@@ -5,6 +5,7 @@ import { toLocalDateStr } from '../../lib/dateUtils';
 import {
   scheduleBatchNotifications,
   cancelAllNotifications,
+  getPendingNotificationIds,
   type LocalNotificationPayload,
 } from '../notifications/localNotificationService';
 
@@ -150,8 +151,7 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   if (opts.reminderEnabled === false) return;
 
   const todayKey = toLocalDateStr(new Date());
-  // 已经调度过今天的则跳过（重启 App 不重复调度）
-  if (localStorage.getItem(SCHEDULE_DONE_KEY) === todayKey) return;
+  const wasMarkedToday = localStorage.getItem(SCHEDULE_DONE_KEY) === todayKey;
 
   const now = new Date();
   const isFreeDay = await getIsFreeDay(now, opts.countryCode);
@@ -187,7 +187,19 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     };
   });
 
-  await scheduleBatchNotifications(payloads);
+  if (wasMarkedToday) {
+    const pendingIds = await getPendingNotificationIds();
+    const expectedIds = payloads.map((item) => item.id);
+    const alreadyScheduled = expectedIds.length > 0 && expectedIds.every((id) => pendingIds.includes(id));
+    if (alreadyScheduled) {
+      localStorage.setItem('reminder_today_count', String(payloads.length));
+      return;
+    }
+  }
+
+  const scheduled = await scheduleBatchNotifications(payloads);
+  if (!scheduled) return;
+
   localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
   localStorage.setItem('reminder_today_count', String(payloads.length));
 }

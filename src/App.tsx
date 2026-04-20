@@ -126,7 +126,7 @@ const MainLayout = () => {
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
-  useReminderSystem(navigate);
+  const { confirmReminderFromPopup } = useReminderSystem(navigate);
   useMidnightAutoGenerate();
   const activePopupType = useReminderStore((s) => s.activePopupType);
   const markConfirmed = useReminderStore((s) => s.markConfirmed);
@@ -298,7 +298,7 @@ const MainLayout = () => {
         <ReminderPopup
           type={activePopupType}
           copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
-          onConfirm={() => markConfirmed(activePopupType)}
+          onConfirm={() => { void confirmReminderFromPopup(activePopupType); }}
           onDeny={() => showPickerForDeny()}
         />
       )}
