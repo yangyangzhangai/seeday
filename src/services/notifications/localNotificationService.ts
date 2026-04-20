@@ -8,6 +8,27 @@
 
 import type { ReminderType } from '../reminder/reminderTypes';
 
+const ERROR_LOG_KEY = 'reminder_error_log';
+const MAX_ERROR_ENTRIES = 20;
+
+function logReminderError(label: string, error: unknown): void {
+  try {
+    const entry = {
+      t: new Date().toISOString(),
+      label,
+      msg: error instanceof Error ? error.message : String(error),
+    };
+    const raw = localStorage.getItem(ERROR_LOG_KEY);
+    const list: typeof entry[] = raw ? (JSON.parse(raw) as typeof entry[]) : [];
+    list.push(entry);
+    if (list.length > MAX_ERROR_ENTRIES) list.splice(0, list.length - MAX_ERROR_ENTRIES);
+    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(list));
+  } catch {
+    // localStorage 不可用时放弃记录
+  }
+  if (import.meta.env.DEV) console.warn(`[local-notification] ${label}`, error);
+}
+
 // 动态导入避免 Web 环境报错
 async function getPlugin() {
   try {
@@ -80,8 +101,8 @@ export async function registerNotificationCategories(): Promise<void> {
         },
       ],
     });
-  } catch {
-    // 静默失败（Web 环境或权限未授予）
+  } catch (error) {
+    logReminderError('registerNotificationCategories failed', error);
   }
 }
 
@@ -146,9 +167,7 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
       ],
     });
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[local-notification] scheduleLocalNotification failed', error);
-    }
+    logReminderError('scheduleLocalNotification failed', error);
   }
 }
 
@@ -173,9 +192,7 @@ export async function scheduleBatchNotifications(
       })),
     });
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[local-notification] scheduleBatchNotifications failed', error);
-    }
+    logReminderError('scheduleBatchNotifications failed', error);
   }
 }
 
@@ -202,8 +219,8 @@ export async function cancelAllNotifications(): Promise<void> {
     if (toCancel.length > 0) {
       await plugin.cancel({ notifications: toCancel.map((n) => ({ id: n.id })) });
     }
-  } catch {
-    // 静默失败
+  } catch (error) {
+    logReminderError('cancelAllNotifications failed', error);
   }
 }
 
