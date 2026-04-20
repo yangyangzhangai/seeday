@@ -3,7 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket } from 'lucide-react';
+import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
@@ -38,11 +38,83 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
 
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
+  const { t } = useTranslation();
+  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [nickname, setNickname] = React.useState('');
+  const [isLogin, setIsLogin] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
+  const [googleLoading, setGoogleLoading] = React.useState(false);
+  const [appleLoading, setAppleLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [message, setMessage] = React.useState<string | null>(null);
+
+  const isValidPhone = (v: string) => /^1[3-9]\d{9}$/.test(v.trim());
+  const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  const toPhoneAliasEmail = (v: string) => `${v.trim()}@phone.local`;
+
+  const getErrorMessage = (msg: string) => {
+    if (msg.includes('email rate limit exceeded')) return t('auth_error_rate_limit');
+    if (msg.includes('Invalid login credentials')) return t('auth_error_invalid_credentials');
+    if (msg.includes('User already registered')) return t('auth_error_user_exists');
+    if (msg.includes('Password should be at least')) return t('auth_error_password_short');
+    if (msg.includes('invalid_grant')) return t('auth_error_invalid_grant');
+    return t('auth_error_generic') + msg;
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const acc = identifier.trim();
+      if (!isValidPhone(acc) && !isValidEmail(acc)) throw new Error(t('auth_error_invalid_account'));
+      const emailToUse = isValidPhone(acc) ? toPhoneAliasEmail(acc) : acc;
+      if (isLogin) {
+        const { error: err } = await signIn(emailToUse, password);
+        if (err) throw err;
+        onNext();
+      } else {
+        const { error: err } = await signUp(emailToUse, password, nickname || undefined);
+        if (err) throw err;
+        setMessage(t('auth_register_success'));
+        setIsLogin(true);
+      }
+    } catch (err: any) {
+      setError(getErrorMessage(err.message || t('auth_error_generic')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    setError(null);
+    const { error: err } = await signInWithApple();
+    if (err) {
+      setError(getErrorMessage(err.message || t('auth_error_generic')));
+      setAppleLoading(false);
+    } else {
+      onNext();
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    const { error: err } = await signInWithGoogle();
+    if (err) {
+      setError(getErrorMessage(err.message || t('auth_error_generic')));
+      setGoogleLoading(false);
+    }
+  };
+
+  const canSubmit = identifier.trim() && password.length >= 6 && !loading;
 
   return (
     <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
-      <div className="mb-12">
+      <div className="mb-8">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -53,19 +125,17 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         </motion.div>
 
         <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">
-          开启您的
-          <br />
-          高端生活追踪
+          {isLogin ? '欢迎回来' : '开启您的'}
+          {!isLogin && <><br />高端生活追踪</>}
         </h2>
 
         <p className="text-[#4a5d4c]/60 mt-4 text-sm leading-relaxed">
-          记录每一刻的灵感与成长，
-          <br />
-          让 AI 成为您的数字双生子。
+          {isLogin ? '登录以同步您的数据' : '注册以开始云端同步'}
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
+        {/* 账号输入 */}
         <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
           <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
             <Mail size={20} />
@@ -79,29 +149,91 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           />
         </div>
 
-        <div className="flex items-center gap-4 py-2">
+        {/* 昵称（仅注册） */}
+        {!isLogin && (
+          <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
+            <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
+              <User size={20} />
+            </div>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="昵称（选填）"
+              className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
+            />
+          </div>
+        )}
+
+        {/* 密码 */}
+        <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
+          <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
+            <Lock size={20} />
+          </div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+            placeholder="密码（至少 6 位）"
+            className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
+          />
+        </div>
+
+        {/* 错误 / 成功提示 */}
+        {error && <p className="text-red-500 text-xs px-2">{error}</p>}
+        {message && <p className="text-[#4a5d4c] text-xs px-2">{message}</p>}
+
+        {/* 切换登录/注册 */}
+        <p className="text-center text-xs text-[#4a5d4c]/40 pt-1">
+          {isLogin ? '还没有账号？' : '已有账号？'}
+          <button
+            type="button"
+            onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }}
+            className="text-[#4a5d4c] font-bold underline decoration-[#4a5d4c]/20 ml-1"
+          >
+            {isLogin ? '立即注册' : '去登录'}
+          </button>
+        </p>
+
+        <div className="flex items-center gap-4 py-1">
           <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
           <span className="text-[10px] font-bold text-[#4a5d4c]/20 uppercase tracking-[0.2em]">或者通过</span>
           <div className="flex-1 h-[1px] bg-[#4a5d4c]/5" />
         </div>
 
         <div className="flex gap-4">
-          <AuthButton icon={<Apple size={20} fill="currentColor" />} text="Apple" className="flex-1" />
-          <AuthButton icon={<Chrome size={20} />} text="Google" className="flex-1" />
+          <AuthButton
+            icon={appleLoading ? <Loader2 size={20} className="animate-spin" /> : <Apple size={20} fill="currentColor" />}
+            text="Apple"
+            className="flex-1"
+            onClick={handleAppleSignIn}
+            disabled={appleLoading || googleLoading}
+          />
+          <AuthButton
+            icon={googleLoading ? <Loader2 size={20} className="animate-spin" /> : <Chrome size={20} />}
+            text="Google"
+            className="flex-1"
+            onClick={handleGoogleSignIn}
+            disabled={appleLoading || googleLoading}
+          />
         </div>
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto pt-6">
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={onNext}
-          disabled={!identifier.trim()}
+          onClick={handleSubmit}
+          disabled={!canSubmit}
           className={`w-full py-5 rounded-[28px] font-bold text-lg shadow-xl transition-all flex items-center justify-center gap-2 ${
-            identifier.trim()
+            canSubmit
               ? 'bg-[#4a5d4c] text-white shadow-[#4a5d4c]/20 hover:bg-[#3d4d3f]'
               : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/20 shadow-none cursor-not-allowed'
           }`}>
-          立即体验 <ChevronRight size={20} />
+          {loading
+            ? <Loader2 size={20} className="animate-spin" />
+            : <>{isLogin ? '登录' : '注册'} <ChevronRight size={20} /></>
+          }
         </motion.button>
 
         <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.1em]">
@@ -113,12 +245,20 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   );
 };
 
-function AuthButton({ icon, text, className = '' }: { icon: React.ReactNode; text: string; className?: string }) {
+function AuthButton({ icon, text, className = '', onClick, disabled = false }: {
+  icon: React.ReactNode;
+  text: string;
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   return (
     <motion.button
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
-      className={`bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] flex items-center justify-center gap-3 text-[#4a5d4c] font-bold shadow-sm transition-all hover:bg-white hover:shadow-md ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+      className={`bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] flex items-center justify-center gap-3 text-[#4a5d4c] font-bold shadow-sm transition-all hover:bg-white hover:shadow-md disabled:opacity-50 ${className}`}
     >
       {icon} <span className="text-sm">{text}</span>
     </motion.button>
