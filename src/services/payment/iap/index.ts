@@ -136,9 +136,23 @@ function normalizeTransaction(raw: IapTransactionLike | null | undefined, fallba
   };
 }
 
+const MONTHLY_PRODUCT_ID_ALIASES = new Set([
+  IAP_PRODUCT_IDS.monthly,
+  'seeday.pro.monthly',
+  'seeday.pro.monthly.intro',
+]);
+
+const ANNUAL_PRODUCT_ID_ALIASES = new Set([
+  IAP_PRODUCT_IDS.annual,
+  'seeday.pro.annual',
+]);
+
 function detectPlanTypeByProductId(productId: string | undefined, fallback: PaymentPlanType): PaymentPlanType {
-  if (productId === IAP_PRODUCT_IDS.annual) return 'annual';
-  if (productId === IAP_PRODUCT_IDS.monthly) return 'monthly';
+  if (!productId) return fallback;
+  if (ANNUAL_PRODUCT_ID_ALIASES.has(productId)) return 'annual';
+  if (MONTHLY_PRODUCT_ID_ALIASES.has(productId)) return 'monthly';
+  if (productId.includes('.annual')) return 'annual';
+  if (productId.includes('.monthly')) return 'monthly';
   return fallback;
 }
 
