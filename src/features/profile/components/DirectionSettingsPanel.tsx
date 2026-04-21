@@ -15,11 +15,11 @@ interface DirectionSlot {
 }
 
 const SLOTS: DirectionSlot[] = [
+  { index: 0, positionKey: 'plant_direction_left_bottom' },
+  { index: 1, positionKey: 'plant_direction_left_top' },
   { index: 2, positionKey: 'plant_direction_top' },
   { index: 3, positionKey: 'plant_direction_right_top' },
   { index: 4, positionKey: 'plant_direction_right_bottom' },
-  { index: 0, positionKey: 'plant_direction_left_bottom' },
-  { index: 1, positionKey: 'plant_direction_left_top' },
 ];
 
 const CATEGORIES: PlantCategoryKey[] = ['work_study', 'exercise', 'social', 'entertainment', 'life'];
@@ -88,35 +88,37 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
   };
 
   return (
-    <div className="border-t border-gray-100 bg-gray-50 px-4 pb-4 pt-3">
-      <p className="text-xs text-gray-600">{t('profile_root_direction_settings_desc')}</p>
+    <div className="px-4 pb-3 pt-1">
+      <p className="text-[10px] font-light text-slate-500">{t('profile_root_direction_settings_desc')}</p>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 space-y-1.5">
         {SLOTS.map(slot => {
           const isDuplicate = duplicateCategories.has(stableDraft[slot.index]);
           return (
             <label
               key={slot.positionKey}
-              className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${
-                isDuplicate ? 'border-red-300 bg-red-50' : 'border-transparent bg-white'
+              className={`flex items-center justify-between gap-3 rounded-lg px-2 py-2 ${
+                isDuplicate ? 'bg-red-50/70' : 'bg-white/55'
               }`}
             >
-              <span className={`text-xs font-medium ${isDuplicate ? 'text-red-600' : 'text-gray-700'}`}>
+              <span className={`text-xs ${isDuplicate ? 'text-red-600' : 'text-slate-700'}`}>
                 {t(slot.positionKey)}
               </span>
-            <select
-              value={stableDraft[slot.index]}
-              onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
-              className={`min-h-11 rounded-lg border bg-white px-2 text-xs ${
-                isDuplicate ? 'border-red-400 text-red-600' : 'border-gray-200 text-gray-700'
-              }`}
-            >
-              {CATEGORIES.map(category => (
-                <option key={category} value={category}>
-                  {t(toCategoryLabelKey(category))}
-                </option>
-              ))}
-            </select>
+              <select
+                value={stableDraft[slot.index]}
+                onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
+                className={`min-h-9 rounded-lg border px-2 text-xs ${
+                  isDuplicate
+                    ? 'border-red-300 bg-red-50 text-red-600'
+                    : 'border-[#CBE7D7] bg-white/80 text-[#355643]'
+                }`}
+              >
+                {CATEGORIES.map(category => (
+                  <option key={category} value={category}>
+                    {t(toCategoryLabelKey(category))}
+                  </option>
+                ))}
+              </select>
             </label>
           );
         })}
@@ -136,7 +138,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
             setDraft([...DEFAULT_DIRECTION_ORDER]);
             setSaveError(null);
           }}
-          className="min-h-11 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-700"
+          className="min-h-9 rounded-lg border border-[#CBE7D7] bg-white/75 px-3 text-xs text-[#355643] transition hover:bg-white"
         >
           {t('profile_root_direction_reset')}
         </button>
@@ -144,7 +146,12 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
           type="button"
           onClick={handleSave}
           disabled={isSaving || hasDuplicateSelection}
-          className="min-h-11 rounded-lg bg-stone-800 px-3 text-xs font-medium text-white disabled:opacity-60"
+          className="min-h-9 rounded-lg border border-transparent px-3 text-xs font-medium text-[#355643] disabled:opacity-60"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
+            boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
+          }}
         >
           {isSaving ? t('profile_root_direction_saving') : t('profile_root_direction_save')}
         </button>

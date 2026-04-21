@@ -4,6 +4,14 @@ import { cn } from '../../lib/utils';
 import { X, Umbrella } from 'lucide-react';
 import { allMoodOptions } from '../../lib/mood';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
+import {
+    APP_MODAL_CARD_CLASS,
+    APP_MODAL_CLOSE_CLASS,
+    APP_MODAL_OVERLAY_CLASS,
+    APP_SELECTED_GLOW_BG,
+    APP_SELECTED_GLOW_BORDER,
+    APP_SELECTED_GLOW_SHADOW,
+} from '../../lib/modalTheme';
 import type { MoodOption } from '../../store/useMoodStore';
 
 interface MoodPickerModalProps {
@@ -37,25 +45,30 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const customLabelDefault = t('chat_custom_label_default');
+    const selectedGlowStyle = {
+        background: APP_SELECTED_GLOW_BG,
+        border: APP_SELECTED_GLOW_BORDER,
+        boxShadow: APP_SELECTED_GLOW_SHADOW,
+    };
 
     return (
         <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4"
+            className={cn('fixed inset-0 flex items-center justify-center z-40 p-4', APP_MODAL_OVERLAY_CLASS)}
             onClick={onClose}
         >
-            <div
-                className="bg-pink-50 w-full max-w-xs rounded-xl p-4 shadow-lg relative border border-pink-100"
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div
+            className={cn(APP_MODAL_CARD_CLASS, 'relative w-full max-w-sm rounded-3xl p-5')}
+            onClick={(e) => e.stopPropagation()}
+        >
                 <button
                     type="button"
                     onClick={onClose}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 p-1')}
                 >
                     <X size={16} />
                 </button>
                 <h3
-                    className="text-sm font-light text-gray-500 mb-3 pr-6 flex items-center gap-1.5"
+                    className="mb-3 flex items-center gap-1.5 pr-6 text-sm font-medium text-slate-700"
                     style={{ fontFamily: 'PingFang SC, -apple-system, system-ui, sans-serif' }}
                 >
                     <span>{t('chat_pick_mood_for_record')}</span>
@@ -73,13 +86,16 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                 onSelectMood(moodPickerFor, opt);
                             }}
                             className={cn(
-                                "inline-flex items-center justify-center px-3 py-1.5 text-xs rounded-full border shadow-sm transition-colors",
-                                selectedMoodOpt === opt
-                                    ? "bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-200"
-                                    : "bg-white text-slate-700 border-gray-200 hover:bg-gray-50",
-                                moodPickerReadonly && "opacity-60 cursor-not-allowed hover:bg-white"
+                                'inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors',
+                                 selectedMoodOpt === opt
+                                     ? 'text-[#1D4ED8]'
+                                     : 'border-white/80 bg-white/85 text-[#2F3E33]',
+                                moodPickerReadonly && 'cursor-not-allowed opacity-60 hover:bg-white'
                             )}
-                            style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
+                            style={{
+                                fontFamily: 'Songti SC, SimSun, STSong, serif',
+                                ...(selectedMoodOpt === opt ? selectedGlowStyle : {}),
+                            }}
                             disabled={moodPickerReadonly}
                         >
                             {getMoodDisplayLabel(opt, t)}
@@ -93,13 +109,16 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                             onCustomLabelClick();
                         }}
                         className={cn(
-                            "inline-flex items-center justify-center px-2.5 py-[3px] text-[10px] rounded-full border shadow-sm transition-colors",
-                            (showCustomLabelInput || customMoodApplied[moodPickerFor])
-                                ? "bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-200"
-                                : "bg-sky-50 text-sky-600 border-sky-200",
-                            moodPickerReadonly && "opacity-60 cursor-not-allowed"
+                            'inline-flex items-center justify-center rounded-full border px-2.5 py-[3px] text-xs shadow-sm transition-colors',
+                             (showCustomLabelInput || customMoodApplied[moodPickerFor])
+                                 ? 'text-[#1D4ED8]'
+                                 : 'border-white/80 bg-white/85 text-[#2F3E33]',
+                            moodPickerReadonly && 'cursor-not-allowed opacity-60'
                         )}
-                        style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
+                        style={{
+                            fontFamily: 'Songti SC, SimSun, STSong, serif',
+                            ...((showCustomLabelInput || customMoodApplied[moodPickerFor]) ? selectedGlowStyle : {}),
+                        }}
                         disabled={moodPickerReadonly}
                     >
                         {!moodPickerReadonly && showCustomLabelInput ? (
@@ -114,7 +133,7 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                     }
                                 }}
                                 onBlur={() => onCustomLabelSave(customLabelInput)}
-                                className="w-16 bg-transparent text-[10px] text-rose-700 focus:outline-none"
+                                className="w-16 bg-transparent text-xs text-[#1D4ED8] focus:outline-none"
                                 autoFocus
                             />
                         ) : (

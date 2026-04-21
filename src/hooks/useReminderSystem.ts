@@ -1,0 +1,419 @@
+// DOC-DEPS: LLM.md -> docs/PROACTIVE_REMINDER_SPEC.md -> src/services/notifications/localNotificationService.ts
+/**
+ * App 级别的提醒系统 Hook
+ * - App 启动：注册通知类别 → 调度今日提醒
+ * - App 前后台切换：调度/取消 idle nudge
+ * - 前台时：到时间弹 App 内弹窗
+ */
+import { useCallback, useEffect, useRef } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import i18next from 'i18next';
+import { useAuthStore } from '../store/useAuthStore';
+import { useReminderStore } from '../store/useReminderStore';
+import { useChatStore } from '../store/useChatStore';
+import { usePlantStore } from '../store/usePlantStore';
+import { useReportStore } from '../store/useReportStore';
+import { isSameDay } from 'date-fns';
+import {
+  registerNotificationCategories,
+  scheduleIdleNudge,
+  cancelIdleNudge,
+  setupNotificationActionListener,
+  setupNotificationReceivedListener,
+} from '../services/notifications/localNotificationService';
+import { scheduleRemindersForToday } from '../services/reminder/reminderScheduler';
+import { getReminderCopy } from '../services/reminder/reminderCopy';
+import type { UserProfileManualV2 } from '../types/userProfile';
+import type { ReminderType } from '../services/reminder/reminderTypes';
+import { useTimingStore } from '../store/useTimingStore';
+import type { TimingType } from '../services/timing/timingSessionService';
+
+// ─────────────────────────────────────────────
+// 工具：判断植物/日记今日是否已生成
+// ─────────────────────────────────────────────
+
+function isPlantDoneToday(todayPlant: { date: string } | null): boolean {
+  if (!todayPlant) return false;
+  const now = new Date();
+  const [y, m, d] = todayPlant.date.split('-').map(Number);
+  return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
+}
+
+function isDiaryDoneToday(
+  reports: Array<{ type: string; date: number | string; aiAnalysis?: string | null }>,
+): boolean {
+  const now = new Date();
+  return reports.some(
+    (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
+  );
+}
+
+// ─────────────────────────────────────────────
+// 提醒类型 → 计时动作映射
+// ─────────────────────────────────────────────
+
+type TimingAction =
+  | { kind: 'start'; type: TimingType }
+  | { kind: 'end' }
+  | null;
+
+function getTimingAction(reminderType: ReminderType): TimingAction {
+  switch (reminderType) {
+    case 'work_start':
+    case 'class_morning_start':
+    case 'class_afternoon_start':
+    case 'class_evening_start':
+      return { kind: 'start', type: 'work' };
+    case 'lunch_start':
+    case 'meal_lunch':
+      return { kind: 'start', type: 'lunch' };
+    case 'lunch_end':
+      return { kind: 'start', type: 'work' };
+    case 'work_end':
+    case 'class_morning_end':
+    case 'class_afternoon_end':
+    case 'class_evening_end':
+      return { kind: 'end' };
+    case 'meal_dinner':
+      return { kind: 'start', type: 'dinner' };
+    case 'sleep':
+      return { kind: 'end' };
+    default:
+      return null;
+  }
+}
+
+function getActivityTextForType(type: ReminderType): string | null {
+  const key = `reminder_activity_${type}`;
+  const translated = i18next.t(key, { defaultValue: '' });
+  return translated || null;
+}
+
+const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
+const PENDING_NOTIFICATION_CONFIRM_MAX_AGE = 10 * 60 * 1000;
+
+function queuePendingNotificationConfirm(type: ReminderType): void {
+  try {
+    localStorage.setItem(
+      PENDING_NOTIFICATION_CONFIRM_KEY,
+      JSON.stringify({ type, createdAt: Date.now() }),
+    );
+  } catch {
+    // ignore localStorage failures
+  }
+}
+
+function consumePendingNotificationConfirm(): ReminderType | null {
+  try {
+    const raw = localStorage.getItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    const parsed = JSON.parse(raw) as { type?: ReminderType; createdAt?: number };
+    if (!parsed?.type || typeof parsed.createdAt !== 'number') return null;
+    if (Date.now() - parsed.createdAt > PENDING_NOTIFICATION_CONFIRM_MAX_AGE) return null;
+    return parsed.type;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────
+// 前台定时检查（用于在 App 内直接弹窗）
+// ─────────────────────────────────────────────
+
+interface ScheduleEntry {
+  type: ReminderType;
+  triggerTime: Date;
+}
+
+function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[] {
+  const entries: ScheduleEntry[] = [];
+
+  const addEntry = (type: ReminderType, hhmm: string | undefined) => {
+    if (!hhmm) return;
+    const [hh, mm] = hhmm.split(':').map(Number);
+    const t = new Date();
+    t.setHours(hh, mm, 0, 0);
+    entries.push({ type, triggerTime: t });
+  };
+
+  const day = new Date().getDay();
+  const isWeekend = day === 0 || day === 6;
+
+  if (isWeekend) {
+    addEntry('weekend_morning_check', '10:00');
+    addEntry('weekend_afternoon_check', '16:00');
+    addEntry('weekend_evening_check', '20:00');
+  } else {
+    addEntry('wake', manual.wakeTime);
+    if (manual.hasWorkSchedule) {
+      addEntry('work_start', manual.workStart);
+      addEntry('lunch_start', manual.lunchStart);
+      addEntry('lunch_end', manual.lunchEnd);
+      addEntry('work_end', manual.workEnd);
+    } else {
+      addEntry('meal_lunch', manual.lunchTime);
+    }
+    addEntry('meal_dinner', manual.dinnerTime);
+    addEntry('sleep', manual.sleepTime);
+    addEntry('evening_check', '20:00');
+  }
+
+  return entries.sort((a, b) => a.triggerTime.getTime() - b.triggerTime.getTime());
+}
+
+interface UseReminderSystemResult {
+  confirmReminderFromPopup: (type: ReminderType) => void;
+}
+
+export function useReminderSystem(navigate: (path: string) => void): UseReminderSystemResult {
+  const user = useAuthStore((s) => s.user);
+  const preferences = useAuthStore((s) => s.preferences);
+  const userProfileV2 = useAuthStore((s) => s.userProfileV2);
+  const metadataCountryCode = useAuthStore((s) => s.user?.user_metadata?.country_code);
+  const { showPopup, shouldSkipReminder } = useReminderStore();
+  const navigateRef = useRef(navigate);
+  const todayPlant = usePlantStore((s) => s.todayPlant);
+  const reports = useReportStore((s) => s.reports);
+  const shownPopupKeysRef = useRef<Set<string>>(new Set());
+
+  // Keep navigateRef current so the stable listener closure can always call latest navigate
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const scheduleTodayNativeReminders = useCallback(() => {
+    if (!user?.id || !userProfileV2) return;
+    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
+    const reminderEnabled = manual.reminderEnabled !== false;
+    const countryCode =
+      typeof metadataCountryCode === 'string' && /^[A-Za-z]{2}$/.test(metadataCountryCode.trim())
+        ? metadataCountryCode.trim().toUpperCase()
+        : 'CN';
+
+    void (async () => {
+      // Ensure iOS action categories are registered before scheduling notifications.
+      await registerNotificationCategories();
+      await scheduleRemindersForToday({
+        manual,
+        aiMode: preferences.aiMode,
+        countryCode,
+        reminderEnabled,
+        getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+      });
+    })();
+  }, [user?.id, userProfileV2, preferences.aiMode, metadataCountryCode]);
+
+  // ── 加载今日计时 sessions ──
+  useEffect(() => {
+    if (!user?.id) return;
+    void useTimingStore.getState().loadToday(user.id);
+  }, [user?.id]);
+
+  // ── 兜底：若通知动作触发时用户态尚未恢复，恢复后补执行一次计时动作 ──
+  useEffect(() => {
+    if (!user?.id) return;
+    const pendingType = consumePendingNotificationConfirm();
+    if (!pendingType) return;
+    const action = getTimingAction(pendingType);
+    if (!action) return;
+    const timing = useTimingStore.getState();
+    if (action.kind === 'start') {
+      void timing.start(user.id, action.type, 'reminder_confirm');
+    } else {
+      void timing.endActive(user.id);
+    }
+  }, [user?.id]);
+
+  // ── 注册通知点击回调（一次） ──
+  useEffect(() => {
+    void setupNotificationActionListener({
+      onTap: (type) => {
+        // 点击通知进入 App：直接弹出与前台一致的操作面板
+        // （长按通知仍可直接一键开始/结束计时）
+        if (type === 'idle_nudge') {
+          navigateRef.current('/chat');
+          return;
+        }
+        const reminder = useReminderStore.getState();
+        if (!reminder.shouldSkipReminder(type)) {
+          reminder.showPopup(type);
+        }
+      },
+      onConfirm: (type) => {
+        useReminderStore.getState().markConfirmed(type);
+        const action = getTimingAction(type);
+        if (action) {
+          const userId = useAuthStore.getState().user?.id;
+          if (!userId) {
+            queuePendingNotificationConfirm(type);
+            return;
+          }
+          const timing = useTimingStore.getState();
+          if (action.kind === 'start') {
+            void timing.start(userId, action.type, 'reminder_confirm');
+          } else {
+            void timing.endActive(userId);
+          }
+        }
+        const activityText = getActivityTextForType(type);
+        if (activityText) {
+          void useChatStore.getState().sendAutoRecognizedInput(activityText);
+        }
+      },
+      onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+      onViewReport: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/report');
+      },
+      onGrowPlant: () => {
+        useReminderStore.getState().markConfirmed('evening_check');
+        navigateRef.current('/growth');
+      },
+      onOpenChat: () => navigateRef.current('/chat'),
+      onStillYes: () => { /* session_check 重调度（Phase 2）*/ },
+      onStillNo: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+    });
+
+    // 前台收到原生通知时，补一次 App 内弹窗兜底（避免仅依赖定时器）
+    void setupNotificationReceivedListener({
+      onReceived: (type) => {
+        if (type === 'idle_nudge') return;
+        const reminder = useReminderStore.getState();
+        if (reminder.shouldSkipReminder(type)) return;
+        if (reminder.activePopupType === type) return;
+        reminder.showPopup(type);
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── App 前后台切换：idle nudge ──
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const listener = CapApp.addListener('appStateChange', ({ isActive }) => {
+      const manual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
+      const aiMode = preferences.aiMode;
+      const userName = manual.freeText;
+
+      if (isActive) {
+        void cancelIdleNudge();
+        // Re-check daily schedule on foreground (cross-day / cold wake safety net)
+        scheduleTodayNativeReminders();
+        // Show in-app popup if a reminder fired in the last 5 minutes while app was in background
+        const foregroundManual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
+        const foregroundSchedule = buildFrontendCheckSchedule(foregroundManual);
+        const foregroundNow = Date.now();
+        const FOREGROUND_GRACE_MS = 5 * 60 * 1000;
+        const foregroundDateKey = new Date().toISOString().slice(0, 10);
+        const reminderState = useReminderStore.getState();
+        for (const entry of foregroundSchedule) {
+          const diff = foregroundNow - entry.triggerTime.getTime();
+          if (diff >= 0 && diff <= FOREGROUND_GRACE_MS) {
+            const dedupeKey = `${foregroundDateKey}:${entry.type}`;
+            if (!shownPopupKeysRef.current.has(dedupeKey) && !reminderState.shouldSkipReminder(entry.type)) {
+              shownPopupKeysRef.current.add(dedupeKey);
+              reminderState.showPopup(entry.type);
+              break;
+            }
+          }
+        }
+      } else {
+        const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
+        void scheduleIdleNudge(body);
+      }
+    });
+
+    return () => {
+      void listener.then((l) => l.remove());
+    };
+  }, [user?.id, preferences.aiMode, userProfileV2?.manual, scheduleTodayNativeReminders]);
+
+  // ── 注册通知类别 + 调度原生通知（串行，类别必须先注册完才能调度）──
+  useEffect(() => {
+    scheduleTodayNativeReminders();
+  }, [scheduleTodayNativeReminders]);
+
+  // ── 前台定时弹窗（用户 App 打开时的兜底） ──
+  useEffect(() => {
+    if (!user?.id || !userProfileV2) return;
+    const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
+    const reminderEnabled = manual.reminderEnabled !== false;
+    if (!reminderEnabled) return;
+
+    // 清除旧定时器
+    timersRef.current.forEach((t) => clearTimeout(t));
+    timersRef.current = [];
+
+    const schedule = buildFrontendCheckSchedule(manual);
+    const now = Date.now();
+    const POPUP_GRACE_MS = 90 * 1000;
+    const todayDateKey = new Date().toISOString().slice(0, 10);
+
+    const triggerPopupOnce = (type: ReminderType) => {
+      const dedupeKey = `${todayDateKey}:${type}`;
+      if (shownPopupKeysRef.current.has(dedupeKey)) return;
+      if (shouldSkipReminder(type)) return;
+      shownPopupKeysRef.current.add(dedupeKey);
+      showPopup(type);
+    };
+
+    for (const entry of schedule) {
+      const delay = entry.triggerTime.getTime() - now;
+      if (delay <= 0) {
+        // 刚过点（如秒级误差）时立刻补弹一次，避免错过提醒
+        // evening_check 需额外检查植物/日记是否已生成
+        if (
+          (entry.type === 'evening_check' || entry.type === 'weekend_evening_check')
+          && isPlantDoneToday(todayPlant)
+          && isDiaryDoneToday(reports)
+        ) {
+          continue;
+        }
+        if (Math.abs(delay) <= POPUP_GRACE_MS) {
+          triggerPopupOnce(entry.type);
+        }
+        continue;
+      }
+
+      const timer = setTimeout(() => {
+        // evening_check 需额外检查植物/日记是否已生成
+        if (
+          (entry.type === 'evening_check' || entry.type === 'weekend_evening_check')
+          && isPlantDoneToday(todayPlant)
+          && isDiaryDoneToday(reports)
+        ) {
+          return;
+        }
+        triggerPopupOnce(entry.type);
+      }, delay);
+
+      timersRef.current.push(timer);
+    }
+
+    return () => {
+      timersRef.current.forEach((t) => clearTimeout(t));
+      timersRef.current = [];
+    };
+  }, [user?.id, userProfileV2, todayPlant, reports]);
+
+  // ── 前台弹窗 ✓ 确认：标记已响应 + 记录活动 + 计时 ──
+  const confirmReminderFromPopup = useCallback((type: ReminderType) => {
+    useReminderStore.getState().markConfirmed(type);
+    const action = getTimingAction(type);
+    if (action && user?.id) {
+      const timing = useTimingStore.getState();
+      if (action.kind === 'start') {
+        void timing.start(user.id, action.type, 'reminder_confirm');
+      } else {
+        void timing.endActive(user.id);
+      }
+    }
+    const activityText = getActivityTextForType(type);
+    if (activityText) {
+      void useChatStore.getState().sendAutoRecognizedInput(activityText);
+    }
+  }, [user?.id]);
+
+  return { confirmReminderFromPopup };
+}

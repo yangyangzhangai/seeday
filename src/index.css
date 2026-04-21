@@ -1,12 +1,68 @@
-/* 霞鹜文楷字体 - 用于心情记录 */
-@import '@chinese-fonts/lxgwwenkai/dist/LXGWWenKai-Regular/result.css';
+/* 字体由本地包在 main.tsx 中导入，避免运行时请求 Google Fonts */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  background: #fcfaf7;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+#root {
+  overflow: hidden;
+}
+
+img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+:root {
+  --app-page-gutter-x: max(12px, calc(env(safe-area-inset-left, 0px) + 10px));
+  --app-page-gutter-x-right: max(12px, calc(env(safe-area-inset-right, 0px) + 10px));
+  --app-page-gutter-top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
+  --app-page-gutter-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  --app-modal-gutter-x: max(14px, calc(env(safe-area-inset-left, 0px) + 10px));
+  --app-modal-gutter-x-right: max(14px, calc(env(safe-area-inset-right, 0px) + 10px));
+  --app-modal-gutter-top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
+  --app-modal-gutter-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+html:not(.material-symbols-ready) .material-symbols-outlined {
+  color: transparent !important;
+}
+
 .font-mood {
-  font-family: 'LXGW WenKai', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
 
 /* iOS 安全区域支持 */
@@ -24,7 +80,108 @@
 }
 
 .font-siyuan {
-  font-family: 'Source Han Sans SC', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+}
+
+.profile-fn-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: #000000;
+}
+
+.app-mobile-page-frame {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-scroll-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.app-scroll-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.app-mobile-page-header {
+  padding-top: 2.75rem;
+}
+
+.app-modal-overlay {
+  padding-left: var(--app-modal-gutter-x);
+  padding-right: var(--app-modal-gutter-x-right);
+  padding-top: var(--app-modal-gutter-top);
+  padding-bottom: var(--app-modal-gutter-bottom);
+}
+
+.app-modal-card {
+  max-height: calc(100dvh - var(--app-modal-gutter-top) - var(--app-modal-gutter-bottom));
+  overflow: auto;
+}
+
+.app-bottom-nav,
+.chat-input-bottom-nav {
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+
+html.keyboard-open .app-bottom-nav,
+html.keyboard-open .chat-input-bottom-nav {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+/* ChatInputBar 内嵌底部导航在键盘弹起时需要折叠，否则会留下空白占位 */
+html.keyboard-open .chat-input-bottom-nav {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .app-mobile-page-frame {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+  }
+
+  .app-mobile-page-header {
+    padding-top: max(40px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* iOS: prevent focus-zoom on small form controls in popups */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select,
+    .app-modal-overlay input,
+    .app-modal-overlay textarea,
+    .app-modal-overlay select,
+    .app-mobile-page-frame input,
+    .app-mobile-page-frame textarea,
+    .app-mobile-page-frame select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* 隐藏滚动条但保留滚动能力（日报等内部容器使用） */
@@ -51,7 +208,7 @@ a {
   width: min(92vw, 420px);
   max-width: 100%;
   border: none;
-  font-family: 'Source Han Sans SC', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
 
 .calendar-wrapper .react-calendar__navigation {
@@ -101,11 +258,69 @@ a {
   font-weight: 700;
 }
 
-.calendar-wrapper .react-calendar__tile--active::after {
+.calendar-wrapper .react-calendar__tile--active abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.95rem;
+  height: 1.95rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background:
+    linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.9) 45%, rgba(147, 197, 253, 0.72) 100%) padding-box,
+    linear-gradient(140deg, rgba(147, 197, 253, 0.52) 0%, rgba(239, 246, 255, 0.95) 55%, rgba(255, 255, 255, 0.98) 100%) border-box;
+  border: 0.5px solid transparent;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.14);
+}
+
+.diary-shelf-calendar .react-calendar__tile--active {
+  background: transparent !important;
+  color: #111827;
+}
+
+.diary-shelf-calendar .react-calendar__tile--active abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.95rem;
+  height: 1.95rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background:
+    linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.9) 45%, rgba(147, 197, 253, 0.72) 100%) padding-box,
+    linear-gradient(140deg, rgba(147, 197, 253, 0.52) 0%, rgba(239, 246, 255, 0.95) 55%, rgba(255, 255, 255, 0.98) 100%) border-box;
+  border: 0.5px solid transparent;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.14);
+}
+
+/* Diary shelf calendar: data visibility */
+.diary-shelf-calendar .react-calendar__tile {
+  position: relative;
+  border-radius: 8px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--has-data {
+  color: #2f5840;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(122, 155, 126, 0.22) 0%, rgba(122, 155, 126, 0.08) 100%);
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--has-data::after {
   content: '';
-  display: block;
-  margin: 0.1rem auto 0;
-  width: 0.75rem;
-  height: 1px;
-  background-color: #e5e7eb;
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #8e6e3f;
+}
+
+.diary-shelf-calendar .react-calendar__tile.diary-shelf-calendar__tile--no-data {
+  color: #b7b4ae;
+  font-weight: 500;
 }

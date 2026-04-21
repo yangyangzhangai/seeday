@@ -11,7 +11,7 @@ interface AiCompanionVisual {
   free: boolean;
 }
 
-export const AI_COMPANION_ORDER: AiCompanionMode[] = ['van', 'agnes', 'zep', 'spring_thunder'];
+export const AI_COMPANION_ORDER: AiCompanionMode[] = ['van', 'agnes', 'zep', 'momo'];
 
 export const AI_COMPANION_VISUALS: Record<AiCompanionMode, AiCompanionVisual> = {
   van: {
@@ -24,17 +24,17 @@ export const AI_COMPANION_VISUALS: Record<AiCompanionMode, AiCompanionVisual> = 
     name: 'Agnes',
     subtitle: '引领指导',
     avatar: agnesAvatar,
-    free: true,
+    free: false,
   },
   zep: {
     name: 'Zep',
     subtitle: '生活真实',
     avatar: zepAvatar,
-    free: true,
+    free: false,
   },
-  spring_thunder: {
+  momo: {
     name: 'Momo',
-    subtitle: '秩序催化',
+    subtitle: '从容温吞',
     avatar: momoAvatar,
     free: false,
   },

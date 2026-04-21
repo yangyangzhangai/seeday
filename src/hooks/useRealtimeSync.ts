@@ -2,7 +2,7 @@
  * useRealtimeSync — Supabase Realtime subscriptions for multi-device sync.
  *
  * Subscribes to INSERT / UPDATE / DELETE events on:
- *   messages, todos, moods, bottles
+ *   messages, todos, moods, bottles, reports, annotations, focus_sessions, stardust_memories
  *
  * Call this hook once at the top of the app (after auth is initialised).
  * The hook is a no-op when the user is not signed in.
@@ -13,6 +13,10 @@ import { supabase } from '../api/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
 import { useTodoStore } from '../store/useTodoStore';
+import { useReportStore } from '../store/useReportStore';
+import { useAnnotationStore } from '../store/useAnnotationStore';
+import { useFocusStore, type FocusSession } from '../store/useFocusStore';
+import { useStardustStore } from '../store/useStardustStore';
 import {
   applyMoodRowToMaps,
   pruneMoodRecordMaps,
@@ -21,7 +25,17 @@ import {
   type MoodRowData,
 } from '../store/useMoodStore';
 import { useGrowthStore, type Bottle, type BottleType, type BottleStatus } from '../store/useGrowthStore';
-import { fromDbMessage, fromDbTodo } from '../lib/dbMappers';
+import { fromDbAnnotation, fromDbMessage, fromDbReport, fromDbStardust, fromDbTodo } from '../lib/dbMappers';
+import { autoDetectMood } from '../lib/mood';
+import i18n from '../i18n';
+import type { SupportedLang } from '../i18n';
+
+function resolveLangForContent(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  const lang = i18n.language?.split('-')[0] ?? 'zh';
+  return (lang === 'zh' || lang === 'en' || lang === 'it') ? lang as SupportedLang : 'zh';
+}
 
 export function useRealtimeSync() {
   const user = useAuthStore(s => s.user);
@@ -52,6 +66,13 @@ export function useRealtimeSync() {
             if (state.messages.some(m => m.id === msg.id)) return state; // already present
             return { messages: [...state.messages, msg] };
           });
+          // Auto-detect mood for incoming activity messages that don't have one yet
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null) {
+            const moodStore = useMoodStore.getState();
+            if (!moodStore.getMood(msg.id)) {
+              moodStore.setMood(msg.id, autoDetectMood(msg.content, msg.duration, resolveLangForContent(msg.content)), 'auto');
+            }
+          }
         },
       )
       .on(
@@ -187,6 +208,191 @@ export function useRealtimeSync() {
           useGrowthStore.setState(state => ({
             bottles: state.bottles.filter(b => b.id !== row.id),
           }));
+        },
+      )
+
+      // ── reports ──────────────────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'reports', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const report = fromDbReport(row);
+          useReportStore.setState((state) => {
+            if (state.reports.some((item) => item.id === report.id)) return state;
+            return { reports: [report, ...state.reports] };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'reports', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const report = fromDbReport(row);
+          useReportStore.setState((state) => {
+            const exists = state.reports.some((item) => item.id === report.id);
+            if (!exists) {
+              return { reports: [report, ...state.reports] };
+            }
+            return {
+              reports: state.reports.map((item) => (item.id === report.id ? { ...item, ...report } : item)),
+            };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'reports', filter: `user_id=eq.${userId}` },
+        ({ old: row }) => {
+          useReportStore.setState((state) => ({
+            reports: state.reports.filter((item) => item.id !== row.id),
+          }));
+        },
+      )
+
+      // ── annotations ──────────────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'annotations', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const annotation = fromDbAnnotation(row);
+          useAnnotationStore.setState((state) => {
+            if (state.annotations.some((item) => item.id === annotation.id)) return state;
+            return { annotations: [annotation, ...state.annotations] };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'annotations', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const annotation = fromDbAnnotation(row);
+          useAnnotationStore.setState((state) => {
+            const exists = state.annotations.some((item) => item.id === annotation.id);
+            return {
+              annotations: exists
+                ? state.annotations.map((item) => (item.id === annotation.id ? { ...item, ...annotation } : item))
+                : [annotation, ...state.annotations],
+              currentAnnotation: state.currentAnnotation?.id === annotation.id
+                ? { ...state.currentAnnotation, ...annotation }
+                : state.currentAnnotation,
+            };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'annotations', filter: `user_id=eq.${userId}` },
+        ({ old: row }) => {
+          useAnnotationStore.setState((state) => ({
+            annotations: state.annotations.filter((item) => item.id !== row.id),
+            currentAnnotation: state.currentAnnotation?.id === row.id ? null : state.currentAnnotation,
+          }));
+        },
+      )
+
+      // ── focus_sessions ───────────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'focus_sessions', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const session: FocusSession = {
+            id: row.id as string,
+            todoId: (row.todo_id as string) ?? '',
+            startedAt: new Date(row.started_at as string).getTime(),
+            endedAt: row.ended_at ? new Date(row.ended_at as string).getTime() : undefined,
+            setDuration: (row.set_duration as number) ?? 0,
+            actualDuration: row.actual_duration as number | undefined,
+          };
+          useFocusStore.setState((state) => {
+            if (state.sessions.some((item) => item.id === session.id)) return state;
+            return { sessions: [session, ...state.sessions] };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'focus_sessions', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const session: FocusSession = {
+            id: row.id as string,
+            todoId: (row.todo_id as string) ?? '',
+            startedAt: new Date(row.started_at as string).getTime(),
+            endedAt: row.ended_at ? new Date(row.ended_at as string).getTime() : undefined,
+            setDuration: (row.set_duration as number) ?? 0,
+            actualDuration: row.actual_duration as number | undefined,
+          };
+          useFocusStore.setState((state) => {
+            const exists = state.sessions.some((item) => item.id === session.id);
+            if (!exists) {
+              return { sessions: [session, ...state.sessions] };
+            }
+            return {
+              sessions: state.sessions.map((item) => (item.id === session.id ? { ...item, ...session } : item)),
+            };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'focus_sessions', filter: `user_id=eq.${userId}` },
+        ({ old: row }) => {
+          useFocusStore.setState((state) => ({
+            sessions: state.sessions.filter((item) => item.id !== row.id),
+          }));
+        },
+      )
+
+      // ── stardust_memories ────────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'stardust_memories', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const memory = fromDbStardust(row);
+          useStardustStore.setState((state) => {
+            if (state.memories.some((item) => item.id === memory.id)) return state;
+            const memories = [memory, ...state.memories];
+            return {
+              memories,
+              memoryIdByMessageId: {
+                ...state.memoryIdByMessageId,
+                [memory.messageId]: memory.id,
+              },
+            };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'stardust_memories', filter: `user_id=eq.${userId}` },
+        ({ new: row }) => {
+          const memory = fromDbStardust(row);
+          useStardustStore.setState((state) => {
+            const exists = state.memories.some((item) => item.id === memory.id);
+            const memories = exists
+              ? state.memories.map((item) => (item.id === memory.id ? { ...item, ...memory } : item))
+              : [memory, ...state.memories];
+            return {
+              memories,
+              memoryIdByMessageId: {
+                ...state.memoryIdByMessageId,
+                [memory.messageId]: memory.id,
+              },
+            };
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'stardust_memories', filter: `user_id=eq.${userId}` },
+        ({ old: row }) => {
+          useStardustStore.setState((state) => {
+            const memories = state.memories.filter((item) => item.id !== row.id);
+            const memoryIdByMessageId = memories.reduce<Record<string, string>>((acc, item) => {
+              acc[item.messageId] = item.id;
+              return acc;
+            }, {});
+            return { memories, memoryIdByMessageId };
+          });
         },
       )
 

@@ -1,7 +1,7 @@
-# Tshine 全局地图（唯一版本）
+# Seeday 全局地图（唯一版本）
 
-- 版本: v2.1
-- 更新: 2026-03-22
+- 版本: v2.2
+- 更新: 2026-04-08
 - 说明: 本文件是当前仓库目录与边界的唯一地图来源（as-is），不描述愿景结构。
 
 ## 1) 仓库顶层
@@ -35,7 +35,8 @@ src/
 │   ├── chat/
 │   ├── growth/
 │   ├── report/
-│   └── profile/
+│   ├── profile/
+│   └── telemetry/      # Telemetry Center + business sub-dashboards
 ├── hooks/              # RealtimeSync / image upload hooks
 ├── i18n/               # 国际化初始化与词条
 ├── lib/                # 纯函数与映射工具
@@ -52,21 +53,34 @@ src/
 
 - `report.ts` -> `POST /api/report`
 - `annotation.ts` -> `POST /api/annotation`
-- `classify.ts` -> `POST /api/classify`
+- `classify.ts` -> `POST /api/classify`（并承载 `POST /api/todo-decompose` 的兼容分支）
 - `diary.ts` -> `POST /api/diary`
-- `stardust.ts` -> `POST /api/stardust`
 - `magic-pen-parse.ts` -> `POST /api/magic-pen-parse`
 - `plant-generate.ts` -> `POST /api/plant-generate`
 - `plant-diary.ts` -> `POST /api/plant-diary`
 - `plant-history.ts` -> `GET /api/plant-history`
 - `plant-asset-telemetry.ts` -> `POST /api/plant-asset-telemetry`
+- `live-input-telemetry.ts` -> `POST /api/live-input-telemetry` and `GET /api/live-input-telemetry`
+- `subscription.ts` -> `POST /api/subscription`
 
 ## 3.1) 服务端共享模块 `src/server/`
 
 - `src/server/http.ts` -> 通用 CORS/method/error 包装
 - `src/server/annotation-handler.ts` -> `/api/annotation` 共享处理逻辑
-- `src/server/annotation-prompts.ts` -> annotation prompt 模板
+- `src/server/annotation-prompts.ts` -> annotation prompt 出口（按 defaults/user 分拆）
+- `src/server/annotation-prompts.defaults.ts` -> 默认批注与 system prompt
+- `src/server/annotation-prompts.user.ts` -> user prompt 构建
+- `src/server/annotation-prompt-builder.ts` -> annotation/suggestion 统一 prompt package 组装（model/instructions/input）
+- `src/server/country-resolver.ts` -> annotation 国家来源解析（profile 优先，timezone 兜底）
+- `src/server/holiday-resolver.ts` -> annotation 节假日解析（法定 + 社会节日）
+- `src/server/weather-provider.ts` -> Open-Meteo 天气快照拉取（温度/天气码/雨雪/风）
+- `src/server/air-quality-provider.ts` -> Open-Meteo 空气质量快照拉取（PM2.5/PM10/AQI）
+- `src/server/weather-context.ts` -> 天气标签映射（支持复合天气）与 fallback
+- `src/server/weather-alerts.ts` -> 业务预警生成（大风/雾霾）
+- `src/server/annotation-suggestion.ts` -> suggestion JSON 解析（schema 约束）与兜底
+- `src/server/annotation-similarity.ts` -> 相似度/emoji 检测与重写 prompt
 - `src/server/magic-pen-prompts.ts` -> magic-pen prompt 模板
+- `src/server/todo-decompose-service.ts` -> 待办拆解共享服务（供 `/api/todo-decompose` 与 annotation 预拆解复用）
 - `src/server/plant-shared.ts` -> 植物接口鉴权/序列化/日期窗口工具
 - `src/server/plant-diary-service.ts` -> 植物日记生成服务
 
@@ -76,6 +90,7 @@ src/
 2. AI 请求统一走 `src/api/client.ts -> /api/*`。
 3. 服务端密钥只从 `process.env` 读取（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
 4. 页面入口统一放在 `src/features/*`。
+5. 会员升级页入口位于 `src/features/profile/UpgradePage.tsx`（route: `/upgrade`）。
 
 ## 5) 与当前治理状态对齐
 
@@ -89,9 +104,11 @@ src/
 - `src/features/growth`
 - `src/features/report`
 - `src/features/profile`
+- `src/features/telemetry`
 - `src/store/`
 - `src/services/`
 - `src/server/`
 - `src/i18n/`
 - `src/api/`
+- `src/services/payment/`
 - `api/`

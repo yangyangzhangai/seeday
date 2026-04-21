@@ -1,83 +1,204 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Activity, Wand2 } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { triggerLightHaptic } from '../../lib/haptics';
+
+const SAGE_GREEN_DEEP = '#5F7A63';
+const SAGE_GREEN = '#8FAF92';
+const NAV_CARD_BG = 'rgba(255,255,255,0.30)';
+
+const blueGlowBg =
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
+const blueGlowBorder = '0.5px solid transparent';
+const blueGlowShadow = '0 6px 14px rgba(59,130,246,0.14)';
+
+const NAV_ITEMS = [
+  { icon: 'chat_bubble',  path: '/chat'    },
+  { icon: 'schedule',     path: '/growth'  },
+  { icon: 'menu_book',    path: '/report'  },
+  { icon: 'person',       path: '/profile' },
+];
 
 interface ChatInputBarProps {
-    input: string;
-    isLoading: boolean;
-    isReadOnly?: boolean;
-    readOnlyMessage?: string;
-    isMagicPenModeOn: boolean;
-    onInputChange: (v: string) => void;
-    onSend: () => void;
-    onKeyDown: (e: React.KeyboardEvent) => void;
-    onToggleMagicPenMode: () => void;
-    /** Validation error message — turns border red */
-    inputError?: string | null;
+  input: string;
+  isLoading: boolean;
+  isReadOnly?: boolean;
+  readOnlyMessage?: string;
+  isMagicPenModeOn: boolean;
+  onInputChange: (v: string) => void;
+  onSend: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onToggleMagicPenMode: () => void;
+  inputError?: string | null;
 }
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = ({
-    input,
-    isLoading,
-    isReadOnly = false,
-    readOnlyMessage,
-    isMagicPenModeOn,
-    onInputChange,
-    onSend,
-    onKeyDown,
-    onToggleMagicPenMode,
-    inputError,
+  input,
+  isLoading,
+  isReadOnly = false,
+  readOnlyMessage,
+  isMagicPenModeOn,
+  onInputChange,
+  onSend,
+  onKeyDown,
+  onToggleMagicPenMode,
+  inputError,
 }) => {
-    const { t } = useTranslation();
-    const disabled = isLoading || isReadOnly;
-    const hasInput = input.trim().length > 0;
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const disabled = isLoading || isReadOnly;
+  const hasInput = input.trim().length > 0;
 
-    return (
-        <div className="bg-white border-t border-gray-200 p-3 pb-safe mt-auto shrink-0">
-            {/* Error message */}
-            {inputError && (
-                <p className="text-xs text-red-500 mb-1.5 px-1">{inputError}</p>
-            )}
-            {isReadOnly && readOnlyMessage && !inputError && (
-                <p className="text-xs text-gray-500 mb-1.5 px-1">{readOnlyMessage}</p>
-            )}
+  return (
+    <div style={{
+      position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+      width: '100%', maxWidth: 960, zIndex: 30, pointerEvents: 'none',
+      bottom: 'var(--keyboard-height, 0px)',
+      transition: 'bottom 180ms ease-out',
+    }}>
+      <div style={{
+        background: 'linear-gradient(to top, rgba(252,250,247,0.58) 55%, rgba(252,250,247,0))',
+        paddingTop: 24, pointerEvents: 'none',
+      }}>
+        {/* Error / readonly hint */}
+        {(inputError || (isReadOnly && readOnlyMessage)) && (
+          <div style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', marginBottom: 6, pointerEvents: 'auto' }}>
+            <p className="text-xs" style={{ color: inputError ? '#EF4444' : '#94a3b8', margin: 0 }}>
+              {inputError || readOnlyMessage}
+            </p>
+          </div>
+        )}
 
-            {/* Input row */}
-            <div className={`flex items-center space-x-2 rounded-full px-4 py-2 bg-gray-100 transition-colors ${inputError ? 'ring-2 ring-red-400' : ''}`}>
-                {/* Magic pen toggle */}
-                <button
-                    onClick={() => { if (!disabled) onToggleMagicPenMode(); }}
-                    type="button"
-                    disabled={disabled}
-                    className={`p-2 rounded-full transition-colors duration-200 ${
-                        isMagicPenModeOn
-                            ? 'bg-blue-600 text-white'
-                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    aria-label={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
-                    title={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
-                >
-                    <Wand2 size={16} />
-                </button>
+        {/* Input bar */}
+        <div style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', paddingBottom: 12, pointerEvents: 'auto' }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 9999,
+            border: inputError ? '2px solid #EF4444' : '1px solid rgba(0,0,0,0.05)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+            display: 'flex', alignItems: 'center', gap: 10, padding: '7px 7px 7px 14px',
+          }}
+          data-chat-input-box
+          >
+            {/* Magic pen toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                if (disabled) return;
+                triggerLightHaptic();
+                onToggleMagicPenMode();
+              }}
+              disabled={disabled}
+              aria-label={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
+              title={t(isMagicPenModeOn ? 'chat_magic_pen_mode_on' : 'chat_magic_pen_mode_off')}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: isMagicPenModeOn ? blueGlowBg : 'rgba(219,234,254,0.32)',
+                border: isMagicPenModeOn ? blueGlowBorder : 'none',
+                boxShadow: isMagicPenModeOn ? blueGlowShadow : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, cursor: disabled ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s', opacity: disabled ? 0.5 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined" style={{
+                fontSize: 18,
+                color: isMagicPenModeOn ? '#1D4ED8' : '#94A3B8',
+                transition: 'color 0.2s',
+              }}>
+                auto_fix_high
+              </span>
+            </button>
 
-                <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => onInputChange(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    placeholder={t('chat_placeholder_neutral')}
-                    className="flex-1 bg-transparent border-none focus:outline-none text-base"
-                    disabled={disabled}
-                />
+            <input
+              type="text"
+              value={input}
+              onChange={e => onInputChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={t('chat_placeholder_neutral')}
+              disabled={disabled}
+              className="text-base"
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: '#0f172a',
+              }}
+            />
 
-                <button
-                    onClick={onSend}
-                    disabled={!hasInput || disabled}
-                    className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
-                >
-                    {isLoading ? <Activity className="animate-spin" size={16} /> : <Send size={16} />}
-                </button>
-            </div>
+            <button
+              onClick={() => {
+                if (!hasInput || disabled) return;
+                triggerLightHaptic();
+                onSend();
+              }}
+              disabled={!hasInput || disabled}
+              style={{
+                width: 34, height: 34, borderRadius: 17,
+                background: 'rgba(144.67, 212.06, 122.21, 0.20)',
+                boxShadow: '0px 2px 2px #C8C8C8',
+                color: SAGE_GREEN_DEEP,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: (!hasInput || disabled) ? 'not-allowed' : 'pointer',
+                flexShrink: 0, border: 'none',
+                opacity: (!hasInput || disabled) ? 0.5 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {isLoading
+                ? <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_upward</span>
+              }
+            </button>
+          </div>
         </div>
-    );
+
+        {/* Nav bar */}
+        <div className="chat-input-bottom-nav" style={{ paddingLeft: 'var(--app-page-gutter-x)', paddingRight: 'var(--app-page-gutter-x-right)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)', pointerEvents: 'auto' }}>
+          <nav style={{
+            width: '100%', height: 64, borderRadius: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0 8px',
+            background: NAV_CARD_BG,
+            backdropFilter: 'blur(20px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.58)',
+            boxShadow: '0 0 12px rgba(255,255,255,0.20), inset 0 1px 1px rgba(255,255,255,0.55)',
+          }}>
+            {NAV_ITEMS.map((item) => {
+              const active = pathname === item.path || (item.path === '/chat' && pathname === '/');
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => {
+                    triggerLightHaptic();
+                    navigate(item.path);
+                  }}
+                  style={{
+                    width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    background: active ? '#ffffff' : 'transparent',
+                    backdropFilter: active ? 'blur(20px) saturate(140%)' : 'none',
+                    WebkitBackdropFilter: active ? 'blur(20px) saturate(140%)' : 'none',
+                    boxShadow: active
+                      ? 'inset 0 2px 8px rgba(255,255,255,0.9), 0 10px 22px rgba(15,23,42,0.16), 0 0 0 1px rgba(255,255,255,0.9)'
+                      : 'none',
+                    transform: active ? 'scale(1.08)' : 'scale(1)',
+                  }}
+                >
+                  <span className="material-symbols-outlined"
+                    style={{ fontSize: 26, color: active ? SAGE_GREEN_DEEP : SAGE_GREEN }}>
+                    {item.icon}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Spin animation for loading */}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 };

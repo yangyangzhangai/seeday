@@ -1,0 +1,225 @@
+import { describe, expect, it } from 'vitest';
+import { buildSuggestionAwareUserPrompt, buildUserPrompt } from './annotation-prompts.user';
+
+describe('annotation-prompts holiday formatting', () => {
+  it('adds legal suffix for legal holidays in all languages', () => {
+    const zh = buildUserPrompt('zh', 'activity_recorded', '写代码', 'timeline', 'stable', 'none', undefined, {
+      year: 2026,
+      month: 10,
+      day: 1,
+      weekday: 4,
+      isoDate: '2026-10-01',
+    }, {
+      isHoliday: true,
+      name: '国庆节',
+      type: 'legal',
+      source: 'calendar',
+    });
+    const en = buildUserPrompt('en', 'activity_recorded', 'coding', 'timeline', 'stable', 'none', undefined, {
+      year: 2026,
+      month: 7,
+      day: 4,
+      weekday: 6,
+      isoDate: '2026-07-04',
+    }, {
+      isHoliday: true,
+      name: 'Independence Day',
+      type: 'legal',
+      source: 'calendar',
+    });
+    const it = buildUserPrompt('it', 'activity_recorded', 'studio', 'timeline', 'stabile', 'nessuno', undefined, {
+      year: 2026,
+      month: 12,
+      day: 25,
+      weekday: 5,
+      isoDate: '2026-12-25',
+    }, {
+      isHoliday: true,
+      name: 'Natale',
+      type: 'legal',
+      source: 'calendar',
+    });
+
+    expect(zh).toContain('今日节日：国庆节（法定节假日）');
+    expect(en).toContain('Current holiday: Independence Day (Legal Holiday)');
+    expect(it).toContain('Festivita di oggi: Natale (Festivita legale)');
+  });
+
+  it('does not append social suffix for social holidays', () => {
+    const zh = buildUserPrompt('zh', 'activity_recorded', '散步', 'timeline', 'stable', 'none', undefined, undefined, {
+      isHoliday: true,
+      name: '情人节',
+      type: 'social',
+      source: 'calendar',
+    });
+    const en = buildUserPrompt('en', 'activity_recorded', 'walk', 'timeline', 'stable', 'none', undefined, undefined, {
+      isHoliday: true,
+      name: "Valentine's Day",
+      type: 'social',
+      source: 'calendar',
+    });
+
+    expect(zh).toContain('今日节日：情人节');
+    expect(zh).not.toContain('社会');
+    expect(en).toContain("Current holiday: Valentine's Day");
+    expect(en).not.toContain('(social)');
+  });
+
+  it('injects minimal weather and season context lines', () => {
+    const prompt = buildUserPrompt(
+      'en',
+      'activity_recorded',
+      'coding',
+      'timeline',
+      'stable',
+      'none',
+      undefined,
+      {
+        year: 2026,
+        month: 4,
+        day: 8,
+        weekday: 3,
+        isoDate: '2026-04-08',
+      },
+      undefined,
+      9,
+      30,
+      {
+        temperatureC: 18,
+        conditions: ['rain_medium', 'windy'],
+        source: 'api',
+      },
+      {
+        season: 'spring',
+        source: 'local',
+      },
+      ['strong_wind_watch'],
+    );
+
+    expect(prompt).toContain('Season: spring');
+    expect(prompt).toContain('Weather: 18C, rain_medium, windy');
+    expect(prompt).toContain('Alerts: strong_wind_watch');
+  });
+
+  it('injects character state block with fallback', () => {
+    const withState = buildUserPrompt(
+      'en',
+      'activity_recorded',
+      'coding',
+      'timeline',
+      'stable',
+      'none',
+      'greenhouse smells like alcohol',
+    );
+    const withoutState = buildUserPrompt(
+      'en',
+      'activity_recorded',
+      'coding',
+      'timeline',
+      'stable',
+      'none',
+    );
+
+    expect(withState).toContain('Character current state:');
+    expect(withState).toContain('greenhouse smells like alcohol');
+    expect(withoutState).toContain('Character current state:\nnone');
+  });
+
+  it('injects association instruction block when provided', () => {
+    const prompt = buildUserPrompt(
+      'zh',
+      'activity_recorded',
+      '散步',
+      'timeline',
+      'stable',
+      'none',
+      '角色状态',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      '这次从ta当前的情绪状态进入回复，先感受它，再开口。',
+    );
+
+    expect(prompt).toContain('角色状态');
+    expect(prompt).toContain('这次从ta当前的情绪状态进入回复，先感受它，再开口。');
+  });
+
+  it('injects long-term profile snapshot block when provided', () => {
+    const prompt = buildUserPrompt(
+      'en',
+      'activity_recorded',
+      'coding',
+      'timeline',
+      'stable',
+      'none',
+      'focused',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        text: 'Declared wake/sleep: 07:30 / 23:30',
+        declaredMealTimes: [8, 12, 19],
+      },
+    );
+
+    expect(prompt).toContain('Long-term profile snapshot:');
+    expect(prompt).toContain('Declared wake/sleep: 07:30 / 23:30');
+  });
+
+  it('requires recovery copy to contrast normal 1-star vs today 2-star reward', () => {
+    const prompt = buildSuggestionAwareUserPrompt({
+      lang: 'zh',
+      eventType: 'activity_recorded',
+      eventSummary: 'opened app again',
+      todayActivitiesText: 'none',
+      recentMoodText: 'none',
+      forceSuggestion: true,
+      recoveryNudge: {
+        key: 'bottle:b1:miss3d',
+        reason: 'bottle_missed_3_days',
+        rewardStars: 2,
+        bottleId: 'b1',
+        bottleName: '跑步',
+      },
+    });
+
+    expect(prompt).toContain('平时完成是 1 颗星，今天恢复完成是 2 颗星');
+    expect(prompt).toContain('不要模板腔');
+  });
+
+  it('switches to recovery-only prompt scope when recovery nudge is active', () => {
+    const prompt = buildSuggestionAwareUserPrompt({
+      lang: 'zh',
+      eventType: 'activity_recorded',
+      eventSummary: 'opened app again',
+      todayActivitiesText: '1. [todo-1] 写代码',
+      recentMoodText: 'none',
+      pendingTodos: [
+        { id: 'todo-1', title: '写代码' },
+        { id: 'todo-2', title: '整理相册' },
+      ],
+      recoveryNudge: {
+        key: 'bottle:b1:miss3d',
+        reason: 'bottle_missed_3_days',
+        rewardStars: 2,
+        todoId: 'todo-1',
+        todoTitle: '写代码',
+        bottleId: 'b1',
+        bottleName: '成长瓶',
+      },
+    });
+
+    expect(prompt).toContain('recovery-only');
+    expect(prompt).toContain('建议目标必须只围绕该 recovery 目标');
+    expect(prompt).not.toContain('待办列表：');
+  });
+});

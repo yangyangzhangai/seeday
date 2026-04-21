@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from PIL import Image; print\\('PIL OK'\\)\")",
+      "Bash(python3 -c \"from PIL import Image; print\\('PIL OK'\\)\")",
+      "WebSearch",
+      "Bash(python:*)",
+      "Bash(mv bul_early_0002.png bul_early_0002_tmp.png)",
+      "Bash(mv bul_late_0002.png bul_early_0002.png)",
+      "Bash(mv bul_early_0002_tmp.png bul_late_0002.png)",
+      "WebFetch(domain:pixabay.com)",
+      "WebFetch(domain:www.gardenia.net)",
+      "WebFetch(domain:www.epicgardening.com)",
+      "WebFetch(domain:unsplash.com)",
+      "WebFetch(domain:commons.wikimedia.org)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(cp \"C:/Users/yangy/Downloads/Progetto senza titolo \\(3\\).png\" \"C:/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/bra_late_0002.png\")",
+      "Bash(cp \"C:/Users/yangy/Downloads/Progetto senza titolo \\(2\\).png\" \"C:/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/bra_early_0002.png\")",
+      "Bash(rm:*)",
+      "Read(//c/Users/yangy/Desktop/**)",
+      "Read(//c/Users/yangy/Downloads/**)",
+      "Bash(mv '/c/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/Senza titolo \\(450 x 450 px\\) \\(6\\).png' /c/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/bra_late_0004.png)",
+      "Bash(mv '/c/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/Senza titolo \\(450 x 450 px\\) \\(7\\).png' /c/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/bra_early_0004.png)",
+      "Bash(mv /c/Users/yangy/.claude/projects/C--Users-yangy-Desktop-Seeday2-13-mainc-Seeday2-13-mainc/memory/plant_pending.xlsx /c/Users/yangy/Desktop/Seeday2-13-mainc/Seeday2-13-mainc/public/assets/plants/plant_pending.xlsx)",
+      "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(12\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Seeday2-13-mainc\\\\Seeday2-13-mainc\\\\public\\\\assets\\\\plants\\\\bra_early_0005.png\")",
+      "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(11\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Seeday2-13-mainc\\\\Seeday2-13-mainc\\\\public\\\\assets\\\\plants\\\\bra_late_0005.png\")",
+      "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(15\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Seeday2-13-mainc\\\\Seeday2-13-mainc\\\\public\\\\assets\\\\plants\\\\sha_early_0002.png\")",
+      "Bash(cp \"C:\\\\Users\\\\yangy\\\\Downloads\\\\Senza titolo \\(450 x 450 px\\) \\(16\\).png\" \"C:\\\\Users\\\\yangy\\\\Desktop\\\\Seeday2-13-mainc\\\\Seeday2-13-mainc\\\\public\\\\assets\\\\plants\\\\sha_late_0002.png\")",
+      "Bash(ls:*)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

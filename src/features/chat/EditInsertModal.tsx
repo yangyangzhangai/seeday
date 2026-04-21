@@ -1,6 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Save } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import {
+    APP_MODAL_CARD_CLASS,
+    APP_MODAL_CLOSE_CLASS,
+    APP_MODAL_INPUT_CLASS,
+    APP_MODAL_OVERLAY_CLASS,
+    APP_MODAL_PRIMARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 
 interface EditInsertModalProps {
     editingId: string | null;
@@ -46,28 +54,28 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4 shadow-xl">
+        <div className={cn('fixed inset-0 flex items-end sm:items-center justify-center z-50 sm:p-4', APP_MODAL_OVERLAY_CLASS)}>
+            <div className={cn(APP_MODAL_CARD_CLASS, 'rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4')}>
                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-900">{editingId ? t('chat_edit_record') : t('chat_insert_record')}</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                    <h3 className="text-lg font-bold text-slate-800">{editingId ? t('chat_edit_record') : t('chat_insert_record')}</h3>
+                    <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
                         <X size={20} />
                     </button>
                 </div>
                 <div className="space-y-3">
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">{t('chat_label_content')}</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">{t('chat_label_content')}</label>
                         <input
                             type="text"
                             value={editContent}
                             onChange={(e) => onContentChange(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                            className={cn(APP_MODAL_INPUT_CLASS, 'w-full px-3 py-2 text-base')}
                             placeholder={t('chat_placeholder_content')}
                         />
                     </div>
                     <div className="grid grid-cols-1 gap-3">
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">{t('chat_label_start_time')}</label>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">{t('chat_label_start_time')}</label>
                             <input
                                 type="datetime-local"
                                 value={editStartTime}
@@ -77,11 +85,11 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                                 onFocus={(e) => openNativePicker(e.currentTarget)}
                                 onChange={(e) => onStartTimeChange(e.target.value)}
                                 onBlur={(e) => handleBoundedDateTimeBlur(e.target.value, onStartTimeChange)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                                className={cn(APP_MODAL_INPUT_CLASS, 'w-full px-3 py-2 text-base')}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">{t('chat_label_end_time')}</label>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">{t('chat_label_end_time')}</label>
                             <input
                                 type="datetime-local"
                                 value={editEndTime}
@@ -91,14 +99,14 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                                 onFocus={(e) => openNativePicker(e.currentTarget)}
                                 onChange={(e) => onEndTimeChange(e.target.value)}
                                 onBlur={(e) => handleBoundedDateTimeBlur(e.target.value, onEndTimeChange)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                                className={cn(APP_MODAL_INPUT_CLASS, 'w-full px-3 py-2 text-base')}
                             />
                         </div>
                     </div>
                 </div>
                 <button
                     onClick={onSave}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                    className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2 font-medium flex items-center justify-center space-x-2')}
                 >
                     <Save size={16} />
                     <span>{t('save')}</span>

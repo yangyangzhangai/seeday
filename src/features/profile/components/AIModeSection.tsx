@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import {
@@ -7,10 +8,30 @@ import {
   AI_COMPANION_VISUALS,
 } from '../../../constants/aiCompanionVisuals';
 import type { AiCompanionMode } from '../../../lib/aiCompanion';
+import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png';
+import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
+import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
+import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
+import { triggerLightHaptic } from '../../../lib/haptics';
 
 interface Props {
   isPlus: boolean;
+  plain?: boolean;
 }
+
+const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
+  van: profileVanAvatar,
+  agnes: profileAgnesAvatar,
+  zep: profileZepAvatar,
+  momo: profileMomoAvatar,
+};
+
+const AI_SUBTITLE_KEY: Record<AiCompanionMode, string> = {
+  van: 'profile_ai_mode_van_subtitle',
+  agnes: 'profile_ai_mode_agnes_subtitle',
+  zep: 'profile_ai_mode_zep_subtitle',
+  momo: 'profile_ai_mode_momo_subtitle',
+};
 
 function showToast(msg: string) {
   const el = document.createElement('div');
@@ -21,39 +42,50 @@ function showToast(msg: string) {
   setTimeout(() => el.remove(), 2000);
 }
 
-export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
+export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
+  const selectedModeStyle: React.CSSProperties = {
+    background:
+      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+  };
 
   const handleModeClick = (key: AiCompanionMode, free: boolean) => {
+    triggerLightHaptic();
     if (!free && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    updatePreferences({ aiMode: key });
+    void updatePreferences({ aiMode: key });
+  };
+
+  const handleToggleEnabled = () => {
+    triggerLightHaptic();
+    void updatePreferences({ aiModeEnabled: !enabled });
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
+    <div className={plain ? 'px-4 py-3' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       {/* Header row */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center space-x-1.5">
-          <span className="text-xs font-semibold text-gray-800">{t('profile_ai_mode')}</span>
-          <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
+          <span className="profile-fn-title">{t('profile_ai_mode')}</span>
+          <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-xs font-semibold text-[#3f5f35]">
             {t('profile_free')}
           </span>
         </div>
         <button
-          onClick={() => updatePreferences({ aiModeEnabled: !enabled })}
-          className={`relative inline-flex w-9 h-5 items-center rounded-full transition-colors flex-shrink-0 ${
-            enabled ? 'bg-blue-500' : 'bg-gray-300'
-          }`}
+          onClick={() => { void handleToggleEnabled(); }}
+          className="relative w-9 h-5 rounded-full border border-transparent transition-colors"
+          style={enabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}
         >
-          <span
-            className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
-              enabled ? 'translate-x-4' : 'translate-x-0.5'
-            }`}
+          <motion.div
+            animate={{ x: enabled ? 16 : 2 }}
+            className="absolute left-0 w-4 h-4 rounded-full bg-white shadow-sm"
+            style={{ top: '50%', marginTop: '-8px' }}
           />
         </button>
       </div>
@@ -71,26 +103,35 @@ export const AIModeSection: React.FC<Props> = ({ isPlus }) => {
           return (
             <button
               key={modeKey}
-              onClick={() => handleModeClick(modeKey, mode.free)}
-              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
+              onClick={() => { void handleModeClick(modeKey, mode.free); }}
+              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border transition-all ${
                 selected
-                  ? 'border-blue-500 bg-blue-50'
+                  ? ''
                   : locked
-                  ? 'border-gray-200 bg-gray-50 opacity-60'
-                  : 'border-gray-200 bg-gray-50 hover:border-blue-300'
-              }`}
-            >
-              <div className="w-9 h-9 mb-1 rounded-full bg-white/90 ring-1 ring-gray-200 overflow-hidden flex items-center justify-center">
-                <img
-                  src={mode.avatar}
-                  alt={`${mode.name} avatar`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-[11px] font-semibold text-gray-800 leading-tight">{mode.name}</span>
-              <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center">{mode.subtitle}</span>
+                  ? 'border-slate-200 bg-slate-100 opacity-60'
+                  : 'border-transparent bg-white/60 hover:border-[#CBE7D7]'
+               }`}
+              style={selected ? selectedModeStyle : undefined}
+             >
+              <img
+                src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
+                alt={`${mode.name} avatar`}
+                className="mb-1 h-9 w-9 object-contain"
+              />
+              <span
+                className="text-[14px] font-semibold leading-tight"
+                style={{ color: selected ? '#426D56' : '#1e293b' }}
+              >
+                {mode.name}
+              </span>
+              <span
+                className="mt-0.5 text-center text-[12px] font-light leading-tight"
+                style={{ color: selected ? '#6F9580' : '#64748b' }}
+              >
+                {t(AI_SUBTITLE_KEY[modeKey])}
+              </span>
               {locked && (
-                <Lock size={10} className="absolute top-1 right-1 text-gray-400" />
+                <Lock size={10} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />
               )}
             </button>
           );

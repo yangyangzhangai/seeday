@@ -5,19 +5,19 @@
 // This keeps the language-switching logic in one place and makes adding a new
 // language a single-file change (add the imports + the LEXICONS entry below).
 
-import type { ActivityLexicon, CategoryLexicon, LanguageLexicon, MoodLexicon } from './types';
+import type { ActivityLexicon, CategoryLexicon, LanguageLexicon, MoodLexicon } from './types.js';
 
-import { zhActivityLexicon } from './activityLexicon.zh';
-import { enActivityLexicon } from './activityLexicon.en';
-import { itActivityLexicon } from './activityLexicon.it';
+import { zhActivityLexicon } from './activityLexicon.zh.js';
+import { enActivityLexicon } from './activityLexicon.en.js';
+import { itActivityLexicon } from './activityLexicon.it.js';
 
-import { zhMoodLexicon } from './moodLexicon.zh';
-import { enMoodLexicon } from './moodLexicon.en';
-import { itMoodLexicon } from './moodLexicon.it';
+import { zhMoodLexicon } from './moodLexicon.zh.js';
+import { enMoodLexicon } from './moodLexicon.en.js';
+import { itMoodLexicon } from './moodLexicon.it.js';
 
-import { zhCategoryLexicon } from './categoryLexicon.zh';
-import { enCategoryLexicon } from './categoryLexicon.en';
-import { itCategoryLexicon } from './categoryLexicon.it';
+import { zhCategoryLexicon } from './categoryLexicon.zh.js';
+import { enCategoryLexicon } from './categoryLexicon.en.js';
+import { itCategoryLexicon } from './categoryLexicon.it.js';
 
 // ─── Combined bundles ─────────────────────────────────────────────────────────
 

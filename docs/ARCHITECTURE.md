@@ -1,12 +1,12 @@
-# Tshine 架构说明（真实实现）
+# Seeday 架构说明（真实实现）
 
-- 文档版本: v2.1
-- 最后更新: 2026-03-22
+- 文档版本: v2.2
+- 最后更新: 2026-04-08
 - 目标: 描述当前仓库真实架构，不含愿景型未实现模块
 
 ## 1. 架构总览
 
-Tshine 采用前后端同仓模式：
+Seeday 采用前后端同仓模式：
 
 1. 前端 (`src/`): React SPA，负责页面交互、状态管理、数据展示。
 2. 服务端函数 (`api/`): Vercel Serverless，负责 AI 请求中转与密钥保护。
@@ -34,6 +34,7 @@ Browser (React)
   - `/todo` -> redirect to `/growth`
   - `/report`
   - `/profile`
+  - `/telemetry/live-input`
   - `/auth`
 - 主布局: Header + BottomNav + 全局批注气泡 + 星尘动画（组件分组于 `components/layout` 与 `components/feedback`）
 - App 级还挂载 `useRealtimeSync()` 与跨天日报自动触发逻辑。
@@ -45,6 +46,7 @@ Browser (React)
 - `src/features/growth`: Growth 页面（Todo + Bottle + Focus）
 - `src/features/report`: 报告视图、详情、统计与植物根系区
 - `src/features/profile`: 个人设置与植物方向配置
+- `src/features/telemetry`: live-input 运营看板（管理员）
 
 ### 2.3 服务层（纯逻辑）
 
@@ -72,7 +74,7 @@ Browser (React)
 - 作用:
   - 统一封装前端到 serverless 的 HTTP 调用
   - 提供 `callReportAPI` / `callAnnotationAPI`
-  - 提供 `callClassifierAPI` / `callDiaryAPI` / `callStardustAPI`
+  - 提供 `callClassifierAPI` / `callDiaryAPI`
   - 提供 `callMagicPenParseAPI`
   - 提供 `callPlantGenerateAPI` / `callPlantDiaryAPI` / `callPlantHistoryAPI`
 
@@ -84,16 +86,20 @@ Browser (React)
 - `annotation.ts`: 批注生成与内容提取（`POST /api/annotation`）
 - `classify.ts`: 结构化分类（`POST /api/classify`）
 - `diary.ts`: 观察手记生成（`POST /api/diary`）
-- `stardust.ts`: 星尘 Emoji 生成（`POST /api/stardust`）
 - `magic-pen-parse.ts`: Magic Pen AI 结构化提取（`POST /api/magic-pen-parse`）
+- `todo-decompose.ts`: Todo 步骤拆解（`POST /api/todo-decompose`）
 - `plant-generate.ts`: 生成当日植物记录（`POST /api/plant-generate`）
 - `plant-diary.ts`: 植物日记生成（`POST /api/plant-diary`）
 - `plant-history.ts`: 植物历史读取（`GET /api/plant-history`）
+- `plant-asset-telemetry.ts`: 植物素材降级埋点（`POST /api/plant-asset-telemetry`）
+- `live-input-telemetry.ts`: live-input 埋点与看板（`POST` ingest, `GET` dashboard）
 
 共享服务位于 `src/server/`：
 
 - `http.ts`: CORS / method / error 包装
 - `annotation-handler.ts` / `annotation-prompts.ts`
+- `annotation-prompts.defaults.ts` / `annotation-prompts.user.ts`
+- `annotation-suggestion.ts` / `annotation-similarity.ts`
 - `magic-pen-prompts.ts`
 - `plant-shared.ts` / `plant-diary-service.ts`
 

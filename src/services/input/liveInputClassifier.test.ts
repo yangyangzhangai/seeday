@@ -103,6 +103,96 @@ describe('classifyLiveInput zh seed and regression cases', () => {
   });
 });
 
+describe('classifyLiveInput hobby and standalone noun activity cases', () => {
+  it('classifies 画画 as activity (regression: was classified as mood)', () => {
+    const result = classify('画画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 绘画 as activity', () => {
+    const result = classify('绘画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 弹琴 as activity', () => {
+    const result = classify('弹琴');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 跳舞 as activity', () => {
+    const result = classify('跳舞');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 冥想 as activity', () => {
+    const result = classify('冥想');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 漫画 as activity (user implies reading manga)', () => {
+    const result = classify('漫画');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 游戏 as activity', () => {
+    const result = classify('游戏');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 电影 as activity', () => {
+    const result = classify('电影');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies standalone noun 漫画了 as activity (with completion particle)', () => {
+    const result = classify('漫画了');
+    expect(result.kind).toBe('activity');
+  });
+
+  it('classifies 摄影 as activity', () => {
+    const result = classify('摄影');
+    expect(result.kind).toBe('activity');
+  });
+});
+
+describe('classifyLiveInput zh operational lexicon additions', () => {
+  it('classifies 修改订单 as activity (verb+object)', () => {
+    const result = classify('修改订单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 支付账单 as activity (verb+object)', () => {
+    const result = classify('支付账单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 核对账单 as activity', () => {
+    const result = classify('核对账单');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 查询日志 as activity', () => {
+    const result = classify('查询日志');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 查询快递 as activity', () => {
+    const result = classify('查询快递');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+
+  it('classifies 重置密码 as activity', () => {
+    const result = classify('重置密码');
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+  });
+});
+
 describe('classifyLiveInput context bias', () => {
   const contextWithEat: LiveInputContext = {
     now: Date.now(),

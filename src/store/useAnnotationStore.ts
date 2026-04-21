@@ -7,6 +7,9 @@ import type {
   AnnotationEvent,
   AnnotationEventType,
   AnnotationState,
+  AnnotationSuggestion,
+  PendingSuggestionIntent,
+  TodayContextSnapshot,
   TodayActivity
 } from '../types/annotation';
 import { callAnnotationAPI } from '../api/client';
@@ -19,8 +22,50 @@ import { normalizeActivityType } from '../lib/activityType';
 import i18n from '../i18n';
 import { getLocalDateString } from './chatHelpers';
 import { useAuthStore } from './useAuthStore';
+import { useTodoStore } from './useTodoStore';
+import { useGrowthStore } from './useGrowthStore';
+import { buildStatusSummary } from '../lib/buildStatusSummary';
+import { detectSuggestionContextHints } from '../lib/suggestionDetector';
+import { buildUserProfileSnapshot } from '../lib/buildUserProfileSnapshot';
+import { isExplicitSuggestionRequest } from '../lib/suggestionIntentDetector';
+import { detectRecoveryNudge } from '../lib/recoverySuggestion';
+import {
+  createEmptyTodayContextSnapshot,
+  detectTodayContextItems,
+  extractTodayContextSourceText,
+  mergeTodayContextSnapshot,
+} from '../lib/todayContext';
+import {
+  buildCharacterState,
+  createEmptyCharacterStateTracker,
+  type CharacterStateTracker,
+} from '../lib/characterState';
+import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
 const MAX_TODAY_EVENTS = 400;
+
+function toTimestampMs(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1e11 ? value * 1000 : value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric < 1e11 ? numeric * 1000 : numeric;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
 
 function appendCappedEvent(events: AnnotationEvent[], event: AnnotationEvent): AnnotationEvent[] {
   const next = [...events, event];
@@ -36,13 +81,41 @@ interface AnnotationStore extends AnnotationState {
 
   // 历史批注（云端同步）
   annotations: AIAnnotation[];
+  suggestionCountByPeriod: Record<'morning' | 'afternoon' | 'night', number>;
+  dailySuggestionCount: number;
+  lastWasSuggestion: boolean;
+  lastSuggestionTime: number;
+  consecutiveTextCount: number;
+  suggestionOutcomes: Array<{ timestamp: number; accepted: boolean }>;
+  recoverySuggestionAttempts: Array<{ date: string; key: string; timestamp: number }>;
+  activeRecoveryBonus: {
+    key: string;
+    stars: number;
+    todoId?: string;
+    bottleId?: string;
+    activatedAt: number;
+    expiresAt: number;
+  } | null;
+  todayContextSnapshot: TodayContextSnapshot;
+  characterStateTracker: CharacterStateTracker;
+  pendingSuggestionIntent: PendingSuggestionIntent | null;
 
   // Actions
   triggerAnnotation: (event: AnnotationEvent) => Promise<void>;
   dismissAnnotation: () => void;
+  recordSuggestionOutcome: (annotationId: string, accepted: boolean) => Promise<void>;
   resetDailyStats: () => void;
   updateConfig: (config: Partial<AnnotationState['config']>) => void;
+  getAdaptiveMinInterval: () => number;
   getTodayStats: () => { activities: number; duration: number; events: AnnotationEvent[] };
+  consumeRecoveryBonusForCompletion: (params: { todoId?: string; bottleId?: string }) => number;
+  setPendingSuggestionIntent: (intent: PendingSuggestionIntent) => void;
+  consumePendingSuggestionIntent: (params: {
+    type: PendingSuggestionIntent['type'];
+    maxAgeMs?: number;
+  }) => PendingSuggestionIntent | null;
+  /** 删除活动消息时，从今日事件日志中移除关联事件，避免 AI 看到已删活动 */
+  removeEventsByMessageId: (messageId: string) => void;
 
   // 云端同步
   fetchAnnotations: () => Promise<void>;
@@ -59,8 +132,26 @@ function getTodayString(): string {
 /**
  * 检查是否需要重置每日统计
  */
-function shouldResetStats(lastDate: string): boolean {
+export function shouldResetStats(lastDate: string): boolean {
   return lastDate !== getTodayString();
+}
+
+export function getSuggestionPeriod(hour: number): 'morning' | 'afternoon' | 'night' {
+  if (hour >= 6 && hour < 13) return 'morning';
+  if (hour >= 13 && hour < 19) return 'afternoon';
+  return 'night';
+}
+
+function isSuggestionEligibleEvent(eventType: AnnotationEventType): boolean {
+  return eventType === 'activity_completed'
+    || eventType === 'activity_recorded'
+    || eventType === 'mood_recorded'
+    || eventType === 'idle_detected'
+    || eventType === 'overwork_detected';
+}
+
+function extractEventTextForSuggestionIntent(event: AnnotationEvent): string {
+  return String(event.data?.content || event.data?.mood || '').trim();
 }
 
 export const useAnnotationStore = create<AnnotationStore>()(
@@ -68,6 +159,17 @@ export const useAnnotationStore = create<AnnotationStore>()(
     (set, get) => ({
       currentAnnotation: null,
       annotations: [],
+      suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+      dailySuggestionCount: 0,
+      lastWasSuggestion: false,
+      lastSuggestionTime: 0,
+      consecutiveTextCount: 0,
+      suggestionOutcomes: [],
+      recoverySuggestionAttempts: [],
+      activeRecoveryBonus: null,
+      todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
+      characterStateTracker: createEmptyCharacterStateTracker(),
+      pendingSuggestionIntent: null,
 
       todayStats: {
         date: getTodayString(),
@@ -109,6 +211,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
         }
 
         const now = Date.now();
+        const nowDate = new Date(now);
+        const todayContextIncoming = detectTodayContextItems(extractTodayContextSourceText(event), nowDate);
+        const nextTodayContextSnapshot = mergeTodayContextSnapshot(
+          get().todayContextSnapshot,
+          todayContextIncoming,
+          nowDate,
+        );
 
         // 检查是否需要重置每日统计
         if (shouldResetStats(todayStats.date)) {
@@ -119,6 +228,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
               lastSpeakTime: 0,
               events: appendCappedEvent([], event),
             },
+            suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+            dailySuggestionCount: 0,
+            lastWasSuggestion: false,
+            lastSuggestionTime: 0,
+            consecutiveTextCount: 0,
+            recoverySuggestionAttempts: [],
+            todayContextSnapshot: nextTodayContextSnapshot,
           });
         } else {
           // 记录事件
@@ -127,17 +243,21 @@ export const useAnnotationStore = create<AnnotationStore>()(
               ...todayStats,
               events: appendCappedEvent(todayStats.events, event),
             },
+            todayContextSnapshot: nextTodayContextSnapshot,
           });
         }
 
         // 检查是否应该生成批注
+        const explicitSuggestionRequest = isSuggestionEligibleEvent(event.type)
+          && isExplicitSuggestionRequest(extractEventTextForSuggestionIntent(event));
+
         const shouldGenerate = shouldGenerateAnnotation(
           event,
           get().todayStats,
           config
         );
 
-        if (!shouldGenerate) {
+        if (!shouldGenerate && !explicitSuggestionRequest) {
           console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
           return;
         }
@@ -154,21 +274,33 @@ export const useAnnotationStore = create<AnnotationStore>()(
             sum + (e.data?.duration || 0), 0
           );
 
-          // 仅在连续心情输入时，传最多3条连续心情原文
+          // 连续心情输入：收集本轮次从第一条心情开始的完整对话（用户输入+AI回复）
           const recentMoodMessages: string[] = [];
+          const moodConversationHistory: Array<{ role: 'user' | 'ai'; content: string }> = [];
           if (event.type === 'mood_recorded') {
-            const eventsWithoutAnnotations = todayEvents.filter(e => e.type !== 'annotation_generated');
-            for (let i = eventsWithoutAnnotations.length - 1; i >= 0 && recentMoodMessages.length < 3; i--) {
-              const currentEvent = eventsWithoutAnnotations[i];
-              if (currentEvent.type !== 'mood_recorded') {
+            const sessionEvents: AnnotationEvent[] = [];
+            for (let i = todayEvents.length - 1; i >= 0; i--) {
+              const e = todayEvents[i];
+              if (e.type === 'mood_recorded' || e.type === 'annotation_generated') {
+                sessionEvents.unshift(e);
+              } else {
                 break;
               }
-              const moodText = String(currentEvent.data?.mood || '').trim();
-              if (moodText) {
-                recentMoodMessages.push(moodText);
+            }
+            for (const e of sessionEvents) {
+              if (e.type === 'mood_recorded') {
+                const moodText = String(e.data?.mood || '').trim();
+                if (moodText) {
+                  recentMoodMessages.push(moodText);
+                  moodConversationHistory.push({ role: 'user', content: moodText });
+                }
+              } else if (e.type === 'annotation_generated') {
+                const annotationText = String(e.data?.content || '').trim();
+                if (annotationText) {
+                  moodConversationHistory.push({ role: 'ai', content: annotationText });
+                }
               }
             }
-            recentMoodMessages.reverse();
           }
 
           const moodStore = useMoodStore.getState();
@@ -200,35 +332,184 @@ export const useAnnotationStore = create<AnnotationStore>()(
             completed: e.type === 'activity_completed'
           }));
 
+          const pendingTodos = useTodoStore.getState().todos
+            .filter(t => !t.completed && !t.isTemplate)
+            .map((t) => {
+              const createdAtMs = toTimestampMs(t.createdAt) ?? now;
+              const dueAtMs = toTimestampMs(t.dueAt) ?? undefined;
+              const ageDays = Math.max(0, Math.floor((now - createdAtMs) / (24 * 60 * 60 * 1000)));
+              return {
+                id: t.id,
+                title: t.title,
+                category: t.category,
+                dueAt: dueAtMs,
+                bottleId: t.bottleId,
+                createdAt: createdAtMs,
+                ageDays,
+              };
+            });
+
+          const currentDate = {
+            year: nowDate.getFullYear(),
+            month: nowDate.getMonth() + 1,
+            day: nowDate.getDate(),
+            weekday: nowDate.getDay(),
+            weekdayName: nowDate.toLocaleDateString('en-US', { weekday: 'long' }),
+            isoDate: getLocalDateString(nowDate),
+          };
+
+          const nowDateKey = getLocalDateString(nowDate);
+          const authUser = useAuthStore.getState().user;
+          const metadataCountryCode = authUser?.user_metadata?.country_code;
+          const countryCode = typeof metadataCountryCode === 'string' ? metadataCountryCode.toUpperCase() : undefined;
+          const metadataLatitude = authUser?.user_metadata?.latitude;
+          const metadataLongitude = authUser?.user_metadata?.longitude;
+          const latitude = Number.isFinite(Number(metadataLatitude)) ? Number(metadataLatitude) : undefined;
+          const longitude = Number.isFinite(Number(metadataLongitude)) ? Number(metadataLongitude) : undefined;
+          const attemptsToday = get().recoverySuggestionAttempts
+            .filter((item) => item.date === nowDateKey)
+            .map((item) => ({ key: item.key, timestamp: item.timestamp }));
+
+          const recoveryNudge = detectRecoveryNudge({
+            now: nowDate,
+            todos: useTodoStore.getState().todos,
+            bottles: useGrowthStore.getState().bottles,
+            attemptsToday,
+          });
+
+          const period = getSuggestionPeriod(nowDate.getHours());
+          const adaptiveMinInterval = get().getAdaptiveMinInterval();
+          const canAttemptSuggestion = explicitSuggestionRequest
+            || Boolean(recoveryNudge)
+            || (
+              isSuggestionEligibleEvent(event.type)
+              && get().dailySuggestionCount < 4
+              && get().suggestionCountByPeriod[period] < 2
+              && !get().lastWasSuggestion
+              && (Date.now() - get().lastSuggestionTime >= adaptiveMinInterval)
+            );
+
+          const { statusSummary, frequentActivities } = buildStatusSummary({
+            now: nowDate,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            todayActivities: todayActivitiesList,
+            pendingTodos,
+            recentMoodMessages,
+          });
+
+          const authState = useAuthStore.getState();
+          const userProfileSnapshot = authState.isPlus && authState.longTermProfileEnabled
+            ? buildUserProfileSnapshot({ profile: authState.userProfileV2, now: nowDate })
+            : undefined;
+
+          const contextHints = detectSuggestionContextHints({
+            now: nowDate,
+            todayActivities: todayActivitiesList,
+            pendingTodos,
+            recentMoodMessages,
+            declaredMealTimes: userProfileSnapshot?.declaredMealTimes,
+            observedMealTimes: userProfileSnapshot?.observedMealTimes,
+          });
+
+          const characterStateEnabled = String(import.meta.env.VITE_ANNOTATION_CHARACTER_STATE_ENABLED ?? 'true') === 'true';
+          const behaviorSourceText = `${String(event.data?.content || '')} ${String(event.data?.mood || '')}`.trim();
+          const characterStateResult = characterStateEnabled
+            ? buildCharacterState({
+              text: behaviorSourceText,
+              durationMinutes: typeof event.data?.duration === 'number' ? event.data.duration : undefined,
+              aiMode,
+              now: nowDate,
+              tracker: get().characterStateTracker,
+            })
+            : null;
+
+          if (characterStateResult) {
+            set({ characterStateTracker: characterStateResult.tracker });
+          }
+
           // 调用 AI 生成批注 (通过 Serverless Function)
+          const recentAnnotations = get().annotations.slice(-5).map(a => a.content);
           const response = await callAnnotationAPI({
             eventType: event.type,
             eventData: event.data,
+            debugPrompts: import.meta.env.DEV,
             userContext: {
+              userId: useAuthStore.getState().user?.id,
               todayActivities: activities.length,
               todayDuration: totalDuration,
-              currentHour: new Date().getHours(),
+              currentHour: nowDate.getHours(),
+              currentMinute: nowDate.getMinutes(),
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              currentDate,
+              countryCode,
+              latitude,
+              longitude,
+              recentAnnotations,
               recentMoodMessages,
+              moodConversationHistory,
               todayActivitiesList,
+              pendingTodos,
+              statusSummary,
+              contextHints,
+              frequentActivities,
+              todayContext: get().todayContextSnapshot.items.length > 0
+                ? get().todayContextSnapshot
+                : undefined,
+              characterStateText: characterStateResult?.text || undefined,
+              userProfileSnapshot,
+              characterStateMeta: characterStateResult?.meta,
+              allowSuggestion: canAttemptSuggestion,
+              forceSuggestion: explicitSuggestionRequest || Boolean(recoveryNudge),
+              consecutiveTextCount: get().consecutiveTextCount,
+              recoveryNudge: recoveryNudge || undefined,
             },
             lang: (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it',
             aiMode,
           });
           const debugAiMode = response.debugAiMode || aiMode;
           console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
+          if (import.meta.env.DEV && response.debugPromptPackage) {
+            console.groupCollapsed('[AI Annotator] Prompt package');
+            console.log('Model:', response.debugPromptPackage.model);
+            console.log('System prompt:\n', response.debugPromptPackage.systemPrompt);
+            console.log('User prompt:\n', response.debugPromptPackage.userPrompt);
+            console.groupEnd();
+          }
 
           // 先创建 id，后续同步需要
           const annotationId = uuidv4();
 
           // 创建批注对象
+          const suggestion: AnnotationSuggestion | undefined = response.suggestion
+            ? {
+                type: response.suggestion.type,
+                actionLabel: response.suggestion.actionLabel,
+                activityName: response.suggestion.activityName,
+                todoId: response.suggestion.todoId,
+                todoTitle: response.suggestion.todoTitle,
+                rewardStars: response.suggestion.rewardStars,
+                rewardBottleId: response.suggestion.rewardBottleId,
+                recoveryKey: response.suggestion.recoveryKey,
+                decomposeReady: response.suggestion.decomposeReady,
+                decomposeSourceTodoId: response.suggestion.decomposeSourceTodoId,
+                decomposeSteps: response.suggestion.decomposeSteps,
+              }
+            : undefined;
+
           const annotation: AIAnnotation = {
             id: annotationId,
             content: response.content,
             tone: response.tone,
             timestamp: Date.now(),
             relatedEvent: event,
+            todayContext: get().todayContextSnapshot.items.length > 0
+              ? get().todayContextSnapshot
+              : undefined,
             displayDuration: response.displayDuration,
             syncedToCloud: false,
+            suggestion,
+            suggestionAccepted: undefined,
+            narrativeEvent: response.narrativeEvent,
           };
 
           const generatedEvent: AnnotationEvent = {
@@ -238,6 +519,15 @@ export const useAnnotationStore = create<AnnotationStore>()(
           };
 
           // 更新状态
+          const isSuggestionOutput = Boolean(suggestion);
+          const outputPeriod = getSuggestionPeriod(nowDate.getHours());
+          const nextPeriodCounts = isSuggestionOutput
+            ? {
+                ...get().suggestionCountByPeriod,
+                [outputPeriod]: get().suggestionCountByPeriod[outputPeriod] + 1,
+              }
+            : get().suggestionCountByPeriod;
+
           set({
             currentAnnotation: annotation,
             annotations: [...get().annotations, annotation],
@@ -247,6 +537,24 @@ export const useAnnotationStore = create<AnnotationStore>()(
               lastSpeakTime: Date.now(),
               events: appendCappedEvent(get().todayStats.events, generatedEvent),
             },
+            suggestionCountByPeriod: nextPeriodCounts,
+            dailySuggestionCount: isSuggestionOutput
+              ? get().dailySuggestionCount + 1
+              : get().dailySuggestionCount,
+            lastWasSuggestion: isSuggestionOutput,
+            lastSuggestionTime: isSuggestionOutput ? Date.now() : get().lastSuggestionTime,
+            consecutiveTextCount: isSuggestionOutput ? 0 : get().consecutiveTextCount + 1,
+            recoverySuggestionAttempts: suggestion?.recoveryKey
+              ? [
+                ...get().recoverySuggestionAttempts,
+                {
+                  date: nowDateKey,
+                  key: suggestion.recoveryKey,
+                  timestamp: now,
+                },
+              ].slice(-300)
+              : get().recoverySuggestionAttempts,
+            characterStateTracker: characterStateResult?.tracker || get().characterStateTracker,
           });
 
           // 异步同步到云端
@@ -290,6 +598,85 @@ export const useAnnotationStore = create<AnnotationStore>()(
         set({ currentAnnotation: null });
       },
 
+      recordSuggestionOutcome: async (annotationId: string, accepted: boolean) => {
+        const annotation = get().annotations.find((item) => item.id === annotationId);
+        if (!annotation || !annotation.suggestion) return;
+
+        if (annotation.suggestionAccepted === accepted) return;
+
+        const bonusStars = Number(annotation.suggestion.rewardStars || 0);
+        const canActivateBonus = accepted
+          && bonusStars > 1
+          && (annotation.suggestion.todoId || annotation.suggestion.rewardBottleId);
+        const endOfToday = (() => {
+          const end = new Date();
+          end.setHours(23, 59, 59, 999);
+          return end.getTime();
+        })();
+
+        set({
+          annotations: get().annotations.map((item) => (
+            item.id === annotationId ? { ...item, suggestionAccepted: accepted } : item
+          )),
+          currentAnnotation: get().currentAnnotation?.id === annotationId
+            ? { ...get().currentAnnotation, suggestionAccepted: accepted }
+            : get().currentAnnotation,
+          suggestionOutcomes: [
+            ...get().suggestionOutcomes,
+            { timestamp: Date.now(), accepted },
+          ].slice(-200),
+          activeRecoveryBonus: canActivateBonus
+            ? {
+              key: annotation.suggestion.recoveryKey || annotationId,
+              stars: Math.floor(bonusStars),
+              todoId: annotation.suggestion.todoId,
+              bottleId: annotation.suggestion.rewardBottleId,
+              activatedAt: Date.now(),
+              expiresAt: endOfToday,
+            }
+            : get().activeRecoveryBonus,
+        });
+
+        const session = await getSupabaseSession();
+        if (!session) return;
+
+        const { error } = await supabase
+          .from('annotations')
+          .update({ suggestion_accepted: accepted })
+          .eq('id', annotationId)
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          console.error('[Annotation] suggestion outcome sync failed:', error);
+        }
+
+        if (accepted && annotation.narrativeEvent?.isTriggeredReply) {
+          await reportTelemetryEvent('event_condensed', {
+            eventType: annotation.narrativeEvent.eventType,
+            eventId: annotation.narrativeEvent.eventId,
+            isTriggeredReply: true,
+          });
+        }
+      },
+
+      consumeRecoveryBonusForCompletion: ({ todoId, bottleId }) => {
+        const bonus = get().activeRecoveryBonus;
+        if (!bonus) return 1;
+
+        const now = Date.now();
+        if (bonus.expiresAt <= now) {
+          set({ activeRecoveryBonus: null });
+          return 1;
+        }
+
+        const todoMatched = Boolean(todoId && bonus.todoId && todoId === bonus.todoId);
+        const bottleMatched = Boolean(bottleId && bonus.bottleId && bottleId === bonus.bottleId);
+        if (!todoMatched && !bottleMatched) return 1;
+
+        set({ activeRecoveryBonus: null });
+        return Math.max(1, Math.floor(bonus.stars || 1));
+      },
+
       /**
        * 重置每日统计（手动）
        */
@@ -301,7 +688,46 @@ export const useAnnotationStore = create<AnnotationStore>()(
             lastSpeakTime: 0,
             events: [],
           },
+          suggestionCountByPeriod: { morning: 0, afternoon: 0, night: 0 },
+          dailySuggestionCount: 0,
+          lastWasSuggestion: false,
+          lastSuggestionTime: 0,
+          consecutiveTextCount: 0,
+          recoverySuggestionAttempts: [],
+          activeRecoveryBonus: null,
+          todayContextSnapshot: createEmptyTodayContextSnapshot(new Date()),
+          pendingSuggestionIntent: null,
         });
+      },
+
+      setPendingSuggestionIntent: (intent) => {
+        set({
+          pendingSuggestionIntent: {
+            ...intent,
+            createdAt: Number(intent.createdAt) || Date.now(),
+          },
+        });
+      },
+
+      removeEventsByMessageId: (messageId) => {
+        set((s) => ({
+          todayStats: {
+            ...s.todayStats,
+            events: s.todayStats.events.filter((e) => e.data?.messageId !== messageId),
+          },
+        }));
+      },
+
+      consumePendingSuggestionIntent: ({ type, maxAgeMs = 30_000 }) => {
+        const pending = get().pendingSuggestionIntent;
+        if (!pending || pending.type !== type) return null;
+        if (Date.now() - pending.createdAt > maxAgeMs) {
+          set({ pendingSuggestionIntent: null });
+          return null;
+        }
+
+        set({ pendingSuggestionIntent: null });
+        return pending;
       },
 
       /**
@@ -314,6 +740,28 @@ export const useAnnotationStore = create<AnnotationStore>()(
             ...configUpdate,
           },
         });
+      },
+
+      getAdaptiveMinInterval: () => {
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+        const settledFromAnnotations = get().annotations
+          .filter((item) => item.suggestion && typeof item.suggestionAccepted === 'boolean' && item.timestamp >= sevenDaysAgo)
+          .map((item) => ({ accepted: Boolean(item.suggestionAccepted), timestamp: item.timestamp }));
+
+        const settledFromOutcomes = get().suggestionOutcomes
+          .filter((item) => item.timestamp >= sevenDaysAgo);
+
+        const merged = [...settledFromAnnotations, ...settledFromOutcomes];
+        const shown = merged.length;
+        if (shown < 5) return 60 * 60 * 1000;
+
+        const acceptedCount = merged.filter((item) => item.accepted).length;
+        const rate = acceptedCount / shown;
+
+        if (rate > 0.7) return 30 * 60 * 1000;
+        if (rate < 0.3) return 2 * 60 * 60 * 1000;
+        return 60 * 60 * 1000;
       },
 
       /**
@@ -386,6 +834,17 @@ export const useAnnotationStore = create<AnnotationStore>()(
         config: state.config,
         currentAnnotation: state.currentAnnotation,
         annotations: state.annotations,
+        suggestionCountByPeriod: state.suggestionCountByPeriod,
+        dailySuggestionCount: state.dailySuggestionCount,
+        lastWasSuggestion: state.lastWasSuggestion,
+        lastSuggestionTime: state.lastSuggestionTime,
+        consecutiveTextCount: state.consecutiveTextCount,
+        suggestionOutcomes: state.suggestionOutcomes,
+        recoverySuggestionAttempts: state.recoverySuggestionAttempts,
+        activeRecoveryBonus: state.activeRecoveryBonus,
+        todayContextSnapshot: state.todayContextSnapshot,
+        characterStateTracker: state.characterStateTracker,
+        pendingSuggestionIntent: state.pendingSuggestionIntent,
       }),
     }
   )

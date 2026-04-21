@@ -6,14 +6,16 @@ import { useChatStore } from '../../store/useChatStore';
 import type { Report } from '../../store/useReportStore';
 import { cn } from '../../lib/utils';
 import { formatDuration } from '../../lib/time';
-import { getReportRange } from './reportPageHelpers';
+import { getReportRange, getMessagesForReport } from './reportPageHelpers';
 
 interface ActivityRecordsViewProps {
   report: Report;
 }
 
 export const ActivityRecordsView: React.FC<ActivityRecordsViewProps> = ({ report }) => {
-  const messages = useChatStore((state) => state.messages);
+  const globalMessages = useChatStore((state) => state.messages);
+  const dateCache = useChatStore((state) => state.dateCache);
+  const messages = getMessagesForReport(globalMessages, dateCache, report);
   const { t } = useTranslation();
   const { start, end } = getReportRange(report);
 
@@ -33,7 +35,7 @@ export const ActivityRecordsView: React.FC<ActivityRecordsViewProps> = ({ report
     <div>
       <div className="text-[11px]">
         <h3 className="font-semibold mb-1 text-[11px] flex items-center gap-1">
-          <Clock size={14} /> {t('report_activity')}
+          <Clock size={16} strokeWidth={1.5} /> {t('report_activity')}
         </h3>
         <div className="bg-white rounded-lg border border-gray-100 overflow-hidden shadow-sm">
           {activityMessages.map((msg, index) => (

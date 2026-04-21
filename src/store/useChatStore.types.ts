@@ -1,4 +1,5 @@
 import type { ActivityRecordType, ActivityType } from '../lib/activityType';
+import type { AnnotationEvent, AnnotationEventType } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 
 export type MessageType = 'text' | 'system' | 'ai';
@@ -56,7 +57,13 @@ export interface ChatState {
   sendMessage: (
     content: string,
     customTimestamp?: number,
-    options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType }
+    options?: {
+      skipMoodDetection?: boolean;
+      skipAnnotation?: boolean;
+      activityTypeOverride?: ActivityRecordType;
+      annotationEventType?: AnnotationEventType;
+      annotationEventData?: AnnotationEvent['data'];
+    }
   ) => Promise<string | null>;
   sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
   sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
@@ -67,6 +74,8 @@ export interface ChatState {
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
+  getMessagesForDateRange: (start: Date, end: Date) => Promise<Message[]>;
+  loadMessagesForDateRange: (start: Date, end: Date) => Promise<void>;
   setHasInitialized: (value: boolean) => void;
   clearHistory: () => Promise<void>;
   attachStardustToMessage: (messageId: string, stardustId: string, stardustEmoji: string) => void;

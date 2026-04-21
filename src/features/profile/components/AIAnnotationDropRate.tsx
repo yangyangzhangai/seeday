@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
+import { Gauge, Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
+import { triggerLightHaptic } from '../../../lib/haptics';
 
 const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
   { key: 'low', labelKey: 'profile_drop_low' },
@@ -11,6 +12,7 @@ const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
 
 interface Props {
   isPlus: boolean;
+  plain?: boolean;
 }
 
 function showToast(msg: string) {
@@ -22,44 +24,58 @@ function showToast(msg: string) {
   setTimeout(() => el.remove(), 2000);
 }
 
-export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus }) => {
+export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const current = preferences.annotationDropRate;
+  const aiModeEnabled = preferences.aiModeEnabled;
+  const selectedRateStyle: React.CSSProperties = {
+    background:
+      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+    color: '#426D56',
+  };
 
   const handleClick = (key: AnnotationDropRate) => {
+    triggerLightHaptic();
+    if (!aiModeEnabled) return;
     if (key !== 'low' && !isPlus) {
       showToast(t('profile_plus_only'));
       return;
     }
-    updatePreferences({ annotationDropRate: key });
+    void updatePreferences({ annotationDropRate: key });
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-2.5">
+    <div className={plain ? 'px-4 py-2.5' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">
-          {t('profile_annotation_drop')}
-        </span>
-        <div className="flex gap-1.5 flex-1">
+        <div className="flex items-center space-x-2.5 whitespace-nowrap flex-shrink-0">
+          <Gauge size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+          <span className="profile-fn-title">
+            {t('profile_annotation_drop')}
+          </span>
+        </div>
+        <div className={`flex gap-1.5 flex-1 transition-opacity ${aiModeEnabled ? '' : 'opacity-45 pointer-events-none'}`}>
           {DROP_RATES.map(({ key, labelKey }) => {
             const locked = key !== 'low' && !isPlus;
             const selected = current === key;
             return (
               <button
                 key={key}
-                onClick={() => handleClick(key)}
+                onClick={() => { void handleClick(key); }}
                 className={`relative flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                   selected
-                    ? 'border-blue-500 bg-blue-100 text-blue-700 font-bold'
+                    ? 'font-bold'
                     : locked
-                    ? 'border-gray-200 bg-gray-100 text-gray-400 opacity-50 cursor-not-allowed'
-                    : 'border-blue-200 bg-blue-50 text-blue-600'
+                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
+                    : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'
                 }`}
+                style={selected ? selectedRateStyle : undefined}
               >
                 {t(labelKey)}
                 {locked && (
-                  <Lock size={9} className="absolute top-1 right-1 text-gray-400" />
+                  <Lock size={9} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />
                 )}
               </button>
             );

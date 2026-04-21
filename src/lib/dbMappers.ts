@@ -8,6 +8,24 @@ import type { Todo } from '../store/useTodoStore';
 
 export type TodoUpdates = Partial<Omit<Todo, 'id' | 'createdAt'>>;
 
+const BIGINT_JS_SAFE_MIN = -9_000_000_000_000_000;
+const BIGINT_JS_SAFE_MAX = 9_000_000_000_000_000;
+
+function normalizeBigintLike(raw: unknown): number | null {
+  if (raw == null) return null;
+
+  const numeric = typeof raw === 'number'
+    ? raw
+    : (typeof raw === 'string' ? Number(raw.trim()) : Number.NaN);
+
+  if (!Number.isFinite(numeric)) return null;
+
+  const truncated = Math.trunc(numeric);
+  if (truncated < BIGINT_JS_SAFE_MIN) return BIGINT_JS_SAFE_MIN;
+  if (truncated > BIGINT_JS_SAFE_MAX) return BIGINT_JS_SAFE_MAX;
+  return truncated;
+}
+
 /** 安全解析 mood_descriptions JSONB 字段，容错脏数据 */
 export function safeParseMoodDescriptions(raw: unknown): MoodDescription[] | null {
   if (!raw) return null;
@@ -38,6 +56,33 @@ function normalizeRecurrenceDays(raw: unknown): number[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function toTimestampMs(raw: unknown): number | undefined {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const normalized = raw < 1e11 ? raw * 1000 : raw;
+    const safe = normalizeBigintLike(normalized);
+    return safe == null ? undefined : safe;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      const normalized = numeric < 1e11 ? numeric * 1000 : numeric;
+      const safe = normalizeBigintLike(normalized);
+      return safe == null ? undefined : safe;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
 const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   title: 'content',
   dueAt: 'due_date',
@@ -49,6 +94,8 @@ const TODO_DB_FIELD_MAP: Partial<Record<keyof TodoUpdates, string>> = {
   sortOrder: 'sort_order',
   isTemplate: 'is_template',
   templateId: 'template_id',
+  parentId: 'parent_id',
+  suggestedDuration: 'suggested_duration',
 };
 
 export function fromDbMessage(row: any): Message {
@@ -90,61 +137,85 @@ export function toDbMessage(message: Message, userId: string): Record<string, un
 }
 
 export function fromDbTodo(row: any): Todo {
+  const createdAt = toTimestampMs(row.created_at) ?? Date.now();
+  const dueAt = toTimestampMs(row.due_date);
+  const completedAt = toTimestampMs(row.completed_at);
+  const startedAt = toTimestampMs(row.started_at);
+  const rawSortOrder = row.sort_order;
+  const sortOrder = (typeof rawSortOrder === 'number' && Number.isFinite(rawSortOrder))
+    ? rawSortOrder
+    : (dueAt ?? createdAt);
+
   return {
     id: row.id,
     title: row.content,              // DB 'content' → app 'title'
     completed: row.completed,
     priority: row.priority,
     category: normalizeTodoCategory(row.category, row.content),
-    dueAt: row.due_date,             // DB 'due_date' → app 'dueAt'
+    dueAt,                           // DB 'due_date' → app 'dueAt'
     scope: row.scope,
-    createdAt: row.created_at,
+    createdAt,
     recurrence: row.recurrence,
     recurrenceDays: normalizeRecurrenceDays(row.recurrence_days),
     recurrenceId: row.recurrence_id,
-    completedAt: row.completed_at,
+    completedAt,
     isPinned: row.is_pinned || false,
-    startedAt: row.started_at,
+    startedAt,
     duration: row.duration,
     bottleId: row.bottle_id,
-    sortOrder: row.sort_order ?? row.due_date ?? Date.now(),
+    sortOrder,
     isTemplate: row.is_template ?? false,
     templateId: row.template_id,
+    parentId: row.parent_id ?? undefined,
+    suggestedDuration: row.suggested_duration ?? undefined,
+    syncState: 'synced',             // 从云端来的都是已同步状态
   };
 }
 
 export function toDbTodo(todo: Todo, userId: string): Record<string, unknown> {
+  const createdAt = normalizeBigintLike(todo.createdAt) ?? Math.trunc(Date.now());
+  const sortOrder = normalizeBigintLike(todo.sortOrder) ?? createdAt;
+
   return {
     id: todo.id,
     content: todo.title,             // app 'title' → DB 'content'
     completed: todo.completed,
     priority: todo.priority,
     category: todo.category,
-    due_date: todo.dueAt,            // app 'dueAt' → DB 'due_date'
+    due_date: normalizeBigintLike(todo.dueAt), // app 'dueAt' → DB 'due_date'
     scope: todo.scope,
-    created_at: todo.createdAt,
+    created_at: createdAt,
     recurrence: todo.recurrence,
     recurrence_days: normalizeRecurrenceDays(todo.recurrenceDays) ?? null,
     recurrence_id: todo.recurrenceId,
-    completed_at: todo.completedAt,
+    completed_at: normalizeBigintLike(todo.completedAt),
     is_pinned: todo.isPinned,
-    started_at: todo.startedAt,
+    started_at: normalizeBigintLike(todo.startedAt),
     duration: todo.duration,
     bottle_id: todo.bottleId,
-    sort_order: todo.sortOrder,
+    sort_order: sortOrder,
     is_template: todo.isTemplate,
     template_id: todo.templateId,
+    parent_id: todo.parentId ?? null,
+    suggested_duration: todo.suggestedDuration ?? null,
     user_id: userId,
+    deleted_at: null,                // 明确标记为未删除
+    updated_at: new Date().toISOString(),
   };
 }
 
 export function toDbTodoUpdates(updates: TodoUpdates): Record<string, unknown> {
   const dbUpdates: Record<string, unknown> = {};
+  const bigintKeys = new Set<keyof TodoUpdates>(['dueAt', 'completedAt', 'startedAt', 'sortOrder']);
 
   for (const [key, value] of Object.entries(updates) as [keyof TodoUpdates, TodoUpdates[keyof TodoUpdates]][]) {
     const mappedKey = TODO_DB_FIELD_MAP[key] || key;
     if (key === 'recurrenceDays') {
       dbUpdates[mappedKey] = normalizeRecurrenceDays(value) ?? null;
+      continue;
+    }
+    if (bigintKeys.has(key)) {
+      dbUpdates[mappedKey] = value === undefined ? null : normalizeBigintLike(value);
       continue;
     }
     dbUpdates[mappedKey] = value === undefined ? null : value;
@@ -163,6 +234,8 @@ export function fromDbReport(row: any): Report {
     type: row.type,
     content: row.content,
     aiAnalysis: row.ai_analysis,
+    teaserText: row.teaser_text ?? null,
+    userNote: row.user_note ?? undefined,
     stats: row.stats,
     analysisStatus: row.ai_analysis ? 'success' : 'idle',
     errorMessage: null,
@@ -180,6 +253,8 @@ export function toDbReport(report: Report, userId: string): Record<string, unkno
     type: report.type,
     content: report.content,
     ai_analysis: report.aiAnalysis,
+    teaser_text: report.teaserText,
+    user_note: report.userNote,
     stats: report.stats,
   };
 }
@@ -218,8 +293,10 @@ export function fromDbAnnotation(row: any): AIAnnotation {
     tone: row.tone,
     timestamp: row.event_timestamp,
     relatedEvent: row.related_event,
+    todayContext: row.today_context ?? undefined,
     displayDuration: 8000,
     syncedToCloud: true,
+    suggestionAccepted: typeof row.suggestion_accepted === 'boolean' ? row.suggestion_accepted : undefined,
   };
 }
 
@@ -231,6 +308,8 @@ export function toDbAnnotation(annotation: AIAnnotation, userId: string): Record
     tone: annotation.tone,
     event_timestamp: annotation.timestamp,
     related_event: annotation.relatedEvent,
+    today_context: annotation.todayContext ?? null,
+    suggestion_accepted: annotation.suggestionAccepted ?? null,
     created_at: new Date(annotation.timestamp).toISOString(),
   };
 }

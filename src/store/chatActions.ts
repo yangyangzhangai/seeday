@@ -13,6 +13,7 @@ import { recordLiveInputClassification } from '../services/input/liveInputTeleme
 import { emitLiveInputClassificationTelemetry } from '../services/input/liveInputTelemetryCloud';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import i18n from '../i18n';
+import { resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 
 type SendMessageFn = (
   content: string,
@@ -386,20 +387,25 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   }
 
   const lastMessage = updatedMessages[lastRecordIndex];
-  const duration = Math.max(0, Math.round((now - lastMessage.timestamp) / (1000 * 60)));
-  updatedMessages[lastRecordIndex] = { ...lastMessage, duration };
+  const duration = resolveAutoActivityDurationMinutes(lastMessage.timestamp, now);
+  updatedMessages[lastRecordIndex] = { ...lastMessage, duration, isActive: false };
 
   const session = await getSupabaseSession();
   if (session) {
     await supabase
       .from('messages')
-      .update({ duration })
+      .update({ duration, is_active: false })
       .eq('id', lastMessage.id)
       .eq('user_id', session.user.id);
   }
 
   const moodStore = useMoodStore.getState();
-  moodStore.setMood(lastMessage.id, autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)));
+  if (!moodStore.getMood(lastMessage.id)) {
+    moodStore.setMood(
+      lastMessage.id,
+      autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)),
+    );
+  }
 
   return updatedMessages;
 }

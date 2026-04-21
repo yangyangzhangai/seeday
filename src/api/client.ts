@@ -8,11 +8,14 @@
 import { normalizeAiCompanionMode, type AiCompanionMode } from '../lib/aiCompanion';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useAuthStore } from '../store/useAuthStore';
+import type { UserProfileV2 } from '../types/userProfile';
+import type {
+  UserAnalyticsDashboardResponse,
+  UserAnalyticsLookupResponse,
+} from '../types/userAnalytics';
 import type {
   PlantAssetTelemetryRequest,
   PlantAssetTelemetryResponse,
-  PlantDiaryRequest,
-  PlantDiaryResponse,
   PlantGenerateRequest,
   PlantGenerateResponse,
   PlantHistoryResponse,
@@ -22,6 +25,10 @@ import type {
   LiveInputTelemetryIngestRequest,
   LiveInputTelemetryIngestResponse,
 } from '../services/input/liveInputTelemetryApi';
+import type {
+  AnnotationRequest,
+  AnnotationResponse,
+} from '../types/annotation';
 
 const configuredApiBase = String(import.meta.env.VITE_API_BASE ?? '')
   .trim()
@@ -33,6 +40,9 @@ interface ApiErrorShape {
 }
 
 type ApiLang = 'zh' | 'en' | 'it';
+type SubscriptionAction = 'activate' | 'restore' | 'cancel';
+type SubscriptionSource = 'iap' | 'stripe';
+type SubscriptionPlanType = 'monthly' | 'annual';
 
 let apiRequestSeq = 0;
 
@@ -173,6 +183,76 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+interface SubscriptionRequest {
+  action: SubscriptionAction;
+  source: SubscriptionSource;
+  planType?: SubscriptionPlanType;
+  transactionId?: string;
+  productId?: string;
+  originalTransactionId?: string;
+}
+
+interface SubscriptionResponse {
+  success: boolean;
+  plan: 'free' | 'plus';
+  isPlus: boolean;
+  expiresAt: string | null;
+  verificationEnvironment?: 'production' | 'sandbox' | 'unknown';
+}
+
+interface StripeCheckoutResponse {
+  success: boolean;
+  checkoutUrl: string;
+}
+
+export async function callSubscriptionAPI(request: SubscriptionRequest): Promise<SubscriptionResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<SubscriptionRequest, SubscriptionResponse>('/subscription', request, { headers });
+}
+
+export async function callStripeCheckoutAPI(planType: SubscriptionPlanType): Promise<StripeCheckoutResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<
+  {
+    action: 'stripe_checkout';
+    source: 'stripe';
+    planType: SubscriptionPlanType;
+    returnPath: '/upgrade';
+  },
+  StripeCheckoutResponse
+  >('/subscription', {
+    action: 'stripe_checkout',
+    source: 'stripe',
+    planType,
+    returnPath: '/upgrade',
+  }, { headers });
+}
+
+export async function callStripeFinalizeAPI(sessionId: string): Promise<SubscriptionResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw new Error('Unauthorized');
+  }
+  return postJson<
+  {
+    action: 'stripe_finalize';
+    source: 'stripe';
+    sessionId: string;
+  },
+  SubscriptionResponse
+  >('/subscription', {
+    action: 'stripe_finalize',
+    source: 'stripe',
+    sessionId,
+  }, { headers });
+}
+
 interface ReportRequest {
   data: {
     date: string;
@@ -187,28 +267,25 @@ interface ReportResponse {
   content: string;
 }
 
-interface AnnotationRequest {
-  eventType: string;
-  eventData: any;
-  userContext: {
-    todayActivities?: number;
-    todayDuration?: number;
-    currentHour?: number;
-    recentAnnotations?: string[];
-    recentMoodMessages?: string[]; // 连续心情原文（最多3条）
-    todayActivitiesList?: any[];
-  };
-  lang?: 'zh' | 'en' | 'it';
-  aiMode?: AiCompanionMode;
+export interface ExtractProfileRequestMessage {
+  id: string;
+  content: string;
+  timestamp: number;
+  duration?: number;
+  activityType?: string;
+  isMood?: boolean;
 }
 
-interface AnnotationResponse {
-  content: string;
-  tone: 'playful' | 'celebrating' | 'concerned' | 'curious';
-  displayDuration: number;
-  source?: 'ai' | 'default';
-  reason?: 'no_key' | 'fetch_failed' | 'empty_response' | 'empty_content' | 'extract_failed' | 'exception';
-  debugAiMode?: string;
+interface ExtractProfileRequest {
+  recentMessages: ExtractProfileRequestMessage[];
+  lang?: 'zh' | 'en' | 'it';
+}
+
+interface ExtractProfileResponse {
+  success: boolean;
+  profile?: Partial<UserProfileV2>;
+  skipped?: boolean;
+  reason?: string;
 }
 
 /**
@@ -219,22 +296,30 @@ export async function callReportAPI(request: ReportRequest): Promise<string> {
   return data.content;
 }
 
+export async function callExtractProfileAPI(request: ExtractProfileRequest): Promise<ExtractProfileResponse> {
+  const headers = await getAuthHeaders();
+  return postJson<ExtractProfileRequest, ExtractProfileResponse>('/extract-profile', request, { headers });
+}
+
 /**
  * 调用 Annotation API
  */
 export async function callAnnotationAPI(request: AnnotationRequest): Promise<AnnotationResponse> {
   const { aiMode, aiModeEnabled } = useAuthStore.getState().preferences;
   const resolvedAiMode = request.aiMode ?? (aiModeEnabled ? normalizeAiCompanionMode(aiMode) : undefined);
+  const debugPrompts = request.debugPrompts ?? import.meta.env.DEV;
   logApiDebug('annotation.request', {
     eventType: request.eventType,
     aiModeEnabled,
     requestedAiMode: request.aiMode,
     resolvedAiMode: resolvedAiMode ?? 'off',
+    debugPrompts,
   });
 
   const response = await postJson<AnnotationRequest, AnnotationResponse>('/annotation', {
     ...request,
     aiMode: resolvedAiMode,
+    debugPrompts,
   });
 
   logApiDebug('annotation.response', {
@@ -246,7 +331,7 @@ export async function callAnnotationAPI(request: AnnotationRequest): Promise<Ann
   return response;
 }
 
-// ── Timeshine 三步走新 API ────────────────────────────────────────────────────
+// ── 日记生成三步流程 API ────────────────────────────────────────────────────────
 
 interface ClassifyRequest {
   rawInput: string;
@@ -286,6 +371,7 @@ interface ClassifyResponse {
 }
 
 interface DiaryRequest {
+  mode?: 'full' | 'teaser';
   structuredData: string;
   rawInput?: string;
   date?: string;
@@ -308,24 +394,13 @@ export async function callClassifierAPI(request: ClassifyRequest): Promise<Class
 }
 
 /**
- * 步骤3: 调用日记 API - 生成诗意的观察手记
+ * 步骤3: 调用日记 API - 生成 AI 日记
  */
 export async function callDiaryAPI(request: DiaryRequest): Promise<DiaryResponse> {
   return postJson<DiaryRequest, DiaryResponse>('/diary', {
     ...request,
     aiMode: request.aiMode ?? getCurrentAiMode(),
   });
-}
-
-// ── Stardust Emoji 生成 API ───────────────────────────────────────────────────
-
-interface StardustRequest {
-  userRawContent: string;
-  message: string;
-}
-
-interface StardustResponse {
-  emojiChar: string;
 }
 
 interface MagicPenParseRequest {
@@ -360,14 +435,13 @@ interface MagicPenParseResponse {
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
   providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
   fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception' | 'qwen';
-}
-
-/**
- * 调用 Stardust API - 为珍藏记忆生成 Emoji 字符
- * 替代 useStardustStore 中的前端直连 Chutes API 行为
- */
-export async function callStardustAPI(request: StardustRequest): Promise<StardustResponse> {
-  return postJson<StardustRequest, StardustResponse>('/stardust', request);
+  failureCategory?: 'model_output_invalid' | 'provider_call_failed' | 'unknown';
+  attempts?: Array<{
+    provider: 'zhipu' | 'qwen_flash_fallback';
+    reason: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
+    status?: number;
+    elapsedMs: number;
+  }>;
 }
 
 export async function callMagicPenParseAPI(
@@ -379,11 +453,6 @@ export async function callMagicPenParseAPI(
 export async function callPlantGenerateAPI(request: PlantGenerateRequest): Promise<PlantGenerateResponse> {
   const headers = await getAuthHeaders();
   return postJson<PlantGenerateRequest, PlantGenerateResponse>('/plant-generate', request, { headers });
-}
-
-export async function callPlantDiaryAPI(request: PlantDiaryRequest): Promise<PlantDiaryResponse> {
-  const headers = await getAuthHeaders();
-  return postJson<PlantDiaryRequest, PlantDiaryResponse>('/plant-diary', request, { headers });
 }
 
 export async function callPlantHistoryAPI(startDate: string, endDate: string): Promise<PlantHistoryResponse> {
@@ -399,7 +468,7 @@ export async function callPlantAssetTelemetryAPI(
   if (!headers.Authorization) {
     return { success: false, skipped: true };
   }
-  return postJson<PlantAssetTelemetryRequest, PlantAssetTelemetryResponse>('/plant-asset-telemetry', request, { headers });
+  return postJson<PlantAssetTelemetryRequest, PlantAssetTelemetryResponse>('/live-input-telemetry', request, { headers });
 }
 
 export async function callLiveInputTelemetryIngestAPI(
@@ -426,7 +495,39 @@ export async function callLiveInputTelemetryDashboardAPI(
   }
 
   const params = new URLSearchParams({ days: String(days) });
-  return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-dashboard?${params.toString()}`, { headers });
+  return getJson<LiveInputTelemetryDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
+}
+
+interface ShortInsightRequest {
+  kind: 'activity' | 'mood' | 'todo' | 'habit';
+  summary: string;
+  lang?: 'zh' | 'en' | 'it';
+  aiMode?: AiCompanionMode;
+}
+
+interface ShortInsightResponse {
+  insight: string;
+}
+
+/**
+ * 调用 Short Insight API - 生成 ≤20 字的活动或心情分析
+ */
+export async function callShortInsightAPI(request: ShortInsightRequest): Promise<string> {
+  const { aiModeEnabled } = useAuthStore.getState().preferences;
+  if (!aiModeEnabled && !request.aiMode) {
+    return '';
+  }
+
+  try {
+    const data = await postJson<ShortInsightRequest & { action: string }, ShortInsightResponse>('/diary', {
+      ...request,
+      action: 'insight',
+      aiMode: request.aiMode ?? getCurrentAiMode(),
+    });
+    return data.insight || '';
+  } catch {
+    return '';
+  }
 }
 
 function getCurrentAiMode(): AiCompanionMode | undefined {
@@ -435,4 +536,60 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
     return undefined;
   }
   return normalizeAiCompanionMode(aiMode);
+}
+
+// ── User Analytics API ────────────────────────────────────────────────────────
+
+export async function callUserAnalyticsDashboardAPI(days = 30): Promise<UserAnalyticsDashboardResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  const params = new URLSearchParams({ module: 'user_analytics', days: String(days) });
+  return getJson<UserAnalyticsDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
+}
+
+export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAnalyticsLookupResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  const params = new URLSearchParams({ module: 'user_analytics', type: 'user_lookup', query });
+  return getJson<UserAnalyticsLookupResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
+}
+
+// ── Todo Decompose API ────────────────────────────────────────────────────────
+
+export interface DecomposeStep {
+  title: string;
+  durationMinutes: number;
+}
+
+interface TodoDecomposeRequest {
+  title: string;
+  lang?: 'zh' | 'en' | 'it';
+}
+
+interface TodoDecomposeResponse {
+  success: boolean;
+  steps: DecomposeStep[];
+  parseStatus?: 'ok' | 'parse_failed';
+  model?: string;
+  provider?: 'gemini' | 'dashscope';
+}
+
+export interface TodoDecomposeResult {
+  steps: DecomposeStep[];
+  parseStatus: 'ok' | 'parse_failed';
+  model: string;
+  provider: 'gemini' | 'dashscope';
+}
+
+/**
+ * 调用 Todo 拆解 API - AI 将待办拆成 3-6 个子步骤
+ */
+export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'it' = 'zh'): Promise<TodoDecomposeResult> {
+  const data = await postJson<TodoDecomposeRequest, TodoDecomposeResponse>('/todo-decompose', { title, lang });
+  return {
+    steps: data.steps ?? [],
+    parseStatus: data.parseStatus === 'parse_failed' ? 'parse_failed' : 'ok',
+    model: (data.model || 'unknown').trim() || 'unknown',
+    provider: data.provider === 'dashscope' ? 'dashscope' : 'gemini',
+  };
 }

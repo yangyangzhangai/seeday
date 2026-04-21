@@ -1,7 +1,7 @@
 /**
  * Resize an image File to a base64 data URL, capped at maxSize px on each side.
  */
-export function resizeImageToDataUrl(file: File, maxSize = 160): Promise<string> {
+export function resizeImageToDataUrl(file: File, maxSize = 160, quality = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -15,7 +15,7 @@ export function resizeImageToDataUrl(file: File, maxSize = 160): Promise<string>
         canvas.width = w;
         canvas.height = h;
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.onerror = reject;
       img.src = reader.result as string;

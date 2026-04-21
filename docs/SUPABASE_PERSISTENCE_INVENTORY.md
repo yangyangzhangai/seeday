@@ -172,6 +172,7 @@ Persisted to `bottles`:
 - `stars`
 - `round`
 - `status`
+- `bottle_checkin_dates`
 - `created_at`
 
 Also expected by update queries:
@@ -244,6 +245,7 @@ Persisted to `annotations`:
 - `tone`
 - `event_timestamp`
 - `related_event`
+- `today_context`
 - `created_at`
 
 Local-only:

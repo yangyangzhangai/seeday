@@ -1,28 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { ArrowDownUp } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
+import { buildTodoCompletionAnnotationPayload } from '../../lib/todoCompletionAnnotation';
+import { cn } from '../../lib/utils';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
+} from '../../lib/modalTheme';
 import { GrowthTodoCard } from './GrowthTodoCard';
-import { AddGrowthTodoModal } from './AddGrowthTodoModal';
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
+  onSequentialFocus?: (subTodos: GrowthTodo[]) => void;
+  highlightTodoId?: string | null;
 }
 
-export const GrowthTodoSection = ({ onFocus }: Props) => {
+function getPriorityRank(priority: GrowthTodo['priority']): number {
+  if (priority === 'high' || priority === 'urgent-important') return 0;
+  if (priority === 'medium' || priority === 'urgent-not-important' || priority === 'important-not-urgent') return 1;
+  return 2;
+}
+
+export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const incrementBottleStar = useGrowthStore((s) => s.incrementBottleStar);
+  const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
+  const bottles = useGrowthStore((s) => s.bottles);
   const {
     todos,
+    isLoading,
+    hasHydrated,
+    lastSyncError,
+    fetchTodos,
     toggleTodo,
     deleteTodo,
     startTodo,
     addTodo,
+    updateTodo,
+    reorderTodosByIds,
     generateRecurringTodos,
     linkMessageToTodo,
     setTodoCompletionMessage,
@@ -32,18 +54,44 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const deleteActivity = useChatStore((s) => s.deleteActivity);
-  const [showAdd, setShowAdd] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<GrowthTodo | null>(null);
+  const [smartSort, setSmartSort] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const dragOrderRef = useRef<string[] | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dragSessionRef = useRef<{
+    sourceId: string;
+    startY: number;
+    lastY: number;
+    activatedY: number;
+    activated: boolean;
+    pointerId: number;
+    initialOrder: string[];
+    timerId: number | null;
+  } | null>(null);
 
   // Generate recurring todos on mount / day change
   useEffect(() => {
     generateRecurringTodos();
   }, [generateRecurringTodos]);
 
+  const handleQuickAdd = () => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    addTodo({ title: trimmed, priority: 'medium' });
+    setNewTitle('');
+  };
+
+  const handleRetrySync = () => {
+    void fetchTodos();
+  };
+
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
     const wasCompleted = todo?.completed ?? true;
-    // Optimistic update — toggle immediately so the UI responds without waiting for async ops
     toggleTodo(id);
     if (todo && wasCompleted) {
       const generatedMessageId = getTodoCompletionMessage(todo.id);
@@ -56,19 +104,31 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
 
     if (todo && !wasCompleted) {
       const now = Date.now();
-      // Increment bottle star if linked
-      if (todo.bottleId) incrementBottleStar(todo.bottleId);
-      // Create a completed record card:
-      // If the todo was started before, preserve that start time; otherwise use completion time.
-      // Never fallback to dueAt/createdAt here, otherwise timeline order can be incorrect.
+      const linkedBottle = todo.bottleId ? bottles.find((b) => b.id === todo.bottleId) : null;
+      const payload = buildTodoCompletionAnnotationPayload({
+        todo,
+        allTodos: todos,
+        now,
+        bottleName: linkedBottle?.name,
+      });
+      if (todo.bottleId) {
+        const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
+          todoId: todo.id,
+          bottleId: todo.bottleId,
+        });
+        incrementBottleStars(todo.bottleId, stars);
+      }
       const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
+        annotationEventType: 'activity_completed',
+        annotationEventData: {
+          summary: payload.summary,
+          todoCompletionContext: payload.context,
+        },
       });
       if (msgId) {
         setTodoCompletionMessage(todo.id, msgId);
-        // Immediately end the activity so it shows as a completed card with correct duration
-        // skipBottleStar: star was already awarded above via incrementBottleStar
         await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
       } else {
         clearTodoCompletionMessage(todo.id);
@@ -79,7 +139,6 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
   const handleDelete = (id: string) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
-    // If it's a recurring instance, show confirmation dialog
     if (todo.templateId) {
       setPendingDelete(todo);
     } else {
@@ -91,6 +150,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     startTodo(todo.id);
     const now = Date.now();
     const msgId = await sendMessage(todo.title, now, {
+      skipAnnotation: true,
       activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
     });
     if (msgId) {
@@ -99,71 +159,288 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
     navigate('/chat');
   };
 
-  // Visible todos: non-templates, sorted by dueAt (via sortOrder), completed items sink to bottom
-  // Completed once/weekly/daily todos from previous days are hidden (they reset or disappear at midnight)
+  // Build a map of parentId -> sub-todos for quick lookup
+  const subTodoMap = new Map<string, GrowthTodo[]>();
+  for (const t of todos) {
+    if (t.parentId) {
+      const arr = subTodoMap.get(t.parentId) ?? [];
+      arr.push(t);
+      subTodoMap.set(t.parentId, arr);
+    }
+  }
+
   const todayStartMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+
+  function getSmartDueRank(todo: GrowthTodo): number {
+    if (!todo.dueAt) return 3;
+    const now = Date.now();
+    const todayEnd = todayStartMs + 24 * 60 * 60 * 1000 - 1;
+    const tomorrowEnd = todayEnd + 24 * 60 * 60 * 1000;
+    if (todo.dueAt < now) return 0;       // 已逾期
+    if (todo.dueAt <= todayEnd) return 0; // 今日到期
+    if (todo.dueAt <= tomorrowEnd) return 1; // 明天
+    return 2; // 未来
+  }
+
   const visible = todos
     .filter((t) => {
       if (t.isTemplate) return false;
+      if (t.parentId) return false; // sub-todos are rendered inside parent card
       if (t.completed && t.completedAt && t.completedAt < todayStartMs) return false;
       return true;
     })
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return a.sortOrder - b.sortOrder;
+      if (smartSort) {
+        const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+        if (priorityDiff !== 0) return priorityDiff;
+        const dueDiff = getSmartDueRank(a) - getSmartDueRank(b);
+        if (dueDiff !== 0) return dueDiff;
+        return b.createdAt - a.createdAt; // 新的优先
+      }
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+      if (priorityDiff !== 0) return priorityDiff;
+      return b.createdAt - a.createdAt; // 新的优先
     });
+
+  const visibleMap = new Map(visible.map((todo) => [todo.id, todo]));
+  const orderedVisible = (dragOrder ?? visible.map((todo) => todo.id))
+    .map((id) => visibleMap.get(id))
+    .filter((todo): todo is GrowthTodo => Boolean(todo));
+
+  useEffect(() => {
+    dragOrderRef.current = dragOrder;
+  }, [dragOrder]);
+
+  const clearDragTimer = () => {
+    const session = dragSessionRef.current;
+    if (!session?.timerId) return;
+    window.clearTimeout(session.timerId);
+    session.timerId = null;
+  };
+
+  const stopDragging = (commit: boolean) => {
+    const session = dragSessionRef.current;
+    if (!session) return;
+
+    clearDragTimer();
+    const currentOrder = dragOrderRef.current;
+    if (session.activated && commit && currentOrder) {
+      const original = session.initialOrder.join('|');
+      const next = currentOrder.join('|');
+      if (original !== next) {
+        reorderTodosByIds(currentOrder);
+      }
+    }
+
+    dragSessionRef.current = null;
+    setDraggingId(null);
+    setDragOffsetY(0);
+    setDragOrder(null);
+    document.body.style.userSelect = '';
+  };
+
+  const handleCardPointerDown = (todoId: string) => (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, select, [data-no-drag="true"]')) return;
+
+    const initialOrder = visible.map((todo) => todo.id);
+    const session = {
+      sourceId: todoId,
+      startY: e.clientY,
+      lastY: e.clientY,
+      activatedY: e.clientY,
+      activated: false,
+      pointerId: e.pointerId,
+      initialOrder,
+      timerId: window.setTimeout(() => {
+        const current = dragSessionRef.current;
+        if (!current || current.pointerId !== e.pointerId) return;
+        current.activated = true;
+        current.activatedY = current.lastY;
+        setDraggingId(todoId);
+        setDragOffsetY(0);
+        setDragOrder(current.initialOrder);
+        document.body.style.userSelect = 'none';
+      }, 220),
+    };
+    dragSessionRef.current = session;
+
+    const onPointerMove = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      current.lastY = evt.clientY;
+
+      if (!current.activated) {
+        if (Math.abs(evt.clientY - current.startY) > 14) {
+          clearDragTimer();
+          dragSessionRef.current = null;
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('pointercancel', onPointerCancel);
+        }
+        return;
+      }
+
+      evt.preventDefault();
+      setDragOffsetY(evt.clientY - current.activatedY);
+      setDragOrder((prev) => {
+        const order = prev ?? current.initialOrder;
+        const nextBase = order.filter((id) => id !== current.sourceId);
+        let insertIndex = 0;
+
+        for (const id of nextBase) {
+          const el = cardRefs.current[id];
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          if (evt.clientY > rect.top + rect.height / 2) insertIndex += 1;
+        }
+
+        const next = [...nextBase];
+        next.splice(insertIndex, 0, current.sourceId);
+        return next.join('|') === order.join('|') ? order : next;
+      });
+    };
+
+    const onPointerUp = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      stopDragging(true);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+
+    const onPointerCancel = (evt: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || evt.pointerId !== current.pointerId) return;
+      stopDragging(false);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+  };
+
+  useEffect(() => () => {
+    clearDragTimer();
+    document.body.style.userSelect = '';
+  }, []);
 
   return (
     <section className="mb-4 px-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-gray-800">{t('growth_todo_section')}</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-extrabold text-[#1e293b]">{t('growth_todo_section')}</h2>
         <button
-          onClick={() => setShowAdd(true)}
-          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+          onClick={() => setSmartSort((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all',
+            smartSort
+              ? 'bg-[#8FAF92] text-white'
+              : 'bg-gray-100 text-gray-400'
+          )}
         >
-          <Plus size={18} />
+          <ArrowDownUp size={11} />
+          {smartSort ? t('todo_sort_smart') : t('todo_sort_manual')}
         </button>
       </div>
 
-      {visible.length === 0 ? (
-        <div className="text-center text-gray-400 py-6 text-sm">{t('growth_todo_empty')}</div>
-      ) : (
+      {/* Inline quick-add input */}
+      <div
+        className="mb-2 flex items-center gap-2.5 rounded-xl px-3 py-3"
+        style={{
+          background: '#F7F9F8',
+          backdropFilter: 'blur(20px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        }}
+      >
+        <div className="h-5 w-5 flex-shrink-0 rounded-full border-2 border-[#8FAF92]/50" />
+        <input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(); }}
+          placeholder={t('growth_todo_quick_add_placeholder')}
+          className="flex-1 bg-transparent text-sm text-[#334155] placeholder:text-[#94a3b8] focus:outline-none"
+        />
+      </div>
+
+      {visible.length > 0 && (
         <div className="space-y-2">
-          {visible.map((todo) => (
-            <GrowthTodoCard
+          {orderedVisible.map((todo) => (
+            <div
               key={todo.id}
-              todo={todo}
-              onToggle={handleToggle}
-              onFocus={onFocus}
-              onStart={handleStart}
-              onDelete={handleDelete}
-            />
+              ref={(node) => {
+                cardRefs.current[todo.id] = node;
+              }}
+              onPointerDown={handleCardPointerDown(todo.id)}
+              className="transition-transform duration-150"
+              style={
+                draggingId === todo.id
+                  ? {
+                      transform: `translateY(${dragOffsetY}px) scale(1.02)`,
+                      zIndex: 20,
+                      position: 'relative',
+                    }
+                  : undefined
+              }
+            >
+              <GrowthTodoCard
+                todo={todo}
+                subTodos={subTodoMap.get(todo.id) ?? []}
+                onToggle={handleToggle}
+                onFocus={onFocus}
+                onStart={handleStart}
+                onDelete={handleDelete}
+                onUpdate={updateTodo}
+                onSequentialFocus={onSequentialFocus}
+                isHighlighted={highlightTodoId === todo.id}
+              />
+            </div>
           ))}
         </div>
       )}
 
-      <AddGrowthTodoModal
-        isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        onAdd={addTodo}
-      />
+      {visible.length === 0 && (isLoading && !hasHydrated) && (
+        <div className="py-6 text-center text-sm text-gray-400">{t('loading')}</div>
+      )}
+
+      {visible.length === 0 && hasHydrated && lastSyncError && (
+        <div className="flex flex-col items-center gap-2 py-6">
+          <p className="text-center text-xs text-orange-500">{lastSyncError}</p>
+          <button
+            onClick={handleRetrySync}
+            className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white"
+          >
+            {t('retry')}
+          </button>
+        </div>
+      )}
+
+      {visible.length === 0 && hasHydrated && !lastSyncError && !isLoading && (
+        <div className="py-6 text-center text-sm text-gray-400">{t('no_data')}</div>
+      )}
 
       {/* Recurring delete confirmation dialog */}
       {pendingDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+          className={cn('fixed inset-0 z-50 flex items-end justify-center', APP_MODAL_OVERLAY_CLASS)}
           onClick={() => setPendingDelete(null)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl p-5 pb-8 space-y-3"
+            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-md rounded-t-2xl p-5 pb-8 space-y-3')}
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-semibold text-gray-800 text-center">
+            <p className="text-sm font-semibold text-slate-800 text-center">
               {t('todo_delete_recurring_title')}
             </p>
-            <p className="text-xs text-gray-400 text-center">{t('todo_delete_recurring_desc')}</p>
+            <p className="text-xs text-slate-400 text-center">{t('todo_delete_recurring_desc')}</p>
             <button
-              className="w-full py-3 rounded-xl bg-orange-50 text-orange-600 font-medium text-sm"
+              className="w-full py-3 rounded-xl bg-orange-50/80 text-orange-600 font-medium text-sm border border-orange-100"
               onClick={() => {
                 deleteTodo(pendingDelete.id);
                 setPendingDelete(null);
@@ -172,7 +449,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
               {t('todo_delete_today_only')}
             </button>
             <button
-              className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm"
+              className="w-full py-3 rounded-xl bg-red-50/80 text-red-600 font-medium text-sm border border-red-100"
               onClick={() => {
                 if (pendingDelete.templateId) deleteTodo(pendingDelete.templateId);
                 setPendingDelete(null);
@@ -181,7 +458,7 @@ export const GrowthTodoSection = ({ onFocus }: Props) => {
               {t('todo_delete_all_future')}
             </button>
             <button
-              className="w-full py-3 rounded-xl bg-gray-50 text-gray-500 font-medium text-sm"
+              className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'w-full py-3 text-sm')}
               onClick={() => setPendingDelete(null)}
             >
               {t('cancel')}

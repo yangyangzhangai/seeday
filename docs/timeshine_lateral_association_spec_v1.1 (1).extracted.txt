@@ -1,0 +1,728 @@
+
+
+Timeshine
+横向联想中间层
+产品需求文档 + 技术实现文档
+v1.1 · 2026年4月 · 面向开发落地
+0. 文档说明
+本文档是横向联想中间层的完整规格文档，覆盖产品逻辑和技术实现，目标是开发可以直接依据本文档落地。
+角色 ID 对照表
+本文档代码部分使用英文 characterId，对应关系如下：
+characterId（代码）
+角色名
+植物/动物
+aiMode 字段值
+van
+Van
+喇叭花
+van
+agnes
+Agnes
+龙血树
+agnes
+zep
+Zep
+鹈鹕
+zep
+momo
+Momo
+蘑菇
+momo
+文档范围
+横向联想中间层本身：联想类型定义、出发点定义、概率权重表、动态调整规则、语气变量池、Prompt 注入方式
+服务端采样模块的实现规格（含数据结构、算法、接口）
+与现有 Prompt 拼装逻辑的集成方式
+不在本文档范围内：
+路径 A（偏离检测 → 温室氛围）
+路径 D（用户行为画像）
+温室7种状态、用户画像
+阅读顺序建议
+第1章：产品逻辑总览（理解「这是什么」）
+第2章：联想类型 + 出发点定义（理解「有哪些值」）
+第3章：概率权重 + 动态调整规则（理解「怎么采样」）
+第4章：Prompt 注入规格（理解「采样结果怎么用」）
+第5章：技术实现规格（开发直接看这章落地）
+1. 产品逻辑总览
+1.1 这个模块解决什么问题
+用户每天记录的活动高度重复（吃饭、上课、工作、睡觉），AI 批注每次只有 10–50 字。在固定 Prompt 下，相似输入必然导致相似输出，用户长期使用后会迅速感到「腻」。
+横向联想中间层的核心作用是：每次 AI 调用前，系统先决定「这次从哪个角度进入回复」，再把这个视角入口注入 Prompt，让 AI 从不同维度切入同一件事。
+这不是让 AI 说不同的话，而是让 AI 带着不同的「注意力焦点」来看同一件事，就像同一个朋友今天心情不同，注意到的点就不同。
+1.2 系统在整体信息流中的位置
+采样时机：buildContext() 完成后、最终 Prompt 拼装之前。
+执行顺序：
+buildContext() 收集所有数据源
+横向联想采样模块执行采样（本文档描述的模块）
+采样结果写入 U4 槽位（associationInstruction：联想视角指令或语气标签指令，二选一）
+最终拼装 System Prompt + User Prompt，调用 AI
+1.3 关键设计原则
+每次请求必须采样，不能跳过。即使输入很普通，也要有一个视角进入。
+采样是单选——每次只选一个联想类型，不叠加多个。
+去重：本次采样结果不能与上一次相同（上上次不限制）。
+当天维度限制：species_sense / greenhouse_monologue / scholarly_reference 每个角色每天最多触发一次，当天已触发过则当天剩余请求权重清零。
+U4 注入不超过 2 句指令，保持 Prompt 克制。
+tone_only 触发时，U4 注入语气标签指令；其他类型触发时，U4 注入联想视角指令（+ 出发点指令如有）。
+2. 联想类型与出发点定义
+2.1 联想类型（11种）
+10 种通用 + 1 种 Agnes（龙血树）专属（scholarly_reference）。
+联想类型
+含义
+适合触发的输入信号
+user_emotion
+感受用户情绪信号，从用户当前的情绪状态进入回复
+输入含明显情绪词：难过、好累、崩了、开心、兴奋等
+user_body
+感受用户身体信号（疲惫/撑着/不舒服），从身体层面进入陪伴
+输入含身体词：头疼、没睡好、撑着、好饿、生病等
+user_detail
+抓用户输入里一个极小的细节，不做宏观分析，只放大一个具体的东西。节奏感知作为子集（当行为与近期高频行为重合时，user_detail 自然抓到节奏细节）
+任何输入均可；尤其适合纯事实记录
+species_sense
+用角色自身的物种感知框架理解用户行为，菌丝/藤蔓/年轮/嗉囊的世界观自然浮现
+任何输入均可
+aesthetic_sense
+用角色的物种感官感受当下环境氛围，必须从物种感官出发，不是人类色彩语言
+输入有场景感、环境描述时更自然
+practical_care
+带角色个性的实用关心，说话方式必须有角色辨识度，不能是通用提醒句式
+输入含天气+用户状态组合（如冷天+生病）；或含疲惫/熬夜/未吃饭等信号
+cross_domain
+视角错位的跨域联想：角色用自身物种逻辑理解人类的事；或反向——角色突然用人类视角看自己的物种世界，形成反差感
+任何输入；尤其适合用户在做人类独有的事情时（deadline/考试/购物）
+greenhouse_monologue
+从温室世界观出发的独白，不一定跟用户当次输入直接相关，是角色在温室里自言自语
+用户输入信息量少、或纯日常记录时更自然
+tone_only
+不做任何联想，只改变语气，走该角色的语气变量池
+任何输入均可；避免每次都有明确角度时的调剂
+none
+极简陪伴，最短回复，什么联想都不触发，就是在
+用户输入含情绪崩溃信号；或 Momo 的被动陪伴人设触发
+scholarly_reference （Agnes/龙血树专属）
+引用历史故事、文学典故、学科概念（金融/哲学/自然科学等）来理解用户的处境。龙血树活了几千年，读过很多书，偶尔用一个具体的知识切入，有重量感但不说教。其他角色无此类型
+Agnes 专属；当天最多触发一次
+* Van 和 Zep（鹈鹕）的 species_sense 暂时权重设为 0，物种例句库完善后修改 BASE_WEIGHTS 常量即可开启，无需改逻辑。
+† scholarly_reference 仅 Agnes（龙血树）可触发，其他角色概率表中无此项。
+2.2 出发点类型（3种）
+出发点控制「这次回复的视角起点是谁」，在联想类型采样完成后，独立进行第二次采样。默认状态（user_first）不需要注入任何额外指令，AI 天然关注用户。
+Momo 的 self_led 比例高于其他角色（30%）——Momo 说自己的状态本身就是一种陪伴方式，但落脚点必须回到用户身上。
+出发点类型
+含义
+默认（user_first）
+完全关注用户，AI 的感受只在最后轻带一句或不带。无需注入任何指令。占大多数比例。
+resonance（共鸣型）
+因为用户的事触发了 AI 自己的感受，先带出用户再带出自己。触发概率低，见各角色概率表。
+self_led（自我先导型）
+AI 先说自己的状态，但落脚点必须回到用户身上。触发概率最低，避免 AI 显得自我中心。
+3. 概率权重与采样规则
+3.1 联想类型基础权重表
+下表为各角色的基础权重，所有权重加总为 100%。动态调整后需重新归一化至 100%。
+联想类型
+Van 喇叭花
+Momo 蘑菇
+Agnes 龙血树
+Zep 鹈鹕
+user_emotion（用户情绪）
+25%
+15%
+25
+%
+20%
+user_body（用户身体）
+15%
+25%
+5
+%
+10%
+user_detail（具体细节）
+15%
+5%
+20%
+20%
+species_sense（物种感知）
+10%
+15%
+20%
+10%
+aesthetic_sense（感官氛围）
+10%
+5%
+0%
+5%
+practical_care（实用关心）
+10%
+5%
+5%
+15%
+cross_domain（跨域联想）
+5%
+5%
+0%
+10%
+greenhouse_monologue（温室独白）
+5%
+10%
+5%
+5%
+tone_only（纯语气）
+5%
+5%
+5%
+5%
+none（极简陪伴）
+0%
+10%
+5%
+0%
+scholarly_reference（学识引用）†
+—
+—
+10%
+—
+合计
+100%
+100%
+100%
+100%
+† scholarly_reference：Agnes（龙血树）专属，其他角色代码里无此字段，不会误触发。
+3.2 出发点基础权重表
+出发点类型
+Van 喇叭花
+Momo 蘑菇
+Agnes 龙血树
+Zep 鹈鹕
+默认（user_first）
+75%
+6
+5
+%
+65%
+70%
+resonance（共鸣型）
+20%
+10%
+25%
+25%
+self_led（自我先导型）
+5%
+25
+%
+10%
+5%
+3.3 动态调整规则
+在基础权重之上，根据当次用户输入和当天已触发历史，实时调整权重，调整后归一化至 100%。调整规则按优先级顺序执行，可叠加。
+触发条件
+调整规则
+用户输入含明显情绪词 （难过/崩溃/好累/烦）
+none +10%、user_emotion +10%；tone_only -10%；其余按比例缩减后归一化
+用户输入为纯事实记录 （上课/吃饭/工作）
+user_detail +10%；user_emotion -10%；归一化
+用户输入含身体信号 （头疼/没睡好/撑着）
+user_body +15%；practical_care +10%；其他按比例下调；归一化
+当天已触发过 species_sense
+当天剩余请求 species_sense 权重清零
+当天已触发过 greenhouse_monologue
+当天剩余请求 greenhouse_monologue 权重清零
+当天已触发过 scholarly_reference （Agnes 专属）
+当天剩余请求 scholarly_reference 权重清零（学识引用一天最多一次）
+tone_only 触发时
+额外从该角色语气变量池随机抽取一个语气标签，作为 U4 的注入内容
+归一化算法：调整后所有类型权重相加得到总和 S，每个类型的最终权重 = 原权重 / S × 100%。
+3.4 去重规则
+系统在服务端为每个用户 × 每个角色维护一个字段 lastAssociationType（string）。
+每次采样完成后，将本次联想类型结果写入 lastAssociationType。
+下次采样前，将 lastAssociationType 对应的类型权重临时清零，再归一化，再采样。
+仅做上一次去重，不限制上上次。
+出发点不做去重。
+3.5 当天触发次数限制
+以下三种联想类型每个用户 × 每个角色每天最多触发一次：
+species_sense
+greenhouse_monologue
+scholarly_reference（Agnes 专属）
+实现方式：服务端维护当天已触发集合 dailyTriggered（set），包含上述三种类型中已触发过的。每次采样前，将 dailyTriggered 中的类型权重清零后归一化。每天 0 点重置 dailyTriggered。
+4. Prompt 注入规格
+4.0 User Prompt 槽位索引
+横向联想中间层的采样结果注入 U4 槽位。下表列出当前系统所有槽位，供开发定位集成点。
+槽位
+字段/来源
+说明
+U1
+当前时间 / 日期 / 节假日
+currentHour、currentDate、holiday.isHoliday 时注入节假日行
+U2
+天气 / 季节 / 气象预警
+weatherContext、seasonContext、weatherAlerts（有预警才注入）
+U3
+角色当前状态
+buildCharacterStateText(characterStateText)，有值才注入
+U4 ★
+联想指令（associationInstruction）
+本模块新增。tone_only 时注入语气标签指令；其他类型时注入联想视角指令（+ 出发点指令如有）。有值才注入，无值跳过。
+U5
+今日活动时间线
+buildTodayActivitiesText() → [HH:MM] [type] 活动内容(时长) ✓
+U6
+最近心情
+recentMoodText
+U7
+今日上下文
+buildTodayContextText(todayContext)，有值才注入
+。
+U8
+建议模式追加字段
+仅 allowSuggestion || forceSuggestion 时追加：statusSummary / contextHints / frequentActivities / pendingTodos / consecutiveTextCount / recoveryNudge / modeRules / sceneRules / 输出格式
+U9
+刚刚发生 + 写作指令
+[eventType] eventSummary + 固定写作约束（一句话，句末一个 emoji）
+★ U4 为本次新增槽位，其余为现有字段。所有槽位有值才注入，无值直接跳过，不传空行。
+4.1 注入位置
+采样结果统一注入 U4 槽位（associationInstruction）：
+tone_only 触发时：U4 = 语气标签指令
+其他联想类型触发时：U4 = 联想视角指令 + 出发点指令（如有），合并为一个字符串，不超过 2 句
+有值才注入，无值跳过，不传空行
+U4 紧接在 U3（角色当前状态）之后，在 U5（今日活动时间线）之前。
+4.2 联想类型注入指令（U4，非 tone_only 时）
+以下为各联想类型注入 U4 的三语指令。注入时由 buildAssociationInstruction(associationType, originType, lang) 根据 lang 参数选择语言版本，直接拼接字符串，不含标签名（不需要让 AI 看到「user_body」这个代码名）。
+联想类型
+中文（zh）
+英文（en）
+意大利语（it）
+user_emotion
+这次从ta当前的情绪状态进入回复，先感受它，再开口。
+This time, enter from their current emotional state — feel it first, then speak.
+Questa volta parti dallo stato emotivo attuale — sentilo prima di parlare.
+user_body
+这次从ta身体感受的角度进入回复，关注ta身体在经历什么。
+This time, enter from the angle of their physical experience — notice what their body is going through.
+Questa volta parti dalla sensazione fisica — nota cosa sta attraversando il loro corpo.
+user_detail
+这次抓住ta输入里一个极小的具体细节，放大它，不要宏观分析。
+This time, catch one tiny concrete detail from what they said and amplify it — no big-picture analysis.
+Questa volta cattura un piccolo dettaglio concreto da ciò che ha detto e amplificalo — niente analisi generale.
+species_sense
+这次用你自己的物种感知框架来理解ta在做的事情。
+This time, understand what they're doing through your own species' perception framework.
+Questa volta comprendi quello che stanno facendo attraverso il tuo quadro percettivo di specie.
+aesthetic_sense
+这次从你的物种感官出发，感受当下环境的氛围，不要用人类的色彩语言，用你自己的感官。
+This time, sense the current atmosphere through your species' senses — not human color language, use your own.
+Questa volta percepci l'atmosfera attuale attraverso i sensi della tua specie — non usare il linguaggio umano dei colori.
+practical_care
+这次给ta一个带有你自己性格的实用关心，说话方式必须是你的，不是通用提醒句式。
+This time, give them a practical caring response in your own voice — it must sound like you, not a generic reminder.
+Questa volta dai loro una risposta pratica e premurosa con la tua voce — deve sembrare te, non un promemoria generico.
+cross_domain
+这次用视角错位来回复：用你的物种逻辑来理解这件人类的事；或者
+反过来，用人类视角来看你自己物种世界里的某件事。
+This time reply with a shifted perspective: use your species' logic to understand this human thing; or reverse it — see your 
+species' world through human eyes.
+Questa volta rispondi con una prospettiva spostata: usa la logica della tua specie per capire questa cosa umana; o al contrario, guarda il tuo mondo di 
+specie con occhi umani.
+greenhouse_monologue
+这次从温室世界观出发，说一句和ta当次输入相关的独白，像在温室里自言自语。
+This time, speak from the greenhouse worldview — one line related to what they just said, like talking to yourself in the greenhouse.
+Questa volta parla dalla prospettiva della serra — una frase legata a quello che hanno appena detto, come parlando tra sé e sé nella serra.
+tone_only
+（走语气变量池，见 4.4）
+(See tone tag pool, section 4.4)
+(Vedi pool di toni, sezione 4.4)
+none
+这次什么联想都不触发，极简陪伴，回复尽量短，就是在。
+This time, no association at all — minimal presence, keep the reply as short as possible, just be there.
+Questa volta nessuna associazione — presenza minima, rispondi il più brevemente possibile, sii semplicemente lì.
+scholarly_reference （Agnes 专属）
+这次引用一个具体的历史故事、文学典故或学科概念来理解用户的处境，有重量感但不说教，切入要具体。
+This time, cite a specific historical story, literary allusion, or academic concept to understand their situation — weighty but not preachy, the entry point must be concrete.
+Questa volta cita una storia storica specifica, un'allusione letteraria o un concetto accademico per capire la loro situazione — con peso ma senza predicare, il punto d'ingresso deve essere concreto.
+4.3 出发点注入指令（追加至 U4，非 tone_only 时）
+若出发点采样结果为 resonance 或 self_led，在联想视角指令后追加一句。若为默认，不追加。
+出发点类型
+中文（zh）
+英文（en）
+意大利语（it）
+默认（不注入）
+（无需追加）
+(Nothing to append)
+(Niente da aggiungere)
+resonance
+你因为
+ta
+说的这件事触发了自己的某个感受，先带出
+ta
+，再轻轻带出自己的感受。
+What they said has triggered something in you — lead with them, then gently bring in your own feeling.
+Quello che hanno detto ha toccato qualcosa in te — parti da loro, poi porta delicatamente il tuo sentimento.
+self_led
+这次先说你自己现在的状态，但落脚点必须回到
+ta
+身上。
+This time, start with your own current state — but the landing point must come back to them.
+Questa volta inizia con il tuo stato attuale — ma il punto d'arrivo deve tornare a loro.
+4.4 语气标签注入指令（U4，tone_only 时）
+当联想类型采样结果为 tone_only 时，从该角色的语气变量池随机抽取一个语气标签，生成指令字符串注入 U4。近 3 次语气标签去重（角色级）。
+角色
+语气变量池（tone_only 时注入 U4）
+说明
+Van（喇叭花）
+撒娇 / 体贴 / 卖萌 / 温柔
+Momo（蘑菇）
+细腻 / 慵懒 / 呆萌 / 大智若愚
+Agnes（龙血树）
+克制温柔 / 细腻共情 / 绅士幽默 / 惜字如金
+Zep（鹈鹕）
+犀利 / 自来熟 / 戏精 / 突然认真
+各语气标签对应的 U4 注入指令（三语版本，tone_only 时使用）：
+角色
+语气标签
+中文（zh）
+英文（en）
+意大利语（it）
+Van
+撒娇
+这次说话带撒娇的语气
+, 
+有种
+不自觉的依赖和讨巧
+Speak with a slight coy tone.
+Parla con un tono leggermente viziato.
+Van
+体贴
+这次说话带体贴的语气，细心注意到用户没说出来的那部分。
+Speak attentively, noticing the part they didn't say.
+Parla con attenzione, notando la parte che non hanno detto.
+Van
+卖萌
+这次说话带一点卖萌的语气，有点讨好，但是真心的。
+Speak with a slightly cute tone — a little eager to please, but sincere.
+Parla con un tono leggermente adorabile — un po' desideroso di compiacere, ma sincero.
+Van
+温柔
+这次说话非常温柔，像阳光很轻地照过来。
+Speak very gently, like sunlight coming in softly.
+Parla con molta dolcezza, come la luce del sole che entra delicatamente.
+Momo
+细腻
+这次说话极度细腻，抓住最微小的感受，慢慢说。
+Speak with extreme delicacy — catch the tiniest feeling and say it slowly.
+Parla con estrema delicatezza — cattura la sensazione più piccola e dilla lentamente.
+Momo
+慵懒
+这次说话带懒洋洋的语气。
+Speak lazily.
+Parla pigramente.
+Momo
+呆萌
+这次说话有点呆呆的，搞不清楚状况但是认真的。
+Speak a little blankly — confused about the situation but earnest.
+Parla un po' in modo vacuo — confuso sulla situazione ma sincero.
+Momo
+大智若愚
+这次说话看起来很简单，但里面有某种朴素的准确。
+Speak simply — but with a plain, precise kind of wisdom inside.
+Parla semplicemente — ma con un tipo di saggezza semplice e precisa all'interno.
+Agnes
+克制
+温柔
+这次说话克制，但温柔藏在里面，不
+要直接说出来。
+Speak with restraint — but let the warmth stay hidden 
+inside, don't say it directly.
+Parla con moderazione — ma lascia che il calore rimanga 
+nascosto dentro, non dirlo direttamente.
+Agnes
+细腻共情
+这次极度细腻地共情，感受
+ta
+的状态，但用龙血树的方式说出来。
+Empathize with extreme delicacy — feel their state, but speak it in the way of a dragon blood tree.
+Empatizza con estrema delicatezza — senti il loro stato, ma dillo nel modo dell'albero del drago.
+Agnes
+绅士幽默
+保持着无可挑剔的优雅，但冷不丁抛出一个高级的冷笑话，带着一种不动声色的狡黠。
+Maintain impeccable elegance, but drop a high-class, deadpan joke with quiet, understated wit.
+Mantieni un'eleganza impeccabile, ma lancia una battuta sottile e impassibile, con una malizia del tutto celata.
+Agnes
+惜字如金
+这次回复极短，每个字都有重量。
+This time reply very briefly — every word carries weight.
+Questa volta rispondi in modo molto breve — ogni parola ha peso.
+Zep
+犀利
+这次说话犀利，一针见血，但不是在伤害，是在说实话。
+Speak sharply — straight to the point, not to hurt, but to tell the truth.
+Parla in modo acuto — dritto al punto, non per ferire, ma per dire la verità.
+Zep
+自来熟
+毫无边界感地闯进
+ta
+的生活，硬生生把
+ta
+处成老铁。
+Shamelessly chummy from the word go.
+Prendersi una confidenza travolgente fin dal primo istante.
+Zep
+戏精
+这次说话
+语气
+夸张，表演成分很高，
+戏瘾大发
+Speak with a bit of drama — highly performative, but genuine underneath.
+Parla con un po' di dramma — molto performativo, ma genuino sotto.
+Zep
+突然认真
+这次忽然收起平时的嘴欠，认认真真说一句话。
+This time, set aside the usual quips and say one thing seriously.
+Questa volta metti da parte le solite battute e di' una cosa seriamente.
+4.5 注入格式示例（完整拼装）
+以下为一次完整采样后 U4 注入的实际字符串示例：
+示例1：联想类型 user_body，出发点 resonance，角色 Van，语言 zh
+U4: 这次从ta身体感受的角度进入回复，关注ta身体在经历什么。你因为用户说的这件事触发了自己的某个感受，先带出用户，再轻轻带出自己的感受。
+示例2：联想类型 tone_only，出发点默认，角色 Momo，语气 慵懒，语言 zh
+U4: 这次说话带懒洋洋的语气。
+示例3：联想类型 scholarly_reference，出发点 self_led，角色 Agnes（龙血树），语言 
+en
+U4: This time, cite a specific historical story, literary allusion, or academic concept to understand their situation — weighty but not preachy, the entry point must be concrete. This time, start with your own current state — but the landing point must come back to them.
+5. 技术实现规格
+5.1 模块概览
+新增一个服务端模块：LateralAssociationSampler（横向联想采样器）。
+调用位置：annotation-handler.ts 中，buildContext() 完成后、最终 Prompt 拼装（buildUserPrompt / buildSuggestionAwareUserPrompt）之前。
+该模块是纯函数 + 状态读写，无 AI 调用，执行耗时极低。
+5.2 数据结构
+5.2.1 服务端存储结构（per user, per character）
+存储 key 建议：lateral_association:{userId}:{characterId}
+interface LateralAssociationState {
+  lastAssociationType: AssociationType | null;  // 上一次联想类型，用于去重
+  lastToneTagHistory: string[];                 // 近 3 次语气标签历史
+  dailyTriggered: AssociationType[];            // 当天已触发的受限类型
+  dailyDate: string;                            // dailyTriggered 对应的日期 (YYYY-MM-DD)
+}
+5.2.2 联想类型枚举
+type AssociationType =
+  | 'user_emotion'
+  | 'user_body'
+  | 'user_detail'
+  | 'species_sense'
+  | 'aesthetic_sense'
+  | 'practical_care'
+  | 'cross_domain'
+  | 'greenhouse_monologue'
+  | 'tone_only'
+  | 'none'
+  | 'scholarly_reference';  // 仅 Agnes（龙血树）
+5.2.3 出发点枚举
+type OriginType = 'user_first' | 'resonance' | 'self_led';
+5.2.4 角色 ID 枚举
+type CharacterId = 'van' | 'momo' | 'agnes' | 'zep';
+CharacterId 直接对应现有代码中的 aiMode 字段值，见第 0 章对照表。
+5.2.5 采样结果结构
+interface AssociationSampleResult {
+  associationType: AssociationType;
+  originType: OriginType;
+  toneTag: string | null;                // 仅 tone_only 时有值，供日志记录
+  associationInstruction: string | null; // 直接拼入 U4，有值才注入
+}
+5.3 基础权重表（代码常量）
+以下权重常量直接写在代码里，不需要数据库。
+const BASE_WEIGHTS: Record&lt;CharacterId, Record&lt;AssociationType, number&gt;&gt; = {
+  van: {
+    user_emotion: 25, user_body: 15, user_detail: 15, species_sense: 10,
+    aesthetic_sense: 10, practical_care: 10, cross_domain: 5,
+    greenhouse_monologue: 5, tone_only: 5, none: 0,
+  },
+  momo: {
+    user_emotion: 15, user_body: 25, user_detail: 5, species_sense: 15,
+    aesthetic_sense: 5, practical_care: 5, cross_domain: 5,
+    greenhouse_monologue: 10, tone_only: 5, none: 10,
+  },
+  agnes: {
+    user_emotion: 25, user_body: 5, user_detail: 20, species_sense: 20,
+    aesthetic_sense: 0, practical_care: 5, cross_domain: 0,
+    greenhouse_monologue: 5, tone_only: 5, none: 5,
+    scholarly_reference: 10,
+  },
+  zep: {
+    user_emotion: 20, user_body: 10, user_detail: 20, species_sense: 10,
+    aesthetic_sense: 5, practical_care: 15, cross_domain: 10,
+    greenhouse_monologue: 5, tone_only: 5, none: 0,
+  },
+};
+const BASE_ORIGIN_WEIGHTS: Record&lt;CharacterId, Record&lt;OriginType, number&gt;&gt; = {
+  van:   { user_first: 75, resonance: 20, self_led: 5  },
+  momo:  { user_first: 65, resonance: 10, self_led: 25 },
+  agnes: { user_first: 65, resonance: 25, self_led: 10 },
+  zep:   { user_first: 70, resonance: 25, self_led: 5  },
+};
+5.4 采样主函数伪代码
+function sampleAssociation(
+  characterId: CharacterId,
+  userInput: string,
+  lang: 'zh' | 'en' | 'it',
+  state: LateralAssociationState
+): AssociationSampleResult {
+  // Step 1: 取基础权重副本
+  let weights = { ...BASE_WEIGHTS[characterId] };
+  // Step 2: 当天已触发的受限类型权重清零（dailyDate 不是今天则先重置）
+  const today = getTodayString();
+  if (state.dailyDate !== today) {
+    state.dailyTriggered = [];
+    state.dailyDate = today;
+  }
+  for (const t of state.dailyTriggered) { weights[t] = 0; }
+  // Step 3: 上一次去重
+  if (state.lastAssociationType) { weights[state.lastAssociationType] = 0; }
+  // Step 4: 动态调整
+  const signals = detectInputSignals(userInput);
+  if (signals.hasEmotionWords) {
+    weights.none = (weights.none || 0) + 10;
+    weights.user_emotion = (weights.user_emotion || 0) + 10;
+    weights.tone_only = Math.max(0, (weights.tone_only || 0) - 10);
+  }
+  if (signals.isFactualRecord) {
+    weights.user_detail = (weights.user_detail || 0) + 10;
+    weights.user_emotion = Math.max(0, (weights.user_emotion || 0) - 10);
+  }
+  if (signals.hasBodySignals) {
+    weights.user_body = (weights.user_body || 0) + 15;
+    weights.practical_care = (weights.practical_care || 0) + 10;
+  }
+  // Step 5: 归一化
+  weights = normalize(weights);
+  // Step 6: 按权重随机采样联想类型
+  const associationType = weightedRandom(weights);
+  // Step 7: 采样出发点（固定权重，不做动态调整）
+  const originWeights = normalize({ ...BASE_ORIGIN_WEIGHTS[characterId] });
+  const originType = weightedRandom(originWeights);
+  // Step 8: tone_only 时抽语气标签
+  let toneTag: string | null = null;
+  if (associationType === 'tone_only') {
+    toneTag = sampleToneTag(characterId, state.lastToneTagHistory);
+  }
+  // Step 9: 更新状态
+  state.lastAssociationType = associationType;
+  if (toneTag) {
+    state.lastToneTagHistory = [...state.lastToneTagHistory.slice(-2), toneTag];
+  }
+  const LIMITED_TYPES = ['species_sense', 'greenhouse_monologue', 'scholarly_reference'];
+  if (LIMITED_TYPES.includes(associationType)) {
+    state.dailyTriggered.push(associationType);
+  }
+  // Step 10: 生成注入指令字符串（统一为 associationInstruction）
+  let associationInstruction: string | null = null;
+  if (associationType === 'tone_only' &amp;&amp; toneTag) {
+    associationInstruction = buildToneInstruction(characterId, toneTag, lang);
+  } else if (associationType !== 'tone_only') {
+    associationInstruction = buildAssociationInstruction(associationType, originType, lang);
+  }
+  return { associationType, originType, toneTag, associationInstruction };
+}
+5.5 信号检测函数规格（detectInputSignals）
+信号字段
+检测逻辑
+关键词参考（三语）
+hasEmotionWords
+输入文本包含情绪词
+zh：难过、崩溃、好累、烦、难受、焦虑、开心、兴奋、感动、委屈、绝望、崩了 en：sad, exhausted, anxious, excited, overwhelmed, frustrated it：triste, stanco, ansioso, eccitato, sopraffatto, frustrato
+isFactualRecord
+输入文本仅含事实活动词，无情绪词叠加
+zh：吃饭、上课、工作、睡觉、通勤、开会、跑步 en：eating, class, working, sleeping, commuting, meeting it：mangiato, lezione, lavorato, dormito, riunione
+hasBodySignals
+输入文本包含身体状态词
+zh：头疼、没睡好、撑着、好饿、生病、发烧、疲惫、累坏了、浑身酸、眼睛疼 en：headache, didn't sleep well, sick, fever, exhausted, sore it：mal di testa, non ho dormito, 
+malato, febbre, esausto
+第一版用关键词精确匹配，
+开发在开发的过程中需要补充词库，或者看看有没有现成的对应词库，需要和其他开发商量
+。
+5.6 语气标签采样函数规格（sampleToneTag）
+const TONE_POOL: Record&lt;CharacterId, string[]&gt; = {
+  van:   ['撒娇', '体贴', '卖萌', '温柔'],
+  momo:  ['细腻', '慵懒', '呆萌', '大智若愚'],
+  agnes: ['克制温柔', '细腻共情', '绅士幽默', '惜字如金'],
+  zep:   ['犀利', '自来熟', '戏精', '突然认真'],
+};
+采样规则：从 TONE_POOL[characterId] 中随机选一个，排除 lastToneTagHistory 中已有的（近 3 次去重）。若全部命中去重则忽略去重限制，随机选取。
+5.7 归一化函数规格（normalize）
+function normalize(weights: Record&lt;string, number&gt;): Record&lt;string, number&gt; {
+  const total = Object.values(weights).reduce((a, b) =&gt; a + b, 0);
+  if (total === 0) return weights;  // 防止全为 0 的边界情况
+  const result: Record&lt;string, number&gt; = {};
+  for (const [k, v] of Object.entries(weights)) {
+    result[k] = v / total;
+  }
+  return result;
+}
+5.8 加权随机采样函数规格（weightedRandom）
+function weightedRandom&lt;T extends string&gt;(weights: Record&lt;T, number&gt;): T {
+  const rand = Math.random();
+  let cumulative = 0;
+  for (const [key, weight] of Object.entries(weights)) {
+    cumulative += weight as number;
+    if (rand &lt; cumulative) return key as T;
+  }
+  // fallback: 返回第一个有权重的类型
+  return Object.keys(weights)[0] as T;
+}
+5.9 状态存储方案
+LateralAssociationState 存储在现有数据库的用户设置表中（per user × per character）。不引入 Redis 等新依赖，直接用现有 DB。
+key 格式：lateral:{userId}:{characterId}，如 lateral:user_123:van
+dailyDate 字段用于自动重置 dailyTriggered，不需要 cron job，每次读取时对比今天日期即可。
+lastToneTagHistory 最多保留 3 条，超出时 FIFO 滚动。
+5.10 与现有 Prompt 拼装逻辑的集成
+集成点在 annotation-handler.ts，现有路径如下：
+// 现有逻辑（简化）
+const context = await buildContext(userId, characterId, eventData);
+const prompt = allowSuggestion
+  ? buildSuggestionAwareUserPrompt(context)
+  : buildUserPrompt(context);
+集成后修改为：
+// 新增：横向联想采样
+const state = await getLateralAssociationState(userId, characterId);
+const sample = sampleAssociation(characterId, eventData.userInput, context.lang, state);
+await saveLateralAssociationState(userId, characterId, state);
+// 将采样结果传入 context
+context.associationInstruction = sample.associationInstruction;
+// buildUserPrompt / buildSuggestionAwareUserPrompt 内部在 U3 之后、U5 之前拼入：
+if (context.associationInstruction) {
+  prompt += `\n${context.associationInstruction}`;
+}
+5.11 边界情况处理
+边界情况
+处理方式
+归一化后全为 0（极端情况）
+fallback 到 user_detail，不抛错
+state 首次读取为空
+初始化为默认值：lastAssociationType: null，dailyTriggered: []，lastToneTagHistory: []
+scholarly_reference 被 Agnes 以外的角色触发
+BASE_WEIGHTS 里其他角色无此字段，不会触发，无需额外判断
+tone_only 触发但 TONE_POOL 为空
+associationInstruction 为 null，跳过注入，不抛错
+语气标签全部命中去重
+忽略去重限制，随机选取，确保 tone_only 时总有指令注入
+lang 参数未传入
+默认使用 zh，不抛错
+6. 开发验收标准
+6.1 功能验收
+每次 AI 调用都有联想类型采样结果，不会缺失。
+连续两次请求的联想类型不相同（去重生效）。
+species_sense / greenhouse_monologue / scholarly_reference 当天最多触发一次（当天限制生效）。
+scholarly_reference 仅在 Agnes（龙血树）角色触发，其他角色不触发。
+tone_only 触发时 associationInstruction 为语气标签指令；其他类型触发时为联想视角指令（+ 出发点指令如有）。
+Momo 的 self_led 出发点触发频率约为 30%（统计验证，允许 ±5% 误差）。
+U4 指令语言与当前用户语言（lang 参数）一致。
+6.2 性能验收
+采样模块单次执行时间 &lt; 10ms（纯本地计算，无 AI 调用）。
+状态读写（DB）不阻塞主流程，建议异步写。
+6.3 日志建议
+建议在 debug 日志里记录每次采样结果，方便排查和调优：
+[LateralAssociation] userId=xxx characterId=agnes lang=zh
+  associationType=scholarly_reference originType=user_first toneTag=null
+  instruction="这次引用一个具体的历史故事..."
+7. 待确认事项
+问题
+已决策方案
+状态
+动态调整关键词表的维护方式
+开发看看是
+直接硬编码在 detectInputSignals 函数里，
+还是复用其他的
+词库
+待
+决策

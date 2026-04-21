@@ -66,12 +66,29 @@ export interface Todo {
   // Growth-specific
   bottleId?: string;
   sortOrder: number;
+  // Sub-todo (AI decompose)
+  parentId?: string;
+  suggestedDuration?: number; // AI-suggested duration in minutes
   // UI
   isPinned?: boolean;
+  // Sync state tracking（离线优先）
+  syncState?: 'pending' | 'synced' | 'failed';
 }
 
 /** Backward-compat alias for growth components */
 export type GrowthTodo = Todo;
+
+const SORT_ORDER_SAFE_MIN = -9_000_000_000_000_000;
+const SORT_ORDER_SAFE_MAX = 9_000_000_000_000_000;
+
+function sanitizeSortOrder(value: unknown, fallback: number): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.trunc(fallback);
+  const truncated = Math.trunc(numeric);
+  if (truncated < SORT_ORDER_SAFE_MIN) return SORT_ORDER_SAFE_MIN;
+  if (truncated > SORT_ORDER_SAFE_MAX) return SORT_ORDER_SAFE_MAX;
+  return truncated;
+}
 
 // ── Helpers ─────────────────────────────────────────────────
 function todayDateStr(): string {
@@ -79,6 +96,20 @@ function todayDateStr(): string {
 }
 function todayDayOfWeek(): number {
   return new Date().getDay();
+}
+
+function todayDayOfMonth(): number {
+  return new Date().getDate();
+}
+
+function getTodoFreshness(todo: Todo): number {
+  return Math.max(
+    Number(todo.completedAt ?? 0),
+    Number(todo.startedAt ?? 0),
+    Number(todo.dueAt ?? 0),
+    Number(todo.sortOrder ?? 0),
+    Number(todo.createdAt ?? 0),
+  );
 }
 
 /** Check if a recurrence value means "non-recurring" */
@@ -145,7 +176,7 @@ async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'crea
     if (Object.keys(dbUpdates).length === 0) return;
     const { error } = await supabase
       .from('todos')
-      .update(dbUpdates)
+      .update({ ...dbUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', session.user.id);
     if (error) console.error('Error syncing todo update:', error);
@@ -154,26 +185,64 @@ async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'crea
   }
 }
 
+// bgSyncInsert：插入成功后回写 syncState:'synced'，失败后回写 'failed'
 async function bgSyncInsert(todo: Todo): Promise<void> {
   try {
     const session = await getSupabaseSession();
     if (!session) return;
-    const { error } = await supabase.from('todos').insert([toDbTodo(todo, session.user.id)]);
-    if (error) console.error('Error syncing todo insert:', error);
+    const { error } = await supabase
+      .from('todos')
+      .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
+    if (error) {
+      console.error('Error syncing todo insert:', error);
+      useTodoStore.setState((s) => ({
+        todos: s.todos.map((t) =>
+          t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
+        ),
+      }));
+      return;
+    }
+    useTodoStore.setState((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todo.id ? { ...t, syncState: 'synced' as const } : t
+      ),
+    }));
   } catch (e) {
     console.error('bgSyncInsert failed:', e);
+    useTodoStore.setState((s) => ({
+      todos: s.todos.map((t) =>
+        t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
+      ),
+    }));
   }
 }
 
+// bgSyncDelete：软删除（UPDATE deleted_at），不再硬删除
 async function bgSyncDelete(id: string): Promise<void> {
   try {
     const session = await getSupabaseSession();
     if (!session) return;
-    const { error } = await supabase.from('todos').delete().eq('id', id).eq('user_id', session.user.id);
-    if (error) console.error('Error syncing todo delete:', error);
+    const { error } = await supabase
+      .from('todos')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', session.user.id);
+    if (error) console.error('Error syncing todo soft-delete:', error);
   } catch (e) {
     console.error('bgSyncDelete failed:', e);
   }
+}
+
+function isTodoParentForeignKeyError(err: unknown): boolean {
+  const message = (typeof err === 'object' && err !== null)
+    ? String((err as Record<string, unknown>).message ?? '')
+    : String(err ?? '');
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('todos_parent_id_fkey') ||
+    (lower.includes('violates foreign key constraint') && lower.includes('parent_id')) ||
+    (lower.includes('key is not present in table') && lower.includes('todos'))
+  );
 }
 
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
@@ -200,6 +269,8 @@ interface TodoState {
   todos: Todo[];
   categories: ActivityRecordType[];
   isLoading: boolean;
+  hasHydrated: boolean;
+  lastSyncError: string | null;
   activeTodoId: string | null;
   lastGeneratedDate: string;
   activeMessageMap: Record<string, string>;
@@ -216,6 +287,11 @@ interface TodoState {
     category?: ActivityRecordType;
     scope?: TodoScope;
   }) => void;
+  addSubTodos: (
+    parentId: string,
+    steps: Array<{ title: string; suggestedDuration: number }>,
+    options?: { replaceExisting?: boolean }
+  ) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
   toggleTodo: (id: string) => void;
   togglePin: (id: string) => void;
@@ -226,9 +302,10 @@ interface TodoState {
   completeTodoWithDuration: (id: string, duration: number) => Promise<void>;
   setActiveTodoId: (id: string | null) => void;
   reorderTodos: (id: string, direction: 'up' | 'down') => void;
+  reorderTodosByIds: (orderedIds: string[]) => void;
   generateRecurringTodos: () => void;
   linkMessageToTodo: (messageId: string, todoId: string) => void;
-  completeTodoByMessage: (messageId: string) => void;
+  completeTodoByMessage: (messageId: string) => Todo | null;
   setTodoCompletionMessage: (todoId: string, messageId: string) => void;
   getTodoCompletionMessage: (todoId: string) => string | undefined;
   clearTodoCompletionMessage: (todoId: string) => void;
@@ -241,52 +318,165 @@ export const useTodoStore = create<TodoState>()(
       todos: [],
       categories: ['study', 'work', 'social', 'life', 'entertainment', 'health'],
       isLoading: false,
+      hasHydrated: false,
+      lastSyncError: null,
       activeTodoId: null,
       lastGeneratedDate: '',
       activeMessageMap: {},
       todoCompletionMessageMap: {},
 
-      // ── Fetch from Supabase (merge with local) ──
+      // ── Fetch from Supabase ──────────────────────────────────────────────
+      // 策略：推 pending/failed → 收集仍然失败的 → 拉云端（软删除过滤）→ 合并失败的进去
+      // syncState='synced' 但云端没有的条目 = 已在其他设备删除，本地也移除（防复活）
       fetchTodos: async () => {
-        const session = await getSupabaseSession();
-        if (!session) return;
-        set({ isLoading: true });
-        const { data, error } = await supabase
-          .from('todos')
-          .select('*')
-          .eq('user_id', session.user.id);
-        if (error) {
-          console.error('Error fetching todos:', error);
-          set({ isLoading: false });
-          return;
-        }
-        const cloudTodos = data.map(fromDbTodo);
-        data.forEach((row) => {
-          const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
-          if (row.category !== normalizedCategory) {
-            void bgSyncUpdate(row.id, { category: normalizedCategory });
+        set({ isLoading: true, lastSyncError: null });
+        try {
+          const session = await getSupabaseSession();
+          if (!session) {
+            set({ isLoading: false, hasHydrated: true });
+            return;
           }
-        });
-        const localTodos = get().todos;
-        const cloudIds = new Set(cloudTodos.map((t) => t.id));
-        const allIds = new Set([...cloudIds, ...localTodos.map((t) => t.id)]);
-        // Migrate old todo-storage data (one-time, clears old key after)
-        const migrated = migrateOldTodoStorage(allIds);
-        const merged = [
-          ...cloudTodos,
-          ...localTodos.filter((t) => !cloudIds.has(t.id)),
-          ...migrated,
-        ];
-        set({ todos: merged, isLoading: false });
-        // Sync migrated todos to Supabase
-        migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+
+          // ① 找出本地所有未同步的条目（pending / failed / 无 syncState 的旧数据）
+          //    并先修复本地明显孤儿 parentId（本地父任务不存在）
+          const localTodos = get().todos;
+          const localTodoIdSet = new Set(localTodos.map((t) => t.id));
+          let hasLocalOrphanParent = false;
+          const normalizedLocalTodos = localTodos.map((todo) => {
+            if (todo.parentId && !localTodoIdSet.has(todo.parentId)) {
+              hasLocalOrphanParent = true;
+              return { ...todo, parentId: undefined, syncState: 'pending' as const };
+            }
+            return todo;
+          });
+          if (hasLocalOrphanParent) {
+            set({ todos: normalizedLocalTodos });
+          }
+
+          const needsPush = normalizedLocalTodos.filter(
+            (t) => !t.syncState || t.syncState === 'pending' || t.syncState === 'failed'
+          );
+          const pushTodoById = new Map(needsPush.map((todo) => [todo.id, todo]));
+
+          async function upsertTodo(todo: Todo): Promise<void> {
+            const { error } = await supabase
+              .from('todos')
+              .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
+            if (error) throw error;
+          }
+
+          async function upsertTodoWithParentRecovery(todo: Todo): Promise<void> {
+            try {
+              await upsertTodo(todo);
+              return;
+            } catch (error) {
+              if (!isTodoParentForeignKeyError(error)) throw error;
+            }
+
+            const parentId = todo.parentId;
+            if (parentId) {
+              const parentTodo = pushTodoById.get(parentId);
+              if (parentTodo) {
+                await upsertTodo(parentTodo);
+                await upsertTodo(todo);
+                return;
+              }
+            }
+
+            const detachedTodo: Todo = { ...todo, parentId: undefined };
+            await upsertTodo(detachedTodo);
+          }
+
+          // ② 尝试推送，收集仍然失败的
+          const failedById = new Map<string, Todo>();
+          const markFailed = (todo: Todo) => {
+            failedById.set(todo.id, { ...todo, syncState: 'failed' as const });
+          };
+
+          const parentTodos = needsPush.filter((todo) => !todo.parentId);
+          const childTodos = needsPush.filter((todo) => !!todo.parentId);
+
+          await Promise.all(
+            parentTodos.map(async (todo) => {
+              try {
+                await upsertTodo(todo);
+              } catch {
+                markFailed(todo);
+              }
+            })
+          );
+
+          await Promise.all(
+            childTodos.map(async (todo) => {
+              try {
+                await upsertTodoWithParentRecovery(todo);
+              } catch {
+                markFailed(todo);
+              }
+            })
+          );
+
+          const stillFailed = Array.from(failedById.values());
+
+          // ③ 拉云端（只拉未软删除的）
+          const { data, error } = await supabase
+            .from('todos')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .is('deleted_at', null);
+
+          if (error) {
+            console.error('Error fetching todos:', error);
+            set({ isLoading: false, hasHydrated: true, lastSyncError: error.message });
+            return;
+          }
+
+          const cloudTodos = data.map(fromDbTodo); // syncState: 'synced'
+
+          // 顺手修正 category（历史数据标准化）
+          data.forEach((row) => {
+            const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
+            if (row.category !== normalizedCategory) {
+              void bgSyncUpdate(row.id, { category: normalizedCategory });
+            }
+          });
+
+          // ④ 合并：云端数据 + 仍然失败的本地条目（云端没有的才保留）
+          const cloudIds = new Set(cloudTodos.map((t) => t.id));
+          const survivingFailed = stillFailed
+            .filter((t) => !cloudIds.has(t.id))
+            .map((t) => ({ ...t, syncState: 'failed' as const }));
+
+          // ⑤ 一次性迁移旧 todo-storage（历史兼容）
+          const migrated = migrateOldTodoStorage(cloudIds);
+          migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+
+          set({
+            todos: [...cloudTodos, ...survivingFailed, ...migrated],
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: stillFailed.length > 0
+              ? `${stillFailed.length} 条待办同步失败，将在下次重试`
+              : null,
+          });
+        } catch (err) {
+          set({
+            isLoading: false,
+            hasHydrated: true,
+            lastSyncError: err instanceof Error ? err.message : 'todo_sync_failed',
+          });
+        }
       },
 
       // ── Add todo (unified: supports growth + legacy fields) ──
       addTodo: (input) => {
         const { todos } = get();
-        const maxOrder = todos.reduce((max, t) => Math.max(max, t.sortOrder), 0);
-        const defaultSortOrder = input.dueAt ?? (maxOrder + Date.now());
+        const minOrder = todos
+          .filter((t) => !t.isTemplate)
+          .reduce((min, t) => Math.min(min, sanitizeSortOrder(t.sortOrder, Date.now())), Infinity);
+        const defaultSortOrder = minOrder === Infinity
+          ? 0
+          : sanitizeSortOrder(minOrder - 1, Date.now());
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
         const lang = resolveLangForText(input.title);
@@ -310,11 +500,12 @@ export const useTodoStore = create<TodoState>()(
             sortOrder: defaultSortOrder,
             category: normalizedCategory,
             scope: input.scope,
+            syncState: 'pending',
           };
 
           const shouldGenerate =
             recurrence === 'daily' ||
-            recurrence === 'monthly' ||
+            (recurrence === 'monthly' && todayDayOfMonth() === 1) ||
             (recurrence === 'weekly' && (input.recurrenceDays ?? []).includes(todayDayOfWeek()));
 
           const newTodos: Todo[] = [template];
@@ -332,6 +523,7 @@ export const useTodoStore = create<TodoState>()(
               sortOrder: defaultSortOrder,
               category: normalizedCategory,
               scope: input.scope,
+              syncState: 'pending',
             };
             newTodos.push(instance);
             bgSyncInsert(instance).catch(console.error);
@@ -358,6 +550,7 @@ export const useTodoStore = create<TodoState>()(
             sortOrder: defaultSortOrder,
             category: normalizedCategory,
             scope: input.scope,
+            syncState: 'pending',
           };
           set((s) => ({ todos: [...s.todos, todo] }));
           bgSyncInsert(todo).catch(console.error);
@@ -381,11 +574,26 @@ export const useTodoStore = create<TodoState>()(
         if (!todo) return;
         const completed = !todo.completed;
         const completedAt = completed ? Date.now() : undefined;
-        set((state) => ({
-          todos: state.todos.map((t) =>
+        set((state) => {
+          const nextTodos = state.todos.map((t) =>
             t.id === id ? { ...t, completed, completedAt } : t
-          ),
-        }));
+          );
+          // Auto-complete parent when all its sub-todos are completed
+          if (completed && todo.parentId) {
+            const siblings = nextTodos.filter((t) => t.parentId === todo.parentId);
+            const allDone = siblings.every((t) => t.completed);
+            if (allDone) {
+              const now = Date.now();
+              bgSyncUpdate(todo.parentId, { completed: true, completedAt: now }).catch(console.error);
+              return {
+                todos: nextTodos.map((t) =>
+                  t.id === todo.parentId ? { ...t, completed: true, completedAt: now } : t
+                ),
+              };
+            }
+          }
+          return { todos: nextTodos };
+        });
         bgSyncUpdate(id, { completed, completedAt }).catch(console.error);
       },
 
@@ -497,6 +705,40 @@ export const useTodoStore = create<TodoState>()(
 
       setActiveTodoId: (id) => set({ activeTodoId: id }),
 
+      // ── Add AI-decomposed sub-todos under a parent ──
+      addSubTodos: (parentId, steps, options) => {
+        const parent = get().todos.find((t) => t.id === parentId);
+        if (!parent) return;
+        const now = Date.now();
+        const shouldReplace = options?.replaceExisting === true;
+        const existingSubTodos = shouldReplace
+          ? get().todos.filter((t) => t.parentId === parentId)
+          : [];
+        const subTodos: Todo[] = steps.map((step, i) => ({
+          id: uuidv4(),
+          title: step.title,
+          completed: false,
+          createdAt: now + i,
+          priority: parent.priority,
+          bottleId: parent.bottleId,
+          recurrence: 'once' as Recurrence,
+          isTemplate: false,
+          sortOrder: now + i,
+          parentId,
+          suggestedDuration: step.suggestedDuration,
+          category: parent.category,
+          syncState: 'pending' as const,
+        }));
+        set((s) => ({
+          todos: [
+            ...s.todos.filter((t) => !(shouldReplace && t.parentId === parentId)),
+            ...subTodos,
+          ],
+        }));
+        existingSubTodos.forEach((t) => bgSyncDelete(t.id).catch(console.error));
+        subTodos.forEach((t) => bgSyncInsert(t).catch(console.error));
+      },
+
       // ── Reorder todos ──
       reorderTodos: (id, direction) => {
         const { todos } = get();
@@ -529,6 +771,24 @@ export const useTodoStore = create<TodoState>()(
         ]).catch(console.error);
       },
 
+      reorderTodosByIds: (orderedIds) => {
+        if (orderedIds.length <= 1) return;
+        const orderMap = new Map(orderedIds.map((todoId, index) => [todoId, index]));
+        const changed: Array<{ id: string; sortOrder: number }> = [];
+
+        set((state) => ({
+          todos: state.todos.map((todo) => {
+            const nextOrder = orderMap.get(todo.id);
+            if (nextOrder === undefined || todo.sortOrder === nextOrder) return todo;
+            changed.push({ id: todo.id, sortOrder: nextOrder });
+            return { ...todo, sortOrder: nextOrder };
+          }),
+        }));
+
+        if (changed.length === 0) return;
+        void Promise.all(changed.map((item) => bgSyncUpdate(item.id, { sortOrder: item.sortOrder }))).catch(console.error);
+      },
+
       // ── Generate recurring todos for today ──
       generateRecurringTodos: () => {
         const { todos, lastGeneratedDate } = get();
@@ -536,6 +796,7 @@ export const useTodoStore = create<TodoState>()(
         if (lastGeneratedDate === today) return;
 
         const dayOfWeek = todayDayOfWeek();
+        const dayOfMonth = todayDayOfMonth();
         const templates = todos.filter((t) => t.isTemplate);
         const newInstances: Todo[] = [];
 
@@ -545,10 +806,15 @@ export const useTodoStore = create<TodoState>()(
           } else if (tpl.recurrence === 'weekly') {
             if (!(tpl.recurrenceDays ?? []).includes(dayOfWeek)) continue;
           } else if (tpl.recurrence === 'monthly') {
-            // generate on day 1
+            if (dayOfMonth !== 1) continue;
           } else {
             continue;
           }
+
+          const hasUnfinishedInstance = todos.some(
+            (t) => t.templateId === tpl.id && !t.completed
+          );
+          if (hasUnfinishedInstance) continue;
 
           const todayStart = new Date(today).getTime();
           const todayEnd = todayStart + 86400000;
@@ -595,7 +861,7 @@ export const useTodoStore = create<TodoState>()(
       completeTodoByMessage: (messageId) => {
         const { activeMessageMap, todos } = get();
         const todoId = activeMessageMap[messageId];
-        if (!todoId) return;
+        if (!todoId) return null;
         const todo = todos.find((t) => t.id === todoId);
         if (todo && !todo.completed) {
           const now = Date.now();
@@ -603,16 +869,24 @@ export const useTodoStore = create<TodoState>()(
           const duration = todo.startedAt
             ? Math.round((now - todo.startedAt) / 60000)
             : undefined;
+          const completedTodo: Todo = {
+            ...todo,
+            completed: true,
+            completedAt,
+            duration,
+          };
           set((s) => ({
             todos: s.todos.map((t) =>
-              t.id === todoId ? { ...t, completed: true, completedAt, duration } : t
+              t.id === todoId ? completedTodo : t
             ),
             activeMessageMap: Object.fromEntries(
               Object.entries(s.activeMessageMap).filter(([k]) => k !== messageId)
             ),
           }));
           bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch(console.error);
+          return completedTodo;
         }
+        return null;
       },
 
       setTodoCompletionMessage: (todoId, messageId) => {
@@ -636,6 +910,14 @@ export const useTodoStore = create<TodoState>()(
     }),
     {
       name: 'growth-todo-store', // keep this key to preserve existing growth data
+      partialize: (state) => ({
+        todos: state.todos,
+        categories: state.categories,
+        activeTodoId: state.activeTodoId,
+        lastGeneratedDate: state.lastGeneratedDate,
+        activeMessageMap: state.activeMessageMap,
+        todoCompletionMessageMap: state.todoCompletionMessageMap,
+      }),
     }
   )
 );

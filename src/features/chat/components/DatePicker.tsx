@@ -1,181 +1,429 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react';
+import { LogIn, MoreHorizontal, X } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { resizeImageToDataUrl } from '../../../lib/imageUtils';
 import { cn } from '../../../lib/utils';
+import { triggerLightHaptic } from '../../../lib/haptics';
+import {
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_CLOSE_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+} from '../../../lib/modalTheme';
 
 export interface DatePickerProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
 
-function getWeekDates(date: Date): Date[] {
-  const day = date.getDay();
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() - day);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
-    return d;
-  });
+const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function shiftDate(base: Date, days: number) {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
-function getDaysInMonth(year: number, month: number): (Date | null)[] {
-  const first = new Date(year, month, 1).getDay();
-  const count = new Date(year, month + 1, 0).getDate();
-  const blanks: null[] = Array(first).fill(null);
-  const days = Array.from({ length: count }, (_, i) => new Date(year, month, i + 1));
-  return [...blanks, ...days];
+function listDates(startDate: Date, endDate: Date) {
+  const dates: Date[] = [];
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  while (cursor <= end) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
 }
+const SAGE_GREEN_DEEP = '#5F7A63';
+const DATE_PAST_PRELOAD_DAYS = 35;
+const DATE_FUTURE_DAYS = 6;
+const DATE_PREPEND_STEP_DAYS = 21;
+const DATE_ITEM_WIDTH = 60;
+const DATE_ITEM_GAP = 8;
+const DATE_PREPEND_TRIGGER_PX = 100;
+const BLUE_SELECTED_BG =
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
+const BLUE_SELECTED_BORDER = '0.5px solid transparent';
+const BLUE_SELECTED_SHADOW = '0 6px 14px rgba(59,130,246,0.14)';
+const BLUE_SELECTED_TEXT = '#1D4ED8';
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
-  const { i18n } = useTranslation();
-  const [showMonthGrid, setShowMonthGrid] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(
-    new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
-  );
-  const popupRef = useRef<HTMLDivElement>(null);
-
-  const today       = new Date();
-  const todayStr    = toLocalDateStr(today);
+  const user = useAuthStore(s => s.user);
+  const updateAvatar = useAuthStore(s => s.updateAvatar);
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const today = new Date();
+  const todayStr = toLocalDateStr(today);
   const selectedStr = toLocalDateStr(selectedDate);
-  const weekDates   = getWeekDates(selectedDate);
-  const DAY_LABELS  = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+  const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
+  const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [stripStart, setStripStart] = useState<Date>(() => shiftDate(selectedDate, -DATE_PAST_PRELOAD_DAYS));
+  const popupRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const prependPendingRef = useRef<number | null>(null);
+  const hasInitialCenteredRef = useRef(false);
+
+  const stripEnd = useMemo(() => shiftDate(today, DATE_FUTURE_DAYS), [todayStr]);
+  const stripDates = useMemo(() => listDates(stripStart, stripEnd), [stripStart, stripEnd]);
   const isFuture = (d: Date) => toLocalDateStr(d) > todayStr;
+  const isSelected = (d: Date) => toLocalDateStr(d) === selectedStr;
 
-  // Close popup on outside click
   useEffect(() => {
-    if (!showMonthGrid) return;
+    const selectedStart = new Date(selectedDate);
+    selectedStart.setHours(0, 0, 0, 0);
+    if (selectedStart < stripStart) {
+      setStripStart(shiftDate(selectedStart, -DATE_PAST_PRELOAD_DAYS));
+      return;
+    }
+    const strip = stripRef.current;
+    const target = strip?.querySelector(`[data-date="${selectedStr}"]`) as HTMLElement | null;
+    if (!strip || !target) return;
+    const stripRect = strip.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const nextLeft = strip.scrollLeft + targetRect.left - stripRect.left - (strip.clientWidth - targetRect.width) / 2;
+    strip.scrollTo({ left: Math.max(0, nextLeft), behavior: hasInitialCenteredRef.current ? 'smooth' : 'auto' });
+    hasInitialCenteredRef.current = true;
+  }, [selectedDate, selectedStr, stripStart, stripDates.length]);
+
+  useEffect(() => {
+    if (prependPendingRef.current === null || !stripRef.current) return;
+    stripRef.current.scrollLeft += prependPendingRef.current;
+    prependPendingRef.current = null;
+  }, [stripDates]);
+
+  useEffect(() => {
+    if (!showMonthPicker) return;
     const handle = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setShowMonthGrid(false);
+        setShowMonthPicker(false);
       }
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
-  }, [showMonthGrid]);
+  }, [showMonthPicker]);
 
-  const handleDayClick = useCallback((d: Date) => {
-    if (isFuture(d)) return;
-    onDateChange(d);
-    setShowMonthGrid(false);
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
+
+  const handleDayClick = useCallback((dateObj: Date) => {
+    if (isFuture(dateObj)) return;
+    onDateChange(dateObj);
+    setViewMonth(dateObj.getMonth());
+    setViewYear(dateObj.getFullYear());
+    setShowMonthPicker(false);
   }, [onDateChange, todayStr]); // eslint-disable-line
 
-  const monthTitle = currentMonth.toLocaleDateString(i18n.language, {
-    month: 'long', year: 'numeric',
-  });
+  const prependPastDates = useCallback(() => {
+    const strip = stripRef.current;
+    if (!strip || strip.scrollLeft > DATE_PREPEND_TRIGGER_PX) return;
+    setStripStart(prev => shiftDate(prev, -DATE_PREPEND_STEP_DAYS));
+    prependPendingRef.current = DATE_PREPEND_STEP_DAYS * (DATE_ITEM_WIDTH + DATE_ITEM_GAP);
+  }, []);
 
-  const gridDays = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
+  const handleStripScroll = useCallback(() => {
+    prependPastDates();
+  }, [prependPastDates]);
+
+  const avatarUrl = user?.user_metadata?.avatar_url;
+
+  const handleAuthClick = async () => {
+    if (!user) {
+      navigate('/auth');
+    }
+  };
 
   return (
-    <div className="bg-white border-b border-gray-100 px-3 pb-2 pt-1 select-none">
-      {/* Month title button + compact dropdown popup */}
-      <div className="relative inline-block mb-2" ref={popupRef}>
-        <button
-          onClick={() => {
-            setCurrentMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
-            setShowMonthGrid(v => !v);
-          }}
-          className="flex items-center gap-1 text-sm font-semibold text-gray-700 px-1 py-0.5"
-        >
-          <span>{monthTitle}</span>
-          <ChevronDown size={14} className={cn('transition-transform', showMonthGrid && 'rotate-180')} />
-        </button>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Month selector */}
+        <div style={{ position: 'relative' }} ref={popupRef}>
+          <button
+            onClick={() => {
+              triggerLightHaptic();
+              setShowMonthPicker(p => !p);
+            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
+          >
+            <span className="text-base" style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
+              {MONTHS[viewMonth]} {viewYear}
+            </span>
+            <span className="material-symbols-outlined"
+              style={{ fontSize: 18, color: '#94a3b8', transition: 'transform 0.2s',
+                transform: showMonthPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              expand_more
+            </span>
+          </button>
 
-        {/* Compact calendar dropdown */}
-        {showMonthGrid && (
-          <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-gray-100 rounded-2xl shadow-lg w-40 p-2">
-            {/* Popup header */}
-            <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-                className="p-1 rounded-lg hover:bg-gray-100"
-              >
-                <ChevronLeft size={13} />
-              </button>
-              <span className="text-xs font-semibold text-gray-700">{monthTitle}</span>
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-                  className="p-1 rounded-lg hover:bg-gray-100"
-                >
-                  <ChevronRight size={13} />
+          {/* Month picker dropdown */}
+          {showMonthPicker && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
+              background: '#ffffff', borderRadius: '1rem',
+              border: '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.08)',
+              padding: '8px 6px', width: 164,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 7, padding: '0 2px' }}>
+                <button onClick={() => { triggerLightHaptic(); prevMonth(); }} style={{ background: '#F1F5F9',
+                  border: 'none', borderRadius: '50%',
+                  width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_left</span>
                 </button>
-                <button
-                  onClick={() => setShowMonthGrid(false)}
-                  className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"
-                >
-                  <X size={13} />
+                <span className="text-xs" style={{ fontWeight: 700, color: '#1e293b' }}>{viewYear}</span>
+                <button onClick={() => { triggerLightHaptic(); nextMonth(); }} style={{ background: '#F1F5F9',
+                  border: 'none', borderRadius: '50%',
+                  width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_right</span>
                 </button>
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3 }}>
+                {MONTHS.map((m, idx) => {
+                  const isCur = idx === viewMonth;
+                  return (
+                    <button key={m} onClick={() => { triggerLightHaptic(); setViewMonth(idx); setShowMonthPicker(false); }}
+                      className="text-xs"
+                      style={{ padding: '5px 2px', borderRadius: '0.6rem',
+                        border: isCur ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
+                        background: isCur ? BLUE_SELECTED_BG : '#F8FAFC',
+                        boxShadow: isCur ? BLUE_SELECTED_SHADOW : 'none',
+                        color: isCur ? BLUE_SELECTED_TEXT : '#475569',
+                        fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      {m.slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+          )}
+        </div>
 
-            {/* Day-of-week labels */}
-            <div className="grid grid-cols-7 gap-y-0.5 mb-0.5">
-              {DAY_LABELS.map((l, i) => (
-                <div key={i} className="text-center text-[9px] text-gray-400 leading-5">{l}</div>
-              ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {user ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerLightHaptic();
+                  setShowAvatarModal(true);
+                  setShowAvatarMenu(false);
+                }}
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.90) 100%)',
+                  border: '2.5px solid rgba(255,255,255,0.95)',
+                  boxShadow: '0 6px 20px rgba(148,163,184,0.22), 0 2px 8px rgba(255,255,255,0.58)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transform: 'translateY(-14px)',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                }}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: 30, color: SAGE_GREEN_DEEP }}>person</span>
+                )}
+              </button>
 
-              {/* Day cells */}
-              {gridDays.map((d, i) => {
-                if (!d) return <div key={`b-${i}`} />;
-                const ds     = toLocalDateStr(d);
-                const future = isFuture(d);
-                return (
-                  <button
-                    key={ds}
-                    onClick={() => handleDayClick(d)}
-                    disabled={future}
-                    className={cn(
-                      'h-5 w-5 mx-auto rounded-full text-[9px] flex items-center justify-center transition-colors',
-                      ds === todayStr && ds !== selectedStr && 'text-blue-500 font-bold',
-                      ds === selectedStr && 'bg-blue-500 text-white font-bold',
-                      future ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100',
-                    )}
-                  >
-                    {d.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const dataUrl = await resizeImageToDataUrl(file, 640, 0.95);
+                  await updateAvatar(dataUrl);
+                  setShowAvatarMenu(false);
+                  setShowAvatarModal(false);
+                  e.target.value = '';
+                }}
+              />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                triggerLightHaptic();
+                void handleAuthClick();
+              }}
+              style={{
+                height: 36,
+                borderRadius: 9999,
+                border: '1px solid rgba(148,163,184,0.3)',
+                background: 'rgba(255,255,255,0.78)',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '0 10px',
+                cursor: 'pointer',
+              }}
+            >
+              <LogIn size={15} />
+              <span className="text-xs" style={{ fontWeight: 600 }}>{t('header_login')}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Week row */}
-      <div className="flex gap-0.5 overflow-x-auto">
-        {weekDates.map((d) => {
-          const ds     = toLocalDateStr(d);
-          const future = isFuture(d);
+      <div
+        ref={stripRef}
+        className="date-strip"
+        onScroll={handleStripScroll}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: DATE_ITEM_GAP,
+          marginTop: -4,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          overscrollBehaviorX: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          scrollSnapType: 'x mandatory',
+          scrollPaddingInline: `calc(50% - ${DATE_ITEM_WIDTH / 2}px)`,
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          paddingBottom: 2,
+          touchAction: 'pan-x',
+        }}
+      >
+        {stripDates.map((dateObj, i) => {
+          const day = DAYS[dateObj.getDay()];
+          const date = dateObj.getDate();
+          const sel = isSelected(dateObj);
+          const fut = isFuture(dateObj);
           return (
             <button
-              key={ds}
-              onClick={() => handleDayClick(d)}
-              disabled={future}
-              className={cn(
-                'flex flex-col items-center justify-center min-w-[38px] h-11 rounded-xl flex-1 transition-colors',
-                ds === selectedStr ? 'bg-blue-500 text-white' : 'hover:bg-gray-50',
-                future && 'opacity-40 cursor-not-allowed',
-              )}
+              key={`${toLocalDateStr(dateObj)}-${i}`}
+              data-date={toLocalDateStr(dateObj)}
+              onClick={() => {
+                if (fut) return;
+                triggerLightHaptic();
+                handleDayClick(dateObj);
+              }}
+              disabled={fut}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 3,
+                background: 'none',
+                border: 'none',
+                cursor: fut ? 'not-allowed' : 'pointer',
+                padding: '0 2px',
+                transition: 'all 0.18s',
+                opacity: fut ? 0.35 : 1,
+                flex: `0 0 ${DATE_ITEM_WIDTH}px`,
+                minWidth: DATE_ITEM_WIDTH,
+                scrollSnapAlign: 'center',
+              }}
             >
-              <span className="text-[9px] uppercase tracking-wide leading-none">
-                {DAY_LABELS[d.getDay()]}
+              <span style={{ fontSize: 12, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
+                textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
+                {day}
               </span>
-              <span className={cn(
-                'text-sm font-semibold leading-none mt-0.5',
-                ds === todayStr && ds !== selectedStr && 'text-blue-500',
-              )}>
-                {d.getDate()}
-              </span>
-              {ds === todayStr && (
-                <div className={cn('w-1 h-1 rounded-full mt-0.5', ds === selectedStr ? 'bg-white' : 'bg-blue-400')} />
-              )}
+              <div style={{ width: 44, height: 44, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: sel ? BLUE_SELECTED_BG : '#F8FAFC',
+                border: sel ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
+                boxShadow: sel ? BLUE_SELECTED_SHADOW : 'none',
+                transition: 'all 0.18s' }}>
+                <span style={{ fontSize: 15, lineHeight: 1, fontWeight: sel ? 700 : 500,
+                  color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'all 0.18s' }}>
+                  {date}
+                </span>
+              </div>
             </button>
           );
         })}
       </div>
+
+      <style>{`.date-strip::-webkit-scrollbar{display:none;}`}</style>
+
+      {showAvatarModal && user ? createPortal(
+        <div
+          className={cn('fixed inset-0 z-[200] flex items-center justify-center p-4', APP_MODAL_OVERLAY_CLASS)}
+          onClick={() => {
+            triggerLightHaptic();
+            setShowAvatarModal(false);
+            setShowAvatarMenu(false);
+          }}
+        >
+          <div
+            className={cn(APP_MODAL_CARD_CLASS, 'relative overflow-hidden rounded-3xl')}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 z-10 p-1.5')}
+              onClick={() => {
+                triggerLightHaptic();
+                setShowAvatarModal(false);
+                setShowAvatarMenu(false);
+              }}
+              title={t('auth_close')}
+            >
+              <X size={16} />
+            </button>
+            {showAvatarMenu ? (
+              <div className={cn(APP_MODAL_CARD_CLASS, 'absolute bottom-12 right-3 z-10 overflow-hidden rounded-xl')}>
+                <button
+                  className="block w-full px-4 py-2 text-left text-sm text-[#2F3E33] hover:bg-white/70"
+                  onClick={() => {
+                    triggerLightHaptic();
+                    fileRef.current?.click();
+                  }}
+                >
+                  {t('auth_change_avatar')}
+                </button>
+              </div>
+            ) : null}
+            <button
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute bottom-3 right-3 z-10 p-2')}
+              onClick={() => {
+                triggerLightHaptic();
+                setShowAvatarMenu((v) => !v);
+              }}
+              title={t('auth_more')}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            <div className="flex h-[min(320px,86vw)] w-[min(320px,86vw)] items-center justify-center bg-gray-100">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar large" className="h-full w-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-6xl text-gray-300">person</span>
+              )}
+            </div>
+          </div>
+        </div>
+      , document.body) : null}
     </div>
   );
 };

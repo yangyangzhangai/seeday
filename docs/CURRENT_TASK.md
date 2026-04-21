@@ -1,632 +1,351 @@
 # CURRENT TASK (Session Resume Anchor)
 
-## Current Override (2026-03-21)
-
-- Status: active execution anchor for multilingual classification consolidation
-- Scope owner: current working session
-- This section supersedes the old top snapshot below. Historical plant-system content remains valid as archive context only.
-
-### Current Mainline
-
-- Rebuild the multilingual classification pipeline in a controlled order: `PR0 -> PR1a -> PR1b -> PR2 -> PR3 -> PR4`.
-- Cover four related surfaces together, but in separate PRs:
-  - live input activity or mood intent
-  - activity and todo category classification
-  - Magic Pen local fallback
-  - Magic Pen todo category quality
-- Keep the architecture layered:
-  - `Lexicon`: reusable multilingual word or phrase data
-  - `Signal Extractor`: language-specific evidence extraction
-  - `Resolver`: shared scoring and final decision logic
-  - `Post-process`: store, Magic Pen, and API integration logic
-
-### Execution Checklist (2026-03-21)
-
- - [x] Synced the four AI companion personas (`van`, `agnes`, `zep`, `spring_thunder`) into annotation, report diary, and plant diary prompt flows via a shared prompt source.
-
- - [x] 完成会话启动必读链路：`LLM.md`、`docs/CURRENT_TASK.md`、`docs/PROJECT_MAP.md`、`docs/TSHINE_DEV_SPEC.md`
- - [x] 完成 `PR0`：落地多语言 fixture、可复跑 benchmark runner、npm 命令、baseline artifact 与基线文档
- - [x] 完成 `PR1a`：chat/todo/refine 链路显式透传 `lang`，并清理 helper 内隐式 `zh` 回退路径
-  - [x] 执行 `PR1b`：新增 `src/lib/categoryAdapters.ts`，建立 `ActivityRecordType <-> DiaryClassifierCategory` 单一适配边界并补齐单测
-  - [x] 执行 `PR2`：完成 lexicon SSOT 收敛（EN/IT 去重、Magic Pen 改读中心词库、迁移遗留 ZH 词表）
-  - [x] 执行 `PR3`：拆分语言信号提取器并保留共享 resolver，按 PR0 基线做回归对比与风险子集报告
-  - [x] 执行 `PR4`：加固 Magic Pen fallback 与 todo 分类质量（EN/IT 保守落 `unparsed`，减少默认 `life` 偏置）
-  - [x] 每个后续 PR 完成后执行回环校验：`lint:max-lines`、`lint:docs-sync`、`lint:state-consistency`、`tsc --noEmit`，并同步 `docs/CHANGELOG.md` 与本文件
-
-### Session Close Snapshot (2026-03-21)
-
-- `PR1b`、`PR2`、`PR3`、`PR4` 已按主线落地。
-- 基线回归结果（`docs/benchmarks/pr0-baseline.latest.json`）当前为全量通过：
-  - live-input intent: `100.00% (18/18)`
-  - activity category: `100.00% (18/18)`
-  - todo category: `100.00% (18/18)`
-  - magic-pen fallback: `100.00% (6/6)`
-- 下一工作入口建议：直接从 `PR4` 开始，优先处理 Magic Pen EN/IT conservative fallback 与 todo category commit 前分类链路。
-
-### PR4 Execution Snapshot (2026-03-21)
-
-- Magic Pen todo 草稿默认分类从硬编码 `life` 调整为 `unset`，并在提交前按当前语言执行 `normalizeTodoCategory(...)`，避免提前锁死分类：
-  - `src/services/input/magicPenDraftBuilder.ts`
-  - `src/services/input/magicPenParserLocalFallback.ts`
-  - `src/services/input/magicPenTodoSalvage.ts`
-  - `src/store/magicPenActions.ts`
-  - `src/features/chat/MagicPenSheet.tsx`
-- local fallback 新增语言参数并明确 EN/IT conservative 行为：非 ZH 仅处理单段高置信 todo 信号，其余保守落 `unparsed`：
-  - `src/services/input/magicPenParser.ts`
-  - `src/services/input/magicPenParserLocalFallback.ts`
-  - `scripts/multilingual_classification_benchmark.ts`
-- 补齐 PR4 回归覆盖：
-  - `src/services/input/magicPenParser.test.ts`
-  - `src/services/input/magicPenDraftBuilder.test.ts`
-  - `src/store/magicPenActions.test.ts`
-  - `src/i18n/locales/{zh,en,it}.ts`
-- 回环校验结果：
-  - `npm run eval:classification:pr0`：四组 benchmark 全量 `100%`
-  - `npx vitest run src/services/input/magicPenDraftBuilder.test.ts src/services/input/magicPenParser.test.ts src/services/input/magicPenTodoSalvage.test.ts src/store/magicPenActions.test.ts`
-  - `npm run lint:max-lines`
-  - `npm run lint:docs-sync`
-  - `npm run lint:state-consistency`
-  - `npx tsc --noEmit`
-
-### Why This Work Is Reopened
-
-- Runtime language propagation is incomplete. Some EN and IT flows still silently default to `zh`.
-- `ActivityRecordType` and `DiaryClassifierCategory` are still partially mixed in downstream mapping paths.
-- ZH already reuses the central lexicon more consistently, but EN and IT still duplicate lists inside rule files.
-- Magic Pen still depends on a legacy ZH activity lexicon copy, so the project does not yet have a true SSOT for activity phrases.
-- Magic Pen todo category handling is biased toward hard-coded `life`, which lowers category quality for parsed todo drafts.
-- EN and IT Magic Pen fallback behavior has not been frozen as a written spec, so implementation and review remain subjective.
-
-### Frozen Decisions
-
-- `ActivityRecordType` and `DiaryClassifierCategory` must remain separate taxonomies.
-- `src/services/input/lexicon/` is the long-term single source of truth for shared lexical data.
-- `PR1a` only fixes `lang` plumbing. It must not include classifier rewrites.
-- `PR1b` introduces the category adapter boundary and lands immediately after `PR1a`.
-- `PR3` cannot begin until `PR0` benchmark fixtures and rerunnable baselines exist.
-- Magic Pen EN and IT fallback are intentionally conservative. Ambiguous cases should become `unparsed`, not forced records.
-
-### PR0 - Benchmark And Gold Set Baseline
-
-**Goal**
-- Freeze a measurable baseline before modifying classifier logic.
-
-**Tasks**
-- Build multilingual fixture sets for:
-  - live input intent: `activity`, `mood`, `activity_with_mood`, `mood_about_last_activity`
-  - activity category classification
-  - todo category classification
-  - Magic Pen fallback outcomes
-- Add a repeatable runner that prints before and after metrics.
-- Record baseline numbers before any refactor PR starts.
-
-**Required scenario coverage**
-- ZH:
-  - short pure mood utterances
-  - explicit completed activities
-  - future-plan text that must not become completed activity
-  - recent-context mood-about-last-activity cases
-- EN:
-  - token-boundary-sensitive activity phrases
-  - negation
-  - future modal or plan statements
-  - activity plus mood attachment
-- IT:
-  - common verb-form variation
-  - gendered mood adjectives
-  - obligation and future phrasing
-  - activity plus mood attachment
-- Magic Pen:
-  - simple activity
-  - simple mood
-  - simple todo
-  - zh backfill-like input
-  - EN and IT ambiguous input that must remain `unparsed`
-
-**Suggested file areas**
-- `src/services/input/__tests__/`
-- `src/lib/__tests__/`
-- `src/services/input/__fixtures__/`
-- `scripts/` benchmark runner if appropriate
-
-**Acceptance**
-- A benchmark command exists and can be rerun by later PRs.
-- Baseline results are saved in review notes or a local benchmark artifact.
-- All later PRs can compare against the same fixture set.
-
-**Execution snapshot (2026-03-21)**
-- Added multilingual fixture sets under `src/services/input/__fixtures__/`:
-  - `liveInput.intent.fixture.json`
-  - `activity.category.fixture.json`
-  - `todo.category.fixture.json`
-  - `magicPen.fallback.fixture.json`
-- Added benchmark runner `scripts/multilingual_classification_benchmark.ts`.
-- Added rerunnable commands in `package.json`:
-  - `npm run eval:classification:pr0`
-  - `npm run eval:classification:pr0:artifact`
-- Baseline artifact generated at `docs/benchmarks/pr0-baseline.latest.json`.
-- Baseline summary documented in `docs/benchmarks/PR0_BASELINE.md`.
-- Current baseline snapshot:
-  - live-input internal accuracy: `94.44% (17/18)`
-  - activity category accuracy: `94.44% (17/18)`
-  - todo category accuracy: `72.22% (13/18)`
-  - magic-pen fallback accuracy: `100.00% (6/6)`
-
-**Benchmark runner correction (2026-03-21)**
-- Fixed `scripts/multilingual_classification_benchmark.ts` todo-evaluation path to pass fixture `lang` into `normalizeTodoCategory(...)`.
-- This removes cross-language false negatives in the benchmark harness and aligns todo metrics with runtime language plumbing.
-
-### PR1a - Lang Plumbing Only
-
-**Goal**
-- Make runtime language explicit across chat, todo, and low-confidence refine flows.
-
-**Scope**
-- Parameter propagation only.
-- No rule rewrites.
-- No lexicon rewrites.
-- No category semantic changes.
-
-**Primary files**
-- `src/store/useChatStore.ts`
-- `src/store/chatActions.ts`
-- `src/store/chatTimelineActions.ts`
-- `src/store/useTodoStore.ts`
-- `src/lib/mood.ts`
-- `src/lib/activityType.ts`
-- any helper that calls `autoDetectMood`, `classifyRecordActivityType`, or classifier-refine APIs without forwarding `lang`
-
-**Tasks**
-- Audit all `autoDetectMood()` call sites and pass `lang` explicitly.
-- Audit all `classifyRecordActivityType()` call sites and pass `lang` explicitly.
-- Audit low-confidence classifier refine paths and pass `lang` through request builders and API wrappers.
-- Remove hidden reliance on default `zh` anywhere the caller already knows the active language.
-
-**Acceptance**
-- Existing ZH tests remain green.
-- New EN and IT propagation tests pass.
-- No critical chat or todo path silently falls back to implicit `zh`.
-
-**Execution snapshot (2026-03-21)**
-- Propagated runtime language through chat/todo classification and mood auto-detection paths:
-  - `src/store/useChatStore.ts`
-  - `src/store/chatActions.ts`
-  - `src/store/chatTimelineActions.ts`
-  - `src/store/useTodoStore.ts`
-- Updated low-confidence classifier refine requests to forward `lang` explicitly in:
-  - chat record refine flow
-  - todo category refine flow
-- Extended language plumbing in category helpers to avoid hidden `zh` fallback in nested calls:
-  - `src/lib/activityType.ts`
-  - `src/store/reportHelpers.ts`
-  - `src/store/reportActions.ts`
-
-### PR1b - Category System Split
-
-**Goal**
-- Separate local app categories from report or AI-side classifier categories.
-
-**Scope**
-- Introduce one explicit adapter boundary between:
-  - local `ActivityRecordType`
-  - report or AI `DiaryClassifierCategory`
-
-**Suggested file targets**
-- `src/lib/categoryAdapters.ts`
-- `src/lib/activityType.ts`
-- `/api/classify` integration call sites
-- downstream helpers that currently interpret AI-side categories as if they were local categories
-
-**Tasks**
-- Move category-mapping logic into a dedicated adapter module.
-- Define the adapter API clearly and test it directly.
-- Remove hidden ZH-only assumptions from mappings such as `deep_focus -> work or study`.
-- Update docs and tests so the two taxonomies are no longer described as one system.
-
-**Acceptance**
-- One clear translation layer exists between the two category systems.
-- Mapping behavior is language-aware where needed and covered by tests.
-- Reviewers can see category-boundary ownership from file structure alone.
-
-**Execution snapshot (2026-03-21)**
-- Added explicit category adapter boundary in `src/lib/categoryAdapters.ts` for translating `DiaryClassifierCategory -> ActivityRecordType`.
-- Updated low-confidence AI refine paths to use the adapter directly in:
-  - `src/store/useChatStore.ts`
-  - `src/store/useTodoStore.ts`
-- Added direct adapter tests in `src/lib/categoryAdapters.test.ts`.
-
-### PR2 - Lexicon SSOT Consolidation
-
-**Goal**
-- Make the lexicon folder the real single source of truth.
-
-**Primary files**
-- `src/services/input/lexicon/getLexicon.ts`
-- `src/services/input/lexicon/types.ts`
-- `src/services/input/lexicon/activityLexicon.zh.ts`
-- `src/services/input/lexicon/activityLexicon.en.ts`
-- `src/services/input/lexicon/activityLexicon.it.ts`
-- `src/services/input/liveInputRules.en.ts`
-- `src/services/input/liveInputRules.it.ts`
-- `src/services/input/magicPenRules.zh.ts`
-- legacy `src/services/input/activityLexicon.zh.ts`
-
-**Tasks**
-- Merge any still-used legacy ZH phrases into the new lexicon tree.
-- Update Magic Pen rules to consume the centralized lexicon.
-- Refactor EN and IT live-input rule modules to derive reusable word lists from the lexicon rather than maintain parallel copies.
-- Remove or deprecate legacy lexical files once imports are migrated.
-
-**Acceptance**
-- Adding a reusable lexical item requires editing the centralized lexicon only.
-- EN and IT no longer duplicate core reusable word lists in multiple rule files.
-- Magic Pen and live-input rules stop depending on different activity phrase sources.
-
-**Execution snapshot (2026-03-21)**
-- Refactored EN and IT live-input reusable lexical lists to source from centralized lexicon bundles:
-  - `src/services/input/liveInputRules.en.ts`
-  - `src/services/input/liveInputRules.it.ts`
-- Updated Magic Pen ZH activity detection rules to consume `lexicon/activityLexicon.zh.ts` directly.
-- Removed legacy duplicated file `src/services/input/activityLexicon.zh.ts` after import migration.
-
-### PR3 - Shared Resolver Plus Language Extractors
-
-**Goal**
-- Keep one final decision framework while letting each language use a strategy suited to its grammar.
-
-**Primary files**
-- `src/services/input/liveInputClassifier.ts`
-- `src/services/input/liveInputContext.ts`
-- `src/services/input/types.ts`
-- new per-language extractor modules under `src/services/input/signals/` or similar
-- corresponding tests
-
-**Required language strategy**
-- ZH:
-  - phrase-first detection
-  - short pure mood override
-  - verb-object and completion-pattern handling
-  - negation and not-yet-happened filtering
-  - recent-activity context support
-- EN:
-  - token boundaries
-  - phrasal verbs
-  - negation scope
-  - modal and future-plan handling
-  - activity-plus-mood attachment
-- IT:
-  - common inflection handling
-  - gender-form tolerance for mood adjectives
-  - obligation and future patterns
-  - lightweight verb normalization where practical
-
-**Tasks**
-- Split evidence extraction from final resolution.
-- Preserve one shared resolver so output semantics remain aligned across languages.
-- Model mood as attached evidence rather than burying it inside ad hoc branches.
-- Run the PR0 benchmark before the refactor, during milestone checks, and before merge.
-
-**Acceptance**
-- ZH benchmark does not regress below the agreed baseline.
-- EN and IT core intent accuracy reaches the benchmark gate.
-- High-risk subsets are reported separately, not hidden in one aggregate score.
-
-**Execution snapshot (2026-03-21)**
-- Added explicit EN/IT negation intercept rules and wired them into shared resolver flow:
-  - `src/services/input/liveInputRules.en.ts`
-  - `src/services/input/liveInputRules.it.ts`
-  - `src/services/input/liveInputClassifier.ts`
-- Expanded IT activity lexicon coverage so migrated lexicon-source rules preserve prior activity detection behavior.
-- Re-ran benchmark and refreshed artifact (`docs/benchmarks/pr0-baseline.latest.json`):
-  - live-input intent: `100.00% (18/18)`
-  - high-risk negation subset: `100.00% (3/3)`
-  - activity category: `100.00% (18/18)`
-  - todo category: `100.00% (18/18)`
-- Split ZH signal extraction out of resolver path into:
-  - `src/services/input/signals/zhSignalExtractor.ts`
-  - `src/services/input/liveInputClassifier.ts` now consumes the extractor and keeps shared decision semantics.
-- Added shared resolver module for score aggregation and final decision output:
-  - `src/services/input/resolver/liveInputResolver.ts`
-  - `src/services/input/liveInputClassifier.ts` now focuses on language-specific evidence assembly and context routing.
-
-**Category lexicon calibration (2026-03-21)**
-- Tuned category keyword coverage to resolve remaining work/study boundary misses:
-  - `src/services/input/lexicon/categoryLexicon.en.ts` (added probability/statistics-focused study terms)
-  - `src/services/input/lexicon/categoryLexicon.zh.ts` (added `周报`/`准备周报` work signals)
-
-### PR4 - Magic Pen Category And Fallback Hardening
-
-**Goal**
-- Make Magic Pen local behavior predictable, conservative, and measurable.
-
-**Primary files**
-- `src/services/input/magicPenParser.ts`
-- `src/services/input/magicPenParserLocalFallback.ts`
-- `src/services/input/magicPenTodoSalvage.ts`
-- `src/services/input/magicPenDraftBuilder.ts`
-- `src/features/chat/MagicPenSheet.tsx`
-- `src/store/magicPenActions.ts`
-- `src/features/chat/chatPageActions.ts`
-- `api/magic-pen-parse.ts`
-- `src/server/magic-pen-prompts.ts`
-
-**Frozen fallback spec**
-- ZH fallback:
-  - keep the current richer local capability
-  - support `activity_backfill`, `todo_add`, and `unparsed`
-  - retain existing salvage where it is already reliable
-- EN fallback:
-  - only high-confidence single-segment `activity`, `mood`, or `todo_add`
-  - no `activity_backfill`
-  - no multi-segment split
-  - no local time inference
-  - uncertain input becomes `unparsed`
-- IT fallback:
-  - same conservative envelope as EN
-  - allow limited inflection and gender-form tolerance
-  - still no local backfill or complex time parsing
-
-**Tasks**
-- Stop defaulting Magic Pen todo drafts to hard-coded `life` when category can be computed later.
-- Allow draft-stage category to remain unset when that produces cleaner behavior.
-- Classify todo category from localized text before commit, then refine only if confidence is low.
-- Ensure non-hit EN and IT fallback samples fail safely into `unparsed`.
-
-**Acceptance**
-- Magic Pen todo category quality improves on the benchmark set.
-- EN and IT fallback behavior is stable against the written spec.
-- Fast path and parser path no longer drift on obvious simple cases.
-
-### Quantitative Gates
-
-- ZH regression rule: no significant drop from the PR0 baseline.
-- EN and IT live-input core intent accuracy target: `>= 90%`.
-- High-risk subsets must be reported separately:
-  - future plan vs actual activity
-  - negation
-  - mood about last activity
-- Magic Pen EN and IT fallback target: `>= 85%` on conservative sample sets.
-- Magic Pen safety rule: ambiguous non-hit cases should become `unparsed`, not incorrect persisted records.
-- Any PR that changes classifier behavior should include benchmark output in review notes.
-
-### Explicit Non-Goals
-
-- Do not rewrite all multilingual logic in one PR.
-- Do not replace the AI Magic Pen parser with a fully rule-based system.
-- Do not merge `DiaryClassifierCategory` into local `ActivityRecordType`.
-- Do not add heavy NLP dependencies unless benchmark evidence later proves they are needed.
-- Do not treat the plant-system archive below as the active plan for this workstream.
-
-### Resume Order For This Mainline
-
-1. Read `LLM.md`.
-2. Read this file and follow the PR order in this override section.
-3. Read `docs/PROJECT_MAP.md`.
-4. Read `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`.
-5. Read `docs/LEXICON_ARCHITECTURE.md`.
-6. Read Magic Pen specs and prompt docs before starting `PR4`.
-7. Start execution from `PR0`, not from direct refactor work.
-
-- Last Updated: 2026-03-20
-- Owner: current working session
-- Purpose: this file is the single execution anchor for `多语言词库优化` and `植物系统开发`.
-
-## Current Focus
-
-- **Task Completed**: `多语言词库优化` (Multi-language Lexicon Optimization) is fully implemented, verified, and documented.
-- **Next Mainline**: Return to `植物系统开发` (Phase 3-4 convergence) or continue with Magic Pen multi-language expansion as requested.
-
-## Latest Execution Snapshot (2026-03-20)
-
-- [x] **Unified Lexicon Architecture**: Created `src/services/input/lexicon/` with per-language files for activities, moods, and categories.
-- [x] **Interfaces & Factory**: Implemented `types.ts` and `getLexicon.ts` for clean multi-language access.
-- [x] **Core Refactoring**: `autoDetectMood` and `classifyRecordActivityType` now use the centralized lexicon and support `lang` parameter (ZH/EN/IT).
-- [x] **Logic Synchronization**: Updated `liveInputRules.zh.ts`, `magicPenTodoSalvage.ts`, and `magicPenDraftBuilder.ts` to consume the new system.
-- [x] **Documentation Sync**: Updated `ACTIVITY_LEXICON.md`, `ACTIVITY_MOOD_AUTO_RECOGNITION.md`, `TSHINE_DEV_SPEC.md`, and created `LEXICON_ARCHITECTURE.md`.
-- [x] **Validation**: All 129 core classification tests and multi-language regressions pass.
+Last Updated: 2026-04-20
+Owner: current working session
 
 ---
 
-## Historical Tasks (Plant System Phase 0-3)
+## 会话更新（2026-04-20）
 
-- 已完成 Phase 0 数据层与 Phase 1 算法层... (keeping the rest of the file content)
+- [x] Free 日记 Teaser 情绪词兜底修复：移除 `{情绪词}` 固定回填“有点累”，改为按语言词库从输入中提取情绪词；并按桶位区分正负向匹配策略（A 桶优先负向、B 桶优先正向，其余桶回退中性词）。
+- [x] Profile「我的作息」面板密度优化：收紧弹层留白与间距、适度缩小时间输入控件纵向占位并提升可读字号；新增“上班/上学”双预览卡同屏展示，减少切换与滚动成本，同时保留当前身份下的详细编辑区。
+- [x] Report 页日期入口重设计：将顶部日期区改为可点击玻璃卡片（强化边框/阴影/圆角与下拉指示器），并重排星期与日期字号层级，提升“可点击”识别度与视觉美观度。
+- [x] 日记书架日期搜索面板视觉修复：去除输入框内重叠灰字方案（改为输入框下方提示行 + 关闭输入自动补全），并将日历热度色阶升级为三档绿色玻璃拟态（浅/中/深）与选中态统一深绿质感，提升可读性与整体一致性。
+- [x] 修复 pre-commit `lint:max-lines` 阻断（i18n 词条文件）：对 `src/i18n/locales/{zh,en,it}.ts` 执行无语义压缩（移除空行），将三份 locale 行数降到 1000 行以内并通过 max-lines 校验。
+- [x] `/chat` 提醒 Hook 合约正修复：恢复 `useReminderSystem` 对 `confirmReminderFromPopup` 的显式返回类型与稳定返回对象，并将 `App` 从临时可选兜底改回标准解构调用，彻底对齐调用方与 Hook 返回契约（不再依赖可选链止血）。
+- [x] 修复 `/chat` 页面渲染崩溃兜底：`MainLayout` 中对 `useReminderSystem(navigate)` 返回值增加空值保护，避免在异常返回 `undefined` 时解构 `confirmReminderFromPopup` 直接触发白屏；提醒弹窗确认回调同步改为可选调用。
+- [x] Onboarding 测试态阻断提示文案更新：完成态禁用提示改为“当前在测试中，需先切换回目标卡片再继续”，并按状态区分“切回活动继续 / 切回心情继续”，避免沿用“Wrong type”造成误解。
+- [x] Onboarding 心情转换回路补齐：当首条活动被转为心情卡时，完成态新增“请先转回活动再继续”提示并锁定下一步按钮；当独立心情卡被转为活动时，不再消失，改为继续展示活动卡并提示“请转回心情继续体验”，未转回前同样禁止进入下一步。
+- [x] Onboarding 关联心情状态提示补齐：`StepJournal` 完成态改为优先跟随活动卡 `moodDescriptions` 推导“已关联”状态，并在无本地 `moodMessageId` 时自动回填；确保关联态稳定显示 linked 提示 + 拆分按钮说明，拆分为独立心情卡后切换为“回归活动/转为活动”双按钮说明，回归后恢复 linked 提示。
+- [x] Onboarding 首条记录完成态文案降温：`onboarding_j3_complete_title/desc` 三语由“已完成”改为“继续体验卡片操作”，避免在引导未结束时出现“all set”误导。
+- [x] 日记书架新增日期搜索入口：书架页头部加入圆形搜索按钮，弹出数字日期输入（`YYYY MM DD`）+ 同步日历视图；支持 `6/06`、`1/01` 等零填充混输识别，输入年/月/日时分别联动年视图、月视图与选中日。
+- [x] 日记书架日期热度可视化：搜索日历按当日记录条数分层显示（0 条空心、1-5 条浅色、5+ 条深色），同色系并与现有书架绿色视觉保持一致；点击已选中日期可直接跳转到对应书页。
+- [x] Onboarding 首屏语言改为自动检测：移除强制语言选择步骤，首启基于系统语言自动落盘（i18n detector 增加 navigator），引导流程由 8 步收敛为 7 步（Auth -> AI -> Journal -> Todo -> Bottle -> Routine -> Subscription）。
+- [x] Onboarding 文案与语言链路重构：首屏强制语言选择（zh/en/it），并将 Auth / Journal / Todo / Routine 关键文案全面接入 i18n 三语 key，去除硬编码中文与语义错位 CTA。
+- [x] 修复 Onboarding「心情输入不可编辑」：首条记录页新增独立心情输入框，支持“仅心情”或“活动+心情”双轨写入时间流。
+- [x] Onboarding 新增首屏语言选择（zh/en/it）：流程调整为先选语言，再进入后续引导；已登录用户跳过登录步直接进入 AI 选择。
+- [x] 修复 Onboarding「心情输入无法点击」：首条记录页增加可编辑心情输入栏，支持“仅心情”或“活动+心情”共同写入聊天时间线。
+- [x] 修正 Onboarding 待办页 CTA 语义错位：按钮文案改为通用“下一步”，移除“全部计划完毕”误导文案，并接入现有 i18n key。
+- [x] Onboarding 新增「目标/习惯瓶子」引导页：放在待办之后、作息之前，支持先创建瓶子并同步写入 Growth store。
+- [x] 修复 Onboarding 首条活动/待办不同步：引导内录入改为直接写入 `useChatStore` 与 `useTodoStore`，进入 App 后可在聊天时间线与 Growth 待办列表立即看到。
+- [x] Onboarding AI 选择页扩展为 4 个人设（Van/Agnes/Zep/Momo）：引导阶段支持直接点选并写入 `preferences.aiMode`，不再固定只落 `van`。
+- [x] 增加新手引导测试开关：访问 `/onboarding?forceOnboarding=1`（或构建时设置 `VITE_FORCE_ONBOARDING=1`）可强制预览引导页，老账号/新账号都可进入。
+- [x] Onboarding 首条记录卡片改为真实交互：`StepJournal` 发送活动后直接落盘并渲染真实 `EventCard/MoodCard`，活动卡相机/转换按钮在引导页默认常显且可直接点击；补充绿色时长说明（复用 `elapsed_label`）。
+- [x] Onboarding 心情卡片交互引导补齐：展示“关联在活动下的心情”和“独立心情卡”两类形态；支持在引导页直接点击体验「从活动中提出」「回归活动」「转为活动」等真实按钮逻辑。
+- [x] Onboarding 转心情后的说明文案分流：当活动已转为心情卡时，说明区改为匹配右上角新按钮（`mood_return_event` / `mood_to_event`）的专属解释，不再沿用活动卡阶段文案。
+- [x] Onboarding 心情卡按钮可用性收口：当当前上下文没有可回归的活动卡时，隐藏 `mood_return_event` 按钮与对应解释，避免新手误以为按钮失效。
+- [x] Onboarding Journal 说明文案升级：补充活动时长、手动结束与“下一条活动自动结束并计时”、照片记录（含卡片节选显示 + 点击看原图）、活动转心情用途与“心情模式不计时”解释；转心情后按钮说明改为心情卡专属语义。
+- [x] Onboarding 心情标签交互对齐真实业务：活动卡右侧心情标签可点击打开真实 MoodPicker（可选预置心情 + 自定义标签），并新增对应说明文案。
+- [x] Onboarding Journal 文案进一步精简：将“手动结束 + 自动结束”合并到时长同一行；将“心情模式不计时”并入“转为心情”说明；移除裁切说明行，降低信息密度。
+- [x] MoodPicker 选中态修正：切入自定义时仅高亮自定义标签（不再与预置心情同时高亮）；自定义输入默认空白，用户可直接输入无需先删除“Custom/自定义”。
+- [x] Onboarding 文案排版微调：时长说明行内插入“结束按钮”可视化示意；并按产品语义区分“心情模式（记录具体心情/灵感，不计时）”与“活动心情标签（记录活动中的状态，可自定义）”。
+- [x] Onboarding 转心情后按钮收口：在新手引导场景中，首条活动转为心情后仅保留“转回活动（`mood_to_event`）”按钮与说明，不再展示“回归上一个活动（`mood_return_event`）”。
+- [x] Onboarding 完成态文案降噪：移除“Linked mood”标签后方解释句，仅保留标签本身，减少视觉干扰。
+- [x] Onboarding 完成态继续降噪：移除“Linked mood”标签本身，完成态不再展示该区块。
+- [x] Onboarding 转心情回路强制单路径：移除引导页内 `reattachMoodToEvent` 调用与所有“Return to Event”分支，避免热更新残留时再次显示回归入口。
+- [x] Onboarding 首条记录删除限制：点击卡片右上角删除按钮时改为弹出提示（不可删除引导示例记录），并阻断实际删除行为。
+- [x] Onboarding 完成态补全“关联心情 -> 独立心情卡”教学：当心情仍关联活动时显示 Linked 状态与拆分按钮说明；拆分后切换为独立心情卡按钮说明（回归活动 / 转为活动），并随 linked 状态实时更新。
 
+## 会话更新（2026-04-19）
 
-## Reference Documents
+- [x] 修复 Profile「我的作息」弹窗在手机端显示不全：弹层改为移动端底部 sheet + 安全区内边距 + `100dvh` 高度约束，避免底部按钮和内容被裁切。
+- [x] 修复作息保存状态反复横跳：移除自动保存定时器，统一改为手动点击保存，避免 `保存中/保存` 循环切换导致面板不可操作。
+- [x] 修复“修改时间偶发不生效”：作息脏检查从仅比较起床/睡觉/三餐，扩展为覆盖身份（自由/上班/上学）、工作时间、课程时间、提醒开关，确保所有改动都能触发保存。
+- [x] 修复时间选择器默认定位：每次打开时间滚轮时先同步到当前已保存时间（小时/分钟），不再从 `00:00` 开始重新滚动。
+- [x] 修复移动端主动提醒弹窗不稳定显示：`ReminderPopup/EveningCheckPopup` 补齐全屏 fixed overlay + z-index，保证 ✓/✗ 弹窗在 App 顶层可见。
+- [x] 修复 App 退到后台后系统通知不稳定：调度本地通知前先执行权限校验（`granted/prompt/denied`），`prompt` 场景自动申请授权，避免静默调度失败。
+- [x] 修复同日修改作息后通知不刷新：作息保存成功后清理 `reminder_scheduled_date`，触发当日重新排程，确保修改的时间当天生效。
+- [x] 修复 Onboarding 最后一步偶发卡住：`Start using Seeday` 点击后改为非阻塞写入 profile（不等待云端返回），先进入 `/chat`，避免网络抖动导致无法进入 App。
+- [x] 本地通知插件环境修复：补装 `@capacitor/local-notifications` 依赖并执行 `npx cap sync ios`，确保 iOS 原生工程已链接通知插件。
+- [x] 修复 `lint:max-lines` 阻断：将 `DiaryBookViewer` 的放大查看弹层拆分到独立组件文件，主文件降至 1000 行以内（当前 907 行），功能行为不变。
+- [x] Vercel 函数配额收口（13 -> 12）：删除独立 `api/todo-decompose.ts`，将待办拆解并入 `api/classify.ts` 的 `todo_decompose` 分支，并通过 `vercel.json` rewrite 继续兼容 `/api/todo-decompose` 旧路径。
+- [x] 修复 iOS 聊天输入框被键盘遮挡：聊天底部输入容器改为跟随 `--keyboard-height` 上移，`setupKeyboardViewportFix` 初始化时重置键盘变量，确保键盘弹出时输入框同步抬升。
+- [x] iOS 键盘弹起时隐藏底部导航：全局 `BottomNav` 与聊天页内底部导航增加 `keyboard-open` 联动隐藏，避免键盘期导航挤压输入区与误触。
+- [x] 输入分类词库补强（zh/en/it）：按“动词+对象”优先扩充运营/财务高频动作（如 修改订单 / 支付账单 / 核对账单，EN/IT 对应 verify/pay/reconcile + object 短语），并补齐回归测试。
+- [x] Onboarding 新增「待办引导页」：接入同事提供的 UI 与交互（待办输入/时间/重复/紧急程度/推荐项/继续按钮），并在引导流程中插入为独立步骤。
+- [x] Onboarding 重写「首条记录引导页」：按新稿接入拟物输入卡、AI 感应提示、发送同步态与 `at_activities` 本地落盘逻辑。
+- [x] Onboarding 重写「作息设置页」：按新稿接入滚轮时间选择器、身份切换区、提醒开关与「保存并继续」交互，并将提醒开关接入 profile 保存链路。
+- [x] Onboarding 重写「注册/登录引导页」：按新稿替换首屏视觉与输入区（手机号/邮箱 + Apple/Google 入口 + 协议提示），并保持“输入后可继续”门控交互。
+- [x] 修复日报心情圆环漏计：`getDailyMoodDistribution` 对齐报告生成链路，支持 `customMoodLabel/customMoodApplied`，并过滤 0 分钟项，避免“开心+专注”被收敛成 `100% 专注`。
+- [x] 修复日记本活动/心情饼图丢失：`DiaryBookViewer` 饼图改为优先读取 `report.stats.actionAnalysis/moodDistribution` 快照（与白天环一致），仅在历史空快照时回退消息重算。
+- [x] Stripe Web 支付首版闭环：`/api/subscription` 新增 `stripe_checkout/stripe_finalize` 分支，前端 `src/services/payment/stripe/index.ts` 接入跳转 Checkout + 回跳后自动 finalize；iOS 构建仍通过 `VITE_PAYMENT_MODE=iap` 走 IAP 适配层，不打包 Stripe 实现。
 
-- Global rules: `LLM.md`
-- PRD: `docs/TimeShine_植物生长_PRD_v1_8.docx`
-- Tech Design: `docs/TimeShine_植物生长_技术实现文档_v1.7.docx`
-- Project boundary: `docs/PROJECT_MAP.md`
-- iOS/Web implementation spec: `docs/TSHINE_DEV_SPEC.md`
+---
 
-## Phase Plan (P0-P6)
+## 会话更新（2026-04-18）
 
-### Phase 0 - 基线与数据层（先打地基）
+- [x] 主动提醒系统 Phase 1 落地（`docs/PROACTIVE_REMINDER_SPEC(1).md`）：
+  - 安装 `@capacitor/local-notifications`
+  - 新建 `src/services/notifications/localNotificationService.ts`：5 种通知类别注册、idle_nudge 调度/取消、批量调度、动作回调
+  - 新建 `src/services/reminder/reminderTypes.ts` / `reminderCopy.ts`（4 人格 × 20 提醒类型）/ `reminderScheduler.ts`（工作日/周末队列、节假日检测）
+  - 新建 `src/store/useReminderStore.ts`（当日已响应、弹窗状态）
+  - 新建 `src/components/ReminderPopup.tsx`（AI头像 + ✓/✗ + 快捷输入框 + 晚间总结弹窗）
+  - 新建 `src/hooks/useReminderSystem.ts`（App 级 Hook，前后台 idle 调度 + 前台定时弹窗）
+  - 新建 `api/check-holiday.ts`（节假日检测端点）
+  - 扩展 `src/types/userProfile.ts`：`UserProfileManualV2 / ClassSchedule / TimeRange`
+  - 扩展 `UserProfilePanel.tsx`：日程勾选区块、作息扩展字段、提醒开关
+  - 迁移 `App.tsx`：用新系统替代旧 `useNightReminder`
+  - 新增三语 i18n key（约 25 个）
+- [x] Vercel Hobby 函数配额收口（二次）：移除独立 `api/check-holiday.ts`，将 `holiday_check` 查询分支并入 `GET /api/live-input-telemetry?module=holiday_check&date=&country=`；`reminderScheduler` 改道到合并端点，函数总数压回 12。
+- [x] 日记 system prompt 组装重构：移除 `api/diary.ts` 中“人格 + core + 称呼规则”的运行时拼接；将 core 规则与称呼硬约束内嵌进四人格 `diary` prompt 文本（`src/lib/aiCompanion/prompts/{van,agnes,zep,momo}.ts`），服务端仅做 `__ADDRESSEE__` 占位符注入。
+- [x] 日记称呼替换去 LLM 化：删除 `api/diary.ts` 的 `rewriteAddresseeIfNeeded` 二次模型重写链路；改为纯规则检测+替换（命中 `用户/ta/the user/l'utente` 等表达时直接替换为昵称），避免额外 token 成本与措辞漂移。
+- [x] 日记称呼规则注入位置调整：将“对方称呼统一为 `__ADDRESSEE__`”从四人格 `diary` system prompt 移除，改为在 `api/diary.ts` 组装 diary `user` prompt 时按 `zh/en/it` 注入同义规则句（system 仍保留泛称呼禁用规则与末端规则替换兜底）。
 
-**目标**：完成数据结构、类型和映射，建立可联调基础。
+---
 
-- [x] 建表迁移：`daily_plant_records`（含 `(user_id, date)` 唯一索引）与 `plant_direction_config`。
-- [x] 补齐字段：`timezone`、`root_metrics(jsonb)`、`is_support_variant`、`cycle_id(null)` 等一期必需字段。
-- [x] 新建类型：`src/types/plant.ts`（RootType/PlantStage/RootMetrics/DailyPlantRecord/Direction 配置）。
-- [x] 扩展映射：在 `src/lib/dbMappers.ts` 增加 `fromDbPlantRecord` 与 `toDbPlantRecord`。
-- [x] 约束确认：root_type 仅存 5 种主根型（tap/fib/sha/bra/bul），sup 只用 `is_support_variant` 表示。
-- [x] 产出 SQL 回滚脚本（仅撤销本次新增对象）。
+## 会话更新（2026-04-17）
 
-**验收**：本地/测试库可完成插入、查询、幂等复写；TypeScript 无类型缺口。
+- [x] 预提交 max-lines 修复：`useAuthStore.ts` 将登录/活跃连续天数计算 helper 拆分到 `authStreakHelpers.ts`，主 store 行数降至 1000 行以内（当前 942 行），不改变现有登录与 streak 逻辑。
+- [x] 全端防复制收口：在 `src/index.css` 全局禁用文本选中与图片拖拽（`user-select: none` / `-webkit-touch-callout: none` / `-webkit-user-drag: none`），并在 `src/main.tsx` 拦截 `copy/cut/contextmenu/selectstart/dragstart` 事件，统一覆盖网页端在电脑/手机/平板的复制与长按复制入口。
+- [x] 聊天时间线消息卡片交互收口：活动卡与心情卡删除 `X` 改为仅在点击激活卡片后显示，未激活时隐藏；行为与相机上传按钮保持一致。
+- [x] 聊天时间线卡片激活态移动端修复：卡片外关闭监听补齐 `touchstart/pointerdown`，并新增“激活互斥”广播，避免移动端滚动/点按后多个卡片长期同时显示操作按钮。
+- [x] Profile「作息/AI专属记忆」能力拆分：新增独立作息编辑面板（起床/睡觉/三餐）并保持 Free 可用；AI 专属记忆改为 Plus 功能，Free 侧显示会员升级引导。
+- [x] Profile AI 专属记忆 UI 回调：Free 端改为与原版一致的“专属记忆模块”外观，使用统一小锁样式（不可展开）；Plus 保持原可展开编辑体验。
+- [x] AI 专属记忆会员门控收口：`useAnnotationStore` 与周报画像提取链路改为 `isPlus && longTermProfileEnabled` 双门控，避免 Free 继续注入/提取长期画像。
+- [x] 会员权益与规格文档同步：`MembershipCard/UpgradePage` 权益列表新增“AI 专属记忆”，并在 `docs/MEMBERSHIP_SPEC.md` 明确“作息 Free、AI 专属记忆 Plus”。
+- [x] 新增会员项目现状文档：`docs/MEMBERSHIP_PROJECT_STATUS.md`，沉淀“规格 vs 当前实现”对照、支付链路状态、Free/Plus 手测清单与已知差异，便于新同学快速接手。
+- [x] 管理员 Telemetry 看板国际化补齐：`TelemetryHubPage`、`LiveInputTelemetryPage`、`AiAnnotationTelemetryPage`、`TodoDecomposeTelemetryPage` 改为使用 i18n key，支持 `zh/en/it` 跟随全局语言切换。
+- [x] Profile 设置页管理员入口文案收口：`Telemetry Center` 改为 i18n key（`telemetry_hub_title`），避免中英文混显。
+- [x] 新增三语词条：在 `src/i18n/locales/{zh,en,it}.ts` 增补 Telemetry Hub / Live Input / AI Annotation / Todo Decompose 全量文案键。
+- [x] Vercel Hobby 函数配额收口：将 User Analytics 从独立 `api/user-analytics.ts` 合并到 `GET /api/live-input-telemetry?module=user_analytics`，并保留 `type=user_lookup` 查询分支。
+- [x] 前端 User Analytics API 改道：`callUserAnalyticsDashboardAPI/callUserAnalyticsLookupAPI` 统一改为调用 `/api/live-input-telemetry`（带 `module=user_analytics` 参数）。
+- [x] 删除独立 serverless 入口 `api/user-analytics.ts`，将函数总数压回 Hobby 上限以内。
+- [x] Growth 待办标题编辑交互收口：仅在待办卡片处于展开态时允许双击标题进入编辑；未展开态双击不再触发标题编辑。
+- [x] 聊天魔法笔会员门控弹窗收口：Free 点击魔法笔改为弹出统一风格会员引导弹窗；右上角关闭/稍后按钮只关闭弹窗不跳转，明确由“去开通 Plus”按钮触发 `/upgrade`。
+- [x] 聊天魔法笔会员弹窗样式微调：移动端从底部 sheet 改为屏幕居中展示，卡片下边角补齐圆角（统一 `rounded-3xl`），避免“底部无圆角/未居中”。
+- [x] 聊天魔法笔会员弹窗尺寸对齐：卡片宽度改为 `max-w-xs`，并按现有升级弹窗分区（标题区 `px-5 pt-6 pb-4` + 按钮区 `px-5 py-4`）统一视觉密度与高度。
+- [x] 日记预览页底色微调：`DiaryBookShelf/DiaryBookViewer` 共享背景从旧深绿 `#7a9b7e` 调整为浅灰绿 `#B8C2AE`，对齐最新视觉稿。
+- [x] 日记书架书本阴影改版：`DiaryBookShelf` 书封面阴影改为“硬边投影 + 柔边漫射”三层叠加，弱化纯模糊阴影，让边角更明确、更接近真实书本落影。
+- [x] 日记书架封面色板改版：封面改为牛皮纸棕 + 红棕书脊（MUJI 风格），新增封面边框线与纸张颗粒层，同时保留书脊凹线细节。
 
-### Phase 1 - 算法层（可计算、可调参）
+---
 
-**目标**：落地根系指标计算、根型评分和 SVG 路径生成核心能力。
+## 会话更新（2026-04-11）
 
-- [x] 新建 `src/lib/plantCalculator.ts`：`computeRootMetrics()`、`matchRootType()`、`resolveSupportVariant()`。
-- [x] 固化分母口径：
-  - dominant/top2_gap 用加权总时长（生活方向 0.3）。
-  - support_ratio/娱乐占比用真实总时长。
-  - evenness/branchiness 仅看目标性方向。
-- [x] 实现评分制竞争 + tie-break（分差 < 6 时 fib > tap > bra > sha > bul）。
-- [x] 将阈值/权重集中到 `ROOT_SCORE_CONFIG`，确保可配置调参。
-- [x] 新建 `src/lib/rootRenderer.ts`：对数长度映射、方向角、主根融合（1次主根、2-3次侧根、4次后增粗延长）。
-- [x] 实现固定 seed 控制点扰动，保证“同日同根刷新形态不变”。
+- [x] 修复「拆解子待办 -> 连续专注」默认时长显示错误：Focus 弹层初始时长与未开始状态下的时长同步，改为优先使用首个/当前子任务 `suggestedDuration`，不再固定 25min。
+- [x] 魔法笔发送路由收口：本地快路径改为仅 8 字以内短句可触发；新增“待办/清单”意图拦截与多动作拦截，命中时强制走 parser，避免误直写活动。
+- [x] 修复 recovery 建议“正文与按钮目标错位”：recovery 场景切到 recovery-only prompt，仅提供 recovery 目标上下文；服务端统一校验并强制 suggestion 与 recovery todo 对齐。
+- [x] 修复 todo-decompose 在 Gemini `gemini-2.0-flash` 下线导致 404：默认模型升级为 `gemini-2.5-flash`，并增加 404 自动降级重试（`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`）。
+- [x] `/api/todo-decompose` 增加服务端调试日志与失败结构化日志，支持 `TODO_DECOMPOSE_VERBOSE_LOGS=true` 快速定位 DashScope/Gemini 调用异常。
+- [x] annotation 中文模型切换为 `deepseek-chat`，并接入 `deepseek` provider 运行时（`DEEPSEEK_API_KEY` + `ANNOTATION_DEEPSEEK_BASE_URL`）。
+- [x] 修复 annotation 在 DeepSeek 下错误调用 `/v1/responses` 导致 404：改为 deepseek provider 走 `chat.completions`。
+- [x] 修复 annotation 在 Gemini 下 404：改为 Gemini 原生 `generateContent` 请求，不再走 OpenAI `responses` 路径。
+- [x] 待办拆解 provider 路由调整：`zh -> qwen`，`en/it -> gemini-2.5-flash`（不再走 OpenAI）。
+- [x] 同步文档与环境变量清单（`api/README.md`、`DEPLOY.md`、`.env.example`、`docs/AI_USAGE_INVENTORY.md`）。
+- [x] annotation 可观测补全：`ANNOTATION_VERBOSE_LOGS=true` 时在 Vercel Logs 结构化输出完整请求体、system/user prompt、LLM 原始输出、最终响应，以及横向联想/低叙事触发详情。
 
-**验收**：提供覆盖正常/空气/娱乐主导/sup 触发的单元测试；输出结果与 PRD 附录口径一致。
+## 会话更新（2026-04-13）
 
-### Phase 2 - Store 与 API 主链路（数据流打通）
+- [x] 语言偏好上云：`LanguageSwitcher` 切换语言时改为调用 `useAuthStore.updateLanguagePreference()`，写入 Supabase Auth metadata `i18nextLng`，不再仅依赖 localStorage。
+- [x] 云端语言回填：登录初始化与 `SIGNED_IN` 事件新增语言 metadata 自愈；若云端缺失 `i18nextLng`，自动将当前 i18n 语言写回云端。
+- [x] todo-decompose 详细排障日志增强：`TODO_DECOMPOSE_VERBOSE_LOGS=true` 时输出 provider `finishReason`、usage、完整 `rawFull` 及上游错误原文（`responseRaw`），便于定位“回复说一半/解析失败”。
+- [x] annotation 调试链路补齐 Gemini 完整返回：`ANNOTATION_VERBOSE_LOGS=true` 时输出 Gemini `finishReason`、`usageMetadata` 与完整 `rawFull`；同时在 suggestion/annotation/rewrite 日志中透传 `finishReason`。
 
-**目标**：把前端状态、后端生成和数据库写入串成完整链路。
+## 会话更新（2026-04-15）
 
-- [x] 新建 `src/store/usePlantStore.ts`（todaySegments/todayPlant/directionOrder/isGenerating/selectedRootId）。
-- [x] 接入活动数据监听：新增、编辑、删除在当日未生成前持续实时影响根系（跨到次日自动重置）。
-- [x] 新建 `api/plant-generate.ts`：时间窗校验、幂等校验、优先级判定、写库、返回状态协议。
-- [x] 新建 `api/plant-diary.ts`：复用既有 AI 管线，支持 fallback 文案与异步重试。
-- [x] 新建 `api/plant-history.ts`：按日期区间拉取植物历史记录。
-- [x] 统一接口状态枚举：`too_early` / `empty_day` / `generated` / `already_generated`。
+- [x] 修复日记详情页「活动/情绪总结被截断」：根因是 `generateActionSummary/generateMoodSummary` 在 `reportHelpers.ts` 内被硬截断为前 50 字符（无省略号），非 AI 返回截断。
+- [x] 回填历史兼容：`ReportDetailModal` 新增 legacy 截断检测，命中时使用 `stats.actionAnalysis/moodDistribution` 重新生成完整总结，避免旧报告继续显示半句。
+- [x] 显示层兜底：`SectionRow` 右侧文本列增加 `minWidth:0` 与 `overflowWrap:anywhere`，防止极端长词/长串导致布局裁切。
+- [x] 修复 Growth「添加待办」弹层在移动端过高且不可顺畅下拉：改为头/内容/底部按钮三段式布局，内容区独立滚动（含 iOS 惯性滚动），底部确认按钮固定可见，避免被底部区域遮挡；并对齐其他弹窗样式收窄为居中卡片（`min(92vw,420px)`）避免“弹窗过大”。
+- [x] 修复聊天时间线编辑弹窗「点击确定后不自动关闭」边界：`handleSave` 改为 `try/finally` 收口，编辑/插入成功执行后统一关闭弹窗，避免持久化阶段异常时弹窗卡住。
+- [x] 修复重复待办“每天新增一条”堆积：`generateRecurringTodos` 新增“同模板存在未完成实例则跳过生成”门控，改为同一模板同一时刻只保留一条未完成实例。
+- [x] 修复 monthly 重复待办生成频率：新增/自动生成都收敛为仅每月 1 号生成，避免按天误生成。
+- [x] Growth 瓶子交互改版：点击瓶子统一改为详情弹层（替代原“仅生成待办确认框”），将删除入口合并进弹层并保留达成态操作（浇灌/继续追踪）。
+- [x] Growth 瓶子新增轻量打卡统计：`Bottle.checkinDates`（`YYYY-MM-DD` 去重）在 `incrementBottleStars` 统一写入，详情弹层展示“近7天打卡天数（含今天）/当前连续/最长连续”。
+- [x] 日记输入数据收口：移除 `formatForDiaryAI` 中“光谱分布/光质读数/能量曲线/引力错位/历史趋势”区块，改为仅保留事件清单、心情记录、专注时长和待办完成概览。
+- [x] 旧结构清理：删除 `SpectrumBarChart` / `LightQualityDashboard` 组件与相关 i18n key，`ComputedResult` 与 `ReportStats` 同步去除 `spectrum/lightQuality` 字段，避免旧世界观术语继续渗入日记链路。
+- [x] 日记落款兜底：`api/diary.ts` 新增签名检测与按人设补签名（Van/Agnes/Zep/Momo），避免模型漏写落款。
+- [x] 日记称呼防线升级：`api/diary.ts` 新增称呼 fallback（ZH=`园主` / EN=`Gardener` / IT=`Custode`）+ 生成后质检重写 + 末端硬替换，降低“用户/ta/the user”残留概率。
+- [x] 修复 TypeScript 构建阻断（annotation/extract-profile）：`decomposeTodoWithAI` 参数改为 `geminiApiKey`；移除 Gemini OpenAI 兼容调用中的无效 `reasoning_effort` 字段；`extract-profile-service` 增加置信信号标准化，确保输出符合 `UserProfileObserved/UserProfileDynamicSignals` 类型。
+- [x] 修复 Growth 待办同步“重试仍失败”循环：`useTodoStore.fetchTodos()` 推送改为父待办优先、子待办后推，并对 `todos_parent_id_fkey (23503)` 增加父任务补推与去父引用兜底，避免子待办先写导致反复 400/409。
+- [x] 修复 Growth 待办同步 `22003 bigint out of range`：`toDbTodo/toDbTodoUpdates` 新增 bigint 字段安全归一化（`created_at/due_date/started_at/completed_at/sort_order`），并在新增待办时对 `sortOrder` 做安全夹紧，避免异常极值穿透到 Supabase。
 
-**验收**：前端可调用 API 走完整生成流程；重复调用同一天生成接口返回同一记录。
+## 会话更新（2026-04-16）
 
-### Phase 3 - 根系白天体验（可视 + 可交互）
+- [x] 会员升级页首版落地：新增 `/upgrade` 页面（方案切换、权益对比、支付按钮占位、iOS 恢复入口占位），并将 Profile/Report 侧升级入口统一跳转到 `/upgrade`。
+- [x] 支付构建隔离基建：新增 `@payment` alias（`VITE_PAYMENT_MODE=iap|stripe`）与双实现占位模块（`src/services/payment/iap|stripe` 同签名导出），并补 `build:ios` / `build:web` 构建脚本。
+- [x] 会员试用期逻辑接入：`signUp` 写入 `trial_started_at`，`resolveMembershipState()` 增加 7 天试用判定（source=`trial`），并补充边界单测。
+- [x] 日记 Teaser 首版工程化：`/api/diary` 增加 `mode='teaser'`（模板分桶，零 LLM 成本）；前端 `useReportStore.generateAIDiary()` 按会员分流（Plus 写 `aiAnalysis`，Free 写 `teaserText`）。
+- [x] Free 日记解锁引导 UI：报告详情页与日记本观察区增加“渐变模糊 + 解锁按钮”，点击跳转 `/upgrade`。
+- [x] 新增 `/api/subscription`：接入鉴权 + `auth.users.user_metadata` 会员写回（`membership_plan/membership_expires_at/...`），支持 `activate/restore/cancel` 与 `source='iap'`。
+- [x] iOS 支付适配层接线：`src/services/payment/iap/index.ts` 新增“原生桥交易凭证 -> `/api/subscription`”调用链（含 productId/planType 映射）；未接原生插件时返回显式错误码。
+- [x] 升级页支付反馈闭环：`UpgradePage` 对购买/恢复结果做错误码映射与提示，成功后触发 `useAuthStore.initialize()` 刷新会员状态。
+- [x] P5d 收口：魔法笔模式与待办拆解入口新增 `isPlus` 门控，Free 点击后统一提示并跳转 `/upgrade`。
+- [x] P6 提前执行：`MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED` 已改为 `false`，默认不再给全员 Plus；会员态仅由 metadata 或 trial 判定。
+- [x] 聊天「活动/心情记录」可读性微调：放大时间轴时间戳、活动/心情卡标题、心情标签与时长信息字号，降低“字体过小”阅读负担。
+- [x] 日记入口按钮字号微调：报告页头部「查看日记本」与植物卡片「生成日记」字体上调，移动端点击前可读性更稳定。
 
-**目标**：在 `ReportPage` 内完成白天根系区核心体验与交互（常驻可见，不做独立入口页）。
+---
 
-**P3 交互冻结变更（2026-03-18）**：
+## 当前主线 1：AI 建议模式（P7 收口）
 
-- 冻结决策 A：土壤区不再作为“可拖拽画布”，避免误触和交互冲突；根系主交互收敛为“点击/长按根段查看详情”。
-- 冻结决策 B：方向类型映射改为用户可配置，不在土壤区临时拖拽换位；统一在“我的”页提供 `DirectionSettings` 入口。
-- 冻结决策 C：土壤区必须显示“方向图例/区域标注”，明确每个方向当前对应的类型，降低理解成本。
-- 冻结决策 D：根段详情卡必须展示完整信息：`活动名称` + `时间段(start-end)` + `时长` + `类型` + `专注度`。
-- 冻结决策 E：保留“报告页默认可见根系区”的 IA，不新增独立植物入口页面。
+Status: P0-P6 已完成；P7 仅剩联调、漏斗埋点、数据库字段核对。
 
-- [x] 页面承载改造：在 `src/features/report/ReportPage.tsx` 的「周报 / 月报 / 自定义」按钮区块下方新增 `PlantRootSection`（进入报告页默认可见）。
-- [x] 新建/落地组件骨架：`SoilCanvas`、`RootSystem`、`RootSegmentPath`、`RootDetailBubble`（建议放置在 `src/features/report/plant/`，由 `ReportPage` 组装）。
-- [x] 实现触发时机：<5 分钟不渲染；5-15 分钟结束后出现；>15 分钟 15 分钟起实时延伸。
-- [x] 完成 SVG 风格规范：圆角圆头、低饱和棕灰色、轻微噪声、双描边、土层渐变过渡。
-- [x] 支持点击/长按根段展示详情气泡（类别/时长/专注度）。
-- [x] 交互改造（替换旧实现）：移除土壤拖拽行为与相关提示，避免与根段点击事件冲突。
-- [x] 可选保留项评估：缩放是否保留为按钮触发；若保留需保证不影响根段点选命中率。
-- [x] 白天生成按钮禁用 + 文案提示（不可提前生成）；但根系区始终可见。
-- [ ] 移动端适配必做项（剩余）：WebView 下根系交互动画稳定 >= 30fps（iOS/Android 真机验证）。
-- [x] UI 收口：根段详情气泡改为“智能避让定位”（避免贴边裁切、被底部导航遮挡）。
-- [x] UI 收口：根系缩放与拖拽边界策略细化（极限缩放时防止内容不可达/回弹抖动）。
-- [ ] UI 收口：根系层级可读性调参（主根/侧根/延展根在高密度时仍可区分）。
-- [x] UI 收口：生成按钮状态文案与禁用态视觉统一（白天禁用、晚间可点、生成后锁定）。
-- [x] UI 收口：无根段状态视觉优化（空状态插画/引导文案层级，避免“空白区”观感）。
-- [x] UI 收口（新增）：土壤方向图例/区域标注（例如上/右上/右下/左下/左上）与当前类型一一对应显示。
-- [x] UI 收口（新增）：详情卡补齐时间信息（start-end），并确认名称/时长/类型/专注度字段在多语言下完整展示。
-- [x] UI 收口（新增）：根段详情改为“根旁浮层气泡”，点选后 5 秒自动消失。
-- [x] 测试任务：新增 `usePlantStore` P3 时机规则单测（<5m、5-15m、>15m 进行中延伸）。
-- [x] 测试任务：新增 `SoilCanvas` 交互单测（缩放、拖拽、重置、边界 clamp）。
-- [x] 测试任务：新增 `RootSegmentPath` 交互单测（点击选中、长按选中、取消长按）。
-- [x] 测试任务：新增 `/report` 集成测试（根系区默认可见、按钮禁用规则、详情气泡开合）。
-- [x] 测试任务（新增）：新增“根段点选命中”回归用例（禁止容器手势吞掉点击/长按，确保点击后必出详情）。
-- [x] 测试任务（新增）：新增“方向图例一致性”测试（图例映射与 `directionOrder`/`plant_direction_config` 一致）。
-- [ ] 测试任务：补充移动端冒烟清单（iPhone 刘海屏 + Android 全面屏 + 小屏机型）。
-- [x] 测试任务：补充性能采样记录模板（FPS、长任务、交互掉帧点）并沉淀到 `docs/`。
+### 当前待办（按优先级）
 
-**验收**：中高压活动数据下根系可读且可交互，动画观感平滑。
+- [ ] 联调验收：真实走通「建议出现 -> 点击去做 -> 自动凝结 -> 超时/X 不凝结」
+- [ ] 事件级埋点扩展：从 `annotations.suggestion_accepted` 升级为 show/click/close/timeout 四事件漏斗
+- [ ] 数据库核对：确认目标环境存在 `annotations.suggestion_accepted`，缺失则补 migration
 
-### Phase 4 - 晚间生成与揭晓体验（仪式感闭环）
+### 冻结决策（继续沿用）
 
-**目标**：完成“晚8点后生成 -> 揭晓植物 -> 展示日记”完整用户闭环。
+- suggestion 配额：`06:00-13:00` 2 条、`13:00-19:00` 2 条、`19:00-次日06:00` 2 条；日上限 4 条
+- suggestion 与普通批注分流：配额仅限制 suggestion，不限制普通文字批注
+- 点击建议按钮视为自动凝结；未点击/超时/X 关闭不凝结
+- recovery 2 星规则收口：仅允许瓶子关联目标触发中断挽回，不再对未关联瓶子的 recurring 断档触发 2 星建议
 
-- [x] 生成按钮状态机（00:00-19:59 禁用；20:00-23:59 可用；次日首次打开自动兜底；未生成时根系可持续增长到当日 24:00）。
-- [x] 二次确认弹窗：确认后不可逆，不提供重新生成入口。
-- [x] 破土动画组件 `PlantRevealAnimation` 与 `PlantImage` 展示串联。
-- [x] 实现素材检索四级降级：`plantId` 精确 -> 同 rootType+stage -> rootType 默认 mid -> `sha_mid_001`。
-- [x] 处理特殊场景：空气植物（AND 条件）、娱乐主导植物、无记录日兜底文案。
-- [x] 生成后锁定规则：当天植物生成后不再因活动变更而回刷。
+---
 
-**Phase 4 execution snapshot（2026-03-22）**：
+## 当前主线 2：日记功能重建（DIARY_REBUILD_PLAN）
 
-- `src/store/usePlantStore.ts`：补齐 next-day first-open auto-backfill（上一日缺失记录时自动触发一次补生成），并将植物生成请求显式透传 `lang`。
-- `src/features/report/plant/PlantRootSection.tsx`：生成前增加不可逆确认弹窗；生成失败时回落统一错误提示。
-- `src/i18n/locales/{zh,en,it}.ts`：新增植物生成确认与失败提示文案，保持三语一致。
-- `src/store/usePlantStore.test.ts`：新增自动补生成日期推导与单日单次尝试规则单测。
-- `src/features/report/plant/PlantRevealAnimation.tsx` + `src/features/report/plant/PlantImage.tsx`：落地揭晓动画与图片展示串联。
-- `src/features/report/plant/plantImageResolver.ts`：实现四级素材降级链路，并新增 `plantImageResolver.test.ts` 覆盖。
-- `src/features/report/plant/plantSpecialScenario.ts`：按空气植物 AND 条件与娱乐主导比例识别特殊日，并在 `PlantRootSection` 展示对应揭晓文案。
-- `src/i18n/locales/{zh,en,it}.ts`：补齐无记录日兜底提示与特殊场景揭晓文案。
-- `src/features/report/plant/PlantImage.tsx` + `api/plant-asset-telemetry.ts`：新增植物素材解析埋点，上报命中 fallback level（1-4）。
-- `api/live-input-dashboard.ts` + `src/features/telemetry/LiveInputTelemetryPage.tsx`：将 plant fallback telemetry 并入 `/telemetry/live-input` 统一看板展示。
+Status: 主链路可用，剩余增强项待推进。
 
-**验收**：功能从点击到展示动画在 3 秒内启动；所有异常场景有稳定降级。
+### 当前待办
 
-### Phase 5 - 历史页与方向设置（可回顾 + 可配置）
+- [ ] V3：MoodEnergyTimeline（补时间轴数据结构）
+- [ ] D5（剩余）：历史趋势补充 mood key 维度（happy/anxious 等跨日分布）
+- [ ] V5（可选）：TodoCompletionCard 组件化视觉升级
+- [ ] A7（低优先）：`getDateRange` title 多语言化（写入 reports 表）
 
-**目标**：补齐“看历史”和“调方向”的日常可用能力。
+---
 
-- [ ] 新建 `PlantGardenPage`，按日期展示植物图片 + AI 日记。
-- [ ] 新建 `DirectionSettings`，支持 5 类方向调位并持久化到 `plant_direction_config`。
-- [x] 将 `DirectionSettings` 入口前置到“我的”页（Profile）并与根系区联动，作为土壤区交互替代主入口。
-- [ ] 确保位置与根型解耦：换位置只改视觉角度，不改 category_key 判定。
-- [ ] 路由策略更新：不新增独立 `/plant` 主入口；植物根系主体验固定内嵌在 `/report`。如需历史/设置路由，优先挂在报告域下并保持“进入报告页即见根系”不变。
-- [ ] 完成多语言词条（zh/en/it）及 UI 文案替换。
+## 当前主线 3：横向联想中间层（Lateral Association）
 
-**验收**：方向配置刷新后生效且历史记录不污染；历史页稳定分页/查询。
+Status: 需求已读完并完成技术拆解；待按阶段开发。
 
-### Phase 6 - 联调、校准、发布准备（上线前封板）
+### 冻结决策（本轮新增）
 
-**目标**：完成性能、调参与稳定性收敛，达到可上线标准。
+- [x] 联想/出发点权重以需求文档第 3 章表格为准；若与第 5.3 代码常量冲突，统一修正代码常量到表格值。
+- [x] 已修正文档中的冲突常量：`agnes.user_emotion=25`、`agnes.user_body=5`、`momo.origin.user_first=65`、`momo.origin.self_led=25`。
+- [x] 本模块走服务端实现（`src/server/*` + `api/annotation.ts` 链路），不在前端 store 做采样。
 
-- [ ] 指标校准：`ROOT_SCORE_CONFIG`、对数映射参数、根系视觉密度。
-- [ ] 性能验证：根系动画 >= 30fps、LCP < 2s、SVG path 数量压力测试。
-- [ ] 时区验证：20:00 门槛、次日自动兜底、跨时区写入 `timezone`。
-- [ ] API 稳定性：超时/失败/重试链路、幂等行为、异常码与前端状态一致。
-- [ ] 安全与体验红线：无负向文案、无枯萎形态、生成后不可重生。
-- [ ] 文档同步：更新 `docs/CHANGELOG.md`、模块 README、必要的 `DOC-DEPS` 声明。
+### 当前待办（按优先级）
 
-**验收**：达到 PRD 非功能指标并通过端到端回归。
+- [x] P0 规格落地对齐：补齐 `AssociationType/OriginType/CharacterId` 类型、权重常量、受限类型集合与语言枚举。
+- [x] P1 采样器实现：新增 `LateralAssociationSampler`（权重调整、上次去重、daily 限制、tone tag 近3次去重、归一化与加权采样）。
+- [x] P2 信号检测实现：新增 `detectInputSignals`（zh/en/it 关键词首版），并明确词库来源（独立常量 vs 复用现有输入词库）。
+- [x] P3 状态读写接入：已落地 `get/saveLateralAssociationState(userId, characterId)`，优先持久化到 Supabase Auth `user_metadata.lateral_association_state_v1`（无 service role 时回退内存态），含 `dailyDate` 自动换日重置。
+- [x] P4 Prompt 集成：已在 annotation 主流程注入 `associationInstruction` 到 U4（角色状态后），覆盖 suggestion 与普通 annotation 双链路。
+- [x] P5 测试与验收：已补单测（去重/daily 限制/多语言注入）与统计验收（Momo self_led 采样分布接近 25%，在容差范围内）。
+- [x] P6 可观测性：新增 debug 日志字段（associationType/originType/toneTag/instruction），便于线上调优与回归排查。
+- [ ] P7 文档同步：同步 `src/store/README.md`、`src/api/README.md`、`api/README.md`、`docs/CHANGELOG.md`。
 
-## Cross-Cutting Workstreams (并行任务)
+### 风险与待决策
 
-- [ ] 素材流：设计在开发启动后 2 周内交付首批 >= 81 张素材，命名符合规范。
-- [ ] AI 流：补齐三场景 prompt（正常/空气/娱乐主导）与多语言版本。
-- [ ] 测试流：单测 + API 集成 + e2e 场景（时间窗、幂等、降级、锁定规则）。
-- [ ] 测试流（P3 增补）：根系 UI 交互测试 + WebView 30fps 采样 + 移动端三机型冒烟回归。
-- [ ] 观测流：埋点生成成功率、fallback 率、平均生成时延、日记成功率。
+- [x] 关键词维护策略：首版采用模块内三语关键词常量（低耦合快速落地）；后续迭代再评估与 `src/services/input/` 词库收敛。
+- [x] 状态持久化落点：已复用 `user_metadata`（`lateral_association_state_v1`），暂不新增表；若后续出现并发覆盖/容量问题再迁移到独立表。
 
-## Stage Gates (每阶段进入下一阶段前必须通过)
+---
 
-- Gate A（P0->P1）：建表与类型已稳定，映射可读写。
-- Gate B（P1->P2）：算法测试通过，评分与优先级结果可复现。
-- Gate C（P2->P3）：API 主链路跑通且幂等正确。
-- Gate D（P3->P4）：白天根系体验可用，交互无阻塞。
-- Gate E（P4->P5）：晚间生成闭环稳定，降级完整。
-- Gate F（P5->P6）：历史/设置可用，多语言覆盖完成。
+## 当前主线 4：用户画像模块（User Profile v1.1）
 
-## Frozen Scope For Phase 1 Release
+Status: P0-0 ~ P0-5 + P3（周报触发提取）已落地；本轮聚焦提取质量与误判治理（不做新手引导）。
 
-- 仅做 1 天模式；3/7 天养成、季节天气、里程碑装饰、社交分享全部延期到二期。
-- 根系渲染方案固定 SVG；Canvas 迁移仅作为二期性能预案。
-- 专注度临时规则固定：单条记录 >= 90 分钟为 high，其余 medium。
+### 冻结决策（本轮新增）
 
-## Resume Order
+- [x] 长期画像总开关：放在“我的”页面；仅开关开启时才启动整套长期画像链路。
+- [x] 链路门控范围：周提取、记忆写入、prompt 画像注入、历史召回在开关关闭时全部短路停用。
+- [x] metadata 键风格对齐：长期画像开关使用扁平 key `long_term_profile_enabled`，不新增嵌套 `preferences` 结构。
+- [x] 吃饭提醒规则保留并个性化：`isMealTime` 同时支持 manual/observed 饭点，未配置时 fallback `11-13 / 18-20`。
+- [x] 纪念与记忆双轨：A 类可见纪念日（AI 可自动写入、用户可管理）+ B 类隐性事件记忆（仅 AI 可见，用于回忆召回）。
+- [x] 记忆治理：事实事件长期保留不衰减；偏好/关系/状态信号按 30/60/90 天衰减。
+- [x] 画像边界：不主动收集年龄/伴侣/家庭关系；仅用户主动表露时后台记录关系线索，不前台展示。
+- [x] 新手引导改造：移除性格直问，新增“近期目标/人生目标”和“早午晚饭点”采集，并与待办人生目标联动。
+- [x] prompt 注入改造入口明确：实现落点为 `annotation-prompt-builder.ts` + `annotation-prompts.user.ts`，非 `annotation-prompts.ts` 出口文件。
+- [x] 周提取触发口径：改为“用户点击生成周报时并行触发画像提取”，每次点击都执行；不再使用“最近 7 天 >= 5 条日记”自动触发门槛。
 
-1. Read `LLM.md`.
-2. Read this file (`docs/CURRENT_TASK.md`).
-3. Read PRD: `docs/TimeShine_植物生长_PRD_v1_8.docx`.
-4. Read Tech Design: `docs/TimeShine_植物生长_技术实现文档_v1.7.docx`.
-5. Read module map: `docs/PROJECT_MAP.md`.
-6. Start execution from Phase 0 tasks in this file.
+### 当前待办（按优先级）
 
-## Post-P6 Backlog (P6 完成后再开发)
+- [x] P0-0 元数据基建前置：`useAuthStore` 已补 `user_profile_v2` 读写封装与 merge 写策略（避免覆盖 `login_days/lateral_association_state_v1`）。
+- [x] P0-1 类型与快照：已新增 `src/types/userProfile.ts`（`UserProfileV2`）与 `src/lib/buildUserProfileSnapshot.ts`，落地 manual/observed/dynamic/hidden 四层结构。
+- [x] P0-2 开关接入：已在“我的”页面增加长期画像开关，并写入 `user_metadata.long_term_profile_enabled`。
+- [x] P0-3 链路门控：已在现有 annotation/suggestion 入口接入门控；未上线入口保留后续 gate hook。
+- [x] P0-4 建议链路接入：已打通 `triggerAnnotation -> callAnnotationAPI -> api/annotation.ts -> annotation-handler.ts -> annotation-prompt-builder.ts` 的 `userProfileSnapshot` 透传。
+- [x] P0-5 吃饭提醒个性化：已改造 `src/lib/suggestionDetector.ts` 的 `isMealTime(hour, declared?, observed?)`，并补 fallback/边界测试。
+- [ ] P1 新手引导改版：按产品决策暂缓，本轮不开发。
+- [x] P2 我的画像页：补强保存校验（脏检查/部分纪念日校验）、长期画像开关保存反馈、画像快照卡展示（饭点/纪念日/回忆素材）。
+- [x] P2++ Profile 记忆体验简化：文案统一为“专属记忆”；移除前台纪念日编辑入口；作息与个性化画像合并为单页编辑并一键保存。
+- [x] P2+ 人生目标管理双向同步：Growth 新增 `LifeGoalPanel`，与 Profile `manual.lifeGoal` 双向同步（共享 `updateUserProfile` 写入链路）。
+- [x] P3 周提取与记忆：已新增 `api/extract-profile.ts` + `src/server/extract-profile-service.ts`，周报生成时并行提取 observed/dynamicSignals + A/B 候选记忆并经 `updateUserProfile` merge 写回。
+- [x] P3+ 周提取增强：`/api/extract-profile` 已支持 `lang(zh/en/it)` prompt 分流，并新增 7 天状态总结 + top3 高频活动 + top3 高频心情提取字段（注入 `observed.weeklyStateSummary/topActivities/topMoods`）。
 
-> 启动条件：**仅在 Phase 6 全部验收通过后**进入本段开发。
+### 风险与待决策
 
-### 分类体系统一改造（仅使用 `activityType`，不新增 `activityCategory`）
+- [ ] `user_metadata` 并发写入冲突：需统一合并写策略（避免与 `long_term_profile_enabled/login_days/lateral_association_state_v1` 互相覆盖）。
+- [x] 周提取触发口径：已定为“周报点击触发、每次执行”。
+- [ ] A 类自动入库误判回滚：是否在“我的”页增加“最近 AI 新增纪念日”轻提示与一键撤销。
+- [ ] 关闭长期画像后的数据治理：默认冷存不使用已冻结；“清除长期画像数据”入口的交互细节待定。
 
-**目标**：待办与活动在生成时即完成分类，后续链路只消费同一分类结果，不再二次分类。
+---
 
-- [x] 统一 `activityType` 枚举语义：`study/work/social/life/entertainment/health/mood`，禁止再写入 `待分类/未分类` 等自由文本。
-- [x] 待办创建即分类：`Todo.category` 统一落六分类（规则优先，低置信再 AI 补判）。
-- [x] 待办触发活动时继承分类：从待办开始/完成生成活动时，直接把 `todo.category` 写入活动 `activityType`。
-- [x] 自由文本活动即时分类：输入侧先本地规则判定，低置信时再调用 AI；AI 不阻塞“完成即生成根系”主链路。
-- [x] 报告层去二次分类：`reportHelpers` 不再按关键词重分，改为直接按 `activityType` 聚合。
-- [x] 植物链路改读统一分类：`plantActivityMapper` / `plant-generate` 优先消费六分类 `activityType`，仅对历史脏数据保留兼容回退。
-- [x] 类型与映射收敛：收紧 `Message.activityType` 与 `TodayActivity.activityType` 类型，更新 `dbMappers`、store、API 读写映射。
-- [x] 历史数据迁移与兼容：为旧记录提供一次性映射/回填策略，确保报告与植物结果连续可用。
+## 当前主线 5：低叙事密度判定 + 事件注入（Doc1 / P1）
 
-**验收**：
+Status: P0-P9 已首版落地（服务端评分/触发/注入 + 前端凝结埋点 + 文档同步）；待真实流量校准阈值与事件库扩展。
 
-- [x] 新增活动在创建瞬间即有最终分类。
-- [x] 待办生成活动不触发重复分类。
-- [x] 报告统计与植物根系分类一致，且无需二次重算。
+### 冻结决策（本轮新增）
+
+- [x] 判定逻辑仅在服务端执行（`api/annotation.ts` -> `src/server/annotation-handler.ts` 链路），前端不承担评分与抽样。
+- [x] 首期严格按文档一实现纯规则评分（4 维加权）+ 阈值修正，不引入额外 LLM 调用。
+- [x] 当日缓存与 `todayContext` 职责分离：新增独立 `todayNarrativeCache` 读写，不混入健康/心情状态缓存。
+- [x] 注入文案统一采用 `[今日小事] ...` 自然语言单句，单次请求最多注入 1 条，禁止技术术语暴露。
+- [x] P1 仅上线 `natural_event` + `character_mention`；`derived_event` 保留字段与权重接口，默认权重 0。
+- [x] 默认触发概率先用 0.15；通过埋点观察 2 周后再评估上调至 0.20。
+
+### 当前待办（按优先级）
+
+- [x] P0 类型与常量落地：新增 `src/server/narrative-density-types.ts`（cache/type/limit/telemetry payload），`src/server/narrative-density-constants.ts`（四维权重、阈值公式系数、概率与上限、类型权重）。
+- [x] P1 事件归类与维度评分器：新增 `src/server/narrative-density-scorer.ts`，实现 `freshness/density/emotion/vocab` 四维规则评分、`currentScore` 计算、极短文本兜底（1 字按 0.1）。
+- [x] P2 日级缓存存取：新增 `get/saveTodayNarrativeCache(userId, aiMode)`，优先持久化 `auth.users.user_metadata.today_narrative_cache_v1`（无 service role 时回退进程内缓存），内置跨日重置与滚动平均更新。
+- [x] P3 触发决策引擎：新增 `src/server/narrative-density-trigger.ts`，实现首条跳过、`adjustedThreshold=0.40-(todayRichness*0.15)`、每日总上限/类型上限、类型权重归一化抽样。
+- [x] P4 事件内容装配：新增 `src/server/narrative-event-library.ts`（按 `aiMode + eventType` 取文案，支持空库兜底），并在抽中后返回注入片段。
+- [x] P5 Prompt 注入接线：在 `src/server/annotation-prompt-builder.ts` 增加 `narrativeEventInstruction` 注入位（位于角色状态/横向联想之后），确保 suggestion 与普通 annotation 双链路一致生效。
+- [x] P6 埋点与可观测性：落地 `density_scored`、`trigger_blocked`、`event_triggered`、`event_condensed` 事件字段；先接入现有 telemetry 落库通道，至少保证日志可查询与按角色/类型聚合。
+- [x] P7 前端凝结回传对齐：补齐 `event_condensed` 回传字段（`eventType/eventId/isTriggeredReply`）到现有 suggestion 凝结链路，避免只记录 `suggestion_accepted` 无法区分低密度触发来源。
+- [x] P8 测试与验收：补单测（评分边界、阈值、上限拦截、权重抽样、跨日重置、空事件库兜底）+ 联调验收（首条不触发/低密触发/上限拦截/注入格式）。
+- [x] P9 文档同步：更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`、`docs/CHANGELOG.md`，补充配置项与埋点定义。
+- [x] P10 可观测升级：新增 `lateral_sampled` 埋点（含 `narrativeScore/finalProbability/triggered/associationType`），并扩展 `/telemetry` 入口 + `AI Annotation` 子看板，支持按业务查看横向联想触发与评分分桶。
+- [x] P10 触发策略升级：四维权重调整为 `freshness=0.30 / density=0.30 / emotion=0.25 / vocab=0.15`；触发从“阈值门控 + 固定概率”升级为“分数驱动连续概率”；横向联想概率改为由叙事分连续调制（`base=0.5, delta=0.2, range=0.3-0.7`）。
+- [x] P11 权限收口：Telemetry 入口与路由都改为严格管理员校验（DEV/PROD 一致），普通用户不显示入口且不可直接访问 `/telemetry*`。
+- [x] P12 角色互提文档二落地：`character_mention` 从固定句子改为“关系说明 + A/B/C/D 组指引 + 禁止项 + few-shot”注入，三语言（zh/en/it）等价维护。
+- [x] P13 注入文案收口：移除 `今日小事` 标签字样（保留低密度触发逻辑）；互提长度规则更新为 zh 约 20 字上限 40、en 约 10-16 words 上限 24、it 约 11-18 parole 上限 26。
+- [x] P14 互提长度口径调优：按现有三语言例句分布上调区间，zh 调整为 20-28 字上限 40、en 调整为 16-22 words 上限 30、it 调整为 16-24 parole 上限 32。
+- [x] P15 批注模型分语种路由：`getModel(lang)` 调整为 zh 使用 `qwen-plus`，en/it 使用 `gemini2.0-flash`。
+- [x] P16 annotation provider 接线：`/api/annotation` 按 model 自动路由 provider/key/baseURL（zh 走 `QWEN_API_KEY`，en/it 走 `GEMINI_API_KEY`），并补齐 `ANNOTATION_QWEN_BASE_URL` / `ANNOTATION_GEMINI_BASE_URL` 文档与 `.env.example`。
+
+### 验收口径（DoD）
+
+- [ ] 功能正确：首条输入不触发；低密度命中后在上限与概率条件满足时可注入且单次仅 1 条。
+- [ ] 数据正确：`todayNarrativeCache` 能按天重置、滚动更新 `today_richness`，并正确累计 `trigger_count`。
+- [ ] 体验正确：注入文本为自然语言，不出现“系统触发/事件类型”等技术词；回复时延无明显退化。
+- [ ] 可运营：可按角色/类型查看触发率、拦截率、凝结率，支持 2 周内调参复盘。
+
+### 风险与待决策
+
+- [x] 事件库来源：文档二中的“角色互提”已接入（prompt 指引式注入）；`natural_event` 仍为内置最小库，后续可配置化。
+- [ ] `user_metadata` 并发写冲突：需与 `long_term_profile_enabled/login_days/lateral_association_state_v1` 共存，统一 merge-write 工具避免互相覆盖。
+- [ ] 埋点落库成本：若 telemetry 表写放大明显，需降采样或拆异步队列，避免影响 annotation 主链路时延。
+
+---
+
+## 近期完成（仅保留 2 条）
+
+- [x] EcoSphere 漂浮规则增强：加入随机时长 + 随机方向的游走目标切换，并新增随机冲量脉冲，移除固定竖向偏置，让气泡更接近无规则自由漂浮。
+- [x] 日报植物区交互简化：移除心情气泡点击后的「心情能量曲线」展开面板，保留夜间提示与双气泡自由漂浮展示。
+
+---
+
+## 会话恢复顺序
+
+1. `LLM.md`
+2. `docs/CURRENT_TASK.md`（本文件）
+3. `docs/PROJECT_MAP.md`
+4. `docs/SEEDAY_DEV_SPEC.md`
+5. 按任务读取模块 README / 规格文档：
+   - AI 建议模式：`src/store/README.md`、`src/api/README.md`、`api/README.md`
+   - 日记重建：`docs/DIARY_REBUILD_PLAN.md`、`src/features/report/README.md`
+
+---
+
+## 归档说明
+
+- 本文件只保留当前未完成事项与极少量最新完成项，历史明细统一查 `docs/CHANGELOG.md`。

@@ -1,6 +1,5 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 import { type Bottle } from '../../store/useGrowthStore';
 import { cn } from '../../lib/utils';
 import glassBottleImage from '../../assets/growth/glass-bottle.png';
@@ -8,56 +7,14 @@ import growthStarImage from '../../assets/growth/growth-star.png';
 
 interface Props {
   bottle: Bottle;
-  onTodoPrompt: (bottle: Bottle) => void;   // click (desktop) / long-press (mobile)
-  onAchievedClick: (bottle: Bottle) => void; // click when achieved
-  onDelete?: (id: string) => void;
+  onSelect: (bottle: Bottle) => void;
 }
 
-export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: Props) => {
+export const BottleCard = ({ bottle, onSelect }: Props) => {
   const { t } = useTranslation();
-  const [irrigating, setIrrigating] = useState(false);
-  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchMovedRef = useRef(false);
 
   const isAchieved = bottle.status === 'achieved';
-
-  const handleClick = () => {
-    if (isAchieved) {
-      onAchievedClick(bottle);
-    } else {
-      onTodoPrompt(bottle);
-    }
-  };
-
-  const handleTouchStart = () => {
-    touchMovedRef.current = false;
-    longPressRef.current = setTimeout(() => {
-      if (!touchMovedRef.current) {
-        onTodoPrompt(bottle);
-      }
-    }, 600);
-  };
-
-  const handleTouchMove = () => {
-    touchMovedRef.current = true;
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
-  // Irrigate animation (triggered by parent via a separate mechanism if needed)
-  const triggerIrrigate = () => {
-    setIrrigating(true);
-  };
-  void triggerIrrigate; // unused but kept for future use
+  const syncState = bottle.syncState ?? 'synced';
 
   const starLayout = useMemo(() => {
     const hash = (input: string) => {
@@ -115,34 +72,20 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
   }, [bottle.id, bottle.stars]);
 
   return (
-    <div className="group relative flex-shrink-0 w-32">
-      {/* Delete button — appears on hover */}
-      {onDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(bottle.id); }}
-          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 bg-gray-400 hover:bg-red-500 text-white rounded-full items-center justify-center transition-colors hidden group-hover:flex"
-          title={t('delete')}
-        >
-          <X size={10} />
-        </button>
-      )}
-
+    <button
+      type="button"
+      className="group relative w-20 flex-shrink-0"
+      onClick={() => onSelect(bottle)}
+      aria-label={t('growth_bottle_open_detail', { name: bottle.name })}
+    >
       <div
-        onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
         className={cn(
-          'flex flex-col items-center p-3 rounded-2xl border-2 transition-all cursor-pointer select-none',
-          isAchieved
-            ? 'border-yellow-400 bg-yellow-50 shadow-md'
-            : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm',
-          irrigating && 'animate-pulse opacity-0 scale-110 transition-all duration-700'
+          'flex cursor-pointer select-none flex-col items-center transition-all',
+          'group-active:scale-95'
         )}
       >
         {/* Bottle visual */}
-        <div className="relative w-20 h-28 mb-2">
+        <div className="relative mb-1.5 h-14 w-10">
           {/* Stars scattered inside jar (no liquid layer) */}
           <div className="absolute left-[20%] right-[20%] top-[35%] bottom-[12%] z-[1] overflow-hidden">
             {starLayout.map((star, i) => (
@@ -150,7 +93,7 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
                 key={i}
                 src={growthStarImage}
                 alt=""
-                className="absolute w-3.5 h-3.5 object-contain pointer-events-none select-none transition-transform duration-300"
+                className="pointer-events-none absolute h-2 w-2 select-none object-contain transition-transform duration-300"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
@@ -162,6 +105,16 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
             ))}
           </div>
 
+          {syncState !== 'synced' && (
+            <div
+              className={cn(
+                'absolute -right-0.5 top-0 z-[4] h-2.5 w-2.5 rounded-full border border-white/90',
+                syncState === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-red-500'
+              )}
+              title={syncState === 'pending' ? t('growth_bottle_sync_pending') : t('growth_bottle_sync_failed')}
+            />
+          )}
+
           <img
             src={glassBottleImage}
             alt="glass bottle"
@@ -170,27 +123,27 @@ export const BottleCard = ({ bottle, onTodoPrompt, onAchievedClick, onDelete }: 
           />
 
           {isAchieved && (
-            <div className="absolute inset-0 rounded-2xl bg-yellow-300/20 animate-pulse z-[3]" />
+            <div className="absolute inset-0 z-[3] rounded-xl bg-yellow-300/20 animate-pulse" />
           )}
         </div>
 
-        <p className="text-xs font-medium text-gray-700 text-center truncate w-full">
+        <p className="w-full truncate text-center text-xs font-medium text-gray-700">
           {bottle.name}
         </p>
-        <p className="text-[10px] text-gray-400 mt-0.5">
+        <p className="mt-0.5 text-xs text-gray-400">
           {t('growth_bottle_stars', { stars: bottle.stars })}
         </p>
         {bottle.type === 'goal' && bottle.round > 1 && (
-          <span className="text-[10px] text-blue-500 mt-0.5">
+          <span className="mt-0.5 text-xs text-blue-500">
             {t('growth_bottle_round', { round: bottle.round })}
           </span>
         )}
         {isAchieved && (
-          <span className="mt-1 px-2 py-0.5 bg-yellow-400 text-white text-[10px] rounded-full font-medium">
+          <span className="mt-1 rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-medium text-white">
             {t('growth_bottle_achieved')}
           </span>
         )}
       </div>
-    </div>
+    </button>
   );
 };

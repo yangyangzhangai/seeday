@@ -1,6 +1,6 @@
-import { getCategoryLexicon, type SupportedLang } from '../services/input/lexicon/getLexicon';
-import { containsLatinSignal } from '../services/input/signals/latinSignalExtractor';
-import { zhCategoryLexicon } from '../services/input/lexicon/categoryLexicon.zh';
+import { getCategoryLexicon, type SupportedLang } from '../services/input/lexicon/getLexicon.js';
+import { containsLatinSignal } from '../services/input/signals/latinSignalExtractor.js';
+import { zhCategoryLexicon } from '../services/input/lexicon/categoryLexicon.zh.js';
 
 export const ACTIVITY_RECORD_TYPES = [
   'study',

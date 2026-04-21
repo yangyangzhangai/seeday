@@ -1,4 +1,6 @@
 import type { ActivityType } from '../lib/activityType';
+import type { AiCompanionMode } from '../lib/aiCompanion';
+import type { UserProfileSnapshot } from './userProfile';
 /**
  * AI 批注系统类型定义
  * 
@@ -31,14 +33,80 @@ export interface AnnotationEvent {
   };
 }
 
+/** AI 建议类型：活动建议 或 待办建议 */
+export type SuggestionType = 'activity' | 'todo';
+
+/** AI 建议数据 */
+export interface AnnotationSuggestion {
+  type: SuggestionType;
+  /** 按钮文字，如"去喝水"/"去跑步" */
+  actionLabel: string;
+  /** type=activity 时的活动名称 */
+  activityName?: string;
+  /** type=todo 时的待办 ID */
+  todoId?: string;
+  /** type=todo 时的待办标题（用于兜底显示） */
+  todoTitle?: string;
+  /** 奖励星星数（建议激活后生效） */
+  rewardStars?: number;
+  /** 奖励目标瓶子（可选） */
+  rewardBottleId?: string;
+  /** 奖励目标 key（用于去重） */
+  recoveryKey?: string;
+  /** 是否已在服务端完成预拆解 */
+  decomposeReady?: boolean;
+  /** 预拆解来源 todoId */
+  decomposeSourceTodoId?: string;
+  /** 预拆解出的子步骤 */
+  decomposeSteps?: Array<{
+    title: string;
+    durationMinutes: number;
+  }>;
+}
+
+export interface PendingSuggestionIntent {
+  type: 'activity' | 'todo';
+  annotationId: string;
+  createdAt: number;
+  activityName?: string;
+  todoId?: string;
+  todoTitle?: string;
+  decomposeSteps?: Array<{
+    title: string;
+    suggestedDuration: number;
+  }>;
+}
+
+export type RecoveryNudgeReason = 'bottle_missed_3_days';
+
+export interface RecoveryNudgeContext {
+  key: string;
+  reason: RecoveryNudgeReason;
+  rewardStars: number;
+  todoId?: string;
+  todoTitle?: string;
+  bottleId?: string;
+  bottleName?: string;
+  activityName?: string;
+}
+
 export interface AIAnnotation {
   id: string;
   content: string;           // 批注文本内容
   tone: AnnotationTone;      // 语气标签
   timestamp: number;         // 生成时间
   relatedEvent: AnnotationEvent;  // 关联的触发事件
+  todayContext?: TodayContextSnapshot; // 生成时的今日上下文快照（便于回放/分析）
   displayDuration: number;   // 建议显示时长（毫秒）
   syncedToCloud: boolean;    // 是否已同步到云端
+  suggestion?: AnnotationSuggestion; // AI 建议（overwork 模式）
+  suggestionAccepted?: boolean; // suggestion 反馈（true/false/null）
+  narrativeEvent?: {
+    eventType: 'natural_event' | 'character_mention' | 'derived_event';
+    eventId: string;
+    instruction: string;
+    isTriggeredReply: boolean;
+  };
 }
 
 export interface AnnotationState {
@@ -85,23 +153,165 @@ export interface TodayActivity {
 }
 
 // AI 请求/响应类型
+/** 待办摘要（传给 AI 用于建议选择） */
+export interface PendingTodoSummary {
+  id: string;
+  title: string;
+  category?: string;
+  dueAt?: number;
+  createdAt?: number;
+  ageDays?: number;
+}
+
+export type TodayContextCategory = 'health' | 'special_day' | 'major_event';
+
+export interface TodayContextItem {
+  id: string;
+  category: TodayContextCategory;
+  summary: string;
+  sourceText: string;
+  confidence: number;
+  detectedAt: number;
+  expiresAt: number;
+}
+
+export interface TodayContextSnapshot {
+  date: string;
+  items: TodayContextItem[];
+  version: 'v1';
+}
+
+export interface AnnotationCurrentDate {
+  year: number;
+  month: number;
+  day: number;
+  weekday: number;
+  weekdayName?: string;
+  isoDate: string;
+}
+
+export interface AnnotationHolidayContext {
+  isHoliday: boolean;
+  name?: string;
+  type?: 'legal' | 'social';
+  source: 'calendar' | 'none';
+}
+
+export type WeatherCondition =
+  | 'sunny'
+  | 'cloudy'
+  | 'overcast'
+  | 'rain_light'
+  | 'rain_medium'
+  | 'rain_heavy'
+  | 'snow'
+  | 'hail'
+  | 'windy'
+  | 'unknown';
+
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter' | 'unknown';
+
+export type WeatherAlert = 'strong_wind_watch' | 'haze_watch';
+
+export interface WeatherContextV2 {
+  temperatureC: number | null;
+  conditions: WeatherCondition[];
+  source: 'api' | 'fallback';
+}
+
+export interface SeasonContextV2 {
+  season: Season;
+  source: 'local' | 'fallback';
+}
+
 export interface AnnotationRequest {
   eventType: AnnotationEventType;
   eventData: AnnotationEvent['data'];
+  debugPrompts?: boolean;
   userContext: {
     todayActivities: number;           // 活动总数
     todayDuration: number;             // 今日总时长
     currentHour: number;               // 当前时间
+    currentMinute?: number;            // 当前分钟
+    userId?: string;
+    timezone?: string;                 // IANA 时区字符串，如 "Europe/Rome"
+    currentDate?: AnnotationCurrentDate;
+    countryCode?: string;              // ISO 3166-1 alpha-2, 如 "CN" / "IT"
+    holiday?: AnnotationHolidayContext;
+    latitude?: number;
+    longitude?: number;
+    weatherContext?: WeatherContextV2;
+    seasonContext?: SeasonContextV2;
+    weatherAlerts?: WeatherAlert[];
     recentAnnotations?: string[];      // 最近批注（可选）
     recentMoodMessages?: string[];     // 连续心情原文（最多3条）
+    moodConversationHistory?: Array<{ role: 'user' | 'ai'; content: string }>;
     todayActivitiesList: TodayActivity[]; // 今日每件活动的详细数据
+    pendingTodos?: PendingTodoSummary[];  // 未完成待办（overwork 模式用）
+    statusSummary?: string;
+    contextHints?: string[];
+    frequentActivities?: string[];
+    todayContext?: TodayContextSnapshot;
+    characterStateText?: string;
+    userProfileSnapshot?: UserProfileSnapshot;
+    characterStateMeta?: {
+      matchedBehaviorIds: string[];
+      injectedBehaviorIds: string[];
+      usedTrendIds: string[];
+      usedLiteIds: string[];
+      selectedStates: Array<{
+        behaviorId: string;
+        level: 'instant' | 'trend' | 'lite';
+        score: number;
+      }>;
+      suppressedBehaviorIds: string[];
+      activeEffects: Array<{
+        behaviorId: string;
+        score: number;
+        remainingHours: number;
+      }>;
+    };
+    allowSuggestion?: boolean;
+    forceSuggestion?: boolean;
+    consecutiveTextCount?: number;
+    recoveryNudge?: RecoveryNudgeContext;
   };
+  lang?: 'zh' | 'en' | 'it';
+  aiMode?: AiCompanionMode;
 }
 
 export interface AnnotationResponse {
   content: string;
   tone: AnnotationTone;
   displayDuration: number;
+  suggestion?: AnnotationSuggestion;
+  source?: 'ai' | 'default';
+  narrativeEvent?: {
+    eventType: 'natural_event' | 'character_mention' | 'derived_event';
+    eventId: string;
+    instruction: string;
+    isTriggeredReply: boolean;
+  };
+  reason?:
+    | 'no_key'
+    | 'fetch_failed'
+    | 'empty_response'
+    | 'empty_content'
+    | 'extract_failed'
+    | 'exception'
+    | 'suggestion_force_fallback'
+    | 'duplicate_or_emoji_repeated';
+  debugAiMode?: string;
+  debugCharacterState?: {
+    enabled: boolean;
+    text: string;
+    meta?: AnnotationRequest['userContext']['characterStateMeta'];
+  };
+  debugPromptPackage?: {
+    model: string;
+    systemPrompt: string;
+    userPrompt: string;
+  };
 }
 
 // Chutes API 类型

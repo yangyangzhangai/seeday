@@ -1,15 +1,22 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
-import { Header } from './components/layout/Header';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { AuthPage } from './features/auth/AuthPage';
+import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
+import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
+import { TelemetryHubPage } from './features/telemetry/TelemetryHubPage';
+import { AiAnnotationTelemetryPage } from './features/telemetry/AiAnnotationTelemetryPage';
+import { TodoDecomposeTelemetryPage } from './features/telemetry/TodoDecomposeTelemetryPage';
+import { UserAnalyticsDashboardPage } from './features/telemetry/UserAnalyticsDashboardPage';
+import { isTelemetryAdmin } from './features/telemetry/isTelemetryAdmin';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
@@ -17,19 +24,53 @@ import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { useAppForegroundRefresh } from './hooks/useAppForegroundRefresh';
+import { useReminderSystem } from './hooks/useReminderSystem';
+import { useMidnightAutoGenerate } from './hooks/useMidnightAutoGenerate';
+import { useNetworkSync } from './hooks/useNetworkSync';
+import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
+import { useReminderStore } from './store/useReminderStore';
+import { getReminderCopy } from './services/reminder/reminderCopy';
+import { QuickActivityPicker } from './components/QuickActivityPicker';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
 );
 
+/** 账号创建不足 72 小时且尚无 profile → 视为新用户需要 onboarding */
+function isNewUserAccount(createdAt?: string | null): boolean {
+  if (!createdAt) return false;
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  return ageMs < 72 * 60 * 60 * 1000;
+}
+
+function isTruthyEnv(v: unknown): boolean {
+  const s = String(v ?? '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+}
+
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
   const location = useLocation();
+
+  // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
+  if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') {
+    return children;
+  }
 
   if (loading) return <BlankScreen />;
   if (!user) {
-    return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+    const hasOnboarded = localStorage.getItem('seeday_onboarded') === 'true';
+    return hasOnboarded
+      ? <Navigate to="/auth" replace state={{ from: location.pathname }} />
+      : <Navigate to="/onboarding" replace />;
+  }
+  // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
+  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+  if (userProfileV2 === null && !hasPendingProfile && isNewUserAccount(user.created_at)) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return children;
@@ -45,13 +86,56 @@ const AuthRoute: React.FC = () => {
   return <AuthPage />;
 };
 
+/** 新版引导流：允许未登录（StepAuth 处理鉴权），已完成 onboarding 的已登录用户直接进首页 */
+const OnboardingRoute: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+  const userProfileV2 = useAuthStore(state => state.userProfileV2);
+  const location = useLocation();
+
+  if (loading) return <BlankScreen />;
+
+  // DEV/Test override: allow preview onboarding even for "old accounts"
+  // - URL: /onboarding?forceOnboarding=1
+  // - Env: VITE_FORCE_ONBOARDING=1 (build-time)
+  const forceOnboardingByQuery = new URLSearchParams(location.search).get('forceOnboarding') === '1';
+  const forceOnboardingByEnv = isTruthyEnv(import.meta.env.VITE_FORCE_ONBOARDING);
+  if (forceOnboardingByQuery || forceOnboardingByEnv) {
+    return <OnboardingFlow />;
+  }
+
+  // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
+  if (user) {
+    const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+    if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
+      return <Navigate to="/chat" replace />;
+    }
+  }
+
+  return <OnboardingFlow />;
+};
+
+const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
+
+  if (loading) return <BlankScreen />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!isTelemetryAdmin(user)) return <Navigate to="/profile" replace />;
+  return children;
+};
+
 /** Thin wrapper around Outlet that fades in on route change */
 const PageOutlet: React.FC = () => {
   const { pathname } = useLocation();
+  const disablePageInAnimation = pathname === '/upgrade';
   return (
     <main
       key={pathname}
-      className="flex-1 overflow-hidden pt-14 pb-16 relative animate-[pageIn_0.18s_ease-out]"
+      className={`relative flex-1 overflow-hidden md:pb-8 ${
+        disablePageInAnimation ? '' : 'animate-[pageIn_0.18s_ease-out]'
+      }`}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)' }}
     >
       <Outlet />
     </main>
@@ -63,6 +147,15 @@ const MainLayout = () => {
   const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
+  const navigate = useNavigate();
+  const { confirmReminderFromPopup } = useReminderSystem(navigate);
+  useMidnightAutoGenerate();
+  useNetworkSync();
+  const activePopupType = useReminderStore((s) => s.activePopupType);
+  const markConfirmed = useReminderStore((s) => s.markConfirmed);
+  const showPickerForDeny = useReminderStore((s) => s.showPickerForDeny);
+  const aiMode = useAuthStore((s) => s.preferences.aiMode);
+  const userName = (useAuthStore((s) => s.userProfileV2?.manual?.freeText) as string | undefined) ?? undefined;
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;
@@ -137,38 +230,75 @@ const MainLayout = () => {
 
   useEffect(() => {
     if (!user?.id) return;
+    let cancelled = false;
+    let running = false;
 
-    const reportStore = useReportStore.getState();
-    let lastDay = new Date().toDateString();
+    const dayKey = (value: Date) => (
+      `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+    );
 
-    const generatePreviousDayReport = () => {
-      const nowStr = new Date().toDateString();
-      if (nowStr !== lastDay) {
-        const previousDay = new Date();
-        previousDay.setDate(previousDay.getDate() - 1);
-        reportStore.generateReport('daily', previousDay.getTime());
-        lastDay = nowStr;
+    const startOfLocalDay = (value: Date) => (
+      new Date(value.getFullYear(), value.getMonth(), value.getDate())
+    );
+
+    const ensureDailyBackfill = async () => {
+      if (running || cancelled) return;
+      running = true;
+      try {
+        const now = new Date();
+        const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        const yesterdayKey = dayKey(yesterday);
+        const createdAtSource = user?.created_at ? new Date(user.created_at) : null;
+        const createdAtDay = createdAtSource && !Number.isNaN(createdAtSource.getTime())
+          ? startOfLocalDay(createdAtSource)
+          : null;
+        const backfillStart = createdAtDay && createdAtDay.getTime() <= yesterday.getTime()
+          ? createdAtDay
+          : yesterday;
+        const reportState = useReportStore.getState();
+        const dailyReports = reportState.reports.filter((report) => report.type === 'daily');
+
+        const reportDates = dailyReports
+          .map((report) => startOfLocalDay(new Date(report.date)))
+          .filter((date) => dayKey(date) <= yesterdayKey);
+        const existingKeys = new Set(reportDates.map(dayKey));
+        let cursor = new Date(backfillStart);
+        while (!cancelled && dayKey(cursor) <= yesterdayKey) {
+          const key = dayKey(cursor);
+          if (!existingKeys.has(key)) {
+            await reportState.generateReport('daily', cursor.getTime());
+            existingKeys.add(key);
+          }
+          cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+        }
+      } finally {
+        running = false;
       }
     };
 
-    const intervalId = setInterval(generatePreviousDayReport, 60_000);
+    // Catch up when app cold-starts: auto-fill all missing daily diaries up to yesterday.
+    void ensureDailyBackfill();
+
+    const intervalId = setInterval(() => {
+      void ensureDailyBackfill();
+    }, 60_000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        generatePreviousDayReport();
+        void ensureDailyBackfill();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      cancelled = true;
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user?.id]);
 
   return (
-    <div className="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden">
-      <Header />
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#FCFAF7] md:bg-[radial-gradient(circle_at_18%_20%,#ffffff_0%,#f4f1eb_45%,#efe9de_100%)]">
       <PageOutlet />
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}
@@ -186,6 +316,26 @@ const MainLayout = () => {
         emojiChar={animationState.emojiChar}
         onComplete={handleAnimationComplete}
       />
+      {/* 主动提醒弹窗 */}
+      {activePopupType && activePopupType !== 'evening_check' && activePopupType !== 'weekend_evening_check' && (
+        <ReminderPopup
+          type={activePopupType}
+          copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
+          onConfirm={() => { void confirmReminderFromPopup(activePopupType); }}
+          onDeny={() => showPickerForDeny()}
+        />
+      )}
+      {(activePopupType === 'evening_check' || activePopupType === 'weekend_evening_check') && (
+        <EveningCheckPopup
+          copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
+          todayEventCount={messages.filter((m) => m.mode === 'record').length}
+          onViewReport={() => { markConfirmed(activePopupType); navigate('/report'); }}
+          onGrowPlant={() => { markConfirmed(activePopupType); navigate('/growth'); }}
+          onSnooze={() => { markConfirmed(activePopupType); }}
+          onClose={() => { markConfirmed(activePopupType); }}
+        />
+      )}
+      <QuickActivityPicker />
     </div>
   );
 };
@@ -199,6 +349,8 @@ function App() {
 
   // Multi-device realtime sync: subscribes when signed in, unsubscribes on sign-out
   useRealtimeSync();
+  // iOS/Android: re-fetch core data when app returns from background
+  useAppForegroundRefresh();
 
   return (
     <BrowserRouter>
@@ -217,9 +369,15 @@ function App() {
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="telemetry/live-input" element={<LiveInputTelemetryPage />} />
+          <Route path="upgrade" element={<UpgradePage />} />
+          <Route path="telemetry" element={<RequireTelemetryAdmin><TelemetryHubPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/live-input" element={<RequireTelemetryAdmin><LiveInputTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/ai-annotation" element={<RequireTelemetryAdmin><AiAnnotationTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/todo-decompose" element={<RequireTelemetryAdmin><TodoDecomposeTelemetryPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/user-analytics" element={<RequireTelemetryAdmin><UserAnalyticsDashboardPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
+        <Route path="/onboarding" element={<OnboardingRoute />} />
       </Routes>
     </BrowserRouter>
   );

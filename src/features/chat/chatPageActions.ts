@@ -20,6 +20,7 @@ interface AutoWriteExecutionResult {
 }
 
 type SendAutoRecognizedInputFn = (content: string) => Promise<AutoWriteExecutionResult>;
+type WriteMagicPenAutoItemFn = (item: MagicPenAutoWriteItem) => Promise<{ messageId?: string }>;
 type CompleteActiveTodoFn = () => Promise<void>;
 type UpdateMessageDurationFn = (content: string, timestamp: number, durationMinutes: number) => Promise<void>;
 type ParseMagicPenFn = (rawText: string, options: { lang: 'zh' | 'en' | 'it' }) => Promise<{
@@ -50,6 +51,7 @@ interface HandleMagicPenModeSendParams {
   activeTodoId: string | null;
   todos: ActiveTodoSnapshot[];
   sendAutoRecognizedInput: SendAutoRecognizedInputFn;
+  writeMagicPenAutoItem: WriteMagicPenAutoItemFn;
   completeActiveTodo: CompleteActiveTodoFn;
   updateMessageDuration: UpdateMessageDurationFn;
   parseMagicPenInput: ParseMagicPenFn;
@@ -86,14 +88,14 @@ function toSupportedLang(inputLang: string): 'zh' | 'en' | 'it' {
 }
 
 async function completeActiveTodoAfterRealtimeIfNeeded(
-  classifications: Array<LiveInputClassification | null>,
+  writtenKinds: Array<'activity' | 'mood' | null>,
   activeTodoId: string | null,
   todos: ActiveTodoSnapshot[],
   completeActiveTodo: CompleteActiveTodoFn,
   updateMessageDuration: UpdateMessageDurationFn,
 ): Promise<void> {
   if (!activeTodoId) return;
-  const hasActivity = classifications.some((item) => item?.kind === 'activity');
+  const hasActivity = writtenKinds.some((kind) => kind === 'activity');
   if (!hasActivity) return;
 
   const todoToComplete = todos.find((todo) => todo.id === activeTodoId);
@@ -106,22 +108,33 @@ async function completeActiveTodoAfterRealtimeIfNeeded(
 }
 
 function shouldUseLocalFastPath(input: string, classification: LiveInputClassification): boolean {
-  const compactSemanticLength = input
+  const normalizedInput = input.trim().replace(/\s+/g, ' ');
+  const compactSemanticLength = normalizedInput
     .replace(/\s+/g, '')
     .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
     .length;
 
-  const hasExplicitTimeSignal = /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|下周|本周|这周|本月|下个月|待会|等会|等下|一会|稍后|晚点|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}(?:点)?)/.test(input);
+  const hasTodoListSignals = /(?:^|\b)(todo|to\s*-?\s*do)(?:\b|$)|待办|待辦|待做|任务清单|事項清單|清单|以下是我的待办|我的待办|今日待办|今天待办/.test(normalizedInput);
+  if (hasTodoListSignals) {
+    return false;
+  }
+
+  const hasExplicitListSeparators = /[\n，,。.!?！？；;、]|[()（）【】\[\]]/.test(normalizedInput);
+  const zhSpaceChunks = normalizedInput.split(/\s+/).filter(Boolean).length;
+  const hasLikelySpaceSeparatedList = /[\u3400-\u9fff]/.test(normalizedInput) && zhSpaceChunks >= 3;
+  const actionSignalMatches = normalizedInput.match(/跑步|吃饭|开会|学习|写作业|做作业|见面|投简历|买菜|复习|整理|收集|回电话/g) ?? [];
+  const hasMultiActionSignals = hasExplicitListSeparators || hasLikelySpaceSeparatedList || actionSignalMatches.length >= 2;
+  if (hasMultiActionSignals) {
+    return false;
+  }
+
+  const hasExplicitTimeSignal = /(今天|明天|后天|昨天|前天|今早|早上|上午|中午|下午|晚上|下周|本周|这周|本月|下个月|待会|等会|等下|一会|稍后|晚点|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|\d{1,2}\s*(?:到|至|~|～|-|—)\s*\d{1,2}(?:点)?)/.test(normalizedInput);
   if (hasExplicitTimeSignal) {
     return false;
   }
 
-  if (compactSemanticLength > 0 && compactSemanticLength <= 3) {
-    return true;
-  }
-
-  const isSimpleText = !/[\n，,。.!?！？；;、]/.test(input);
-  if (compactSemanticLength > 0 && compactSemanticLength <= 6 && isSimpleText) {
+  const isSimpleText = !/[\n，,。.!?！？；;、]/.test(normalizedInput);
+  if (compactSemanticLength > 0 && compactSemanticLength <= 8 && isSimpleText) {
     return true;
   }
 
@@ -140,7 +153,7 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     return false;
   }
 
-  const hasParserPrioritySignals = /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(input);
+  const hasParserPrioritySignals = /(今天|明天|后天|昨[天日]|上午|早上|中午|下午|晚上|今早|刚刚|刚才|待会|等会|等下|一会|稍后|晚点|下周|本周|这周|下个月|本月|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?|分钟|半小时|小时|记得|提醒|别忘了|还要|需要|打算|计划|要.+了)/.test(normalizedInput);
   if (hasParserPrioritySignals) {
     return false;
   }
@@ -149,26 +162,6 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
     || classification.internalKind === 'standalone_mood'
     || classification.internalKind === 'mood_about_last_activity'
     || classification.internalKind === 'activity_with_mood';
-}
-
-function shouldPromoteUnparsedToAutoWrite(
-  input: string,
-  classification: LiveInputClassification,
-): boolean {
-  const semanticLength = input
-    .replace(/\s+/g, '')
-    .replace(/[，,。.!?！？；;、:：'"“”‘’`~\-]/g, '')
-    .length;
-  const isTimeOnlySegment = /^(今天|明天|后天|昨[天日]|今早|早上|上午|中午|下午|晚上|今晚|今夜|\d{1,2}(?::|：)\d{1,2}|\d{1,2}点(?:半|一刻|三刻|\d{1,2}分?)?|[零一二两俩三四五六七八九十]{1,3}点(?:半|一刻|三刻|[零一二三四五六七八九十]{1,2}分?)?)$/.test(input.trim());
-  const hasMoodSignal = /(累|疲惫|难过|伤心|烦|崩溃|焦虑|开心|高兴|沮丧|郁闷|委屈|想哭)/.test(input);
-
-  if (classification.confidence === 'low') {
-    return classification.kind === 'mood' && semanticLength > 0 && semanticLength <= 6 && !isTimeOnlySegment;
-  }
-  if (classification.kind === 'mood' && hasMoodSignal && !isTimeOnlySegment) {
-    return true;
-  }
-  return shouldUseLocalFastPath(input, classification);
 }
 
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {
@@ -213,7 +206,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       });
       const localWriteResult = await params.sendAutoRecognizedInput(trimmed);
       await completeActiveTodoAfterRealtimeIfNeeded(
-        [localWriteResult.classification],
+        [localWriteResult.classification?.kind ?? null],
         params.activeTodoId,
         params.todos,
         params.completeActiveTodo,
@@ -246,41 +239,9 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       ...item,
       source: 'ai' as const,
     }));
-    const remainingUnparsed: string[] = [];
-
-    for (let index = 0; index < parsed.unparsedSegments.length; index += 1) {
-      const segment = parsed.unparsedSegments[index].trim();
-      if (!segment) continue;
-      const segmentClassification = classifyLiveInput(segment, getLiveInputContext(params.messages));
-      logMagicPenFlow('send.unparsed_reclassify', {
-        sendSeq,
-        index,
-        segment,
-        kind: segmentClassification.kind,
-        internalKind: segmentClassification.internalKind,
-        confidence: segmentClassification.confidence,
-      });
-      const shouldPromote = shouldPromoteUnparsedToAutoWrite(segment, segmentClassification);
-      logMagicPenFlow('send.unparsed_decision', {
-        sendSeq,
-        index,
-        promoted: shouldPromote,
-        targetKind: segmentClassification.kind,
-        confidence: segmentClassification.confidence,
-      });
-      if (shouldPromote) {
-        recoveredAutoWriteItems.push({
-          id: `local-unparsed-${index}`,
-          kind: segmentClassification.kind,
-          content: segment,
-          sourceText: segment,
-          confidence: segmentClassification.confidence,
-          source: 'unparsed_promoted',
-        });
-        continue;
-      }
-      remainingUnparsed.push(segment);
-    }
+    const remainingUnparsed = parsed.unparsedSegments
+      .map((segment) => segment.trim())
+      .filter((segment) => Boolean(segment));
 
     logMagicPenFlow('send.autowrite_candidates', {
       sendSeq,
@@ -293,15 +254,15 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       })),
     });
 
-    const autoWriteResults: Array<LiveInputClassification | null> = [];
+    const autoWriteKinds: Array<'activity' | 'mood' | null> = [];
     const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
 
     for (const autoWriteItem of recoveredAutoWriteItems) {
       if (!autoWriteItem.content.trim()) {
         continue;
       }
-      const writeResult = await params.sendAutoRecognizedInput(autoWriteItem.content);
-      autoWriteResults.push(writeResult.classification);
+      const writeResult = await params.writeMagicPenAutoItem(autoWriteItem);
+      autoWriteKinds.push(autoWriteItem.kind);
       autoWrittenItems.push({
         id: autoWriteItem.id,
         kind: autoWriteItem.kind,
@@ -314,10 +275,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
         sendSeq,
         id: autoWriteItem.id,
         source: autoWriteItem.source,
-        expectedKind: autoWriteItem.kind,
-        actualKind: writeResult.classification?.kind,
-        actualInternalKind: writeResult.classification?.internalKind,
-        confidence: writeResult.classification?.confidence,
+        kind: autoWriteItem.kind,
         contentPreview: previewMagicPenText(autoWriteItem.content),
       });
     }
@@ -331,7 +289,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
     });
 
     await completeActiveTodoAfterRealtimeIfNeeded(
-      autoWriteResults,
+      autoWriteKinds,
       params.activeTodoId,
       params.todos,
       params.completeActiveTodo,

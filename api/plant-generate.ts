@@ -1,4 +1,4 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_PRD_v1_8.docx -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_PRD_v1_8.docx -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isLegacyChatActivityType } from '../src/lib/activityType.js';
 import {
@@ -9,15 +9,15 @@ import {
   resolveSupportVariant,
 } from '../src/lib/plantCalculator.js';
 import { mapSourcesToPlantActivities } from '../src/lib/plantActivityMapper.js';
-import type { PlantGenerateRequest, PlantGenerateResponse, PlantStage, RootType } from '../src/types/plant.js';
+import { getAvailablePlants, extractStageFromPlantId } from '../src/lib/plantRegistry.js';
+import type { PlantGenerateRequest, PlantGenerateResponse, RootType } from '../src/types/plant.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
-import { generatePlantDiaryWithFallback } from '../src/server/plant-diary-service.js';
+import { generatePlantDiaryWithFallback, FREE_FALLBACK_TEXT } from '../src/server/plant-diary-service.js';
 import {
   getDateInTimezone,
   isTooEarlyToGenerate,
   requirePlantAuth,
   resolveDayWindow,
-  resolvePlantId,
   serializePlantRecord,
   toRootMetricsJson,
 } from '../src/server/plant-shared.js';
@@ -31,15 +31,18 @@ interface MessageRow {
   timestamp: number;
 }
 
-function resolvePlantStage(): PlantStage {
-  return 'mid';
-}
-
-function resolveSpecialRootType(isAirDay: boolean, fallbackRootType: RootType): RootType {
-  if (isAirDay) {
-    return 'sha';
+function resolveMonthRange(date: string): { startDate: string; endDate: string } {
+  const [yearRaw, monthRaw] = date.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return { startDate: date, endDate: date };
   }
-  return fallbackRootType;
+
+  const startDate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { startDate, endDate };
 }
 
 function buildTooEarlyResponse(): PlantGenerateResponse {
@@ -53,7 +56,6 @@ function buildTooEarlyResponse(): PlantGenerateResponse {
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   applyCors(res, ['POST']);
-
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
@@ -69,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
+  // ── 检查是否已生成 ────────────────────────────────────────────────────────
   const { data: existing, error: existingError } = await auth.db
     .from('daily_plant_records')
     .select('*')
@@ -80,7 +83,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     jsonError(res, 500, 'Failed to read daily plant record', existingError.message);
     return;
   }
-
   if (existing) {
     res.status(200).json({
       success: true,
@@ -90,6 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
+  // ── 读取今日活动 ──────────────────────────────────────────────────────────
   const window = resolveDayWindow(date, timezone, body.dayStartMs, body.dayEndMs);
   const { data: rows, error: messageError } = await auth.db
     .from('messages')
@@ -107,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   const messages = ((rows ?? []) as MessageRow[])
-    .filter((row) => !isLegacyChatActivityType(row.activity_type));
+    .filter(row => !isLegacyChatActivityType(row.activity_type));
   const activities = mapSourcesToPlantActivities(messages.map(row => ({
     id: row.id,
     content: row.content,
@@ -126,56 +129,97 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
+  // ── 计算根系指标 ──────────────────────────────────────────────────────────
   const metrics = computeRootMetrics(activities);
   const isAirDay = isAirPlantDay(activities);
   const isEntertainmentDay = !isAirDay && isEntertainmentDominantDay(metrics);
   const matchedRootType = matchRootType(metrics);
-  const rootType = resolveSpecialRootType(isAirDay, matchedRootType);
-  const plantStage = resolvePlantStage();
+  const rootType: RootType = isAirDay ? 'sha' : matchedRootType;
   const isSupportVariant = !isAirDay && !isEntertainmentDay && resolveSupportVariant(metrics);
-  const plantId = resolvePlantId({
-    rootType,
-    stage: plantStage,
-    date,
-    isSupportVariant,
-    isAirDay,
-  });
 
-  const diary = await generatePlantDiaryWithFallback({
-    date,
-    activities: activities.map(item => ({
-      category: item.categoryKey,
-      duration: item.minutes,
-      focus: item.focus,
-    })),
-    totalDuration: metrics.totalMinutes,
-    rootType,
-    plantStage,
-    isSpecial: isAirDay || isEntertainmentDay,
-    isSupportVariant,
-    lang: body.lang,
-    aiMode: auth.user.user_metadata?.ai_mode,
-    userName: auth.user.user_metadata?.full_name,
-  });
+  // ── 查询该根系可用植物，交由 AI 选择 ──────────────────────────────────────
+  const availablePlants = getAvailablePlants(rootType);
+  const { startDate: monthStartDate, endDate: monthEndDate } = resolveMonthRange(date);
+  const { data: monthlyRows, error: monthlyRowsError } = await auth.db
+    .from('daily_plant_records')
+    .select('plant_id')
+    .eq('user_id', auth.user.id)
+    .gte('date', monthStartDate)
+    .lte('date', monthEndDate);
 
-  const insertPayload = {
-    user_id: auth.user.id,
-    date,
-    timezone,
-    root_metrics: toRootMetricsJson(metrics),
-    root_type: rootType,
-    plant_id: plantId,
-    plant_stage: plantStage,
-    is_special: isAirDay || isEntertainmentDay,
-    is_support_variant: isSupportVariant,
-    diary_text: diary.diaryText,
-    generated_at: new Date().toISOString(),
-    cycle_id: null,
-  };
+  if (monthlyRowsError) {
+    jsonError(res, 500, 'Failed to read monthly plant history', monthlyRowsError.message);
+    return;
+  }
 
+  const usedPlantIds = new Set((monthlyRows ?? []).map(row => String(row.plant_id ?? '')));
+  const monthlyCandidates = availablePlants.filter(plant => !usedPlantIds.has(plant.id));
+
+  if (monthlyCandidates.length === 0) {
+    res.status(200).json({
+      success: true,
+      status: 'monthly_exhausted',
+      plant: null,
+      message: 'All plant candidates for this root type have been used this month.',
+    } satisfies PlantGenerateResponse);
+    return;
+  }
+
+  // Free users skip AI — pick first candidate + static template text
+  const userMeta = auth.user.user_metadata ?? {};
+  const appMeta = (auth.user as { app_metadata?: Record<string, unknown> }).app_metadata ?? {};
+  const isPlus = ['plus', 'premium', true].includes(
+    appMeta.membership_plan ?? appMeta.membership_tier ?? appMeta.is_plus ??
+    userMeta.membership_plan ?? userMeta.membership_tier ?? userMeta.is_plus ?? false
+  );
+
+  const resolvedLang = (body.lang === 'zh' || body.lang === 'it') ? body.lang : 'en';
+  const diary = isPlus
+    ? await generatePlantDiaryWithFallback({
+        date,
+        activities: activities.map(item => ({
+          category: item.categoryKey,
+          duration: item.minutes,
+          focus: item.focus,
+        })),
+        totalDuration: metrics.totalMinutes,
+        rootType,
+        plantStage: 'early',
+        isSpecial: isAirDay || isEntertainmentDay,
+        isSupportVariant,
+        availablePlants: monthlyCandidates,
+        lang: body.lang,
+        aiMode: auth.user.user_metadata?.ai_mode,
+        userName: auth.user.user_metadata?.full_name,
+      })
+    : {
+        diaryText: FREE_FALLBACK_TEXT[resolvedLang],
+        chosenPlantId: monthlyCandidates[Math.floor(Math.random() * monthlyCandidates.length)]?.id
+          ?? monthlyCandidates[0]?.id ?? 'sha_early_0001',
+        diaryStatus: 'fallback' as const,
+      };
+
+  // AI 返回的 plantId 包含了 stage 信息（如 fib_late_0001）
+  const plantId = diary.chosenPlantId;
+  const plantStage = extractStageFromPlantId(plantId);
+
+  // ── 写入数据库 ────────────────────────────────────────────────────────────
   const { data: inserted, error: insertError } = await auth.db
     .from('daily_plant_records')
-    .insert(insertPayload)
+    .insert({
+      user_id: auth.user.id,
+      date,
+      timezone,
+      root_metrics: toRootMetricsJson(metrics),
+      root_type: rootType,
+      plant_id: plantId,
+      plant_stage: plantStage,
+      is_special: isAirDay || isEntertainmentDay,
+      is_support_variant: isSupportVariant,
+      diary_text: diary.diaryText,
+      generated_at: new Date().toISOString(),
+      cycle_id: null,
+    })
     .select('*')
     .single();
 

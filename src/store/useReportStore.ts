@@ -9,14 +9,18 @@ import i18n from '../i18n';
 import { useTodoStore } from './useTodoStore';
 import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
+import { useAuthStore } from './useAuthStore';
+import { useGrowthStore } from './useGrowthStore';
 import { type ComputedResult } from '../lib/reportCalculator';
 import {
   createGeneratedReport,
   mergeReportIntoList,
   runReportAIAnalysis,
-  runTimeshineDiary,
+  runAIDiary,
   syncReportToSupabase,
+  triggerWeeklyProfileExtraction,
 } from './reportActions';
+import { getDateRange } from './reportHelpers';
 
 export interface ReportStats {
   completedTodos: number;
@@ -40,17 +44,39 @@ export interface ReportStats {
     total?: number; // For weekly/monthly
     rate?: number;
   }[];
-  priorityStats?: {
-    priority: string;
-    count: number;
-    completed: number;
-  }[];
   dailyCompletion?: {
     date: string;
     completed: number;
     total: number;
     rate: number;
   }[];
+  // Daily-only: new todo breakdown
+  habitCheckin?: {
+    bottleId: string;
+    name: string;
+    done: boolean;
+    recurrence: string;
+  }[];
+  goalProgress?: {
+    bottleId: string;
+    bottleName: string;
+    doneToday: boolean;
+    currentStars: number;
+  }[];
+  independentRecurring?: { completed: number; total: number };
+  oneTimeTasks?: {
+    high: { completed: number; total: number };
+    medium: { completed: number; total: number };
+    low: { completed: number; total: number };
+    completedTitles: string[];
+  };
+}
+
+export interface StickerItem {
+  id: 'activity' | 'mood';
+  visible: boolean;
+  x: number;
+  y: number;
 }
 
 export interface Report {
@@ -62,9 +88,12 @@ export interface Report {
   type: 'daily' | 'weekly' | 'monthly' | 'custom';
   content: string; // JSON string or markdown
   aiAnalysis?: string | null;
+  teaserText?: string | null;
+  userNote?: string;
   stats?: ReportStats;
   analysisStatus?: 'idle' | 'generating' | 'success' | 'error';
   errorMessage?: string | null;
+  stickerLayout?: StickerItem[];
 }
 
 interface ReportState {
@@ -73,8 +102,8 @@ interface ReportState {
   generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => Promise<string>;
   updateReport: (id: string, updates: Partial<Report>) => void;
   triggerAIAnalysis: (reportId: string) => Promise<void>;
-  // 三步走新流程
-  generateTimeshineDiary: (reportId: string) => Promise<void>;
+  // 日记三步流程
+  generateAIDiary: (reportId: string) => Promise<void>;
   // 存储计算结果供历史对比
   computedHistory: ComputedResult[];
 }
@@ -100,14 +129,39 @@ export const useReportStore = create<ReportState>()(
 
           if (data && data.length > 0) {
             const mappedReports: Report[] = data.map(fromDbReport);
-            const dedupedReports = mappedReports.reduce<Report[]>(
+            const cloudDedupedReports = mappedReports.reduce<Report[]>(
               (reports, report) => mergeReportIntoList(reports, report.type, report.date, report),
               [],
             );
-            dedupedReports.sort((left, right) => right.date - left.date);
-            set({ reports: dedupedReports });
+
+            const localReports = get().reports;
+            const localOnlyReports = localReports.filter(
+              (localReport) => !cloudDedupedReports.some((cloudReport) => cloudReport.id === localReport.id),
+            );
+
+            const mergedReports = [...cloudDedupedReports];
+            for (const localReport of localOnlyReports) {
+              const existingByWindow = mergedReports.find(
+                (report) => report.type === localReport.type && isSameDay(report.date, localReport.date),
+              );
+              if (existingByWindow) {
+                continue;
+              }
+              mergedReports.push(localReport);
+            }
+
+            mergedReports.sort((left, right) => right.date - left.date);
+            set({ reports: mergedReports });
+
+            localOnlyReports.forEach((report) => {
+              void syncReportToSupabase(report);
+            });
           } else {
-            set({ reports: [] });
+            const localReports = get().reports;
+            set({ reports: localReports });
+            localReports.forEach((report) => {
+              void syncReportToSupabase(report);
+            });
           }
         } catch (error) {
           console.error('Error fetching reports:', error);
@@ -123,12 +177,17 @@ export const useReportStore = create<ReportState>()(
         if (session) {
           const dbUpdates: any = {};
           if (updates.aiAnalysis !== undefined) dbUpdates.ai_analysis = updates.aiAnalysis;
+          if (updates.teaserText !== undefined) dbUpdates.teaser_text = updates.teaserText;
           if (updates.title !== undefined) dbUpdates.title = updates.title;
           if (updates.content !== undefined) dbUpdates.content = updates.content;
           if (updates.stats !== undefined) dbUpdates.stats = updates.stats;
+          if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
 
           if (Object.keys(dbUpdates).length > 0) {
-            await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
+            const { error } = await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
+            if (error) {
+              console.error('[updateReport] supabase error', error, 'columns attempted:', Object.keys(dbUpdates));
+            }
           }
         }
       },
@@ -136,15 +195,21 @@ export const useReportStore = create<ReportState>()(
         const todoStore = useTodoStore.getState();
         const chatStore = useChatStore.getState();
         const moodStore = useMoodStore.getState();
+        const growthStore = useGrowthStore.getState();
         const existingReport = get().reports.find((report) => report.type === type && isSameDay(report.date, date));
+
+        // Fetch messages for the target date range from Supabase (not just today's in-memory messages)
+        const { start, end } = getDateRange(type, date, customEndDate);
+        const messages = await chatStore.getMessagesForDateRange(start, end);
 
         const generatedReport = createGeneratedReport({
           type,
           date,
           customEndDate,
           todos: todoStore.todos,
-          messages: chatStore.messages,
+          messages,
           moodStore,
+          bottles: growthStore.bottles,
         });
         const newReport = existingReport
           ? { ...generatedReport, id: existingReport.id }
@@ -155,6 +220,11 @@ export const useReportStore = create<ReportState>()(
         }));
 
         syncReportToSupabase(newReport);
+
+        if (type === 'weekly') {
+          void triggerWeeklyProfileExtraction(messages);
+        }
+
         return newReport.id;
       },
 
@@ -180,12 +250,12 @@ export const useReportStore = create<ReportState>()(
       },
 
       /**
-       * Timeshine 三步走流程 - 生成观察手记
+       * 日记三步流程
        * Step 1: 调用分类器 API 将原始输入结构化
        * Step 2: 本地计算层处理数据
-       * Step 3: 调用日记 API 生成诗意观察手记
+       * Step 3: 调用日记 API 生成 AI 日记
        */
-      generateTimeshineDiary: async (reportId) => {
+      generateAIDiary: async (reportId) => {
         const state = get();
         const report = state.reports.find((r) => r.id === reportId);
         if (!report) return;
@@ -193,27 +263,47 @@ export const useReportStore = create<ReportState>()(
         const chatStore = useChatStore.getState();
         const todoStore = useTodoStore.getState();
         const moodStore = useMoodStore.getState();
+        const growthStore = useGrowthStore.getState();
 
         get().updateReport(reportId, { analysisStatus: 'generating', errorMessage: null });
 
         try {
-          const result = await runTimeshineDiary({
+          const isPlus = useAuthStore.getState().isPlus;
+
+          // Fetch messages for this report's date range from Supabase
+          const start = new Date(report.startDate ?? report.date);
+          const end = new Date(report.endDate ?? report.date);
+          const messages = await chatStore.getMessagesForDateRange(start, end);
+
+          const result = await runAIDiary({
             report,
             todos: todoStore.todos,
-            messages: chatStore.messages,
+            messages,
             moodStore,
             computedHistory: state.computedHistory,
+            bottles: growthStore.bottles,
+            dailyGoal: growthStore.dailyGoal,
+            goalDate: growthStore.goalDate,
+            mode: isPlus ? 'full' : 'teaser',
           });
 
-          set((current) => ({
-            computedHistory: [...current.computedHistory.slice(-6), result.computed],
-          }));
+          if (result.computed) {
+            set((current) => ({
+              computedHistory: [...current.computedHistory.slice(-6), result.computed],
+            }));
+          }
 
-          get().updateReport(reportId, { aiAnalysis: result.content, analysisStatus: 'success' });
-          console.log('[Timeshine] 观察手记生成完成');
+          const existingStats = get().reports.find(r => r.id === reportId)?.stats;
+          get().updateReport(reportId, {
+            aiAnalysis: isPlus ? result.content : report.aiAnalysis,
+            teaserText: isPlus ? report.teaserText : result.content,
+            analysisStatus: 'success',
+            stats: existingStats,
+          });
+          console.log('[Diary] AI 日记生成完成');
 
         } catch (error) {
-          console.error('[Timeshine] 生成观察手记失败:', error);
+          console.error('[Diary] 生成 AI 日记失败:', error);
           get().updateReport(reportId, {
             analysisStatus: 'error',
             errorMessage: error instanceof Error ? error.message : i18n.t('report_error_unknown')
@@ -224,7 +314,11 @@ export const useReportStore = create<ReportState>()(
     {
       name: 'report-storage',
       partialize: (state) => ({
-        reports: state.reports.map(r => ({ ...r, analysisStatus: r.aiAnalysis ? 'success' : 'idle', errorMessage: undefined })),
+        reports: state.reports.map(r => ({
+          ...r,
+          analysisStatus: (r.aiAnalysis || r.teaserText) ? 'success' : 'idle',
+          errorMessage: undefined,
+        })),
         computedHistory: state.computedHistory
       }),
     }

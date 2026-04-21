@@ -10,17 +10,17 @@ describe('aiCompanion', () => {
   it('builds localized companion guidance for diary prompts', () => {
     const prompt = buildAiCompanionModePrompt('zh', 'agnes', 'diary');
 
-    expect(prompt).toContain('Agnes - 引领指导');
-    expect(prompt).toContain('【日记写作重点】');
-    expect(prompt).toContain('方向');
+    expect(prompt).toContain('你是Agnes');
+    expect(prompt).toContain('正文必须 150-300 字');
+    expect(prompt).toContain('成长/状态变化信号');
   });
 
-  it('builds annotation guidance for spring thunder in english', () => {
-    const prompt = buildAiCompanionModePrompt('en', 'spring_thunder', 'annotation');
+  it('uses dedicated english annotation prompt for momo', () => {
+    const prompt = buildAiCompanionModePrompt('en', 'momo', 'annotation');
 
-    expect(prompt).toContain('Spring Thunder - Order Catalyst');
-    expect(prompt).toContain('Annotation priorities:');
-    expect(prompt).toContain('one strike is enough');
+    expect(prompt).toContain('You are Momo, a tiny mushroom living in the Plantime time greenhouse.');
+    expect(prompt).toContain('Core stance: hold, do not push');
+    expect(prompt).toContain('Exactly one emoji at the end');
   });
 
   it('uses dedicated english annotation prompts for van, agnes, and zep', () => {
@@ -28,9 +28,9 @@ describe('aiCompanion', () => {
     const agnesPrompt = buildAiCompanionModePrompt('en', 'agnes', 'annotation');
     const zepPrompt = buildAiCompanionModePrompt('en', 'zep', 'annotation');
 
-    expect(vanPrompt).toContain('# Van - "Another Me"');
-    expect(agnesPrompt).toContain('# Agnes - "Ancient Dragon Tree"');
-    expect(zepPrompt).toContain('# Zep - "Pelican in the Greenhouse"');
+    expect(vanPrompt).toContain('You are Van, a morning glory living in the Plantime time greenhouse.');
+    expect(agnesPrompt).toContain('You are Agnes, a thousand-year dragon tree living in the Plantime time greenhouse.');
+    expect(zepPrompt).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
     expect(vanPrompt).not.toContain('Annotation priorities:');
   });
 
@@ -39,22 +39,30 @@ describe('aiCompanion', () => {
     const agnesPrompt = buildAiCompanionModePrompt('it', 'agnes', 'annotation');
     const zepPrompt = buildAiCompanionModePrompt('it', 'zep', 'annotation');
 
-    expect(vanPrompt).toContain('# Van - "Un Altro Me"');
-    expect(agnesPrompt).toContain('# Agnes - "Dracena Antica"');
-    expect(zepPrompt).toContain('# Zep - "Pellicano nella Serra"');
+    expect(vanPrompt).toContain('Sei Van, una campanula che vive nella serra del tempo di Plantime.');
+    expect(agnesPrompt).toContain('Sei Agnes, una dracena millenaria che vive nella serra del tempo di Plantime.');
+    expect(zepPrompt).toContain('Sei Zep, un pellicano che vive nella serra del tempo di Plantime.');
     expect(vanPrompt).not.toContain("Priorita dell'annotazione:");
   });
 
   it('uses the dedicated chinese annotation prompt when one is defined', () => {
     const prompt = buildAiCompanionModePrompt('zh', 'van', 'annotation');
 
-    expect(prompt).toContain('# Van');
+    expect(prompt).toContain('你是 Van');
   });
 
   it('injects the selected mode into annotation system prompts', () => {
     const prompt = getSystemPrompt('en', 'zep');
 
-    expect(prompt).toContain('# Zep - "Pelican in the Greenhouse"');
-    expect(prompt).toContain('One short annotation only.');
+    expect(prompt).toContain('You are Zep');
+    expect(prompt).toContain('Exactly one emoji at the end.');
+  });
+
+  it('routes en/it annotation system prompts to dedicated mode prompts (no concatenated fallback blocks)', () => {
+    const enPrompt = getSystemPrompt('en', 'van');
+    const itPrompt = getSystemPrompt('it', 'agnes');
+
+    expect(enPrompt).not.toContain('Annotation priorities:');
+    expect(itPrompt).not.toContain("Priorita dell'annotazione:");
   });
 });

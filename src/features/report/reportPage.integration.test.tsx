@@ -20,7 +20,7 @@ vi.mock('../../store/useReportStore', () => ({
   useReportStore: () => ({
     reports: [],
     generateReport: vi.fn(async () => 'mock-report-id'),
-    generateTimeshineDiary: vi.fn(async () => ''),
+    generateAIDiary: vi.fn(async () => ''),
   }),
 }));
 

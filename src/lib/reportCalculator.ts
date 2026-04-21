@@ -12,7 +12,7 @@ export function processClassifierOutput(
   lang: 'zh' | 'en' | 'it' = 'zh'
 ): { computed: ComputedResult; diaryInput: string } {
   const classified = parseClassifierResponse(rawClassifierOutput);
-  const computed = computeAll(classified, history);
+  const computed = computeAll(classified, history, lang);
   const diaryInput = formatForDiaryAI(computed, lang);
   return { computed, diaryInput };
 }

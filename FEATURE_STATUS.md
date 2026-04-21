@@ -1,4 +1,4 @@
-# Tshine 功能状态（Feature Status）
+# Seeday 功能状态（Feature Status）
 
 - 更新时间: 2026-03-22
 - 状态等级:
@@ -54,7 +54,7 @@
   - `src/store/usePlantStore.ts`
 - 说明:
   - 支持按日/周/月/自定义区间生成报告。
-  - 支持观察手记生成（Timeshine Diary 三步流程）与内嵌植物根系互动区。
+  - 支持观察手记生成（Seeday Diary 三步流程）与内嵌植物根系互动区。
   - 已完成页面与 store 大体量拆分（C3/C4/C6）。
   - 已修复报告详情标题语言不一致问题（动态 i18n 标题）。
 
@@ -85,9 +85,8 @@
 - 状态: `beta`
 - 组件: `src/components/feedback/Stardust*.tsx`
 - 数据/状态: `src/store/useStardustStore.ts`
-- 服务端: `api/stardust.ts`
 - 说明:
-  - 前端明文密钥直连已下线，统一改 serverless 转发。
+  - Stardust Emoji 统一复用批注内容中的 emoji，缺失时本地兜底 `✨`，不再走独立 AI 端点。
 
 ## 8. Plant System（嵌入 `/report` + `/profile`）
 

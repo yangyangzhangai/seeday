@@ -11,23 +11,29 @@ import { ImageUploader } from './ImageUploader';
 import { useStardustStore } from '../../../store/useStardustStore';
 import type { StardustCardData } from '../../../types/stardust';
 
+const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
+
 export interface MoodCardProps {
   message: Message; // isMood: true, detached: true
   onReturnToEvent: (id: string) => void;
+  allowReturnToEvent?: boolean;
   onConvertToEvent: (id: string) => void;
   onDelete: (id: string) => void;
   onMoodClick: (messageId: string) => void;
   readonly?: boolean;
+  alwaysShowActions?: boolean;
   onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const MoodCard: React.FC<MoodCardProps> = ({
   message,
   onReturnToEvent,
+  allowReturnToEvent = true,
   onConvertToEvent,
   onDelete,
   onMoodClick,
   readonly,
+  alwaysShowActions,
   onStardustSelect,
 }) => {
   const { t } = useTranslation();
@@ -43,22 +49,42 @@ export const MoodCard: React.FC<MoodCardProps> = ({
 
   useEffect(() => {
     if (!cardActive) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent | PointerEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setCardActive(false);
       }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('pointerdown', handler);
+    };
   }, [cardActive]);
+
+  useEffect(() => {
+    const handleOtherCardActivated = (event: Event) => {
+      const detail = (event as CustomEvent<{ messageId?: string }>).detail;
+      if (detail?.messageId !== message.id) {
+        setCardActive(false);
+      }
+    };
+    window.addEventListener(CHAT_CARD_ACTIVE_EVENT, handleOtherCardActivated as EventListener);
+    return () => {
+      window.removeEventListener(CHAT_CARD_ACTIVE_EVENT, handleOtherCardActivated as EventListener);
+    };
+  }, [message.id]);
 
   const rawLabel = (customMoodApplied[message.id] && customMoodLabel[message.id])
     ? customMoodLabel[message.id]
     : activityMood[message.id];
   const moodKey   = normalizeMoodKey(rawLabel);
   const moodColor = getMoodColor(rawLabel) || '#38BDF8';
-  // Keep mood data in store for analytics/reporting, while hiding chip in this card UI.
+  const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
   void onMoodClick;
+  void moodKey;
 
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
@@ -72,116 +98,103 @@ export const MoodCard: React.FC<MoodCardProps> = ({
     <div
       ref={cardRef}
       data-message-id={message.id}
-      className="bg-sky-50 border border-sky-100 px-3 py-2 rounded-xl relative"
-      onClick={() => { if (!readonly && !cardActive) setCardActive(true); }}
+      className="rounded-2xl"
+      style={{
+        background: 'linear-gradient(135deg, rgba(240,249,255,0.97) 0%, rgba(224,242,254,0.94) 100%)',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        border: 'none',
+        boxShadow: 'none',
+        position: 'relative',
+        overflow: 'hidden',
+        padding: '10px 13px 9px',
+      }}
+      onClick={() => {
+        if (readonly || cardActive) return;
+        window.dispatchEvent(new CustomEvent(CHAT_CARD_ACTIVE_EVENT, { detail: { messageId: message.id } }));
+        setCardActive(true);
+      }}
     >
-      {/* Delete button — top-right, only when card is tapped and not readonly */}
-      {cardActive && !readonly && (
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(message.id); }}
-          className="absolute -top-2 -right-2 w-5 h-5 bg-gray-400 hover:bg-red-400 rounded-full text-white flex items-center justify-center transition-colors z-10"
-        >
-          <X size={9} />
-        </button>
-      )}
-
-      {/* Text row: dot + content + mood chip + action buttons */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-1.5 flex-1 min-w-0">
-          <div
-            className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-            style={
-              moodKey === 'anxious'
-                ? { background: 'repeating-linear-gradient(45deg,#BAE6FD 0,#BAE6FD 1px,#7DD3FC 1px,#7DD3FC 2px)' }
-                : { backgroundColor: moodColor }
-            }
-          />
-          <span
-            className="text-sm text-gray-800 leading-snug"
-            style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}
-          >
+      {/* ── Header row: title + action buttons + delete ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        marginBottom: hasImages ? 6 : 0, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: 1, minWidth: 0, paddingRight: 6 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 5, flexShrink: 0,
+            background: moodColor }} />
+          <h3 style={{ fontWeight: 600, fontSize: 14, color: '#1e293b', margin: 0, flex: 1, minWidth: 0,
+            lineHeight: 1.4 }}>
             {message.content}
-          </span>
+          </h3>
           {stardustEmoji && (
             stardust && onStardustSelect ? (
-              <button
-                type="button"
-                className="shrink-0 text-sm leading-none rounded-full px-1 py-0.5 hover:bg-violet-50 transition-colors"
-                aria-label="stardust-emoji"
-                onClick={(e) => {
+              <button type="button" aria-label="stardust-emoji"
+                style={{ flexShrink: 0, fontSize: 14, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={e => {
                   e.stopPropagation();
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  onStardustSelect(
-                    {
-                      emojiChar: stardust.emojiChar,
-                      message: stardust.message,
-                      alienName: stardust.alienName || 'T.S',
-                      createdAt: stardust.createdAt,
-                    },
-                    { x: rect.left + rect.width / 2, y: rect.top },
-                  );
-                }}
-              >
+                  onStardustSelect({ emojiChar: stardust.emojiChar, message: stardust.message,
+                    alienName: stardust.alienName || 'T.S', createdAt: stardust.createdAt },
+                    { x: rect.left + rect.width / 2, y: rect.top });
+                }}>
                 {stardustEmoji}
               </button>
             ) : (
-              <span className="shrink-0 text-sm leading-none" aria-label="stardust-emoji">
-                {stardustEmoji}
-              </span>
+              <span style={{ flexShrink: 0, fontSize: 14, lineHeight: 1 }} aria-label="stardust-emoji">{stardustEmoji}</span>
             )
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Return / convert buttons — hidden until card is activated */}
-          {!readonly && cardActive && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          {/* Return / convert buttons — shown when cardActive */}
+          {showActionButtons && (
             <>
-              <button
-                onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }}
-                title={t('mood_return_event')}
-                className="flex items-center text-sky-600 border border-sky-200 rounded-full p-1 hover:bg-sky-100 transition-colors"
-              >
-                <ArrowLeft size={12} />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }}
-                title={t('mood_to_event')}
-                className="flex items-center text-emerald-600 border border-emerald-200 rounded-full p-1 hover:bg-emerald-50 transition-colors"
-              >
+              {allowReturnToEvent && (
+                <button onClick={e => { e.stopPropagation(); onReturnToEvent(message.id); }} title={t('mood_return_event')}
+                  style={{ background: 'none', border: '1px solid rgba(56,189,248,0.4)', borderRadius: '50%',
+                    padding: 4, cursor: 'pointer', color: '#38BDF8', display: 'flex' }}>
+                  <ArrowLeft size={12} />
+                </button>
+              )}
+              <button onClick={e => { e.stopPropagation(); onConvertToEvent(message.id); }} title={t('mood_to_event')}
+                style={{ background: 'none', border: '1px solid rgba(52,211,153,0.4)', borderRadius: '50%',
+                  padding: 4, cursor: 'pointer', color: '#34D399', display: 'flex' }}>
                 <Zap size={12} />
               </button>
             </>
           )}
+          {/* Delete */}
+          {cardActive && !readonly && (
+            <button onClick={e => { e.stopPropagation(); onDelete(message.id); }}
+              style={{
+                background: 'none',
+                border: '1px solid rgba(56,189,248,0.4)',
+                borderRadius: '50%',
+                padding: 4,
+                cursor: 'pointer',
+                color: '#38BDF8',
+                display: 'flex',
+              }}>
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Images — same layout/size as EventCard, with tap-to-zoom/delete via ImageUploader */}
+      {/* Images */}
       {hasImages && (
-        <div className="flex gap-1.5 mt-1.5">
+        <div style={{ display: 'flex', gap: 6, position: 'relative', zIndex: 1 }}>
           {hasImage1 && (
-            <div className="flex-1 min-w-0">
-              <ImageUploader
-                messageId={message.id}
-                imageUrl={message.imageUrl}
-                onUploaded={() => {}}
-                onRemoved={() => handleImageRemoved('imageUrl')}
-                compact
-                hideUploadWhen
-                readonly={readonly}
-              />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ImageUploader messageId={message.id} imageUrl={message.imageUrl}
+                onUploaded={() => {}} onRemoved={() => handleImageRemoved('imageUrl')}
+                compact hideUploadWhen readonly={readonly} />
             </div>
           )}
           {hasImage2 && (
-            <div className="flex-1 min-w-0">
-              <ImageUploader
-                messageId={`${message.id}_2`}
-                imageUrl={message.imageUrl2}
-                onUploaded={() => {}}
-                onRemoved={() => handleImageRemoved('imageUrl2')}
-                compact
-                hideUploadWhen
-                readonly={readonly}
-              />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ImageUploader messageId={`${message.id}_2`} imageUrl={message.imageUrl2}
+                onUploaded={() => {}} onRemoved={() => handleImageRemoved('imageUrl2')}
+                compact hideUploadWhen readonly={readonly} />
             </div>
           )}
         </div>

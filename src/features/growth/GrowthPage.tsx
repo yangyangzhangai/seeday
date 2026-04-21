@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { useTodoStore } from '../../store/useTodoStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../api/supabase';
 import { DailyGoalPopup } from './DailyGoalPopup';
@@ -48,6 +50,68 @@ export const GrowthPage = () => {
   });
   const [showGoalPopup, setShowGoalPopup] = useState(false);
   const [focusTodo, setFocusTodo] = useState<GrowthTodo | null>(null);
+  const [focusQueue, setFocusQueue] = useState<GrowthTodo[] | undefined>(undefined);
+  const [highlightTodoId, setHighlightTodoId] = useState<string | null>(null);
+  const pendingSuggestionIntent = useAnnotationStore((s) => s.pendingSuggestionIntent);
+  const consumePendingSuggestionIntent = useAnnotationStore((s) => s.consumePendingSuggestionIntent);
+  const todos = useTodoStore((s) => s.todos);
+  const todosHydrated = useTodoStore((s) => s.hasHydrated);
+  const addSubTodos = useTodoStore((s) => s.addSubTodos);
+  const fetchBottles = useGrowthStore((s) => s.fetchBottles);
+  const growthLoading = useGrowthStore((s) => s.isLoading);
+  const growthSyncError = useGrowthStore((s) => s.lastSyncError);
+  const fetchTodos = useTodoStore((s) => s.fetchTodos);
+  const todoLoading = useTodoStore((s) => s.isLoading);
+  const todoSyncError = useTodoStore((s) => s.lastSyncError);
+
+  const isSyncing = growthLoading || todoLoading;
+  const hasSyncError = Boolean(growthSyncError || todoSyncError);
+
+  const handleManualSync = () => {
+    void Promise.all([fetchBottles(), fetchTodos()]);
+  };
+
+  // 监听 AI 建议待办高亮事件
+  useEffect(() => {
+    if (!todosHydrated) return;
+    if (!pendingSuggestionIntent || pendingSuggestionIntent.type !== 'todo') return;
+
+    if (Date.now() - pendingSuggestionIntent.createdAt > 45_000) {
+      consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
+      return;
+    }
+
+    const parentTodoExists = pendingSuggestionIntent.todoId
+      ? todos.some((todo) => todo.id === pendingSuggestionIntent.todoId)
+      : false;
+    if (!parentTodoExists) return;
+
+    const pendingIntent = consumePendingSuggestionIntent({ type: 'todo', maxAgeMs: 45_000 });
+    if (!pendingIntent?.todoId) return;
+
+    const steps = pendingIntent.decomposeSteps ?? [];
+    if (steps.length > 0) {
+      const existingSubTodos = todos.filter((todo) => todo.parentId === pendingIntent.todoId);
+      if (existingSubTodos.length === 0) {
+        addSubTodos(pendingIntent.todoId, steps);
+      }
+    }
+    setHighlightTodoId(pendingIntent.todoId);
+    setTimeout(() => setHighlightTodoId(null), 3000);
+  }, [addSubTodos, consumePendingSuggestionIntent, pendingSuggestionIntent, todos, todosHydrated]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ todoId: string }>).detail;
+      if (detail?.todoId) {
+        setHighlightTodoId(detail.todoId);
+        // 3秒后清除高亮
+        setTimeout(() => setHighlightTodoId(null), 3000);
+      }
+    };
+    window.addEventListener('suggestion-highlight-todo', handler);
+    return () => window.removeEventListener('suggestion-highlight-todo', handler);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -97,22 +161,38 @@ export const GrowthPage = () => {
   }, [authLoading, dailyGoalEnabled, goalDate, popupDisabled, remoteGoalDate, userId]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-center">{t('growth_title')}</h1>
-      </header>
+    <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
+      <div className="app-mobile-page-frame app-scroll-container relative h-full w-full max-w-[430px] text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-3xl md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+        <header
+          className="app-mobile-page-header sticky top-0 z-10 flex items-center justify-between px-4 pb-3 pt-11"
+          style={{
+            background: 'rgba(252,250,247,0.38)',
+            backdropFilter: 'blur(14px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+          }}
+        >
+          <h1 className="text-2xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('growth_title')}</h1>
+          {hasSyncError ? (
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              title={growthSyncError || todoSyncError || ''}
+              className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSyncing ? t('loading') : t('retry')}
+            </button>
+          ) : null}
+        </header>
 
-      {/* Content */}
-      <div className="flex-1 py-4">
-        {/* Bottle section */}
-        <BottleList />
-
-        {/* Divider */}
-        <div className="border-t border-gray-200 mx-4 my-2" />
-
-        {/* Todo section */}
-        <GrowthTodoSection onFocus={(todo) => setFocusTodo(todo)} />
+        <div className="flex-1 pb-28 pt-2">
+          <BottleList />
+          <div className="mx-4 my-2 border-t border-slate-200/70" />
+          <GrowthTodoSection
+            onFocus={(todo) => { setFocusQueue(undefined); setFocusTodo(todo); }}
+            onSequentialFocus={(subTodos) => { setFocusTodo(subTodos[0]); setFocusQueue(subTodos); }}
+            highlightTodoId={highlightTodoId}
+          />
+        </div>
       </div>
 
       {/* Daily goal popup */}
@@ -122,7 +202,11 @@ export const GrowthPage = () => {
 
       {/* Focus mode overlay */}
       {focusTodo && (
-        <FocusMode todo={focusTodo} onClose={() => setFocusTodo(null)} />
+        <FocusMode
+          todo={focusTodo}
+          queueTodos={focusQueue}
+          onClose={() => { setFocusTodo(null); setFocusQueue(undefined); }}
+        />
       )}
     </div>
   );

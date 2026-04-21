@@ -17,6 +17,7 @@ import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
+import { buildTodoCompletionAnnotationPayload } from '../lib/todoCompletionAnnotation';
 import { buildClassifierRawInput } from '../lib/classifierRawInput';
 import {
   classifyRecordActivityType,
@@ -24,8 +25,10 @@ import {
 import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
+import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
+import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -61,6 +64,69 @@ function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows:
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 }
 
+async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: number): Promise<void> {
+  const todayStart = new Date(nowMs);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime();
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id,timestamp')
+    .eq('user_id', userId)
+    .eq('is_mood', false)
+    .is('duration', null)
+    .lt('timestamp', todayStartMs);
+
+  if (error) throw error;
+  if (!data || data.length === 0) return;
+
+  await Promise.all(
+    data.map(async (row) => {
+      const startedAt = Number(row.timestamp);
+      if (!Number.isFinite(startedAt)) return;
+      const duration = resolveAutoActivityDurationMinutes(startedAt, nowMs);
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ duration, is_active: false })
+        .eq('id', row.id)
+        .eq('user_id', userId);
+      if (updateError) throw updateError;
+    }),
+  );
+}
+
+function mergePersistedChatState(
+  persistedState: unknown,
+  currentState: ChatState,
+): ChatState {
+  const persisted = (persistedState ?? {}) as Partial<ChatState>;
+  const merged = { ...currentState, ...persisted } as ChatState;
+
+  const nowMs = Date.now();
+  const todayStr = getLocalDateString(new Date(nowMs));
+  const sameDay = persisted.currentDateStr != null && persisted.currentDateStr === todayStr;
+
+  const incomingMessages = Array.isArray(persisted.messages)
+    ? persisted.messages
+    : [];
+  const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(incomingMessages, nowMs);
+
+  if (!sameDay) {
+    merged.messages = [];
+    merged.currentDateStr = null;
+    merged.activeViewDateStr = null;
+    merged.hasInitialized = false;
+    return merged;
+  }
+
+  merged.messages = finalizedMessages;
+  merged.currentDateStr = persisted.currentDateStr ?? todayStr;
+  merged.activeViewDateStr = persisted.activeViewDateStr ?? merged.currentDateStr;
+  merged.hasInitialized = Boolean(persisted.hasInitialized);
+
+  return merged;
+}
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -79,17 +145,32 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set(state => ({
-            messages: state.messages.filter(
-              (m) => !isLegacyChatActivityType(m.activityType)
-            ),
+          const nowMs = Date.now();
+          const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(
+            get().messages.filter((m) => !isLegacyChatActivityType(m.activityType)),
+            nowMs,
+          );
+          set({
+            messages: finalizedMessages,
+            currentDateStr: getLocalDateString(new Date(nowMs)),
             hasInitialized: true,
-          }));
+          });
           return;
         }
 
-        set({ isLoading: true });
+        // Only block UI with skeleton on truly first load (no persisted data yet).
+        // Background sync after cold-start should show local data immediately.
+        if (!get().hasInitialized) {
+          set({ isLoading: true });
+        }
         try {
+          const nowMs = Date.now();
+          try {
+            await closeCrossDayActiveMessagesInDb(session.user.id, nowMs);
+          } catch (closeError) {
+            console.warn('[fetchMessages] closeCrossDayActiveMessagesInDb failed, continue fetching:', closeError);
+          }
+
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const todayStartMs = todayStart.getTime();
@@ -165,14 +246,22 @@ export const useChatStore = create<ChatState>()(
             };
           }
 
+          // Merge cloud messages with any local-only messages (e.g. in-flight writes).
+          // Cloud wins for same ID; local-only messages are kept until next sync.
+          const cloudIdSet = new Set(messages.map((m) => m.id));
+          const localOnlyMessages = get().messages.filter((m) => !cloudIdSet.has(m.id));
+          const mergedMessages = [...messages, ...localOnlyMessages].sort(
+            (a, b) => a.timestamp - b.timestamp,
+          );
+
           set({
-            messages,
+            messages: mergedMessages,
             oldestLoadedDate: todayStr,
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
             currentDateStr: todayStr,
-            activeViewDateStr: todayStr,
-            dateCache: new Map(get().dateCache).set(todayStr, messages),
+            activeViewDateStr: get().activeViewDateStr ?? todayStr,
+            dateCache: new Map(get().dateCache).set(todayStr, mergedMessages),
           });
         } catch (error) {
           console.error('Error fetching messages:', error);
@@ -218,18 +307,24 @@ export const useChatStore = create<ChatState>()(
       },
 
       checkAndRefreshForNewDay: () => {
+        const nowMs = Date.now();
         const state = get();
-        const todayStr = getLocalDateString(new Date());
-        if (state.currentDateStr && state.currentDateStr !== todayStr) {
+        const { messages: finalizedMessages, finalized } = finalizeCrossDayOngoingMessages(state.messages, nowMs);
+        if (finalized.length > 0) {
+          set({ messages: finalizedMessages });
+        }
+
+        const todayStr = getLocalDateString(new Date(nowMs));
+        if (!state.currentDateStr || state.currentDateStr !== todayStr) {
           import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
-          state.fetchMessages();
+          void state.fetchMessages();
         }
       },
 
       fetchMessagesByDate: async (dateStr: string) => {
         const cached = get().dateCache.get(dateStr);
-        if (cached) {
-          set({ messages: cached, activeViewDateStr: dateStr });
+        if (cached && cached.length > 0) {
+          set({ messages: cached, activeViewDateStr: dateStr, currentDateStr: dateStr });
           return;
         }
         const session = await getSupabaseSession();
@@ -264,14 +359,66 @@ export const useChatStore = create<ChatState>()(
         set(state => ({
           messages: msgs,
           activeViewDateStr: dateStr,
+          currentDateStr: dateStr,
           dateCache: new Map(state.dateCache).set(dateStr, msgs),
         }));
+      },
+
+      loadMessagesForDateRange: async (start: Date, end: Date) => {
+        const msgs = await get().getMessagesForDateRange(start, end);
+        const dateStr = getLocalDateString(start);
+        set(state => {
+          const newCache = new Map(state.dateCache);
+          newCache.set(dateStr, msgs);
+          return { dateCache: newCache };
+        });
+      },
+
+      getMessagesForDateRange: async (start: Date, end: Date) => {
+        const dateStr = getLocalDateString(start);
+        // Only use single-day cache when the requested range is ≤ 1 day.
+        // A month-range query (DiaryBookViewer) must not be poisoned by a prior
+        // single-day cache entry stored under the same start-date key.
+        const rangeIsOneDay = end.getTime() - start.getTime() <= 24 * 60 * 60 * 1000 + 1;
+        const cached = rangeIsOneDay ? get().dateCache.get(dateStr) : undefined;
+        if (cached) return cached;
+
+        const session = await getSupabaseSession();
+        if (!session) {
+          return get().messages.filter(m => m.timestamp >= start.getTime() && m.timestamp <= end.getTime());
+        }
+
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .gte('timestamp', start.getTime())
+            .lte('timestamp', end.getTime())
+            .order('timestamp', { ascending: true });
+
+          if (error) {
+            import.meta.env.DEV && console.error('[getMessagesForDateRange] error', error);
+            return [];
+          }
+
+          return filterLegacyChatRows(data || []).map(mapDbRowToMessage);
+        } catch (e) {
+          import.meta.env.DEV && console.error('[getMessagesForDateRange] network error', e);
+          return [];
+        }
       },
 
       sendMessage: async (
         content: string,
         customTimestamp?: number,
-        options?: { skipMoodDetection?: boolean; activityTypeOverride?: ActivityRecordType },
+        options?: {
+          skipMoodDetection?: boolean;
+          skipAnnotation?: boolean;
+          activityTypeOverride?: ActivityRecordType;
+          annotationEventType?: AnnotationEvent['type'];
+          annotationEventData?: AnnotationEvent['data'];
+        },
       ) => {
         const now = customTimestamp ?? Date.now();
         let updatedMessages = [...get().messages];
@@ -302,6 +449,8 @@ export const useChatStore = create<ChatState>()(
         const session = await getSupabaseSession();
         if (session) {
           await persistMessageToSupabase(newMessage, session.user.id);
+          // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
+          void useTimingStore.getState().endActive(session.user.id);
         }
 
         if (!options?.skipMoodDetection) {
@@ -344,17 +493,19 @@ export const useChatStore = create<ChatState>()(
         }
 
         // 触发 AI 批注
-        const annotationStore = useAnnotationStore.getState();
-
-        const recordEvent: AnnotationEvent = {
-          type: 'activity_recorded',
-          timestamp: Date.now(),
-          data: {
-            messageId: newMessage.id,
-            content: newMessage.content,
-          },
-        };
-        annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+        if (!options?.skipAnnotation) {
+          const annotationStore = useAnnotationStore.getState();
+          const recordEvent: AnnotationEvent = {
+            type: options?.annotationEventType || 'activity_recorded',
+            timestamp: Date.now(),
+            data: {
+              messageId: newMessage.id,
+              content: newMessage.content,
+              ...(options?.annotationEventData || {}),
+            },
+          };
+          annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+        }
 
         return newMessage.id;
       },
@@ -484,7 +635,7 @@ export const useChatStore = create<ChatState>()(
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
 
-        const duration = Math.max(0, Math.round((Date.now() - target.timestamp) / (1000 * 60)));
+        const duration = resolveAutoActivityDurationMinutes(target.timestamp, Date.now());
 
         set(state => ({
           messages: state.messages.map(m =>
@@ -502,9 +653,37 @@ export const useChatStore = create<ChatState>()(
           moodStore.setMood(id, autoDetectMood(target.content, duration, resolveLangForText(target.content)));
         }
 
-        useTodoStore.getState().completeTodoByMessage(id);
+        const todoStore = useTodoStore.getState();
+        const completedTodo = todoStore.completeTodoByMessage(id);
+        if (completedTodo) {
+          const growthStore = useGrowthStore.getState();
+          const linkedBottle = completedTodo.bottleId
+            ? growthStore.bottles.find((b) => b.id === completedTodo.bottleId)
+            : null;
+          const payload = buildTodoCompletionAnnotationPayload({
+            todo: completedTodo,
+            allTodos: todoStore.todos,
+            now: Date.now(),
+            bottleName: linkedBottle?.name,
+          });
+          const completionEvent: AnnotationEvent = {
+            type: 'activity_completed',
+            timestamp: Date.now(),
+            data: {
+              messageId: id,
+              content: completedTodo.title,
+              summary: payload.summary,
+              todoCompletionContext: payload.context,
+            },
+          };
+          useAnnotationStore.getState().triggerAnnotation(completionEvent).catch(console.error);
+        }
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
+        const grantBottleStars = (bottleId: string) => {
+          const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({ bottleId });
+          growthStore.incrementBottleStars(bottleId, stars);
+        };
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
@@ -524,31 +703,31 @@ export const useChatStore = create<ChatState>()(
 
           callClassifierAPI({ rawInput: target.content, lang, habits, goals })
             .then((result) => {
-              if (!result.success || !result.data?.items) {
-                // API failed — use keyword fallback
-                const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) growthStore.incrementBottleStar(matched);
-                return;
-              }
-              let aiMatched = false;
-              for (const item of result.data.items) {
-                if (item.matched_bottle?.id) {
-                  growthStore.incrementBottleStar(item.matched_bottle.id);
-                  aiMatched = true;
-                  break; // max one star per activity
+                if (!result.success || !result.data?.items) {
+                  // API failed — use keyword fallback
+                  const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) grantBottleStars(matched);
+                  return;
                 }
-              }
-              // AI returned no match — try keyword fallback
-              if (!aiMatched) {
+                let aiMatched = false;
+                for (const item of result.data.items) {
+                  if (item.matched_bottle?.id) {
+                  grantBottleStars(item.matched_bottle.id);
+                    aiMatched = true;
+                    break; // max one star per activity
+                  }
+                }
+                // AI returned no match — try keyword fallback
+                if (!aiMatched) {
+                  const matched = keywordMatch(target.content, [...habits, ...goals]);
+                if (matched) grantBottleStars(matched);
+                }
+              })
+              .catch(() => {
+                // API error — use keyword fallback
                 const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) growthStore.incrementBottleStar(matched);
-              }
-            })
-            .catch(() => {
-              // API error — use keyword fallback
-              const matched = keywordMatch(target.content, [...habits, ...goals]);
-              if (matched) growthStore.incrementBottleStar(matched);
-            });
+              if (matched) grantBottleStars(matched);
+              });
         }
       },
 
@@ -680,7 +859,9 @@ export const useChatStore = create<ChatState>()(
 
         const session = await getSupabaseSession();
         if (session) {
-          await persistMessageToSupabase(newMessage, session.user.id, true);
+          const moodMessageToPersist = get().messages.find((message) => message.id === newMessage.id)
+            ?? (isCrossDay ? { ...newMessage, detached: true } : newMessage);
+          await persistMessageToSupabase(moodMessageToPersist, session.user.id, true);
           if (!isCrossDay && latestEvent) {
             const updated = get().messages.find(m => m.id === latestEvent.id);
             if (updated) await persistMessageToSupabase(updated, session.user.id);
@@ -708,6 +889,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'chat-storage',
+      merge: (persistedState, currentState) => mergePersistedChatState(persistedState, currentState as ChatState),
       // dateCache 是 Map，不能 JSON 序列化，排除持久化
       partialize: (state) => ({
         messages: state.messages,

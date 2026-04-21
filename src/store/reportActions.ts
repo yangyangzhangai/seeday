@@ -2,20 +2,24 @@ import { v4 as uuidv4 } from 'uuid';
 import { eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
 import { supabase } from '../api/supabase';
-import { callClassifierAPI, callDiaryAPI, callReportAPI } from '../api/client';
-import { computeAll, formatForDiaryAI, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
+import { callDiaryAPI, callExtractProfileAPI, callReportAPI, type ExtractProfileRequestMessage } from '../api/client';
+import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
+import { withDbRetry } from '../lib/dbRetry';
+import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
 import i18n from '../i18n';
 import { useAuthStore } from './useAuthStore';
 import {
   classifyActivities,
+  computeDailyTodoStats,
   computeMoodDistribution,
   filterActivities,
   filterRelevantTodos,
   generateActionSummary,
   generateMoodSummary,
   getDateRange,
+  type DailyTodoStats,
 } from './reportHelpers';
 import type { Message } from './useChatStore.types';
 import type { Todo } from './useTodoStore';
@@ -30,6 +34,14 @@ interface MoodStoreSnapshot {
   customMoodApplied?: Record<string, boolean | undefined>;
 }
 
+interface BottleSnapshot {
+  id: string;
+  name: string;
+  type: 'habit' | 'goal';
+  stars: number;
+  status: string;
+}
+
 interface GenerateReportInput {
   type: ReportType;
   date: number;
@@ -37,6 +49,7 @@ interface GenerateReportInput {
   todos: Todo[];
   messages: Message[];
   moodStore: MoodStoreSnapshot;
+  bottles: BottleSnapshot[];
 }
 
 export function createGeneratedReport({
@@ -46,6 +59,7 @@ export function createGeneratedReport({
   todos,
   messages,
   moodStore,
+  bottles,
 }: GenerateReportInput): Report {
   const targetDate = new Date(date);
   const isToday = isSameDay(targetDate, new Date());
@@ -58,36 +72,23 @@ export function createGeneratedReport({
     completedTodos: completed,
     totalTodos: total,
     completionRate: total > 0 ? completed / total : 0,
-    priorityStats: [],
     recurringStats: [],
     dailyCompletion: [],
   };
 
-  const priorities = ['urgent-important', 'urgent-not-important', 'important-not-urgent', 'not-important-not-urgent'];
-  stats.priorityStats = priorities.map((priority) => {
-    const todosByPriority = relevantTodos.filter((todo) => todo.priority === priority);
-    return {
-      priority,
-      count: todosByPriority.length,
-      completed: todosByPriority.filter((todo) => todo.completed).length,
-    };
-  });
-
   if (type === 'daily') {
-    stats.recurringStats = relevantTodos
-      .filter((todo) => todo.recurrence && todo.recurrence !== 'none' && todo.recurrence !== 'once')
-      .map((todo) => ({
-        name: todo.title,
-        completed: todo.completed,
-      }));
+    const activeBottles = bottles.filter((b) => b.status === 'active' || b.status === 'achieved');
+    const dailyTodoStats = computeDailyTodoStats(todos, activeBottles, start, end);
+    stats.habitCheckin = dailyTodoStats.habitCheckin;
+    stats.goalProgress = dailyTodoStats.goalProgress;
+    stats.independentRecurring = dailyTodoStats.independentRecurring;
+    stats.oneTimeTasks = dailyTodoStats.oneTimeTasks;
 
-    if (!isToday) {
-      const records = filterActivities(messages, start, end, { requireDuration: true });
-      const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
-      const actionAnalysis = classifyActivities(records, currentLang);
-      stats.actionAnalysis = actionAnalysis;
-      stats.actionSummary = generateActionSummary(actionAnalysis);
-    }
+    const records = filterActivities(messages, start, end, { requireDuration: true });
+    const currentLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+    const actionAnalysis = classifyActivities(records, currentLang);
+    stats.actionAnalysis = actionAnalysis;
+    stats.actionSummary = generateActionSummary(actionAnalysis, currentLang);
   } else {
     const recurringGroups: Record<string, Todo[]> = {};
     relevantTodos
@@ -125,7 +126,8 @@ export function createGeneratedReport({
   stats.moodDistribution = computeMoodDistribution(messages, moodStore, start, end);
 
   if (!isToday) {
-    stats.moodSummary = generateMoodSummary(stats.moodDistribution || []);
+    const moodLang = (i18n.language?.split('-')[0] || 'zh') as 'zh' | 'en' | 'it';
+    stats.moodSummary = generateMoodSummary(stats.moodDistribution || [], moodLang);
   }
 
   return {
@@ -143,22 +145,78 @@ export function createGeneratedReport({
   };
 }
 
+function buildExtractProfileMessages(messages: Message[]): ExtractProfileRequestMessage[] {
+  return messages
+    .filter((message) => typeof message.content === 'string' && message.content.trim().length > 0)
+    .slice(-120)
+    .map((message) => ({
+      id: message.id,
+      content: message.content,
+      timestamp: message.timestamp,
+      duration: message.duration,
+      activityType: message.activityType,
+      isMood: message.isMood,
+    }));
+}
+
+export async function triggerWeeklyProfileExtraction(messages: Message[]): Promise<void> {
+  const authState = useAuthStore.getState();
+  if (!authState.isPlus || !authState.longTermProfileEnabled || !authState.user) {
+    return;
+  }
+
+  const recentMessages = buildExtractProfileMessages(messages);
+  if (recentMessages.length === 0) {
+    if (import.meta.env.DEV) {
+      console.log('[WeeklyProfile] skip extraction: empty messages');
+    }
+    return;
+  }
+
+  try {
+    const lang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
+    const result = await callExtractProfileAPI({ recentMessages, lang });
+    if (!result.success || !result.profile) {
+      if (import.meta.env.DEV) {
+        console.log('[WeeklyProfile] skip extraction:', result.reason || 'empty profile payload');
+      }
+      return;
+    }
+
+    const { error } = await useAuthStore.getState().updateUserProfile({
+      observed: result.profile.observed,
+      dynamicSignals: result.profile.dynamicSignals,
+      anniversariesVisible: result.profile.anniversariesVisible,
+      hiddenMoments: result.profile.hiddenMoments,
+      lastExtractedAt: result.profile.lastExtractedAt || new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn('[WeeklyProfile] updateUserProfile failed:', error);
+      return;
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[WeeklyProfile] profile extraction synced');
+    }
+  } catch (error) {
+    console.warn('[WeeklyProfile] extraction request failed:', error);
+  }
+}
+
 export function mergeReportIntoList(reports: Report[], type: ReportType, date: number, newReport: Report): Report[] {
   return [...reports.filter((report) => !(report.type === type && isSameDay(report.date, date))), newReport];
 }
 
 export async function syncReportToSupabase(report: Report): Promise<void> {
-  const session = await getSupabaseSession();
-
-  if (!session) return;
-
-  const { error } = await supabase
-    .from('reports')
-    .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
-
-  if (error) {
-    console.error('Error syncing new report to Supabase:', error);
-  }
+  await withDbRetry('ReportStore', async () => {
+    const session = await getSupabaseSession();
+    if (!session) return;
+    const { error } = await supabase
+      .from('reports')
+      .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
+    if (error) throw new Error(error.message);
+  });
 }
 
 export async function runReportAIAnalysis(report: Report, todos: Todo[], messages: Message[]): Promise<string> {
@@ -183,34 +241,73 @@ export async function runReportAIAnalysis(report: Report, todos: Todo[], message
   });
 }
 
-interface TimeshineResult {
+interface AIDiaryResult {
   content: string;
-  computed: ComputedResult;
+  computed?: ComputedResult;
 }
 
-interface RunTimeshineDiaryInput {
+interface RunAIDiaryInput {
   report: Report;
   todos: Todo[];
   messages: Message[];
   moodStore: MoodStoreSnapshot;
   computedHistory: ComputedResult[];
+  bottles: BottleSnapshot[];
+  dailyGoal?: string;
+  goalDate?: string;
+  mode?: 'full' | 'teaser';
 }
 
-export async function runTimeshineDiary({
+function getTimeSlot(timestamp: number): 'morning' | 'afternoon' | 'evening' {
+  const hour = new Date(timestamp).getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+}
+
+function buildClassifiedData(activities: Message[], todoStats: DailyTodoStats): ClassifiedData {
+  const items = activities
+    .filter((m) => (m.duration ?? 0) > 0)
+    .map((m) => ({
+      name: m.content,
+      duration_min: m.duration!,
+      time_slot: getTimeSlot(m.timestamp),
+      category: (m.activityType && m.activityType !== 'mood') ? m.activityType : 'life',
+      flag: null as null,
+    }));
+
+  const totalMin = items.reduce((sum, i) => sum + i.duration_min, 0);
+  const { habitCheckin, goalProgress, independentRecurring, oneTimeTasks } = todoStats;
+  const completed =
+    habitCheckin.filter((h) => h.done).length +
+    goalProgress.filter((g) => g.doneToday).length +
+    independentRecurring.completed +
+    oneTimeTasks.high.completed + oneTimeTasks.medium.completed + oneTimeTasks.low.completed;
+  const total =
+    habitCheckin.length + goalProgress.length + independentRecurring.total +
+    oneTimeTasks.high.total + oneTimeTasks.medium.total + oneTimeTasks.low.total;
+
+  return { total_duration_min: totalMin, items, todos: { completed, total }, energy_log: [] };
+}
+
+export async function runAIDiary({
   report,
   todos,
   messages,
   moodStore,
   computedHistory,
-}: RunTimeshineDiaryInput): Promise<TimeshineResult> {
+  bottles,
+  dailyGoal,
+  goalDate,
+  mode = 'full',
+}: RunAIDiaryInput): Promise<AIDiaryResult> {
   const range = getDateRange(report.type, report.date, report.endDate);
   const start = report.startDate ? new Date(report.startDate) : range.start;
   const end = report.endDate ? new Date(report.endDate) : range.end;
 
   const activities = filterActivities(messages, start, end);
-  const relevantTodos = filterRelevantTodos(todos, start, end, report.type);
-  const completedTodos = relevantTodos.filter((todo) => todo.completed).length;
-  const totalTodos = relevantTodos.length;
+  const activeBottles = bottles.filter((b) => b.status === 'active' || b.status === 'achieved');
+  const dailyTodoStats = computeDailyTodoStats(todos, activeBottles, start, end);
 
   const moodMessages = messages.filter(
     (message) =>
@@ -230,16 +327,31 @@ export async function runTimeshineDiary({
 
   const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
   const isZh = currentLang === 'zh';
-  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, completedTodos, totalTodos, isZh);
 
-  console.log('[Timeshine] Step 1: 调用分类器...');
-  const classifyResult = await callClassifierAPI({ rawInput, lang: currentLang });
-  if (!classifyResult.success || !classifyResult.data) {
-    throw new Error('分类器返回数据失败');
+  if (mode === 'teaser') {
+    const teaserResult = await callDiaryAPI({
+      mode: 'teaser',
+      structuredData: buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh),
+      rawInput: activities.map((item) => item.content).join('\n').slice(0, 800),
+      lang: currentLang,
+    });
+
+    if (!teaserResult.success || !teaserResult.content) {
+      throw new Error('日记 Teaser 生成失败');
+    }
+
+    return { content: teaserResult.content };
   }
 
-  console.log('[Timeshine] Step 2: 计算层处理...');
-  const computed = computeAll(classifyResult.data, computedHistory);
+  const reportDateStr = format(start, 'yyyy-MM-dd');
+  const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
+  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);
+
+  import.meta.env.DEV && console.log('[Diary] Step 1: 从消息直接构建结构化数据...');
+  const classifiedData = buildClassifiedData(activities, dailyTodoStats);
+
+  import.meta.env.DEV && console.log('[Diary] Step 2: 计算层处理...');
+  const computed = computeAll(classifiedData, computedHistory, currentLang);
   computed.mood_records = moodRecords;
   const structuredData = formatForDiaryAI(computed, currentLang);
 
@@ -252,7 +364,7 @@ export async function runTimeshineDiary({
     historyContext = buildHistoryContext(computedHistory, isZh);
   }
 
-  console.log('[Timeshine] Step 3: 生成观察手记...');
+  import.meta.env.DEV && console.log('[Diary] Step 3: 生成 AI 日记...');
   const currentUser = useAuthStore.getState().user;
   const userNickname = currentUser?.user_metadata?.display_name || undefined;
 
@@ -262,7 +374,7 @@ export async function runTimeshineDiary({
 
   const diaryResult = await callDiaryAPI({
     structuredData: structuredDataWithMeta,
-    rawInput: rawInput.slice(0, 500),
+    rawInput: rawInput.slice(0, 800),
     date: dateStr,
     historyContext,
     userName: userNickname,
@@ -279,45 +391,102 @@ export async function runTimeshineDiary({
   };
 }
 
+type MoodSnapshot = Pick<MoodStoreSnapshot, 'activityMood' | 'customMoodLabel' | 'customMoodApplied'>;
+
+function resolveMoodLabel(messageId: string, snapshot: MoodSnapshot, isZh: boolean): string | undefined {
+  const custom = snapshot.customMoodLabel[messageId];
+  const useCustom = snapshot.customMoodApplied?.[messageId] === true;
+  if (useCustom && custom && custom.trim() && custom.trim() !== '自定义') return custom.trim();
+
+  const base = snapshot.activityMood[messageId];
+  if (!base) return undefined;
+  const key = normalizeMoodKey(base);
+  if (key) return isZh ? moodKeyToLegacyLabel(key) : key;
+  return base;
+}
+
 function buildRawInput(
   activities: Message[],
   moodMessages: Message[],
   moodNotes: Record<string, string>,
-  completedTodos: number,
-  totalTodos: number,
-  isZh: boolean
+  moodSnapshot: MoodSnapshot,
+  todoStats: DailyTodoStats,
+  isZh: boolean,
+  dailyGoal?: string,
 ): string {
-  const rawInputLines: string[] = [];
-  rawInputLines.push(isZh ? '今天的时间记录：' : "Today's Time Log:");
+  const lines: string[] = [];
+
+  if (dailyGoal) {
+    lines.push(isZh ? `今日目标：${dailyGoal}` : `Today's Goal: ${dailyGoal}`);
+    lines.push('');
+  }
+
+  lines.push(isZh ? '今天的时间记录：' : "Today's Time Log:");
 
   activities.forEach((message) => {
     const timeStr = format(message.timestamp, 'HH:mm');
     const durationStr = message.duration ? (isZh ? ` (${message.duration}分钟)` : ` (${message.duration}min)`) : '';
-    rawInputLines.push(`- ${timeStr} ${message.content}${durationStr}`);
-
+    const moodLabel = resolveMoodLabel(message.id, moodSnapshot, isZh);
+    const moodSuffix = moodLabel ? (isZh ? ` [心情：${moodLabel}]` : ` [mood: ${moodLabel}]`) : '';
+    lines.push(`- ${timeStr} ${message.content}${durationStr}${moodSuffix}`);
     const note = moodNotes[message.id];
-    if (note && note.trim()) {
-      rawInputLines.push(`  心情记录：${note.trim()}`);
-    }
+    if (note && note.trim()) lines.push(isZh ? `  心情备注：${note.trim()}` : `  mood note: ${note.trim()}`);
   });
 
   if (moodMessages.length > 0) {
-    rawInputLines.push('');
-    rawInputLines.push(isZh ? '心情与能量状态记录：' : 'Mood and Energy Log:');
+    lines.push('');
+    lines.push(isZh ? '心情与能量状态记录：' : 'Mood and Energy Log:');
     moodMessages.forEach((message) => {
       const timeStr = format(message.timestamp, 'HH:mm');
-      rawInputLines.push(`- ${timeStr} [${isZh ? '状态/心情' : 'Mood/Energy'}] ${message.content}`);
+      lines.push(`- ${timeStr} [${isZh ? '状态/心情' : 'Mood/Energy'}] ${message.content}`);
     });
   }
 
-  rawInputLines.push('');
-  rawInputLines.push(
-    isZh
-      ? `待办：完成${completedTodos}件，共${totalTodos}件`
-      : `Todos: Completed ${completedTodos}, Total ${totalTodos}`
+  const { habitCheckin, goalProgress, independentRecurring, oneTimeTasks } = todoStats;
+
+  if (habitCheckin.length > 0) {
+    lines.push('');
+    lines.push(isZh ? '习惯打卡：' : 'Habit Check-in:');
+    habitCheckin.forEach((h) => {
+      const status = h.done ? (isZh ? '✓ 完成' : '✓ done') : (isZh ? '✗ 未完成' : '✗ not done');
+      lines.push(`- ${h.name}：${status}`);
+    });
+  }
+
+  if (goalProgress.length > 0) {
+    lines.push('');
+    lines.push(isZh ? '目标进展：' : 'Goal Progress:');
+    goalProgress.forEach((g) => {
+      const progress = g.doneToday ? (isZh ? '今日有进展' : 'progressed today') : (isZh ? '今日无进展' : 'no progress');
+      lines.push(isZh
+        ? `- ${g.bottleName}：${progress}（${g.currentStars}/21颗星）`
+        : `- ${g.bottleName}: ${progress} (${g.currentStars}/21 stars)`);
+    });
+  }
+
+  const totalCompleted =
+    habitCheckin.filter((h) => h.done).length +
+    goalProgress.filter((g) => g.doneToday).length +
+    independentRecurring.completed +
+    oneTimeTasks.high.completed + oneTimeTasks.medium.completed + oneTimeTasks.low.completed;
+  const totalTasks =
+    habitCheckin.length + goalProgress.length + independentRecurring.total +
+    oneTimeTasks.high.total + oneTimeTasks.medium.total + oneTimeTasks.low.total;
+
+  lines.push('');
+  lines.push(isZh
+    ? `待办总览：完成 ${totalCompleted} 件，共 ${totalTasks} 件`
+    : `Todos: ${totalCompleted}/${totalTasks} completed`
   );
 
-  return rawInputLines.join('\n');
+  if (oneTimeTasks.completedTitles.length > 0) {
+    lines.push(isZh
+      ? `完成事项：${oneTimeTasks.completedTitles.join('、')}`
+      : `Completed: ${oneTimeTasks.completedTitles.join(', ')}`
+    );
+  }
+
+  return lines.join('\n');
 }
 
 function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
@@ -327,10 +496,16 @@ function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
   ];
 
   recent.forEach((item, index) => {
-    const focusItem = item.spectrum.find((spectrum) => spectrum.category === 'deep_focus');
+    const focusMin = item.focus_duration_min || 0;
     const dayIndex = history.length - recent.length + index + 1;
-    const focusStr = focusItem?.duration_str || '0';
-    const todoStr = item.light_quality.todo_str;
+    const focusH = Math.floor(focusMin / 60);
+    const focusM = focusMin % 60;
+    const focusStr = focusH > 0 ? (focusM > 0 ? `${focusH}h ${focusM}min` : `${focusH}h`) : `${focusM}min`;
+    const todoCompleted = item.todo_completed || 0;
+    const todoTotal = item.todo_total || 0;
+    const todoStr = todoTotal > 0
+      ? (isZh ? `${todoCompleted}/${todoTotal} 项完成` : `${todoCompleted}/${todoTotal} done`)
+      : (isZh ? '无待办' : 'no todos');
 
     if (isZh) {
       contextLines.push(`  第${dayIndex}日：专注${focusStr}，待办${todoStr}`);

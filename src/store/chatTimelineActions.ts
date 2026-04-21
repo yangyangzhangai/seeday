@@ -5,6 +5,7 @@ import { classifyRecordActivityType } from '../lib/activityType';
 import type { Message } from './useChatStore.types';
 import type { MoodDescription } from './useChatStore.types';
 import { useMoodStore } from './useMoodStore';
+import { useAnnotationStore } from './useAnnotationStore';
 import {
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
@@ -247,6 +248,7 @@ export function createChatTimelineActions(
     set(state => ({
       messages: state.messages.filter(m => m.id !== id)
     }));
+    useAnnotationStore.getState().removeEventsByMessageId(id);
 
     const session = await getSupabaseSession();
     if (session) {

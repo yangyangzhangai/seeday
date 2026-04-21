@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { decomposeTodoWithAIDiagnostics } from '../src/server/todo-decompose-service.js';
 
 const CLASSIFIER_PROMPT = `你是一个时间记录分类器。
 将用户输入的时间记录按类别分类，输出严格的JSON格式。
@@ -63,12 +64,21 @@ dissolved（光的涣散）
 · 运动时听播客/有声书 -> body（主要活动优先）
 · 完全无法判断 -> category: "unknown"，不强行归类
 
+【输入格式说明】
+用户输入可能包含以下结构，请严格按规则处理：
+· 活动行：\`- HH:MM 事项名称 (时长分钟) [心情：标签]\`
+  - \`[心情：标签]\` 是心情元数据，不属于事项名称，name 字段中必须去掉这部分
+  - 紧跟活动行的 \`  心情备注：文字\` 是备注，不是独立活动，不进入 items
+· \`今日目标：...\` 是用户每日目标，不是活动，不进入 items
+· \`习惯打卡：\`、\`目标进展：\`、\`待办总览：\` 等区块用于计算 todos，不进入 items
+· \`心情与能量状态记录：\` 区块优先用于填充 energy_log；活动行的 \`[心情：...]\` 也可参考
+
 【输出格式】
 {
   "total_duration_min": 数字,
   "items": [
     {
-      "name": "事项名称",
+      "name": "事项名称（不含心情标签）",
       "duration_min": 数字,
       "time_slot": "morning" | "afternoon" | "evening" | null,
       "category": "类别英文key",
@@ -149,12 +159,21 @@ Determine the time slot based on the time information provided by the user:
 · Listening to podcast/audiobook while exercising -> body (primary activity takes precedence).
 · Completely unable to judge -> category: "unknown", do not force classify.
 
+【Input Format】
+The user input may contain these structures — follow the rules strictly:
+· Activity line: \`- HH:MM Event Name (duration min) [mood: label]\`
+  - \`[mood: label]\` is mood metadata, NOT part of the event name; strip it from the name field
+  - A sub-line \`  mood note: text\` right after an activity is a note, NOT an activity; exclude from items
+· \`Today's Goal: ...\` is a daily goal, NOT an activity; do not include in items
+· Sections like \`Habit Check-in:\`, \`Goal Progress:\`, \`Todos:\` are for todo calculation; do not include in items
+· \`Mood and Energy Log:\` section is the primary source for energy_log; \`[mood: ...]\` tags may also be referenced
+
 【Output Format】
 {
   "total_duration_min": number,
   "items": [
     {
-      "name": "Event Name (Keep the Original Language)",
+      "name": "Event Name without mood tag (keep original language)",
       "duration_min": number,
       "time_slot": "morning" | "afternoon" | "evening" | null,
       "category": "category english key",
@@ -235,12 +254,21 @@ Determina la fascia oraria in base alle informazioni temporali fornite dall'uten
 · Ascoltare podcast/audiolibro mentre ci si allena -> body (l'attività principale ha la precedenza).
 · Completamente incapace di giudicare -> categoria: "unknown", non forzare la classificazione.
 
+【Formato di Input】
+L'input può contenere queste strutture — segui le regole rigorosamente:
+· Riga attività: \`- HH:MM Nome Evento (durata min) [mood: etichetta]\`
+  - \`[mood: etichetta]\` è metadato umore, NON parte del nome; rimuoverlo dal campo name
+  - Una riga \`  mood note: testo\` dopo un'attività è una nota, NON un'attività; escludere da items
+· \`Today's Goal: ...\` è un obiettivo giornaliero, NON un'attività; non includere in items
+· Sezioni come \`Habit Check-in:\`, \`Goal Progress:\`, \`Todos:\` sono per i todo; non includere in items
+· La sezione \`Mood and Energy Log:\` è la fonte principale per energy_log; i tag \`[mood: ...]\` possono essere usati come riferimento
+
 【Formato di Output】
 {
   "total_duration_min": number,
   "items": [
     {
-      "name": "Nome Evento (Mantieni la Lingua Originale)",
+      "name": "Nome Evento senza tag umore (mantieni la lingua originale)",
       "duration_min": number,
       "time_slot": "morning" | "afternoon" | "evening" | null,
       "category": "chiave inglese della categoria",
@@ -414,6 +442,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
+  const isTodoDecomposeMode = req.body?.module === 'todo_decompose'
+    || (typeof req.body?.title === 'string' && typeof req.body?.rawInput !== 'string');
+  if (isTodoDecomposeMode) {
+    const { title, lang = 'zh' } = req.body ?? {};
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      jsonError(res, 400, 'Missing or invalid title');
+      return;
+    }
+
+    try {
+      const result = await decomposeTodoWithAIDiagnostics({
+        title,
+        lang: lang === 'en' || lang === 'it' ? lang : 'zh',
+        qwenApiKey: process.env.QWEN_API_KEY,
+        geminiApiKey: process.env.GEMINI_API_KEY,
+      });
+
+      res.status(200).json({
+        success: true,
+        steps: result.steps,
+        parseStatus: result.parseStatus,
+        model: result.model,
+        provider: result.provider,
+      });
+      return;
+    } catch (error) {
+      console.error('[Todo Decompose API] request.failed', {
+        lang,
+        titleLength: typeof title === 'string' ? title.trim().length : 0,
+        modelZh: process.env.TODO_DECOMPOSE_MODEL_ZH || 'qwen-plus',
+        modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.5-flash',
+        hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+        hasQwenKey: Boolean(process.env.QWEN_API_KEY),
+        qwenBase: process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+        geminiBase: process.env.TODO_DECOMPOSE_GEMINI_BASE_URL || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      jsonError(res, 500, 'AI请求失败，请稍后重试', undefined, error instanceof Error ? error.message : 'Unknown error');
+      return;
+    }
+  }
+
   const { rawInput, lang = 'zh', habits = [], goals = [] } = req.body;
 
   if (!rawInput || typeof rawInput !== 'string') {
@@ -421,7 +491,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const dashscopeBase = (process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '');
+  const dashscopeBase = (
+    process.env.QWEN_BASE_URL
+    || process.env.DASHSCOPE_BASE_URL
+    || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+  ).replace(/\/$/, '');
   const apiUrl = `${dashscopeBase}/chat/completions`;
   const model = (process.env.CLASSIFY_MODEL || 'qwen-plus').trim() || 'qwen-plus';
   const qwenApiKey = process.env.QWEN_API_KEY;

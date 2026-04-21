@@ -6,7 +6,6 @@ import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbStardust, toDbStardust } from '../lib/dbMappers';
 import { useChatStore } from './useChatStore';
-import { callStardustAPI } from '../api/client';
 import type {
   StardustMemory,
   CreateStardustRequest,
@@ -58,18 +57,12 @@ function toDbStardustForUser(memory: StardustMemory, userId: string): Record<str
 }
 
 /**
- * 调用 AI 生成 Emoji（通过 /api/stardust serverless 中转，不暴露密钥）
+ * 从批注内容中提取 emoji（覆盖组合 emoji / 旗帜 / keycap）
  */
-async function generateEmojiWithAI(userRawContent: string, message: string): Promise<string> {
-  try {
-    console.log('[Stardust] 开始通过 serverless 生成 Emoji...');
-    const result = await callStardustAPI({ userRawContent, message });
-    console.log('[Stardust] Emoji 生成成功:', result.emojiChar);
-    return result.emojiChar || DEFAULT_EMOJI;
-  } catch (error) {
-    console.error('[Stardust] generateEmojiWithAI 失败，使用默认 Emoji:', error);
-    return DEFAULT_EMOJI;
-  }
+function extractEmojiFromAnnotation(content: string): string | null {
+  const emojiRegex = /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)/gu;
+  const matches = content.match(emojiRegex);
+  return matches && matches.length > 0 ? matches[0] : null;
 }
 
 export const useStardustStore = create<StardustStore>()(
@@ -96,11 +89,7 @@ export const useStardustStore = create<StardustStore>()(
         set({ isGenerating: true, generationError: null });
 
         try {
-          // 如果没有提供emoji，调用AI生成
-          let finalEmoji = emojiChar;
-          if (!finalEmoji) {
-            finalEmoji = await generateEmojiWithAI(userRawContent, message);
-          }
+          const finalEmoji = emojiChar || extractEmojiFromAnnotation(message) || DEFAULT_EMOJI;
 
           const session = await getSupabaseSession();
           const userId = session?.user?.id ?? '';
@@ -383,4 +372,4 @@ export const useStardustStore = create<StardustStore>()(
 );
 
 // 导出辅助函数
-export { generateEmojiWithAI, DEFAULT_EMOJI };
+export { DEFAULT_EMOJI, extractEmojiFromAnnotation };

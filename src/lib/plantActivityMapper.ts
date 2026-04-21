@@ -1,6 +1,6 @@
-// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import type { FocusLevel, PlantCategoryKey } from '../types/plant.js';
-import { normalizeActivityType } from './activityType';
+import { normalizeActivityType } from './activityType.js';
 
 export interface PlantActivitySource {
   id: string;

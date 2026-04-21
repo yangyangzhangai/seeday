@@ -14,6 +14,7 @@ import {
   ZH_NEGATED_OR_NOT_OCCURRED_PATTERNS,
   ZH_NEW_ACTIVITY_SWITCHES,
   ZH_PLACE_NOUNS,
+  ZH_STANDALONE_ACTIVITY_NOUNS,
   ZH_STRONG_COMPLETION_PATTERNS,
   ZH_WEAK_COMPLETION_WORDS,
 } from '../liveInputRules.zh';
@@ -51,7 +52,16 @@ function hasActivitySignal(input: string): boolean {
   if (includesAny(input, ZH_ACTIVITY_STRONG_PHRASES)) return true;
   if (hasObjectVerbPair) return true;
   if (ZH_ACTIVITY_SINGLE_VERB_PATTERNS.some((pattern) => pattern.test(input))) return true;
-  return ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb));
+  if (ZH_ACTIVITY_VERBS.some((verb) => verb.length >= 2 && input.includes(verb))) return true;
+
+  // 短名词兜底：≤4字的纯名词输入（如"漫画"、"游戏"）隐含用户正在做该活动
+  const compactLen = getCompactSemanticLength(input);
+  if (compactLen >= 2 && compactLen <= 4) {
+    const bare = input.replace(/[了中]$/, '');
+    if (ZH_STANDALONE_ACTIVITY_NOUNS.some((noun) => bare === noun)) return true;
+  }
+
+  return false;
 }
 
 function hasMoodSignal(input: string): boolean {

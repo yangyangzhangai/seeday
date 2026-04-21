@@ -64,9 +64,10 @@ interface ProviderCallFailure {
 }
 
 type ProviderCallResult = ProviderCallSuccess | ProviderCallFailure;
+type MagicPenFailureCategory = 'model_output_invalid' | 'provider_call_failed' | 'unknown';
 
 const ZHIPU_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_QWEN_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_FALLBACK_MODEL = 'qwen-flash';
 const PRIMARY_TIMEOUT_MS = 12000;
 const FALLBACK_TIMEOUT_MS = 12000;
@@ -109,7 +110,7 @@ function getTimeoutMs(value: string | undefined, fallbackMs: number): number {
 }
 
 function normalizeBaseUrl(baseUrl: string | undefined): string {
-  const value = (baseUrl || DEFAULT_DASHSCOPE_BASE_URL).trim();
+  const value = (baseUrl || DEFAULT_QWEN_BASE_URL).trim();
   return value.replace(/\/+$/, '');
 }
 
@@ -237,6 +238,14 @@ function normalizeAIResult(input: unknown): MagicPenAIResult {
     ? payload.unparsed.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
     : [];
   return { segments, unparsed };
+}
+
+function inferFailureCategory(attempts: ProviderCallFailure[]): MagicPenFailureCategory {
+  if (attempts.length === 0) return 'unknown';
+  if (attempts.some((item) => item.reason === 'parse_failed')) {
+    return 'model_output_invalid';
+  }
+  return 'provider_call_failed';
 }
 
 function parseMagicPenAIResponse(raw: string): ParsedMagicPenAIResponse {
@@ -405,8 +414,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0,
   });
 
-  const apiKey = process.env.ZHIPU_API_KEY;
-  const fallbackApiKey = process.env.QWEN_API_KEY;
+  const apiKey = (process.env.ZHIPU_API_KEY || '').trim();
+  const fallbackApiKey = (process.env.QWEN_API_KEY || '').trim();
   if (!apiKey && !fallbackApiKey) {
     logMagicPen(traceId, 'request.missing_api_keys');
     jsonError(res, 500, 'Server configuration error: Missing API key');
@@ -426,9 +435,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const providerAttempts: ProviderCallFailure[] = [];
 
-    const fallbackApiKey = process.env.QWEN_API_KEY;
     const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
-    const fallbackApiUrl = `${normalizeBaseUrl(process.env.DASHSCOPE_BASE_URL)}/chat/completions`;
+    const fallbackBaseUrl = process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL;
+    const fallbackApiUrl = `${normalizeBaseUrl(fallbackBaseUrl)}/chat/completions`;
     const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
 
     if (fallbackApiKey) {
@@ -443,6 +452,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
       if (fallbackResult.ok) {
+        const previousAttempts = providerAttempts.map((item) => ({
+          provider: item.provider,
+          reason: item.reason,
+          status: item.status,
+          elapsedMs: item.elapsedMs,
+        }));
         logMagicPen(traceId, 'provider.success', {
           provider: fallbackResult.provider,
           status: fallbackResult.status,
@@ -452,6 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rawPreview: previewText(fallbackResult.raw, 220),
           segmentCount: fallbackResult.parsed.data.segments.length,
           unparsedCount: fallbackResult.parsed.data.unparsed.length,
+          previousAttempts,
         });
 
         res.status(200).json({
@@ -461,6 +477,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           traceId,
           parseStrategy: fallbackResult.parsed.strategy,
           providerUsed: fallbackResult.provider,
+          attempts: previousAttempts,
         });
         return;
       }
@@ -490,6 +507,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
       if (primaryResult.ok) {
+        const previousAttempts = providerAttempts.map((item) => ({
+          provider: item.provider,
+          reason: item.reason,
+          status: item.status,
+          elapsedMs: item.elapsedMs,
+        }));
         logMagicPen(traceId, 'provider.success', {
           provider: primaryResult.provider,
           status: primaryResult.status,
@@ -500,6 +523,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           segmentCount: primaryResult.parsed.data.segments.length,
           unparsedCount: primaryResult.parsed.data.unparsed.length,
           fallbackFrom: 'qwen',
+          previousAttempts,
         });
 
         res.status(200).json({
@@ -510,6 +534,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           parseStrategy: primaryResult.parsed.strategy,
           providerUsed: primaryResult.provider,
           fallbackFrom: 'qwen',
+          attempts: previousAttempts,
         });
         return;
       }
@@ -526,13 +551,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const attempts = providerAttempts.map((item) => ({
+      provider: item.provider,
+      reason: item.reason,
+      status: item.status,
+      elapsedMs: item.elapsedMs,
+    }));
+    const failureCategory = inferFailureCategory(providerAttempts);
+
     logMagicPen(traceId, 'provider.exhausted', {
-      attempts: providerAttempts.map((item) => ({
-        provider: item.provider,
-        reason: item.reason,
-        status: item.status,
-        elapsedMs: item.elapsedMs,
-      })),
+      failureCategory,
+      attempts,
     });
 
     res.status(200).json({
@@ -542,12 +571,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       traceId,
       parseStrategy: 'fallback_failed',
       providerUsed: 'none',
-      attempts: providerAttempts.map((item) => ({
-        provider: item.provider,
-        reason: item.reason,
-        status: item.status,
-        elapsedMs: item.elapsedMs,
-      })),
+      failureCategory,
+      attempts,
     });
   } catch (error) {
     logMagicPen(traceId, 'request.exception', {

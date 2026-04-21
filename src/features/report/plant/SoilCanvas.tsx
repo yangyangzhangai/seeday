@@ -7,10 +7,6 @@ import { buildSoilLegendItems } from './soilLegend';
 import {
   clampViewportOffset,
   computeFocusOffset,
-  getNextScale,
-  MAX_SCALE,
-  MIN_SCALE,
-  SCALE_STEP,
 } from './soilCanvasViewport';
 import { RootDetailBubble } from './RootDetailBubble';
 import { RootSystem } from './RootSystem';
@@ -60,10 +56,21 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
   onCloseDetail,
 }) => {
   const { t } = useTranslation();
-  const [scale, setScale] = useState(1);
+  const scale = 1;
   const [viewportOffset, setViewportOffset] = useState({ x: 0, y: 0 });
+  const [isActive, setIsActive] = useState(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (canvasRef.current && !canvasRef.current.contains(e.target as Node)) {
+        setIsActive(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current || typeof ResizeObserver === 'undefined') return;
@@ -134,45 +141,50 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
 
   const legendItems = useMemo(() => buildSoilLegendItems(directionOrder), [directionOrder]);
 
-  const isMinScale = scale <= MIN_SCALE + 0.001;
-  const isMaxScale = scale >= MAX_SCALE - 0.001;
-
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-stone-100/40 p-3 select-none">
+    <div
+      ref={canvasRef}
+      className="relative overflow-hidden w-full h-full select-none"
+      style={{
+        backgroundImage: 'url(/assets/soil.png)',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center top',
+      }}
+      onClick={() => setIsActive(true)}
+    >
       <div
-        ref={canvasRef}
-        className="relative h-[280px] sm:h-[320px] overflow-hidden rounded-xl bg-gradient-to-b from-stone-100/10 via-stone-200/30 to-stone-300/45"
+        className="w-full h-full origin-center will-change-transform"
+        style={{ transform: `translate3d(${viewportOffset.x}px, ${viewportOffset.y}px, 0) scale(${scale})` }}
       >
-        <div
-          className="w-full h-full origin-center will-change-transform"
-          style={{ transform: `translate3d(${viewportOffset.x}px, ${viewportOffset.y}px, 0) scale(${scale})` }}
-        >
-          <RootSystem items={items} selectedRootId={selectedRootId} onSelectRoot={onSelectRoot} />
-        </div>
-        {detailBubble && tooltipStyle ? (
-          <div
-            className="pointer-events-none absolute z-20"
-            style={{
-              left: `${tooltipStyle.left}px`,
-              top: `${tooltipStyle.top}px`,
-              width: `${TOOLTIP_WIDTH}px`,
-              transform: tooltipStyle.showAbove ? 'translateY(-100%)' : 'translateY(0)',
-            }}
-          >
-            <RootDetailBubble
-              title={detailBubble.title}
-              activity={detailBubble.activity}
-              category={detailBubble.category}
-              timeRange={detailBubble.timeRange}
-              duration={detailBubble.duration}
-              focus={detailBubble.focus}
-              onClose={onCloseDetail}
-              className="pointer-events-auto rounded-xl border border-amber-200/90 bg-amber-50/95 p-3 shadow-lg"
-            />
-          </div>
-        ) : null}
+        <RootSystem items={items} selectedRootId={selectedRootId} onSelectRoot={onSelectRoot} />
+      </div>
 
-        <div className="pointer-events-none absolute right-3 bottom-3 z-10 max-w-[72%] rounded-xl border border-stone-300/70 bg-stone-50/82 p-2 shadow-[0_8px_20px_rgba(66,45,24,0.12)] backdrop-blur-[2px]">
+      {detailBubble && tooltipStyle ? (
+        <div
+          className="pointer-events-none absolute z-20"
+          style={{
+            left: `${tooltipStyle.left}px`,
+            top: `${tooltipStyle.top}px`,
+            width: `${TOOLTIP_WIDTH}px`,
+            transform: tooltipStyle.showAbove ? 'translateY(-100%)' : 'translateY(0)',
+          }}
+        >
+          <RootDetailBubble
+            title={detailBubble.title}
+            activity={detailBubble.activity}
+            category={detailBubble.category}
+            timeRange={detailBubble.timeRange}
+            duration={detailBubble.duration}
+            focus={detailBubble.focus}
+            onClose={onCloseDetail}
+            className="pointer-events-auto rounded-xl border border-amber-200/90 bg-amber-50/95 p-3 shadow-lg"
+          />
+        </div>
+      ) : null}
+
+      {isActive && (
+        <div className="pointer-events-none absolute top-3 right-3 z-10 max-w-[72%] rounded-xl border border-stone-300/70 bg-stone-50/82 p-2 shadow-[0_8px_20px_rgba(66,45,24,0.12)] backdrop-blur-[2px]">
           <div className="space-y-1">
             {legendItems.map((item) => (
               <div
@@ -187,41 +199,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
             ))}
           </div>
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-end gap-2">
-        <span className="rounded-lg border border-stone-300/70 bg-white/70 px-2 py-1 text-[11px] text-stone-600">
-          x{scale.toFixed(2)}
-        </span>
-        <button
-          type="button"
-          onClick={() => setScale(prev => getNextScale(prev, -SCALE_STEP))}
-          disabled={isMinScale}
-          className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-          aria-label="Zoom out"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={() => setScale(prev => getNextScale(prev, SCALE_STEP))}
-          disabled={isMaxScale}
-          className="min-h-11 min-w-11 rounded-xl border border-stone-300 bg-white text-stone-700 touch-manipulation active:scale-95 transition-transform disabled:opacity-45 disabled:active:scale-100"
-          aria-label="Zoom in"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setScale(1);
-            setViewportOffset({ x: 0, y: 0 });
-          }}
-          className="min-h-11 px-4 rounded-xl border border-stone-300 bg-white text-sm text-stone-700 touch-manipulation active:scale-95 transition-transform"
-        >
-          {t('plant_canvas_reset')}
-        </button>
-      </div>
+      )}
     </div>
   );
 };

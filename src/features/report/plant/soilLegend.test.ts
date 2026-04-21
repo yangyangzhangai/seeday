@@ -7,22 +7,22 @@ describe('buildSoilLegendItems', () => {
     const items = buildSoilLegendItems(['life', 'entertainment', 'social', 'work_study', 'exercise']);
 
     expect(items).toEqual([
+      { slotKey: 'leftBottom', positionKey: 'plant_direction_left_bottom', category: 'life' },
+      { slotKey: 'leftTop', positionKey: 'plant_direction_left_top', category: 'entertainment' },
       { slotKey: 'top', positionKey: 'plant_direction_top', category: 'social' },
       { slotKey: 'rightTop', positionKey: 'plant_direction_right_top', category: 'work_study' },
       { slotKey: 'rightBottom', positionKey: 'plant_direction_right_bottom', category: 'exercise' },
-      { slotKey: 'leftBottom', positionKey: 'plant_direction_left_bottom', category: 'life' },
-      { slotKey: 'leftTop', positionKey: 'plant_direction_left_top', category: 'entertainment' },
     ]);
   });
 
   it('falls back to defaults if directionOrder is incomplete', () => {
     const items = buildSoilLegendItems(['social']);
     expect(items).toEqual([
+      { slotKey: 'leftBottom', positionKey: 'plant_direction_left_bottom', category: 'social' },
+      { slotKey: 'leftTop', positionKey: 'plant_direction_left_top', category: 'life' },
       { slotKey: 'top', positionKey: 'plant_direction_top', category: 'work_study' },
       { slotKey: 'rightTop', positionKey: 'plant_direction_right_top', category: 'exercise' },
       { slotKey: 'rightBottom', positionKey: 'plant_direction_right_bottom', category: 'social' },
-      { slotKey: 'leftBottom', positionKey: 'plant_direction_left_bottom', category: 'social' },
-      { slotKey: 'leftTop', positionKey: 'plant_direction_left_top', category: 'life' },
     ]);
   });
 });

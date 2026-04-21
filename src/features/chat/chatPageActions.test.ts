@@ -22,6 +22,7 @@ function makeMagicSendParams(overrides: Partial<Parameters<typeof handleMagicPen
       },
       messageId: 'msg-auto-1',
     })),
+    writeMagicPenAutoItem: vi.fn(async () => ({ messageId: 'magic-1' })),
     completeActiveTodo: vi.fn(async () => undefined),
     updateMessageDuration: vi.fn(async () => undefined),
     parseMagicPenInput: vi.fn(async () => ({ drafts: [], unparsedSegments: [], autoWriteItems: [] })),
@@ -157,7 +158,7 @@ describe('handleMagicPenModeSend', () => {
     expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
-  it('mode-on short text under 6 chars: prefers local fast path', async () => {
+  it('mode-on short text under 8 chars: prefers local fast path', async () => {
     const params = makeMagicSendParams({
       input: '要开会了',
       parseMagicPenInput: vi.fn(async () => ({
@@ -185,6 +186,42 @@ describe('handleMagicPenModeSend', () => {
     expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
   });
 
+  it('mode-on todo list intent: bypasses local fast path and uses parser', async () => {
+    const params = makeMagicSendParams({
+      input: '以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭',
+      parseMagicPenInput: vi.fn(async () => ({
+        drafts: [],
+        unparsedSegments: ['以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭'],
+        autoWriteItems: [],
+      })),
+    });
+
+    await handleMagicPenModeSend(params);
+
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.parseMagicPenInput).toHaveBeenCalledWith(
+      '以下是我的待办 投简历15r 搞300欧 完成作业（数据收集） 和朋友见面吃午饭',
+      { lang: 'zh' },
+    );
+    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('mode-on multi-action short sentence: bypasses local fast path and uses parser', async () => {
+    const params = makeMagicSendParams({
+      input: '跑步吃饭',
+      parseMagicPenInput: vi.fn(async () => ({
+        drafts: [],
+        unparsedSegments: ['跑步吃饭'],
+        autoWriteItems: [],
+      })),
+    });
+
+    await handleMagicPenModeSend(params);
+
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.parseMagicPenInput).toHaveBeenCalledWith('跑步吃饭', { lang: 'zh' });
+  });
+
   it('mode-on explicit day signal: still uses parser even when short', async () => {
     const params = makeMagicSendParams({
       input: '今天难过了',
@@ -197,8 +234,9 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('今天难过了');
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
     expect(params.parseMagicPenInput).toHaveBeenCalledWith('今天难过了', { lang: 'zh' });
+    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
   it('mode-on explicit clock range: still uses parser', async () => {
@@ -221,18 +259,9 @@ describe('handleMagicPenModeSend', () => {
     const events: string[] = [];
     const params = makeMagicSendParams({
       input: '我好累，明天开会',
-      sendAutoRecognizedInput: vi.fn(async () => {
+      writeMagicPenAutoItem: vi.fn(async () => {
         events.push('auto-write');
-        return {
-          classification: {
-            kind: 'mood' as const,
-            internalKind: 'standalone_mood' as const,
-            confidence: 'high' as const,
-            scores: { activity: 0, mood: 3 },
-            reasons: ['matched_mood_signal'],
-          },
-          messageId: 'mood-1',
-        };
+        return { messageId: 'mood-1' };
       }),
       parseMagicPenInput: vi.fn(async () => {
         events.push('parse');
@@ -266,7 +295,12 @@ describe('handleMagicPenModeSend', () => {
     await handleMagicPenModeSend(params);
 
     expect(events).toEqual(['parse', 'auto-write']);
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('我好累');
+    expect(params.writeMagicPenAutoItem).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'auto-1',
+      kind: 'mood',
+      content: '我好累',
+      source: 'ai',
+    }));
     expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
     expect(params.setMagicPenSeedAutoWritten).toHaveBeenCalledWith([
       {
@@ -281,32 +315,14 @@ describe('handleMagicPenModeSend', () => {
   });
 
   it('mode-on four-kind parse: auto-writes activity+mood and keeps todo+backfill in sheet', async () => {
-    const sendAutoRecognizedInput = vi
+    const writeMagicPenAutoItem = vi
       .fn()
-      .mockResolvedValueOnce({
-        classification: {
-          kind: 'activity' as const,
-          internalKind: 'new_activity' as const,
-          confidence: 'high' as const,
-          scores: { activity: 4, mood: 0 },
-          reasons: ['matched_ongoing_signal'],
-        },
-        messageId: 'activity-1',
-      })
-      .mockResolvedValueOnce({
-        classification: {
-          kind: 'mood' as const,
-          internalKind: 'standalone_mood' as const,
-          confidence: 'high' as const,
-          scores: { activity: 0, mood: 4 },
-          reasons: ['matched_mood_signal'],
-        },
-        messageId: 'mood-1',
-      });
+      .mockResolvedValueOnce({ messageId: 'activity-1' })
+      .mockResolvedValueOnce({ messageId: 'mood-1' });
 
     const params = makeMagicSendParams({
       input: '我在吃饭，感觉很开心，明天要开会，我上午学习了',
-      sendAutoRecognizedInput,
+      writeMagicPenAutoItem,
       parseMagicPenInput: vi.fn(async () => ({
         drafts: [
           {
@@ -357,8 +373,16 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(1, '我在吃饭');
-    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(2, '感觉很开心');
+    expect(writeMagicPenAutoItem).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      id: 'auto-activity',
+      kind: 'activity',
+      content: '我在吃饭',
+    }));
+    expect(writeMagicPenAutoItem).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      id: 'auto-mood',
+      kind: 'mood',
+      content: '感觉很开心',
+    }));
     expect(params.setMagicPenSeedDrafts).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ id: 'todo-1', kind: 'todo_add' }),
       expect.objectContaining({ id: 'backfill-1', kind: 'activity_backfill' }),
@@ -387,6 +411,7 @@ describe('handleMagicPenModeSend', () => {
   it('mode-on parser auto-write only: writes item and keeps sheet closed', async () => {
     const params = makeMagicSendParams({
       input: '刚刚整理桌面。',
+      writeMagicPenAutoItem: vi.fn(async () => ({ messageId: 'mood-1' })),
       parseMagicPenInput: vi.fn(async () => ({
         drafts: [],
         unparsedSegments: [],
@@ -404,11 +429,15 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('我好累');
+    expect(params.writeMagicPenAutoItem).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'mood',
+      content: '我好累',
+      source: 'ai',
+    }));
     expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
   });
 
-  it('mode-on low-confidence activity/mood: can write clear mood from unparsed', async () => {
+  it('mode-on low-confidence activity/mood: keeps unparsed in sheet', async () => {
     const params = makeMagicSendParams({
       input: '明天我有点烦但也不知道怎么说',
       parseMagicPenInput: vi.fn(async () => ({
@@ -420,38 +449,15 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('我有点烦但也不知道怎么说');
     expect(params.parseMagicPenInput).toHaveBeenCalledWith('明天我有点烦但也不知道怎么说', { lang: 'zh' });
-    expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
+    expect(params.writeMagicPenAutoItem).not.toHaveBeenCalled();
+    expect(params.setMagicPenSeedUnparsed).toHaveBeenCalledWith(['我有点烦但也不知道怎么说']);
+    expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
-  it('mode-on promotes unparsed realtime activity+mood into local auto-write', async () => {
-    const sendAutoRecognizedInput = vi
-      .fn()
-      .mockResolvedValueOnce({
-        classification: {
-          kind: 'activity' as const,
-          internalKind: 'new_activity' as const,
-          confidence: 'high' as const,
-          scores: { activity: 4, mood: 0 },
-          reasons: ['matched_ongoing_signal'],
-        },
-        messageId: 'activity-1',
-      })
-      .mockResolvedValueOnce({
-        classification: {
-          kind: 'mood' as const,
-          internalKind: 'standalone_mood' as const,
-          confidence: 'high' as const,
-          scores: { activity: 0, mood: 4 },
-          reasons: ['matched_mood_signal'],
-        },
-        messageId: 'mood-1',
-      });
-
+  it('mode-on keeps all parser unparsed segments for manual review', async () => {
     const params = makeMagicSendParams({
       input: '我现在在吃饭，有点想哭，明天要考试了，晚上还要开会',
-      sendAutoRecognizedInput,
       parseMagicPenInput: vi.fn(async () => ({
         drafts: [
           {
@@ -482,27 +488,9 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(1, '我现在在吃饭');
-    expect(sendAutoRecognizedInput).toHaveBeenNthCalledWith(2, '有点想哭');
-    expect(params.setMagicPenSeedUnparsed).toHaveBeenCalledWith(['晚上']);
-    expect(params.setMagicPenSeedAutoWritten).toHaveBeenCalledWith([
-      {
-        id: 'local-unparsed-0',
-        kind: 'activity',
-        content: '我现在在吃饭',
-        sourceText: '我现在在吃饭',
-        messageId: 'activity-1',
-        linkedMoodContent: undefined,
-      },
-      {
-        id: 'local-unparsed-1',
-        kind: 'mood',
-        content: '有点想哭',
-        sourceText: '有点想哭',
-        messageId: 'mood-1',
-        linkedMoodContent: undefined,
-      },
-    ]);
+    expect(params.writeMagicPenAutoItem).not.toHaveBeenCalled();
+    expect(params.setMagicPenSeedUnparsed).toHaveBeenCalledWith(['我现在在吃饭', '有点想哭', '晚上']);
+    expect(params.setMagicPenSeedAutoWritten).toHaveBeenCalledWith([]);
     expect(params.setIsMagicPenOpen).toHaveBeenCalledWith(true);
   });
 
@@ -558,16 +546,7 @@ describe('handleMagicPenModeSend', () => {
           },
         ],
       })),
-      sendAutoRecognizedInput: vi.fn(async () => ({
-        classification: {
-          kind: 'activity' as const,
-          internalKind: 'new_activity' as const,
-          confidence: 'high' as const,
-          scores: { activity: 4, mood: 0 },
-          reasons: ['matched_ongoing_signal'],
-        },
-        messageId: 'activity-1',
-      })),
+      writeMagicPenAutoItem: vi.fn(async () => ({ messageId: 'activity-1' })),
     });
 
     await handleMagicPenModeSend(params);
@@ -607,21 +586,15 @@ describe('handleMagicPenModeSend', () => {
           },
         ],
       })),
-      sendAutoRecognizedInput: vi.fn(async () => ({
-        classification: {
-          kind: 'activity' as const,
-          internalKind: 'new_activity' as const,
-          confidence: 'high' as const,
-          scores: { activity: 4, mood: 0 },
-          reasons: ['matched_ongoing_signal'],
-        },
-        messageId: 'activity-2',
-      })),
+      writeMagicPenAutoItem: vi.fn(async () => ({ messageId: 'activity-2' })),
     });
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('我现在在下棋');
+    expect(params.writeMagicPenAutoItem).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'activity',
+      content: '我现在在下棋',
+    }));
     expect(params.completeActiveTodo).toHaveBeenCalledTimes(1);
     nowSpy.mockRestore();
   });

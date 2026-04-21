@@ -1,8 +1,9 @@
-// DOC-DEPS: LLM.md -> docs/TimeShine_植物生长_PRD_v1_8.docx -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx
+// DOC-DEPS: LLM.md -> docs/Seeday_植物生长_PRD_v1_8.docx -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 
 export type RootType = 'tap' | 'fib' | 'sha' | 'bra' | 'bul';
 
-export type PlantStage = 'early' | 'mid' | 'late';
+// 植物生长阶段：只有早期和晚期，已移除 mid
+export type PlantStage = 'early' | 'late';
 
 export type DirectionIndex = 0 | 1 | 2 | 3 | 4;
 
@@ -65,7 +66,7 @@ export interface RootSegment {
   parentRootId?: string;
 }
 
-export type PlantApiStatus = 'too_early' | 'empty_day' | 'generated' | 'already_generated';
+export type PlantApiStatus = 'too_early' | 'empty_day' | 'generated' | 'already_generated' | 'monthly_exhausted';
 
 export interface PlantGenerateRequest {
   date: string;

@@ -7,6 +7,8 @@ import { supabase } from '../../../api/supabase';
 import { getSupabaseSession } from '../../../lib/supabase-utils';
 import { toLocalDateStr, getYesterdayStr } from '../../../lib/dateUtils';
 import { isLegacyChatActivityType } from '../../../lib/activityType';
+import { cn } from '../../../lib/utils';
+import { APP_MODAL_CARD_CLASS } from '../../../lib/modalTheme';
 import type { Message } from '../../../store/useChatStore';
 import { mapDbRowToMessage } from '../../../store/chatHelpers';
 
@@ -59,29 +61,41 @@ export const YesterdaySummaryPopup: React.FC = () => {
     <AnimatePresence>
       {event && (
         <motion.div
-          initial={{ opacity: 0, y: -16 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
-          className="fixed top-16 left-4 right-4 z-30 pointer-events-auto"
+          className="fixed left-4 right-4 z-30 pointer-events-auto"
+          style={{ top: 'max(12px, calc(env(safe-area-inset-top, 0px) + 8px))' }}
           onPointerDown={() => setUserInteracted(true)}
         >
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl px-4 py-3 shadow-lg flex items-start gap-3">
+          <div
+            className={cn(APP_MODAL_CARD_CLASS, 'rounded-2xl px-4 py-3 flex items-start gap-3')}
+            style={{
+              background:
+                'linear-gradient(140deg, rgba(168,85,247,0.38) 0%, rgba(139,92,246,0.30) 45%, rgba(217,70,239,0.24) 100%)',
+              border: '1px solid rgba(255,255,255,0.38)',
+              backdropFilter: 'blur(18px) saturate(155%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(155%)',
+              boxShadow: '0 10px 30px rgba(88,28,135,0.26), inset 0 1px 1px rgba(255,255,255,0.35)',
+            }}
+          >
             <div className="text-2xl mt-0.5">🌙</div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-indigo-700 mb-0.5">{t('yesterday_popup')}</p>
-              <p className="text-sm text-indigo-900 truncate font-medium">{event.content}</p>
+              <p className="text-xs font-semibold text-violet-50/95 mb-0.5">{t('yesterday_popup')}</p>
+              <p className="text-sm text-white/95 truncate font-medium">{event.content}</p>
               {event.duration != null && (
-                <p className="text-[10px] text-indigo-400 mt-0.5">
+                <p className="text-xs text-violet-100/80 mt-0.5">
                   {Math.round(event.duration)} min
                 </p>
               )}
             </div>
             <button
               onClick={() => setEvent(null)}
-              className="p-1 text-indigo-400 hover:text-indigo-600 mt-0.5"
+              className="mt-0.5 rounded-full p-1 text-violet-50/85 transition-colors hover:text-white"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           </div>
         </motion.div>

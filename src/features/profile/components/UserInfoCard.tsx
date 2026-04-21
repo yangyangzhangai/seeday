@@ -1,15 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Crown, MoreHorizontal, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { User, Crown, X, MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { useGrowthStore } from '../../../store/useGrowthStore';
 import { resizeImageToDataUrl } from '../../../lib/imageUtils';
+import { cn } from '../../../lib/utils';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 import { supabase } from '../../../api/supabase';
 
 interface Props {
   isPlus: boolean;
 }
+
+const MEMBERSHIP_VIOLET = '#5242de';
+const MEMBERSHIP_VIOLET_DEEP = '#4058d5';
+const MEMBERSHIP_BLUE = '#4f8fff';
+const MEMBERSHIP_TEXT = '#3f43aa';
+const MEMBERSHIP_ICON = '#4c61d8';
+const MEMBERSHIP_TEXT_SUB = '#5e65b2';
+const MEMBERSHIP_TEXT_HINT = '#6675b6';
+const MEMBERSHIP_TEXT_HINT_SOFT = '#7884bc';
 
 // Returns local date string YYYY-MM-DD for a timestamp (ms)
 function toLocalDate(ts: number): string {
@@ -61,7 +73,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [weeklyLoginDays, setWeeklyLoginDays] = useState(0);
@@ -107,17 +119,17 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     user?.user_metadata?.display_name || user?.email?.split('@')[0] || '—';
 
   const handleAvatarClick = () => {
-    setShowMenu(false);
     setShowAvatarModal(true);
+    setShowAvatarMenu(false);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setShowAvatarModal(false);
-    setShowMenu(false);
-    const dataUrl = await resizeImageToDataUrl(f, 160);
+    const dataUrl = await resizeImageToDataUrl(f, 640, 0.95);
     await updateAvatar(dataUrl);
+    setShowAvatarMenu(false);
     // reset so same file can be re-selected
     e.target.value = '';
   };
@@ -143,12 +155,63 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     if (e.key === 'Escape') setEditingName(false);
   };
 
+  const plusCardStyle: React.CSSProperties = isPlus
+    ? {
+      background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #e5f0ff 100%)',
+      backdropFilter: 'blur(22px) saturate(145%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+      border: 'none',
+      boxShadow: '0 8px 22px rgba(82,66,222,0.14)',
+    }
+    : {};
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
-      <div className="flex items-center space-x-3">
+    <div
+      className={isPlus
+        ? 'relative overflow-hidden rounded-2xl px-4 py-3'
+        : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}
+      style={plusCardStyle}
+    >
+      {isPlus ? (
+        <>
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: -26,
+              right: -22,
+              width: 132,
+              height: 132,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(82,66,222,0.40) 0%, rgba(82,66,222,0.12) 45%, rgba(82,66,222,0) 76%)',
+              filter: 'blur(0.5px)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 22,
+              bottom: -30,
+              width: 180,
+              height: 100,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(79,143,255,0.34) 0%, rgba(79,143,255,0.08) 48%, rgba(79,143,255,0) 78%)',
+              pointerEvents: 'none',
+            }}
+          />
+        </>
+      ) : null}
+
+      <div className={isPlus ? 'relative z-[1] flex items-center space-x-3' : 'flex items-center space-x-3'}>
         {/* Avatar */}
-        <div
-          className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200 cursor-pointer flex-shrink-0"
+        <button
+          type="button"
+          aria-label="Open avatar preview"
+          className={isPlus
+            ? 'relative z-[2] h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
+            : 'h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
           onClick={handleAvatarClick}
         >
           {user?.user_metadata?.avatar_url ? (
@@ -159,10 +222,10 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User size={22} className="text-gray-400" />
+              <User size={24} strokeWidth={1.5} className="text-gray-400" />
             </div>
           )}
-        </div>
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -181,104 +244,184 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 onChange={(e) => setNameValue(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown}
-                className="text-sm font-semibold text-gray-800 bg-gray-100 rounded-lg px-2 py-0.5 outline-none border border-blue-400 w-36"
+                className="w-36 rounded-lg border border-[#8FAF92]/60 bg-white px-2 py-0.5 text-base font-semibold text-slate-700 outline-none"
               />
             ) : (
               <span
-                className="text-sm font-semibold text-gray-800 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                className={isPlus
+                  ? 'cursor-pointer truncate text-base font-semibold transition-colors'
+                  : 'cursor-pointer truncate text-base font-semibold text-slate-800 transition-colors hover:text-[#5F7A63]'}
+                style={isPlus ? { color: MEMBERSHIP_TEXT } : undefined}
                 onClick={handleNameClick}
               >
                 {displayName}
               </span>
             )}
             {isPlus && (
-              <span className="flex items-center space-x-0.5 bg-yellow-100 text-yellow-600 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-                <Crown size={10} />
-                <span>PLUS</span>
+              <span
+                className="flex items-center space-x-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                style={{
+                  background: `linear-gradient(135deg, ${MEMBERSHIP_VIOLET} 0%, ${MEMBERSHIP_VIOLET_DEEP} 56%, ${MEMBERSHIP_BLUE} 100%)`,
+                  color: '#f4f8ff',
+                  boxShadow: '0 5px 12px rgba(82,66,222,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
+                }}
+              >
+                <Crown size={10} strokeWidth={1.5} />
+                <span>PRO</span>
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">{user?.email}</p>
+          <p className={isPlus ? 'mt-0.5 truncate text-xs' : 'mt-0.5 truncate text-xs text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_SUB } : undefined}>{user?.email}</p>
         </div>
       </div>
 
       {/* Stats — compact */}
-      <div className="mt-3 grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 pt-2">
+      <div className={isPlus ? 'relative z-[1] mt-3 pt-3' : 'relative mt-3 pt-2'}>
+        {isPlus ? (
+          <>
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 1,
+                background: 'linear-gradient(90deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.82) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 8px rgba(82,66,222,0.42)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: '33.333%',
+                top: 6,
+                bottom: 6,
+                width: 1,
+                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: '66.666%',
+                top: 6,
+                bottom: 6,
+                width: 1,
+                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
+                pointerEvents: 'none',
+              }}
+            />
+          </>
+        ) : null}
+        {!isPlus ? (
+          <>
+            <div
+              aria-hidden
+              className="absolute left-0 right-0 top-0 h-px bg-slate-200/80"
+            />
+            <div
+              aria-hidden
+              className="absolute bottom-1 top-3 w-px bg-slate-200/80"
+              style={{ left: '33.333%' }}
+            />
+            <div
+              aria-hidden
+              className="absolute bottom-1 top-3 w-px bg-slate-200/80"
+              style={{ left: '66.666%' }}
+            />
+          </>
+        ) : null}
+        <div className={isPlus ? 'grid grid-cols-3' : 'grid grid-cols-3'}>
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_streak')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{weeklyLoginDays}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_streak')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{weeklyLoginDays}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_today_activities')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{todayActs}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_today_activities')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{todayActs}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_today_activities_hint', { count: todayActs })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className="text-[10px] text-gray-500 mt-0.5">{t('profile_completed_goals')}</span>
-          <span className="text-base font-bold text-blue-600 mt-0.5">{completedGoals}</span>
-          <span className="text-[9px] text-gray-400 mt-0.5 leading-tight text-center px-1">
+          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_completed_goals')}</span>
+          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{completedGoals}</span>
+          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
             {t('profile_completed_goals_hint')}
           </span>
+        </div>
         </div>
       </div>
 
       {/* Avatar modal */}
-      {showAvatarModal && (
+      {showAvatarModal ? createPortal(
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => { setShowAvatarModal(false); setShowMenu(false); }}
+          className={cn('fixed inset-0 flex items-center justify-center z-50', APP_MODAL_OVERLAY_CLASS)}
+          onClick={() => {
+            setShowAvatarModal(false);
+            setShowAvatarMenu(false);
+          }}
         >
           <div
-            className="relative rounded-2xl overflow-hidden shadow-2xl"
+            className="relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close */}
             <button
-              className="absolute top-2 left-2 p-1.5 rounded-full bg-black/40 text-white z-10"
-              onClick={() => { setShowAvatarModal(false); setShowMenu(false); }}
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-3 top-3 z-10 p-1.5')}
+              onClick={() => {
+                setShowAvatarModal(false);
+                setShowAvatarMenu(false);
+              }}
+              title={t('auth_close')}
             >
-              <X size={16} />
+              <X size={16} strokeWidth={1.5} />
             </button>
 
-            {/* Three-dot menu */}
-            <button
-              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/40 text-white z-10"
-              onClick={() => setShowMenu((v) => !v)}
-            >
-              <MoreHorizontal size={18} />
-            </button>
-
-            {showMenu && (
-              <div className="absolute bottom-12 right-2 bg-white rounded-xl shadow-lg overflow-hidden z-20 min-w-[120px]">
+            {showAvatarMenu ? (
+              <div className={cn(APP_MODAL_CARD_CLASS, 'absolute bottom-12 right-3 z-10 overflow-hidden rounded-xl')}>
                 <button
-                  className="block w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                  onClick={() => { setShowMenu(false); fileRef.current?.click(); }}
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-white/70"
+                  onClick={() => fileRef.current?.click()}
                 >
-                  更换头像
+                  {t('auth_change_avatar')}
                 </button>
               </div>
-            )}
+            ) : null}
+
+            <button
+              className={cn(APP_MODAL_CLOSE_CLASS, 'absolute bottom-3 right-3 z-10 p-2')}
+              onClick={() => setShowAvatarMenu((v) => !v)}
+              title={t('auth_more')}
+            >
+              <MoreHorizontal size={16} strokeWidth={1.5} />
+            </button>
 
             {/* Full avatar */}
-            <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] bg-gray-900 flex items-center justify-center">
+            <div className="h-[min(320px,88vw)] w-[min(320px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
-                  alt="avatar"
+                  alt="avatar large"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User size={80} className="text-gray-500" />
+                <User size={80} strokeWidth={1.5} className="text-gray-500" />
               )}
             </div>
           </div>
         </div>
-      )}
+      , document.body) : null}
     </div>
   );
 };

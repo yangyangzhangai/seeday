@@ -183,7 +183,7 @@ if (classification.kind === 'mood') {
 
 ### 3.0.2 2026-03-11 新增 1000 条样本基线（修改前原始代码）
 
-使用 `timeshine_3000_samples.xlsx`（解析出 1000 条有效样本）：
+使用 `seeday_3000_samples.xlsx`（解析出 1000 条有效样本）：
 
 - `kind_accuracy = 674/1000 = 67.40%`
 - `internal_accuracy = 599/1000 = 59.90%`
