@@ -205,9 +205,11 @@ export const useGrowthStore = create<GrowthState>()(
         const starsToAdd = Math.max(1, Math.floor(amount || 1));
         playSound('ding');
         let willAchieve = false;
+        let didIncrement = false;
         set((s) => ({
           bottles: s.bottles.map((b) => {
             if (b.id !== id || b.status !== 'active') return b;
+            didIncrement = true;
             const newStars = b.stars + starsToAdd;
             const today = todayDateStr();
             const checkinDates = normalizeCheckinDates([...(b.checkinDates ?? []), today]);
@@ -218,6 +220,13 @@ export const useGrowthStore = create<GrowthState>()(
             return { ...b, stars: newStars, checkinDates };
           }),
         }));
+        if (didIncrement && typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('growth-star-earned', {
+              detail: { bottleId: id, starsAdded: starsToAdd },
+            }),
+          );
+        }
         if (willAchieve) setTimeout(() => playSound('ding'), 400);
 
         void withDbRetry('GrowthStore:incrementStars', async () => {

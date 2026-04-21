@@ -24,3 +24,12 @@ export function resizeImageToDataUrl(file: File, maxSize = 160, quality = 0.85):
     reader.readAsDataURL(file);
   });
 }
+
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
