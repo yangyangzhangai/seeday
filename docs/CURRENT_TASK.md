@@ -53,9 +53,9 @@ Status: 待开始（P0 已完成）
 
 #### Sprint A（低耦合，先清）
 
-- [ ] **A-1 / P1-3 Reminder persist 化**
+- [x] **A-1 / P1-3 Reminder persist 化**
   - 触达：`src/store/useReminderStore.ts`、`src/store/useAuthStore.ts`
-  - 动作：改为 `create(persist(...))`；key 用 `seeday:v1:reminder`；`merge` 保留跨日自动重置；登出清理覆盖 reminder
+  - 动作：改为 `create(persist(...))`；key 用 `seeday:v1:reminder`；`merge` 保留跨日自动重置；并兼容迁移旧 key（`reminder_confirmed_today/date`）
   - 验收：跨日后 `confirmedToday` 自动重置；登出后 reminder 本地状态被清空
 
 - [ ] **A-2 / P1-6 Annotation persist 裁剪（剩余）**

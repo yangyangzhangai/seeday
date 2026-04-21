@@ -16,6 +16,7 @@
 | `useMoodStore.ts` | 心情映射、自定义标签（含裁剪） | Yes |
 | `useAnnotationStore.ts` | AI 批注触发与展示 | Yes |
 | `useStardustStore.ts` | 星尘生成与同步 | Yes |
+| `useReminderStore.ts` | 主动提醒当日确认态、前台弹窗与快捷记录上下文 | Yes |
 
 ## 组织约定
 
@@ -59,6 +60,7 @@
 - `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
 - `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
 - `useFocusStore` 现持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话；`useTimingStore` 已接入 persist，冷启动可直接恢复当日计时状态。
+- `useReminderStore` 已从裸 localStorage 迁移为 Zustand persist（`seeday:v1:reminder`），并在 merge 中保留跨日自动重置 confirmed 状态。
 
 ## 变更自检
 

@@ -6,6 +6,16 @@ All notable effective changes are documented here.
 
 ## 2026-04-21
 
+### Refactor: DATA_STORAGE P1 A-1 Reminder store persist 化
+
+- `useReminderStore` 从裸 localStorage 迁移为 Zustand persist，key 统一为 `seeday:v1:reminder`
+- `merge` 保留跨日自动重置逻辑，并兼容迁移旧 key（`reminder_confirmed_today` / `reminder_confirmed_date`）
+- `clearLocalDomainStores` 新增 reminder 清理，确保登出时该域状态同步清空
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ### Fix: Growth 待办取消完成的星星/打卡对称回滚
 
 - `useGrowthStore` 新增扣星 action，支持取消完成时状态与打卡对称回退
