@@ -192,6 +192,7 @@ const it: TranslationKeys = {
     plant_generate_done_button: 'Generata Oggi',
     plant_generate_locked_hint: 'Le radici stanno ancora crescendo. Torna dopo le 20:00.',
     plant_generate_locked_with_diary_hint: 'Le radici stanno ancora crescendo. Dopo le 20:00 puoi generare sia la pianta che il diario di oggi.',
+    plant_early_activities: 'Oggi hai registrato {{count}} attività',
     plant_generate_ready_hint: 'Le tue radici sono pronte. Ora puoi generare la pianta di oggi.',
     plant_generate_confirm: 'Generare ora la pianta di oggi? Per oggi questa azione è irreversibile.',
     plant_generate_success: 'La pianta di oggi è stata generata.',

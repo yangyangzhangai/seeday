@@ -165,7 +165,7 @@ export const usePlantStore = create<PlantState>()(
           return;
         }
 
-        const { date } = getTodayDateAndRange();
+        const { date, timezone } = getTodayDateAndRange();
         const [plantRes, directionRes] = await Promise.all([
           supabase
             .from('daily_plant_records')

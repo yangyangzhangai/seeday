@@ -45,6 +45,7 @@ import {
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
+import { patchUserMetadata } from './authMetadataQueue';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = SupportedUiLanguage;
@@ -160,7 +161,7 @@ function clearLocalDomainStores(): void {
     hasHydrated: false,
     lastSyncError: null,
   });
-  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null });
+  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null, queue: [], queueIndex: -1 });
   useStardustStore.getState().clear();
 }
 
@@ -196,19 +197,14 @@ async function ensureTodayLoginDay(user: any): Promise<any> {
   if (existingDays.includes(today)) return user;
 
   const nextDays = [...existingDays, today].slice(-90);
-  const { data, error } = await supabase.auth.updateUser({
-    data: {
-      ...(user?.user_metadata || {}),
-      login_days: nextDays,
-    },
-  });
+  const { user: updatedUser, error } = await patchUserMetadata({ login_days: nextDays });
 
-  if (error || !data?.user) {
+  if (error || !updatedUser) {
     console.warn('Failed to persist login_days:', error);
     return user;
   }
 
-  return data.user;
+  return updatedUser;
 }
 
 function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
@@ -404,18 +400,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Retry syncing pending profile write to Supabase in the background
     if (sessionUser && pendingProfile && !profileState.userProfileV2) {
-      const baseMeta = { ...meta };
-      const retryMeta = {
-        ...baseMeta,
+      const retryPatch = {
         [USER_PROFILE_METADATA_KEY]: {
           ...pendingProfile,
           updatedAt: new Date().toISOString(),
         },
       };
-      supabase.auth.updateUser({ data: retryMeta }).then(({ data, error }) => {
-        if (!error && data?.user) {
-          const synced = profileStateFromMeta(data.user.user_metadata || {});
-          set({ user: data.user, userProfileV2: synced.userProfileV2 });
+      patchUserMetadata(retryPatch).then(({ user: updatedUser, error }) => {
+        if (!error && updatedUser) {
+          const synced = profileStateFromMeta(updatedUser.user_metadata || {});
+          set({ user: updatedUser, userProfileV2: synced.userProfileV2 });
           clearPendingProfileWrite(sessionUser!.id);
         }
       }).catch(() => { /* stay silent — will retry on next init */ });
@@ -468,7 +462,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useReportStore.getState().fetchReports(),
         useMoodStore.getState().fetchMoods(),
         useGrowthStore.getState().fetchBottles(),
-        useFocusStore.getState().fetchSessions(),
+        useFocusStore.getState().recoverSessionAfterHydration().then(() => useFocusStore.getState().fetchSessions()),
       ]).catch(() => {});
       void Promise.resolve().then(async () => {
         await useStardustStore.getState().syncPendingStardusts();
@@ -572,7 +566,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           useReportStore.getState().fetchReports(),
           useMoodStore.getState().fetchMoods(),
           useGrowthStore.getState().fetchBottles(),
-          useFocusStore.getState().fetchSessions(),
+          useFocusStore.getState().recoverSessionAfterHydration().then(() => useFocusStore.getState().fetchSessions()),
         ]).catch(() => {});
         void Promise.resolve().then(async () => {
           await useStardustStore.getState().syncPendingStardusts();
@@ -680,11 +674,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateAvatar: async (avatarDataUrl: string) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: { avatar_url: avatarDataUrl }
-    });
-    if (!error && data?.user) {
-      set({ user: data.user });
+    const { user, error } = await patchUserMetadata({ avatar_url: avatarDataUrl });
+    if (!error && user) {
+      set({ user });
     }
     return { error };
   },
@@ -702,8 +694,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: new Error('Invalid location metadata') };
     }
 
-    const nextMetadata = {
-      ...(currentUser.user_metadata || {}),
+    const patch = {
       country_code: normalizedCountryCode,
       latitude: Number(latitude.toFixed(6)),
       longitude: Number(longitude.toFixed(6)),
@@ -748,18 +739,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: new Error('Not signed in') };
     }
 
-    const latestSession = await getSupabaseSession();
-    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
-    const nextMeta = {
-      ...baseMeta,
+    const patch = {
       [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
     };
 
-    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
-    if (!error && data?.user) {
-      const profileState = profileStateFromMeta(data.user.user_metadata || {});
+    const { user, error } = await patchUserMetadata(patch);
+    if (!error && user) {
+      const profileState = profileStateFromMeta(user.user_metadata || {});
       set({
-        user: data.user,
+        user,
         longTermProfileEnabled: profileState.longTermProfileEnabled,
         userProfileV2: profileState.userProfileV2,
       });
@@ -785,8 +773,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ userProfileV2: nextProfile });
     savePendingProfileWrite(currentUser.id, nextProfile);
 
-    const nextMeta = {
-      ...baseMeta,
+    const patch = {
       [USER_PROFILE_METADATA_KEY]: {
         ...nextProfile,
         updatedAt: new Date().toISOString(),
@@ -796,11 +783,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // 2. Sync to Supabase in background — don't block the caller
     const userId = currentUser.id;
-    supabase.auth.updateUser({ data: nextMeta }).then(({ data, error }) => {
-      if (!error && data?.user) {
-        const profileState = profileStateFromMeta(data.user.user_metadata || {});
+    patchUserMetadata(patch).then(({ user, error }) => {
+      if (!error && user) {
+        const profileState = profileStateFromMeta(user.user_metadata || {});
         set({
-          user: data.user,
+          user,
           longTermProfileEnabled: profileState.longTermProfileEnabled,
           userProfileV2: profileState.userProfileV2,
         });
@@ -829,16 +816,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: null };
     }
 
-    const latestSession = await getSupabaseSession();
-    const baseMeta = (latestSession?.user?.user_metadata || currentUser.user_metadata || {}) as Record<string, any>;
-    const nextMeta = {
-      ...baseMeta,
-      i18nextLng: normalized,
-    };
-
-    const { data, error } = await supabase.auth.updateUser({ data: nextMeta });
-    if (!error && data?.user) {
-      set({ user: data.user });
+    const { user, error } = await patchUserMetadata({ i18nextLng: normalized });
+    if (!error && user) {
+      set({ user });
     }
     return { error };
   },

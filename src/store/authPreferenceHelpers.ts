@@ -1,6 +1,5 @@
 import type { AiCompanionMode } from '../lib/aiCompanion';
-import { supabase } from '../api/supabase';
-import { getSupabaseSession } from '../lib/supabase-utils';
+import { patchUserMetadata } from './authMetadataQueue';
 
 export type AnnotationDropRateSnapshot = 'low' | 'medium' | 'high';
 
@@ -31,16 +30,11 @@ async function flushQueuedPreferences(): Promise<void> {
     while (queuedPreferenceSnapshot) {
       const snapshot = queuedPreferenceSnapshot;
       queuedPreferenceSnapshot = null;
-      const latestSession = await getSupabaseSession();
-      const baseMeta = (latestSession?.user?.user_metadata || {}) as Record<string, any>;
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          ...baseMeta,
-          ai_mode: snapshot.aiMode,
-          ai_mode_enabled: snapshot.aiModeEnabled,
-          daily_goal_enabled: snapshot.dailyGoalEnabled,
-          annotation_drop_rate: snapshot.annotationDropRate,
-        },
+      const { error } = await patchUserMetadata({
+        ai_mode: snapshot.aiMode,
+        ai_mode_enabled: snapshot.aiModeEnabled,
+        daily_goal_enabled: snapshot.dailyGoalEnabled,
+        annotation_drop_rate: snapshot.annotationDropRate,
       });
       if (error) {
         console.error('[updatePreferences] supabase error:', error);
@@ -62,8 +56,8 @@ export function queuePreferenceSnapshot(snapshot: UserPreferencesSnapshot): void
 export function preferencesFromMeta(meta: Record<string, any>): UserPreferencesSnapshot {
   const rawAiMode = meta.ai_mode;
   const normalizedAiMode: AiCompanionMode = (
-    typeof rawAiMode === 'string' && (SUPPORTED_AI_MODES as string[]).includes(rawAiMode)
-      ? rawAiMode
+    typeof rawAiMode === 'string' && SUPPORTED_AI_MODES.includes(rawAiMode as AiCompanionMode)
+      ? rawAiMode as AiCompanionMode
       : DEFAULT_FREE_AI_MODE
   );
 

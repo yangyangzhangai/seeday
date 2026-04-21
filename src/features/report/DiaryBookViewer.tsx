@@ -539,7 +539,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     const d = startOfMonth(currentMonth);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   })();
-  const allMessages = dateCache.get(monthStartStr) ?? globalMessages;
+  const allMessages = dateCache[monthStartStr] ?? globalMessages;
   const [flippedCount, setFlippedCount] = useState(initialFlippedCount ?? 0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [lastFlipDir, setLastFlipDir] = useState<'next' | 'prev'>('next');

@@ -55,6 +55,10 @@
 - 周报触发画像提取已接入：`useReportStore.generateReport('weekly', ...)` 会在 `isPlus && longTermProfileEnabled=true` 时并行调用 `/api/extract-profile`（携带最近消息），并在成功后通过 `useAuthStore.updateUserProfile(...)` 合并写回 `observed/dynamicSignals/anniversariesVisible/hiddenMoments/lastExtractedAt`。
 - suggestion 反馈埋点扩展：当用户接受且该条批注 `narrativeEvent.isTriggeredReply=true` 时，会额外写入 `telemetry_events.event_condensed`（携带 `eventType/eventId`）供低叙事密度质量复盘。
 - `useReportStore.generateAIDiary()` now branches by membership: Plus -> full AI diary (`aiAnalysis`), Free -> teaser copy (`teaserText`) for blur-lock upgrade UI.
+- metadata 并发写已串行化：新增 `authMetadataQueue.ts`，`updateLanguagePreference/updateUserProfile/updateLongTermProfileEnabled/updateAvatar/updatePreferences` 及迁移写入统一走 `patchUserMetadata(...)`，避免 `user_metadata` 覆盖竞争。
+- `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
+- `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
+- `useFocusStore` 现持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话；`useTimingStore` 已接入 persist，冷启动可直接恢复当日计时状态。
 
 ## 变更自检
 

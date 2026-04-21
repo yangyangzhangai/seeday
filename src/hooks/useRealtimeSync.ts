@@ -8,6 +8,7 @@
  * The hook is a no-op when the user is not signed in.
  */
 import { useEffect, useRef } from 'react';
+import { getLocalDateString } from '../store/chatHelpers';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../api/supabase';
 import { useAuthStore } from '../store/useAuthStore';
@@ -28,7 +29,8 @@ import { useGrowthStore, type Bottle, type BottleType, type BottleStatus } from 
 import { fromDbAnnotation, fromDbMessage, fromDbReport, fromDbStardust, fromDbTodo } from '../lib/dbMappers';
 import { autoDetectMood } from '../lib/mood';
 import i18n from '../i18n';
-import type { SupportedLang } from '../i18n';
+
+type SupportedLang = 'zh' | 'en' | 'it';
 
 function resolveLangForContent(content: string): SupportedLang {
   if (/[\u3400-\u9fff]/.test(content)) return 'zh';
@@ -62,9 +64,15 @@ export function useRealtimeSync() {
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `user_id=eq.${userId}` },
         ({ new: row }) => {
           const msg = fromDbMessage(row);
+          const dateStr = getLocalDateString(new Date(msg.timestamp));
           useChatStore.setState(state => {
             if (state.messages.some(m => m.id === msg.id)) return state; // already present
-            return { messages: [...state.messages, msg] };
+            const updatedDateEntries = [...(state.dateCache[dateStr] ?? []).filter(m => m.id !== msg.id), msg];
+            const shouldTouchMessages = state.activeViewDateStr === dateStr;
+            return {
+              messages: shouldTouchMessages ? [...state.messages, msg] : state.messages,
+              dateCache: { ...state.dateCache, [dateStr]: updatedDateEntries },
+            };
           });
           // Auto-detect mood for incoming activity messages that don't have one yet
           if (msg.mode === 'record' && !msg.isMood && msg.duration != null) {
@@ -80,18 +88,37 @@ export function useRealtimeSync() {
         { event: 'UPDATE', schema: 'public', table: 'messages', filter: `user_id=eq.${userId}` },
         ({ new: row }) => {
           const msg = fromDbMessage(row);
-          useChatStore.setState(state => ({
-            messages: state.messages.map(m => m.id === msg.id ? { ...m, ...msg } : m),
-          }));
+          const dateStr = getLocalDateString(new Date(msg.timestamp));
+          useChatStore.setState(state => {
+            const nextDateCache: typeof state.dateCache = {};
+            for (const [date, msgs] of Object.entries(state.dateCache)) {
+              nextDateCache[date] = msgs.filter(m => m.id !== msg.id);
+            }
+            nextDateCache[dateStr] = [...(nextDateCache[dateStr] ?? []), msg];
+
+            const shouldTouchMessages = state.activeViewDateStr === dateStr;
+            const cleanedMessages = state.messages.filter(m => m.id !== msg.id);
+            return {
+              messages: shouldTouchMessages ? [...cleanedMessages, msg] : cleanedMessages,
+              dateCache: nextDateCache,
+            };
+          });
         },
       )
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'messages', filter: `user_id=eq.${userId}` },
         ({ old: row }) => {
-          useChatStore.setState(state => ({
-            messages: state.messages.filter(m => m.id !== row.id),
-          }));
+          useChatStore.setState(state => {
+            const newDateCache: Record<string, import('../store/useChatStore.types').Message[]> = {};
+            for (const [date, msgs] of Object.entries(state.dateCache)) {
+              newDateCache[date] = msgs.filter(m => m.id !== row.id);
+            }
+            return {
+              messages: state.messages.filter(m => m.id !== row.id),
+              dateCache: newDateCache,
+            };
+          });
         },
       )
 
@@ -132,7 +159,9 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'moods', filter: `user_id=eq.${userId}` },
         ({ new: row, old: oldRow, eventType }) => {
-          const messageId = (row?.message_id ?? oldRow?.message_id) as string | undefined;
+          const newRow = row as { message_id?: string } | null;
+          const prevRow = oldRow as { message_id?: string } | null;
+          const messageId = (newRow?.message_id ?? prevRow?.message_id) as string | undefined;
           if (!messageId) return;
 
           useMoodStore.setState(state => ({

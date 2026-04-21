@@ -95,6 +95,15 @@ async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: number): P
   );
 }
 
+/** 只保留最近 MAX_PERSISTED_DAYS 天的缓存，删除更旧的条目 */
+function pruneDateCache(cache: Record<string, Message[]>): Record<string, Message[]> {
+  const MAX_PERSISTED_DAYS = 30;
+  const keys = Object.keys(cache).sort();
+  if (keys.length <= MAX_PERSISTED_DAYS) return cache;
+  const toKeep = keys.slice(-MAX_PERSISTED_DAYS);
+  return Object.fromEntries(toKeep.map(k => [k, cache[k]]));
+}
+
 function mergePersistedChatState(
   persistedState: unknown,
   currentState: ChatState,
@@ -105,6 +114,10 @@ function mergePersistedChatState(
   const nowMs = Date.now();
   const todayStr = getLocalDateString(new Date(nowMs));
   const sameDay = persisted.currentDateStr != null && persisted.currentDateStr === todayStr;
+
+  merged.dateCache = (persisted.dateCache != null && typeof persisted.dateCache === 'object' && !Array.isArray(persisted.dateCache))
+    ? persisted.dateCache as Record<string, Message[]>
+    : {};
 
   const incomingMessages = Array.isArray(persisted.messages)
     ? persisted.messages
@@ -141,7 +154,7 @@ export const useChatStore = create<ChatState>()(
       yesterdaySummary: null,
       currentDateStr: null,
       activeViewDateStr: null,
-      dateCache: new Map(),
+      dateCache: {},
       fetchMessages: async () => {
         const session = await getSupabaseSession();
         if (!session) {
@@ -254,6 +267,7 @@ export const useChatStore = create<ChatState>()(
             (a, b) => a.timestamp - b.timestamp,
           );
 
+          const prunedCache = pruneDateCache({ ...get().dateCache, [todayStr]: mergedMessages });
           set({
             messages: mergedMessages,
             oldestLoadedDate: todayStr,
@@ -261,7 +275,7 @@ export const useChatStore = create<ChatState>()(
             yesterdaySummary,
             currentDateStr: todayStr,
             activeViewDateStr: get().activeViewDateStr ?? todayStr,
-            dateCache: new Map(get().dateCache).set(todayStr, mergedMessages),
+            dateCache: prunedCache,
           });
         } catch (error) {
           console.error('Error fetching messages:', error);
@@ -316,17 +330,25 @@ export const useChatStore = create<ChatState>()(
 
         const todayStr = getLocalDateString(new Date(nowMs));
         if (!state.currentDateStr || state.currentDateStr !== todayStr) {
+          // 只在用户当前看的是今天（或尚未初始化）时才 reset 到今天
+          // 避免用户正在看历史日期时被强制跳回今天
+          const userOnHistorical = state.activeViewDateStr != null && state.activeViewDateStr !== state.currentDateStr;
+          if (userOnHistorical) return;
           import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
           void state.fetchMessages();
         }
       },
 
       fetchMessagesByDate: async (dateStr: string) => {
-        const cached = get().dateCache.get(dateStr);
+        // 本地有缓存 → 立即渲染，同时后台拉云端
+        const cached = get().dateCache[dateStr];
         if (cached && cached.length > 0) {
-          set({ messages: cached, activeViewDateStr: dateStr, currentDateStr: dateStr });
+          set({ messages: cached, activeViewDateStr: dateStr });
+          void get()._refreshDateSilently(dateStr);
           return;
         }
+
+        // 本地无缓存 → 等云端（loading 由调用方控制）
         const session = await getSupabaseSession();
         if (!session) return;
 
@@ -348,7 +370,6 @@ export const useChatStore = create<ChatState>()(
         queueBackfillLegacyActivityTypes(data || [], session.user.id);
         const msgs = filterLegacyChatRows(data || []).map(mapDbRowToMessage);
 
-        // Ensure all completed events have at least an auto-detected mood label
         const moodStoreDate = useMoodStore.getState();
         for (const msg of msgs) {
           if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
@@ -359,19 +380,87 @@ export const useChatStore = create<ChatState>()(
         set(state => ({
           messages: msgs,
           activeViewDateStr: dateStr,
-          currentDateStr: dateStr,
-          dateCache: new Map(state.dateCache).set(dateStr, msgs),
+          dateCache: pruneDateCache({ ...state.dateCache, [dateStr]: msgs }),
+        }));
+      },
+
+      /** 后台静默拉云端数据，合并后有差异才更新缓存和视图 */
+      _refreshDateSilently: async (dateStr: string) => {
+        const session = await getSupabaseSession();
+        if (!session) return;
+
+        const dayStart = new Date(dateStr + 'T00:00:00').getTime();
+        const dayEnd = new Date(dateStr + 'T23:59:59.999').getTime();
+
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('timestamp', dayStart)
+          .lte('timestamp', dayEnd)
+          .order('timestamp', { ascending: true });
+
+        if (error) return;
+
+        queueBackfillLegacyActivityTypes(data || [], session.user.id);
+        const cloudMsgs = filterLegacyChatRows(data || []).map(mapDbRowToMessage);
+        const cloudById = new Map(cloudMsgs.map(m => [m.id, m]));
+
+        const localMsgs = get().dateCache[dateStr] ?? [];
+
+        // 合并：云端有的条目云端优先（覆盖字段变化）；本地独有的视为离线写入待同步，保留
+        const merged: Message[] = [];
+        let changed = false;
+        for (const local of localMsgs) {
+          const cloud = cloudById.get(local.id);
+          if (!cloud) {
+            // 本地独有（离线写入未同步），保留
+            merged.push(local);
+          } else {
+            merged.push(cloud);
+            // 检测关键字段是否有变化
+            if (
+              local.content !== cloud.content ||
+              local.duration !== cloud.duration ||
+              local.isActive !== cloud.isActive ||
+              local.activityType !== cloud.activityType ||
+              local.imageUrl !== cloud.imageUrl ||
+              local.imageUrl2 !== cloud.imageUrl2
+            ) {
+              changed = true;
+            }
+            cloudById.delete(local.id);
+          }
+        }
+        // 云端有、本地没有（跨设备写入）
+        for (const cloudOnly of cloudById.values()) {
+          merged.push(cloudOnly);
+          changed = true;
+        }
+        // 本地比云端少了条目也算变化
+        if (merged.length !== localMsgs.length) changed = true;
+
+        if (!changed) return;
+
+        merged.sort((a, b) => a.timestamp - b.timestamp);
+
+        const moodStoreDate = useMoodStore.getState();
+        for (const msg of merged) {
+          if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
+            moodStoreDate.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0, resolveLangForText(msg.content)), 'auto');
+          }
+        }
+
+        set(state => ({
+          messages: state.activeViewDateStr === dateStr ? merged : state.messages,
+          dateCache: pruneDateCache({ ...state.dateCache, [dateStr]: merged }),
         }));
       },
 
       loadMessagesForDateRange: async (start: Date, end: Date) => {
         const msgs = await get().getMessagesForDateRange(start, end);
         const dateStr = getLocalDateString(start);
-        set(state => {
-          const newCache = new Map(state.dateCache);
-          newCache.set(dateStr, msgs);
-          return { dateCache: newCache };
-        });
+        set(state => ({ dateCache: { ...state.dateCache, [dateStr]: msgs } }));
       },
 
       getMessagesForDateRange: async (start: Date, end: Date) => {
@@ -380,7 +469,7 @@ export const useChatStore = create<ChatState>()(
         // A month-range query (DiaryBookViewer) must not be poisoned by a prior
         // single-day cache entry stored under the same start-date key.
         const rangeIsOneDay = end.getTime() - start.getTime() <= 24 * 60 * 60 * 1000 + 1;
-        const cached = rangeIsOneDay ? get().dateCache.get(dateStr) : undefined;
+        const cached = rangeIsOneDay ? get().dateCache[dateStr] : undefined;
         if (cached) return cached;
 
         const session = await getSupabaseSession();
@@ -890,13 +979,13 @@ export const useChatStore = create<ChatState>()(
     {
       name: 'chat-storage',
       merge: (persistedState, currentState) => mergePersistedChatState(persistedState, currentState as ChatState),
-      // dateCache 是 Map，不能 JSON 序列化，排除持久化
       partialize: (state) => ({
         messages: state.messages,
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
         currentDateStr: state.currentDateStr,
         hasInitialized: state.hasInitialized,
+        dateCache: state.dateCache,
       }),
     }
   )

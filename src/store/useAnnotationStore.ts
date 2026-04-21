@@ -42,7 +42,7 @@ import {
 } from '../lib/characterState';
 import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
-const MAX_TODAY_EVENTS = 400;
+const MAX_TODAY_EVENTS = 150;
 
 function toTimestampMs(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -796,8 +796,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          const annotations: AIAnnotation[] = data.map(fromDbAnnotation);
-          set({ annotations });
+          const cloudAnnotations: AIAnnotation[] = data.map(fromDbAnnotation);
+          const cloudIds = new Set(cloudAnnotations.map((annotation) => annotation.id));
+          const localPending = get().annotations.filter((annotation) => !annotation.syncedToCloud && !cloudIds.has(annotation.id));
+          set({ annotations: [...cloudAnnotations, ...localPending] });
         }
       },
 

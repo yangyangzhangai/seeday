@@ -1,5 +1,5 @@
 import i18n from '../i18n';
-import { supabase } from '../api/supabase';
+import { patchUserMetadata } from './authMetadataQueue';
 
 export type SupportedUiLanguage = 'zh' | 'en' | 'it';
 
@@ -64,16 +64,11 @@ export async function ensureCloudLanguageMetadata(user: any | null): Promise<any
   }
 
   const fallbackLanguage = normalizeUiLanguage(i18n.language);
-  const { data, error } = await supabase.auth.updateUser({
-    data: {
-      ...meta,
-      i18nextLng: fallbackLanguage,
-    },
-  });
+  const { user: updatedUser, error } = await patchUserMetadata({ i18nextLng: fallbackLanguage });
 
-  if (error || !data?.user) {
+  if (error || !updatedUser) {
     return user;
   }
 
-  return data.user;
+  return updatedUser;
 }

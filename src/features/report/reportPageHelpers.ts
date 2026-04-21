@@ -34,13 +34,13 @@ export function getReportRange(report: Report): { start: number; end: number } {
 /** Return the best message source for a given report: cached date-specific messages if available, otherwise global messages. */
 export function getMessagesForReport(
   globalMessages: Message[],
-  dateCache: Map<string, Message[]>,
+  dateCache: Record<string, Message[]>,
   report: Report | null,
 ): Message[] {
   if (!report) return globalMessages;
   const d = new Date(report.date);
   const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const cached = dateCache.get(dateStr);
+  const cached = dateCache[dateStr];
   return (cached && cached.length > 0) ? cached : globalMessages;
 }
 

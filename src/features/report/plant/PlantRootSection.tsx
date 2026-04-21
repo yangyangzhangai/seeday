@@ -57,6 +57,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const [isDiaryEditing, setIsDiaryEditing] = useState(false);
   const [isDiarySaving, setIsDiarySaving] = useState(false);
   const [plantStatusHint, setPlantStatusHint] = useState<string | null>(null);
+  const [showEarlyCard, setShowEarlyCard] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
@@ -230,6 +231,13 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
   const selectedMessage = selectedSegment ? messageMap.get(selectedSegment.activityId) : null;
 
+  const todayActivityCount = useMemo(() => {
+    const now = new Date();
+    const dayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dayEndMs = dayStartMs + 86_400_000;
+    return messages.filter(m => m.mode === 'record' && !m.isMood && m.timestamp >= dayStartMs && m.timestamp < dayEndMs).length;
+  }, [messages]);
+
   useEffect(() => {
     if (!selectedRootId) return;
     const timerId = window.setTimeout(() => {
@@ -256,9 +264,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
   const handleGeneratePlant = useCallback(async () => {
     if (plantIsTooEarly) {
-      setPlantStatusHint(prev =>
-        prev ? null : (currentLang === 'zh' ? '20:00后尝试' : (currentLang === 'en' ? t('plant_generate_try_after_20') : t('plant_generate_locked_with_diary_hint')))
-      );
+      setShowEarlyCard(prev => !prev);
       return;
     }
     if (!window.confirm(t('plant_generate_confirm'))) return;
@@ -343,7 +349,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
       </div>
 
       {/* ── Plant generate button ── */}
-      <div ref={plantActionsRef} className="flex flex-col items-center gap-1 py-3">
+      <div ref={plantActionsRef} className="flex flex-col items-center gap-2 py-3">
         <button
           onClick={handleGeneratePlant}
           disabled={plantGenerateUi.disabled}
@@ -357,6 +363,36 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
             {plantStatusHint}
           </p>
         ) : null}
+        {showEarlyCard && (
+          <div
+            className="mx-4 w-[calc(100%-2rem)] max-w-xs rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+            style={{
+              background: 'rgba(255,255,255,0.28)',
+              backdropFilter: 'blur(20px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+              border: '1px solid rgba(255,255,255,0.55)',
+              boxShadow: '0 0 12px rgba(255,255,255,0.20), inset 0 1px 1px rgba(255,255,255,0.55)',
+            }}
+          >
+            <div className="px-5 py-4 text-center">
+              <p className="text-sm font-semibold leading-snug" style={{ color: '#2d3f5a' }}>
+                {t('plant_generate_locked_hint')}
+              </p>
+              {todayActivityCount > 0 && (
+                <p className="mt-2 text-xs" style={{ color: '#7a9b80' }}>
+                  {t('plant_early_activities', { count: todayActivityCount })}
+                </p>
+              )}
+              <button
+                onClick={() => setShowEarlyCard(false)}
+                className="mt-3 rounded-full px-5 py-1 text-xs font-semibold transition active:opacity-70"
+                style={{ background: 'rgba(95,122,99,0.12)', color: '#5F7A63' }}
+              >
+                {t('report_early_tip_ok')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div

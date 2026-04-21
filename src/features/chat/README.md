@@ -86,3 +86,9 @@
 - `src/store/chatHelpers.ts`: Date helpers and DB row mappers (`getLocalDateString`, `mapDbRowToMessage`).
 
 `src/store/useChatStore.ts` line count: 830 → 721 (as of 2026-03-24).
+
+## Local-First Update (2026-04-21)
+
+- `dateCache` is now `Record<string, Message[]>` (persisted directly), no `Map`/dual-cache path.
+- Date switch path is local-first: `fetchMessagesByDate()` renders cached day instantly, then runs `_refreshDateSilently(dateStr)` in background.
+- Realtime message sync updates `dateCache` for all dates, but only mutates visible `messages` when event date matches `activeViewDateStr`.

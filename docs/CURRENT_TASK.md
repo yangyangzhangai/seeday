@@ -1,12 +1,70 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-20
+Last Updated: 2026-04-21
 Owner: current working session
+
+---
+
+## 当前主线 0：本地优先存储改造（LOCAL_FIRST P0）
+
+Status: 实施中（2026-04-21）
+规格文档：`docs/LOCAL_FIRST_STORAGE_SPEC.md`
+
+### 背景
+
+聊天时间流（`/chat`）切换历史日期频繁出现 loading，偶发"切换日期后界面不变（闪回今天）"，iOS App 从后台唤醒后数据重新加载。根因：`dateCache`（Map）不持久化，且 `checkAndRefreshForNewDay` 存在竞争条件。
+
+### 本次改造任务
+
+- [x] **P0-1** `useChatStore.types.ts`：`dateCache` 改为 `Record<string, Message[]>`，删除 `persistedDateCache`，新增 `_refreshDateSilently`
+- [x] **P0-2** `useChatStore.ts`：`pruneDateCache`；`mergePersistedChatState` 直接恢复对象；`fetchMessages` 写回 `dateCache[today]`；`fetchMessagesByDate` 本地优先 + 后台刷新；新增 `_refreshDateSilently`（字段级合并）；`checkAndRefreshForNewDay` 竞争 bug 修复；`partialize` 持久化 `dateCache`
+- [x] **P0-3** `useRealtimeSync.ts`：消息事件同步更新 `dateCache`
+- [x] **P0-4** `ChatPage.tsx`、`reportPageHelpers.ts`、`DiaryBookViewer.tsx`、测试文件：同步改为对象访问
+- [x] **P0-5** 删除 Map 双副本：`dateCache` 统一为 `Record`，单一来源直接持久化
+
+### 验收标准
+
+- App 冷启动：本地数据 0ms 渲染
+- 历史日期切换（曾访问过）：无 loading
+- 后台恢复不闪回今天
+- tsc 通过
+
+---
+
+## 当前主线 0.1：全局存储审计 P0（DATA_STORAGE_AUDIT）
+
+Status: 已完成（2026-04-21）
+审计文档：`docs/DATA_STORAGE_AUDIT_REPORT.md`
+
+### 验证结论（先验文档核对）
+
+- [x] P0 问题描述与仓库现状一致（Plant timezone、Mood/Annotation 覆盖、metadata 并发写、Realtime 污染视图、Focus/Timing 持久化缺失、Annotation events 上限过高）
+- [x] `docs/LOCAL_FIRST_STORAGE_SPEC.md` 已纠正为单一 `dateCache` 方案（移除 `persistedDateCache` 旧描述）
+
+### 本轮完成项
+
+- [x] **P0-1** `usePlantStore.ts`：修复 `timezone` 未定义导致的 auto-backfill 运行时异常
+- [x] **P0-2** `useMoodStore.ts`：`fetchMoods` 改为云端覆盖同 ID + 保留本地独有，避免在途写入被整体覆盖
+- [x] **P0-3** `authMetadataQueue.ts` + Auth 相关 helper/store：新增串行 metadata patch 队列，统一收口 `updateUser` 并发写
+- [x] **P0-4** `useRealtimeSync.ts`：messages INSERT/UPDATE 仅在当前视图日期命中时更新 `messages`，同时继续维护 `dateCache`
+- [x] **P0-5** `useAnnotationStore.ts`：`fetchAnnotations` 改为 cloud + local pending 合并，避免本地未同步批注被覆盖
+- [x] **P0-6** `useFocusStore.ts` + `useAuthStore.ts`：持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话
+- [x] **P0-7** `useTimingStore.ts`：接入 Zustand persist，冷启动可直接恢复当日计时态
+- [x] **P0-8** `useAnnotationStore.ts`：`MAX_TODAY_EVENTS` 从 400 下调到 150
+
+### 验收标准
+
+- metadata 并发写不再互相覆盖
+- 历史日期视图不被跨设备今天消息污染
+- Focus/Timing 冷启动具备本地恢复能力
+- Annotation 本地未同步数据不被 fetch 覆盖
 
 ---
 
 ## 会话更新（2026-04-20）
 
+- [x] Report 日期卡二次改版：排版改为“首行完整日期 + 右侧下拉图标、次行星期”以对齐参考稿结构；保留项目导航同款淡玻璃质感并收敛字重与配色。
+- [x] Report 日记导航日期卡视觉微调：顶部日期入口改为更轻的导航同款玻璃质感（弱化边框/高光/阴影），并重排星期、日期、年份层级与间距，提升精致度且保持现有 UI 风格一致。
 - [x] Free 日记 Teaser 情绪词兜底修复：移除 `{情绪词}` 固定回填“有点累”，改为按语言词库从输入中提取情绪词；并按桶位区分正负向匹配策略（A 桶优先负向、B 桶优先正向，其余桶回退中性词）。
 - [x] Profile「我的作息」面板密度优化：收紧弹层留白与间距、适度缩小时间输入控件纵向占位并提升可读字号；新增“上班/上学”双预览卡同屏展示，减少切换与滚动成本，同时保留当前身份下的详细编辑区。
 - [x] Report 页日期入口重设计：将顶部日期区改为可点击玻璃卡片（强化边框/阴影/圆角与下拉指示器），并重排星期与日期字号层级，提升“可点击”识别度与视觉美观度。
