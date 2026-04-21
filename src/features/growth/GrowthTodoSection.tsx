@@ -32,6 +32,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
+  const decrementBottleStars = useGrowthStore((s) => s.decrementBottleStars);
   const bottles = useGrowthStore((s) => s.bottles);
   const {
     todos,
@@ -50,6 +51,9 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     setTodoCompletionMessage,
     getTodoCompletionMessage,
     clearTodoCompletionMessage,
+    setTodoCompletionRewardStars,
+    getTodoCompletionRewardStars,
+    clearTodoCompletionRewardStars,
   } = useTodoStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
@@ -58,6 +62,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const [smartSort, setSmartSort] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const dragOrderRef = useRef<string[] | null>(null);
@@ -99,6 +104,23 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         await deleteActivity(generatedMessageId);
       }
       clearTodoCompletionMessage(todo.id);
+      if (todo.bottleId) {
+        const rollbackStars = getTodoCompletionRewardStars(todo.id) ?? 1;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartMs = todayStart.getTime();
+        const todayEndMs = todayStartMs + 24 * 60 * 60 * 1000;
+        const hasOtherCompletedToday = todos.some((item) => (
+          item.id !== todo.id
+          && item.bottleId === todo.bottleId
+          && item.completed
+          && typeof item.completedAt === 'number'
+          && item.completedAt >= todayStartMs
+          && item.completedAt < todayEndMs
+        ));
+        decrementBottleStars(todo.bottleId, rollbackStars, { removeTodayCheckin: !hasOtherCompletedToday });
+      }
+      clearTodoCompletionRewardStars(todo.id);
       return;
     }
 
@@ -117,6 +139,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
           bottleId: todo.bottleId,
         });
         incrementBottleStars(todo.bottleId, stars);
+        setTodoCompletionRewardStars(todo.id, stars);
       }
       const startTime = todo.startedAt ?? now;
       const msgId = await sendMessage(todo.title, startTime, {
@@ -241,10 +264,15 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     document.body.style.userSelect = '';
   };
 
-  const handleCardPointerDown = (todoId: string) => (e: ReactPointerEvent<HTMLDivElement>) => {
+  const handleCardPointerDown = (
+    todoId: string,
+    options?: { immediate?: boolean }
+  ) => (e: ReactPointerEvent<HTMLElement>) => {
+    const immediate = options?.immediate === true;
+    if (!immediate && editingTodoId) return;
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('button, input, textarea, select, [data-no-drag="true"]')) return;
+    if (!immediate && target.closest('button, input, textarea, select, [data-no-drag="true"]')) return;
 
     const initialOrder = visible.map((todo) => todo.id);
     const session = {
@@ -255,18 +283,28 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       activated: false,
       pointerId: e.pointerId,
       initialOrder,
-      timerId: window.setTimeout(() => {
-        const current = dragSessionRef.current;
-        if (!current || current.pointerId !== e.pointerId) return;
-        current.activated = true;
-        current.activatedY = current.lastY;
-        setDraggingId(todoId);
-        setDragOffsetY(0);
-        setDragOrder(current.initialOrder);
-        document.body.style.userSelect = 'none';
-      }, 220),
+      timerId: immediate
+        ? null
+        : window.setTimeout(() => {
+          const current = dragSessionRef.current;
+          if (!current || current.pointerId !== e.pointerId) return;
+          current.activated = true;
+          current.activatedY = current.lastY;
+          setDraggingId(todoId);
+          setDragOffsetY(0);
+          setDragOrder(current.initialOrder);
+          document.body.style.userSelect = 'none';
+        }, 220),
     };
     dragSessionRef.current = session;
+    if (immediate) {
+      session.activated = true;
+      session.activatedY = e.clientY;
+      setDraggingId(todoId);
+      setDragOffsetY(0);
+      setDragOrder(initialOrder);
+      document.body.style.userSelect = 'none';
+    }
 
     const onPointerMove = (evt: PointerEvent) => {
       const current = dragSessionRef.current;
@@ -399,6 +437,8 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
                 onUpdate={updateTodo}
                 onSequentialFocus={onSequentialFocus}
                 isHighlighted={highlightTodoId === todo.id}
+                onDragHandlePointerDown={handleCardPointerDown(todo.id, { immediate: true })}
+                onEditingChange={setEditingTodoId}
               />
             </div>
           ))}

@@ -30,6 +30,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
+  const setTodoCompletionRewardStars = useTodoStore((s) => s.setTodoCompletionRewardStars);
   const todos = useTodoStore((s) => s.todos);
   const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const bottles = useGrowthStore((s) => s.bottles);
@@ -137,10 +138,20 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
           bottleId: targetTodo.bottleId,
         });
         incrementBottleStars(targetTodo.bottleId, stars);
+        setTodoCompletionRewardStars(targetTodo.id, stars);
       }
     }
     return session;
-  }, [activeMessageId, endActivity, endFocus, toggleTodo, incrementBottleStars, bottles, todos]);
+  }, [
+    activeMessageId,
+    endActivity,
+    endFocus,
+    toggleTodo,
+    incrementBottleStars,
+    setTodoCompletionRewardStars,
+    bottles,
+    todos,
+  ]);
 
   const startRestThenAdvance = useCallback(() => {
     const REST_SECS = 5 * 60; // 5 min rest

@@ -65,6 +65,7 @@
 - `useGrowthStore.ts`（2026-04）：Bottle 新增 `checkinDates`（按 `YYYY-MM-DD` 去重）用于 Growth 瓶子详情面板统计：近 7 天打卡天数、当前连续天数、历史最长连续天数。
 - `useTodoStore.ts`（2026-04）：`fetchTodos()` 同步改为“父待办先推、子待办后推”，并增加 `parent_id` 外键冲突恢复（父任务补推 + 孤儿 `parentId` 去引用兜底），避免重试循环失败。
 - `useTodoStore.ts` + `dbMappers.ts`（2026-04）：新增待办 `sortOrder` 及 bigint 字段写库夹紧，避免异常极值导致 Supabase `22003 bigint out of range`。
+- `useTodoStore.ts` + `useGrowthStore.ts`（2026-04）：新增待办完成奖励星数映射（`todoCompletionRewardStarsMap`）与 `decrementBottleStars()` 回滚 action；取消完成时按历史奖励值对称扣星，并在当日无其他同瓶完成时回滚 `checkinDates`。
 
 ```bash
 npx tsc --noEmit

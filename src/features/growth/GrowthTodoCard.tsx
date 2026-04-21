@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlarmClock, Check, Play, X } from 'lucide-react';
+import { AlarmClock, Check, GripVertical, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
@@ -28,6 +28,8 @@ interface Props {
   onUpdate?: (id: string, updates: Partial<Omit<GrowthTodo, 'id' | 'createdAt'>>) => Promise<void>;
   onSequentialFocus?: (subTodos: GrowthTodo[]) => void;
   isHighlighted?: boolean;
+  onDragHandlePointerDown?: (e: ReactPointerEvent<HTMLButtonElement>) => void;
+  onEditingChange?: (todoId: string | null) => void;
 }
 
 const priorityConfig: Record<GrowthPriority, { color: string; bg: string; border: string }> = {
@@ -50,7 +52,19 @@ function tsToDatetimeLocal(ts?: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart, onDelete, onUpdate, onSequentialFocus, isHighlighted }: Props) => {
+export const GrowthTodoCard = ({
+  todo,
+  subTodos = [],
+  onToggle,
+  onFocus,
+  onStart,
+  onDelete,
+  onUpdate,
+  onSequentialFocus,
+  isHighlighted,
+  onDragHandlePointerDown,
+  onEditingChange,
+}: Props) => {
   const { t } = useTranslation();
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [expanded, setExpanded] = useState(false);
@@ -58,6 +72,7 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
   const [titleDraft, setTitleDraft] = useState(todo.title);
   const cardRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleEditingTargetIdRef = useRef<string | null>(null);
 
   // AI 建议高亮：滚动到视图中心并闪烁
   useEffect(() => {
@@ -71,6 +86,12 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
       setTitleDraft(todo.title);
     }
   }, [todo.title, isEditingTitle]);
+
+  useEffect(() => {
+    return () => {
+      onEditingChange?.(null);
+    };
+  }, [onEditingChange]);
 
   useEffect(() => {
     if (!isEditingTitle) return;
@@ -140,24 +161,31 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
 
   const startEditTitle = () => {
     if (todo.completed || !expanded) return;
+    titleEditingTargetIdRef.current = todo.id;
     setIsEditingTitle(true);
+    onEditingChange?.(todo.id);
   };
 
   const cancelEditTitle = () => {
     setTitleDraft(todo.title);
     setIsEditingTitle(false);
+    titleEditingTargetIdRef.current = null;
+    onEditingChange?.(null);
   };
 
   const commitTitle = async () => {
+    const targetTodoId = titleEditingTargetIdRef.current ?? todo.id;
     const nextTitle = titleDraft.trim();
     if (!nextTitle) {
       cancelEditTitle();
       return;
     }
     if (nextTitle !== todo.title) {
-      await onUpdate?.(todo.id, { title: nextTitle });
+      await onUpdate?.(targetTodoId, { title: nextTitle });
     }
     setIsEditingTitle(false);
+    titleEditingTargetIdRef.current = null;
+    onEditingChange?.(null);
   };
 
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
@@ -193,6 +221,11 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
     onToggle(todo.id);
   };
 
+  const consumeGhostClick = (e: ReactMouseEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <div
       ref={cardRef}
@@ -205,11 +238,12 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
       {/* Delete button — appears after card is selected */}
       {onDelete && (
         <button
-          onClick={(e) => {
+          onPointerUp={(e) => {
             e.stopPropagation();
             triggerLightHaptic();
             onDelete(todo.id);
           }}
+          onClick={consumeGhostClick}
           className={cn(
             'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
             expanded ? 'flex' : 'hidden'
@@ -223,11 +257,14 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
       {/* Main row — tap to expand */}
       <div
         className="flex items-center gap-2 p-3 cursor-pointer"
-        onClick={() => {
+        onPointerUp={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button, input, textarea, select, [data-no-expand="true"]')) return;
           if (isEditingTitle) return;
           triggerLightHaptic();
           setExpanded((v) => !v);
         }}
+        onClick={consumeGhostClick}
       >
         {/* Checkbox */}
         <button
@@ -302,16 +339,30 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
           {t(`growth_todo_priority_${normalizedPriority}`)}
         </span>
 
+        <button
+          data-drag-handle="true"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDragHandlePointerDown?.(e);
+          }}
+          onClick={consumeGhostClick}
+          className="p-1.5 rounded-lg text-slate-400 touch-manipulation"
+        >
+          <GripVertical size={16} strokeWidth={1.7} />
+        </button>
+
         {/* Action buttons */}
         {!todo.completed && (
           <>
             {onStart && (
               <button
-                onClick={(e) => {
+                onPointerUp={(e) => {
                   e.stopPropagation();
                   triggerLightHaptic();
                   onStart(todo);
                 }}
+                onClick={consumeGhostClick}
                 className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
                 title={t('growth_todo_start')}
               >
@@ -319,11 +370,12 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
               </button>
             )}
             <button
-              onClick={(e) => {
+              onPointerUp={(e) => {
                 e.stopPropagation();
                 triggerLightHaptic();
                 onFocus(todo);
               }}
+              onClick={consumeGhostClick}
               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
             >
               <AlarmClock size={16} strokeWidth={1.5} />
