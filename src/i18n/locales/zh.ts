@@ -192,6 +192,7 @@ const zh: TranslationKeys = {
     plant_generate_done_button: '今日已生成',
     plant_generate_locked_hint: '根系正在生长中，晚上 8 点后可生成植物。',
     plant_generate_locked_with_diary_hint: '根系生长中，20:00后可生成植物和今日日记',
+    plant_early_activities: '今天已记录 {{count}} 个活动',
     plant_generate_ready_hint: '根系已准备完成，现在可以生成今日植物。',
     plant_generate_confirm: '确认现在生成今日植物吗？生成后将锁定且不可修改。',
     plant_generate_success: '今日植物已生成。',

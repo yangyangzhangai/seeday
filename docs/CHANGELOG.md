@@ -4,6 +4,36 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-21 - Improve: Report 日记导航日期卡排版与轻玻璃质感
+
+### Changed
+
+- `src/features/report/ReportPage.tsx`
+  - 调整顶部日期入口容器为更轻的玻璃卡样式，参考项目导航栏的低对比度质感（弱边框、柔高光、轻阴影、低饱和 blur）。
+  - 重排日期卡内部层级：星期行与下拉指示器间距更清晰，主日期与年份在同一行更均衡，整体更接近 iOS 风格信息卡。
+  - 微调字号、字重、配色与圆角，降低“厚重/突兀”感，使视觉与 Report 页其余 UI 更统一。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Report 日期入口视觉微调。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+## 2026-04-21 - Refine: Report 日期卡改为参考稿同款信息结构
+
+### Changed
+
+- `src/features/report/ReportPage.tsx`
+  - 日期卡内部结构改为“首行完整日期 + 右侧下拉图标，次行星期”布局，贴近目标参考稿的信息顺序与视觉重心。
+  - 多语言日期格式同步调整为单行完整日期（ZH=`yyyy年M月d日`，EN=`MMMM d, yyyy`，IT=`d MMMM yyyy`）。
+  - 玻璃样式继续沿用项目导航栏同款低对比质感，仅做轻度提亮与阴影收口，避免过重。
+- `docs/CURRENT_TASK.md`
+  - 同步记录本次 Report 日期卡二次改版。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-20 - Fix: Free 日记 Teaser 情绪词兜底与正负向匹配
 
 ### Changed

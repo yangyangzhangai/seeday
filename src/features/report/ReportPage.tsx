@@ -273,6 +273,11 @@ export const ReportPage = () => {
 
   const today = new Date();
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
+  const calendarCardDate = format(
+    today,
+    currentLang === 'zh' ? 'yyyy年M月d日' : currentLang === 'it' ? 'd MMMM yyyy' : 'MMMM d, yyyy',
+    { locale: calendarLocale }
+  );
 
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
@@ -289,8 +294,8 @@ export const ReportPage = () => {
           <h1 className="text-2xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
           <button
             onClick={handleOpenDiaryBook}
-            className="mt-[1px] rounded-full px-2 py-1 active:opacity-70 transition whitespace-nowrap flex-shrink-0"
-            style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', fontWeight: 500, background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
+            className="mt-[1px] rounded-full px-4 py-2 text-sm font-medium active:opacity-70 transition whitespace-nowrap flex-shrink-0"
+            style={{ background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
           >
             {t('report_view_diary_book')}
           </button>
@@ -298,49 +303,44 @@ export const ReportPage = () => {
         <button
           onClick={() => setShowCalendarModal(true)}
           aria-label={t('report_calendar_view')}
-          className="mt-2 text-left transition active:scale-[0.99] active:opacity-90 select-none"
+          className="mt-3 w-full max-w-[332px] text-left transition active:scale-[0.99] active:opacity-80 select-none"
           style={{
-            border: '1px solid rgba(134,168,143,0.48)',
+            border: '1px solid rgba(255,255,255,0.58)',
             borderRadius: 20,
-            padding: '10px 12px 11px',
-            display: 'inline-flex',
+            padding: '11px 14px 10px',
+            display: 'flex',
             flexDirection: 'column',
-            gap: 4,
-            background: 'linear-gradient(155deg, rgba(255,255,255,0.82), rgba(233,244,235,0.78))',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 20px rgba(98,132,108,0.14)',
+            gap: 5,
+            background: 'rgba(255,255,255,0.30)',
+            backdropFilter: 'blur(20px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+            boxShadow: '0 0 12px rgba(255,255,255,0.20), inset 0 1px 1px rgba(255,255,255,0.55)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.11em', color: '#6e9275', textTransform: 'uppercase', lineHeight: 1 }}>
-              {format(today, 'EEEE', { locale: calendarLocale })}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: 'clamp(18px,4.6vw,24px)', fontWeight: 700, letterSpacing: '-0.01em', color: '#2d3f5a', lineHeight: 1.1 }}>
+              {calendarCardDate}
             </span>
             <span
               style={{
-                width: 20,
-                height: 20,
-                borderRadius: 999,
+                width: 22,
+                height: 22,
+                borderRadius: 7,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(122,155,126,0.14)',
-                border: '1px solid rgba(122,155,126,0.24)',
-                color: '#5F7A63',
+                background: 'rgba(188,220,196,0.28)',
+                border: '1px solid rgba(255,255,255,0.65)',
+                color: '#7a9b80',
                 flexShrink: 0,
               }}
             >
-              <ChevronDown size={12} strokeWidth={2.6} />
+              <ChevronDown size={13} strokeWidth={2.2} />
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <span style={{ fontSize: 'clamp(36px,8vw,42px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#1f2b44', lineHeight: 0.98 }}>
-              {format(today, currentLang === 'zh' ? 'M月d日' : 'MMMM d', { locale: calendarLocale })}
-            </span>
-            <span style={{ fontSize: 'clamp(24px,5.4vw,28px)', fontWeight: 500, color: '#6f9273', letterSpacing: '-0.01em' }}>
-              {format(today, 'yyyy')}
-            </span>
-          </div>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.03em', color: '#8a9d90', lineHeight: 1.05 }}>
+            {format(today, 'EEEE', { locale: calendarLocale })}
+          </span>
         </button>
       </header>
 
