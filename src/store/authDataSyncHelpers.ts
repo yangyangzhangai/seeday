@@ -7,6 +7,7 @@ import { useReportStore } from './useReportStore';
 import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
+import { patchUserMetadata } from './authMetadataQueue';
 
 type AuthUserLike = { user_metadata?: Record<string, any> } | null | undefined;
 
@@ -157,18 +158,15 @@ export async function syncLocalDataToSupabase(
     const shouldSyncDailyGoal = !remoteGoalDate || growthState.goalDate >= remoteGoalDate;
 
     if (shouldSyncDailyGoal) {
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          ...(currentUser?.user_metadata || {}),
-          daily_goal: growthState.dailyGoal,
-          daily_goal_date: growthState.goalDate,
-        },
+      const { user, error } = await patchUserMetadata({
+        daily_goal: growthState.dailyGoal,
+        daily_goal_date: growthState.goalDate,
       });
 
       if (error) {
         console.error('Error syncing daily goal metadata:', error);
-      } else if (data?.user) {
-        options.onUserUpdated?.(data.user);
+      } else if (user) {
+        options.onUserUpdated?.(user);
       }
     }
   }

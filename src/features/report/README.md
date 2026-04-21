@@ -77,6 +77,11 @@ Summary helpers `generateActionSummary` and `generateMoodSummary` in `reportHelp
 - Date-range semantics affect cross-day auto-generation behavior from `src/App.tsx`
 - Plant section changes affect `daily_plant_records` rendering, plant-history reads, and `/profile` orientation settings
 
+## Local-First Notes (2026-04-21)
+
+- `reportPageHelpers.getMessagesForReport(...)` now consumes `dateCache: Record<string, Message[]>` from chat store.
+- `DiaryBookViewer` reads date cache via object access (`dateCache[dateStr]`) and falls back to global `messages` when absent.
+
 ## Related Docs
 
 - `LLM.md`

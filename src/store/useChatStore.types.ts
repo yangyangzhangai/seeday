@@ -49,10 +49,12 @@ export interface ChatState {
   yesterdaySummary: YesterdaySummary | null;
   currentDateStr: string | null;
   activeViewDateStr: string | null;
-  dateCache: Map<string, Message[]>;
+  /** 日期消息缓存（近 30 天），key 为 YYYY-MM-DD，持久化到 localStorage */
+  dateCache: Record<string, Message[]>;
   fetchMessages: () => Promise<void>;
   fetchOlderMessages: () => Promise<void>;
   fetchMessagesByDate: (dateStr: string) => Promise<void>;
+  _refreshDateSilently: (dateStr: string) => Promise<void>;
   checkAndRefreshForNewDay: () => void;
   sendMessage: (
     content: string,

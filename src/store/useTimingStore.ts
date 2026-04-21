@@ -3,6 +3,7 @@
  * 当前 active session + 今日会话列表
  */
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   TimingSession,
   TimingType,
@@ -27,41 +28,74 @@ interface TimingState {
   endActive: (userId: string) => Promise<void>;
 }
 
-export const useTimingStore = create<TimingState>((set) => ({
-  activeSession: null,
-  todaySessions: [],
+function getTodayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
-  loadToday: async (userId) => {
-    const [sessions, active] = await Promise.all([
-      fetchTodaySessions(userId),
-      fetchActiveSession(userId),
-    ]);
-    set({ todaySessions: sessions, activeSession: active });
-  },
-
-  start: async (userId, type, source) => {
-    const session = await startSession(userId, type, source);
-    if (!session) return;
-    set((prev) => ({
-      activeSession: session,
-      // 结束旧 active session（在列表中打上 endedAt 时间戳）
-      todaySessions: [
-        ...prev.todaySessions.map((s) =>
-          !s.endedAt ? { ...s, endedAt: session.startedAt } : s,
-        ),
-        session,
-      ],
-    }));
-  },
-
-  endActive: async (userId) => {
-    const endedAt = Date.now();
-    await endActiveSession(userId);
-    set((prev) => ({
+export const useTimingStore = create<TimingState>()(
+  persist(
+    (set) => ({
       activeSession: null,
-      todaySessions: prev.todaySessions.map((s) =>
-        !s.endedAt ? { ...s, endedAt } : s,
-      ),
-    }));
-  },
-}));
+      todaySessions: [],
+
+      loadToday: async (userId) => {
+        const [sessions, active] = await Promise.all([
+          fetchTodaySessions(userId),
+          fetchActiveSession(userId),
+        ]);
+        set({ todaySessions: sessions, activeSession: active });
+      },
+
+      start: async (userId, type, source) => {
+        const session = await startSession(userId, type, source);
+        if (!session) return;
+        set((prev) => ({
+          activeSession: session,
+          todaySessions: [
+            ...prev.todaySessions.map((s) =>
+              !s.endedAt ? { ...s, endedAt: session.startedAt } : s,
+            ),
+            session,
+          ],
+        }));
+      },
+
+      endActive: async (userId) => {
+        const endedAt = Date.now();
+        await endActiveSession(userId);
+        set((prev) => ({
+          activeSession: null,
+          todaySessions: prev.todaySessions.map((s) =>
+            !s.endedAt ? { ...s, endedAt } : s,
+          ),
+        }));
+      },
+    }),
+    {
+      name: 'timing-store',
+      partialize: (state) => ({
+        activeSession: state.activeSession,
+        todaySessions: state.todaySessions,
+      }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<TimingState>) || {};
+        const current = currentState as TimingState;
+        const todayKey = getTodayKey();
+        const persistedSessions = Array.isArray(persisted.todaySessions)
+          ? persisted.todaySessions.filter((session) => session.date === todayKey)
+          : [];
+        const persistedActive = persisted.activeSession && persisted.activeSession.date === todayKey
+          ? persisted.activeSession
+          : null;
+
+        return {
+          ...current,
+          ...persisted,
+          todaySessions: persistedSessions,
+          activeSession: persistedActive,
+        };
+      },
+    }
+  )
+);

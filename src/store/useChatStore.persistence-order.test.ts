@@ -51,7 +51,7 @@ describe('useChatStore persistence ordering', () => {
       yesterdaySummary: null,
       currentDateStr: null,
       activeViewDateStr: null,
-      dateCache: new Map(),
+      dateCache: {},
     });
   });
 

@@ -332,16 +332,30 @@ export const useMoodStore = create<MoodState>()(
             .eq('user_id', session.user.id);
           if (error || !data) return;
 
-          const cloudMaps = pruneMoodRecordMaps(buildMoodRecordMapsFromRows(data as MoodRowData[]));
+          set((state) => {
+            let merged = {
+              activityMood: state.activityMood,
+              activityMoodMeta: state.activityMoodMeta,
+              customMoodLabel: state.customMoodLabel,
+              customMoodApplied: state.customMoodApplied,
+              moodNote: state.moodNote,
+              moodNoteMeta: state.moodNoteMeta,
+            };
 
-          set(() => ({
-            activityMood: cloudMaps.activityMood,
-            activityMoodMeta: cloudMaps.activityMoodMeta,
-            customMoodLabel: cloudMaps.customMoodLabel,
-            customMoodApplied: cloudMaps.customMoodApplied,
-            moodNote: cloudMaps.moodNote,
-            moodNoteMeta: cloudMaps.moodNoteMeta,
-          }));
+            for (const row of data as MoodRowData[]) {
+              merged = applyMoodRowToMaps(merged, row);
+            }
+
+            const pruned = pruneMoodRecordMaps(merged);
+            return {
+              activityMood: pruned.activityMood,
+              activityMoodMeta: pruned.activityMoodMeta,
+              customMoodLabel: pruned.customMoodLabel,
+              customMoodApplied: pruned.customMoodApplied,
+              moodNote: pruned.moodNote,
+              moodNoteMeta: pruned.moodNoteMeta,
+            };
+          });
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[MoodStore] fetchMoods failed', err);
         }

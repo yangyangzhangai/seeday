@@ -5,6 +5,8 @@ import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { withDbRetry } from '../lib/dbRetry';
 
+const MAX_RESUMABLE_SESSION_MS = 24 * 60 * 60 * 1000;
+
 export interface FocusSession {
   id: string;
   todoId: string;
@@ -36,6 +38,7 @@ interface FocusState {
   clearQueue: () => void;
   /** Fetch completed sessions from Supabase (last 200) */
   fetchSessions: () => Promise<void>;
+  recoverSessionAfterHydration: () => Promise<void>;
 }
 
 export const useFocusStore = create<FocusState>()(
@@ -163,14 +166,71 @@ export const useFocusStore = create<FocusState>()(
           if (import.meta.env.DEV) console.warn('[FocusStore] fetchSessions failed', err);
         }
       },
+
+      recoverSessionAfterHydration: async () => {
+        const currentSession = get().currentSession;
+        if (!currentSession) return;
+
+        const now = Date.now();
+        const age = now - currentSession.startedAt;
+        if (age <= MAX_RESUMABLE_SESSION_MS) return;
+
+        const endedAt = currentSession.setDuration > 0
+          ? Math.min(currentSession.startedAt + currentSession.setDuration * 1000, now)
+          : now;
+        const recovered: FocusSession = {
+          ...currentSession,
+          endedAt,
+          actualDuration: Math.max(0, Math.round((endedAt - currentSession.startedAt) / 1000)),
+        };
+
+        set((state) => ({
+          currentSession: null,
+          activeMessageId: null,
+          queue: [],
+          queueIndex: -1,
+          sessions: [...state.sessions, recovered],
+        }));
+
+        void withDbRetry('FocusStore', async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
+          const { error } = await supabase.from('focus_sessions').insert([{
+            id: recovered.id,
+            user_id: session.user.id,
+            todo_id: recovered.todoId || null,
+            started_at: new Date(recovered.startedAt).toISOString(),
+            ended_at: new Date(recovered.endedAt!).toISOString(),
+            set_duration: recovered.setDuration,
+            actual_duration: recovered.actualDuration,
+          }]);
+          if (error) throw new Error(error.message);
+        });
+      },
     }),
     {
       name: 'focus-store',
       partialize: (state) => ({
         sessions: state.sessions,
-        // currentSession and queue are intentionally not persisted:
-        // a page reload should not resume a mid-session timer
+        currentSession: state.currentSession,
+        activeMessageId: state.activeMessageId,
+        queue: state.queue,
+        queueIndex: state.queueIndex,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<FocusState>) || {};
+        const current = currentState as FocusState;
+        const persistedSessions = Array.isArray(persisted.sessions) ? persisted.sessions : [];
+        return {
+          ...current,
+          ...persisted,
+          sessions: persistedSessions,
+          currentSession: persisted.currentSession ?? null,
+          activeMessageId: persisted.activeMessageId ?? null,
+          queue: Array.isArray(persisted.queue) ? persisted.queue : [],
+          queueIndex: typeof persisted.queueIndex === 'number' ? persisted.queueIndex : -1,
+        };
+      },
     }
   )
 );

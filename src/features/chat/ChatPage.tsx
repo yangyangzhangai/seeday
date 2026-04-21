@@ -42,7 +42,7 @@ export const ChatPage = () => {
     messages, sendAutoRecognizedInput, sendMessage, sendMood, fetchMessages, fetchMessagesByDate,
     checkAndRefreshForNewDay, updateActivity, insertActivity, deleteActivity,
     endActivity, reclassifyRecentInput, isLoading,
-    hasInitialized, setHasInitialized, updateMessageDuration, dateCache,
+    hasInitialized, setHasInitialized, updateMessageDuration,
     activeViewDateStr,
   } = useChatStore();
 
@@ -207,12 +207,9 @@ export const ChatPage = () => {
       // First load is handled by the init useEffect — skip
       if (!hasInitialized) return;
       // Only restore today's data if the store is currently showing a different date.
-      // Use getState() to read fresh store value (not the stale closure).
-      const { activeViewDateStr: viewDate } = useChatStore.getState();
+      const { activeViewDateStr: viewDate, dateCache } = useChatStore.getState();
       if (viewDate && viewDate !== dateStr) {
-        // Was showing another date — restore today instantly from cache or re-fetch
-        const cached = useChatStore.getState().dateCache.get(dateStr);
-        if (cached) {
+        if (dateCache[dateStr]) {
           void fetchMessagesByDate(dateStr);
         } else {
           void fetchMessages();
@@ -221,8 +218,8 @@ export const ChatPage = () => {
       return;
     }
 
-    // Non-today date: use cache for instant switch, show loading only on first fetch
-    if (useChatStore.getState().dateCache.get(dateStr)) {
+    // Non-today date: dateCache 持久化在 localStorage，命中即无 loading
+    if (useChatStore.getState().dateCache[dateStr]) {
       void fetchMessagesByDate(dateStr);
       return;
     }

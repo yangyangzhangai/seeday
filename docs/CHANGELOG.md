@@ -4,6 +4,90 @@ All notable changes to this repository are documented here.
 
 > Note: changelog 仅记录有效变更；会话过程性噪音应写入 `docs/CURRENT_TASK.md`，不在此重复展开。
 
+## 2026-04-21 - Fix: 全局存储审计 P0 收口（DATA_STORAGE_AUDIT）
+
+### Changed
+
+- `src/store/usePlantStore.ts`
+  - 修复 `loadTodayData` 中 `timezone` 未定义导致 auto-backfill 抛错。
+- `src/store/useMoodStore.ts`
+  - `fetchMoods` 从“云端全量覆盖”改为“云端覆盖同 ID + 保留本地独有”，避免在途本地写被覆盖。
+- `src/store/authMetadataQueue.ts`（新增）
+  - 新增 metadata 串行写队列，统一 `read -> merge -> updateUser`，避免 `user_metadata` 并发写互相覆盖。
+- `src/store/useAuthStore.ts`、`src/store/authPreferenceHelpers.ts`、`src/store/authLanguageHelpers.ts`、`src/store/authDataSyncHelpers.ts`
+  - 全部 metadata 写入改为走 `patchUserMetadata(...)`，并保留原有本地状态回写逻辑。
+- `src/hooks/useRealtimeSync.ts`
+  - messages INSERT/UPDATE 改为仅在 `activeViewDateStr` 命中时更新当前 `messages`，避免历史日期视图被今天消息污染。
+- `src/store/useAnnotationStore.ts`
+  - `fetchAnnotations` 改为合并 cloud + local pending（`syncedToCloud=false`）
+  - `MAX_TODAY_EVENTS` 从 `400` 下调到 `150`，降低本地持久化体积。
+- `src/store/useFocusStore.ts`、`src/store/useTimingStore.ts`
+  - Focus 持久化 `currentSession/queue`，并新增 hydration 后超时会话回收。
+  - Timing 接入 persist，冷启动优先恢复当天本地状态。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+
+---
+
+## 2026-04-21 - Refactor: dateCache 统一为普通对象，删除 Map 双副本
+
+### Changed
+
+- `src/store/useChatStore.types.ts`：`dateCache` 类型从 `Map<string, Message[]>` 改为 `Record<string, Message[]>`；删除 `persistedDateCache` 字段
+- `src/store/useChatStore.ts`：所有 `map.get/set` 改为对象访问；`mergePersistedChatState` 删除 seedMap 转换；`partialize` 直接持久化 `dateCache`
+- `src/hooks/useRealtimeSync.ts`：消息事件处理改为对象操作
+- `src/features/chat/ChatPage.tsx`：缓存判断改为 `dateCache[dateStr]`
+- `src/features/report/reportPageHelpers.ts`：`getMessagesForReport` 参数类型从 `Map` 改为 `Record`
+- `src/features/report/DiaryBookViewer.tsx`：`.get()` 改为对象访问
+- `src/store/useChatStore.persistence-order.test.ts`：初始值改为 `{}`
+
+### Why
+
+`Map` 无法 JSON 序列化，导致原来需要维护 Map（内存）和 `persistedDateCache`（对象）两份数据。统一为 `Record<string, Message[]>` 后单一来源，可直接被 Zustand persist 持久化，消灭双写同步 bug 的潜在风险，代码净减少约 20 行。
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:all` ✅
+
+---
+
+## 2026-04-21 - Feature: 聊天时间流本地优先存储（Local-First P0）
+
+### Added
+
+- `docs/LOCAL_FIRST_STORAGE_SPEC.md`：本地优先存储规范文档（现状审查、目标架构、实施清单、验收标准）
+- `src/store/useChatStore.types.ts`：`ChatState` 新增 `_refreshDateSilently` 方法签名
+
+### Changed
+
+- `src/store/useChatStore.ts`
+  - 新增 `pruneDateCache(cache)` 工具函数，保留最近 30 天条目防 localStorage 膨胀
+  - `mergePersistedChatState`：直接恢复 `dateCache` 普通对象并合并当日消息
+  - `fetchMessages`（今天初始化）写回 `dateCache[todayStr]`
+  - `fetchMessagesByDate`：本地命中立即渲染 + 后台静默刷新；未命中才走云端
+  - 新增 `_refreshDateSilently`：后台静默拉云端数据，有差异才更新 `dateCache`
+  - `checkAndRefreshForNewDay`：用户正在查看历史日期时不强制 reset 到今天
+  - `partialize` 直接持久化 `dateCache`
+
+- `src/hooks/useRealtimeSync.ts`
+  - 消息 INSERT/UPDATE/DELETE 事件同步更新 `dateCache`
+
+- `src/features/chat/ChatPage.tsx`
+  - 日期切换缓存判断使用 `dateCache[dateStr]`，命中即无 loading
+
+### Fixed
+
+- 切换历史日期每次都出现 loading 转圈（`dateCache` Map 不持久化）
+- 切换日期后偶发界面不变/闪回今天（`fetchMessagesByDate` 修改 `currentDateStr` 导致 `checkAndRefreshForNewDay` 竞争）
+
+### Validation
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:all` ✅
+
 ## 2026-04-21 - Improve: Report 日记导航日期卡排版与轻玻璃质感
 
 ### Changed
