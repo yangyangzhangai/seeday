@@ -104,6 +104,36 @@ function productIdByPlan(planType: PlanType): string {
   return planType === 'annual' ? annual : monthly;
 }
 
+function parseProductIdAliases(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function productIdsByPlan(planType: PlanType): string[] {
+  const monthlyPrimary = process.env.APPLE_IAP_PRODUCT_MONTHLY || 'seeday.pro.monthly';
+  const monthlyIntro = process.env.APPLE_IAP_PRODUCT_MONTHLY_INTRO || 'com.seeday.app.plus.monthly.intro';
+  const annualPrimary = process.env.APPLE_IAP_PRODUCT_ANNUAL || 'seeday.pro.annual';
+  const monthlyBuiltInAliases = [
+    'com.seeday.app.plus.monthly',
+    'com.seeday.app.plus.monthly.intro',
+    'com.tshine.app.plus.monthly',
+  ];
+  const annualBuiltInAliases = [
+    'com.seeday.app.plus.annual',
+    'com.tshine.app.plus.annual',
+  ];
+  const monthlyAliases = parseProductIdAliases(process.env.APPLE_IAP_PRODUCT_MONTHLY_ALIASES);
+  const annualAliases = parseProductIdAliases(process.env.APPLE_IAP_PRODUCT_ANNUAL_ALIASES);
+
+  const list = planType === 'annual'
+    ? [annualPrimary, ...annualBuiltInAliases, ...annualAliases]
+    : [monthlyPrimary, monthlyIntro, ...monthlyBuiltInAliases, ...monthlyAliases];
+  return Array.from(new Set(list.filter(Boolean)));
+}
+
 function stripePriceIdByPlan(planType: PlanType): string {
   const monthly = process.env.STRIPE_PRICE_MONTHLY;
   const annual = process.env.STRIPE_PRICE_ANNUAL;
@@ -236,10 +266,8 @@ async function verifyIapMembership(params: {
   }
 
   const bundleId = getEnv('APPLE_IAP_BUNDLE_ID');
+  const allowedProductIds = productIdsByPlan(params.planType);
   const expectedProductId = productIdByPlan(params.planType);
-  if (params.productId !== expectedProductId) {
-    throw new Error('Product ID does not match planType');
-  }
 
   const token = buildAppleApiToken(bundleId);
   const prod = await fetchAppleTransaction(APPLE_PROD_API_BASE, token, params.transactionId);
@@ -256,15 +284,18 @@ async function verifyIapMembership(params: {
   if (payload.bundleId && payload.bundleId !== bundleId) {
     throw new Error('Bundle ID mismatch');
   }
-  if (payload.productId !== params.productId) {
-    throw new Error('Purchased product does not match requested product');
+  if (!payload.productId) {
+    throw new Error('Apple payload missing productId');
+  }
+  if (!allowedProductIds.includes(payload.productId)) {
+    throw new Error('Purchased product does not match requested plan');
   }
 
   const isActive = isActiveSubscription(payload);
   return {
     plan: isActive ? 'plus' : 'free',
     expiresAt: toIso(payload.expiresDate),
-    productId: payload.productId || params.productId,
+    productId: payload.productId || params.productId || expectedProductId,
     transactionId: payload.transactionId || params.transactionId,
     originalTransactionId: payload.originalTransactionId || params.originalTransactionId,
     environment: env,

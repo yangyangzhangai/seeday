@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { supabase } from '../api/supabase';
 
-const OAUTH_CALLBACK_PATH = '/auth/callback';
+const OAUTH_CALLBACK_PATHS = new Set(['/auth/callback', '/login-callback', '/callback']);
 
 let initialized = false;
 
@@ -12,8 +12,11 @@ function parseHashParams(hash: string): URLSearchParams {
 }
 
 function isSupportedOAuthCallbackUrl(parsed: URL): boolean {
-  if (parsed.pathname.endsWith(OAUTH_CALLBACK_PATH)) return true;
-  return parsed.hostname === 'auth' && parsed.pathname === '/callback';
+  const normalizedPath = parsed.pathname.replace(/\/+$/, '') || '/';
+  if (OAUTH_CALLBACK_PATHS.has(normalizedPath)) return true;
+  if (parsed.hostname === 'auth' && normalizedPath === '/callback') return true;
+  if (parsed.hostname === 'login-callback' && (normalizedPath === '/' || normalizedPath === '/callback')) return true;
+  return false;
 }
 
 async function handleOAuthCallbackUrl(rawUrl: string): Promise<void> {

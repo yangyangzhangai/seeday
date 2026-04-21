@@ -80,7 +80,8 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
 
 const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
-const IOS_OAUTH_REDIRECT_URL = import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback';
+const IOS_OAUTH_REDIRECT_URL =
+  (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
 
@@ -828,4 +829,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ activityStreak: streak });
   },
 }));
-
