@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearPendingCheckoutSession, finalizePendingCheckout, getPendingCheckoutSessionId, purchase } from '@payment';
-import { useAuthStore } from '../../store/useAuthStore';
 import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
+import { syncMembershipAfterPayment } from './membershipSync';
 
 function resolvePaymentResultKey(code: string | undefined): string {
   if (!code) return 'upgrade_error_generic';
@@ -44,7 +44,7 @@ export const UpgradePage: React.FC = () => {
           return;
         }
 
-        await useAuthStore.getState().initialize();
+        syncMembershipAfterPayment(result.plan);
         window.alert(t('upgrade_purchase_success'));
         navigate('/profile', { replace: true });
       } finally {
@@ -71,7 +71,7 @@ export const UpgradePage: React.FC = () => {
         window.alert(t(resolvePaymentResultKey(result.code)));
         return;
       }
-      await useAuthStore.getState().initialize();
+      syncMembershipAfterPayment(result.plan);
       window.alert(t('upgrade_purchase_success'));
       navigate('/profile');
     } finally {

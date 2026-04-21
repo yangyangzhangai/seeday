@@ -12,6 +12,9 @@ const IAP_PRODUCT_IDS: Record<PaymentPlanType, string> = {
   annual: import.meta.env.VITE_IAP_PRODUCT_ANNUAL || 'seeday.pro.annual',
 };
 
+const PURCHASE_BRIDGE_TIMEOUT_MS = 25_000;
+const RESTORE_BRIDGE_TIMEOUT_MS = 10_000;
+
 interface IapTransactionLike {
   transactionId: string;
   originalTransactionId?: string;
@@ -113,10 +116,12 @@ function getBridge(): IapBridge | null {
 
 function toActionResult(error: unknown): PaymentActionResult {
   const message = error instanceof Error ? error.message : 'subscription_failed';
+  const normalized = message.toLowerCase();
+  const isBridgeTimeout = normalized.includes('timeout');
   return {
     success: false,
-    code: 'subscription_failed',
-    message,
+    code: isBridgeTimeout ? 'iap_client_not_ready' : 'subscription_failed',
+    message: isBridgeTimeout ? 'iap_client_not_ready' : message,
   };
 }
 
@@ -129,6 +134,30 @@ function normalizeTransaction(raw: IapTransactionLike | null | undefined, fallba
     originalTransactionId: typeof raw.originalTransactionId === 'string' ? raw.originalTransactionId.trim() : undefined,
     productId: typeof raw.productId === 'string' && raw.productId.trim() ? raw.productId.trim() : fallbackProductId,
   };
+}
+
+function detectPlanTypeByProductId(productId: string | undefined, fallback: PaymentPlanType): PaymentPlanType {
+  if (productId === IAP_PRODUCT_IDS.annual) return 'annual';
+  if (productId === IAP_PRODUCT_IDS.monthly) return 'monthly';
+  return fallback;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error(`${label}_timeout`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      });
+  });
 }
 
 async function runBridgePurchase(plan: PaymentPlanType): Promise<IapTransactionLike | null> {
@@ -148,8 +177,30 @@ async function runBridgeRestore(): Promise<IapTransactionLike | null> {
     return normalizeTransaction(restored, IAP_PRODUCT_IDS.monthly);
   }
   const transactions = Array.isArray(restored.transactions) ? restored.transactions : [];
-  const latest = transactions.find((item) => typeof item?.transactionId === 'string' && item.transactionId.trim());
+  const latest = [...transactions]
+    .reverse()
+    .find((item) => typeof item?.transactionId === 'string' && item.transactionId.trim());
   return latest ? normalizeTransaction(latest, latest.productId || IAP_PRODUCT_IDS.monthly) : null;
+}
+
+async function runBridgePurchaseWithRecovery(plan: PaymentPlanType): Promise<IapTransactionLike | null> {
+  try {
+    const purchased = await withTimeout(runBridgePurchase(plan), PURCHASE_BRIDGE_TIMEOUT_MS, 'purchaseProduct');
+    if (purchased) return purchased;
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[IAP] purchase bridge timeout/failure, fallback to restorePurchases', error);
+    }
+  }
+
+  try {
+    return await withTimeout(runBridgeRestore(), RESTORE_BRIDGE_TIMEOUT_MS, 'restorePurchases');
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[IAP] restore fallback timeout/failure', error);
+    }
+    return null;
+  }
 }
 
 export function listPlans(): PaymentPlan[] {
@@ -178,17 +229,21 @@ export async function finalizePendingCheckout(): Promise<PaymentActionResult> {
 
 export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResult> {
   try {
-    const transaction = await runBridgePurchase(plan);
+    const transaction = await runBridgePurchaseWithRecovery(plan);
     if (!transaction) {
       return { success: false, code: 'iap_client_not_ready', message: 'iap_client_not_ready' };
     }
+
+    const resolvedPlanType = detectPlanTypeByProductId(transaction.productId, plan);
+    const resolvedProductId = transaction.productId || IAP_PRODUCT_IDS[resolvedPlanType];
+
     const response = await callSubscriptionAPI({
       action: 'activate',
       source: 'iap',
-      planType: plan,
+      planType: resolvedPlanType,
       transactionId: transaction.transactionId,
       originalTransactionId: transaction.originalTransactionId,
-      productId: transaction.productId || IAP_PRODUCT_IDS[plan],
+      productId: resolvedProductId,
     });
     return {
       success: response.success,
@@ -204,13 +259,13 @@ export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResu
 
 export async function restorePurchase(): Promise<PaymentActionResult> {
   try {
-    const transaction = await runBridgeRestore();
+    const transaction = await withTimeout(runBridgeRestore(), RESTORE_BRIDGE_TIMEOUT_MS, 'restorePurchases');
     if (!transaction) {
       return { success: false, code: 'iap_client_not_ready', message: 'iap_client_not_ready' };
     }
 
     const productId = transaction.productId || IAP_PRODUCT_IDS.monthly;
-    const planType: PaymentPlanType = productId === IAP_PRODUCT_IDS.annual ? 'annual' : 'monthly';
+    const planType = detectPlanTypeByProductId(productId, 'monthly');
     const response = await callSubscriptionAPI({
       action: 'restore',
       source: 'iap',
