@@ -4,6 +4,7 @@ import { Check, Crown } from 'lucide-react';
 import { purchase } from '@payment';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { isEligibleForMembershipTrial } from '../membershipTrialEligibility';
+import { syncMembershipAfterPayment } from '../membershipSync';
 
 const MEMBERSHIP_PURPLE = '#a855f7';
 const MEMBERSHIP_PURPLE_DEEP = '#9333ea';
@@ -31,7 +32,6 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const user = useAuthStore((state) => state.user);
-  const initializeAuth = useAuthStore((state) => state.initialize);
   const showTrialCta = isEligibleForMembershipTrial(user, isPlus);
 
   const handleDirectUpgrade = async () => {
@@ -63,7 +63,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
         return;
       }
 
-      await initializeAuth();
+      // Do not block UI on full auth re-initialization after successful native purchase.
+      // Apply optimistic membership immediately, then reconcile from server in background.
+      syncMembershipAfterPayment(result.plan);
       window.alert(t('upgrade_purchase_success'));
     } finally {
       setIsSubmitting(false);

@@ -8,13 +8,28 @@
  */
 
 import { writeFile, mkdir, chmod } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const hooksDir = path.join(root, '.git', 'hooks');
+
+function resolveHooksDir() {
+    try {
+        const hooksPath = execFileSync('git', ['rev-parse', '--git-path', 'hooks'], {
+            cwd: root,
+            encoding: 'utf8',
+        }).trim();
+        if (!hooksPath) {
+            throw new Error('empty git hooks path');
+        }
+        return path.isAbsolute(hooksPath) ? hooksPath : path.resolve(root, hooksPath);
+    } catch (error) {
+        console.error('[install-hooks] Failed to resolve git hooks path. Are you in a git repository?');
+        throw error;
+    }
+}
 
 // hook名称 → 对应脚本
 const HOOKS = {
@@ -22,10 +37,7 @@ const HOOKS = {
 };
 
 async function main() {
-    if (!existsSync(path.join(root, '.git'))) {
-        console.error('[install-hooks] No .git directory found. Are you in the project root?');
-        process.exit(1);
-    }
+    const hooksDir = resolveHooksDir();
 
     await mkdir(hooksDir, { recursive: true });
 
@@ -48,7 +60,7 @@ node "${scriptPath.replace(/\\/g, '/')}"
             // Windows 上 chmod 可能无效，git bash 会忽略权限位，无需处理
         }
 
-        console.log(`[install-hooks] ✓ Installed: .git/hooks/${hookName} → ${scriptPath}`);
+        console.log(`[install-hooks] ✓ Installed: ${path.join(hooksDir, hookName)} → ${scriptPath}`);
     }
 
     console.log('\n[install-hooks] Done. Hooks will run automatically on git commit.\n');
