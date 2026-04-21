@@ -298,7 +298,7 @@ const MainLayout = () => {
   }, [user?.id]);
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#FCFAF7] md:bg-[radial-gradient(circle_at_18%_20%,#ffffff_0%,#f4f1eb_45%,#efe9de_100%)]">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-white md:bg-white">
       <PageOutlet />
       <BottomNav />
       {/* AI 批注气泡 - 全局显示 */}
