@@ -161,7 +161,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
       backdropFilter: 'blur(22px) saturate(145%)',
       WebkitBackdropFilter: 'blur(20px) saturate(140%)',
       border: 'none',
-      boxShadow: '0 8px 22px rgba(82,66,222,0.14)',
+      boxShadow: 'none',
     }
     : {};
 
@@ -169,7 +169,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
     <div
       className={isPlus
         ? 'relative overflow-hidden rounded-2xl px-4 py-3'
-        : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}
+        : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75)]'}
       style={plusCardStyle}
     >
       {isPlus ? (
@@ -210,8 +210,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
           type="button"
           aria-label="Open avatar preview"
           className={isPlus
-            ? 'relative z-[2] h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
-            : 'h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
+            ? 'relative z-[2] h-[62px] w-[62px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
+            : 'h-[62px] w-[62px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
           onClick={handleAvatarClick}
         >
           {user?.user_metadata?.avatar_url ? (
@@ -222,7 +222,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User size={24} strokeWidth={1.5} className="text-gray-400" />
+              <User size={30} strokeWidth={1.5} className="text-gray-400" />
             </div>
           )}
         </button>
@@ -271,7 +271,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               </span>
             )}
           </div>
-          <p className={isPlus ? 'mt-0.5 truncate text-xs' : 'mt-0.5 truncate text-xs text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_SUB } : undefined}>{user?.email}</p>
+          <p className="mt-0.5 truncate text-xs" style={{ color: '#5F7A63' }}>{user?.email}</p>
         </div>
       </div>
 
@@ -340,23 +340,23 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
         ) : null}
         <div className={isPlus ? 'grid grid-cols-3' : 'grid grid-cols-3'}>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_streak')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{weeklyLoginDays}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
+          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_streak')}</span>
+          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{weeklyLoginDays}</span>
+          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
             {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_today_activities')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{todayActs}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
+          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_today_activities')}</span>
+          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{todayActs}</span>
+          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
             {t('profile_today_activities_hint', { count: todayActs })}
           </span>
         </div>
         <div className="flex flex-col items-center py-1">
-          <span className={isPlus ? 'mt-0.5 text-[12px] font-medium' : 'mt-0.5 text-[12px] font-medium text-slate-500'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT } : undefined}>{t('profile_completed_goals')}</span>
-          <span className={isPlus ? 'mt-0.5 text-base font-bold' : 'mt-0.5 text-base font-bold text-[#5F7A63]'} style={isPlus ? { color: MEMBERSHIP_ICON } : undefined}>{completedGoals}</span>
-          <span className={isPlus ? 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight' : 'mt-0.5 px-1 text-center text-[10px] font-light leading-tight text-slate-400'} style={isPlus ? { color: MEMBERSHIP_TEXT_HINT_SOFT } : undefined}>
+          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_completed_goals')}</span>
+          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{completedGoals}</span>
+          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
             {t('profile_completed_goals_hint')}
           </span>
         </div>

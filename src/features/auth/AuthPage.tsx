@@ -302,7 +302,7 @@ export const AuthPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-2.5 text-sm font-semibold text-[#2F3E33] shadow-[0px_2px_2px_#C8C8C8] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-2.5 text-sm font-semibold text-[#5F7A63] shadow-[0px_2px_2px_#C8C8C8] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               background: 'rgba(144.67,212.06,122.21,0.22)',
               border: '1px solid rgba(143,175,146,0.45)',

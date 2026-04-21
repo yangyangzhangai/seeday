@@ -111,7 +111,7 @@ export const BottleList = () => {
             }}
             title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
           >
-            <Plus size={24} strokeWidth={1.5} />
+            <Plus size={24} strokeWidth={2.2} />
           </button>
         </div>
         <p className="mt-1 text-xs text-[#94a3b8]">{t('growth_bottle_section_hint')}</p>

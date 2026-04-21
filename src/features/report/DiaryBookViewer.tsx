@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -178,7 +178,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
         <div style={{ position: 'absolute', left: px(20), right: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)', transform: 'skewX(-15deg)', pointerEvents: 'none' }} />
         {/* Text */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
-          <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>日记本</div>
+          <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{tr('report_view_diary_book')}</div>
           <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Diary</div>
         </div>
       </div>
@@ -502,6 +502,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
 export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
+  const { t, i18n } = useTranslation();
   const today = new Date();
   const [currentMonth] = useState(() => initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
   const globalMessages = useChatStore(state => state.messages);
@@ -569,6 +570,14 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const numSheets = pages.length / 2;
   const daysInMonth = getDaysInMonth(currentMonth);
   const isBookOpen = flippedCount > 0 && flippedCount < numSheets;
+  const headerLocale = i18n.language?.split('-')[0] === 'zh' ? zhCN : i18n.language?.split('-')[0] === 'it' ? itLocale : enUS;
+  const isZhHeader = i18n.language?.split('-')[0] === 'zh';
+  const activeHeaderDate = useMemo(() => {
+    if (!isBookOpen) return null;
+    const leftPage = pages[2 * flippedCount - 1];
+    const rightPage = pages[2 * flippedCount];
+    return leftPage?.date ?? rightPage?.date ?? null;
+  }, [flippedCount, isBookOpen, pages]);
 
   const flipNext = useCallback(() => {
     if (isAnimating || flippedCount >= numSheets) return;
@@ -702,10 +711,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   }, []);
 
   const getIndicator = () => {
-    if (flippedCount === 0) return '封面';
-    if (flippedCount >= numSheets) return '封底';
+    if (flippedCount === 0) return t('diary_cover');
+    if (flippedCount >= numSheets) return t('diary_back_cover');
     const l = pages[2 * flippedCount - 1];
-    if (l?.dayNum !== undefined) return `第 ${l.dayNum} 日`;
+    if (l?.dayNum !== undefined) return t('diary_day_n', { day: l.dayNum });
     return `${flippedCount} / ${numSheets}`;
   };
 
@@ -778,8 +787,14 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           ) : null}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div className="font-black" style={{ color: '#4a5d4c', letterSpacing: 1, fontSize: 16 }}>{format(currentMonth, 'yyyy年 M月', { locale: zhCN })}</div>
-          <div className="text-xs" style={{ color: 'rgba(74,93,76,0.4)', marginTop: 2 }}>{daysInMonth} 天</div>
+          <div className="font-black" style={{ color: '#4a5d4c', letterSpacing: 1, fontSize: 16 }}>
+            {activeHeaderDate
+              ? format(activeHeaderDate, isZhHeader ? 'yyyy年 M月d日' : 'PPP', { locale: headerLocale })
+              : format(currentMonth, isZhHeader ? 'yyyy年 M月' : 'MMMM yyyy', { locale: headerLocale })}
+          </div>
+          <div className="text-[10px] font-medium" style={{ color: '#4a5d4c', marginTop: 2 }}>
+            {activeHeaderDate ? format(activeHeaderDate, 'EEEE', { locale: headerLocale }) : t('diary_days_count', { count: daysInMonth })}
+          </div>
         </div>
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
           <button
@@ -924,7 +939,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
         )}
         {isBookOpen && (
           <div className="text-xs" style={{ color: 'rgba(255,255,255,0.18)', marginTop: 3 }}>
-            {onOpenDiaryPage ? '双击页面可进入日记' : '双击页面可放大查看'}
+            {onOpenDiaryPage ? t('diary_double_tap_open') : t('diary_double_tap_zoom')}
           </div>
         )}
       </div>

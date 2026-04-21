@@ -147,7 +147,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             >
               {isLoading
                 ? <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                : <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_upward</span>
+                : <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5F7A63' }}>arrow_upward</span>
               }
             </button>
           </div>

@@ -61,6 +61,35 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const diaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const diarySaveButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const resizeDiaryTextarea = useCallback((target?: HTMLTextAreaElement | null) => {
+    const el = target ?? diaryTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(128, el.scrollHeight)}px`;
+  }, []);
+
+  const ensureDiaryEditorAboveKeyboard = useCallback(() => {
+    if (!isDiaryEditing) return;
+    const scrollEl = scrollContainerRef.current;
+    const textEl = diaryTextareaRef.current;
+    if (!scrollEl || !textEl) return;
+
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    const keyboardHeight = Number.parseFloat(rootStyle.getPropertyValue('--keyboard-height') || '0') || 0;
+    const safeBottom = window.innerHeight - keyboardHeight - 12;
+
+    const textRect = textEl.getBoundingClientRect();
+    const saveRect = diarySaveButtonRef.current?.getBoundingClientRect() ?? null;
+    const blockedBottom = Math.max(textRect.bottom, saveRect?.bottom ?? textRect.bottom);
+    const overflow = blockedBottom - safeBottom;
+    if (overflow > 0) {
+      scrollEl.scrollTop += overflow + 8;
+    }
+  }, [isDiaryEditing]);
 
   const todayDailyReport = useMemo(
     () => reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date())) ?? null,
@@ -84,6 +113,18 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
   useEffect(() => {
     onDiaryDraftChange?.(myDiaryText);
   }, [myDiaryText, onDiaryDraftChange]);
+
+  useEffect(() => {
+    resizeDiaryTextarea();
+  }, [myDiaryText, resizeDiaryTextarea]);
+
+  useEffect(() => {
+    if (!isDiaryEditing) return;
+    const timerId = window.setTimeout(() => {
+      ensureDiaryEditorAboveKeyboard();
+    }, 140);
+    return () => window.clearTimeout(timerId);
+  }, [ensureDiaryEditorAboveKeyboard, isDiaryEditing, myDiaryText]);
 
   const persistDiaryNote = useCallback(async () => {
     const nextNote = myDiaryText;
@@ -269,7 +310,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
 
   return (
     /* Keep root visualization full-size; diary area is reachable by scrolling down. */
-    <div className="app-scroll-container h-full relative">
+    <div ref={scrollContainerRef} className="app-scroll-container h-full relative">
 
       {/* ── Large canvas area; diary sits right below with a small gap ── */}
       <div className="relative h-[max(460px,62vh)] overflow-hidden">
@@ -298,10 +339,10 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         </div>
         {/* Empty state hint (centered in canvas) */}
         {renderedSegments.length === 0 ? (
-          <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+          <div className="absolute inset-x-8 top-[52%] -translate-y-1/2 z-10 pointer-events-none">
             <div className="rounded-2xl px-4 py-3 text-center" style={{ background: 'transparent', border: 'none' }}>
               <p className="text-xs font-medium" style={{ color: '#5a4028' }}>{t('report_root_empty_title')}</p>
-              <p className="mt-1 text-xs leading-5" style={{ color: '#7a6050' }}>{t('report_root_empty')}</p>
+              <p className="mt-1 text-xs font-medium leading-5" style={{ color: '#5a4028' }}>{t('report_root_empty')}</p>
             </div>
           </div>
         ) : null}
@@ -312,7 +353,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         <button
           onClick={handleGeneratePlant}
           disabled={plantGenerateUi.disabled}
-          className="rounded-full px-8 py-2.5 text-sm font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
+          className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
           style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
         >
           {t(plantGenerateUi.buttonKey)}
@@ -354,34 +395,52 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
         )}
       </div>
 
-      <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+92px)] pt-2">
+      <div
+        className="px-4 pt-2"
+        style={{
+          paddingBottom: isDiaryEditing
+            ? 'calc(env(safe-area-inset-bottom,0px) + 92px + var(--keyboard-height, 0px))'
+            : 'calc(env(safe-area-inset-bottom,0px) + 92px)',
+        }}
+      >
         <h3 className="text-sm font-bold" style={{ color: '#334155' }}>{t('report_my_diary')}</h3>
-        <div className="relative mt-2">
-          {isDiaryEditing ? (
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => { void handleDiarySave(); }}
-              disabled={isDiarySaving}
-              className="absolute bottom-2 right-0 z-10 rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-70"
-              style={{ color: '#4E7549', background: 'rgba(144, 212, 122, 0.24)' }}
-            >
-              {isDiarySaving ? `${t('report_save')}...` : t('report_save')}
-            </button>
-          ) : null}
+        <div className="mt-2">
           <textarea
+            ref={diaryTextareaRef}
             value={myDiaryText}
-            onChange={(event) => setMyDiaryText(event.target.value)}
-            onFocus={() => setIsDiaryEditing(true)}
+            onChange={(event) => {
+              setMyDiaryText(event.target.value);
+              resizeDiaryTextarea(event.currentTarget);
+              window.setTimeout(() => ensureDiaryEditorAboveKeyboard(), 0);
+            }}
+            onFocus={() => {
+              setIsDiaryEditing(true);
+              window.setTimeout(() => ensureDiaryEditorAboveKeyboard(), 140);
+            }}
             onBlur={() => {
               if (!isDiaryEditing) return;
               void persistDiaryNote();
               setIsDiaryEditing(false);
             }}
             placeholder={t('report_diary_placeholder')}
-            className="w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 pr-16 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
-            style={{ minHeight: 128, color: '#334155' }}
+            className="w-full resize-none border-0 border-b border-slate-300/60 bg-transparent px-0 py-1 text-sm leading-6 outline-none transition focus:border-[#8FAF92]"
+            style={{ minHeight: 128, color: '#334155', overflowY: 'hidden' }}
           />
+          {isDiaryEditing ? (
+            <div className="mt-2 flex justify-end">
+              <button
+                ref={diarySaveButtonRef}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { void handleDiarySave(); }}
+                disabled={isDiarySaving}
+                className="rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-70"
+                style={{ color: '#5F7A63', background: 'rgba(144, 212, 122, 0.24)' }}
+              >
+                {isDiarySaving ? `${t('report_save')}...` : t('report_save')}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

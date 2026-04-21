@@ -185,7 +185,7 @@ const zh: TranslationKeys = {
     report_root_section_title: '根系观测窗',
     report_root_section_subtitle: '那些被记录的时刻，正在地下悄悄生长。',
     report_root_empty_title: '土壤还在蓄能',
-    report_root_empty: '先留下一段 5 分钟以上的时光，土壤就会开始回应你。',
+    report_root_empty: '先留下一段5分钟以上的时光，土壤就会开始回应你',
     plant_section_generated_badge: '今日已生成',
     plant_generate_button: '生成植物',
     plant_generate_try_after_20: '请在 20:00 后再试',

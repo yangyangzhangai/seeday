@@ -319,40 +319,37 @@ export const usePlantStore = create<PlantState>()(
       setSelectedRootId: (id) => set({ selectedRootId: id }),
 
       setDirectionOrder: async (order) => {
-        const previousOrder = get().directionOrder;
         const nextOrder = normalizeDirectionOrder(order);
         set({ directionOrder: nextOrder });
         get().refreshTodaySegments();
+        // Save locally first for instant UX; cloud sync runs silently in background.
+        void (async () => {
+          try {
+            const session = await getSupabaseSession();
+            if (!session) return;
 
-        const session = await getSupabaseSession();
-        if (!session) return;
+            const { error: deleteError } = await supabase
+              .from('plant_direction_config')
+              .delete()
+              .eq('user_id', session.user.id);
+            if (deleteError) throw deleteError;
 
-        const { error: deleteError } = await supabase
-          .from('plant_direction_config')
-          .delete()
-          .eq('user_id', session.user.id);
+            const payload = nextOrder.map((categoryKey, index) => ({
+              user_id: session.user.id,
+              direction_index: index,
+              category_key: categoryKey,
+            }));
 
-        if (deleteError) {
-          set({ directionOrder: previousOrder });
-          get().refreshTodaySegments();
-          throw deleteError;
-        }
-
-        const payload = nextOrder.map((categoryKey, index) => ({
-          user_id: session.user.id,
-          direction_index: index,
-          category_key: categoryKey,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('plant_direction_config')
-          .insert(payload);
-
-        if (insertError) {
-          set({ directionOrder: previousOrder });
-          get().refreshTodaySegments();
-          throw insertError;
-        }
+            const { error: insertError } = await supabase
+              .from('plant_direction_config')
+              .insert(payload);
+            if (insertError) throw insertError;
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.warn('[plant] sync directionOrder failed (local saved):', error);
+            }
+          }
+        })();
       },
     }),
     {

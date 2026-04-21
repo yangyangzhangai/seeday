@@ -125,10 +125,10 @@ function coverColor(month: Date): string {
 }
 
 /* ──────────────────────────── month list ────────────────────────── */
-function buildMonthList(createdAt: Date | null): Date[] {
-  if (!createdAt) return [];
+function buildMonthList(firstBookMonth: Date | null): Date[] {
+  if (!firstBookMonth) return [];
   const current  = startOfMonth(new Date());
-  const earliest = startOfMonth(createdAt);
+  const earliest = startOfMonth(firstBookMonth);
   const list: Date[] = [];
   let cursor = new Date(current);
   while (cursor >= earliest) {
@@ -152,8 +152,11 @@ interface ThumbProps {
 
 function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onStartEdit, onNameChange, divRef }: ThumbProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { i18n } = useTranslation();
+  const lang = i18n.language?.split('-')[0] ?? 'en';
+  const locale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
   const color = coverColor(month);
-  const subtitle = format(month, 'yyyy · MM月', { locale: zhCN });
+  const subtitle = format(month, lang === 'zh' ? 'yyyy · MM月' : 'yyyy · MM', { locale });
 
   useEffect(() => {
     if (isEditing) {
@@ -231,7 +234,7 @@ function BookThumb({ month, isSelected, isEditing, bookName, onCoverClick, onSta
         {/* Month label */}
         <p className="mt-3 text-center text-[11px]"
           style={{ color: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', fontWeight: isSelected ? 600 : 400, transition: 'color 0.2s' }}>
-          {format(month, 'yyyy年M月', { locale: zhCN })}
+          {format(month, lang === 'zh' ? 'yyyy年M月' : 'MMMM yyyy', { locale })}
         </p>
       </motion.div>
     </div>
@@ -251,8 +254,14 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const { t, i18n } = useTranslation();
   const user = useAuthStore(s => s.user);
   const getMessagesForDateRange = useChatStore(s => s.getMessagesForDateRange);
-  const createdAt = user?.created_at ? new Date(user.created_at) : null;
-  const [months, setMonths]       = useState<Date[]>(() => buildMonthList(createdAt));
+  const firstBookMonth = useMemo(() => {
+    const dailyReports = reports
+      .filter((report) => report.type === 'daily')
+      .sort((left, right) => left.date - right.date);
+    if (dailyReports.length === 0) return null;
+    return startOfMonth(new Date(dailyReports[0].date));
+  }, [reports]);
+  const [months, setMonths]       = useState<Date[]>(() => buildMonthList(firstBookMonth));
   const [openMonth, setOpenMonth] = useState<Date | null>(initialOpenMonth ?? null);
   const [viewerFlippedCount, setViewerFlippedCount] = useState<number | undefined>(initialOpenFlippedCount);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -260,6 +269,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const [bookNames, setBookNames] = useState<Record<number, string>>({});
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchError, setSearchError] = useState('');
   const [dayRecordCount, setDayRecordCount] = useState<Record<string, number>>({});
   const bookRefs = useRef<(HTMLDivElement | null)[]>([]);
   const loadedYearsRef = useRef<Set<number>>(new Set());
@@ -281,29 +291,41 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
     [calendarLocale, weekLabelStart],
   );
 
-  const getBookName = (m: Date) => bookNames[m.getTime()] ?? '日记本';
+  const getBookName = (m: Date) => bookNames[m.getTime()] ?? t('report_view_diary_book');
   const setBookName = (m: Date, name: string) =>
     setBookNames(prev => ({ ...prev, [m.getTime()]: name }));
 
   const openMonthByDate = useCallback((targetDate: Date) => {
     const monthDate = startOfMonth(targetDate);
+    const idx = months.findIndex((m) => isSameMonth(m, monthDate));
+    if (idx < 0) return false;
     setViewerFlippedCount(targetDate.getDate());
     setOpenMonth(monthDate);
     setSearchOpen(false);
-    const idx = months.findIndex((m) => isSameMonth(m, monthDate));
-    if (idx >= 0) {
-      setSelectedIdx(idx);
-      setEditingIdx(null);
-    }
+    setSelectedIdx(idx);
+    setEditingIdx(null);
+    return true;
   }, [months]);
 
   const handleSearchSubmit = useCallback(() => {
-    if (parsedDateInput.selectedDate) {
-      openMonthByDate(parsedDateInput.selectedDate);
+    if (!parsedDateInput.selectedDate) {
+      setSearchError('');
+      return;
     }
-  }, [openMonthByDate, parsedDateInput.selectedDate]);
+    const ok = openMonthByDate(parsedDateInput.selectedDate);
+    if (!ok) {
+      setSearchError(t('diary_shelf_no_diary'));
+      return;
+    }
+    setSearchError('');
+  }, [i18n.language, openMonthByDate, parsedDateInput.selectedDate]);
 
   const getCountByDate = useCallback((date: Date) => dayRecordCount[toDateKey(date)] ?? 0, [dayRecordCount, toDateKey]);
+  const hasBookForSelectedDate = useMemo(() => (
+    parsedDateInput.selectedDate
+      ? months.some((monthDate) => isSameMonth(monthDate, parsedDateInput.selectedDate!))
+      : false
+  ), [months, parsedDateInput.selectedDate]);
 
   const monthCells = useMemo(() => {
     if (!activeMonth || !parsedDateInput.isValid) return [] as Date[];
@@ -344,23 +366,9 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
     };
   }, [getMessagesForDateRange, parsedDateInput.isValid, parsedDateInput.year, searchOpen, toDateKey]);
 
-  /* Auto-add new month at midnight on the 1st */
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      const now = new Date();
-      const next1st = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      timer = setTimeout(() => {
-        const newMonth = startOfMonth(new Date());
-        setMonths(prev =>
-          prev.length > 0 && isSameMonth(prev[0], newMonth) ? prev : [newMonth, ...prev]
-        );
-        schedule();
-      }, next1st.getTime() - now.getTime());
-    };
-    schedule();
-    return () => clearTimeout(timer);
-  }, []);
+    setMonths(buildMonthList(firstBookMonth));
+  }, [firstBookMonth]);
 
   /* Keyboard navigation */
   const openSelected = useCallback(() => {
@@ -432,7 +440,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         </motion.button>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('report_my_diary')}</h1>
-          <p className="text-xs text-[#4a5d4c]/40 mt-0.5">{months.length} 本日记</p>
+          <p className="mt-0.5 text-[10px] font-medium text-[#4a5d4c]">{t('diary_shelf_count', { count: months.length })}</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.04 }}
@@ -472,7 +480,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     onClick={() => setSearchInput(String(activeYear))}
                     style={{ fontSize: '11px', fontWeight: 600, color: '#5f7a62', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                   >
-                    {i18n.language?.split('-')[0] === 'zh' ? '← 返回年份' : i18n.language?.split('-')[0] === 'it' ? '← Anni' : '← Years'}
+                    {t('diary_shelf_back_year')}
                   </button>
                 )}
               </div>
@@ -480,7 +488,10 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                 <div className="relative flex-1">
                   <input
                     value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value.replace(/[^\d\s\-/.]/g, ''))}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value.replace(/[^\d\s\-/.]/g, ''));
+                      if (searchError) setSearchError('');
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -540,6 +551,11 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
               <div style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(74,93,76,0.55)', letterSpacing: '0.03em' }}>
                 {i18n.language?.split('-')[0] === 'zh' ? '仅输入数字，如 20260420' : i18n.language?.split('-')[0] === 'it' ? 'Solo numeri, es. 20260420' : 'Digits only, e.g. 20260420'}
               </div>
+              {searchError ? (
+                <div style={{ marginTop: '6px', fontSize: '11px', color: '#b54b4b', fontWeight: 600 }}>
+                  {searchError}
+                </div>
+              ) : null}
             </div>
 
             {/* Calendar body */}
@@ -568,10 +584,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     {Array.from({ length: 12 }).map((_, idx) => {
                       const monthNum = idx + 1;
                       const isPicked = parsedDateInput.month === monthNum;
-                      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                      const monthNamesZh = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-                      const lang = i18n.language?.split('-')[0] ?? 'en';
-                      const label = lang === 'zh' ? monthNamesZh[idx] : monthNames[idx];
+                      const label = format(new Date(activeYear, idx, 1), i18n.language?.split('-')[0] === 'zh' ? 'M月' : 'MMM', { locale: calendarLocale });
                       return (
                         <button
                           key={monthNum}
@@ -727,11 +740,8 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                         }}
                       >
                         {(() => {
-                          const lang = i18n.language?.split('-')[0] ?? 'en';
                           const d = parsedDateInput.selectedDate!;
-                          if (lang === 'zh') return `打开 ${format(d, 'M月d日')}`;
-                          if (lang === 'it') return `Apri ${format(d, 'd MMM', { locale: calendarLocale })}`;
-                          return `Open ${format(d, 'MMM d', { locale: calendarLocale })}`;
+                          return t('diary_shelf_open_date', { date: format(d, i18n.language?.split('-')[0] === 'zh' ? 'M月d日' : 'MMM d', { locale: calendarLocale }) });
                         })()}
                       </button>
                     </div>

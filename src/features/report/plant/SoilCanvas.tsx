@@ -184,16 +184,16 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
       ) : null}
 
       {isActive && (
-        <div className="pointer-events-none absolute top-3 right-3 z-10 max-w-[72%] rounded-xl border border-stone-300/70 bg-stone-50/82 p-2 shadow-[0_8px_20px_rgba(66,45,24,0.12)] backdrop-blur-[2px]">
+        <div className="pointer-events-none absolute bottom-3 right-3 z-10 max-w-[72%] p-2">
           <div className="space-y-1">
             {legendItems.map((item) => (
               <div
                 key={item.slotKey}
-                className="flex items-center gap-1.5 rounded-md bg-white/62 px-1.5 py-1 text-[10px] leading-none text-stone-700"
+                className="flex items-center gap-1.5 rounded-md bg-white/62 px-1.5 py-1 text-[10px] font-medium leading-none text-[#5a4028]"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-stone-500/80" />
-                <span className="font-semibold text-stone-900">{t(item.positionKey)}</span>
-                <span className="text-stone-400">·</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#5a4028]" />
+                <span>{t(item.positionKey)}</span>
+                <span>·</span>
                 <span className="truncate">{t(toCategoryKey(item.category))}</span>
               </div>
             ))}

@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { usePlantStore } from '../../../store/usePlantStore';
 import { DEFAULT_DIRECTION_ORDER } from '../../../types/plant';
 import type { PlantCategoryKey } from '../../../types/plant';
@@ -88,73 +89,93 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
   };
 
   return (
-    <div className="px-4 pb-3 pt-1">
-      <p className="text-[10px] font-light text-slate-500">{t('profile_root_direction_settings_desc')}</p>
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
+      <button
+        type="button"
+        aria-label="close"
+        className="absolute inset-0 bg-black/35 backdrop-blur-[3px]"
+        onClick={onClose}
+      />
+      <div
+        className="relative w-full sm:max-w-md rounded-t-[28px] sm:rounded-[30px] bg-white shadow-2xl"
+        style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 8px)' }}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h3 className="text-base font-bold text-[#1C2E24]">{t('profile_root_direction_settings')}</h3>
+          <button type="button" onClick={onClose} className="rounded-full p-2 transition hover:bg-black/5">
+            <X size={18} className="text-[#1C2E24]" />
+          </button>
+        </div>
 
-      <div className="mt-2 space-y-1.5">
-        {SLOTS.map(slot => {
-          const isDuplicate = duplicateCategories.has(stableDraft[slot.index]);
-          return (
-            <label
-              key={slot.positionKey}
-              className={`flex items-center justify-between gap-3 rounded-lg px-2 py-2 ${
-                isDuplicate ? 'bg-red-50/70' : 'bg-white/55'
-              }`}
-            >
-              <span className={`text-xs ${isDuplicate ? 'text-red-600' : 'text-slate-700'}`}>
-                {t(slot.positionKey)}
-              </span>
-              <select
-                value={stableDraft[slot.index]}
-                onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
-                className={`min-h-9 rounded-lg border px-2 text-xs ${
-                  isDuplicate
-                    ? 'border-red-300 bg-red-50 text-red-600'
-                    : 'border-[#CBE7D7] bg-white/80 text-[#355643]'
-                }`}
-              >
-                {CATEGORIES.map(category => (
-                  <option key={category} value={category}>
-                    {t(toCategoryLabelKey(category))}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
-      </div>
+        <div className="max-h-[62dvh] overflow-y-auto px-5 pb-3">
+          <p className="text-[12px] font-medium text-[#5F7A63]">{t('profile_root_direction_settings_desc')}</p>
 
-      {hasDuplicateSelection && (
-        <p className="mt-2 text-xs text-red-500">{t('profile_root_direction_duplicate_error')}</p>
-      )}
-      {saveError && (
-        <p className="mt-2 text-xs text-red-500">{saveError}</p>
-      )}
+          <div className="mt-3 space-y-2">
+            {SLOTS.map(slot => {
+              const isDuplicate = duplicateCategories.has(stableDraft[slot.index]);
+              return (
+                <label
+                  key={slot.positionKey}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${
+                    isDuplicate ? 'bg-red-50/70' : 'bg-[#F7F9F8]'
+                  }`}
+                >
+                  <span className={`text-[13px] font-medium ${isDuplicate ? 'text-red-600' : 'text-[#1C2E24]'}`}>
+                    {t(slot.positionKey)}
+                  </span>
+                  <select
+                    value={stableDraft[slot.index]}
+                    onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
+                    className={`min-h-9 rounded-lg border px-2 text-xs ${
+                      isDuplicate
+                        ? 'border-red-300 bg-red-50 text-red-600'
+                        : 'border-[#CBE7D7] bg-white text-[#355643]'
+                    }`}
+                  >
+                    {CATEGORIES.map(category => (
+                      <option key={category} value={category}>
+                        {t(toCategoryLabelKey(category))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
 
-      <div className="mt-3 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setDraft([...DEFAULT_DIRECTION_ORDER]);
-            setSaveError(null);
-          }}
-          className="min-h-9 rounded-lg border border-[#CBE7D7] bg-white/75 px-3 text-xs text-[#355643] transition hover:bg-white"
-        >
-          {t('profile_root_direction_reset')}
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving || hasDuplicateSelection}
-          className="min-h-9 rounded-lg border border-transparent px-3 text-xs font-medium text-[#355643] disabled:opacity-60"
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
-            boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
-          }}
-        >
-          {isSaving ? t('profile_root_direction_saving') : t('profile_root_direction_save')}
-        </button>
+          {hasDuplicateSelection && (
+            <p className="mt-2 text-xs text-red-500">{t('profile_root_direction_duplicate_error')}</p>
+          )}
+          {saveError && (
+            <p className="mt-2 text-xs text-red-500">{saveError}</p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft([...DEFAULT_DIRECTION_ORDER]);
+              setSaveError(null);
+            }}
+            className="min-h-10 rounded-xl border border-[#CBE7D7] bg-white px-4 text-xs font-medium text-[#355643] transition hover:bg-[#F7F9F8]"
+          >
+            {t('profile_root_direction_reset')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || hasDuplicateSelection}
+            className="min-h-10 rounded-xl border border-transparent px-4 text-xs font-medium text-[#355643] disabled:opacity-60"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
+              boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
+            }}
+          >
+            {isSaving ? t('profile_root_direction_saving') : t('profile_root_direction_save')}
+          </button>
+        </div>
       </div>
     </div>
   );
