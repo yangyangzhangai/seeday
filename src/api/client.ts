@@ -23,7 +23,10 @@ import type {
   LiveInputTelemetryIngestResponse,
 } from '../services/input/liveInputTelemetryApi';
 
-const API_BASE = '/api';
+const configuredApiBase = String(import.meta.env.VITE_API_BASE ?? '')
+  .trim()
+  .replace(/\/+$/, '');
+const API_BASE = configuredApiBase || '/api';
 
 interface ApiErrorShape {
   error?: string;
