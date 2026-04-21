@@ -674,11 +674,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateAvatar: async (avatarDataUrl: string) => {
-    const { user, error } = await patchUserMetadata({ avatar_url: avatarDataUrl });
-    if (!error && user) {
-      set({ user });
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: new Error('Not signed in') };
     }
-    return { error };
+
+    // Optimistic local update: reflect avatar immediately.
+    set({
+      user: {
+        ...currentUser,
+        user_metadata: {
+          ...(currentUser.user_metadata || {}),
+          avatar_url: avatarDataUrl,
+        },
+      },
+    });
+
+    // Sync to Supabase silently in background.
+    void patchUserMetadata({ avatar_url: avatarDataUrl })
+      .then(({ user, error }) => {
+        if (!error && user) {
+          set({ user });
+          return;
+        }
+        if (import.meta.env.DEV && error) {
+          console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
+        }
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
+        }
+      });
+
+    return { error: null };
   },
 
   updateLocationMetadata: async (input) => {
@@ -705,6 +734,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       location_updated_at: new Date().toISOString(),
     };
 
+    const nextMetadata = {
+      ...(currentUser.user_metadata || {}),
+      ...patch,
+    };
+
     // Save locally first to keep interaction instant.
     set({
       user: {
@@ -713,19 +747,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
 
-    // Sync to Supabase silently in background.
-    void supabase.auth.updateUser({ data: nextMetadata })
-      .then(({ data, error }) => {
-        if (!error && data?.user) {
-          set({ user: data.user });
+    // Sync to Supabase silently in background via serialized metadata queue.
+    void patchUserMetadata(patch)
+      .then(({ user, error }) => {
+        if (!error && user) {
+          set({ user });
           return;
         }
         if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateLocationMetadata cloud sync failed (local saved):', error);
-        }
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
           console.warn('[auth] updateLocationMetadata cloud sync failed (local saved):', error);
         }
       });

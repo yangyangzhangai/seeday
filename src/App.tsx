@@ -22,6 +22,7 @@ import { useChatStore } from './store/useChatStore';
 import { useReportStore } from './store/useReportStore';
 import { useAnnotationStore } from './store/useAnnotationStore';
 import { StardustAnimation } from './components/feedback/StardustAnimation';
+import { StarAnimationOverlay } from './components/feedback/StarAnimationOverlay';
 import { useStardustStore } from './store/useStardustStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useAppForegroundRefresh } from './hooks/useAppForegroundRefresh';
@@ -316,6 +317,7 @@ const MainLayout = () => {
         emojiChar={animationState.emojiChar}
         onComplete={handleAnimationComplete}
       />
+      <StarAnimationOverlay />
       {/* 主动提醒弹窗 */}
       {activePopupType && activePopupType !== 'evening_check' && activePopupType !== 'weekend_evening_check' && (
         <ReminderPopup
