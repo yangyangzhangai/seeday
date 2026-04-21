@@ -9,6 +9,7 @@ import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const { signIn, signInWithGoogle, signInWithApple, signUp, updateAvatar } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [account, setAccount] = useState('');
@@ -80,7 +81,7 @@ export const AuthPage = () => {
         setAppleLoading(false);
       }
       setError(getErrorMessage('OAuth timeout'));
-    }, 12000);
+    }, 90000);
   };
 
   React.useEffect(() => {
@@ -89,6 +90,15 @@ export const AuthPage = () => {
       clearOAuthTimeout('apple');
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!user) return;
+    clearOAuthTimeout('google');
+    clearOAuthTimeout('apple');
+    setGoogleLoading(false);
+    setAppleLoading(false);
+    setError(null);
+  }, [user]);
 
   const handleAppleSignIn = async () => {
     setAppleLoading(true);
