@@ -58,6 +58,7 @@ export const ChatPage = () => {
   const [isMagicPenModeOn, setIsMagicPenModeOn] = useState(false);
   const [isMagicPenUpgradeOpen, setIsMagicPenUpgradeOpen] = useState(false);
   const [isMagicPenSending, setIsMagicPenSending] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [magicPenSeedDrafts, setMagicPenSeedDrafts] = useState<MagicPenDraftItem[]>([]);
   const [magicPenSeedUnparsed, setMagicPenSeedUnparsed] = useState<string[]>([]);
   const [magicPenSeedAutoWritten, setMagicPenSeedAutoWritten] = useState<MagicPenAutoWrittenItem[]>([]);
@@ -87,6 +88,7 @@ export const ChatPage = () => {
   const [personaImg1, personaImg2] = personaImages[aiMode] ?? [imgBirdZep02, imgBirdZep03];
 
   const sendingRef = useRef(false);
+  const sendingStartedAtRef = useRef<number | null>(null);
   const chatFrameRef = useRef<HTMLDivElement | null>(null);
   const [birdOpen, setBirdOpen] = useState(false);
   const [birdAnchor, setBirdAnchor] = useState<{ left: number; bottom: number }>({
@@ -313,60 +315,88 @@ export const ChatPage = () => {
 
   // ── Send ──────────────────────────────────────────────────
   const handleSend = async () => {
+    const SEND_STUCK_RECOVERY_MS = 20_000;
+    const SEND_TIMEOUT_MS = 18_000;
+
     if (!isSelectedDateToday) return;
     if (!input.trim()) return;
-    if (sendingRef.current) return;
+    if (sendingRef.current) {
+      const startedAt = sendingStartedAtRef.current ?? 0;
+      if (Date.now() - startedAt < SEND_STUCK_RECOVERY_MS) return;
+      // Self-heal: previous send likely hung on network. Force unlock.
+      sendingRef.current = false;
+      sendingStartedAtRef.current = null;
+      setIsSending(false);
+    }
 
     const textToSend = input;
     setInput('');
     playSound('bubble');
     sendingRef.current = true;
+    sendingStartedAtRef.current = Date.now();
+    setIsSending(true);
 
     try {
-      if (isMagicPenModeOn) {
-        await handleMagicPenModeSend({
-          input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
-          isMagicPenSending, messages, activeTodoId,
-          todos: todos.map(t => ({ id: t.id, content: t.title, startedAt: t.startedAt })),
-          sendAutoRecognizedInput: async (content) => {
-            const before = useChatStore.getState().messages;
-            const beforeIds = new Set(before.map(m => m.id));
-            const classification = await sendAutoRecognizedInput(content);
-            const after = useChatStore.getState().messages;
-            const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
-            return { classification, messageId: createdMessage?.id };
-          },
-          writeMagicPenAutoItem: async (item) => {
-            if (item.kind === 'mood') {
-              const messageId = await sendMood(item.content);
+      const sendTask = (async () => {
+        if (isMagicPenModeOn) {
+          await handleMagicPenModeSend({
+            input: textToSend, lang: i18n.language?.split('-')[0] || 'zh',
+            isMagicPenSending, messages, activeTodoId,
+            todos: todos.map(t => ({ id: t.id, content: t.title, startedAt: t.startedAt })),
+            sendAutoRecognizedInput: async (content) => {
+              const before = useChatStore.getState().messages;
+              const beforeIds = new Set(before.map(m => m.id));
+              const classification = await sendAutoRecognizedInput(content);
+              const after = useChatStore.getState().messages;
+              const createdMessage = [...after].reverse().find(m => !beforeIds.has(m.id));
+              return { classification, messageId: createdMessage?.id };
+            },
+            writeMagicPenAutoItem: async (item) => {
+              if (item.kind === 'mood') {
+                const messageId = await sendMood(item.content);
+                return { messageId: messageId ?? undefined };
+              }
+
+              const messageId = await sendMessage(item.content);
+              if (item.linkedMoodContent && messageId) {
+                await sendMood(item.linkedMoodContent, { relatedActivityId: messageId });
+              }
               return { messageId: messageId ?? undefined };
-            }
-
-            const messageId = await sendMessage(item.content);
-            if (item.linkedMoodContent && messageId) {
-              await sendMood(item.linkedMoodContent, { relatedActivityId: messageId });
-            }
-            return { messageId: messageId ?? undefined };
-          },
-          completeActiveTodo, updateMessageDuration, parseMagicPenInput,
-          setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
-          setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
-        });
-        return;
-      }
-
-      const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
-      const classification = await sendAutoRecognizedInput(textToSend);
-
-      if (classification?.kind === 'activity' && activeTodoId) {
-        await completeActiveTodo();
-        if (todoToComplete?.startedAt) {
-          const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
-          await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
+            },
+            completeActiveTodo, updateMessageDuration, parseMagicPenInput,
+            setIsMagicPenSending, setMagicPenSeedDrafts, setMagicPenSeedUnparsed,
+            setMagicPenSeedAutoWritten, setIsMagicPenOpen, setInput,
+          });
+          return;
         }
+
+        const todoToComplete = activeTodoId ? todos.find(t => t.id === activeTodoId) : null;
+        const classification = await sendAutoRecognizedInput(textToSend);
+
+        if (classification?.kind === 'activity' && activeTodoId) {
+          await completeActiveTodo();
+          if (todoToComplete?.startedAt) {
+            const dur = Math.round((Date.now() - todoToComplete.startedAt) / 60000);
+            await updateMessageDuration(todoToComplete.title, todoToComplete.startedAt, dur);
+          }
+        }
+      })();
+
+      const timeoutTask = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('chat_send_timeout')), SEND_TIMEOUT_MS);
+      });
+
+      await Promise.race([sendTask, timeoutTask]);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('[ChatPage] send failed/unlocked:', error);
       }
+      // Restore unsent text only if user hasn't started typing a new draft.
+      setInput((current) => (current.trim().length > 0 ? current : textToSend));
     } finally {
       sendingRef.current = false;
+      sendingStartedAtRef.current = null;
+      setIsSending(false);
     }
   };
 
@@ -441,7 +471,7 @@ export const ChatPage = () => {
         {/* Input + Nav (fixed bottom, inside phone container via portal-like fixed) */}
         <ChatInputBar
           input={input}
-          isLoading={isLoading || isMagicPenSending}
+          isLoading={isLoading || isMagicPenSending || isSending}
           isReadOnly={!isSelectedDateToday}
           isMagicPenModeOn={isMagicPenModeOn}
           onInputChange={setInput}

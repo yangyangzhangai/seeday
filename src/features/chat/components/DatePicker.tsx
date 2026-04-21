@@ -6,9 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { LogIn, MoreHorizontal, X } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { resizeImageToDataUrl } from '../../../lib/imageUtils';
+import { blobToDataUrl } from '../../../lib/imageUtils';
 import { cn } from '../../../lib/utils';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import { ImageCropModal } from './ImageCropModal';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
@@ -68,6 +69,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [stripStart, setStripStart] = useState<Date>(() => shiftDate(selectedDate, -DATE_PAST_PRELOAD_DAYS));
   const popupRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -143,6 +145,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
   }, [prependPastDates]);
 
   const avatarUrl = user?.user_metadata?.avatar_url;
+
+  const handleAvatarCropConfirm = useCallback(async (blob: Blob) => {
+    setCropFile(null);
+    try {
+      const dataUrl = await blobToDataUrl(blob);
+      const { error } = await updateAvatar(dataUrl);
+      if (error) throw error;
+      setShowAvatarMenu(false);
+      setShowAvatarModal(false);
+    } catch {
+      window.alert(t('image_upload_fail'));
+    }
+  }, [t, updateAvatar]);
 
   const handleAuthClick = async () => {
     if (!user) {
@@ -255,11 +270,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 type="file"
                 accept="image/*"
                 style={{ display: 'none' }}
-                onChange={async (e) => {
+                onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const dataUrl = await resizeImageToDataUrl(file, 640, 0.95);
-                  await updateAvatar(dataUrl);
+                  setCropFile(file);
                   setShowAvatarMenu(false);
                   setShowAvatarModal(false);
                   e.target.value = '';
@@ -424,6 +438,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
           </div>
         </div>
       , document.body) : null}
+
+      {cropFile ? createPortal(
+        <ImageCropModal
+          file={cropFile}
+          aspectW={1}
+          aspectH={1}
+          outputW={240}
+          outputH={240}
+          outputQuality={0.82}
+          onConfirm={(blob) => { void handleAvatarCropConfirm(blob); }}
+          onCancel={() => setCropFile(null)}
+        />,
+        document.body,
+      ) : null}
     </div>
   );
 };

@@ -5,11 +5,6 @@ import { Check, X } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 
-const OUTPUT_W  = 600;   // final output width px
-const ASPECT_W  = 3;
-const ASPECT_H  = 2;     // 3:2 landscape crop
-const OUTPUT_H  = Math.round(OUTPUT_W * ASPECT_H / ASPECT_W); // 400
-
 /** Return the width to use for the crop canvas: screen width minus side margins. */
 function calcDisplayW(): number {
   return Math.min(320, window.innerWidth - 32);
@@ -25,9 +20,23 @@ interface Props {
   file: File;
   onConfirm: (blob: Blob) => void;
   onCancel:  () => void;
+  aspectW?: number;
+  aspectH?: number;
+  outputW?: number;
+  outputH?: number;
+  outputQuality?: number;
 }
 
-export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) => {
+export const ImageCropModal: React.FC<Props> = ({
+  file,
+  onConfirm,
+  onCancel,
+  aspectW = 3,
+  aspectH = 2,
+  outputW = 600,
+  outputH,
+  outputQuality = 0.88,
+}) => {
   const { t } = useTranslation();
   const [imgSrc, setImgSrc]     = useState('');
   const [natural, setNatural]   = useState({ w: 0, h: 0 });
@@ -56,10 +65,10 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
   // Derived display dimensions
   // Full image height if unconstrained
   const fullDisplayH = natural.w > 0 ? Math.round(displayW * natural.h / natural.w) : 0;
-  // Crop box height (3:2 ratio)
-  const boxH = Math.round(displayW * ASPECT_H / ASPECT_W);
+  // Crop box height based on target aspect ratio
+  const boxH = Math.round(displayW * aspectH / aspectW);
   // The rendered image height is capped so the modal fits the viewport
-  const displayH = Math.min(fullDisplayH, maxDisplayH);
+  const displayH = Math.max(boxH, Math.min(fullDisplayH, maxDisplayH));
   const maxTop   = Math.max(0, fullDisplayH - boxH);
 
   const handleLoad = () => {
@@ -67,7 +76,7 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
     const { naturalWidth: w, naturalHeight: h } = imgRef.current;
     setNatural({ w, h });
     const dh = Math.round(displayW * h / w);
-    const bh = Math.round(displayW * ASPECT_H / ASPECT_W);
+    const bh = Math.round(displayW * aspectH / aspectW);
     setCropTop(Math.max(0, Math.round((dh - bh) / 2))); // centre crop
   };
 
@@ -86,17 +95,17 @@ export const ImageCropModal: React.FC<Props> = ({ file, onConfirm, onCancel }) =
   const confirm = useCallback(() => {
     if (!imgRef.current || !natural.w || !fullDisplayH) return;
     const canvas = document.createElement('canvas');
-    canvas.width  = OUTPUT_W;
-    canvas.height = OUTPUT_H;
+    canvas.width  = outputW;
+    canvas.height = outputH ?? Math.round(outputW * aspectH / aspectW);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     // Map crop position from full (uncapped) display coords to natural image coords
     const scaleY = natural.h / fullDisplayH;
     const srcY   = Math.round(cropTopPx * scaleY);
     const srcH   = Math.round(boxH * scaleY);
-    ctx.drawImage(imgRef.current, 0, srcY, natural.w, srcH, 0, 0, OUTPUT_W, OUTPUT_H);
-    canvas.toBlob(blob => { if (blob) onConfirm(blob); }, 'image/jpeg', 0.88);
-  }, [natural, fullDisplayH, cropTopPx, boxH, onConfirm]);
+    ctx.drawImage(imgRef.current, 0, srcY, natural.w, srcH, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => { if (blob) onConfirm(blob); }, 'image/jpeg', outputQuality);
+  }, [natural, fullDisplayH, cropTopPx, boxH, onConfirm, outputW, outputH, aspectW, aspectH, outputQuality]);
 
   if (!imgSrc) return null;
 

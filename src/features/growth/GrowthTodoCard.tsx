@@ -193,6 +193,13 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
     onToggle(todo.id);
   };
 
+  const handleDeletePress = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerLightHaptic();
+    onDelete?.(todo.id);
+  };
+
   return (
     <div
       ref={cardRef}
@@ -205,18 +212,22 @@ export const GrowthTodoCard = ({ todo, subTodos = [], onToggle, onFocus, onStart
       {/* Delete button — appears after card is selected */}
       {onDelete && (
         <button
+          type="button"
+          data-no-drag="true"
+          onPointerUp={handleDeletePress}
           onClick={(e) => {
+            // Consume delayed synthetic click on iOS after pointer events.
+            e.preventDefault();
             e.stopPropagation();
-            triggerLightHaptic();
-            onDelete(todo.id);
           }}
           className={cn(
-            'absolute -top-1.5 -right-1.5 z-10 h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500',
+            'absolute -top-2 -right-2 z-10 h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 touch-manipulation',
             expanded ? 'flex' : 'hidden'
           )}
           title={t('delete')}
+          aria-label={t('delete')}
         >
-          <X size={10} />
+          <X size={14} />
         </button>
       )}
 

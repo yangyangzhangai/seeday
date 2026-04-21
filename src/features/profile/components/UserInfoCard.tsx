@@ -5,10 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useChatStore } from '../../../store/useChatStore';
 import { useGrowthStore } from '../../../store/useGrowthStore';
-import { resizeImageToDataUrl } from '../../../lib/imageUtils';
+import { blobToDataUrl } from '../../../lib/imageUtils';
 import { cn } from '../../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 import { supabase } from '../../../api/supabase';
+import { ImageCropModal } from '../../chat/components/ImageCropModal';
 
 interface Props {
   isPlus: boolean;
@@ -74,6 +75,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [weeklyLoginDays, setWeeklyLoginDays] = useState(0);
@@ -126,12 +128,24 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    setShowAvatarModal(false);
-    const dataUrl = await resizeImageToDataUrl(f, 640, 0.95);
-    await updateAvatar(dataUrl);
+    setCropFile(f);
     setShowAvatarMenu(false);
+    setShowAvatarModal(false);
     // reset so same file can be re-selected
     e.target.value = '';
+  };
+
+  const handleAvatarCropConfirm = async (blob: Blob) => {
+    setCropFile(null);
+    try {
+      const dataUrl = await blobToDataUrl(blob);
+      const { error } = await updateAvatar(dataUrl);
+      if (error) {
+        throw error;
+      }
+    } catch {
+      window.alert(t('image_upload_fail'));
+    }
   };
 
   const handleNameClick = () => {
@@ -422,6 +436,20 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
           </div>
         </div>
       , document.body) : null}
+
+      {cropFile ? createPortal(
+        <ImageCropModal
+          file={cropFile}
+          aspectW={1}
+          aspectH={1}
+          outputW={240}
+          outputH={240}
+          outputQuality={0.82}
+          onConfirm={(blob) => { void handleAvatarCropConfirm(blob); }}
+          onCancel={() => setCropFile(null)}
+        />,
+        document.body,
+      ) : null}
     </div>
   );
 };
