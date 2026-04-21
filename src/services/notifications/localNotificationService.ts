@@ -176,8 +176,15 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
   const hasPermission = await ensureNotificationPermission();
   if (!hasPermission) return false;
 
+  let canUseActionType = true;
   try {
     await registerNotificationCategories();
+  } catch {
+    // 类别注册失败时降级为普通通知，避免整条提醒链路中断
+    canUseActionType = false;
+  }
+
+  try {
     await plugin.schedule({
       notifications: [
         {
@@ -185,7 +192,7 @@ export async function scheduleLocalNotification(payload: LocalNotificationPayloa
           title: payload.title,
           body: payload.body,
           schedule: { at: payload.at, allowWhileIdle: true },
-          actionTypeId: payload.actionTypeId,
+          ...(canUseActionType ? { actionTypeId: payload.actionTypeId } : {}),
           extra: payload.extra,
         },
       ],
@@ -207,15 +214,22 @@ export async function scheduleBatchNotifications(
   const hasPermission = await ensureNotificationPermission();
   if (!hasPermission) return false;
 
+  let canUseActionType = true;
   try {
     await registerNotificationCategories();
+  } catch {
+    // 类别注册失败时降级为普通通知，避免整批调度失败
+    canUseActionType = false;
+  }
+
+  try {
     await plugin.schedule({
       notifications: payloads.map((p) => ({
         id: p.id,
         title: p.title,
         body: p.body,
         schedule: { at: p.at, allowWhileIdle: true },
-        actionTypeId: p.actionTypeId,
+        ...(canUseActionType ? { actionTypeId: p.actionTypeId } : {}),
         extra: p.extra,
       })),
     });

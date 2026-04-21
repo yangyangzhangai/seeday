@@ -15,7 +15,6 @@ import { usePlantStore } from '../store/usePlantStore';
 import { useReportStore } from '../store/useReportStore';
 import { isSameDay } from 'date-fns';
 import {
-  registerNotificationCategories,
   scheduleIdleNudge,
   cancelIdleNudge,
   setupNotificationActionListener,
@@ -191,15 +190,17 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         : 'CN';
 
     void (async () => {
-      // Ensure iOS action categories are registered before scheduling notifications.
-      await registerNotificationCategories();
-      await scheduleRemindersForToday({
-        manual,
-        aiMode: preferences.aiMode,
-        countryCode,
-        reminderEnabled,
-        getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
-      });
+      try {
+        await scheduleRemindersForToday({
+          manual,
+          aiMode: preferences.aiMode,
+          countryCode,
+          reminderEnabled,
+          getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+        });
+      } catch {
+        // 调度失败不阻断其余提醒链路（前台弹窗仍可作为兜底）
+      }
     })();
   }, [user?.id, userProfileV2, preferences.aiMode, metadataCountryCode]);
 

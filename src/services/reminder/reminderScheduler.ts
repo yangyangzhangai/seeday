@@ -13,8 +13,6 @@ import {
 // 通知 ID 生成（命名规范：reminder_<type>_<HHMM>）
 // ─────────────────────────────────────────────
 
-const REMINDER_ID_BASE = 100000;
-
 function reminderTypeToIndex(type: ReminderType): number {
   const TYPES: ReminderType[] = [
     'wake', 'work_start', 'lunch_start', 'lunch_end', 'work_end',
@@ -28,8 +26,12 @@ function reminderTypeToIndex(type: ReminderType): number {
   return idx >= 0 ? idx : TYPES.length;
 }
 
-function makeNotificationId(type: ReminderType): number {
-  return REMINDER_ID_BASE + reminderTypeToIndex(type);
+function makeNotificationId(type: ReminderType, date: Date): number {
+  const yyyymmdd =
+    date.getFullYear() * 10000
+    + (date.getMonth() + 1) * 100
+    + date.getDate();
+  return yyyymmdd * 100 + reminderTypeToIndex(type);
 }
 
 function resolveActionTypeId(
@@ -146,11 +148,6 @@ function timeStringToDate(hhmm: string, baseDate: Date): Date {
   return d;
 }
 
-/** 解析 'HH:MM' 字符串为今日的 Date 对象（向后兼容） */
-function timeStringToToday(hhmm: string): Date {
-  return timeStringToDate(hhmm, new Date());
-}
-
 export interface ScheduleOptions {
   manual: UserProfileManualV2;
   aiMode: string;
@@ -171,7 +168,7 @@ function buildPayloads(
   opts: ScheduleOptions,
 ): LocalNotificationPayload[] {
   return queue.map(({ type, time }) => ({
-    id: makeNotificationId(type),
+    id: makeNotificationId(type, baseDate),
     title: opts.notificationTitle ?? 'Seeday',
     body: opts.getCopyFn(type, { name: opts.userName }),
     at: timeStringToDate(time, baseDate),
@@ -187,61 +184,39 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   const wasMarkedToday = localStorage.getItem(SCHEDULE_DONE_KEY) === todayKey;
 
   const now = new Date();
-  const isFreeDay = await getIsFreeDay(now, opts.countryCode);
-  const queue = buildReminderQueue(opts.manual, now, isFreeDay);
+  const isTodayFreeDay = await getIsFreeDay(now, opts.countryCode);
+  const todayQueue = buildReminderQueue(opts.manual, now, isTodayFreeDay);
+  const futureTodayQueue = todayQueue.filter(({ time }) => timeStringToDate(time, now) > now);
+  const todayPayloads = buildPayloads(futureTodayQueue, now, opts);
 
-  // 只保留触发时间在未来的提醒
-  const future = queue.filter(({ time }) => timeStringToToday(time) > now);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode);
+  const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
+  const tomorrowPayloads = buildPayloads(tomorrowQueue, tomorrow, opts);
+
+  // 一次性保底排「今天剩余 + 明天全天」，避免隔天早晨无通知
+  const combinedPayloads = [...todayPayloads, ...tomorrowPayloads];
+  const todayFutureCount = todayPayloads.length;
 
   // 若今天已标记完成，先检查 pending 是否完整，完整则直接跳过。
   if (wasMarkedToday) {
     const pendingIds = await getPendingNotificationIds();
-
-    if (future.length > 0) {
-      const expectedTodayIds = buildPayloads(future, now, opts).map((item) => item.id);
-      const todayAlreadyScheduled =
-        expectedTodayIds.length > 0 && expectedTodayIds.every((id) => pendingIds.includes(id));
-      if (todayAlreadyScheduled) {
-        localStorage.setItem('reminder_today_count', String(expectedTodayIds.length));
-        return;
-      }
-    } else {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode);
-      const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
-      const expectedTomorrowIds = buildPayloads(tomorrowQueue, tomorrow, opts).map((item) => item.id);
-      const tomorrowAlreadyScheduled =
-        expectedTomorrowIds.length === 0 || expectedTomorrowIds.every((id) => pendingIds.includes(id));
-      if (tomorrowAlreadyScheduled) {
-        localStorage.setItem('reminder_today_count', '0');
-        return;
-      }
+    const expectedIds = combinedPayloads.map((item) => item.id);
+    const allAlreadyScheduled =
+      expectedIds.length === 0 || expectedIds.every((id) => pendingIds.includes(id));
+    if (allAlreadyScheduled) {
+      localStorage.setItem('reminder_today_count', String(todayFutureCount));
+      return;
     }
   }
 
   // 取消旧通知（cancelAllNotifications 已排除 idle_nudge）
   await cancelAllNotifications();
-
-  if (future.length === 0) {
-    // 今日所有提醒时间已过 → 调度明日队列，确保用户明天能收到通知
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode);
-    const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
-    const tomorrowPayloads = buildPayloads(tomorrowQueue, tomorrow, opts);
-    if (tomorrowPayloads.length > 0) {
-      const scheduled = await scheduleBatchNotifications(tomorrowPayloads);
-      if (!scheduled) return;
-    }
-    localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
-    localStorage.setItem('reminder_today_count', '0');
-    return;
+  if (combinedPayloads.length > 0) {
+    const scheduled = await scheduleBatchNotifications(combinedPayloads);
+    if (!scheduled) return;
   }
-
-  const payloads = buildPayloads(future, now, opts);
-  const scheduled = await scheduleBatchNotifications(payloads);
-  if (!scheduled) return;
   localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
-  localStorage.setItem('reminder_today_count', String(payloads.length));
+  localStorage.setItem('reminder_today_count', String(todayFutureCount));
 }
