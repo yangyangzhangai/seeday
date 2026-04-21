@@ -34,7 +34,7 @@ export const ProfilePage: React.FC = () => {
       <div className="pointer-events-none fixed right-0 top-0 h-[280px] w-[280px] rounded-full bg-[#B2EEDA]/10 blur-[90px]" />
       <div className="pointer-events-none fixed bottom-[120px] left-0 h-[200px] w-[200px] rounded-full bg-rose-200/20 blur-[70px]" />
 
-      <div className="app-mobile-page-frame app-scroll-container relative h-full w-full max-w-[430px] text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+      <div className="app-mobile-page-frame app-scroll-container profile-page-typography relative h-full w-full max-w-[430px] text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
         <header
           className="app-mobile-page-header sticky top-0 z-10 px-4 pb-3 pt-11"
           style={{
@@ -84,7 +84,7 @@ export const ProfilePage: React.FC = () => {
             <div className="px-4 py-3 transition hover:bg-white/70">
               <div className="flex w-full items-center justify-between gap-3">
                 <div className="flex items-center space-x-2.5">
-                  <Languages size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+                  <Languages size={18} strokeWidth={2} className="text-[#000000]" />
                   <span className="profile-fn-title">{t('language_switch')}</span>
                 </div>
                 <LanguageSwitcher variant="list" />

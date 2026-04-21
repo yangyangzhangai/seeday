@@ -39,13 +39,13 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}
       >
         <div className="flex items-center space-x-2.5">
-          <MapPin size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+          <MapPin size={18} strokeWidth={2} className="text-[#000000]" />
           <span className="profile-fn-title">{t('profile_region_settings')}</span>
         </div>
         <ChevronRight
-          size={16}
-          strokeWidth={1.5}
-          className={`text-gray-300 transition-transform ${isRegionOpen ? 'rotate-90' : ''}`}
+          size={18}
+          strokeWidth={2.5}
+          className={`text-[#5F7A63] transition-transform ${isRegionOpen ? 'rotate-90' : ''}`}
         />
       </button>
 
@@ -56,13 +56,13 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}
       >
         <div className="flex items-center space-x-2.5">
-          <Sprout size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+          <Sprout size={18} strokeWidth={2} className="text-[#000000]" />
           <span className="profile-fn-title">{t('profile_root_direction_settings')}</span>
         </div>
         <ChevronRight
-          size={16}
-          strokeWidth={1.5}
-          className={`text-gray-300 transition-transform ${isDirectionOpen ? 'rotate-90' : ''}`}
+          size={18}
+          strokeWidth={2.5}
+          className={`text-[#5F7A63] transition-transform ${isDirectionOpen ? 'rotate-90' : ''}`}
         />
       </button>
 
@@ -77,10 +77,10 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
           }`}
         >
           <div className="flex items-center space-x-2.5">
-            <Icon size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+            <Icon size={18} strokeWidth={2} className="text-[#000000]" />
             <span className="profile-fn-title">{t(labelKey)}</span>
           </div>
-          <ChevronRight size={16} strokeWidth={1.5} className="text-slate-300" />
+          <ChevronRight size={18} strokeWidth={2.5} className="text-[#5F7A63]" />
         </button>
       ))}
 
@@ -90,10 +90,10 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
             className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-t border-slate-200/60'}`}
           >
             <div className="flex items-center space-x-2.5">
-              <BarChart3 size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+              <BarChart3 size={18} strokeWidth={2} className="text-[#000000]" />
               <span className="profile-fn-title">{t('telemetry_hub_title')}</span>
             </div>
-            <ChevronRight size={16} strokeWidth={1.5} className="text-slate-300" />
+            <ChevronRight size={18} strokeWidth={2.5} className="text-[#5F7A63]" />
           </button>
         ) : null}
 
@@ -102,7 +102,7 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         onClick={handleLogout}
         className="flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-white/70"
       >
-        <LogOut size={16} strokeWidth={1.5} className="text-[#5F7A63]" />
+        <LogOut size={18} strokeWidth={2} className="text-[#000000]" />
         <span className="profile-fn-title">{t('profile_logout')}</span>
       </button>
     </div>

@@ -714,11 +714,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       location_updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase.auth.updateUser({ data: nextMetadata });
-    if (!error && data?.user) {
-      set({ user: data.user });
-    }
-    return { error };
+    // Save locally first to keep interaction instant.
+    set({
+      user: {
+        ...currentUser,
+        user_metadata: nextMetadata,
+      },
+    });
+
+    // Sync to Supabase silently in background.
+    void supabase.auth.updateUser({ data: nextMetadata })
+      .then(({ data, error }) => {
+        if (!error && data?.user) {
+          set({ user: data.user });
+          return;
+        }
+        if (import.meta.env.DEV && error) {
+          console.warn('[auth] updateLocationMetadata cloud sync failed (local saved):', error);
+        }
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateLocationMetadata cloud sync failed (local saved):', error);
+        }
+      });
+
+    return { error: null };
   },
 
   updateLongTermProfileEnabled: async (enabled) => {

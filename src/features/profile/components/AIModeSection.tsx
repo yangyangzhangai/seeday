@@ -26,13 +26,6 @@ const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
   momo: profileMomoAvatar,
 };
 
-const AI_SUBTITLE_KEY: Record<AiCompanionMode, string> = {
-  van: 'profile_ai_mode_van_subtitle',
-  agnes: 'profile_ai_mode_agnes_subtitle',
-  zep: 'profile_ai_mode_zep_subtitle',
-  momo: 'profile_ai_mode_momo_subtitle',
-};
-
 function showToast(msg: string) {
   const el = document.createElement('div');
   el.textContent = msg;
@@ -50,7 +43,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
     background:
       'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
     border: '0.5px solid transparent',
-    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+    boxShadow: '0 3px 8px rgba(103,154,121,0.10)',
   };
 
   const handleModeClick = (key: AiCompanionMode, free: boolean) => {
@@ -68,7 +61,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
   };
 
   return (
-    <div className={plain ? 'px-4 py-3' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
+    <div className={plain ? 'px-4 py-3' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_4px_12px_rgba(148,163,184,0.08)]'}>
       {/* Header row */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center space-x-1.5">
@@ -123,12 +116,6 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
                 style={{ color: selected ? '#426D56' : '#1e293b' }}
               >
                 {mode.name}
-              </span>
-              <span
-                className="mt-0.5 text-center text-[12px] font-light leading-tight"
-                style={{ color: selected ? '#6F9580' : '#64748b' }}
-              >
-                {t(AI_SUBTITLE_KEY[modeKey])}
               </span>
               {locked && (
                 <Lock size={10} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />

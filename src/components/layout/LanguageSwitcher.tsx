@@ -63,12 +63,12 @@ export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
                     triggerLightHaptic();
                     setIsOpen(!isOpen);
                 }}
-                className={isList ? 'flex items-center gap-1 text-xs text-slate-700 transition-all' : 'flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all'}
+                className={isList ? 'flex items-center gap-1.5 text-xs text-slate-700 transition-all' : 'flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all'}
                 style={isList ? undefined : triggerStyle}
             >
                 <span className={isList ? 'text-xs text-slate-600' : 'text-xs font-semibold'}>{currentLang.label}</span>
                 {isList ? (
-                    <ChevronRight size={14} className={`text-gray-300 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                    <ChevronRight size={18} strokeWidth={2.5} className={`text-[#5F7A63] transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                 ) : (
                     <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 )}

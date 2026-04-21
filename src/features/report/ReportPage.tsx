@@ -1,11 +1,11 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, startOfMonth, isSunday, endOfMonth } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { X, ChevronDown } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -51,6 +51,7 @@ export const ReportPage = () => {
   const [showEarlyTip, setShowEarlyTip] = useState(false);
   const [showDiaryBook, setShowDiaryBook] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [calendarDevNotice, setCalendarDevNotice] = useState<string | null>(null);
   const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(undefined);
   const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
@@ -215,43 +216,40 @@ export const ReportPage = () => {
 
   const handleOpenDiaryBook = useCallback(() => {
     const open = async () => {
-      const dayKey = (value: Date) => (
-        `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
-      );
       const startOfLocalDay = (value: Date) => (
         new Date(value.getFullYear(), value.getMonth(), value.getDate())
       );
       const now = new Date();
-      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const yesterdayKey = dayKey(yesterday);
-      const createdAtSource = user?.created_at ? new Date(user.created_at) : null;
-      const createdAtDay = createdAtSource && !Number.isNaN(createdAtSource.getTime())
-        ? startOfLocalDay(createdAtSource)
-        : null;
-      const backfillStart = createdAtDay && createdAtDay.getTime() <= yesterday.getTime()
-        ? createdAtDay
-        : yesterday;
 
-      const dailyReports = useReportStore.getState().reports.filter((report) => report.type === 'daily');
-      const existingKeys = new Set(
-        dailyReports
-          .map((report) => startOfLocalDay(new Date(report.date)))
-          .filter((date) => dayKey(date) <= yesterdayKey)
-          .map(dayKey),
-      );
+      let dailyReports = useReportStore.getState().reports.filter((report) => report.type === 'daily');
 
-      let cursor = new Date(backfillStart);
-      while (dayKey(cursor) <= yesterdayKey) {
-        const key = dayKey(cursor);
-        if (!existingKeys.has(key)) {
-          await generateReport('daily', cursor.getTime());
-          existingKeys.add(key);
+      // If user has no diary book yet, create the first one based on
+      // the first event/mood card date.
+      if (dailyReports.length === 0) {
+        const createdAtSource = user?.created_at ? new Date(user.created_at) : null;
+        const rangeStart = createdAtSource && !Number.isNaN(createdAtSource.getTime())
+          ? startOfLocalDay(createdAtSource)
+          : startOfLocalDay(now);
+        const historyMessages = await useChatStore.getState().getMessagesForDateRange(rangeStart, now);
+        const firstRecord = historyMessages
+          .filter((message) => message.mode === 'record')
+          .sort((left, right) => left.timestamp - right.timestamp)[0];
+
+        if (firstRecord) {
+          const firstRecordDay = startOfLocalDay(new Date(firstRecord.timestamp));
+          await generateReport('daily', firstRecordDay.getTime());
+          dailyReports = useReportStore.getState().reports.filter((report) => report.type === 'daily');
         }
-        cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
       }
 
-      setSavedDiaryBookMonth(new Date(yesterday.getFullYear(), yesterday.getMonth(), 1));
-      setSavedDiaryBookFlippedCount(yesterday.getDate());
+      if (dailyReports.length > 0) {
+        const latestDailyDate = new Date(Math.max(...dailyReports.map((report) => report.date)));
+        setSavedDiaryBookMonth(startOfMonth(latestDailyDate));
+        setSavedDiaryBookFlippedCount(latestDailyDate.getDate());
+      } else {
+        setSavedDiaryBookMonth(undefined);
+        setSavedDiaryBookFlippedCount(undefined);
+      }
       setShowDiaryBook(true);
     };
     void open();
@@ -273,6 +271,11 @@ export const ReportPage = () => {
 
   const today = new Date();
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
+  const isZh = currentLang === 'zh';
+  const showCalendarFeatureNotice = useCallback((kind: 'weekly' | 'monthly') => {
+    setCalendarDevNotice(kind === 'weekly' ? t('report_weekly_in_dev') : t('report_monthly_in_dev'));
+    window.setTimeout(() => setCalendarDevNotice(null), 1800);
+  }, [t]);
 
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
@@ -286,62 +289,45 @@ export const ReportPage = () => {
         }}
       >
         <div className="grid grid-cols-[1fr_auto] items-start gap-x-3">
-          <h1 className="text-2xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
-          <button
-            onClick={handleOpenDiaryBook}
-            className="mt-[1px] rounded-full px-2 py-1 active:opacity-70 transition whitespace-nowrap flex-shrink-0"
-            style={{ width: 'clamp(100px, 28vw, 116px)', fontSize: 'clamp(11px, 2.9vw, 13px)', fontWeight: 500, background: 'rgba(144.67, 212.06, 122.21, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8', lineHeight: '1.2rem' }}
-          >
-            {t('report_view_diary_book')}
-          </button>
-        </div>
-        <button
-          onClick={() => setShowCalendarModal(true)}
-          aria-label={t('report_calendar_view')}
-          className="mt-2 text-left transition active:scale-[0.99] active:opacity-90 select-none"
-          style={{
-            border: '1px solid rgba(134,168,143,0.48)',
-            borderRadius: 20,
-            padding: '10px 12px 11px',
-            display: 'inline-flex',
-            flexDirection: 'column',
-            gap: 4,
-            background: 'linear-gradient(155deg, rgba(255,255,255,0.82), rgba(233,244,235,0.78))',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 20px rgba(98,132,108,0.14)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.11em', color: '#6e9275', textTransform: 'uppercase', lineHeight: 1 }}>
-              {format(today, 'EEEE', { locale: calendarLocale })}
-            </span>
-            <span
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 999,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(122,155,126,0.14)',
-                border: '1px solid rgba(122,155,126,0.24)',
-                color: '#5F7A63',
-                flexShrink: 0,
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold leading-none" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('report_title')}</h1>
+            <div className="mt-2">
+              <p className="text-[13px] font-medium leading-none text-[#4a5d4c]">
+                {format(today, isZh ? 'yyyy年M月d日' : 'PPP', { locale: calendarLocale })}
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-none text-[#4a5d4c]">
+                {format(today, 'EEEE', { locale: calendarLocale })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 justify-self-end">
+            <button
+              onClick={() => {
+                setDate(new Date());
+                setCalendarDevNotice(null);
+                setShowCalendarModal(true);
               }}
+              aria-label={t('report_calendar_view')}
+              title={t('report_calendar_view')}
+              className="w-11 h-11 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-2xl border border-[#8fae9130] shadow-[0_8px_20px_rgba(143,174,145,0.12)] cursor-pointer transition-all hover:scale-105 active:scale-95 group"
             >
-              <ChevronDown size={12} strokeWidth={2.6} />
-            </span>
+              <span
+                className="material-symbols-outlined text-[#5F7A63] group-hover:text-[#5F7A63] transition-colors"
+                style={{ fontSize: 24 }}
+              >
+                calendar_month
+              </span>
+            </button>
+            <button
+              onClick={handleOpenDiaryBook}
+              className="h-11 flex items-center gap-2 px-5 rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95"
+              style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', boxShadow: '0px 2px 2px #C8C8C8', border: 'none' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>book_5</span>
+              <span className="text-[13px] font-bold">{t('report_view_diary_book')}</span>
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <span style={{ fontSize: 'clamp(36px,8vw,42px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#1f2b44', lineHeight: 0.98 }}>
-              {format(today, currentLang === 'zh' ? 'M月d日' : 'MMMM d', { locale: calendarLocale })}
-            </span>
-            <span style={{ fontSize: 'clamp(24px,5.4vw,28px)', fontWeight: 500, color: '#6f9273', letterSpacing: '-0.01em' }}>
-              {format(today, 'yyyy')}
-            </span>
-          </div>
-        </button>
+        </div>
       </header>
 
       <div className="flex-1 relative overflow-hidden">
@@ -363,27 +349,98 @@ export const ReportPage = () => {
       )}
 
       {showCalendarModal && (
-        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={() => setShowCalendarModal(false)}>
-          <div className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-3xl p-4 animate-in fade-in zoom-in-95')} onClick={e => e.stopPropagation()}>
+        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={() => { setShowCalendarModal(false); setCalendarDevNotice(null); }}>
+          <div
+            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-[34px] p-4 animate-in fade-in zoom-in-95')}
+            style={{
+              background: 'rgba(255,255,255,0.72)',
+              border: '1px solid rgba(255,255,255,0.82)',
+              boxShadow: '0 24px 54px rgba(40,56,44,0.18), inset 0 1px 0 rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(18px) saturate(130%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(130%)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-semibold text-slate-700">{t('report_calendar_view')}</span>
-              <button onClick={() => setShowCalendarModal(false)} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
+              <button onClick={() => { setShowCalendarModal(false); setCalendarDevNotice(null); }} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
                 <X size={24} strokeWidth={1.5} />
               </button>
             </div>
-            <div className="calendar-wrapper flex justify-center">
+            <div className="calendar-wrapper report-calendar-frost relative flex justify-center">
+              {calendarDevNotice ? (
+                <div className="pointer-events-none absolute left-1/2 -top-7 z-10 -translate-x-1/2 px-1 py-0.5 text-center text-[12px] font-medium text-[#4a5d4c]">
+                  {calendarDevNotice}
+                </div>
+              ) : null}
               <Calendar
                 onChange={setDate}
                 value={date}
                 onClickDay={(value) => { handleDateClick(value); setShowCalendarModal(false); }}
                 locale={i18n.language}
-                className="w-full border-none text-xs"
+                className="w-full border-none text-[13px] font-medium"
                 showNeighboringMonth={false}
                 formatDay={(_, calendarDate) => String(calendarDate.getDate())}
                 formatShortWeekday={(_, calendarDate) => {
                   return format(calendarDate, 'EEEEE', { locale: calendarLocale });
                 }}
+                tileContent={({ date: calendarDate, view }) => {
+                  if (view !== 'month') return null;
+                  const sunday = isSunday(calendarDate);
+                  const monthEnd = calendarDate.getDate() === endOfMonth(calendarDate).getDate();
+                  if (!sunday && !monthEnd) return null;
+                  return (
+                    <div className="pointer-events-auto absolute inset-x-0 bottom-[1px] flex items-center justify-center gap-1">
+                      {sunday ? (
+                        <button
+                          type="button"
+                          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            showCalendarFeatureNotice('weekly');
+                          }}
+                          className="calendar-tag-hit calendar-tag-hit--weekly"
+                          aria-label={t('report_weekly_in_dev')}
+                          title={t('report_weekly_in_dev')}
+                        />
+                      ) : null}
+                      {monthEnd ? (
+                        <button
+                          type="button"
+                          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            showCalendarFeatureNotice('monthly');
+                          }}
+                          className="calendar-tag-hit calendar-tag-hit--monthly"
+                          aria-label={t('report_monthly_in_dev')}
+                          title={t('report_monthly_in_dev')}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                }}
               />
+            </div>
+            <div className="mt-2 flex items-center justify-center gap-4 text-[11px] font-medium text-[#4a5d4c]">
+              <button
+                type="button"
+                className="flex items-center gap-1.5"
+                onClick={() => showCalendarFeatureNotice('weekly')}
+              >
+                <span className="calendar-tag-dot calendar-tag-dot--weekly" />
+                <span>{t('report_weekly')}</span>
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1.5"
+                onClick={() => showCalendarFeatureNotice('monthly')}
+              >
+                <span className="calendar-tag-dot calendar-tag-dot--monthly" />
+                <span>{t('report_monthly')}</span>
+              </button>
             </div>
           </div>
         </div>

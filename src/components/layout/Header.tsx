@@ -35,14 +35,14 @@ export const Header = () => {
         {user ? (
           <>
             <div
-              className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer"
+              className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer"
               onClick={() => setShowAvatarModal(true)}
             >
               {user.user_metadata?.avatar_url ? (
                 <img src={user.user_metadata.avatar_url} alt="avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <User size={16} className="text-gray-400" />
+                  <User size={18} className="text-gray-400" />
                 </div>
               )}
             </div>

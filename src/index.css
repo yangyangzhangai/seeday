@@ -22,10 +22,35 @@ body {
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  line-height: 1.5;
 }
 
 #root {
   overflow: hidden;
+}
+
+/* Global typography baseline: keep line-height consistent across pages. */
+#root :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  small,
+  strong,
+  em,
+  li,
+  a,
+  button,
+  label,
+  input,
+  textarea,
+  select
+):not(.material-symbols-outlined) {
+  line-height: 1.5 !important;
 }
 
 img {
@@ -203,6 +228,48 @@ a {
   touch-action: manipulation;
 }
 
+/* Global button micro-interaction to match report header button feel. */
+button {
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover {
+    transform: scale(1.03);
+  }
+}
+
+button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+/* Profile page typography: make all copy medium except the main title. */
+.profile-page-typography :where(
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  label,
+  button,
+  a,
+  li,
+  small,
+  strong,
+  em,
+  input,
+  textarea,
+  select
+):not(.material-symbols-outlined) {
+  font-weight: 500 !important;
+}
+
+.profile-page-typography > header h1 {
+  font-weight: 800 !important;
+}
+
 /* Calendar custom styles for 时间报告 */
 .calendar-wrapper .react-calendar {
   width: min(92vw, 420px);
@@ -277,6 +344,76 @@ a {
 .diary-shelf-calendar .react-calendar__tile--active {
   background: transparent !important;
   color: #111827;
+}
+
+.calendar-wrapper.report-calendar-frost .react-calendar {
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+}
+
+.calendar-wrapper.report-calendar-frost .react-calendar__navigation button {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5d4c;
+}
+
+.calendar-wrapper.report-calendar-frost .react-calendar__month-view__weekdays {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.calendar-wrapper.report-calendar-frost .react-calendar__month-view__weekdays__weekday {
+  color: #8da0b8;
+}
+
+.calendar-wrapper.report-calendar-frost .react-calendar__tile {
+  position: relative;
+  padding: 0.45rem 0 0.68rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5d4c;
+}
+
+.calendar-tag-hit {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.calendar-tag-hit::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+}
+
+.calendar-tag-hit--weekly::before {
+  background: #8ea3bf;
+}
+
+.calendar-tag-hit--monthly::before {
+  background: #d8b53f;
+}
+
+.calendar-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.calendar-tag-dot--weekly {
+  background: #8ea3bf;
+}
+
+.calendar-tag-dot--monthly {
+  background: #d8b53f;
 }
 
 .diary-shelf-calendar .react-calendar__tile--active abbr {
