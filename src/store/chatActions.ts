@@ -390,14 +390,15 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   const duration = resolveAutoActivityDurationMinutes(lastMessage.timestamp, now);
   updatedMessages[lastRecordIndex] = { ...lastMessage, duration, isActive: false };
 
-  const session = await getSupabaseSession();
-  if (session) {
+  void (async () => {
+    const session = await getSupabaseSession();
+    if (!session) return;
     await supabase
       .from('messages')
       .update({ duration, is_active: false })
       .eq('id', lastMessage.id)
       .eq('user_id', session.user.id);
-  }
+  })();
 
   const moodStore = useMoodStore.getState();
   if (!moodStore.getMood(lastMessage.id)) {

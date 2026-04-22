@@ -5,7 +5,6 @@ import { ArrowDownUp } from 'lucide-react';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useChatStore } from '../../store/useChatStore';
-import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
 import { buildTodoCompletionAnnotationPayload } from '../../lib/todoCompletionAnnotation';
 import { cn } from '../../lib/utils';
@@ -31,7 +30,7 @@ function getPriorityRank(priority: GrowthTodo['priority']): number {
 export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
+  const decrementBottleStars = useGrowthStore((s) => s.decrementBottleStars);
   const bottles = useGrowthStore((s) => s.bottles);
   const {
     todos,
@@ -50,6 +49,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     setTodoCompletionMessage,
     getTodoCompletionMessage,
     clearTodoCompletionMessage,
+    consumeBottleStarRewardByTodo,
   } = useTodoStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
@@ -89,11 +89,30 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     void fetchTodos();
   };
 
+  const resolveLatestEventEndTime = (referenceNow: number): number => {
+    let latestEnd = 0;
+    for (const message of useChatStore.getState().messages) {
+      if (message.isMood || message.mode !== 'record') continue;
+      if (message.timestamp > referenceNow) continue;
+      const endMs = message.duration !== undefined
+        ? message.timestamp + message.duration * 60_000
+        : referenceNow;
+      if (endMs <= referenceNow && endMs > latestEnd) {
+        latestEnd = endMs;
+      }
+    }
+    return latestEnd > 0 ? latestEnd : referenceNow;
+  };
+
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
     const wasCompleted = todo?.completed ?? true;
     toggleTodo(id);
     if (todo && wasCompleted) {
+      const reward = consumeBottleStarRewardByTodo(todo.id);
+      if (reward) {
+        decrementBottleStars(reward.bottleId, reward.stars);
+      }
       const generatedMessageId = getTodoCompletionMessage(todo.id);
       if (generatedMessageId) {
         await deleteActivity(generatedMessageId);
@@ -111,14 +130,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         now,
         bottleName: linkedBottle?.name,
       });
-      if (todo.bottleId) {
-        const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
-          todoId: todo.id,
-          bottleId: todo.bottleId,
-        });
-        incrementBottleStars(todo.bottleId, stars);
-      }
-      const startTime = todo.startedAt ?? now;
+      const startTime = resolveLatestEventEndTime(now);
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
         annotationEventType: 'activity_completed',
@@ -129,7 +141,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       });
       if (msgId) {
         setTodoCompletionMessage(todo.id, msgId);
-        await endActivity(msgId, { skipBottleStar: !!todo.bottleId });
+        await endActivity(msgId);
       } else {
         clearTodoCompletionMessage(todo.id);
       }
@@ -139,7 +151,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const handleDelete = (id: string) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
-    if (todo.templateId) {
+    if (todo.templateId && !todo.completed) {
       setPendingDelete(todo);
     } else {
       deleteTodo(id);

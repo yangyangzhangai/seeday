@@ -20,6 +20,13 @@
     position: relative;
     overflow: hidden;
   }
+  /* Single-shot playback: prevent loop reset flash at center */
+  .scene *,
+  .scene *::before,
+  .scene *::after {
+    animation-iteration-count: 1 !important;
+    animation-fill-mode: forwards !important;
+  }
 
   .star-xy {
     position: absolute;

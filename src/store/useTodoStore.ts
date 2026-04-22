@@ -15,6 +15,7 @@ import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapter
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
+import { useGrowthStore } from './useGrowthStore';
 import type { AnnotationEvent } from '../types/annotation';
 import i18n from '../i18n';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
@@ -275,6 +276,8 @@ interface TodoState {
   lastGeneratedDate: string;
   activeMessageMap: Record<string, string>;
   todoCompletionMessageMap: Record<string, string>;
+  todoBottleStarRewardMap: Record<string, { bottleId: string; stars: number }>;
+  messageBottleStarRewardMap: Record<string, { bottleId: string; stars: number; todoId?: string }>;
 
   fetchTodos: () => Promise<void>;
   addTodo: (input: {
@@ -309,6 +312,9 @@ interface TodoState {
   setTodoCompletionMessage: (todoId: string, messageId: string) => void;
   getTodoCompletionMessage: (todoId: string) => string | undefined;
   clearTodoCompletionMessage: (todoId: string) => void;
+  registerBottleStarReward: (params: { todoId?: string; messageId?: string; bottleId: string; stars: number }) => void;
+  consumeBottleStarRewardByTodo: (todoId: string) => { bottleId: string; stars: number } | null;
+  consumeBottleStarRewardByMessage: (messageId: string) => { bottleId: string; stars: number } | null;
 }
 
 // ── Unified Store ───────────────────────────────────────────
@@ -324,6 +330,8 @@ export const useTodoStore = create<TodoState>()(
       lastGeneratedDate: '',
       activeMessageMap: {},
       todoCompletionMessageMap: {},
+      todoBottleStarRewardMap: {},
+      messageBottleStarRewardMap: {},
 
       // ── Fetch from Supabase ──────────────────────────────────────────────
       // 策略：推 pending/failed → 收集仍然失败的 → 拉云端（软删除过滤）→ 合并失败的进去
@@ -617,6 +625,12 @@ export const useTodoStore = create<TodoState>()(
           const instanceIds = get()
             .todos.filter((t) => t.templateId === id && !t.completed)
             .map((t) => t.id);
+          [id, ...instanceIds].forEach((todoId) => {
+            const reward = get().consumeBottleStarRewardByTodo(todoId);
+            if (reward) {
+              useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
+            }
+          });
           set((s) => ({
             todos: s.todos.filter(
               (t) => t.id !== id && !(t.templateId === id && !t.completed)
@@ -624,10 +638,20 @@ export const useTodoStore = create<TodoState>()(
             todoCompletionMessageMap: Object.fromEntries(
               Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
             ),
+            todoBottleStarRewardMap: Object.fromEntries(
+              Object.entries(s.todoBottleStarRewardMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
+            ),
+            messageBottleStarRewardMap: Object.fromEntries(
+              Object.entries(s.messageBottleStarRewardMap).filter(([, reward]) => reward.todoId !== id && !instanceIds.includes(reward.todoId || ''))
+            ),
           }));
           bgSyncDelete(id).catch(console.error);
           instanceIds.forEach((iid) => bgSyncDelete(iid).catch(console.error));
         } else {
+          const reward = get().consumeBottleStarRewardByTodo(id);
+          if (reward) {
+            useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
+          }
           set((s) => ({
             todos: s.todos.filter((t) => t.id !== id),
             todoCompletionMessageMap: Object.fromEntries(
@@ -895,6 +919,16 @@ export const useTodoStore = create<TodoState>()(
             ...s.todoCompletionMessageMap,
             [todoId]: messageId,
           },
+          messageBottleStarRewardMap: s.todoBottleStarRewardMap[todoId]
+            ? {
+              ...s.messageBottleStarRewardMap,
+              [messageId]: {
+                bottleId: s.todoBottleStarRewardMap[todoId].bottleId,
+                stars: s.todoBottleStarRewardMap[todoId].stars,
+                todoId,
+              },
+            }
+            : s.messageBottleStarRewardMap,
         }));
       },
 
@@ -907,6 +941,64 @@ export const useTodoStore = create<TodoState>()(
           ),
         }));
       },
+
+      registerBottleStarReward: ({ todoId, messageId, bottleId, stars }) => {
+        const safeStars = Math.max(1, Math.floor(stars || 1));
+        set((s) => {
+          const nextTodoRewards = todoId
+            ? {
+              ...s.todoBottleStarRewardMap,
+              [todoId]: { bottleId, stars: safeStars },
+            }
+            : s.todoBottleStarRewardMap;
+          const linkedMessageId = messageId || (todoId ? s.todoCompletionMessageMap[todoId] : undefined);
+          const nextMessageRewards = linkedMessageId
+            ? {
+              ...s.messageBottleStarRewardMap,
+              [linkedMessageId]: { bottleId, stars: safeStars, ...(todoId ? { todoId } : {}) },
+            }
+            : s.messageBottleStarRewardMap;
+          return {
+            todoBottleStarRewardMap: nextTodoRewards,
+            messageBottleStarRewardMap: nextMessageRewards,
+          };
+        });
+      },
+
+      consumeBottleStarRewardByTodo: (todoId) => {
+        const state = get();
+        const reward = state.todoBottleStarRewardMap[todoId];
+        if (!reward) return null;
+        const linkedMessageId = state.todoCompletionMessageMap[todoId];
+        set((s) => ({
+          todoBottleStarRewardMap: Object.fromEntries(
+            Object.entries(s.todoBottleStarRewardMap).filter(([key]) => key !== todoId)
+          ),
+          messageBottleStarRewardMap: linkedMessageId
+            ? Object.fromEntries(
+              Object.entries(s.messageBottleStarRewardMap).filter(([key]) => key !== linkedMessageId)
+            )
+            : s.messageBottleStarRewardMap,
+        }));
+        return reward;
+      },
+
+      consumeBottleStarRewardByMessage: (messageId) => {
+        const state = get();
+        const reward = state.messageBottleStarRewardMap[messageId];
+        if (!reward) return null;
+        set((s) => ({
+          messageBottleStarRewardMap: Object.fromEntries(
+            Object.entries(s.messageBottleStarRewardMap).filter(([key]) => key !== messageId)
+          ),
+          todoBottleStarRewardMap: reward.todoId
+            ? Object.fromEntries(
+              Object.entries(s.todoBottleStarRewardMap).filter(([key]) => key !== reward.todoId)
+            )
+            : s.todoBottleStarRewardMap,
+        }));
+        return { bottleId: reward.bottleId, stars: reward.stars };
+      },
     }),
     {
       name: 'growth-todo-store', // keep this key to preserve existing growth data
@@ -917,6 +1009,8 @@ export const useTodoStore = create<TodoState>()(
         lastGeneratedDate: state.lastGeneratedDate,
         activeMessageMap: state.activeMessageMap,
         todoCompletionMessageMap: state.todoCompletionMessageMap,
+        todoBottleStarRewardMap: state.todoBottleStarRewardMap,
+        messageBottleStarRewardMap: state.messageBottleStarRewardMap,
       }),
     }
   )

@@ -31,7 +31,6 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const endActivity = useChatStore((s) => s.endActivity);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
   const todos = useTodoStore((s) => s.todos);
-  const incrementBottleStars = useGrowthStore((s) => s.incrementBottleStars);
   const bottles = useGrowthStore((s) => s.bottles);
   const [durationMinutes, setDurationMinutes] = useState(() => normalizeDurationMinutes(queueTodos?.[0]?.suggestedDuration ?? todo.suggestedDuration));
   const [showConfirmEnd, setShowConfirmEnd] = useState(false);
@@ -110,7 +109,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
 
   const completeTodoAndEndActivity = useCallback(async (targetTodo: GrowthTodo) => {
     if (activeMessageId) {
-      await endActivity(activeMessageId, { skipBottleStar: !!targetTodo.bottleId });
+      await endActivity(activeMessageId);
     }
     const session = endFocus();
     if (!targetTodo.completed) {
@@ -131,16 +130,9 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
           todoCompletionContext: payload.context,
         },
       }).catch(console.error);
-      if (targetTodo.bottleId) {
-        const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({
-          todoId: targetTodo.id,
-          bottleId: targetTodo.bottleId,
-        });
-        incrementBottleStars(targetTodo.bottleId, stars);
-      }
     }
     return session;
-  }, [activeMessageId, endActivity, endFocus, toggleTodo, incrementBottleStars, bottles, todos]);
+  }, [activeMessageId, endActivity, endFocus, toggleTodo, bottles, todos]);
 
   const startRestThenAdvance = useCallback(() => {
     const REST_SECS = 5 * 60; // 5 min rest
