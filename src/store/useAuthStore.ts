@@ -222,10 +222,28 @@ function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
 }
 
 function resolveOAuthRedirectUrl(): string {
+  const isValidAbsoluteUrl = (value: string): boolean => {
+    try {
+      const parsed = new URL(value);
+      return Boolean(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
   if (Capacitor.isNativePlatform()) {
-    return IOS_OAUTH_REDIRECT_URL;
+    const nativeRedirect = IOS_OAUTH_REDIRECT_URL.trim();
+    if (nativeRedirect && isValidAbsoluteUrl(nativeRedirect)) {
+      return nativeRedirect;
+    }
+    return 'com.seeday.app://auth/callback';
   }
-  return window.location.origin;
+
+  const webOrigin = typeof window !== 'undefined' ? window.location?.origin || '' : '';
+  if (webOrigin && isValidAbsoluteUrl(webOrigin)) {
+    return webOrigin;
+  }
+  return '';
 }
 
 export function resolveMembershipState(
@@ -597,11 +615,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: resolveOAuthRedirectUrl() },
-    });
-    return { error };
+    try {
+      const redirectTo = resolveOAuthRedirectUrl();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: redirectTo ? { redirectTo } : undefined,
+      });
+      return { error };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
   signInWithApple: async () => {
@@ -625,11 +648,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { error: e };
       }
     }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: resolveOAuthRedirectUrl() },
-    });
-    return { error };
+    try {
+      const redirectTo = resolveOAuthRedirectUrl();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: redirectTo ? { redirectTo } : undefined,
+      });
+      return { error };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
   signUp: async (email, password, nickname, avatarDataUrl) => {
