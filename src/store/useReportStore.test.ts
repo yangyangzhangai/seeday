@@ -14,6 +14,7 @@ vi.mock('./useAnnotationStore', () => ({
 
 import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
+import { useOutboxStore } from './useOutboxStore';
 import { useReportStore } from './useReportStore';
 import { useTodoStore } from './useTodoStore';
 
@@ -31,6 +32,7 @@ describe('useReportStore regeneration persistence', () => {
       moodNoteMeta: {},
     });
     useReportStore.setState({ reports: [], computedHistory: [] });
+    useOutboxStore.setState({ entries: [] });
   });
 
   it('reuses the same report id when regenerating the same daily report', async () => {
@@ -42,5 +44,24 @@ describe('useReportStore regeneration persistence', () => {
     expect(secondId).toBe(firstId);
     expect(useReportStore.getState().reports).toHaveLength(1);
     expect(useReportStore.getState().reports[0].id).toBe(firstId);
+  });
+
+  it('queues full report upsert when updateReport runs without session', async () => {
+    useReportStore.setState({
+      reports: [{
+        id: 'report-1',
+        title: 'Today',
+        date: new Date('2026-03-20T12:00:00Z').getTime(),
+        type: 'daily',
+        content: 'Generated report',
+        userNote: 'old',
+      }],
+    });
+
+    await useReportStore.getState().updateReport('report-1', { userNote: 'new note' });
+
+    expect(useReportStore.getState().reports[0].userNote).toBe('new note');
+    expect(useOutboxStore.getState().entries).toHaveLength(1);
+    expect(useOutboxStore.getState().entries[0].kind).toBe('report.upsert');
   });
 });

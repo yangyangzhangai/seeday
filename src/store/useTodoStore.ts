@@ -31,14 +31,12 @@ import {
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 
-// ── Priority types ──────────────────────────────────────────
 export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
 export type GrowthPriority = 'high' | 'medium' | 'low';
 export type TodoPriority = Priority | GrowthPriority;
 export type TodoScope = 'daily' | 'weekly' | 'monthly';
 export type Recurrence = 'none' | 'once' | 'daily' | 'weekly' | 'monthly';
 
-// ── Unified Todo interface ──────────────────────────────────
 export interface Todo {
   id: string;
   title: string;                     // was 'content' in old store
@@ -167,7 +165,6 @@ async function refineTodoCategoryWithAI(id: string, title: string): Promise<void
   }
 }
 
-// ── Store interface ─────────────────────────────────────────
 interface TodoState {
   todos: Todo[];
   categories: ActivityRecordType[];

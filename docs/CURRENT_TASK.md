@@ -36,7 +36,7 @@ Status: 实施中（高优先）
 
 ## 当前主线 B：存储系统 P1 优化（DATA_STORAGE_P1）
 
-Status: 实施中（Sprint A 已完成）
+Status: 实施中（Sprint A-D 主体已完成，剩余收口项与失败可见性）
 规格文档：`docs/DATA_STORAGE_AUDIT_REPORT.md`
 
 ### 待完成（按建议顺序）
@@ -46,9 +46,12 @@ Status: 实施中（Sprint A 已完成）
 - [x] **P1-7** Realtime 高频/低频双通道拆分
 - [x] **P1-4** Zustand persist key 统一为 `seeday:v1:<domain>`
 - [x] **P1-2** `useAuthStore.initialize` 新鲜度门控（60s）
-- [ ] **P1-1a/b/c** Outbox（骨架 -> 四 store 接入 -> flush 触发点）
-- [ ] **P1-1'** Outbox 失败 UI（需先与 Young 对齐方案）
-- [ ] **P1-5** Chat `syncState` + outbox 联动
+- [x] **P1-1a/b/c** Outbox（骨架 -> 四 store 接入 -> flush 触发点）
+- [x] **P1-5 / C-1** Chat `syncState` + outbox 联动
+- [x] **C-2** Plant 写路径 durable 化（local-first + cloud fail 不丢）
+- [x] **C-3** Report 次级更新写路径并入 outbox
+- [ ] **C-4** Annotation `suggestion_accepted` durable 化
+- [ ] **P1-1' / C-5** Outbox 失败 UI（需先与 Young 对齐方案）
 
 ### 执行拆解（已同步为可落地清单）
 
@@ -100,10 +103,25 @@ Status: 实施中（Sprint A 已完成）
   - 动作：`online` / `foreground` / `initialize` 后触发 `useOutboxStore.getState().flush(userId)`
   - 验收：断网 -> 操作 -> 联网，无需重启可补推
 
-- [ ] **D-4 / P1-5 Chat syncState 联动**
+- [x] **D-4 / P1-5 Chat syncState 联动**
   - 触达：`src/store/useChatStore.ts`（及关联类型）
-  - 动作：`sendMessage` 失败标记 `syncState: 'pending'` 并入 outbox；`_refreshDateSilently` 用 `syncState` 区分离线与删除
-  - 验收：离线发消息重连后不重不漏；被删除消息不复活
+  - 动作：`sendMessage` / `sendMood` 新消息本地先标记 `syncState`；首次写库失败进入 `chat.upsert` outbox；`_refreshDateSilently` 与 `fetchMessages` 用 `syncState` 区分离线未同步与云端删除
+  - 验收：离线发消息重连后不重不漏；被删除消息不再因旧“本地有云端无”规则错误复活
+
+- [x] **D-6 / C-2 Plant 写路径 durable 化**
+  - 触达：`src/store/usePlantStore.ts`
+  - 动作：保留本地即时更新；`setDirectionOrder()` 云端失败改为进入 `plant.directionOrder` outbox，而不是仅抛错
+  - 验收：断网修改方向设置后，UI 保持本地结果；联网后自动补推；不会静默回滚
+
+- [x] **D-7 / C-3 Report 次级更新并入 outbox**
+  - 触达：`src/store/useReportStore.ts`
+  - 动作：`updateReport()` 无 session 或直写失败时，改为 enqueue 完整 `report.upsert`；本地仍保留乐观结果
+  - 验收：断网修改 report title/content/userNote 后，联网自动补推
+
+- [ ] **D-8 / C-4 Annotation suggestion outcome durable 化**
+  - 触达：`src/store/useAnnotationStore.ts`
+  - 动作：`suggestion_accepted` 更新失败进入 outbox 或等价 pending 机制
+  - 验收：断网点击“接受建议”后，本地态不丢；联网自动补推
 
 - [ ] **D-5 / P1-1' Outbox 失败 UI（阻塞）**
   - 前置：必须先与 Young 对齐方案（小红点 / 横幅 / 悬浮 badge）
@@ -140,9 +158,10 @@ Status: 主链路可用，剩余增强项
 
 ## 早期遗留（需决策或补收口）
 
-- [ ] `user_metadata` 并发写策略统一（避免与 `long_term_profile_enabled/login_days/lateral_association_state_v1` 互相覆盖）
+- [x] `user_metadata` 并发写策略统一（已通过 `authMetadataQueue.ts` 串行化落地）
 - [ ] User Profile：关闭长期画像后的数据治理与清除交互细节
 - [ ] 低叙事密度能力（Doc1/P1）的线上 DoD 验收与 2 周运营复盘尚未完成
+- [ ] 多账号本地数据隔离二阶段治理：user-scoped persist key / hydrate 前 owner 校验 / 禁止 unknown-owner 自动迁移（本轮先不做，待 DATA_STORAGE_P1 收口后单独推进）
 
 ---
 

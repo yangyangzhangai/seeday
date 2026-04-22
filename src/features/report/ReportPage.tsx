@@ -272,8 +272,14 @@ export const ReportPage = () => {
   const today = new Date();
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
   const isZh = currentLang === 'zh';
-  const showCalendarFeatureNotice = useCallback((kind: 'weekly' | 'monthly') => {
-    setCalendarDevNotice(kind === 'weekly' ? t('report_weekly_in_dev') : t('report_monthly_in_dev'));
+  const showCalendarFeatureNotice = useCallback((kind: 'weekly' | 'monthly' | 'custom') => {
+    if (kind === 'weekly') {
+      setCalendarDevNotice(t('report_weekly_coming_soon'));
+    } else if (kind === 'monthly') {
+      setCalendarDevNotice(t('report_monthly_coming_soon'));
+    } else {
+      setCalendarDevNotice(t('report_custom_coming_soon'));
+    }
     window.setTimeout(() => setCalendarDevNotice(null), 1800);
   }, [t]);
 
@@ -401,8 +407,8 @@ export const ReportPage = () => {
                             showCalendarFeatureNotice('weekly');
                           }}
                           className="calendar-tag-hit calendar-tag-hit--weekly"
-                          aria-label={t('report_weekly_in_dev')}
-                          title={t('report_weekly_in_dev')}
+                           aria-label={t('report_weekly_coming_soon')}
+                           title={t('report_weekly_coming_soon')}
                         />
                       ) : null}
                       {monthEnd ? (
@@ -415,8 +421,8 @@ export const ReportPage = () => {
                             showCalendarFeatureNotice('monthly');
                           }}
                           className="calendar-tag-hit calendar-tag-hit--monthly"
-                          aria-label={t('report_monthly_in_dev')}
-                          title={t('report_monthly_in_dev')}
+                           aria-label={t('report_monthly_coming_soon')}
+                           title={t('report_monthly_coming_soon')}
                         />
                       ) : null}
                     </div>
@@ -440,6 +446,14 @@ export const ReportPage = () => {
               >
                 <span className="calendar-tag-dot calendar-tag-dot--monthly" />
                 <span>{t('report_monthly')}</span>
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1.5"
+                onClick={() => showCalendarFeatureNotice('custom')}
+              >
+                <span className="calendar-tag-dot calendar-tag-dot--custom" />
+                <span>{t('report_custom')}</span>
               </button>
             </div>
           </div>

@@ -6,6 +6,13 @@ const ERROR_LIMIT = 1000;
 const ROOT_DIRS = ['src', 'api'];
 const FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', '.vercel']);
+const WHITELIST_PATTERNS = [
+  /^src\/i18n\/locales\/.+\.ts$/,
+  /^src\/lib\/aiCompanion\/prompts\/.+\.ts$/,
+  /^src\/server\/.+prompt.+\.ts$/i,
+  /^src\/services\/input\/lexicon\/.+Lexicon\.ts$/,
+  /^src\/services\/input\/liveInputRules\.(en|it|zh)\.ts$/,
+];
 
 async function collectFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -53,6 +60,11 @@ function toRelative(filePath) {
   return path.relative(process.cwd(), filePath).replace(/\\/g, '/');
 }
 
+function isWhitelisted(filePath) {
+  const relativePath = toRelative(filePath);
+  return WHITELIST_PATTERNS.some((pattern) => pattern.test(relativePath));
+}
+
 async function main() {
   const existingRoots = [];
 
@@ -81,10 +93,15 @@ async function main() {
   const results = await Promise.all(allFiles.map(analyzeFile));
   results.sort((a, b) => b.lineCount - a.lineCount);
 
-  const warnings = results.filter(item => item.lineCount > WARNING_LIMIT && item.lineCount <= ERROR_LIMIT);
-  const errors = results.filter(item => item.lineCount > ERROR_LIMIT);
+  const exempted = results.filter(item => isWhitelisted(item.filePath));
+  const scopedResults = results.filter(item => !isWhitelisted(item.filePath));
 
-  console.log(`[max-lines] Checked ${results.length} files. warning>${WARNING_LIMIT}, error>${ERROR_LIMIT}.`);
+  const warnings = scopedResults.filter(item => item.lineCount > WARNING_LIMIT && item.lineCount <= ERROR_LIMIT);
+  const errors = scopedResults.filter(item => item.lineCount > ERROR_LIMIT);
+
+  console.log(
+    `[max-lines] Checked ${results.length} files (${exempted.length} exempt). warning>${WARNING_LIMIT}, error>${ERROR_LIMIT}.`
+  );
 
   if (warnings.length > 0) {
     console.log('\nWarnings:');

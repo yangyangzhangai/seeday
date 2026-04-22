@@ -416,6 +416,10 @@ button:not(:disabled):active {
   background: #d8b53f;
 }
 
+.calendar-tag-dot--custom {
+  background: #9b8cf2;
+}
+
 .diary-shelf-calendar .react-calendar__tile--active abbr {
   display: inline-flex;
   align-items: center;

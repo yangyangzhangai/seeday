@@ -3,6 +3,7 @@ import type { AnnotationEvent, AnnotationEventType } from '../types/annotation';
 import type { LiveInputClassification } from '../services/input/types';
 
 export type MessageType = 'text' | 'system' | 'ai';
+export type MessageSyncState = 'pending' | 'synced' | 'failed';
 
 export interface MoodDescription {
   id: string;
@@ -26,6 +27,8 @@ export interface Message {
   moodDescriptions?: MoodDescription[] | null;
   isActive?: boolean;
   detached?: boolean;
+  syncState?: MessageSyncState;
+  syncError?: string | null;
 }
 
 export interface YesterdaySummary {

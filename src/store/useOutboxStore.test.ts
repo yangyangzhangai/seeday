@@ -50,6 +50,34 @@ describe('useOutboxStore', () => {
     expect(entry.lastError).toBe('offline');
   });
 
+  it('flush executes plant direction retries', async () => {
+    const executor = vi.fn().mockResolvedValue(undefined);
+    setOutboxExecutorForTests('plant.directionOrder', executor);
+    useOutboxStore.getState().enqueue({
+      kind: 'plant.directionOrder',
+      payload: { order: ['life', 'social', 'work_study', 'exercise', 'entertainment'] },
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
+  });
+
+  it('flush executes annotation outcome retries', async () => {
+    const executor = vi.fn().mockResolvedValue(undefined);
+    setOutboxExecutorForTests('annotation.outcome', executor);
+    useOutboxStore.getState().enqueue({
+      kind: 'annotation.outcome',
+      payload: { annotationId: 'a1', accepted: true },
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
+  });
+
   it('marks entry failed after five attempts', async () => {
     const executor = vi.fn().mockRejectedValue(new Error('still offline'));
     setOutboxExecutorForTests('annotation.insert', executor);

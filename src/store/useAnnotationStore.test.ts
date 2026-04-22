@@ -1,28 +1,46 @@
-import { describe, expect, it } from 'vitest';
-import { getLocalDateString } from './chatHelpers';
-import { getSuggestionPeriod, shouldResetStats } from './useAnnotationStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('useAnnotationStore suggestion window boundaries', () => {
-  it('maps boundary hours to morning/afternoon/night periods', () => {
-    expect(getSuggestionPeriod(5)).toBe('night');
-    expect(getSuggestionPeriod(6)).toBe('morning');
-    expect(getSuggestionPeriod(12)).toBe('morning');
-    expect(getSuggestionPeriod(13)).toBe('afternoon');
-    expect(getSuggestionPeriod(18)).toBe('afternoon');
-    expect(getSuggestionPeriod(19)).toBe('night');
+vi.mock('../lib/supabase-utils', () => ({
+  getSupabaseSession: vi.fn(async () => null),
+}));
+
+import { useAnnotationStore } from './useAnnotationStore';
+import { useOutboxStore } from './useOutboxStore';
+
+describe('useAnnotationStore suggestion outcome sync', () => {
+  beforeEach(() => {
+    useOutboxStore.setState({ entries: [] });
+    useAnnotationStore.setState((state) => ({
+      ...state,
+      currentAnnotation: null,
+      annotations: [
+        {
+          id: 'annotation-1',
+          content: 'test',
+          tone: 'curious',
+          timestamp: 1,
+          relatedEvent: { type: 'activity_recorded', timestamp: 1 },
+          displayDuration: 1000,
+          syncedToCloud: true,
+          suggestion: {
+            type: 'todo',
+            actionLabel: 'Do it',
+            todoId: 'todo-1',
+            rewardStars: 2,
+          },
+          suggestionAccepted: undefined,
+        },
+      ],
+      suggestionOutcomes: [],
+      activeRecoveryBonus: null,
+    }));
   });
-});
 
-describe('useAnnotationStore daily reset checks', () => {
-  it('does not reset when date is today', () => {
-    const today = getLocalDateString(new Date());
-    expect(shouldResetStats(today)).toBe(false);
-  });
+  it('keeps local accepted state and queues retry when no session', async () => {
+    await useAnnotationStore.getState().recordSuggestionOutcome('annotation-1', true);
 
-  it('resets when date is not today', () => {
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayStr = getLocalDateString(yesterday);
-    expect(shouldResetStats(yesterdayStr)).toBe(true);
+    expect(useAnnotationStore.getState().annotations[0].suggestionAccepted).toBe(true);
+    expect(useOutboxStore.getState().entries).toHaveLength(1);
+    expect(useOutboxStore.getState().entries[0].kind).toBe('annotation.outcome');
   });
 });

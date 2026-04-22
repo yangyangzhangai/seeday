@@ -11,6 +11,7 @@ import { useChatStore } from './useChatStore';
 import { useMoodStore } from './useMoodStore';
 import { useAuthStore } from './useAuthStore';
 import { useGrowthStore } from './useGrowthStore';
+import { useOutboxStore } from './useOutboxStore';
 import { type ComputedResult } from '../lib/reportCalculator';
 import {
   createGeneratedReport,
@@ -173,25 +174,46 @@ export const useReportStore = create<ReportState>()(
       },
 
       updateReport: async (id, updates) => {
-        set(state => ({
-          reports: state.reports.map(r => r.id === id ? { ...r, ...updates } : r)
-        }));
+        let nextReport: Report | null = null;
+        set(state => {
+          const nextReports = state.reports.map((report) => {
+            if (report.id !== id) return report;
+            nextReport = { ...report, ...updates };
+            return nextReport;
+          });
+          return { reports: nextReports };
+        });
+
+        if (!nextReport) {
+          return;
+        }
 
         const session = await getSupabaseSession();
-        if (session) {
-          const dbUpdates: any = {};
-          if (updates.aiAnalysis !== undefined) dbUpdates.ai_analysis = updates.aiAnalysis;
-          if (updates.teaserText !== undefined) dbUpdates.teaser_text = updates.teaserText;
-          if (updates.title !== undefined) dbUpdates.title = updates.title;
-          if (updates.content !== undefined) dbUpdates.content = updates.content;
-          if (updates.stats !== undefined) dbUpdates.stats = updates.stats;
-          if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
+        if (!session) {
+          useOutboxStore.getState().enqueue({
+            kind: 'report.upsert',
+            payload: { report: nextReport },
+          });
+          return;
+        }
 
-          if (Object.keys(dbUpdates).length > 0) {
-            const { error } = await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
-            if (error) {
-              console.error('[updateReport] supabase error', error, 'columns attempted:', Object.keys(dbUpdates));
-            }
+        const dbUpdates: any = {};
+        if (updates.aiAnalysis !== undefined) dbUpdates.ai_analysis = updates.aiAnalysis;
+        if (updates.teaserText !== undefined) dbUpdates.teaser_text = updates.teaserText;
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.content !== undefined) dbUpdates.content = updates.content;
+        if (updates.stats !== undefined) dbUpdates.stats = updates.stats;
+        if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
+
+        if (Object.keys(dbUpdates).length > 0) {
+          const { error } = await supabase.from('reports').update(dbUpdates).eq('id', id).eq('user_id', session.user.id);
+          if (error) {
+            useOutboxStore.getState().enqueue({
+              kind: 'report.upsert',
+              payload: { report: nextReport },
+            });
+            console.error('[updateReport] supabase error; queued full upsert fallback', error, 'columns attempted:', Object.keys(dbUpdates));
+            return;
           }
         }
       },

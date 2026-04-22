@@ -1,11 +1,11 @@
 # Seeday 全局数据存储审计报告
 
-- 版本: v1.1
+- 版本: v1.2
 - 创建: 2026-04-21
-- 更新: 2026-04-21（Young 对 7 个开放问题的决策纳入）
+- 更新: 2026-04-22（按代码现状完成二次复核，对齐已落地项与剩余风险）
 - 范围: 所有 `src/store/*`、`src/hooks/*`（同步相关）、`src/api/supabase.ts`、`src/lib/dbRetry.ts`、相关 Realtime 链路
 - 目标: iOS 上架前，核查"本地优先 + 数据完整性"两条主线
-- 执行状态: **P0-1 ~ P0-8 已于 2026-04-21 完成并落地到代码与文档**
+- 执行状态: **P0-1 ~ P0-8 已落地；P1 已完成 Reminder/persist key/freshness gate/realtime 双通道/outbox 骨架与 4 store 接入；剩余收口聚焦 Chat / Plant / Report / Annotation 的最后几条链路，以及下一阶段的多账号隔离治理**
 
 ## 决策摘要（Young 已拍板）
 
@@ -18,6 +18,72 @@
 | Q5 | Annotation `todayStats.events` 上限 | ✅ 从 400 **降到 150**，**升级为 P0**（上架前做） |
 | Q6 | Realtime 通道按数据域拆分 | ✅ 做，v1.0.x |
 | Q7 | Plant / Annotation 大改造 | ✅ **v1.0 只修必要 Bug**，大改留 v1.1 |
+
+## 2026-04-22 二次复核结论（本次新增）
+
+这次按真实代码重新做了一轮全局审计，结论如下：
+
+1. **本地优先主路径已经成立**：原报告中的多个 P0/P1 已经落地，不应继续按“未修复现状”理解。
+2. **“数据不丢”主路径已明显改善但还未全域统一**：Mood / Focus / Report / Annotation 已有 outbox 或本地 pending 保护；但 Chat、Plant、部分 Report/Annotation 次级写路径仍未统一接入 durable queue。
+3. **多账号隔离仍未结构性完成**：当前依赖 `clearLocalDomainStores()` 与 `seeday:local-data-owner:v1` 做补救，而不是“按账号天然隔离的本地存储”。建议先完成原计划收口，再独立处理这条主线。
+
+### 本次复核后，对原报告结论的纠偏
+
+- 以下问题已落地修复，不应再按“当前未完成风险”表述：
+  - `usePlantStore.loadTodayData` 的 `timezone` 引用错误
+  - `useMoodStore.fetchMoods` 云端整体覆盖本地
+  - `useAnnotationStore.fetchAnnotations` 覆盖本地未同步项
+  - `user_metadata` 并发写覆盖竞争
+  - Realtime `messages` 污染历史日期当前视图
+  - Focus `currentSession` 未持久化
+  - `useTimingStore` 完全不持久化
+  - Reminder 裸 `localStorage`
+  - persist key 命名不统一
+  - Realtime 单通道 8 表
+- 原报告里“withDbRetry 失败后 Mood / Focus / Report / Annotation 主写路径会直接丢”的描述，现阶段只对**尚未接入 outbox 的剩余次级写路径**成立，不能再笼统视为全域现状。
+- 本次复核新增的最高优先级事实：**persist 仍是设备级全局 key，不是 user-scoped key；owner 标记丢失时仍存在错误账号迁移风险。**
+
+### 当前真实状态快照（以此覆盖 Part 1 中已过时条目）
+
+#### A. 已落地项
+
+| 项 | 当前状态 | 代码锚点 |
+|------|------|------|
+| Mood fetch 合并保护 | ✅ 已完成 | `src/store/useMoodStore.ts` |
+| Annotation fetch 保留本地 pending | ✅ 已完成 | `src/store/useAnnotationStore.ts` |
+| metadata 写入串行化 | ✅ 已完成 | `src/store/authMetadataQueue.ts` |
+| Realtime messages 仅更新当前视图日 | ✅ 已完成 | `src/hooks/useRealtimeSync.ts` |
+| Focus `currentSession/queue` persist + 恢复 | ✅ 已完成 | `src/store/useFocusStore.ts` |
+| Timing persist | ✅ 已完成 | `src/store/useTimingStore.ts` |
+| Reminder persist | ✅ 已完成 | `src/store/useReminderStore.ts` |
+| persist key 统一 | ✅ 已完成 | `src/store/persistKeys.ts` |
+| initialize freshness gate（60s） | ✅ 已完成 | `src/store/useAuthStore.ts` |
+| Realtime 高频/低频双通道 | ✅ 已完成 | `src/hooks/useRealtimeSync.ts` |
+| Outbox 骨架 + 4 store 接入 | ✅ 已完成 | `src/store/useOutboxStore.ts` |
+
+#### B. 仍需收口的 local-first / 不丢数闭环
+
+| 编号 | 项 | 当前状态 | 说明 |
+|------|------|------|------|
+| C-1 | Chat `syncState` + outbox 联动 | ✅ 已完成 | 新发 chat message 已显式标记 `pending/synced/failed`，并由 `chat.upsert` outbox 承接失败补推 |
+| C-2 | Plant 写路径 durable 化 | ✅ 已完成 | `setDirectionOrder()` 保留本地即时更新，失败时改入 `plant.directionOrder` outbox 等待补推 |
+| C-3 | Report 次级更新写路径并入 outbox | ✅ 已完成 | `updateReport()` 无 session 或直写失败时改入 `report.upsert` outbox |
+| C-4 | Annotation `suggestion_accepted` 写路径 durable 化 | ❌ 未完成 | 当前为直接 update，失败只打印日志 |
+| C-5 | Outbox failed UI | ❌ 未完成 | 骨架和 failed 状态已在，用户可见层仍未设计落地 |
+
+#### C. 新确认的多账号隔离风险（建议下一主线独立处理）
+
+| 编号 | 风险 | 当前状态 | 影响 |
+|------|------|------|------|
+| A-1 | persist key 非 user-scoped | ⚠️ 存在 | 同设备不同账号共享同一批本地 key，靠登出/切号时清理补救 |
+| A-2 | hydrate 后才做 owner 校验 | ⚠️ 存在 | 启动瞬间可能短暂读到上一个账号的本地数据 |
+| A-3 | `owner.type === 'unknown' && hasLocalData` 可迁移到新账号 | ⚠️ 存在 | owner 标记丢失/损坏时，旧本地数据可能被上传到新账号云端 |
+| A-4 | 非 domain local key 未统一纳管 | ⚠️ 存在 | 如 `i18nextLng` 会跨账号沿用；其他 local key 也未统一纳入隔离策略 |
+
+### 本次复核建议的阶段划分
+
+- **阶段 1（先收口原计划）**：继续完成原文档里剩余的 local-first / 不丢数 / 合并闭环项，不先动多账号隔离大改。
+- **阶段 2（下一主线）**：把本地缓存从“全局 key + 事后清理”升级为“按 userId 分桶 + hydrate 前校验”，再处理历史污染与迁移策略。
 
 ---
 
@@ -182,12 +248,12 @@ await supabase.auth.updateUser({ data: { ...baseMeta, [k]: v } });
 
 `useTimingStore` 完全不持久化。每次冷启动/前台恢复，今日计时数据要等 `loadTodaySessions` 网络请求完成。**违反了本次本地优先的总目标**，且网络差时体验和 chat 以前切日期一样差。
 
-### P1-1 `withDbRetry` 仅重试 2 次就静默吞错
+### P1-1 `withDbRetry` 仅重试 2 次就静默吞错（范围已缩小）
 
 `src/lib/dbRetry.ts`：延迟 `[1000, 3000]`，最多 3 次尝试，失败后 `console.error` 然后返回。没有写入任何 outbox、没有标记 `failed`、没有触发全局错误通知。
 
-- Mood / Focus / Report / Plant 都走它 → 断网 5 秒以上的所有写入全部丢。
-- Todo/Growth/Stardust 用了 `syncState` 所以能在 `fetchX` 时补推；但其它 store 没这层兜底。
+- 该问题在 **Mood / Focus / Report 主 upsert / Annotation 主 insert** 路径上已被 outbox 明显缓解。
+- 但 **Chat / Plant / Report 次级更新 / Annotation suggestion outcome** 等残余写路径仍未统一接入 durable queue，因此“静默吞错导致最终丢数”的风险依然存在，只是不再是全域现状。
 
 ### P1-2 `useAuthStore.initialize` 全量并行拉云，忽略本地缓存新鲜度
 
@@ -196,14 +262,14 @@ await supabase.auth.updateUser({ data: { ...baseMeta, [k]: v } });
 - iOS 冷启动体感：本地 0ms 渲染 → 300–1500ms 后网络返回，触发大量 re-render
 - 会放大 P0-2、P0-5 这类"覆盖本地"Bug 的触发概率
 
-### P1-3 Reminder 用裸 localStorage，不统一
+### P1-3 Reminder 用裸 localStorage，不统一（已完成，保留为历史问题）
 
 `useReminderStore` 用 `localStorage.getItem('reminder_confirmed_today')` + `'reminder_confirmed_date'` 手写分片，和其它 10 个 store 的 `persist` 中间件范式不一致。
 
 - 后续做"登出清空本地"（`clearLocalDomainStores`）时极易漏掉
 - key 命名没有命名空间（应和其它 store 一样 `growth-todo-store` 这样前缀）
 
-### P1-4 持久化键命名不统一
+### P1-4 持久化键命名不统一（已完成，保留为历史问题）
 
 - `growth-todo-store`、`growth-bottle-store`：有前缀
 - `chat-storage`、`report-storage`、`stardust-storage`、`annotation-storage`：有 `-storage` 后缀
@@ -256,13 +322,35 @@ Todo / Growth 用 `deleted_at` 软删；Chat / Mood / Stardust / Report / Annota
 
 `sendMessage` 本地 set state 后 `persistMessageToSupabase` 抛错就 throw。消息本身在 UI 上是留着的，但没有 `syncState`，没法判断"这条到底发出去没"，下次 `fetchMessages` 时由 `_refreshDateSilently` 保留本地 → 实际上是"隐式 pending"，但没人知道它 pending，也没人重推。
 
-### P2-6 `useRealtimeSync` 单通道 8 表，失败恢复粗
+### P2-6 `useRealtimeSync` 单通道 8 表，失败恢复粗（已完成高频/低频拆分，保留为历史问题）
 
 订阅全堆在一个 channel 上。任一表订阅失败会拖累全局。iOS 后台恢复时应 `supabase.realtime.reconnect()`，但代码里没有，是靠 `useAppForegroundRefresh` 用 HTTP 重拉来兜底（所以才导致 P0-2 高频触发）。
 
 ### P2-7 `useAuthStore.updateUserProfile` localStorage fallback 只管 Profile V2
 
 `updateUserProfile` 失败时会把 Profile V2 blob 写进 `localStorage` 做 pending；但 `updateLanguagePreference`、`updateDailyGoal`、`updateAvatar` 都没有这层 fallback。一致性差。
+
+### P0-9 多账号隔离仍依赖“全局 key + owner 标记 + 事后清理”
+
+这是本次二次复核新增、且优先级应高于大多数 P1/P2 的问题。
+
+- 所有 domain persist key 仍是设备级全局 key（如 `seeday:v1:chat`、`seeday:v1:outbox`），不是按 `userId` 分桶。
+- `initialize()` / `SIGNED_IN` 路径是先让 store hydrate 并设置当前用户，再根据 owner 判断是否清空本地，因此存在“短暂串号窗口”。
+- 当 `seeday:local-data-owner:v1` 缺失或损坏时，`owner.type === 'unknown' && hasLocalData` 会被当成“可迁移旧本地数据”，随后 `syncLocalDataToSupabase()` 会把本地 messages/moods/todos/bottles/focus/reports 上传给当前登录账号。
+
+> 结论：当前版本对“同设备双账号不污染”还不能下最终通过结论；它是已降风险但未结构性闭环。
+
+### P1-8 非 domain 本地 key 未统一纳管
+
+除了 Zustand persist 外，仍存在数类 `localStorage` key：
+
+- `i18nextLng`
+- `seeday_pending_profile_v2_<userId>`
+- `growth:first-login-date:<userId>`
+- `streakDate_<userId>` / `streakValue_<userId>`
+- `seeday:local-data-owner:v1`
+
+其中一部分按 `userId` 隔离，一部分是全局 key；且并不都归入 `clearLocalDomainStores()`。这会让“登出清理”“切号隔离”“迁移策略”难以形成单一真相源。
 
 ### 维度整理（你问的"是否应该统一"）
 
@@ -517,32 +605,32 @@ DB 层: `src/api/supabase.ts`, `src/lib/dbRetry.ts`, `src/lib/dbMappers.ts`, `sr
 
 > 执行回填（2026-04-21）：以上 P0-1 ~ P0-8 已全部完成，详见 `docs/CURRENT_TASK.md`（主线 0.1）与 `docs/CHANGELOG.md` 同日条目。
 
-### P1（上架后 v1.0.x 小版本）
+### P1（当前建议先做的收口项）
 
 | 编号 | 项 | 改动量 | 对应决策 |
 |------|----|--------|---------|
-| P1-1 | 全局 Outbox 骨架（存储 + flush 逻辑） | 中 | Q1 原则 |
+| P1-1 | Chat `syncState` + outbox 联动 | 已完成 | 2026-04-22 已落地 |
 | P1-1' | **Outbox 失败 UI** | 小（但要先对齐视觉） | **Q1 UI 待议** |
-| P1-2 | `initialize` 新鲜度门控 | 中 | — |
-| P1-3 | Reminder 迁 persist | 小 | — |
-| P1-4 | persist key 统一 + 迁移 | 中 | — |
-| P1-5 | dateCache 合并配合 syncState | 中 | 配合 P1-1 |
-| P1-6 | Annotation persist 进一步裁剪（30 天 prune、tracker 7 天窗口） | 小 | — |
-| P1-7 | **Realtime 通道按高频/低频拆分** | 小 | **Q6** |
+| P1-2 | Plant 写路径 durable 化 | 已完成 | 2026-04-22 已落地 |
+| P1-3 | Report 次级更新写路径并入 outbox | 已完成 | 2026-04-22 已落地 |
+| P1-4 | Annotation `suggestion_accepted` durable 化 | 小 | 补齐 local-first 不丢数 |
+| P1-5 | Chat dateCache 合并与删除语义继续配合 `syncState` 收口 | 中 | 配合 P1-1 |
 
-### P2（v1.1+ 架构手术）
+### P2（下一主线：多账号隔离与结构治理）
 
 | 编号 | 项 | 改动量 | 对应决策 |
 |------|----|--------|---------|
-| P2-1 | **拆 `profiles` 表**（含 `login_days` 挪出 `user_metadata`） | 大（DB 迁移） | **Q3 + Q4** |
-| P2-2 | **所有 domain 表统一 `deleted_at` 软删** | 大（DB 迁移） | **Q2** |
-| P2-3 | `dateCache` 作为 chat 唯一 in-memory 真相，`state.messages` 降 derived | 中 | — |
-| P2-4 | **Plant / Annotation 全面引入 syncState + outbox** | 大 | **Q7** |
-| P2-5 | 离线行为 Playwright 测试 harness | 中 | — |
+| P2-1 | **本地存储改为 user-scoped key / namespace** | 大 | 本次复核新增 |
+| P2-2 | **hydrate 前 owner 校验，禁用 unknown-owner 自动迁移** | 中-大 | 本次复核新增 |
+| P2-3 | **拆 `profiles` 表**（含 `login_days` 挪出 `user_metadata`） | 大（DB 迁移） | **Q3 + Q4** |
+| P2-4 | **所有 domain 表统一 `deleted_at` 软删** | 大（DB 迁移） | **Q2** |
+| P2-5 | `dateCache` 作为 chat 唯一 in-memory 真相，`state.messages` 降 derived | 中 | — |
+| P2-6 | **Plant / Annotation 全面引入 syncState + outbox** | 大 | **Q7** |
+| P2-7 | 离线行为 Playwright 测试 harness | 中 | — |
 
 ### 关键注意事项（写给后续接手的人）
 
 - **P0-3 必须在 P0 里做**（即使 Q3 拆 profiles 表留给了 v1.1）：`user_metadata` 的并发竞争是今天就会发生的数据丢失 Bug，不能等到 v1.1 表结构重构才解决；先用"排队写入"兜住，等 profiles 表上线后自然消解。
 - **P0-8（events 降 150）是 Q5 决策升级的产物**：不要漏做，它既是 localStorage 瘦身也是 iOS WebView 性能保护。
 - **P1-1' 的 UI 方案必须先找 Young 对齐**：Outbox 后端骨架可以写，但失败提示的 UI 形式（小红点 / 横幅 / 悬浮 badge）是产品决定，不是技术决定。
-- **P2-4 之前**：Plant / Annotation 只走"最小 Bug 修复路线"（P0-1、P0-5、P0-8），不要在 v1.0 改它们的同步模型。
+- **当前建议执行顺序**：先把 Chat / Plant / Report / Annotation 残余写路径收口，确保“本地优先 + 不丢数 + 合并保护”完整闭环；然后再独立处理多账号隔离主线，避免两条主线交叉改动放大回归面。

@@ -114,6 +114,8 @@ export function fromDbMessage(row: any): Message {
     moodDescriptions: safeParseMoodDescriptions(row.mood_descriptions),
     isActive: row.is_active ?? false,
     detached: row.detached ?? false,
+    syncState: 'synced',
+    syncError: null,
   };
 }
 

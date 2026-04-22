@@ -14,6 +14,7 @@ vi.mock('./useAnnotationStore', () => ({
 
 import { useMoodStore } from './useMoodStore';
 import { useChatStore } from './useChatStore';
+import { useOutboxStore } from './useOutboxStore';
 import type { Message } from './useChatStore.types';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
 
@@ -42,6 +43,8 @@ function resetChatStore(messages: Message[] = []) {
     isLoadingMore: false,
     yesterdaySummary: null,
     currentDateStr: null,
+    activeViewDateStr: null,
+    dateCache: {},
   });
 }
 
@@ -49,6 +52,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
   beforeEach(() => {
     resetMoodStore();
     resetChatStore();
+    useOutboxStore.setState({ entries: [] });
     resetLiveInputTelemetry();
   });
 
@@ -146,6 +150,15 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(messages[1].content).toBe('睡觉');
     expect(messages[1].duration).toBeUndefined();
     expect(messages[1].isActive).toBe(true);
+  });
+
+  it('keeps offline chat message as pending and enqueues outbox replay', async () => {
+    await useChatStore.getState().sendMessage('离线记录', 1_700_000_000_000);
+
+    const [message] = useChatStore.getState().messages;
+    expect(message.syncState).toBe('pending');
+    expect(useOutboxStore.getState().entries).toHaveLength(1);
+    expect(useOutboxStore.getState().entries[0].kind).toBe('chat.upsert');
   });
 
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {

@@ -43,8 +43,10 @@ import {
   persistMessageToSupabase,
   triggerMoodDetection,
 } from './chatActions';
+import { useOutboxStore } from './useOutboxStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { applyChatMessageSyncState, insertChatMessage, mergeCloudMessagesWithLocal } from './chatSyncHelpers';
 
 function resolveCurrentLang(): SupportedLang {
   const lang = i18n.language?.toLowerCase() ?? 'zh';
@@ -218,13 +220,7 @@ export const useChatStore = create<ChatState>()(
             };
           }
 
-          // Merge cloud messages with any local-only messages (e.g. in-flight writes).
-          // Cloud wins for same ID; local-only messages are kept until next sync.
-          const cloudIdSet = new Set(messages.map((m) => m.id));
-          const localOnlyMessages = get().messages.filter((m) => !cloudIdSet.has(m.id));
-          const mergedMessages = [...messages, ...localOnlyMessages].sort(
-            (a, b) => a.timestamp - b.timestamp,
-          );
+          const { mergedMessages } = mergeCloudMessagesWithLocal(messages, get().messages);
 
           const prunedCache = pruneDateCache({ ...get().dateCache, [todayStr]: mergedMessages });
           set({
@@ -364,56 +360,21 @@ export const useChatStore = create<ChatState>()(
 
         queueBackfillLegacyActivityTypes(data || [], session.user.id);
         const cloudMsgs = filterLegacyChatRows(data || []).map(mapDbRowToMessage);
-        const cloudById = new Map(cloudMsgs.map(m => [m.id, m]));
-
         const localMsgs = get().dateCache[dateStr] ?? [];
-
-        // 合并：云端有的条目云端优先（覆盖字段变化）；本地独有的视为离线写入待同步，保留
-        const merged: Message[] = [];
-        let changed = false;
-        for (const local of localMsgs) {
-          const cloud = cloudById.get(local.id);
-          if (!cloud) {
-            // 本地独有（离线写入未同步），保留
-            merged.push(local);
-          } else {
-            merged.push(cloud);
-            // 检测关键字段是否有变化
-            if (
-              local.content !== cloud.content ||
-              local.duration !== cloud.duration ||
-              local.isActive !== cloud.isActive ||
-              local.activityType !== cloud.activityType ||
-              local.imageUrl !== cloud.imageUrl ||
-              local.imageUrl2 !== cloud.imageUrl2
-            ) {
-              changed = true;
-            }
-            cloudById.delete(local.id);
-          }
-        }
-        // 云端有、本地没有（跨设备写入）
-        for (const cloudOnly of cloudById.values()) {
-          merged.push(cloudOnly);
-          changed = true;
-        }
-        // 本地比云端少了条目也算变化
-        if (merged.length !== localMsgs.length) changed = true;
+        const { mergedMessages, changed } = mergeCloudMessagesWithLocal(cloudMsgs, localMsgs);
 
         if (!changed) return;
 
-        merged.sort((a, b) => a.timestamp - b.timestamp);
-
         const moodStoreDate = useMoodStore.getState();
-        for (const msg of merged) {
+        for (const msg of mergedMessages) {
           if (msg.mode === 'record' && !msg.isMood && msg.duration != null && !moodStoreDate.getMood(msg.id)) {
             moodStoreDate.setMood(msg.id, autoDetectMood(msg.content, msg.duration ?? 0, resolveLangForText(msg.content)), 'auto');
           }
         }
 
         set(state => ({
-          messages: state.activeViewDateStr === dateStr ? merged : state.messages,
-          dateCache: pruneDateCache({ ...state.dateCache, [dateStr]: merged }),
+          messages: state.activeViewDateStr === dateStr ? mergedMessages : state.messages,
+          dateCache: pruneDateCache({ ...state.dateCache, [dateStr]: mergedMessages }),
         }));
       },
 
@@ -486,22 +447,42 @@ export const useChatStore = create<ChatState>()(
           mode: 'record',
           activityType: options?.activityTypeOverride ?? classifiedByRule?.activityType ?? 'life',
           isActive: true,
+          syncState: 'pending',
+          syncError: null,
         };
 
         updatedMessages.push(newMessage);
 
-        set({
+        set((state) => ({
+          ...insertChatMessage(state as ChatState, newMessage),
           messages: updatedMessages,
           lastActivityTime: now,
-        });
+        }));
 
         void (async () => {
           const session = await getSupabaseSession();
-          if (!session) return;
+          if (!session) {
+            useOutboxStore.getState().enqueue({
+              kind: 'chat.upsert',
+              payload: { message: newMessage },
+            });
+            return;
+          }
           await persistMessageToSupabase(newMessage, session.user.id);
+          set((state) => applyChatMessageSyncState(state as ChatState, newMessage.id, 'synced', null));
           // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
           void useTimingStore.getState().endActive(session.user.id);
         })().catch((error) => {
+          useOutboxStore.getState().enqueue({
+            kind: 'chat.upsert',
+            payload: { message: newMessage },
+          });
+          set((state) => applyChatMessageSyncState(
+            state as ChatState,
+            newMessage.id,
+            'pending',
+            error instanceof Error ? error.message : 'chat_sync_pending',
+          ));
           if (import.meta.env.DEV) {
             console.warn('[sendMessage] background sync skipped:', error);
           }
@@ -880,6 +861,8 @@ export const useChatStore = create<ChatState>()(
           activityType: 'mood',
           isMood: true,
           detached: false,
+          syncState: 'pending',
+          syncError: null,
         };
 
         const { messages } = get();
@@ -893,7 +876,11 @@ export const useChatStore = create<ChatState>()(
 
         set(state => {
           if (isCrossDay) {
-            return { messages: [...state.messages, { ...newMessage, detached: true }] };
+            const detachedMessage = { ...newMessage, detached: true };
+            return {
+              ...insertChatMessage(state as ChatState, detachedMessage),
+              messages: [...state.messages, detachedMessage],
+            };
           }
           const newDesc: MoodDescription = {
             id: newMessage.id,
@@ -901,6 +888,7 @@ export const useChatStore = create<ChatState>()(
             timestamp: now,
           };
           return {
+            ...insertChatMessage(state as ChatState, newMessage),
             messages: state.messages
               .map(m =>
                 m.id === latestEvent.id
@@ -934,15 +922,32 @@ export const useChatStore = create<ChatState>()(
 
         void (async () => {
           const session = await getSupabaseSession();
-          if (!session) return;
+          if (!session) {
+            useOutboxStore.getState().enqueue({
+              kind: 'chat.upsert',
+              payload: { message: isCrossDay ? { ...newMessage, detached: true } : newMessage },
+            });
+            return;
+          }
           const moodMessageToPersist = get().messages.find((message) => message.id === newMessage.id)
             ?? (isCrossDay ? { ...newMessage, detached: true } : newMessage);
           await persistMessageToSupabase(moodMessageToPersist, session.user.id, true);
+          set((state) => applyChatMessageSyncState(state as ChatState, newMessage.id, 'synced', null));
           if (!isCrossDay && latestEvent) {
             const updated = get().messages.find(m => m.id === latestEvent.id);
             if (updated) await persistMessageToSupabase(updated, session.user.id);
           }
         })().catch((error) => {
+          useOutboxStore.getState().enqueue({
+            kind: 'chat.upsert',
+            payload: { message: isCrossDay ? { ...newMessage, detached: true } : newMessage },
+          });
+          set((state) => applyChatMessageSyncState(
+            state as ChatState,
+            newMessage.id,
+            'pending',
+            error instanceof Error ? error.message : 'chat_sync_pending',
+          ));
           if (import.meta.env.DEV) {
             console.warn('[sendMood] background sync skipped:', error);
           }

@@ -416,6 +416,16 @@ export function closePreviousActivityLocal(messages: Message[], now: number): {
   return { messages: updatedMessages, closedMessage, duration };
 }
 
+export async function syncClosedActivityToCloud(message: Message, duration: number): Promise<void> {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  await supabase
+    .from('messages')
+    .update({ duration, is_active: false })
+    .eq('id', message.id)
+    .eq('user_id', session.user.id);
+}
+
 /** @deprecated use closePreviousActivityLocal + syncClosedActivityToCloud instead */
 export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
   const { messages: updated, closedMessage, duration } = closePreviousActivityLocal(messages, now);
@@ -572,7 +582,7 @@ export async function persistMessageToSupabase(
     );
 
   if (error) {
-    console.error('Error sending message:', error);
+    throw new Error(error.message);
   }
 }
 

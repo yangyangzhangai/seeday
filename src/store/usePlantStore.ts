@@ -11,6 +11,7 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from './useChatStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { useOutboxStore } from './useOutboxStore';
 import type {
   DailyPlantRecord,
   PlantCategoryKey,
@@ -164,6 +165,25 @@ function toDirectionMap(order: PlantCategoryKey[]): Record<PlantCategoryKey, 0 |
     directionMap[category] = index as 0 | 1 | 2 | 3 | 4;
   });
   return directionMap;
+}
+
+async function syncDirectionOrderToCloud(userId: string, order: PlantCategoryKey[]): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('plant_direction_config')
+    .delete()
+    .eq('user_id', userId);
+  if (deleteError) throw deleteError;
+
+  const payload = order.map((categoryKey, index) => ({
+    user_id: userId,
+    direction_index: index,
+    category_key: categoryKey,
+  }));
+
+  const { error: insertError } = await supabase
+    .from('plant_direction_config')
+    .insert(payload);
+  if (insertError) throw insertError;
 }
 
 function isTodayPlantLocked(todayPlant: DailyPlantRecord | null): boolean {
@@ -349,28 +369,15 @@ export const usePlantStore = create<PlantState>()(
         try {
           const session = await getSupabaseSession();
           if (!session) return;
-
-          const { error: deleteError } = await supabase
-            .from('plant_direction_config')
-            .delete()
-            .eq('user_id', session.user.id);
-          if (deleteError) throw deleteError;
-
-          const payload = nextOrder.map((categoryKey, index) => ({
-            user_id: session.user.id,
-            direction_index: index,
-            category_key: categoryKey,
-          }));
-
-          const { error: insertError } = await supabase
-            .from('plant_direction_config')
-            .insert(payload);
-          if (insertError) throw insertError;
+          await syncDirectionOrderToCloud(session.user.id, nextOrder);
         } catch (error) {
+          useOutboxStore.getState().enqueue({
+            kind: 'plant.directionOrder',
+            payload: { order: nextOrder },
+          });
           if (import.meta.env.DEV) {
-            console.warn('[plant] sync directionOrder failed (local saved):', error);
+            console.warn('[plant] sync directionOrder failed, queued for retry:', error);
           }
-          throw error;
         }
       },
     }),

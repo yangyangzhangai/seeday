@@ -6,6 +6,46 @@ All notable effective changes are documented here.
 
 ## 2026-04-22
 
+### Improve: Report 次级更新 durable fallback
+
+- `useReportStore.updateReport()` 保持本地乐观更新，但在“无 session”或 `reports.update(...)` 失败时，改为将完整 report 写入 `report.upsert` outbox，避免标题、正文、统计、用户备注、AI 结果等次级编辑因网络抖动丢失
+- 新增 `useReportStore.test.ts` 用例，覆盖“离线更新 report 后入 outbox”路径
+
+Validation:
+
+- `npx vitest run "src/store/useReportStore.test.ts" "src/store/useOutboxStore.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
+### Improve: Plant direction order durable local-first sync
+
+- `usePlantStore.setDirectionOrder()` 继续保留本地即时更新与根系预览刷新，但云端写失败时不再直接把保存流程判定为失败，而是将最新方向配置写入 `plant.directionOrder` outbox 等待补推
+- `useOutboxStore` 新增 `plant.directionOrder` executor，重放时按“先删旧配置，再写入完整 5 槽顺序”同步 `plant_direction_config`
+- 新增 `usePlantStore.direction-sync.test.ts`，覆盖“失败入队且本地不回滚”与“成功不入队”两条关键路径
+
+Validation:
+
+- `npx vitest run "src/store/usePlantStore.direction-sync.test.ts" "src/store/useOutboxStore.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
+### Improve: Chat local-first syncState + outbox 闭环
+
+- `useChatStore` 为新发 activity/mood message 增加显式 `syncState`：本地新消息先标记 `pending` 并立即渲染，首次写库成功后回写 `synced`
+- `useOutboxStore` 新增 `chat.upsert`，离线或首轮写库失败时自动承接聊天消息补推；flush 成功/失败会同步回写本地消息的 `synced` / `pending` / `failed` 状态
+- `fetchMessages()` 与 `_refreshDateSilently()` 改为只保留本地 `pending/failed` 且云端缺失的消息，避免把已被删除的云端消息继续误保留在本地
+- 新增 `chatSyncHelpers.test.ts` 与离线发送集成用例，覆盖本地保留规则与离线发送 outbox 入队
+
+Validation:
+
+- `npx vitest run "src/store/chatSyncHelpers.test.ts" "src/store/useChatStore.integration.test.ts" "src/store/useOutboxStore.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
+### Docs: 存储审计报告二次复核对齐
+
+- `docs/DATA_STORAGE_AUDIT_REPORT.md` 升级为 v1.2：按真实代码状态标注 P0/P1 已落地项，移除对 Reminder/persist key/realtime 双通道/outbox 骨架等已完成事项的“未完成”口径
+- 新增“2026-04-22 二次复核结论”与当前真实状态快照，明确本轮优先继续收口 Chat / Plant / Report / Annotation 的 local-first 不丢数闭环
+- 单列多账号隔离风险：指出当前仍是“全局 key + owner 标记 + 事后清理”，并将 user-scoped persist / hydrate 前校验 / 禁止 unknown-owner 自动迁移放入下一阶段主线
+- `docs/CURRENT_TASK.md` 同步更新 DATA_STORAGE_P1 待办顺序：先做原计划收口项，再独立处理账号数据隔离
+
 ### Improve: 会员购买弹窗统一与人气推荐逻辑收口
 
 - `MembershipPurchaseModal` 新增按用户会员历史动态推荐逻辑：未试用用户将“免费试用（月度）”标为人气首选；已试用未购买用户将“月度”标为人气首选；已购买历史用户将“年度”标为人气首选

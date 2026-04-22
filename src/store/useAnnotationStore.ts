@@ -652,7 +652,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
         });
 
         const session = await getSupabaseSession();
-        if (!session) return;
+        if (!session) {
+          useOutboxStore.getState().enqueue({
+            kind: 'annotation.outcome',
+            payload: { annotationId, accepted },
+          });
+          return;
+        }
 
         const { error } = await supabase
           .from('annotations')
@@ -661,6 +667,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
           .eq('user_id', session.user.id);
 
         if (error) {
+          useOutboxStore.getState().enqueue({
+            kind: 'annotation.outcome',
+            payload: { annotationId, accepted },
+          });
           console.error('[Annotation] suggestion outcome sync failed:', error);
         }
 

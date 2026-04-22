@@ -7,6 +7,8 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbAnnotation, toDbReport } from '../lib/dbMappers';
 import { PERSIST_KEYS } from './persistKeys';
 import type { AIAnnotation } from '../types/annotation';
+import type { PlantCategoryKey } from '../types/plant';
+import type { Message } from './useChatStore.types';
 import type { Report } from './useReportStore';
 
 const MAX_OUTBOX_ATTEMPTS = 5;
@@ -62,7 +64,34 @@ type AnnotationOutboxEntry = {
   lastError?: string;
 };
 
-export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry;
+type AnnotationOutcomeOutboxEntry = {
+  id: string;
+  kind: 'annotation.outcome';
+  payload: { annotationId: string; accepted: boolean };
+  attempts: number;
+  status: 'pending' | 'failed';
+  lastError?: string;
+};
+
+type ChatOutboxEntry = {
+  id: string;
+  kind: 'chat.upsert';
+  payload: { message: Message };
+  attempts: number;
+  status: 'pending' | 'failed';
+  lastError?: string;
+};
+
+type PlantDirectionOutboxEntry = {
+  id: string;
+  kind: 'plant.directionOrder';
+  payload: { order: PlantCategoryKey[] };
+  attempts: number;
+  status: 'pending' | 'failed';
+  lastError?: string;
+};
+
+export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | PlantDirectionOutboxEntry;
 export type OutboxEntryInput = Omit<OutboxEntry, 'id' | 'attempts' | 'status' | 'lastError'>;
 
 type OutboxExecutor = (entry: OutboxEntry, userId: string) => Promise<void>;
@@ -102,11 +131,63 @@ async function executeAnnotationEntry(entry: AnnotationOutboxEntry, userId: stri
   if (error) throw new Error(error.message);
 }
 
+async function executeAnnotationOutcomeEntry(entry: AnnotationOutcomeOutboxEntry, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('annotations')
+    .update({ suggestion_accepted: entry.payload.accepted })
+    .eq('id', entry.payload.annotationId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
+async function executeChatEntry(entry: ChatOutboxEntry, userId: string): Promise<void> {
+  const { toDbMessage } = await import('../lib/dbMappers');
+  const { error } = await supabase
+    .from('messages')
+    .upsert([toDbMessage(entry.payload.message, userId)], { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+}
+
+async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, userId: string): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('plant_direction_config')
+    .delete()
+    .eq('user_id', userId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const payload = entry.payload.order.map((categoryKey, index) => ({
+    user_id: userId,
+    direction_index: index,
+    category_key: categoryKey,
+  }));
+
+  const { error: insertError } = await supabase
+    .from('plant_direction_config')
+    .insert(payload);
+  if (insertError) throw new Error(insertError.message);
+}
+
+async function updateChatMessageSyncStatus(entry: ChatOutboxEntry, status: 'pending' | 'failed' | 'synced', error?: string): Promise<void> {
+  const [{ useChatStore }, { applyChatMessageSyncState }] = await Promise.all([
+    import('./useChatStore'),
+    import('./chatSyncHelpers'),
+  ]);
+  useChatStore.setState((state) => applyChatMessageSyncState(
+    state as import('./useChatStore.types').ChatState,
+    entry.payload.message.id,
+    status,
+    error ?? null,
+  ));
+}
+
 const outboxExecutors: Record<OutboxEntry['kind'], OutboxExecutor> = {
   'mood.upsert': (entry, userId) => executeMoodEntry(entry as MoodOutboxEntry, userId),
   'focus.insert': (entry, userId) => executeFocusEntry(entry as FocusOutboxEntry, userId),
   'report.upsert': (entry, userId) => executeReportEntry(entry as ReportOutboxEntry, userId),
   'annotation.insert': (entry, userId) => executeAnnotationEntry(entry as AnnotationOutboxEntry, userId),
+  'annotation.outcome': (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId),
+  'chat.upsert': (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId),
+  'plant.directionOrder': (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId),
 };
 
 function normalizeErrorMessage(error: unknown): string {
@@ -165,9 +246,21 @@ export const useOutboxStore = create<OutboxState>()(
 
           try {
             await executor(entry, resolvedUserId);
+            if (entry.kind === 'chat.upsert') {
+              await updateChatMessageSyncStatus(entry as ChatOutboxEntry, 'synced');
+            }
             set((state) => ({ entries: state.entries.filter((item) => item.id !== entry.id) }));
           } catch (error) {
-            get().markFailed(entry.id, normalizeErrorMessage(error), entry.attempts + 1);
+            const nextAttempts = entry.attempts + 1;
+            const nextError = normalizeErrorMessage(error);
+            get().markFailed(entry.id, nextError, nextAttempts);
+            if (entry.kind === 'chat.upsert') {
+              await updateChatMessageSyncStatus(
+                entry as ChatOutboxEntry,
+                nextAttempts >= MAX_OUTBOX_ATTEMPTS ? 'failed' : 'pending',
+                nextError,
+              );
+            }
           }
         }
       },
@@ -188,4 +281,7 @@ export function resetOutboxExecutorsForTests(): void {
   outboxExecutors['focus.insert'] = (entry, userId) => executeFocusEntry(entry as FocusOutboxEntry, userId);
   outboxExecutors['report.upsert'] = (entry, userId) => executeReportEntry(entry as ReportOutboxEntry, userId);
   outboxExecutors['annotation.insert'] = (entry, userId) => executeAnnotationEntry(entry as AnnotationOutboxEntry, userId);
+  outboxExecutors['annotation.outcome'] = (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId);
+  outboxExecutors['chat.upsert'] = (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId);
+  outboxExecutors['plant.directionOrder'] = (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId);
 }
