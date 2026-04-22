@@ -12,6 +12,7 @@ import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry'
 import { emitLiveInputCorrectionTelemetry } from '../services/input/liveInputTelemetryCloud';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import { createChatTimelineActions } from './chatTimelineActions';
+import { mergePersistedChatState, pruneDateCache } from './chatPersistenceHelpers';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
@@ -76,51 +77,6 @@ async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: number): P
       if (updateError) throw updateError;
     }),
   );
-}
-
-/** 只保留最近 MAX_PERSISTED_DAYS 天的缓存，删除更旧的条目 */
-function pruneDateCache(cache: Record<string, Message[]>): Record<string, Message[]> {
-  const MAX_PERSISTED_DAYS = 30;
-  const keys = Object.keys(cache).sort();
-  if (keys.length <= MAX_PERSISTED_DAYS) return cache;
-  const toKeep = keys.slice(-MAX_PERSISTED_DAYS);
-  return Object.fromEntries(toKeep.map(k => [k, cache[k]]));
-}
-
-function mergePersistedChatState(
-  persistedState: unknown,
-  currentState: ChatState,
-): ChatState {
-  const persisted = (persistedState ?? {}) as Partial<ChatState>;
-  const merged = { ...currentState, ...persisted } as ChatState;
-
-  const nowMs = Date.now();
-  const todayStr = getLocalDateString(new Date(nowMs));
-  const sameDay = persisted.currentDateStr != null && persisted.currentDateStr === todayStr;
-
-  merged.dateCache = (persisted.dateCache != null && typeof persisted.dateCache === 'object' && !Array.isArray(persisted.dateCache))
-    ? persisted.dateCache as Record<string, Message[]>
-    : {};
-
-  const incomingMessages = Array.isArray(persisted.messages)
-    ? persisted.messages
-    : [];
-  const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(incomingMessages, nowMs);
-
-  if (!sameDay) {
-    merged.messages = [];
-    merged.currentDateStr = null;
-    merged.activeViewDateStr = null;
-    merged.hasInitialized = false;
-    return merged;
-  }
-
-  merged.messages = finalizedMessages;
-  merged.currentDateStr = persisted.currentDateStr ?? todayStr;
-  merged.activeViewDateStr = persisted.activeViewDateStr ?? merged.currentDateStr;
-  merged.hasInitialized = Boolean(persisted.hasInitialized);
-
-  return merged;
 }
 
 export const useChatStore = create<ChatState>()(

@@ -62,3 +62,80 @@ export function isTodoParentForeignKeyError(err: unknown): boolean {
     (lower.includes('key is not present in table') && lower.includes('todos'))
   );
 }
+
+interface LegacyTodoMigrationInput {
+  normalizeTodoCategory: (category: string | undefined, text: string, lang: string) => string;
+  resolveLangForText: (text: string) => string;
+}
+
+type MigratedTodoShape = {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: number;
+  priority: 'high' | 'medium' | 'low';
+  dueAt?: number;
+  completedAt?: number;
+  duration?: number;
+  startedAt?: number;
+  category?: string;
+  scope?: 'daily' | 'weekly' | 'monthly';
+  recurrence: 'once';
+  isTemplate: false;
+  sortOrder: number;
+  isPinned: boolean;
+};
+
+export function migrateOldTodoStorage(
+  currentIds: Set<string>,
+  { normalizeTodoCategory, resolveLangForText }: LegacyTodoMigrationInput,
+): MigratedTodoShape[] {
+  try {
+    const raw = localStorage.getItem('todo-storage');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const oldTodos: Array<Record<string, unknown>> = parsed?.state?.todos ?? [];
+    if (!oldTodos.length) return [];
+
+    const priorityMap: Record<string, 'high' | 'medium' | 'low'> = {
+      'urgent-important': 'high',
+      'urgent-not-important': 'medium',
+      'important-not-urgent': 'medium',
+      'not-important-not-urgent': 'low',
+    };
+
+    const migrated = oldTodos
+      .filter((t) => t.id && typeof t.id === 'string' && !currentIds.has(t.id as string))
+      .map((t, i) => {
+        const title = (t.content ?? t.title ?? '') as string;
+        return {
+          id: t.id as string,
+          title,
+          completed: Boolean(t.completed),
+          createdAt: (t.createdAt as number) ?? Date.now(),
+          priority: priorityMap[t.priority as string] ?? 'medium',
+          dueAt: (t.dueDate ?? t.dueAt) as number | undefined,
+          completedAt: t.completedAt as number | undefined,
+          duration: t.duration as number | undefined,
+          startedAt: t.startedAt as number | undefined,
+          category: normalizeTodoCategory(
+            t.category as string | undefined,
+            title,
+            resolveLangForText(title),
+          ),
+          scope: t.scope as 'daily' | 'weekly' | 'monthly' | undefined,
+          recurrence: 'once' as const,
+          isTemplate: false as const,
+          sortOrder: (t.dueDate ?? t.dueAt ?? (Date.now() + i)) as number,
+          isPinned: Boolean(t.isPinned),
+        };
+      });
+
+    if (migrated.length > 0) {
+      localStorage.removeItem('todo-storage');
+    }
+    return migrated;
+  } catch {
+    return [];
+  }
+}
