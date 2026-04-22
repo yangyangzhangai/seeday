@@ -1,11 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetOutboxExecutorsForTests, setOutboxExecutorForTests, useOutboxStore } from './useOutboxStore';
 
 describe('useOutboxStore', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T10:00:00Z'));
+  });
+
   afterEach(() => {
     useOutboxStore.setState({ entries: [] });
     resetOutboxExecutorsForTests();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('enqueues entries as pending', () => {
@@ -18,6 +24,7 @@ describe('useOutboxStore', () => {
     expect(entry.id).toBe(id);
     expect(entry.status).toBe('pending');
     expect(entry.attempts).toBe(0);
+    expect(entry.consecutiveFailures).toBe(0);
   });
 
   it('flush removes succeeded entries', async () => {
@@ -78,7 +85,7 @@ describe('useOutboxStore', () => {
     expect(useOutboxStore.getState().entries).toEqual([]);
   });
 
-  it('marks entry failed after five attempts', async () => {
+  it('puts entry into cooldown after three consecutive failures', async () => {
     const executor = vi.fn().mockRejectedValue(new Error('still offline'));
     setOutboxExecutorForTests('annotation.insert', executor);
     useOutboxStore.setState({
@@ -86,7 +93,8 @@ describe('useOutboxStore', () => {
         id: 'a1',
         kind: 'annotation.insert',
         payload: { annotation: { id: 'a1', content: 'x', tone: 'gentle', timestamp: 1, relatedEvent: { type: 'activity_recorded', timestamp: 1 }, displayDuration: 1000, syncedToCloud: false } },
-        attempts: 4,
+        attempts: 2,
+        consecutiveFailures: 2,
         status: 'pending',
       } as never],
     });
@@ -94,7 +102,34 @@ describe('useOutboxStore', () => {
     await useOutboxStore.getState().flush('u1');
 
     const [entry] = useOutboxStore.getState().entries;
-    expect(entry.attempts).toBe(5);
-    expect(entry.status).toBe('failed');
+    expect(entry.attempts).toBe(3);
+    expect(entry.status).toBe('cooldown');
+    expect(entry.consecutiveFailures).toBe(0);
+    expect(entry.nextRetryAt).toBe(Date.now() + 60 * 60 * 1000);
+  });
+
+  it('retries cooldown entries after retry window elapses', async () => {
+    const executor = vi.fn().mockResolvedValue(undefined);
+    setOutboxExecutorForTests('annotation.outcome', executor);
+    useOutboxStore.setState({
+      entries: [{
+        id: 'a1',
+        kind: 'annotation.outcome',
+        payload: { annotationId: 'a1', accepted: true },
+        attempts: 3,
+        consecutiveFailures: 0,
+        status: 'cooldown',
+        nextRetryAt: Date.now() + 60 * 60 * 1000,
+      } as never],
+    });
+
+    await useOutboxStore.getState().flush('u1');
+    expect(executor).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+    await useOutboxStore.getState().flush('u1');
+
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
   });
 });

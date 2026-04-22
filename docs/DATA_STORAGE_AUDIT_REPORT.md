@@ -68,8 +68,8 @@
 | C-1 | Chat `syncState` + outbox 联动 | ✅ 已完成 | 新发 chat message 已显式标记 `pending/synced/failed`，并由 `chat.upsert` outbox 承接失败补推 |
 | C-2 | Plant 写路径 durable 化 | ✅ 已完成 | `setDirectionOrder()` 保留本地即时更新，失败时改入 `plant.directionOrder` outbox 等待补推 |
 | C-3 | Report 次级更新写路径并入 outbox | ✅ 已完成 | `updateReport()` 无 session 或直写失败时改入 `report.upsert` outbox |
-| C-4 | Annotation `suggestion_accepted` 写路径 durable 化 | ❌ 未完成 | 当前为直接 update，失败只打印日志 |
-| C-5 | Outbox failed UI | ❌ 未完成 | 骨架和 failed 状态已在，用户可见层仍未设计落地 |
+| C-4 | Annotation `suggestion_accepted` 写路径 durable 化 | ✅ 已完成 | `recordSuggestionOutcome()` 无 session 或更新失败时改入 `annotation.outcome` outbox |
+| C-5 | Outbox failed UI | ⏳ 部分完成 | 底层已改为“连续失败 3 次后进入 1 小时 cooldown”，减少自动保存闪现；但用户可见 failed/cooldown UI 仍未设计落地 |
 
 #### C. 新确认的多账号隔离风险（建议下一主线独立处理）
 
@@ -613,7 +613,7 @@ DB 层: `src/api/supabase.ts`, `src/lib/dbRetry.ts`, `src/lib/dbMappers.ts`, `sr
 | P1-1' | **Outbox 失败 UI** | 小（但要先对齐视觉） | **Q1 UI 待议** |
 | P1-2 | Plant 写路径 durable 化 | 已完成 | 2026-04-22 已落地 |
 | P1-3 | Report 次级更新写路径并入 outbox | 已完成 | 2026-04-22 已落地 |
-| P1-4 | Annotation `suggestion_accepted` durable 化 | 小 | 补齐 local-first 不丢数 |
+| P1-4 | Annotation `suggestion_accepted` durable 化 | 已完成 | 2026-04-22 已落地 |
 | P1-5 | Chat dateCache 合并与删除语义继续配合 `syncState` 收口 | 中 | 配合 P1-1 |
 
 ### P2（下一主线：多账号隔离与结构治理）

@@ -640,7 +640,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                 <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave(); }} disabled={saving}
                   className="w-full py-3 rounded-2xl text-sm font-semibold disabled:opacity-60"
                   style={{ background: 'rgba(144, 212, 122, 0.20)', boxShadow: '0px 2px 2px #C8C8C8', color: '#5F7A63' }}>
-                  {saving ? t('profile_routine_saving') : t('profile_routine_save')}
+                  {t('profile_routine_save')}
                 </motion.button>
               </div>
             </motion.div>

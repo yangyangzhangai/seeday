@@ -11,7 +11,6 @@ interface Props {
 export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
   const { t } = useTranslation();
   const { longTermProfileEnabled, updateLongTermProfileEnabled } = useAuthStore();
-  const [saving, setSaving] = React.useState(false);
   const [statusText, setStatusText] = React.useState('');
 
   React.useEffect(() => {
@@ -37,10 +36,8 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
         </div>
         <button
           onClick={() => {
-            if (saving) return;
             triggerLightHaptic();
             setStatusText('');
-            setSaving(true);
             void updateLongTermProfileEnabled(!longTermProfileEnabled)
               .then(({ error }) => {
                 setStatusText(
@@ -48,16 +45,12 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
                     ? t('profile_long_term_profile_save_failed')
                     : t('profile_long_term_profile_saved'),
                 );
-              })
-              .finally(() => {
-                setSaving(false);
               });
           }}
           type="button"
           role="switch"
           aria-checked={longTermProfileEnabled}
           aria-label={t('profile_long_term_profile')}
-          disabled={saving}
           className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full border transition-colors ${
             longTermProfileEnabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}

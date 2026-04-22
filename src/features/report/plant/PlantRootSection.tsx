@@ -30,13 +30,17 @@ function getCategoryKey(category: PlantCategoryKey): string {
 }
 
 interface PlantRootSectionProps {
+  autoGeneratePlantToken?: number;
   onGenerateDiary?: () => void;
   onDiaryDraftChange?: (text: string) => void;
 }
 
-export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDiary, onDiaryDraftChange }) => {
-  const { t, i18n } = useTranslation();
-  const currentLang = i18n.language?.split('-')[0] || 'en';
+export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
+  autoGeneratePlantToken,
+  onGenerateDiary,
+  onDiaryDraftChange,
+}) => {
+  const { t } = useTranslation();
   const reports = useReportStore(state => state.reports);
   const updateReport = useReportStore(state => state.updateReport);
   const generateReport = useReportStore(state => state.generateReport);
@@ -262,12 +266,12 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
     isTooEarly: plantIsTooEarly,
   });
 
-  const handleGeneratePlant = useCallback(async () => {
+  const handleGeneratePlant = useCallback(async (options?: { skipConfirm?: boolean }) => {
     if (plantIsTooEarly) {
       setShowEarlyCard(prev => !prev);
       return;
     }
-    if (!window.confirm(t('plant_generate_confirm'))) return;
+    if (!options?.skipConfirm && !window.confirm(t('plant_generate_confirm'))) return;
     playLoopSound('plantGrow');
     try {
       const response = await generatePlant();
@@ -281,7 +285,12 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({ onGenerateDi
       stopSound('plantGrow');
       setPlantStatusHint(t('plant_generate_failed'));
     }
-  }, [currentLang, generatePlant, plantIsTooEarly, t]);
+  }, [generatePlant, plantIsTooEarly, t]);
+
+  useEffect(() => {
+    if (!autoGeneratePlantToken) return;
+    void handleGeneratePlant({ skipConfirm: true });
+  }, [autoGeneratePlantToken, handleGeneratePlant]);
 
   useEffect(() => {
     if (!plantStatusHint) return;

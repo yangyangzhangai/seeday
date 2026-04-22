@@ -264,11 +264,11 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
       onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
       onViewReport: () => {
         useReminderStore.getState().markConfirmed('evening_check');
-        navigateRef.current('/report');
+        navigateRef.current('/report?action=generate-diary');
       },
       onGrowPlant: () => {
         useReminderStore.getState().markConfirmed('evening_check');
-        navigateRef.current('/growth');
+        navigateRef.current('/report?action=generate-plant');
       },
       onOpenChat: () => navigateRef.current('/chat'),
       onStillYes: () => { /* session_check 重调度（Phase 2）*/ },

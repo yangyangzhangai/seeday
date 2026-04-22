@@ -17,7 +17,6 @@ export const UserProfilePanel: React.FC<Props> = ({
   const { t } = useTranslation();
   const { userProfileV2, updateUserProfile } = useAuthStore();
   const [expanded, setExpanded] = React.useState(!showHeader);
-  const [saving, setSaving] = React.useState(false);
   const [saveText, setSaveText] = React.useState('');
 
   const initialFreeText = userProfileV2?.manual?.freeText ?? '';
@@ -39,10 +38,8 @@ export const UserProfilePanel: React.FC<Props> = ({
       return;
     }
     setSaveText('');
-    setSaving(true);
     const nextManual = buildAIMemoryManualPayload(userProfileV2?.manual, { freeText });
     const { error } = await updateUserProfile({ manual: nextManual });
-    setSaving(false);
     setSaveText(error ? t('profile_user_profile_save_failed') : t('profile_user_profile_saved'));
   };
 
@@ -81,14 +78,14 @@ export const UserProfilePanel: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => { void handleSave(); }}
-                disabled={saving || !hasUnsavedChanges}
+                disabled={!hasUnsavedChanges}
                 className="min-h-9 rounded-lg border border-transparent px-4 text-xs font-medium text-[#355643] disabled:opacity-60"
                 style={{
                   background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
                   boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
                 }}
               >
-                {saving ? t('profile_user_profile_saving') : t('profile_user_profile_save')}
+                {t('profile_user_profile_save')}
               </button>
               {saveText ? <p className="mt-2 text-xs text-slate-500">{saveText}</p> : null}
             </div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format, isSameDay, startOfDay, endOfDay, startOfMonth, isSunday, endOfMonth } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
 import Calendar from 'react-calendar';
@@ -32,6 +32,7 @@ type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 export const ReportPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [date, setDate] = useState<Value>(new Date());
   const { reports, generateReport, generateAIDiary, updateReport } = useReportStore();
   const { todos } = useTodoStore();
@@ -59,8 +60,10 @@ export const ReportPage = () => {
   const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
   const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
   const [openedPlantCard, setOpenedPlantCard] = useState<DailyPlantRecord | null>(null);
+  const [autoGeneratePlantToken, setAutoGeneratePlantToken] = useState(0);
   const navigate = useNavigate();
   const currentLang = i18n.language?.split('-')[0] || 'en';
+  const today = new Date();
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
 
@@ -110,7 +113,7 @@ export const ReportPage = () => {
     }
   };
 
-  const handleGenerateDiary = async () => {
+  const handleGenerateDiary = useCallback(async () => {
     const now = new Date();
     if (now.getHours() < 20) {
       setShowEarlyTip(true);
@@ -142,7 +145,24 @@ export const ReportPage = () => {
       (!report.analysisStatus && !report.aiAnalysis && !report.teaserText)
     );
     if (needsGeneration) generateAIDiary(reportId);
-  };
+  }, [generateAIDiary, generateReport, reports, todayDiaryDraft, updateReport]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (!action) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('action');
+    setSearchParams(nextParams, { replace: true });
+
+    if (action === 'generate-plant') {
+      setAutoGeneratePlantToken((prev) => prev + 1);
+      return;
+    }
+    if (action === 'generate-diary') {
+      void handleGenerateDiary();
+    }
+  }, [handleGenerateDiary, searchParams, setSearchParams]);
 
   // Keep a ref so the midnight timer can read latest reports without re-scheduling
   const reportsRef = useRef(reports);
@@ -269,7 +289,6 @@ export const ReportPage = () => {
     await openDiaryForDate(next);
   }, [diaryNavDate, openDiaryForDate]);
 
-  const today = new Date();
   const calendarLocale = currentLang === 'zh' ? zhCN : currentLang === 'it' ? it : enUS;
   const isZh = currentLang === 'zh';
   const showCalendarFeatureNotice = useCallback((kind: 'weekly' | 'monthly' | 'custom') => {
@@ -338,6 +357,7 @@ export const ReportPage = () => {
 
       <div className="flex-1 relative overflow-hidden">
         <PlantRootSection
+          autoGeneratePlantToken={autoGeneratePlantToken}
           onGenerateDiary={handleGenerateDiary}
           onDiaryDraftChange={setTodayDiaryDraft}
         />

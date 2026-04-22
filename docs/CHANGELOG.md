@@ -6,6 +6,38 @@ All notable effective changes are documented here.
 
 ## 2026-04-22
 
+### Improve: Profile save flicker reduction
+
+- `useAuthStore.updateLongTermProfileEnabled()` 与 `useAuthStore.updateLanguagePreference()` 改为先更新本地 UI / user metadata，再静默走后台 metadata 同步，避免 profile 区域把云端 patch 当成前台保存流程
+- `src/features/profile/components/UserProfilePanel.tsx` 去掉会被瞬时 local-first 保存触发的 `Saving...` 按钮闪现
+- `src/features/profile/components/RoutineSettingsPanel.tsx` 保存按钮改为稳定文案，避免关闭弹层自动保存时闪出瞬时 saving 文案
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Improve: Outbox cooldown to reduce autosave flicker
+
+- `useOutboxStore` 自动重试策略从“连续失败一路打到 failed”调整为“连续失败 3 次进入 1 小时 cooldown”，冷却结束后再恢复后台重试，避免自动保存在弱网下反复闪现
+- 保留总尝试上限作为最终兜底，但短期失败不再持续高频触发上传
+- `useOutboxStore.test.ts` 增加 cooldown 与延时恢复重试用例
+
+Validation:
+
+- `npx vitest run "src/store/useOutboxStore.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
+### Improve: Annotation suggestion outcome durable fallback
+
+- `useAnnotationStore.recordSuggestionOutcome()` 保持本地即时更新，但在“无 session”或 `annotations.update({ suggestion_accepted })` 失败时，改为将结果写入 `annotation.outcome` outbox，避免建议接受/拒绝反馈丢失
+- `useOutboxStore` 新增 `annotation.outcome` executor，负责重放 `suggestion_accepted` 更新
+- 新增 `useAnnotationStore.test.ts` 用例，覆盖“离线接受建议后本地态保留且入 outbox”路径
+
+Validation:
+
+- `npx vitest run "src/store/useAnnotationStore.test.ts" "src/store/useOutboxStore.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
 ### Improve: Report 次级更新 durable fallback
 
 - `useReportStore.updateReport()` 保持本地乐观更新，但在“无 session”或 `reports.update(...)` 失败时，改为将完整 report 写入 `report.upsert` outbox，避免标题、正文、统计、用户备注、AI 结果等次级编辑因网络抖动丢失

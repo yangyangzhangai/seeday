@@ -11,7 +11,9 @@ import type { PlantCategoryKey } from '../types/plant';
 import type { Message } from './useChatStore.types';
 import type { Report } from './useReportStore';
 
-const MAX_OUTBOX_ATTEMPTS = 5;
+const MAX_CONSECUTIVE_FAILURES = 3;
+const OUTBOX_COOLDOWN_MS = 60 * 60 * 1000;
+const MAX_OUTBOX_ATTEMPTS = 15;
 
 type MoodPatch = {
   mood_label?: string | null;
@@ -26,7 +28,9 @@ type MoodOutboxEntry = {
   kind: 'mood.upsert';
   payload: { messageId: string; patch: MoodPatch };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -42,7 +46,9 @@ type FocusOutboxEntry = {
     actualDuration?: number;
   };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -51,7 +57,9 @@ type ReportOutboxEntry = {
   kind: 'report.upsert';
   payload: { report: Report };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -60,7 +68,9 @@ type AnnotationOutboxEntry = {
   kind: 'annotation.insert';
   payload: { annotation: AIAnnotation };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -69,7 +79,9 @@ type AnnotationOutcomeOutboxEntry = {
   kind: 'annotation.outcome';
   payload: { annotationId: string; accepted: boolean };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -78,7 +90,9 @@ type ChatOutboxEntry = {
   kind: 'chat.upsert';
   payload: { message: Message };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -87,7 +101,9 @@ type PlantDirectionOutboxEntry = {
   kind: 'plant.directionOrder';
   payload: { order: PlantCategoryKey[] };
   attempts: number;
-  status: 'pending' | 'failed';
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
   lastError?: string;
 };
 
@@ -209,7 +225,14 @@ export const useOutboxStore = create<OutboxState>()(
       enqueue: (entry) => {
         const id = uuidv4();
         set((state) => ({
-          entries: [...state.entries, { ...entry, id, attempts: 0, status: 'pending' } as OutboxEntry],
+          entries: [...state.entries, {
+            ...entry,
+            id,
+            attempts: 0,
+            consecutiveFailures: 0,
+            status: 'pending',
+            nextRetryAt: undefined,
+          } as OutboxEntry],
         }));
         return id;
       },
@@ -218,10 +241,15 @@ export const useOutboxStore = create<OutboxState>()(
           entries: state.entries.map((entry) => {
             if (entry.id !== id) return entry;
             const nextAttempts = attempts ?? entry.attempts;
+            const nextConsecutiveFailures = (entry.consecutiveFailures ?? 0) + 1;
+            const isHardFailed = nextAttempts >= MAX_OUTBOX_ATTEMPTS;
+            const isCoolingDown = !isHardFailed && nextConsecutiveFailures >= MAX_CONSECUTIVE_FAILURES;
             return {
               ...entry,
               attempts: nextAttempts,
-              status: nextAttempts >= MAX_OUTBOX_ATTEMPTS ? 'failed' : 'pending',
+              consecutiveFailures: isCoolingDown ? 0 : nextConsecutiveFailures,
+              status: isHardFailed ? 'failed' : (isCoolingDown ? 'cooldown' : 'pending'),
+              nextRetryAt: isCoolingDown ? Date.now() + OUTBOX_COOLDOWN_MS : undefined,
               lastError: error,
             };
           }),
@@ -234,7 +262,11 @@ export const useOutboxStore = create<OutboxState>()(
         const resolvedUserId = userId || (await getSupabaseSession())?.user?.id;
         if (!resolvedUserId) return;
 
-        const snapshot = get().entries.filter((entry) => entry.status === 'pending');
+        const now = Date.now();
+        const snapshot = get().entries.filter((entry) => (
+          entry.status === 'pending'
+          || (entry.status === 'cooldown' && (entry.nextRetryAt ?? 0) <= now)
+        ));
         if (snapshot.length === 0) return;
 
         for (const entry of snapshot) {
@@ -245,6 +277,15 @@ export const useOutboxStore = create<OutboxState>()(
           }
 
           try {
+            if (entry.status === 'cooldown') {
+              set((state) => ({
+                entries: state.entries.map((item) => (
+                  item.id === entry.id
+                    ? { ...item, status: 'pending', nextRetryAt: undefined }
+                    : item
+                )),
+              }));
+            }
             await executor(entry, resolvedUserId);
             if (entry.kind === 'chat.upsert') {
               await updateChatMessageSyncStatus(entry as ChatOutboxEntry, 'synced');

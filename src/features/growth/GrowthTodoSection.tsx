@@ -89,19 +89,28 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     void fetchTodos();
   };
 
-  const resolveLatestEventEndTime = (referenceNow: number): number => {
-    let latestEnd = 0;
+  const resolveTodoCompletionStartTime = (referenceNow: number): number => {
+    let latestRecord: { timestamp: number; duration?: number } | null = null;
     for (const message of useChatStore.getState().messages) {
       if (message.isMood || message.mode !== 'record') continue;
       if (message.timestamp > referenceNow) continue;
-      const endMs = message.duration !== undefined
-        ? message.timestamp + message.duration * 60_000
-        : referenceNow;
-      if (endMs <= referenceNow && endMs > latestEnd) {
-        latestEnd = endMs;
+      if (!latestRecord || message.timestamp >= latestRecord.timestamp) {
+        latestRecord = {
+          timestamp: message.timestamp,
+          duration: message.duration,
+        };
       }
     }
-    return latestEnd > 0 ? latestEnd : referenceNow;
+
+    if (!latestRecord || latestRecord.duration === undefined) {
+      return referenceNow;
+    }
+
+    const latestEnd = latestRecord.timestamp + latestRecord.duration * 60_000;
+    if (!Number.isFinite(latestEnd)) {
+      return referenceNow;
+    }
+    return Math.min(Math.max(latestRecord.timestamp, latestEnd), referenceNow);
   };
 
   const handleToggle = async (id: string) => {
@@ -130,7 +139,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         now,
         bottleName: linkedBottle?.name,
       });
-      const startTime = resolveLatestEventEndTime(now);
+      const startTime = resolveTodoCompletionStartTime(now);
       const msgId = await sendMessage(todo.title, startTime, {
         activityTypeOverride: normalizeTodoCategory(todo.category, todo.title),
         annotationEventType: 'activity_completed',

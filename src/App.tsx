@@ -332,8 +332,8 @@ const MainLayout = () => {
         <EveningCheckPopup
           copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
           todayEventCount={messages.filter((m) => m.mode === 'record').length}
-          onViewReport={() => { markConfirmed(activePopupType); navigate('/report'); }}
-          onGrowPlant={() => { markConfirmed(activePopupType); navigate('/growth'); }}
+          onViewReport={() => { markConfirmed(activePopupType); navigate('/report?action=generate-diary'); }}
+          onGrowPlant={() => { markConfirmed(activePopupType); navigate('/report?action=generate-plant'); }}
           onSnooze={() => { markConfirmed(activePopupType); }}
           onClose={() => { markConfirmed(activePopupType); }}
         />

@@ -841,17 +841,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
     };
 
-    const { user, error } = await patchUserMetadata(patch);
-    if (!error && user) {
-      const profileState = profileStateFromMeta(user.user_metadata || {});
-      set({
-        user,
-        longTermProfileEnabled: profileState.longTermProfileEnabled,
-        userProfileV2: profileState.userProfileV2,
-      });
-    }
+    set({
+      user: {
+        ...currentUser,
+        user_metadata: {
+          ...(currentUser.user_metadata || {}),
+          ...patch,
+        },
+      },
+      longTermProfileEnabled: enabled,
+    });
 
-    return { error };
+    void patchUserMetadata(patch)
+      .then(({ user, error }) => {
+        if (!error && user) {
+          const profileState = profileStateFromMeta(user.user_metadata || {});
+          set({
+            user,
+            longTermProfileEnabled: profileState.longTermProfileEnabled,
+            userProfileV2: profileState.userProfileV2,
+          });
+          return;
+        }
+        if (import.meta.env.DEV && error) {
+          console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
+        }
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
+        }
+      });
+
+    return { error: null };
   },
 
   updateUserProfile: async (updater) => {
@@ -914,11 +936,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { error: null };
     }
 
-    const { user, error } = await patchUserMetadata({ i18nextLng: normalized });
-    if (!error && user) {
-      set({ user });
-    }
-    return { error };
+    set({
+      user: {
+        ...currentUser,
+        user_metadata: {
+          ...(currentUser.user_metadata || {}),
+          i18nextLng: normalized,
+        },
+      },
+    });
+
+    void patchUserMetadata({ i18nextLng: normalized })
+      .then(({ user, error }) => {
+        if (!error && user) {
+          set({ user });
+          return;
+        }
+        if (import.meta.env.DEV && error) {
+          console.warn('[auth] updateLanguagePreference cloud sync failed (local saved):', error);
+        }
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateLanguagePreference cloud sync failed (local saved):', error);
+        }
+      });
+
+    return { error: null };
   },
 
   refreshActivityStreak: async () => {
