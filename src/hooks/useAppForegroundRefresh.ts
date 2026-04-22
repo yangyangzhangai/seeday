@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
 import { useMoodStore } from '../store/useMoodStore';
 import { useReportStore } from '../store/useReportStore';
+import { useOutboxStore } from '../store/useOutboxStore';
 
 /**
  * iOS/Android only: when the app returns to foreground, re-fetch core data
@@ -21,7 +22,9 @@ export function useAppForegroundRefresh() {
 
     App.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
-      if (!useAuthStore.getState().user?.id) return;
+      const userId = useAuthStore.getState().user?.id;
+      if (!userId) return;
+      void useOutboxStore.getState().flush(userId).catch(() => {});
       void useChatStore.getState().fetchMessages();
       void useMoodStore.getState().fetchMoods();
       void useReportStore.getState().fetchReports();

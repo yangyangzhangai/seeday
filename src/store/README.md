@@ -59,8 +59,15 @@
 - metadata 并发写已串行化：新增 `authMetadataQueue.ts`，`updateLanguagePreference/updateUserProfile/updateLongTermProfileEnabled/updateAvatar/updatePreferences` 及迁移写入统一走 `patchUserMetadata(...)`，避免 `user_metadata` 覆盖竞争。
 - `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
 - `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
+- `useAnnotationStore` 持久化新增双重裁剪：`annotations` 仅保留最近 30 天（本地未同步项例外），`characterStateTracker` 仅保留最近 7 天/未过期效果，hydration 时也会再次防御性裁剪。
 - `useFocusStore` 现持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话；`useTimingStore` 已接入 persist，冷启动可直接恢复当日计时状态。
 - `useReminderStore` 已从裸 localStorage 迁移为 Zustand persist（`seeday:v1:reminder`），并在 merge 中保留跨日自动重置 confirmed 状态。
+- `useRealtimeSync` 已按高频/低频拆为双通道：`messages+moods` 走 `user-sync-hf-*`，其余 domain 走 `user-sync-lf-*`，降低单通道故障对聊天实时感的影响。
+- 全域 persist key 已统一收口到 `src/store/persistKeys.ts` 的 `seeday:v1:<domain>`，各 store 在 hydration 时会一次性迁移旧 key，并在 `clearLocalDomainStores()` 中统一清理，降低跨账号残留风险。
+- `useAuthStore.initialize()` 现按各 domain store 的 `lastFetchedAt` 做 60 秒新鲜度门控；本地缓存足够新时跳过重复拉云，仅保留本地恢复、pending push 与 realtime 增量更新。
+- `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` 四类写失败补推。
+- Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
+- `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。
 
 ## 变更自检
 

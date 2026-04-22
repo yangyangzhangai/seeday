@@ -13,6 +13,7 @@ import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
 import { useReminderStore } from './useReminderStore';
+import { useOutboxStore } from './useOutboxStore';
 import { isLegacyChatActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
 import type { UserProfileV2 } from '../types/userProfile';
@@ -47,7 +48,11 @@ import {
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
+import { ALL_DOMAIN_PERSIST_KEYS } from './persistKeys';
+import { clearPersistedKeys } from './persistMigrationHelpers';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+
+const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = SupportedUiLanguage;
@@ -131,17 +136,27 @@ function getTodayDateStr(): string {
 }
 
 function clearLocalDomainStores(): void {
-  useChatStore.setState({ messages: [], hasInitialized: false });
+  useChatStore.setState({
+    messages: [],
+    hasInitialized: false,
+    lastFetchedAt: null,
+    currentDateStr: null,
+    activeViewDateStr: null,
+    dateCache: {},
+    yesterdaySummary: null,
+  });
   useTodoStore.setState({
     todos: [],
     isLoading: false,
     hasHydrated: false,
+    lastFetchedAt: null,
     lastSyncError: null,
   });
-  useReportStore.setState({ reports: [] });
+  useReportStore.setState({ reports: [], computedHistory: [], lastFetchedAt: null });
   useAnnotationStore.setState((state) => ({
     annotations: [],
     currentAnnotation: null,
+    lastFetchedAt: null,
     todayStats: {
       date: toLocalDateStr(Date.now()),
       speakCount: 0,
@@ -161,9 +176,10 @@ function clearLocalDomainStores(): void {
     popupDisabled: false,
     isLoading: false,
     hasHydrated: false,
+    lastFetchedAt: null,
     lastSyncError: null,
   });
-  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null, queue: [], queueIndex: -1 });
+  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null, queue: [], queueIndex: -1, lastFetchedAt: null });
   useStardustStore.getState().clear();
   useReminderStore.setState({
     confirmedToday: new Set<ReminderType>(),
@@ -173,7 +189,44 @@ function clearLocalDomainStores(): void {
     showQuickPicker: false,
     pickerContext: null,
   });
-  localStorage.removeItem('seeday:v1:reminder');
+  clearPersistedKeys(ALL_DOMAIN_PERSIST_KEYS);
+}
+
+function shouldFetchDomain(lastFetchedAt: number | null | undefined): boolean {
+  if (!lastFetchedAt) return true;
+  return Date.now() - lastFetchedAt > DOMAIN_FETCH_FRESHNESS_MS;
+}
+
+function refreshDomainStoresForSession(userId: string): void {
+  const annotationStore = useAnnotationStore.getState();
+  const chatStore = useChatStore.getState();
+  const todoStore = useTodoStore.getState();
+  const reportStore = useReportStore.getState();
+  const moodStore = useMoodStore.getState();
+  const growthStore = useGrowthStore.getState();
+  const focusStore = useFocusStore.getState();
+  const stardustStore = useStardustStore.getState();
+
+  void useOutboxStore.getState().flush(userId).catch(() => {});
+
+  void Promise.all([
+    shouldFetchDomain(annotationStore.lastFetchedAt) ? annotationStore.fetchAnnotations() : Promise.resolve(),
+    shouldFetchDomain(chatStore.lastFetchedAt) ? chatStore.fetchMessages() : Promise.resolve(),
+    shouldFetchDomain(todoStore.lastFetchedAt) ? todoStore.fetchTodos() : Promise.resolve(),
+    shouldFetchDomain(reportStore.lastFetchedAt) ? reportStore.fetchReports() : Promise.resolve(),
+    shouldFetchDomain(moodStore.lastFetchedAt) ? moodStore.fetchMoods() : Promise.resolve(),
+    shouldFetchDomain(growthStore.lastFetchedAt) ? growthStore.fetchBottles() : Promise.resolve(),
+    focusStore.recoverSessionAfterHydration().then(() => (
+      shouldFetchDomain(focusStore.lastFetchedAt) ? focusStore.fetchSessions() : Promise.resolve()
+    )),
+  ]).catch(() => {});
+
+  void Promise.resolve().then(async () => {
+    await stardustStore.syncPendingStardusts();
+    if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
+      await stardustStore.fetchStardusts();
+    }
+  }).catch(() => {});
 }
 
 function hasAnyLocalDataToMigrate(): boolean {
@@ -484,19 +537,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       fetchActivityStreak(session.user.id)
         .then((streak) => set({ activityStreak: streak }))
         .catch(() => {});
-      void Promise.all([
-        useAnnotationStore.getState().fetchAnnotations(),
-        useChatStore.getState().fetchMessages(),
-        useTodoStore.getState().fetchTodos(),
-        useReportStore.getState().fetchReports(),
-        useMoodStore.getState().fetchMoods(),
-        useGrowthStore.getState().fetchBottles(),
-        useFocusStore.getState().recoverSessionAfterHydration().then(() => useFocusStore.getState().fetchSessions()),
-      ]).catch(() => {});
-      void Promise.resolve().then(async () => {
-        await useStardustStore.getState().syncPendingStardusts();
-        await useStardustStore.getState().fetchStardusts();
-      }).catch(() => {});
+      refreshDomainStoresForSession(session.user.id);
       markLocalDataOwnerUser(session.user.id);
     } else {
       const owner = readLocalDataOwner();
@@ -589,18 +630,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         fetchActivityStreak(currentUser.id)
           .then((streak) => set({ activityStreak: streak }))
           .catch(() => {});
-        void Promise.all([
-          useChatStore.getState().fetchMessages(),
-          useTodoStore.getState().fetchTodos(),
-          useReportStore.getState().fetchReports(),
-          useMoodStore.getState().fetchMoods(),
-          useGrowthStore.getState().fetchBottles(),
-          useFocusStore.getState().recoverSessionAfterHydration().then(() => useFocusStore.getState().fetchSessions()),
-        ]).catch(() => {});
-        void Promise.resolve().then(async () => {
-          await useStardustStore.getState().syncPendingStardusts();
-          await useStardustStore.getState().fetchStardusts();
-        }).catch(() => {});
+        refreshDomainStoresForSession(currentUser.id);
         markLocalDataOwnerUser(currentUser.id);
       }
       else if (event === 'SIGNED_OUT') {

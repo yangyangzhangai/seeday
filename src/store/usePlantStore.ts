@@ -9,6 +9,8 @@ import { mapSourcesToPlantActivities } from '../lib/plantActivityMapper';
 import { fromDbPlantRecord } from '../lib/dbMappers';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from './useChatStore';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 import type {
   DailyPlantRecord,
   PlantCategoryKey,
@@ -127,6 +129,28 @@ function normalizeDirectionOrder(order: PlantCategoryKey[]): PlantCategoryKey[] 
   return unique.slice(0, 5);
 }
 
+function isDefaultDirectionOrder(order: PlantCategoryKey[]): boolean {
+  const normalized = normalizeDirectionOrder(order);
+  return normalized.every((category, index) => category === DEFAULT_DIRECTION_ORDER[index]);
+}
+
+function resolveDirectionOrderPreference(
+  localOrder: PlantCategoryKey[] | null | undefined,
+  cloudOrder: PlantCategoryKey[] | null,
+): PlantCategoryKey[] {
+  const normalizedLocal = localOrder?.length ? normalizeDirectionOrder(localOrder) : [...DEFAULT_DIRECTION_ORDER];
+  if (!cloudOrder) {
+    return normalizedLocal;
+  }
+
+  const normalizedCloud = normalizeDirectionOrder(cloudOrder);
+  if (isDefaultDirectionOrder(normalizedCloud) && !isDefaultDirectionOrder(normalizedLocal)) {
+    return normalizedLocal;
+  }
+
+  return normalizedCloud;
+}
+
 function toDirectionMap(order: PlantCategoryKey[]): Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> {
   const fullOrder = normalizeDirectionOrder(order);
   const directionMap: Record<PlantCategoryKey, 0 | 1 | 2 | 3 | 4> = {
@@ -180,7 +204,8 @@ export const usePlantStore = create<PlantState>()(
             .order('direction_index', { ascending: true }),
         ]);
 
-        const directionOrder = [...DEFAULT_DIRECTION_ORDER];
+        const localDirectionOrder = get().directionOrder;
+        let cloudDirectionOrder: PlantCategoryKey[] | null = null;
         if (directionRes.data?.length === 5) {
           const next = [...DEFAULT_DIRECTION_ORDER];
           directionRes.data.forEach((item) => {
@@ -189,10 +214,9 @@ export const usePlantStore = create<PlantState>()(
               next[index] = item.category_key as PlantCategoryKey;
             }
           });
-          set({ directionOrder: normalizeDirectionOrder(next) });
-        } else {
-          set({ directionOrder });
+          cloudDirectionOrder = next;
         }
+        set({ directionOrder: resolveDirectionOrderPreference(localDirectionOrder, cloudDirectionOrder) });
 
         if (plantRes.data) {
           set({ todayPlant: fromDbPlantRecord(plantRes.data) });
@@ -322,42 +346,45 @@ export const usePlantStore = create<PlantState>()(
         const nextOrder = normalizeDirectionOrder(order);
         set({ directionOrder: nextOrder });
         get().refreshTodaySegments();
-        // Save locally first for instant UX; cloud sync runs silently in background.
-        void (async () => {
-          try {
-            const session = await getSupabaseSession();
-            if (!session) return;
+        try {
+          const session = await getSupabaseSession();
+          if (!session) return;
 
-            const { error: deleteError } = await supabase
-              .from('plant_direction_config')
-              .delete()
-              .eq('user_id', session.user.id);
-            if (deleteError) throw deleteError;
+          const { error: deleteError } = await supabase
+            .from('plant_direction_config')
+            .delete()
+            .eq('user_id', session.user.id);
+          if (deleteError) throw deleteError;
 
-            const payload = nextOrder.map((categoryKey, index) => ({
-              user_id: session.user.id,
-              direction_index: index,
-              category_key: categoryKey,
-            }));
+          const payload = nextOrder.map((categoryKey, index) => ({
+            user_id: session.user.id,
+            direction_index: index,
+            category_key: categoryKey,
+          }));
 
-            const { error: insertError } = await supabase
-              .from('plant_direction_config')
-              .insert(payload);
-            if (insertError) throw insertError;
-          } catch (error) {
-            if (import.meta.env.DEV) {
-              console.warn('[plant] sync directionOrder failed (local saved):', error);
-            }
+          const { error: insertError } = await supabase
+            .from('plant_direction_config')
+            .insert(payload);
+          if (insertError) throw insertError;
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn('[plant] sync directionOrder failed (local saved):', error);
           }
-        })();
+          throw error;
+        }
       },
     }),
     {
-      name: 'plant-storage',
+      name: PERSIST_KEYS.plant,
       partialize: (state) => ({
         todayPlant: state.todayPlant,
         directionOrder: state.directionOrder,
         lastAutoBackfillAttemptDate: state.lastAutoBackfillAttemptDate,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...(currentState as PlantState),
+        ...(readLegacyPersistedState<PlantState>(LEGACY_PERSIST_KEYS.plant) || {}),
+        ...((persistedState as Partial<PlantState>) || {}),
       }),
     },
   ),

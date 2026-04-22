@@ -61,7 +61,7 @@ UpgradePage
 - **AI personal memory**: Plus-only; `isPlus && longTermProfileEnabled` controls whether profile snapshot is injected into annotation/suggestion prompt chain and whether weekly extraction runs
 - **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)
 - **Weekly streak**: calculated from Supabase messages table (7-day login history)
-- **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()`
+- **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()` with local-first restore, and emits telemetry for open/change/reset/save outcomes
 
 ## Downstream Impact
 

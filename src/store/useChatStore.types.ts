@@ -40,6 +40,7 @@ export interface YesterdaySummary {
 export interface ChatState {
   messages: Message[];
   lastActivityTime: number | null;
+  lastFetchedAt?: number | null;
   isMoodMode: boolean;
   isLoading: boolean;
   hasInitialized: boolean;

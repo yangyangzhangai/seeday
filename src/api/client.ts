@@ -13,6 +13,7 @@ import type {
   UserAnalyticsDashboardResponse,
   UserAnalyticsLookupResponse,
 } from '../types/userAnalytics';
+import type { ProfileSettingsTelemetryDashboardResponse } from '../types/profileSettingsTelemetry';
 import type {
   PlantAssetTelemetryRequest,
   PlantAssetTelemetryResponse,
@@ -552,6 +553,13 @@ export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAna
   if (!headers.Authorization) throw new Error('Unauthorized');
   const params = new URLSearchParams({ module: 'user_analytics', type: 'user_lookup', query });
   return getJson<UserAnalyticsLookupResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
+}
+
+export async function callProfileSettingsTelemetryDashboardAPI(days = 14): Promise<ProfileSettingsTelemetryDashboardResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  const params = new URLSearchParams({ module: 'profile_settings', days: String(days) });
+  return getJson<ProfileSettingsTelemetryDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 // ── Todo Decompose API ────────────────────────────────────────────────────────

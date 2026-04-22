@@ -41,22 +41,30 @@ function resolveLangForContent(content: string): SupportedLang {
 
 export function useRealtimeSync() {
   const user = useAuthStore(s => s.user);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const highFrequencyChannelRef = useRef<RealtimeChannel | null>(null);
+  const lowFrequencyChannelRef = useRef<RealtimeChannel | null>(null);
+
+  const teardownChannels = () => {
+    if (highFrequencyChannelRef.current) {
+      void supabase.removeChannel(highFrequencyChannelRef.current);
+      highFrequencyChannelRef.current = null;
+    }
+    if (lowFrequencyChannelRef.current) {
+      void supabase.removeChannel(lowFrequencyChannelRef.current);
+      lowFrequencyChannelRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (!user?.id) {
-      // Not signed in — tear down any existing channel
-      if (channelRef.current) {
-        void supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      teardownChannels();
       return;
     }
 
     const userId = user.id;
 
-    const channel = supabase
-      .channel(`user-sync-${userId}`)
+    const highFrequencyChannel = supabase
+      .channel(`user-sync-hf-${userId}`)
 
       // ── messages ────────────────────────────────────────────────────────
       .on(
@@ -122,6 +130,49 @@ export function useRealtimeSync() {
         },
       )
 
+      // ── moods ────────────────────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'moods', filter: `user_id=eq.${userId}` },
+        ({ new: row, old: oldRow, eventType }) => {
+          const newRow = row as { message_id?: string } | null;
+          const prevRow = oldRow as { message_id?: string } | null;
+          const messageId = (newRow?.message_id ?? prevRow?.message_id) as string | undefined;
+          if (!messageId) return;
+
+          useMoodStore.setState(state => ({
+            ...pruneMoodRecordMaps(
+              eventType === 'DELETE' || !row
+                ? removeMoodRecordFromMaps(
+                    {
+                      activityMood: state.activityMood,
+                      activityMoodMeta: state.activityMoodMeta,
+                      customMoodLabel: state.customMoodLabel,
+                      customMoodApplied: state.customMoodApplied,
+                      moodNote: state.moodNote,
+                      moodNoteMeta: state.moodNoteMeta,
+                    },
+                    messageId,
+                  )
+                : applyMoodRowToMaps(
+                    {
+                      activityMood: state.activityMood,
+                      activityMoodMeta: state.activityMoodMeta,
+                      customMoodLabel: state.customMoodLabel,
+                      customMoodApplied: state.customMoodApplied,
+                      moodNote: state.moodNote,
+                      moodNoteMeta: state.moodNoteMeta,
+                    },
+                    row as MoodRowData,
+                  ),
+            ),
+          }));
+        },
+      );
+
+    const lowFrequencyChannel = supabase
+      .channel(`user-sync-lf-${userId}`)
+
       // ── todos ────────────────────────────────────────────────────────────
       .on(
         'postgres_changes',
@@ -163,46 +214,6 @@ export function useRealtimeSync() {
         ({ old: row }) => {
           useTodoStore.setState(state => ({
             todos: state.todos.filter(t => t.id !== row.id),
-          }));
-        },
-      )
-
-      // ── moods ────────────────────────────────────────────────────────────
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'moods', filter: `user_id=eq.${userId}` },
-        ({ new: row, old: oldRow, eventType }) => {
-          const newRow = row as { message_id?: string } | null;
-          const prevRow = oldRow as { message_id?: string } | null;
-          const messageId = (newRow?.message_id ?? prevRow?.message_id) as string | undefined;
-          if (!messageId) return;
-
-          useMoodStore.setState(state => ({
-            ...pruneMoodRecordMaps(
-              eventType === 'DELETE' || !row
-                ? removeMoodRecordFromMaps(
-                    {
-                      activityMood: state.activityMood,
-                      activityMoodMeta: state.activityMoodMeta,
-                      customMoodLabel: state.customMoodLabel,
-                      customMoodApplied: state.customMoodApplied,
-                      moodNote: state.moodNote,
-                      moodNoteMeta: state.moodNoteMeta,
-                    },
-                    messageId,
-                  )
-                : applyMoodRowToMaps(
-                    {
-                      activityMood: state.activityMood,
-                      activityMoodMeta: state.activityMoodMeta,
-                      customMoodLabel: state.customMoodLabel,
-                      customMoodApplied: state.customMoodApplied,
-                      moodNote: state.moodNote,
-                      moodNoteMeta: state.moodNoteMeta,
-                    },
-                    row as MoodRowData,
-                  ),
-            ),
           }));
         },
       )
@@ -440,11 +451,12 @@ export function useRealtimeSync() {
 
       .subscribe();
 
-    channelRef.current = channel;
+    highFrequencyChannel.subscribe();
+    highFrequencyChannelRef.current = highFrequencyChannel;
+    lowFrequencyChannelRef.current = lowFrequencyChannel;
 
     return () => {
-      void supabase.removeChannel(channel);
-      channelRef.current = null;
+      teardownChannels();
     };
   }, [user?.id]);
 }

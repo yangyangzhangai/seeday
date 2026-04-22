@@ -5,6 +5,7 @@ import { useTodoStore } from '../store/useTodoStore';
 import { useGrowthStore } from '../store/useGrowthStore';
 import { useStardustStore } from '../store/useStardustStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useOutboxStore } from '../store/useOutboxStore';
 
 /**
  * When the device comes back online after being offline, flush all pending
@@ -15,6 +16,8 @@ export function useNetworkSync(): void {
     function handleOnline() {
       const user = useAuthStore.getState().user;
       if (!user) return;
+
+      void useOutboxStore.getState().flush(user.id).catch(() => {});
 
       // Push pending todos and re-pull cloud state
       void useTodoStore.getState().fetchTodos().catch(() => {});

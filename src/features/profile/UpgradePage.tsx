@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearPendingCheckoutSession, finalizePendingCheckout, getPendingCheckoutSessionId, purchase } from '@payment';
 import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
+import type { MembershipPopularPlanId } from './membershipTrialEligibility';
 import { syncMembershipAfterPayment } from './membershipSync';
 
 function resolvePaymentResultKey(code: string | undefined): string {
@@ -23,9 +24,12 @@ export const UpgradePage: React.FC = () => {
   const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
-  const disableInitialAnimation = Boolean(
-    (location.state as { disableInitialAnimation?: boolean } | null)?.disableInitialAnimation,
-  );
+  const pageState = (location.state as {
+    disableInitialAnimation?: boolean;
+    initialPlanId?: MembershipPopularPlanId;
+  } | null) ?? null;
+  const disableInitialAnimation = Boolean(pageState?.disableInitialAnimation);
+  const initialPlanId = pageState?.initialPlanId;
 
   React.useEffect(() => {
     const sessionId = getPendingCheckoutSessionId();
@@ -87,6 +91,7 @@ export const UpgradePage: React.FC = () => {
         onPurchase={handlePurchase}
         ctaLabel={isSubmitting || isFinalizing ? t('upgrade_processing') : t('membership_purchase_cta')}
         disableInitialAnimation={disableInitialAnimation}
+        initialPlanId={initialPlanId}
       />
     </div>
   );

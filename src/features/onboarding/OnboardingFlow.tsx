@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
-import { Apple, Chrome, Sparkles, Mail, ChevronRight, Crown, Check, TrendingUp, Brain, Zap, Rocket, Lock, Loader2, User } from 'lucide-react';
+import { Apple, Chrome, Sparkles, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
 import {
   DEFAULT_WAKE_TIME, DEFAULT_SLEEP_TIME,
@@ -369,145 +370,18 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
 // ── StepSubscription ──────────────────────────────────────────
 const StepSubscription: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
-  const { t } = useTranslation();
-  const [selectedPlan, setSelectedPlan] = React.useState('trial');
+  const navigate = useNavigate();
 
-  const PLANS = [
-    { id: 'trial',  name: t('onboarding2_sub_plan_trial_name'),  price: '0.00',  period: t('onboarding2_sub_plan_trial_period_unit'),  desc: t('onboarding2_sub_plan_trial_desc'),  popular: true,  tag: t('onboarding2_sub_plan_trial_tag') },
-    { id: 'yearly', name: t('onboarding2_sub_plan_yearly_name'), price: '99.99', period: t('onboarding2_sub_plan_yearly_period_unit'), desc: t('onboarding2_sub_plan_yearly_desc'), popular: false, tag: t('onboarding2_sub_plan_yearly_tag') },
-  ];
+  const handlePurchase = (planId: 'monthly' | 'yearly') => {
+    navigate('/upgrade', {
+      state: {
+        disableInitialAnimation: true,
+        initialPlanId: planId,
+      },
+    });
+  };
 
-  const PRO_FEATURES = [
-    { icon: <Sparkles size={16} />, label: t('onboarding2_sub_feat_ai_label'),     desc: t('onboarding2_sub_feat_ai_desc') },
-    { icon: <TrendingUp size={16} />, label: t('onboarding2_sub_feat_growth_label'), desc: t('onboarding2_sub_feat_growth_desc') },
-    { icon: <Brain size={16} />,     label: t('onboarding2_sub_feat_memory_label'), desc: t('onboarding2_sub_feat_memory_desc') },
-  ];
-
-  return (
-    <div className="flex-1 flex flex-col px-6 pt-10 pb-6 overflow-y-auto no-scrollbar">
-      {/* 头部标题区 */}
-      <div className="text-center mb-6">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30 mb-4"
-        >
-          <Crown size={28} className="text-white fill-white/20" />
-        </motion.div>
-        <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{t('onboarding2_sub_title')}</h2>
-        <p className="text-[#4a5d4c]/50 text-xs mt-1 font-medium">{t('onboarding2_sub_tagline')}</p>
-      </div>
-
-      {/* 订阅方案选择 */}
-      <div className="space-y-3 mb-8">
-        {PLANS.map((plan) => {
-          const isSelected = selectedPlan === plan.id;
-          return (
-            <motion.button
-              key={plan.id}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setSelectedPlan(plan.id)}
-              className={`relative w-full p-4 rounded-[28px] border-2 transition-all duration-300 text-left overflow-hidden ${
-                isSelected ? 'border-purple-500 bg-purple-50/50' : 'border-white bg-white/40'
-              }`}
-            >
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isSelected ? 'bg-purple-500 border-purple-500' : 'border-[#4a5d4c]/10'
-                  }`}>
-                    {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${isSelected ? 'text-purple-700' : 'text-[#4a5d4c]'}`}>
-                        {plan.name}
-                      </span>
-                      {plan.tag && (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          isSelected ? 'bg-purple-100 text-purple-600' : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/50'
-                        }`}>
-                          {plan.tag}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-[#4a5d4c]/40 font-medium mt-0.5">{plan.desc}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-baseline justify-end gap-0.5">
-                    <span className="text-[10px] font-bold text-[#4a5d4c]/30">¥</span>
-                    <span className={`text-lg font-black ${isSelected ? 'text-purple-600' : 'text-[#4a5d4c]'}`}>
-                      {plan.price}
-                    </span>
-                  </div>
-                  <p className="text-[9px] text-[#4a5d4c]/30 font-bold">/{plan.period}</p>
-                </div>
-              </div>
-              {plan.popular && (
-                <div className="absolute top-0 right-0 p-1 px-3 rounded-bl-xl bg-purple-500 text-[8px] font-black text-white uppercase tracking-tighter">
-                  {t('onboarding2_sub_popular_badge')}
-                </div>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
-
-      {/* Pro 专属功能卡片 */}
-      <div className="bg-white/30 backdrop-blur-md rounded-[32px] p-5 border border-white/60 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap size={14} className="text-purple-500 fill-purple-500" />
-          <h3 className="text-[10px] font-black text-[#4a5d4c]/40 uppercase tracking-widest">
-            {t('onboarding2_sub_features_title')}
-          </h3>
-        </div>
-        <div className="space-y-4">
-          {PRO_FEATURES.map((feature, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-white/60 flex items-center justify-center shrink-0 text-purple-600 shadow-sm">
-                {feature.icon}
-              </div>
-              <div>
-                <h4 className="text-[11px] font-bold text-[#4a5d4c]">{feature.label}</h4>
-                <p className="text-[9px] text-[#4a5d4c]/40 font-medium">{feature.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 底部操作区 */}
-      <div className="mt-auto space-y-4">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onFinish}
-          className="w-full py-5 rounded-[28px] bg-[#4a5d4c] text-white font-black text-lg shadow-xl shadow-[#4a5d4c]/20 flex items-center justify-center gap-3 transition-transform"
-        >
-          <Rocket size={20} />
-          {selectedPlan === 'trial' ? t('onboarding2_sub_cta_trial') : t('onboarding2_sub_cta_upgrade')}
-        </motion.button>
-
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={onFinish}
-            className="w-full py-4 rounded-[24px] border border-[#4a5d4c]/10 text-[#4a5d4c]/50 font-black text-xs uppercase tracking-[0.2em] hover:bg-[#4a5d4c]/5 transition-all"
-          >
-            {t('onboarding2_sub_skip_v2')}
-          </button>
-          <div className="flex items-center justify-center gap-6">
-            <span className="text-[9px] text-[#4a5d4c]/30 font-bold flex items-center gap-1">
-              <Check size={10} /> {t('onboarding2_sub_badge_cancel')}
-            </span>
-            <span className="text-[9px] text-[#4a5d4c]/30 font-bold flex items-center gap-1">
-              <Check size={10} /> {t('onboarding2_sub_badge_secure')}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <MembershipPurchaseModal isOpen onClose={onFinish} onPurchase={handlePurchase} disableInitialAnimation />;
 };
 
 // ── Main OnboardingFlow ───────────────────────────────────────

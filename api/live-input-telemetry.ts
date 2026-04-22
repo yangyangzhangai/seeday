@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 import { handleLiveInputDashboard } from '../src/server/live-input-dashboard-handler.js';
+import { handleProfileSettingsTelemetryDashboard } from '../src/server/profile-settings-telemetry-handler.js';
 import { handleUserAnalyticsDashboard } from '../src/server/user-analytics-handler.js';
 import type { LiveInputTelemetryIngestRequest } from '../src/services/input/liveInputTelemetryApi.js';
 import type { PlantAssetTelemetryRequest } from '../src/types/plant.js';
@@ -91,6 +92,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (req.query.module === 'user_analytics') {
       await handleUserAnalyticsDashboard(req, res);
+      return;
+    }
+    if (req.query.module === 'profile_settings') {
+      await handleProfileSettingsTelemetryDashboard(req, res);
       return;
     }
     await handleLiveInputDashboard(req, res);

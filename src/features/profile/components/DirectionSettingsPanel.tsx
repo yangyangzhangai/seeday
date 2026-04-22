@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { reportTelemetryEvent } from '../../../services/input/reportTelemetryEvent';
 import { usePlantStore } from '../../../store/usePlantStore';
 import { DEFAULT_DIRECTION_ORDER } from '../../../types/plant';
 import type { PlantCategoryKey } from '../../../types/plant';
@@ -40,6 +41,17 @@ function toCategoryLabelKey(category: PlantCategoryKey): string {
   }
 }
 
+function buildDirectionTelemetryPayload(order: PlantCategoryKey[]) {
+  return {
+    order,
+    leftBottom: order[0],
+    leftTop: order[1],
+    top: order[2],
+    rightTop: order[3],
+    rightBottom: order[4],
+  };
+}
+
 export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const directionOrder = usePlantStore(state => state.directionOrder);
@@ -69,9 +81,18 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
 
   const updateSlot = (slotIndex: 0 | 1 | 2 | 3 | 4, value: PlantCategoryKey) => {
     const next = [...stableDraft];
+    const previous = next[slotIndex];
     next[slotIndex] = value;
     setDraft(next);
     setSaveError(null);
+    if (previous !== value) {
+      void reportTelemetryEvent('root_direction_changed', {
+        slotIndex,
+        from: previous,
+        to: value,
+        order: next,
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -80,8 +101,10 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
     setIsSaving(true);
     try {
       await setDirectionOrder(stableDraft);
+      void reportTelemetryEvent('root_direction_saved', buildDirectionTelemetryPayload(stableDraft));
       onClose();
     } catch {
+      void reportTelemetryEvent('root_direction_save_failed', buildDirectionTelemetryPayload(stableDraft));
       setSaveError(t('profile_root_direction_save_error'));
     } finally {
       setIsSaving(false);
@@ -157,6 +180,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
             onClick={() => {
               setDraft([...DEFAULT_DIRECTION_ORDER]);
               setSaveError(null);
+              void reportTelemetryEvent('root_direction_reset', buildDirectionTelemetryPayload(DEFAULT_DIRECTION_ORDER));
             }}
             className="min-h-10 rounded-xl border border-[#CBE7D7] bg-white px-4 text-xs font-medium text-[#355643] transition hover:bg-[#F7F9F8]"
           >

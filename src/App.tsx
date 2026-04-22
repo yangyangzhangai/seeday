@@ -16,6 +16,7 @@ import { TelemetryHubPage } from './features/telemetry/TelemetryHubPage';
 import { AiAnnotationTelemetryPage } from './features/telemetry/AiAnnotationTelemetryPage';
 import { TodoDecomposeTelemetryPage } from './features/telemetry/TodoDecomposeTelemetryPage';
 import { UserAnalyticsDashboardPage } from './features/telemetry/UserAnalyticsDashboardPage';
+import { ProfileSettingsTelemetryPage } from './features/telemetry/ProfileSettingsTelemetryPage';
 import { isTelemetryAdmin } from './features/telemetry/isTelemetryAdmin';
 import { useAuthStore } from './store/useAuthStore';
 import { useChatStore } from './store/useChatStore';
@@ -377,6 +378,7 @@ function App() {
           <Route path="telemetry/ai-annotation" element={<RequireTelemetryAdmin><AiAnnotationTelemetryPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/todo-decompose" element={<RequireTelemetryAdmin><TodoDecomposeTelemetryPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/user-analytics" element={<RequireTelemetryAdmin><UserAnalyticsDashboardPage /></RequireTelemetryAdmin>} />
+          <Route path="telemetry/profile-settings" element={<RequireTelemetryAdmin><ProfileSettingsTelemetryPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/auth" element={<AuthRoute />} />
         <Route path="/onboarding" element={<OnboardingRoute />} />

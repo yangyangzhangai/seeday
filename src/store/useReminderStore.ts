@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import { PERSIST_KEYS } from './persistKeys';
 
 // ─────────────────────────────────────────────
 // 状态定义
@@ -40,7 +41,7 @@ interface ReminderPersistedState {
   confirmedDate: string;
 }
 
-const REMINDER_PERSIST_KEY = 'seeday:v1:reminder';
+const REMINDER_PERSIST_KEY = PERSIST_KEYS.reminder;
 const LEGACY_CONFIRMED_KEY = 'reminder_confirmed_today';
 const LEGACY_CONFIRMED_DATE_KEY = 'reminder_confirmed_date';
 

@@ -5,6 +5,9 @@ import { type MoodKey, normalizeMoodKey } from '../lib/moodOptions';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { withDbRetry } from '../lib/dbRetry';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { useOutboxStore } from './useOutboxStore';
 
 const MAX_MOOD_ENTRIES = 500;
 
@@ -43,6 +46,7 @@ interface MoodState {
   customMoodOptions: string[];
   moodNote: Record<string, string | undefined>;
   moodNoteMeta: Record<string, MoodAttachmentMeta | undefined>;
+  lastFetchedAt: number | null;
   setMood: (activityId: string, mood: MoodOption, source?: MoodAttachmentInput) => void;
   setCustomMoodLabel: (activityId: string, label: string | undefined) => void;
   setCustomMoodApplied: (activityId: string, applied: boolean) => void;
@@ -191,7 +195,7 @@ async function persistMoodRow(
     source?: string;
   }
 ): Promise<void> {
-  await withDbRetry('MoodStore', async () => {
+  const success = await withDbRetry('MoodStore', async () => {
     const session = await getSupabaseSession();
     if (!session) return;
     const { error } = await supabase.from('moods').upsert(
@@ -200,6 +204,13 @@ async function persistMoodRow(
     );
     if (error) throw new Error(error.message);
   });
+
+  if (!success) {
+    useOutboxStore.getState().enqueue({
+      kind: 'mood.upsert',
+      payload: { messageId, patch },
+    });
+  }
 }
 
 export const useMoodStore = create<MoodState>()(
@@ -212,6 +223,7 @@ export const useMoodStore = create<MoodState>()(
       customMoodOptions: [],
       moodNote: {},
       moodNoteMeta: {},
+      lastFetchedAt: null,
 
       setMood: (activityId, mood, source) => {
         const normalized = normalizeMoodKey(mood);
@@ -320,6 +332,7 @@ export const useMoodStore = create<MoodState>()(
         customMoodApplied: {},
         moodNote: {},
         moodNoteMeta: {},
+        lastFetchedAt: null,
       }),
 
       fetchMoods: async () => {
@@ -354,6 +367,7 @@ export const useMoodStore = create<MoodState>()(
               customMoodApplied: pruned.customMoodApplied,
               moodNote: pruned.moodNote,
               moodNoteMeta: pruned.moodNoteMeta,
+              lastFetchedAt: Date.now(),
             };
           });
         } catch (err) {
@@ -362,7 +376,7 @@ export const useMoodStore = create<MoodState>()(
       },
     }),
     {
-      name: 'activity-mood-storage',
+      name: PERSIST_KEYS.mood,
       partialize: (state) => ({
         activityMood: state.activityMood,
         activityMoodMeta: state.activityMoodMeta,
@@ -371,9 +385,13 @@ export const useMoodStore = create<MoodState>()(
         customMoodOptions: state.customMoodOptions,
         moodNote: state.moodNote,
         moodNoteMeta: state.moodNoteMeta,
+        lastFetchedAt: state.lastFetchedAt,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = (persistedState as Partial<MoodState>) || {};
+        const persisted = {
+          ...(readLegacyPersistedState<MoodState>(LEGACY_PERSIST_KEYS.mood) || {}),
+          ...((persistedState as Partial<MoodState>) || {}),
+        };
         const current = currentState as MoodState;
         const persistedActivityMood = persisted.activityMood || {};
         const migratedActivityMood = Object.fromEntries(

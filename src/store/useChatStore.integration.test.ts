@@ -134,6 +134,20 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(moodState.moodNoteMeta['activity-ended']).toBeUndefined();
   });
 
+  it('allows sending two activities back to back and closes the first one', async () => {
+    await useChatStore.getState().sendMessage('吃饭', 1_700_000_000_000);
+    await useChatStore.getState().sendMessage('睡觉', 1_700_000_600_000);
+
+    const messages = useChatStore.getState().messages;
+    expect(messages).toHaveLength(2);
+    expect(messages[0].content).toBe('吃饭');
+    expect(messages[0].duration).toBe(10);
+    expect(messages[0].isActive).toBe(false);
+    expect(messages[1].content).toBe('睡觉');
+    expect(messages[1].duration).toBeUndefined();
+    expect(messages[1].isActive).toBe(true);
+  });
+
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([

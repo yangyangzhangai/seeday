@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-21
+Last Updated: 2026-04-22
 Owner: current working session
 
 ---
@@ -11,6 +11,7 @@ Status: 实施中（高优先）
 
 ### 已完成（本轮）
 
+- [x] Telemetry Center 新增根系方向设置看板入口与聚合接口，可在管理员后台直接观察打开/修改/重置/保存结果
 - [x] 日期口径统一为本地日历日（修复 recurring 判定偏移）
 - [x] 删除一致性第一轮：pending delete tombstone + fetch 合并保护
 - [x] 星星回滚链路补齐（完成加星/取消完成扣星对称）
@@ -35,16 +36,16 @@ Status: 实施中（高优先）
 
 ## 当前主线 B：存储系统 P1 优化（DATA_STORAGE_P1）
 
-Status: 待开始（P0 已完成）
+Status: 实施中（Sprint A 已完成）
 规格文档：`docs/DATA_STORAGE_AUDIT_REPORT.md`
 
 ### 待完成（按建议顺序）
 
-- [ ] **P1-3** `useReminderStore` 迁移到 persist（`seeday:v1:reminder`）
-- [ ] **P1-6** Annotation persist 进一步裁剪（30 天 prune + tracker 7 天裁剪）
-- [ ] **P1-7** Realtime 高频/低频双通道拆分
-- [ ] **P1-4** Zustand persist key 统一为 `seeday:v1:<domain>`
-- [ ] **P1-2** `useAuthStore.initialize` 新鲜度门控（60s）
+- [x] **P1-3** `useReminderStore` 迁移到 persist（`seeday:v1:reminder`）
+- [x] **P1-6** Annotation persist 进一步裁剪（30 天 prune + tracker 7 天裁剪）
+- [x] **P1-7** Realtime 高频/低频双通道拆分
+- [x] **P1-4** Zustand persist key 统一为 `seeday:v1:<domain>`
+- [x] **P1-2** `useAuthStore.initialize` 新鲜度门控（60s）
 - [ ] **P1-1a/b/c** Outbox（骨架 -> 四 store 接入 -> flush 触发点）
 - [ ] **P1-1'** Outbox 失败 UI（需先与 Young 对齐方案）
 - [ ] **P1-5** Chat `syncState` + outbox 联动
@@ -58,43 +59,43 @@ Status: 待开始（P0 已完成）
   - 动作：改为 `create(persist(...))`；key 用 `seeday:v1:reminder`；`merge` 保留跨日自动重置；并兼容迁移旧 key（`reminder_confirmed_today/date`）
   - 验收：跨日后 `confirmedToday` 自动重置；登出后 reminder 本地状态被清空
 
-- [ ] **A-2 / P1-6 Annotation persist 裁剪（剩余）**
+- [x] **A-2 / P1-6 Annotation persist 裁剪（剩余）**
   - 触达：`src/store/useAnnotationStore.ts`
   - 动作：`annotations` 做 30 天 prune；`characterStateTracker` 仅保留最近 7 天键；持久化前后都做防御性裁剪
   - 验收：重度账号下 annotation 持久化体积受控；annotation/suggestion/todayContext 正常
 
-- [ ] **A-3 / P1-7 Realtime 双通道**
+- [x] **A-3 / P1-7 Realtime 双通道**
   - 触达：`src/hooks/useRealtimeSync.ts`
   - 动作：`user-sync-hf-${userId}` 订阅 `messages+moods`；`user-sync-lf-${userId}` 订阅其余 6 表；分别 subscribe/remove
   - 验收：低频通道故障不影响消息/心情实时；`npx tsc --noEmit` 通过
 
 #### Sprint B（A 稳定后）
 
-- [ ] **B-1 / P1-4 persist key 统一**
+- [x] **B-1 / P1-4 persist key 统一**
   - 触达：`src/store/persistKeys.ts`（新增）+ 各 `use*Store.ts`
   - 动作：统一 `seeday:v1:<domain>`；每个 store 的 `name` 改常量；`merge` 中一次性旧 key 迁移（读旧 -> 写新 -> 删旧）
   - 验收：旧设备升级数据不丢；新安装只写新 key；`clearLocalDomainStores` 对齐
 
 #### Sprint C（可与 B 并行）
 
-- [ ] **C-1 / P1-2 initialize 新鲜度门控**
+- [x] **C-1 / P1-2 initialize 新鲜度门控**
   - 触达：`src/store/useAuthStore.ts` + 7 个 domain store
   - 动作：各 store 增 `lastFetchedAt`；`fetchX` 成功后更新；`initialize()` 按 60s gate 跳过热启动重复拉取
   - 验收：热启动（<=30s）不重复拉云；冷启动（>60s）正常拉取
 
 #### Sprint D（最大改动，分批落地）
 
-- [ ] **D-1 / P1-1a Outbox 骨架**
+- [x] **D-1 / P1-1a Outbox 骨架**
   - 触达：`src/store/useOutboxStore.ts`（新增）+ 单测（新增）
   - 动作：定义 `OutboxEntry` 与 4 个 `kind`；persist key `seeday:v1:outbox`；实现 `enqueue/flush/markFailed/clearSucceeded`
   - 验收：覆盖 enqueue / flush 成功 / flush 重试 / >5 次 failed
 
-- [ ] **D-2 / P1-1b 四 store 接入**
+- [x] **D-2 / P1-1b 四 store接入（核心写路径）**
   - 触达：`src/store/useMoodStore.ts`、`src/store/useFocusStore.ts`、`src/store/useReportStore.ts`、`src/store/useAnnotationStore.ts`
-  - 动作：写库失败统一 enqueue；保留现有本地乐观更新
+  - 动作：核心写库失败统一 enqueue；保留现有本地乐观更新
   - 验收：断网写入后，重连自动补推
 
-- [ ] **D-3 / P1-1c flush 触发点**
+- [x] **D-3 / P1-1c flush 触发点**
   - 触达：`src/hooks/useNetworkSync.ts`、`src/hooks/useAppForegroundRefresh.ts`、`src/store/useAuthStore.ts`
   - 动作：`online` / `foreground` / `initialize` 后触发 `useOutboxStore.getState().flush(userId)`
   - 验收：断网 -> 操作 -> 联网，无需重启可补推
@@ -112,7 +113,7 @@ Status: 待开始（P0 已完成）
 
 - [ ] `npx tsc --noEmit`
 - [ ] `npm run build`（A-3/B/C/D 必跑）
-- [ ] Outbox 改动执行 `npm run test:unit`
+- [x] Outbox 改动执行 `npm run test:unit`
 
 ---
 
@@ -147,8 +148,10 @@ Status: 主链路可用，剩余增强项
 
 ## 近期完成（仅保留 2 条）
 
+- [x] 会员购买界面统一：Onboarding 第 7 步改为复用 `MembershipPurchaseModal`，与 `/upgrade` 共用同一套购买弹窗；并按用户试用/购买历史动态切换“人气首选”（未试用→试用档、已试用未购→月度、已购老用户→年度）
+- [x] 根系方向设置收口：`usePlantStore` 改为 local-first 合并方向配置（云端空值/默认值不再覆盖本地自定义），并补齐 profile 侧打开/修改/重置/保存 telemetry
+- [x] Chat 连续活动记录修复：修复 `closePreviousActivityLocal()` 变量/return 缺失，恢复“吃饭 -> 睡觉”连续发送，并补回归测试
 - [x] EcoSphere 漂浮规则增强：随机时长、随机方向、随机冲量脉冲
-- [x] 日报植物区交互简化：移除心情能量曲线展开面板
 
 ---
 

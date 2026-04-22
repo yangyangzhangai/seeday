@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   X,
@@ -17,7 +17,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/useAuthStore';
-import { isEligibleForMembershipTrial } from '../../features/profile/membershipTrialEligibility';
+import {
+  getMembershipPopularPlanId,
+  isEligibleForMembershipTrial,
+  type MembershipPopularPlanId,
+} from '../../features/profile/membershipTrialEligibility';
 
 const PLANS = [
   {
@@ -26,7 +30,6 @@ const PLANS = [
     price: '7.99',
     periodKey: 'membership_purchase_plan_period_month',
     descKey: 'membership_purchase_plan_monthly_desc',
-    popular: false,
     tagKey: '',
   },
   {
@@ -35,7 +38,6 @@ const PLANS = [
     price: '99.99',
     periodKey: 'membership_purchase_plan_period_year',
     descKey: 'membership_purchase_plan_yearly_desc',
-    popular: true,
     tagKey: 'membership_purchase_plan_yearly_tag',
   },
 ] as const;
@@ -84,6 +86,7 @@ interface MembershipPurchaseModalProps {
   onPurchase?: (planId: 'monthly' | 'yearly') => void | Promise<void>;
   ctaLabel?: string;
   disableInitialAnimation?: boolean;
+  initialPlanId?: MembershipPopularPlanId;
 }
 
 export function MembershipPurchaseModal({
@@ -92,8 +95,9 @@ export function MembershipPurchaseModal({
   onPurchase,
   ctaLabel,
   disableInitialAnimation = false,
+  initialPlanId,
 }: MembershipPurchaseModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState('yearly');
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPopularPlanId>('yearly');
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, isPlus } = useAuthStore((state) => ({
@@ -101,10 +105,17 @@ export function MembershipPurchaseModal({
     isPlus: state.isPlus,
   }));
   const trialEligible = isEligibleForMembershipTrial(user, isPlus);
+  const popularPlanId = getMembershipPopularPlanId(user, isPlus);
+  const preferredPlanId = initialPlanId ?? popularPlanId;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSelectedPlan(preferredPlanId);
+  }, [isOpen, preferredPlanId]);
 
   const handlePurchase = () => {
     if (onPurchase) {
-      void onPurchase(selectedPlan as 'monthly' | 'yearly');
+      void onPurchase(selectedPlan);
       return;
     }
     onClose();
@@ -260,11 +271,11 @@ export function MembershipPurchaseModal({
                         </div>
                       </div>
 
-                      {plan.popular ? (
+                      {popularPlanId === plan.id ? (
                         <div className="absolute right-0 top-0 rounded-bl-xl bg-purple-500 px-3 py-1 text-[9px] font-black uppercase tracking-tighter text-white">
                           {t('membership_purchase_popular_badge')}
                         </div>
-                      ) : null}
+                       ) : null}
                     </motion.button>
                   );
                 })}

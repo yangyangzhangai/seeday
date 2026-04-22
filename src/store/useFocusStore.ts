@@ -4,6 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { withDbRetry } from '../lib/dbRetry';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { useOutboxStore } from './useOutboxStore';
 
 const MAX_RESUMABLE_SESSION_MS = 24 * 60 * 60 * 1000;
 
@@ -25,6 +28,7 @@ interface FocusState {
   currentSession: FocusSession | null;
   activeMessageId: string | null;    // linked record page message ID
   sessions: FocusSession[];
+  lastFetchedAt: number | null;
   // Queue mode
   queue: FocusQueueItem[];
   queueIndex: number;               // which item is currently running (-1 = not in queue mode)
@@ -47,6 +51,7 @@ export const useFocusStore = create<FocusState>()(
       currentSession: null,
       activeMessageId: null,
       sessions: [],
+      lastFetchedAt: null,
       queue: [],
       queueIndex: -1,
 
@@ -94,6 +99,20 @@ export const useFocusStore = create<FocusState>()(
             actual_duration: completed.actualDuration,
           }]);
           if (error) throw new Error(error.message);
+        }).then((success) => {
+          if (!success) {
+            useOutboxStore.getState().enqueue({
+              kind: 'focus.insert',
+              payload: {
+                id: completed.id,
+                todoId: completed.todoId,
+                startedAt: completed.startedAt,
+                endedAt: completed.endedAt!,
+                setDuration: completed.setDuration,
+                actualDuration: completed.actualDuration,
+              },
+            });
+          }
         });
 
         return completed;
@@ -160,7 +179,7 @@ export const useFocusStore = create<FocusState>()(
           set(state => {
             const cloudIds = new Set(cloudSessions.map(s => s.id));
             const localOnly = state.sessions.filter(s => !cloudIds.has(s.id));
-            return { sessions: [...cloudSessions, ...localOnly] };
+            return { sessions: [...cloudSessions, ...localOnly], lastFetchedAt: Date.now() };
           });
         } catch (err) {
           if (import.meta.env.DEV) console.warn('[FocusStore] fetchSessions failed', err);
@@ -205,20 +224,38 @@ export const useFocusStore = create<FocusState>()(
             actual_duration: recovered.actualDuration,
           }]);
           if (error) throw new Error(error.message);
+        }).then((success) => {
+          if (!success) {
+            useOutboxStore.getState().enqueue({
+              kind: 'focus.insert',
+              payload: {
+                id: recovered.id,
+                todoId: recovered.todoId,
+                startedAt: recovered.startedAt,
+                endedAt: recovered.endedAt!,
+                setDuration: recovered.setDuration,
+                actualDuration: recovered.actualDuration,
+              },
+            });
+          }
         });
       },
     }),
     {
-      name: 'focus-store',
+      name: PERSIST_KEYS.focus,
       partialize: (state) => ({
         sessions: state.sessions,
+        lastFetchedAt: state.lastFetchedAt,
         currentSession: state.currentSession,
         activeMessageId: state.activeMessageId,
         queue: state.queue,
         queueIndex: state.queueIndex,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = (persistedState as Partial<FocusState>) || {};
+        const persisted = {
+          ...(readLegacyPersistedState<FocusState>(LEGACY_PERSIST_KEYS.focus) || {}),
+          ...((persistedState as Partial<FocusState>) || {}),
+        };
         const current = currentState as FocusState;
         const persistedSessions = Array.isArray(persisted.sessions) ? persisted.sessions : [];
         return {

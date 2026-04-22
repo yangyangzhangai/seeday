@@ -1,746 +1,152 @@
-# Seeday 会员体系规格文档 v1.1
+# Seeday 会员制度现行规格（As-Is）
 
-> 最后更新：2026-04-17
-> 状态：规格已锁定，开发计划待实施
-
----
-
-## 一、会员档位与定价
-
-| 档位 | 月付 | 年付 | 说明 |
-|------|------|------|------|
-| **Free** | 永久免费 | — | 注册即用，7天完整试用 |
-| **Plus（内测价）** | $7.99/月 | — | 限时优惠，后续停售 |
-| **Plus（原价）** | $9.99/月 | $99.99/年 | 正式定价 |
-
-> Apple IAP 价格必须使用官方档位，$7.99 / $9.99 / $99.99 均为合法档位。
-> 内测价通过 Apple「推介促销优惠（Introductory Offer）」实现，无需单独 IAP 产品。
+> DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/profile/README.md
+> 最后更新：2026-04-22
+> 适用范围：当前主干（Web + Capacitor iOS）
+> 文档定位：本文件为会员制度单一事实源（SSOT），以当前代码实现为准，不描述未落地愿景。
 
 ---
 
-## 二、Free vs Plus 功能对照
+## 1. 核心结论（先看）
 
-### 2.1 试用期规则
-
-| 阶段 | 权限 |
-|------|------|
-| 注册后 7 天内 | 完整 Plus 体验（等同于 `isPlus = true`） |
-| 7 天后未付费 | 切换至 Free 限制（见下表） |
-| 付费后 | 恢复完整 Plus |
-
-试用期到期后，AI 批注从无限降为 2 条/天，这是主要的「失去感」触发点。
+1. 当前会员档位只有 `Free` / `Plus` 两档，`isPlus` 由 metadata + trial 判定，临时全员放开已关闭。
+2. 注册后 7 天 trial 仍生效，trial 期间等同 Plus 能力。
+3. 普通功能和会员功能已基本分层，但仍有 3 个需要继续对齐的差异：
+   - AI 批注日限额当前 Free=3（非 2）
+   - 会员卡文案与真实可用范围有偏差（如 daily report）
+   - 周/月能力在 UI 侧仍是开发中提示，非正式门控成品
 
 ---
 
-### 2.2 AI 人格
+## 2. 会员判定规则（代码口径）
 
-| 人格 | Free | Plus |
-|------|------|------|
-| Van（情绪治愈） | ✅ 唯一可用 | ✅ |
-| Agnes（引领指导） | 🔒 | ✅ |
-| Zep（生活真实） | 🔒 | ✅ |
-| Momo（从容温吞） | 🔒 | ✅ |
+### 2.1 判定优先级
 
-> 决策：免费用户只能用 Van，强化失去感，同时让 Van 成为「陪你入门的人」。
+`resolveMembershipState()` 按以下顺序判定：
 
----
+1. metadata 别名字段（`membership_plan/plan/subscription_plan/tier/is_plus/vip` 等，含 `app_metadata` + `user_metadata`）
+2. `trial_started_at` 是否在 7 天窗口内
+3. 临时全员解锁开关（当前为 `false`）
+4. 默认 Free
 
-### 2.3 AI 批注
+代码锚点：
 
-| 项目 | Free（试用到期后） | Plus |
-|------|------------------|------|
-| 每日批注上限 | 2 条 | 无限 |
-| 批注频率可选 | 仅 low | low / medium / high |
+- `src/store/useAuthStore.ts:313`
+- `src/store/useAuthStore.ts:89`
+- `src/store/useAuthStore.ts:704`
 
----
+### 2.2 Free 自动收口策略
 
-### 2.4 魔法笔 & 待办拆解
+当用户不是 Plus 时，会自动把偏好收口到 Free 能力边界：
 
-| 功能 | Free | Plus |
-|------|------|------|
-| 魔法笔（AI 解析输入） | 🔒 | ✅ |
-| 待办 AI 拆解 | 🔒 | ✅ |
+- AI 人格强制回退到 `van`
+- 批注频率强制为 `low`
 
----
+代码锚点：
 
-### 2.5 日报与日记
+- `src/store/authPreferenceHelpers.ts:79`
 
-| 功能 | Free | Plus |
-|------|------|------|
-| 日报生成（数据统计部分） | ✅ | ✅ |
-| AI 日记生成 | 🔒 显示 Teaser | ✅ 完整内容 |
-| 周报 / 月报 / 年报 | 🔒 | ✅ |
+### 2.3 批注日限额真实口径
 
-**Free 用户 AI 日记区域显示逻辑：**
-- 根据今日数据信号匹配模板桶，填入真实数据槽位，生成个性化 teaser（零 AI 成本）
-- 后面渐变模糊，显示「解锁今晚的故事 →」按钮
-- 点击跳转付费页 `/upgrade`
-- 详见第四章「日记 Teaser 模板库」
+- Plus：`9999`（等同不限制）
+- Free：随频率档位，当前低档是 `3/天`
+- 但 Free UI 只允许 `low`
+
+代码锚点：
+
+- `src/store/useAuthStore.ts:83`
+- `src/store/useAuthStore.ts:371`
+- `src/features/profile/components/AIAnnotationDropRate.tsx:43`
 
 ---
 
-### 2.6 植物
+## 3. 普通功能 vs 会员功能对齐表
 
-| 功能 | Free | Plus |
-|------|------|------|
-| 每日植物生成（图像） | ✅ | ✅ |
-| 植物选择 | 算法自动（按 rootType） | 算法自动（按 rootType） |
-| 植物 + 今日关联文字 | 🔒 显示模板 Teaser | ✅ AI 生成 |
+说明：`普通功能`=Free 长期可用；`会员功能`=Plus 才可用；trial 期间按 Plus 执行。
 
-> **决策：植物选择全部改为纯算法，不再调用 AI 选植物。**
-> 原架构中 AI 同时承担「选植物」+「写文字」，拆开后：
-> - 选植物 → `matchRootType()` 算法 + 月度去重随机，零 AI 成本
-> - 写文字 → Plus 用户保留 AI；Free 用户展示模板 Teaser（见第三章）
-
----
-
-### 2.7 作息与 AI 专属记忆
-
-| 功能 | Free | Plus |
-|------|------|------|
-| 作息编辑（起床/睡觉/三餐） | ✅ | ✅ |
-| AI 专属记忆（长期记忆开关 + 个性化记忆文本） | 🔒 | ✅ |
-
-> 决策：将作息从“AI 专属记忆”中拆出，作为普通功能保留给所有用户；AI 专属记忆升级为 Plus 会员权益。
-
----
-
-## 三、植物 Teaser 模板库
-
-**展示规则：**
-- Free 用户生成植物后，植物文字区域从模板库中**按权重随机**抽一条展示
-- 模板与植物种类、当天活动无关，纯情绪向
-- 所有模板均以 Van 的语气写成，一二句话，省略号结尾
-- 三语版本（zh/en/it）各维护一套，i18n key 格式：`plant_teaser_N`
-
-**文案设计原则：**
-1. 不超过 30 字（中文），读完 3 秒内
-2. 有具体感，不抽象
-3. 省略号制造悬念，不做完整陈述
-4. Van 语气：温柔、敏锐、像在轻声说秘密
+| 模块 | 功能 | 普通功能（Free） | 会员功能（Plus） | 对齐结论 | 代码锚点 |
+|---|---|---|---|---|---|
+| 账号 | 会员态解析 | metadata + trial 生效 | metadata + trial 生效 | 已对齐 | `src/store/useAuthStore.ts:313` |
+| 账号 | 7 天试用 | 可获得 Plus 能力 | n/a | 已对齐 | `src/store/useAuthStore.ts:355` |
+| Profile | AI 人格 Van | 可选 | 可选 | 已对齐 | `src/constants/aiCompanionVisuals.ts:17` |
+| Profile | AI 人格 Agnes/Zep/Momo | 锁定 | 可选 | 已对齐 | `src/constants/aiCompanionVisuals.ts:23` |
+| Profile | AI 人格切换门控 | 非 Plus 点选弹升级提示 | 正常切换 | 已对齐 | `src/features/profile/components/AIModeSection.tsx:49` |
+| Profile | 批注频率 low | 可选 | 可选 | 已对齐 | `src/features/profile/components/AIAnnotationDropRate.tsx:7` |
+| Profile | 批注频率 medium/high | 锁定 | 可选 | 已对齐 | `src/features/profile/components/AIAnnotationDropRate.tsx:61` |
+| Profile | 作息编辑（起床/睡觉/三餐） | 可编辑 | 可编辑 | 已对齐 | `src/features/profile/components/RoutineSettingsPanel.tsx:201` |
+| Profile | AI 专属记忆开关/编辑 | 锁定并显示升级引导 | 可用（需开关） | 已对齐 | `src/features/profile/ProfilePage.tsx:69` |
+| Chat | 魔法笔模式 | 锁定，弹升级弹窗 | 可开启 | 已对齐 | `src/features/chat/ChatPage.tsx:481` |
+| Growth | 待办 AI 拆解 | 锁定，提示并跳转升级页 | 可调用 API 拆解 | 已对齐 | `src/features/growth/SubTodoList.tsx:41` |
+| Report | 每日报告（统计层） | 可生成/可查看 | 可生成/可查看 | 已对齐（与会员卡文案有差异） | `src/features/report/ReportPage.tsx:84` |
+| Report | 观察日记正文 | 仅 teaser + 模糊遮罩 + 升级按钮 | 完整 AI 正文 | 已对齐 | `src/store/useReportStore.ts:291` |
+| Report | 日记书页观察区 | teaser + 升级按钮 | 完整正文 | 已对齐 | `src/features/report/DiaryBookViewer.tsx:305` |
+| Report | 周/月入口 | UI 显示“开发中”提示 | UI 显示“开发中”提示 | 待产品口径收口 | `src/features/report/ReportPage.tsx:395` |
+| Prompt 注入 | 用户画像快照注入 annotation | 不注入 | 开关开启后注入 | 已对齐 | `src/store/useAnnotationStore.ts:411` |
+| Prompt 注入 | 周报触发画像提取 | 不触发 | 开关开启后触发 | 已对齐 | `src/store/reportActions.ts:163` |
 
 ---
 
-### 中文模板（100 条）
+## 4. 支付链路现状（当前已实现）
 
-**情绪感知类（感觉 AI 在读你）**
+### 4.1 前端支付适配
 
-```
-001. 今天有什么东西，Van 想留下来细看……
-002. 你以为今天只是普通的一天，但 Van 发现了不一样的地方……
-003. 今天有个瞬间，Van 觉得你比你自己更清楚自己……
-004. 这株植物记住了今天你没说出口的那句话……
-005. Van 在今天的缝隙里找到了什么，想讲给你听……
-006. 你有没有察觉，今天有一刻你特别像你自己……
-007. 今天发生的事，值得被好好说一遍……
-008. Van 想告诉你，今天你做到了一件你自己没注意的事……
-009. 这株植物长出来的原因，和你今天的某个决定有关……
-010. 今天有什么在悄悄生长，Van 看见了……
-```
+- 支付入口统一走 `@payment` 适配层。
+- IAP 与 Stripe 均有实现，不再是纯占位。
+- 升级页 `UpgradePage` 支持下单与回跳后 finalize。
 
-**能量感知类（对应不同的活动状态）**
+代码锚点：
 
-```
-011. 今天你用了很多力气，Van 都记着呢……
-012. 这是那种安静但扎实的一天，Van 想多说几句……
-013. 今天的你，有点像一棵在风里站稳了的植物……
-014. Van 注意到今天你的节奏，和平时有点不一样……
-015. 今天你把时间花在了什么地方，植物都知道……
-016. 哪怕只是平平淡淡的一天，Van 也觉得有东西值得留下……
-017. 今天你做的事，比你以为的更有重量……
-018. Van 在今天里找到了一个词，想送给你……
-019. 这株植物是今天的你长出来的，不是别的任何一天……
-020. 今天有个细节，Van 觉得如果不说出来会可惜……
-```
+- `src/features/profile/UpgradePage.tsx:5`
+- `src/services/payment/iap/index.ts:244`
+- `src/services/payment/stripe/index.ts:40`
 
-**治愈感类（让人想被安慰）**
+### 4.2 服务端订阅处理
 
-```
-021. 累了也没关系，Van 把今天的重量都看见了……
-022. 今天你独自扛了什么，Van 想轻轻说一声辛苦了……
-023. 不管今天顺不顺，Van 觉得你已经很好了……
-024. 今天有什么没完成也没关系，Van 想聊聊为什么……
-025. Van 在今天找到了一个让你可以放松一下的理由……
-026. 你不一定记得今天所有的事，但 Van 帮你记着……
-027. 今天那些说不清楚的感觉，Van 试着写下来了……
-028. 今天结束得好不好，Van 都想和你说说……
-029. 有时候一天里最重要的事，只有在夜里才看得清……
-030. Van 觉得今天的你，需要听一句特别的话……
-```
+`/api/subscription` 当前支持：
 
-**好奇引导类（激发解锁欲）**
+- `iap`: `activate/restore/cancel`
+- `stripe`: `stripe_checkout/stripe_finalize/cancel`
 
-```
-031. Van 在今天发现了一件你可能没意识到的事……
-032. 这株植物的名字，和今天一个小细节呼应了……
-033. 今天有一个时刻，Van 觉得特别想按下暂停键……
-034. Van 把今天整理成了一句话，你想知道是什么吗……
-035. 今天发生的事，Van 有不一样的解读……
-036. 这是今天只属于你的一株植物，理由在里面……
-037. 你知道今天你最像什么植物的状态吗……
-038. Van 想问你一个关于今天的问题，答案在里面……
-039. 今天有个地方让 Van 停了一下，想细细想想……
-040. 如果今天可以留一个画面，Van 选的是哪一刻……
-```
+并统一写回 `auth.users.user_metadata`：
 
-**细节感知类（让人觉得 AI 真的在看）**
+- `membership_plan`
+- `membership_expires_at`
+- `membership_source`
+- `membership_product_id`
+- `membership_transaction_id`
 
-```
-041. 今天你提到的那件事，Van 一直在想……
-042. Van 在你今天的记录里找到了一个很小但很重要的信号……
-043. 今天有件事，乍看普通，Van 觉得不简单……
-044. 你有没有发现，今天你重复提到了某个感受……
-045. Van 注意到今天有个时间段，你的状态变了……
-046. 今天你的节奏里藏着什么，植物感应到了……
-047. Van 在今天的字里行间，读到了一个没说完的故事……
-048. 今天有个小决定，Van 觉得值得被记住……
-049. 你今天花时间做的事，Van 有话想说……
-050. 今天有一刻你是放松的，Van 想告诉你那是什么时候……
-```
+代码锚点：
 
-**时间流逝类（今天很快就会成为昨天）**
-
-```
-051. 今天很快就要变成昨天了，Van 想先留住一点……
-052. 明天你可能不记得今天的全部，Van 帮你存着……
-053. 今天的这株植物，明年的你也许会想看看……
-054. Van 觉得今天值得被好好记住，不是因为什么大事……
-055. 今天又是独一无二的一天，Van 想说说哪里独一无二……
-056. 这种感觉今晚有，以后不一定有，Van 记下来了……
-057. 一天里最好的东西，有时候在最后才露出来……
-058. 今天的事过了就过了，但 Van 不想让它悄悄溜走……
-059. 现在回头看今天，Van 发现了一个之前没看到的角度……
-060. 今天的你，是明天的你会感谢的那种今天……
-```
-
-**成长类（和植物生长呼应）**
-
-```
-061. 这株植物不是随机长出来的，是今天的你选择了它……
-062. 植物不会说谎，今天你的状态它都看见了……
-063. 每一株植物都是一天的总结，今天的这株说了什么……
-064. Van 觉得今天的植物选对了，因为……
-065. 你的植物在悄悄记录着你的成长，今天又多了一笔……
-066. 今天的活动留下了一种根，Van 想告诉你是什么根……
-067. 这株植物从今天的土里长出来，土里有什么……
-068. 植物懂今天，Van 也懂，想和你说说……
-069. 今天的你浇了什么水，植物感受到了……
-070. Van 觉得今天和这株植物之间，有一条看不见的线……
-```
-
-**轻柔悬念类（不重不轻，刚好想点开）**
-
-```
-071. 今天有什么，只有 Van 发现了……
-072. Van 有一句话想对今天的你说……
-073. 今天有个礼物，Van 给你包好了……
-074. 想知道今天的你在 Van 眼里是什么样的吗……
-075. Van 把今天变成了一个故事，想不想听……
-076. 今天有件小事，Van 觉得很值得……
-077. 今天结束了，Van 想给你一个总结……
-078. 有时候旁观者看得更清楚，Van 今天看到了……
-079. 今天你没说完的那句话，Van 帮你说完了……
-080. Van 在今天找到了一句最想对你说的话……
-```
-
-**反差感类（制造惊喜感）**
-
-```
-081. 看起来普通的一天，Van 找到了不普通的地方……
-082. 你以为什么都没发生，但 Van 数了数，发生了挺多……
-083. 今天最值得说的事，不是你以为的那件……
-084. Van 觉得今天最好的部分，你可能没注意到……
-085. 今天你在意的事和 Van 在意的事，不太一样……
-086. 今天有个意外的发现，Van 有点想和你分享……
-087. 今天最轻的一刻，Van 觉得反而最重要……
-088. 你以为今天过完了，其实还有一件事……
-089. Van 有个关于今天的问题，答案让 Van 想了很久……
-090. 今天看起来结束了，但有个东西还没说完……
-```
-
-**温柔收尾类（适合睡前氛围）**
-
-```
-091. 睡前看看 Van 今天写了什么，会睡得好一点……
-092. 今天可以放下了，Van 帮你把值得留的那部分存好了……
-093. 今晚可以带着这句话入睡……
-094. Van 想在你睡前说最后一句话……
-095. 今天结束得好，Van 想告诉你好在哪里……
-096. 把今天的故事读完，今晚会安心一些……
-097. Van 陪你把今天整理好了，放心睡吧……
-098. 今天发生了什么，明天的你会很高兴留下了记录……
-099. 今晚只需要知道一件事，Van 写好了……
-100. 今天辛苦了，Van 把今天最好的那部分留住了……
-```
+- `api/subscription.ts:11`
+- `api/subscription.ts:323`
+- `src/server/stripe-subscription.ts:127`
 
 ---
 
-### 英文模板（摘录 20 条示例，其余待补全）
+## 5. 已知差异与风险（本轮审查）
 
-```
-001. Van noticed something in today that's worth a second look...
-002. Today felt ordinary, but Van found something quietly extraordinary...
-003. There's one moment from today Van keeps coming back to...
-004. This plant grew from today — and the reason is inside...
-005. Van has one thing to say about today, and only one...
-006. You might not have noticed, but today you did something worth remembering...
-007. Van saw a version of you today that deserves to be written down...
-008. Something about today felt different. Van wants to tell you what...
-009. Today's plant was chosen for a reason. Want to know why...
-010. Van has been thinking about one thing you said today...
-011. Before today becomes yesterday, Van wants to save something...
-012. Today was yours. Van just wants to show you one small part of it...
-013. There's a word Van found for today. It's waiting for you...
-014. You put something into today. Van noticed exactly what...
-015. The story of today is short, but it's yours...
-016. Van found the quiet part of your day. It matters...
-017. One thing happened today that Van can't stop thinking about...
-018. You might sleep before you read this. Van hopes you don't...
-019. Today had weight. Van wants to tell you where it came from...
-020. Before you close your eyes — Van has one thing for you...
-```
+1. **批注配额差异**：文档历史口径常写 Free=2/天，代码当前是 Free low=3/天。
+2. **权益文案偏差**：会员卡和购买弹窗包含“每日/每周/每月/每年温室报告”等描述，但当前主流程主要落在 daily，周/月入口仍在“开发中”。
+3. **Report 页历史状态变量遗留**：`showUpgrade` 在 `ReportPage` 中保留但主流程已跳转 `/upgrade`，建议后续清理。
 
 ---
 
-## 四、日记 Teaser 模板库
+## 6. 建议作为后续任务（按优先级）
 
-### 4.1 匹配算法
-
-信号优先级（依次判断，命中即停）：
-
-```
-1. 情绪优先
-   有负面心情记录（sad/anxious/tired/frustrated 等）→ 桶 A「难过低落」
-   有正面心情记录（happy/excited/proud 等）        → 桶 B「开心满足」
-
-2. 活动类型
-   work_study 时长占比 ≥ 50%    → 桶 C「专注工作」
-   exercise 存在               → 桶 D「运动健身」
-   social 时长占比 ≥ 30%        → 桶 E「社交充电」
-   活动种类 ≥ 4 类              → 桶 F「多线充实」
-   总时长 < 60 分钟             → 桶 G「安静轻盈」
-
-3. 兜底
-   以上均不命中                → 桶 H「默认通用」
-```
-
-**数据槽位说明：**
-
-| 槽位 | 来源 | 示例 |
-|------|------|------|
-| `{时长}` | 今日活动总分钟数转换 | `3小时`、`90分钟` |
-| `{主要活动}` | 占比最高的 activity_type 中文名 | `工作`、`运动`、`社交` |
-| `{情绪词}` | is_mood 记录中的关键词 | `有点累`、`心情不错` |
-| `{完成数}` | 今日已完成 todos 数量 | `3件` |
-| `{活动数}` | 今日不同 activity_type 种类数 | `4种` |
-
-槽位缺失时使用兜底文本（见各模板备注）。
+1. 统一“会员权益文案”与“真实门控”对照，避免用户认知落差。
+2. 明确 weekly/monthly 的会员策略（继续开发中提示，或补全正式门控 + 产出链路）。
+3. 把批注日限额作为产品参数显式化（配置化），避免文档和代码再漂移。
 
 ---
 
-### 4.2 桶 A — 难过低落（有负面情绪记录）
-
-```
-A-01  今天有点难，Van 把想说的都留在里面了……
-A-02  {情绪词}的一天，Van 一直在，只是等到现在才说……
-A-03  今天不太好过，Van 看见了，有一句话想只对你说……
-A-04  今天有什么没说完，Van 帮你接着说了……
-A-05  有些天就是会重一点，Van 写了点什么，可能会轻一些……
-A-06  今天的心情 Van 读到了，想在你睡前说一件事……
-A-07  不管今天有多难，Van 在里面找到了一个不一样的角度……
-A-08  今天你扛着什么，Van 都记下来了……
-A-09  低落的时候最需要有人看见，Van 看见了……
-A-10  今天有什么东西压着，Van 想帮你说出来……
-A-11  今天结束得不轻松，但 Van 在里面找到了一个值得留的东西……
-A-12  {情绪词}，但 Van 注意到今天你还是做到了一件事……
-A-13  今天辛苦了，Van 把今天最重要的那句话留好了……
-A-14  不顺的一天里，Van 发现了一个你可能没注意到的瞬间……
-A-15  今天有什么在消耗你，Van 想说说它值不值……
-```
-
----
-
-### 4.3 桶 B — 开心满足（有正面情绪记录）
-
-```
-B-01  今天有什么好的，Van 想帮你好好记住……
-B-02  {情绪词}的感觉，Van 想告诉你它从哪里来的……
-B-03  今天 Van 也跟着高兴了，想说说为什么……
-B-04  今天这个状态，Van 觉得值得被认真写下来……
-B-05  好的一天不只是感觉好，Van 找到了具体的理由……
-B-06  今天有什么发光的地方，Van 想指给你看……
-B-07  今天的{情绪词}，背后有个细节 Van 想说……
-B-08  Van 觉得今天的你，有点特别好……
-B-09  今天有一个瞬间，Van 觉得最值得被记住……
-B-10  今天的好心情有来处，Van 把它写下来了……
-B-11  今天 Van 想说一句：这样的你很好看……
-B-12  好的感觉很快就会淡，Van 帮你把今天存住了……
-B-13  今天有件小事让 Van 觉得很对，想告诉你是哪件……
-B-14  这种状态不是每天都有，Van 记了下来……
-B-15  今天的你，Van 觉得有点想多说两句……
-```
-
----
-
-### 4.4 桶 C — 专注工作（work_study 占比 ≥ 50%）
-
-```
-C-01  今天把{时长}给了{主要活动}，Van 在里面找到了一个细节……
-C-02  {时长}的专注，Van 想说说这背后的那件事……
-C-03  今天你工作了很久，Van 注意到中间有个时刻不一样……
-C-04  用了{时长}在{主要活动}上，Van 觉得有什么值得被看见……
-C-05  今天很认真，Van 想在你休息之前说一句话……
-C-06  {主要活动}{时长}，Van 在这段时间里发现了一件事……
-C-07  今天你全力以赴了，Van 想说说这意味着什么……
-C-08  专注了这么久，Van 觉得有一个细节你自己可能没注意到……
-C-09  今天的{时长}不是白费的，Van 找到了证据……
-C-10  Van 在你今天的努力里，找到了一个想留下来的瞬间……
-C-11  今天你给了{主要活动}很多，Van 想知道你有没有给自己留一点……
-C-12  工作到现在，Van 有一句话一直等到你停下来才说……
-C-13  今天的专注里，有个地方 Van 觉得特别……
-C-14  {时长}的投入，Van 想帮你看看换来了什么……
-C-15  今天你在做一件正确的事，Van 想告诉你它正确在哪里……
-```
-
----
-
-### 4.5 桶 D — 运动健身（exercise 存在）
-
-```
-D-01  今天动了，Van 觉得这件事本身就值得说……
-D-02  运动了{时长}，Van 注意到今天你的某个状态……
-D-03  今天的汗水 Van 都看见了，想在这里说一句……
-D-04  动起来的那段时间，Van 觉得有什么不一样了……
-D-05  今天你给了自己一段运动的时间，Van 想说说这意味着什么……
-D-06  Van 在今天的运动记录里，找到了一个想聊的细节……
-D-07  动了{时长}，Van 觉得今天你对自己挺好的……
-D-08  运动的那段时间里，Van 发现你的状态有个变化……
-D-09  今天你选择动了，Van 想说说这个选择……
-D-10  流汗之后的感觉，Van 帮你记下来了……
-D-11  今天的运动和今天的其他事之间，Van 发现了一条线……
-D-12  Van 觉得今天动起来的你，有点不一样……
-D-13  今天你给了身体{时长}，Van 想说说剩下的时间里发生了什么……
-D-14  运动这件事，今天对你的意义不止是运动，Van 写下来了……
-D-15  今天你迈出去了，Van 觉得这一步值得被好好说……
-```
-
----
-
-### 4.6 桶 E — 社交充电（social 占比 ≥ 30%）
-
-```
-E-01  今天你陪了人，或者被人陪了，Van 想说说这件事……
-E-02  今天有社交的{时长}，Van 在里面发现了一个值得留的瞬间……
-E-03  和人在一起的时间里，Van 注意到了一件事……
-E-04  今天你花时间在关系上，Van 觉得有个细节很重要……
-E-05  社交的{时长}里，Van 发现了一个你可能没留意的时刻……
-E-06  今天人和人之间发生了什么，Van 想记下来……
-E-07  今天你陪伴了别人，Van 想问你有没有人陪伴了你……
-E-08  和人在一起的感觉，今天有点特别，Van 写了……
-E-09  今天的社交里，有一个瞬间 Van 觉得最值得……
-E-10  今天你把时间给了谁，Van 觉得这件事有意思……
-E-11  人和人之间的那些东西，今天的你经历了，Van 想聊聊……
-E-12  今天你不是一个人，Van 想说说这件事的重量……
-E-13  今天的社交带走了什么，又留下了什么，Van 写好了……
-E-14  Van 在今天你和别人的交集里，找到了一个想说的地方……
-E-15  今天你给了关系一些时间，Van 觉得这值得被记住……
-```
-
----
-
-### 4.7 桶 F — 多线充实（活动种类 ≥ 4）
-
-```
-F-01  今天你同时转了{活动数}件事，Van 想说说你是怎么做到的……
-F-02  {活动数}种活动，今天的你像一棵长了很多枝的树，Van 看见了……
-F-03  今天你没把自己困在一件事里，Van 觉得这很有意思……
-F-04  一天里做了这么多种事，Van 找到了其中最值得留的那个……
-F-05  今天你的时间分散在{活动数}个方向，Van 想说说哪个方向最有收获……
-F-06  充实的一天，Van 在里面找到了一个不容易被发现的细节……
-F-07  今天你没停下来，Van 想说说这种不停是什么意思……
-F-08  {活动数}种事情同时在推进，Van 注意到了一个平衡点……
-F-09  今天的你很忙，但 Van 发现有一件事你做得格外认真……
-F-10  什么都有一点的一天，Van 想帮你找到今天的重心……
-F-11  今天你的精力分给了好几个地方，Van 在想哪个最值……
-F-12  活动这么丰富，Van 觉得有一个细节几乎被淹没了……
-F-13  今天你转了很多，Van 帮你找到了那个最核心的东西……
-F-14  忙而不乱的一天，Van 想说说哪里让它不乱……
-F-15  今天的{活动数}件事里，Van 最想聊的是其中一件……
-```
-
----
-
-### 4.8 桶 G — 安静轻盈（总时长 < 60 分钟）
-
-```
-G-01  今天节奏慢，但 Van 在安静里找到了一个值得说的东西……
-G-02  今天你没做很多，Van 觉得这本身就是一件事……
-G-03  安静的一天，Van 反而看得更清楚了……
-G-04  今天你给自己留了空间，Van 想说说这空间里有什么……
-G-05  轻的一天也有它的重量，Van 发现了……
-G-06  今天你没有用力，Van 觉得这很好，想说说为什么……
-G-07  平静的一天里，有一件小事 Van 觉得很重要……
-G-08  今天你慢下来了，Van 也慢下来陪着你，写了点东西……
-G-09  不是所有的天都要充实，今天 Van 想聊聊这件事……
-G-10  今天你做的事不多，但有一件 Van 一直在想……
-G-11  安静的日子里最容易忽略一些东西，Van 帮你留住了一个……
-G-12  今天很轻，Van 觉得轻里面有个东西很值得……
-G-13  一个人安静的时候，Van 看到了平时看不到的你……
-G-14  今天不忙，Van 反而有时间好好看了看你……
-G-15  轻盈的一天，Van 想说说它轻在哪里，又重在哪里……
-```
-
----
-
-### 4.9 桶 H — 默认通用（兜底）
-
-```
-H-01  今天 Van 有一句话想只对你说……
-H-02  今天有什么，Van 觉得值得被好好记一次……
-H-03  今天结束了，Van 把最重要的那部分留住了……
-H-04  Van 在今天里找到了一个值得说的地方……
-H-05  今天发生的事，Van 有不一样的解读……
-H-06  今天的你，Van 想多说几句……
-H-07  Van 把今天整理成了一个故事，想讲给你听……
-H-08  今天有一个瞬间，Van 想帮你把它存住……
-H-09  今天很快就要变成昨天，Van 想先留住一点……
-H-10  今天的记录里，Van 发现了一件你可能没注意的事……
-H-11  Van 觉得今天有个细节值得被认真对待……
-H-12  睡前看看 Van 今天写了什么，会有一个好梦……
-H-13  今天无论怎样，Van 都把最好的那部分记下来了……
-H-14  Van 在今天里找到了一句想送给你的话……
-H-15  今天结束得好不好，Van 都想说说……
-```
-
----
-
-### 4.10 渐变模糊样式
-
-```
-日记区域展示：
-  [teaser 文字，1-2 行]
-  [第 2 行末尾开始渐变模糊，模糊区约 3 行高度]
-  [✨ 解锁今晚的完整故事 →]  ← 点击跳转 /upgrade
-```
-
----
-
-## 五、当前代码现状
-
-### 4.1 已完成
-
-| 模块 | 文件 | 状态 |
-|------|------|------|
-| 会员状态读取 | `src/store/useAuthStore.ts` | ✅ 从 Supabase `user_metadata.membership_plan` 读取 |
-| Free/Plus 功能门控 | 各 feature 组件 | ✅ `isPlus` 判断已到位 |
-| MembershipCard UI | `src/features/profile/components/MembershipCard.tsx` | ✅ |
-| UpgradeModal | `src/features/report/UpgradeModal.tsx` | ✅ 跳转 `/upgrade` |
-| 升级按钮 | `src/features/profile/components/MembershipCard.tsx` | ✅ 跳转 `/upgrade` |
-| 订阅接口 | `api/subscription.ts` | ✅ `activate/restore/cancel` + metadata 写回 |
-
-### 4.2 关键配置
-
-```typescript
-// src/store/useAuthStore.ts
-const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
-// 默认不再全员 Plus，会员态仅由 metadata 与 7 天 trial 判定
-```
-
-### 4.3 会员状态写入
-
-付款成功后写入 Supabase `user_metadata`，`resolveMembershipState()` 自动识别：
-
-```
-user_metadata.membership_plan = 'plus'   ← 推荐
-user_metadata.membership_expires_at = '2026-05-16T00:00:00Z'
-```
-
----
-
-## 五、付款方案（双端严格隔离）
-
-### 5.1 架构
-
-```
-iOS App（Capacitor）              网页版
-      ↓                               ↓
-Apple IAP only               Stripe only
-      ↓                               ↓
-/api/subscription            /api/subscription
-      ↓                               ↓
-      └──── Supabase user_metadata.membership_plan = 'plus' ────┘
-```
-
-### 5.2 构建隔离（核心合规要求）
-
-iOS build 中**物理不存在任何 Stripe 代码**，不是运行时隐藏，是构建时完全排除：
-
-```typescript
-// vite.config.ts
-resolve: {
-  alias: {
-    '@payment': process.env.VITE_PAYMENT_MODE === 'iap'
-      ? path.resolve('./src/services/payment/iap')
-      : path.resolve('./src/services/payment/stripe')
-  }
-}
-```
-
-```json
-// package.json
-"build:ios":  "cross-env VITE_PAYMENT_MODE=iap vite build",
-"build:web":  "cross-env VITE_PAYMENT_MODE=stripe vite build"
-```
-
-朋友打包 iOS 时只跑 `npm run build:ios`，产物里 Stripe 连字符串都不存在。
-
----
-
-## 六、开发计划
-
-> **红线：iOS build 中不得出现任何非 IAP 付款代码，包括死代码、注释代码、条件永假的分支。**
-
----
-
-### P0 — 付款页面 UI（`/upgrade`）
-
-**新建文件：** `src/features/profile/UpgradePage.tsx`
-
-**内容：**
-- 月付 / 年付切换 Tab
-- 价格展示（内测价 $7.99 划线 $9.99，年付 $99.99）
-- 功能对比列表（复用 `MembershipCard` 的 FEATURES 数据）
-- 付款按钮：根据 build flag 渲染不同组件（IAP 按钮 或 Stripe 按钮）
-- 恢复购买入口（iOS 专属，Apple 审核要求必须有）
-
-**修改：**
-- `MembershipCard.tsx`：升级按钮改为 `navigate('/upgrade')`
-- `UpgradeModal.tsx`：「去升级」按钮改为 `navigate('/upgrade')`
-- 路由配置：注册 `/upgrade`
-
----
-
-### P1 — 构建隔离基础设施
-
-**新建：**
-- `src/services/payment/iap/index.ts` — IAP 接口定义（`purchase` / `restore`）
-- `src/services/payment/stripe/index.ts` — Stripe 接口定义（同签名）
-- `vite.config.ts` — 新增 `@payment` alias
-
-**规则：**
-- 两个文件导出完全相同的函数签名，`UpgradePage` 只 import `@payment`
-- 任何组件不得直接 import `stripe` 或 capacitor IAP 插件，必须通过 `@payment`
-
----
-
-### P2 — 后端订阅接口（`/api/subscription`）
-
-**新建：** `api/subscription.ts`
-
-```typescript
-POST /api/subscription
-Body: {
-  action: 'activate' | 'restore' | 'cancel'
-  source: 'iap' | 'stripe'
-  userId: string
-  receipt?: string
-  planType: 'monthly' | 'annual'
-}
-```
-
-- `activate`：验证收据 → 写 `user_metadata.membership_plan = 'plus'` + `membership_expires_at`
-- `restore`：查当前订阅状态，返回并同步 metadata
-- `cancel`：写 `membership_plan = 'free'`
-- 使用 `SUPABASE_SERVICE_ROLE_KEY` 写 `auth.users`
-
----
-
-### P3 — iOS Apple IAP 接入
-
-**前置：** App Store Connect 已创建 IAP 产品
-
-**IAP 产品 ID：**
-```
-com.seeday.app.plus.monthly.intro   $7.99 内测月付
-com.seeday.app.plus.monthly         $9.99 正式月付
-com.seeday.app.plus.annual          $99.99 年付
-```
-
-**新建：** `src/services/payment/iap/index.ts`
-- 封装 Capacitor IAP 插件（选评分最高、最近有更新的插件）
-- 暴露：`getProducts()` / `purchase(productId)` / `restore()`
-- 购买成功 → POST `/api/subscription?action=activate&source=iap`
-
----
-
-### P4 — 网页 Stripe 接入
-
-**新建：**
-- `src/services/payment/stripe/index.ts`
-- `api/stripe-checkout.ts`：创建 Checkout Session
-- `api/stripe-webhook.ts`：接收 webhook → 调用 activate 逻辑
-
-**规则：** `@stripe/stripe-js` 只在 `VITE_PAYMENT_MODE=stripe` 的 build 中存在
-
----
-
-### P5 — Free 体验改造
-
-**5a — 7天试用计时**
-- 注册时写 `user_metadata.trial_started_at`
-- `resolveMembershipState()` 新增试用期判断：`trial_started_at` 在 7 天内 → 视为 Plus
-
-**5b — AI 日记 Teaser 生成**
-- `api/diary.ts` 新增 `mode: 'teaser'` 分支
-- 使用 `qwen-turbo`（zh）/ `gemini-flash`（en/it）
-- Prompt：Van 语气，2-3 句，省略号结尾，约 100 tokens
-- 结果存 `reports.teaser_text`，同一天不重复生成
-
-**5c — 植物选择改算法**
-- `api/plant-generate.ts`：移除 AI 选植物逻辑，改为 `matchRootType()` + 月度随机
-- 对应修改 `src/server/plant-diary-service.ts`（Free 用户不调用）
-- Free 用户植物文字区域：从 `plant_teaser_N` i18n key 随机取模板展示
-
-**5d — 魔法笔 & 待办拆解门控**
-- 魔法笔：在触发入口加 `isPlus` 检查，Free 用户点击 → toast + navigate('/upgrade')
-- 待办拆解：同上
-
-**5e — AI 人格门控收紧**
-- `aiCompanionVisuals.ts`：Agnes / Zep 的 `free` 改为 `false`（只留 Van）
-
----
-
-### P6 — 关闭内测全员 Plus
-
-- P0-P5 全部测试通过后执行
-- `MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED` 改为 `false`
-- 更新 `CHANGELOG.md` 与本文档版本号
-
----
-
-## 七、新增环境变量
-
-```bash
-# 构建时
-VITE_PAYMENT_MODE=iap        # iOS build
-VITE_PAYMENT_MODE=stripe     # Web build
-
-# 后端
-SUPABASE_SERVICE_ROLE_KEY=   # 已有，确认可写 auth.users
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-VITE_STRIPE_PUBLISHABLE_KEY=
-```
-
----
-
-## 八、会员恢复逻辑（防丢单）
-
-```
-App 启动
-→ useAuthStore 初始化
-→ resolveMembershipState() 读 user_metadata
-→ 若 metadata 无记录且 iOS → 调用 /api/subscription?action=restore
-→ 验证 Apple 历史收据 → 写回 metadata
-→ isPlus 实时生效
-```
+## 7. 相关文件索引
+
+- 会员状态：`src/store/useAuthStore.ts`
+- Free 收口：`src/store/authPreferenceHelpers.ts`
+- 个人页门控：`src/features/profile/ProfilePage.tsx`
+- 聊天门控：`src/features/chat/ChatPage.tsx`
+- Growth 门控：`src/features/growth/SubTodoList.tsx`
+- 日记门控：`src/store/useReportStore.ts`
+- 升级页：`src/features/profile/UpgradePage.tsx`
+- 订阅后端：`api/subscription.ts`
+- Stripe 校验：`src/server/stripe-subscription.ts`

@@ -4,6 +4,84 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-22
+
+### Improve: 会员购买弹窗统一与人气推荐逻辑收口
+
+- `MembershipPurchaseModal` 新增按用户会员历史动态推荐逻辑：未试用用户将“免费试用（月度）”标为人气首选；已试用未购买用户将“月度”标为人气首选；已购买历史用户将“年度”标为人气首选
+- Onboarding 第 7 步移除独立订阅 UI，改为直接复用 `MembershipPurchaseModal`，并透传所选方案到 `/upgrade` 页面，确保新手导览与正式购买页使用同一套购买界面
+- `/upgrade` 支持接收 `initialPlanId`，从外部入口进入时可保持用户在前置弹窗中的方案选择
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Improve: 根系方向设置 local-first 合并 + telemetry
+
+- `usePlantStore.loadTodayData()` 改为 local-first 合并方向偏好：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认顺序，则继续使用本地自定义值
+- `setDirectionOrder()` 改为在本地即时更新后等待云端结果，云端写入失败时会向 UI 抛出错误，避免“看起来保存成功但下次又回默认”
+- profile 侧新增根系方向设置埋点：打开、修改槽位、恢复默认、保存成功、保存失败
+- Telemetry Center 新增 `Profile Settings` 管理员看板与 `/api/live-input-telemetry?module=profile_settings` 聚合查询，用于查看根系方向设置的打开率、保存成功率、常改位置与最终保存布局
+
+Validation:
+
+- `npx vitest run "src/features/report/plant/soilLegend.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+
+### Fix: Chat 连续活动记录发送失败
+
+- 修复 `closePreviousActivityLocal()` 返回值与局部变量错误：连续发送活动时，上一条活动现在会正确结算 `duration/isActive`，不会再在第二条活动发送时抛错
+- 新增 `useChatStore.integration.test.ts` 回归用例，覆盖 `activity -> activity`（如“吃饭”后立刻“睡觉”）连续发送链路
+
+Validation:
+
+- `npm run test:unit -- useChatStore.integration.test.ts` ✅
+
+### Improve: DATA_STORAGE P1 A-2/A-3 annotation persist slimming + realtime channel split
+
+- `useAnnotationStore` 新增持久化裁剪 helper：annotation 历史仅保留最近 30 天，`characterStateTracker` 仅保留最近 7 天和未过期 effect，hydration 时同步做防御性裁剪
+- `useRealtimeSync` 从单通道拆为高频/低频双通道，`messages+moods` 独立于 todo/growth/report/annotation/focus/stardust，降低单点订阅抖动对聊天实时体验的影响
+- 新增 `annotationPersistenceHelpers` 单测，覆盖 annotation 裁剪、event 截断、tracker 清理
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run test:unit -- annotationPersistenceHelpers` ✅
+
+### Refactor: DATA_STORAGE P1 B-1 persist key 统一与旧 key 迁移
+
+- 新增 `src/store/persistKeys.ts` 与 `src/store/persistMigrationHelpers.ts`，将 chat/todo/growth/mood/report/annotation/focus/plant/timing/stardust/reminder 统一为 `seeday:v1:<domain>` 命名
+- 各 domain store hydration 时会自动读取旧 persist key 并清理遗留 key，升级后无需用户手动清缓存
+- `clearLocalDomainStores()` 统一按 key 集合清空持久化状态，减少跨账号残留导致的本地缓存串号
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run test:unit -- annotationPersistenceHelpers` ✅
+
+### Improve: DATA_STORAGE P1 C-1 initialize 新鲜度门控
+
+- chat/todo/growth/mood/report/annotation/focus/stardust store 新增 `lastFetchedAt`，成功拉云后记录时间戳并持久化
+- `useAuthStore.initialize()` 与 `SIGNED_IN` 冷启动恢复路径按 60 秒 freshness gate 跳过热缓存重复拉取，只保留必要的本地恢复、pending push 与增量同步
+- `clearLocalDomainStores()` 同步清空各域 `lastFetchedAt` 与关键缓存，避免跨账号切换时沿用旧鲜度状态
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
+### Improve: DATA_STORAGE P1 D-1/D-2/D-3 outbox skeleton + core store wiring
+
+- 新增 `src/store/useOutboxStore.ts` 与单测，定义 `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` 四类 outbox entry，持久化到 `seeday:v1:outbox`
+- `useMoodStore`、`useFocusStore`、`reportActions.ts`、`useAnnotationStore` 的核心写路径在重试耗尽后会自动 enqueue 到 outbox，保留本地乐观状态
+- `useAuthStore.initialize()`、`useNetworkSync`、`useAppForegroundRefresh` 已接入 outbox flush，联网/回前台/恢复 session 后会自动补推队列
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run test:unit -- useOutboxStore` ✅
+- `npm run build` ✅
+
 ## 2026-04-21
 
 ### Refactor: DATA_STORAGE P1 A-1 Reminder store persist 化

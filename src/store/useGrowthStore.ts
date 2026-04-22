@@ -5,6 +5,8 @@ import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { withDbRetry } from '../lib/dbRetry';
 import { playSound } from '../services/sound/soundService';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 
 export type BottleType = 'habit' | 'goal';
 export type BottleStatus = 'active' | 'achieved' | 'irrigated';
@@ -56,6 +58,7 @@ interface GrowthState {
   popupDisabled: boolean;      // user chose "don't show again"
   isLoading: boolean;
   hasHydrated: boolean;
+  lastFetchedAt: number | null;
   lastSyncError: string | null;
   addBottle: (name: string, type: BottleType) => Bottle | null;
   removeBottle: (id: string) => void;
@@ -130,6 +133,7 @@ export const useGrowthStore = create<GrowthState>()(
       popupDisabled: false,
       isLoading: false,
       hasHydrated: false,
+      lastFetchedAt: null,
       lastSyncError: null,
 
       addBottle: (name, type) => {
@@ -420,6 +424,7 @@ export const useGrowthStore = create<GrowthState>()(
             bottles: [...cloudBottles, ...survivingFailed],
             isLoading: false,
             hasHydrated: true,
+            lastFetchedAt: Date.now(),
             lastSyncError: stillFailed.length > 0
               ? `${stillFailed.length} 个瓶子同步失败，将在下次重试`
               : null,
@@ -435,12 +440,20 @@ export const useGrowthStore = create<GrowthState>()(
       },
     }),
     {
-      name: 'growth-store',
+      name: PERSIST_KEYS.growth,
       partialize: (state) => ({
         bottles: state.bottles,
         dailyGoal: state.dailyGoal,
         goalDate: state.goalDate,
         popupDisabled: state.popupDisabled,
+        lastFetchedAt: state.lastFetchedAt,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...(currentState as GrowthState),
+        ...(readLegacyPersistedState<GrowthState>(LEGACY_PERSIST_KEYS.growth) || {}),
+        ...((persistedState as Partial<GrowthState>) || {}),
+        lastFetchedAt: (persistedState as Partial<GrowthState>)?.lastFetchedAt
+          ?? (currentState as GrowthState).lastFetchedAt,
       }),
     }
   )

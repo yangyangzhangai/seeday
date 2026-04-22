@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout, BarChart3, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { reportTelemetryEvent } from '../../../services/input/reportTelemetryEvent';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { DirectionSettingsPanel } from './DirectionSettingsPanel';
 import { RegionSettingsPanel } from './RegionSettingsPanel';
@@ -52,7 +53,15 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
       {isRegionOpen ? <RegionSettingsPanel onClose={() => setIsRegionOpen(false)} /> : null}
 
       <button
-        onClick={() => setIsDirectionOpen(prev => !prev)}
+        onClick={() => {
+          setIsDirectionOpen(prev => {
+            const next = !prev;
+            if (next) {
+              void reportTelemetryEvent('root_direction_opened', { source: 'profile_settings' });
+            }
+            return next;
+          });
+        }}
         className={`flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-b border-slate-200/60'}`}
       >
         <div className="flex items-center space-x-2.5">

@@ -28,6 +28,8 @@ import {
   todayDayOfMonth,
   todayDayOfWeek,
 } from './todoStoreHelpers';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 
 // ── Priority types ──────────────────────────────────────────
 export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
@@ -171,6 +173,7 @@ interface TodoState {
   categories: ActivityRecordType[];
   isLoading: boolean;
   hasHydrated: boolean;
+  lastFetchedAt: number | null;
   lastSyncError: string | null;
   activeTodoId: string | null;
   lastGeneratedDate: string;
@@ -227,6 +230,7 @@ export const useTodoStore = create<TodoState>()(
       categories: ['study', 'work', 'social', 'life', 'entertainment', 'health'],
       isLoading: false,
       hasHydrated: false,
+      lastFetchedAt: null,
       lastSyncError: null,
       activeTodoId: null,
       lastGeneratedDate: '',
@@ -387,6 +391,7 @@ export const useTodoStore = create<TodoState>()(
             pendingDeletedTodoIds: nextPendingDeleted,
             isLoading: false,
             hasHydrated: true,
+            lastFetchedAt: Date.now(),
             lastSyncError: stillFailed.length > 0
               ? `${stillFailed.length} 条待办同步失败，将在下次重试`
               : null,
@@ -967,11 +972,12 @@ export const useTodoStore = create<TodoState>()(
       },
     }),
     {
-      name: 'growth-todo-store', // keep this key to preserve existing growth data
+      name: PERSIST_KEYS.todo,
       partialize: (state) => ({
         todos: state.todos,
         categories: state.categories,
         activeTodoId: state.activeTodoId,
+        lastFetchedAt: state.lastFetchedAt,
         lastGeneratedDate: state.lastGeneratedDate,
         suppressedTemplateDateMap: state.suppressedTemplateDateMap,
         pendingDeletedTodoIds: state.pendingDeletedTodoIds,
@@ -980,6 +986,17 @@ export const useTodoStore = create<TodoState>()(
         todoBottleStarRewardMap: state.todoBottleStarRewardMap,
         messageBottleStarRewardMap: state.messageBottleStarRewardMap,
       }),
+      merge: (persistedState, currentState) => {
+        const legacyState = readLegacyPersistedState<TodoState>(LEGACY_PERSIST_KEYS.todo) || {};
+        return {
+          ...(currentState as TodoState),
+          ...legacyState,
+          ...((persistedState as Partial<TodoState>) || {}),
+          lastFetchedAt: (persistedState as Partial<TodoState>)?.lastFetchedAt
+            ?? legacyState.lastFetchedAt
+            ?? (currentState as TodoState).lastFetchedAt,
+        };
+      },
     }
   )
 );

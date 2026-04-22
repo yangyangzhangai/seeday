@@ -41,6 +41,14 @@ import {
   type CharacterStateTracker,
 } from '../lib/characterState';
 import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
+import {
+  pruneAnnotationEvents,
+  pruneAnnotationsForPersistence,
+  pruneCharacterStateTracker,
+} from './annotationPersistenceHelpers';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { useOutboxStore } from './useOutboxStore';
 
 const MAX_TODAY_EVENTS = 150;
 
@@ -85,6 +93,7 @@ interface AnnotationStore extends AnnotationState {
   dailySuggestionCount: number;
   lastWasSuggestion: boolean;
   lastSuggestionTime: number;
+  lastFetchedAt: number | null;
   consecutiveTextCount: number;
   suggestionOutcomes: Array<{ timestamp: number; accepted: boolean }>;
   recoverySuggestionAttempts: Array<{ date: string; key: string; timestamp: number }>;
@@ -163,6 +172,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
       dailySuggestionCount: 0,
       lastWasSuggestion: false,
       lastSuggestionTime: 0,
+      lastFetchedAt: null,
       consecutiveTextCount: 0,
       suggestionOutcomes: [],
       recoverySuggestionAttempts: [],
@@ -565,6 +575,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
               .insert([toDbAnnotation(annotation, session.user.id)]);
             if (insertError) {
               console.error('[Annotation] 云端同步失败:', insertError);
+              useOutboxStore.getState().enqueue({
+                kind: 'annotation.insert',
+                payload: { annotation },
+              });
             } else {
               set({
                 annotations: get().annotations.map((item) =>
@@ -799,7 +813,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const cloudAnnotations: AIAnnotation[] = data.map(fromDbAnnotation);
           const cloudIds = new Set(cloudAnnotations.map((annotation) => annotation.id));
           const localPending = get().annotations.filter((annotation) => !annotation.syncedToCloud && !cloudIds.has(annotation.id));
-          set({ annotations: [...cloudAnnotations, ...localPending] });
+          set({ annotations: [...cloudAnnotations, ...localPending], lastFetchedAt: Date.now() });
         }
       },
 
@@ -830,24 +844,57 @@ export const useAnnotationStore = create<AnnotationStore>()(
       },
     }),
     {
-      name: 'annotation-storage',
+      name: PERSIST_KEYS.annotation,
       partialize: (state) => ({
-        todayStats: state.todayStats,
+        todayStats: {
+          ...state.todayStats,
+          events: pruneAnnotationEvents(state.todayStats.events, MAX_TODAY_EVENTS),
+        },
         config: state.config,
         currentAnnotation: state.currentAnnotation,
-        annotations: state.annotations,
+        annotations: pruneAnnotationsForPersistence(state.annotations),
         suggestionCountByPeriod: state.suggestionCountByPeriod,
         dailySuggestionCount: state.dailySuggestionCount,
         lastWasSuggestion: state.lastWasSuggestion,
         lastSuggestionTime: state.lastSuggestionTime,
+        lastFetchedAt: state.lastFetchedAt,
         consecutiveTextCount: state.consecutiveTextCount,
         suggestionOutcomes: state.suggestionOutcomes,
         recoverySuggestionAttempts: state.recoverySuggestionAttempts,
         activeRecoveryBonus: state.activeRecoveryBonus,
         todayContextSnapshot: state.todayContextSnapshot,
-        characterStateTracker: state.characterStateTracker,
+        characterStateTracker: pruneCharacterStateTracker(state.characterStateTracker),
         pendingSuggestionIntent: state.pendingSuggestionIntent,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = {
+          ...(readLegacyPersistedState<AnnotationStore>(LEGACY_PERSIST_KEYS.annotation) || {}),
+          ...((persistedState as Partial<AnnotationStore>) || {}),
+        };
+        const current = currentState as AnnotationStore;
+        const persistedTodayStats = persisted.todayStats || current.todayStats;
+
+        return {
+          ...current,
+          ...persisted,
+          todayStats: {
+            ...current.todayStats,
+            ...persistedTodayStats,
+            events: pruneAnnotationEvents(
+              Array.isArray(persistedTodayStats.events)
+                ? persistedTodayStats.events
+                : current.todayStats.events,
+              MAX_TODAY_EVENTS,
+            ),
+          },
+          annotations: pruneAnnotationsForPersistence(
+            Array.isArray(persisted.annotations) ? persisted.annotations : current.annotations,
+          ),
+          characterStateTracker: pruneCharacterStateTracker(
+            persisted.characterStateTracker || current.characterStateTracker,
+          ),
+        };
+      },
     }
   )
 );

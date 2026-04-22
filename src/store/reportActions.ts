@@ -24,6 +24,7 @@ import {
 import type { Message } from './useChatStore.types';
 import type { Todo } from './useTodoStore';
 import type { Report, ReportStats } from './useReportStore';
+import { useOutboxStore } from './useOutboxStore';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
 
@@ -209,7 +210,7 @@ export function mergeReportIntoList(reports: Report[], type: ReportType, date: n
 }
 
 export async function syncReportToSupabase(report: Report): Promise<void> {
-  await withDbRetry('ReportStore', async () => {
+  const success = await withDbRetry('ReportStore', async () => {
     const session = await getSupabaseSession();
     if (!session) return;
     const { error } = await supabase
@@ -217,6 +218,13 @@ export async function syncReportToSupabase(report: Report): Promise<void> {
       .upsert([toDbReport(report, session.user.id)], { onConflict: 'id' });
     if (error) throw new Error(error.message);
   });
+
+  if (!success) {
+    useOutboxStore.getState().enqueue({
+      kind: 'report.upsert',
+      payload: { report },
+    });
+  }
 }
 
 export async function runReportAIAnalysis(report: Report, todos: Todo[], messages: Message[]): Promise<string> {

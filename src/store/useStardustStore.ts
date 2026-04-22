@@ -6,6 +6,8 @@ import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbStardust, toDbStardust } from '../lib/dbMappers';
 import { useChatStore } from './useChatStore';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 import type {
   StardustMemory,
   CreateStardustRequest,
@@ -16,6 +18,7 @@ interface StardustStore {
   // State
   memories: StardustMemory[];
   memoryIdByMessageId: Record<string, string>;
+  lastFetchedAt: number | null;
   isGenerating: boolean;
   generationError: string | null;
 
@@ -70,6 +73,7 @@ export const useStardustStore = create<StardustStore>()(
     (set, get) => ({
       memories: [],
       memoryIdByMessageId: {},
+      lastFetchedAt: null,
       isGenerating: false,
       generationError: null,
 
@@ -289,6 +293,7 @@ export const useStardustStore = create<StardustStore>()(
         set({
           memories: [],
           memoryIdByMessageId: {},
+          lastFetchedAt: null,
           isGenerating: false,
           generationError: null,
         });
@@ -330,6 +335,7 @@ export const useStardustStore = create<StardustStore>()(
             return {
               memories,
               memoryIdByMessageId: buildMemoryIdByMessageId(memories),
+              lastFetchedAt: Date.now(),
             };
           });
           console.log(`[Stardust] 已拉取 ${cloudMemories.length} 条珍藏`);
@@ -351,14 +357,17 @@ export const useStardustStore = create<StardustStore>()(
       },
     }),
     {
-      name: 'stardust-storage',
+      name: PERSIST_KEYS.stardust,
       partialize: (state) => ({
         memories: state.memories,
         memoryIdByMessageId: state.memoryIdByMessageId,
+        lastFetchedAt: state.lastFetchedAt,
       }),
       merge: (persistedState, currentState) => {
+        const legacyState = readLegacyPersistedState<StardustStore>(LEGACY_PERSIST_KEYS.stardust);
         const merged = {
           ...currentState,
+          ...(legacyState || {}),
           ...(persistedState as Partial<StardustStore>),
         };
 

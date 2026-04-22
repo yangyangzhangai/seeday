@@ -67,7 +67,8 @@
   - `src/store/usePlantStore.ts`
 - 说明:
   - 支持 AI 模式、批注掉落率、每日目标开关与植物方向设置。
-  - 当前会员 gating 仍处于临时全部解锁状态，后续可恢复真实会员策略。
+  - 会员 gating 已回到真实策略（metadata + 7 天 trial 判定，临时全员解锁默认关闭）。
+  - Free 与 Plus 分层已落地在 AI 人格、批注频率、魔法笔、待办拆解、AI 专属记忆和观察日记正文。
 
 ## 6. Annotation Bubble（全局）
 

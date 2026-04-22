@@ -13,10 +13,13 @@ import {
   fetchTodaySessions,
   fetchActiveSession,
 } from '../services/timing/timingSessionService';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 
 interface TimingState {
   activeSession: TimingSession | null;
   todaySessions: TimingSession[];
+  lastFetchedAt: number | null;
 
   /** 初始化：从 Supabase 加载今日数据 */
   loadToday: (userId: string) => Promise<void>;
@@ -38,13 +41,14 @@ export const useTimingStore = create<TimingState>()(
     (set) => ({
       activeSession: null,
       todaySessions: [],
+      lastFetchedAt: null,
 
       loadToday: async (userId) => {
         const [sessions, active] = await Promise.all([
           fetchTodaySessions(userId),
           fetchActiveSession(userId),
         ]);
-        set({ todaySessions: sessions, activeSession: active });
+        set({ todaySessions: sessions, activeSession: active, lastFetchedAt: Date.now() });
       },
 
       start: async (userId, type, source) => {
@@ -73,13 +77,17 @@ export const useTimingStore = create<TimingState>()(
       },
     }),
     {
-      name: 'timing-store',
+      name: PERSIST_KEYS.timing,
       partialize: (state) => ({
         activeSession: state.activeSession,
         todaySessions: state.todaySessions,
+        lastFetchedAt: state.lastFetchedAt,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = (persistedState as Partial<TimingState>) || {};
+        const persisted = {
+          ...(readLegacyPersistedState<TimingState>(LEGACY_PERSIST_KEYS.timing) || {}),
+          ...((persistedState as Partial<TimingState>) || {}),
+        };
         const current = currentState as TimingState;
         const todayKey = getTodayKey();
         const persistedSessions = Array.isArray(persisted.todaySessions)

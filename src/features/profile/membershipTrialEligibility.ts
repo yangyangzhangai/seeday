@@ -1,5 +1,8 @@
 type MetaLike = Record<string, any>;
 
+export type MembershipPopularPlanId = 'monthly' | 'yearly';
+export type MembershipPurchaseSegment = 'never_trialed' | 'trialed_not_purchased' | 'purchased_legacy';
+
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 
 function hasNonEmptyValue(value: unknown): boolean {
@@ -68,13 +71,24 @@ function hasTrialHistorySignal(meta: MetaLike): boolean {
   return trialFields.some((field) => hasNonEmptyValue(field));
 }
 
-export function isEligibleForMembershipTrial(user: any | null | undefined, isPlus: boolean): boolean {
-  if (isPlus) return false;
+export function resolveMembershipPurchaseSegment(user: any | null | undefined, isPlus: boolean): MembershipPurchaseSegment {
   const userMeta = (user?.user_metadata || {}) as MetaLike;
   const appMeta = (user?.app_metadata || {}) as MetaLike;
 
-  if (hasTrialHistorySignal(userMeta) || hasTrialHistorySignal(appMeta)) return false;
-  if (hasPaidHistorySignal(userMeta) || hasPaidHistorySignal(appMeta)) return false;
-  return true;
+  if (isPlus || hasPaidHistorySignal(userMeta) || hasPaidHistorySignal(appMeta)) {
+    return 'purchased_legacy';
+  }
+  if (hasTrialHistorySignal(userMeta) || hasTrialHistorySignal(appMeta)) {
+    return 'trialed_not_purchased';
+  }
+  return 'never_trialed';
 }
 
+export function getMembershipPopularPlanId(user: any | null | undefined, isPlus: boolean): MembershipPopularPlanId {
+  const segment = resolveMembershipPurchaseSegment(user, isPlus);
+  return segment === 'purchased_legacy' ? 'yearly' : 'monthly';
+}
+
+export function isEligibleForMembershipTrial(user: any | null | undefined, isPlus: boolean): boolean {
+  return resolveMembershipPurchaseSegment(user, isPlus) === 'never_trialed';
+}

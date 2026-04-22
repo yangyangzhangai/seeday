@@ -38,6 +38,12 @@ export const TelemetryHubPage: React.FC = () => {
       description: t('telemetry_hub_module_todo_desc'),
       useCase: t('telemetry_hub_module_todo_usecase'),
     },
+    {
+      title: t('telemetry_hub_module_profile_title'),
+      route: '/telemetry/profile-settings',
+      description: t('telemetry_hub_module_profile_desc'),
+      useCase: t('telemetry_hub_module_profile_usecase'),
+    },
   ];
 
   return (

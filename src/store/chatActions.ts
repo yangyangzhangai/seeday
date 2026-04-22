@@ -392,7 +392,8 @@ export function closePreviousActivityLocal(messages: Message[], now: number): {
 
   const lastMessage = updatedMessages[lastRecordIndex];
   const duration = resolveAutoActivityDurationMinutes(lastMessage.timestamp, now);
-  updatedMessages[lastRecordIndex] = { ...lastMessage, duration, isActive: false };
+  const closedMessage = { ...lastMessage, duration, isActive: false };
+  updatedMessages[lastRecordIndex] = closedMessage;
 
   void (async () => {
     const session = await getSupabaseSession();
@@ -411,6 +412,8 @@ export function closePreviousActivityLocal(messages: Message[], now: number): {
       autoDetectMood(closedMessage.content, duration, resolveLangForText(closedMessage.content)),
     );
   }
+
+  return { messages: updatedMessages, closedMessage, duration };
 }
 
 /** @deprecated use closePreviousActivityLocal + syncClosedActivityToCloud instead */

@@ -43,6 +43,8 @@ import {
   persistMessageToSupabase,
   triggerMoodDetection,
 } from './chatActions';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 
 function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
@@ -84,6 +86,7 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       messages: [],
       lastActivityTime: null,
+      lastFetchedAt: null,
       isMoodMode: false,
       isLoading: false,
       hasInitialized: false,
@@ -209,6 +212,7 @@ export const useChatStore = create<ChatState>()(
           const prunedCache = pruneDateCache({ ...get().dateCache, [todayStr]: mergedMessages });
           set({
             messages: mergedMessages,
+            lastFetchedAt: Date.now(),
             oldestLoadedDate: todayStr,
             hasMoreHistory: !!yesterdaySummary,
             yesterdaySummary,
@@ -947,12 +951,16 @@ export const useChatStore = create<ChatState>()(
       ...createChatTimelineActions(set as never, get as never),
     }),
     {
-      name: 'chat-storage',
-      merge: (persistedState, currentState) => mergePersistedChatState(persistedState, currentState as ChatState),
+      name: PERSIST_KEYS.chat,
+      merge: (persistedState, currentState) => {
+        const legacyState = readLegacyPersistedState<ChatState>(LEGACY_PERSIST_KEYS.chat);
+        return mergePersistedChatState(persistedState || legacyState, currentState as ChatState);
+      },
       partialize: (state) => ({
         messages: state.messages,
         isMoodMode: state.isMoodMode,
         lastActivityTime: state.lastActivityTime,
+        lastFetchedAt: state.lastFetchedAt,
         currentDateStr: state.currentDateStr,
         hasInitialized: state.hasInitialized,
         dateCache: state.dateCache,

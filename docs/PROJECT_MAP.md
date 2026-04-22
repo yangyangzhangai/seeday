@@ -36,7 +36,7 @@ src/
 │   ├── growth/
 │   ├── report/
 │   ├── profile/
-│   └── telemetry/      # Telemetry Center + business sub-dashboards
+│   └── telemetry/      # Telemetry Center + business sub-dashboards (user / AI annotation / live input / todo / profile settings)
 ├── hooks/              # RealtimeSync / image upload hooks
 ├── i18n/               # 国际化初始化与词条
 ├── lib/                # 纯函数与映射工具
@@ -60,7 +60,7 @@ src/
 - `plant-diary.ts` -> `POST /api/plant-diary`
 - `plant-history.ts` -> `GET /api/plant-history`
 - `plant-asset-telemetry.ts` -> `POST /api/plant-asset-telemetry`
-- `live-input-telemetry.ts` -> `POST /api/live-input-telemetry` and `GET /api/live-input-telemetry`
+- `live-input-telemetry.ts` -> `POST /api/live-input-telemetry` and `GET /api/live-input-telemetry` (live input / user analytics / profile settings modules)
 - `subscription.ts` -> `POST /api/subscription`
 
 ## 3.1) 服务端共享模块 `src/server/`

@@ -21,6 +21,8 @@ import {
   triggerWeeklyProfileExtraction,
 } from './reportActions';
 import { getDateRange } from './reportHelpers';
+import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
+import { readLegacyPersistedState } from './persistMigrationHelpers';
 
 export interface ReportStats {
   completedTodos: number;
@@ -98,6 +100,7 @@ export interface Report {
 
 interface ReportState {
   reports: Report[];
+  lastFetchedAt: number | null;
   fetchReports: () => Promise<void>;
   generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => Promise<string>;
   updateReport: (id: string, updates: Partial<Report>) => void;
@@ -113,6 +116,7 @@ export const useReportStore = create<ReportState>()(
     (set, get) => ({
       reports: [],
       computedHistory: [],
+      lastFetchedAt: null,
 
       fetchReports: async () => {
         const session = await getSupabaseSession();
@@ -151,14 +155,14 @@ export const useReportStore = create<ReportState>()(
             }
 
             mergedReports.sort((left, right) => right.date - left.date);
-            set({ reports: mergedReports });
+            set({ reports: mergedReports, lastFetchedAt: Date.now() });
 
             localOnlyReports.forEach((report) => {
               void syncReportToSupabase(report);
             });
           } else {
             const localReports = get().reports;
-            set({ reports: localReports });
+            set({ reports: localReports, lastFetchedAt: Date.now() });
             localReports.forEach((report) => {
               void syncReportToSupabase(report);
             });
@@ -312,14 +316,20 @@ export const useReportStore = create<ReportState>()(
       }
     }),
     {
-      name: 'report-storage',
+      name: PERSIST_KEYS.report,
       partialize: (state) => ({
         reports: state.reports.map(r => ({
           ...r,
           analysisStatus: (r.aiAnalysis || r.teaserText) ? 'success' : 'idle',
           errorMessage: undefined,
         })),
-        computedHistory: state.computedHistory
+        computedHistory: state.computedHistory,
+        lastFetchedAt: state.lastFetchedAt,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...(currentState as ReportState),
+        ...(readLegacyPersistedState<ReportState>(LEGACY_PERSIST_KEYS.report) || {}),
+        ...((persistedState as Partial<ReportState>) || {}),
       }),
     }
   )
