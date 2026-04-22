@@ -22,6 +22,7 @@ import {
   getLocalDayRange,
   getTodoFreshness,
   isTodoParentForeignKeyError,
+  migrateOldTodoStorage,
   sanitizeSortOrder,
   todayDateStr,
   todayDayOfMonth,
@@ -72,56 +73,6 @@ export type GrowthTodo = Todo;
 /** Check if a recurrence value means "non-recurring" */
 export function isNonRecurring(r?: Recurrence): boolean {
   return !r || r === 'none' || r === 'once';
-}
-
-// ── One-time migration from old 'todo-storage' ──────────────
-function migrateOldTodoStorage(currentIds: Set<string>): Todo[] {
-  try {
-    const raw = localStorage.getItem('todo-storage');
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    const oldTodos: Array<Record<string, unknown>> = parsed?.state?.todos ?? [];
-    if (!oldTodos.length) return [];
-
-    const priorityMap: Record<string, GrowthPriority> = {
-      'urgent-important': 'high',
-      'urgent-not-important': 'medium',
-      'important-not-urgent': 'medium',
-      'not-important-not-urgent': 'low',
-    };
-
-    const migrated: Todo[] = oldTodos
-      .filter((t) => t.id && typeof t.id === 'string' && !currentIds.has(t.id as string))
-      .map((t, i) => ({
-        id: t.id as string,
-        title: (t.content ?? t.title ?? '') as string,
-        completed: Boolean(t.completed),
-        createdAt: (t.createdAt as number) ?? Date.now(),
-        priority: priorityMap[t.priority as string] ?? 'medium',
-        dueAt: (t.dueDate ?? t.dueAt) as number | undefined,
-        completedAt: t.completedAt as number | undefined,
-        duration: t.duration as number | undefined,
-        startedAt: t.startedAt as number | undefined,
-        category: normalizeTodoCategory(
-          t.category as string | undefined,
-          (t.content ?? t.title ?? '') as string,
-          resolveLangForText((t.content ?? t.title ?? '') as string),
-        ),
-        scope: t.scope as TodoScope | undefined,
-        recurrence: 'once' as Recurrence,
-        isTemplate: false,
-        sortOrder: (t.dueDate ?? t.dueAt ?? (Date.now() + i)) as number,
-        isPinned: Boolean(t.isPinned),
-      }));
-
-    if (migrated.length > 0) {
-      // Clear old store after migration
-      localStorage.removeItem('todo-storage');
-    }
-    return migrated;
-  } catch {
-    return [];
-  }
 }
 
 // ── Background Supabase sync (fire-and-forget) ──────────────
@@ -421,7 +372,10 @@ export const useTodoStore = create<TodoState>()(
             .map((t) => ({ ...t, syncState: 'failed' as const }));
 
           // ⑤ 一次性迁移旧 todo-storage（历史兼容）
-          const migrated = migrateOldTodoStorage(cloudIdsRaw);
+          const migrated = migrateOldTodoStorage(cloudIdsRaw, {
+            normalizeTodoCategory,
+            resolveLangForText,
+          }) as Todo[];
           migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
 
           const nextPendingDeleted = Object.fromEntries(
