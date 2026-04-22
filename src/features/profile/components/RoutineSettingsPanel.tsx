@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Clock3, X, ChevronDown, Bell } from 'lucide-react';
+import { ChevronRight, Clock3, X, ChevronDown, Bell, LayoutGrid, Briefcase, GraduationCap } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { checkNotificationPermission, requestNotificationPermission } from '../../../services/notifications/localNotificationService';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -418,6 +418,12 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     </div>
   );
 
+  const identityOptions: Array<{ id: IdentityType; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = [
+    { id: 'none', label: t('profile_schedule_identity_free'), icon: LayoutGrid },
+    { id: 'work', label: t('profile_schedule_identity_work'), icon: Briefcase },
+    { id: 'class', label: t('profile_schedule_identity_class'), icon: GraduationCap },
+  ];
+
   return (
     <>
       <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
@@ -477,6 +483,65 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                     <TimeInput label={t('profile_user_profile_sleep_time')} value={sleepTime} onChange={setSleepTime} />
                   </div>
                 </section>
+
+                <section className="relative z-[8]">
+                  <SectionLabel title={t('onboarding2_routine_identity_title')} />
+                  <div className="grid grid-cols-3 gap-2">
+                    {identityOptions.map((item) => {
+                      const Icon = item.icon;
+                      const active = identity === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setIdentity(item.id)}
+                          className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-2.5 text-[11px] font-black transition-all ${
+                            active ? 'border-black bg-black text-white' : 'border-black/10 bg-zinc-50 text-black/70 hover:border-black/20'
+                          }`}
+                        >
+                          <Icon size={14} className={active ? 'text-white' : 'text-black/55'} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {identity === 'work' && (
+                  <section className="relative z-[7]">
+                    <SectionLabel title={t('profile_schedule_work_fields')} />
+                    <div className="space-y-3.5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <TimeInput label={t('profile_user_profile_work_start')} value={workStart} onChange={setWorkStart} />
+                        <TimeInput label={t('profile_user_profile_work_end')} value={workEnd} onChange={setWorkEnd} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <TimeInput label={t('profile_user_profile_lunch_start')} value={workLunchStart} onChange={setWorkLunchStart} />
+                        <TimeInput label={t('profile_user_profile_lunch_end')} value={workLunchEnd} onChange={setWorkLunchEnd} />
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {identity === 'class' && (
+                  <section className="relative z-[7]">
+                    <SectionLabel title={t('profile_schedule_class_fields')} />
+                    <div className="space-y-3.5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <TimeInput label={t('profile_user_profile_class_morning_start')} value={classMorningStart} onChange={setClassMorningStart} />
+                        <TimeInput label={t('profile_user_profile_class_morning_end')} value={classMorningEnd} onChange={setClassMorningEnd} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <TimeInput label={t('profile_user_profile_class_afternoon_start')} value={classAfternoonStart} onChange={setClassAfternoonStart} />
+                        <TimeInput label={t('profile_user_profile_class_afternoon_end')} value={classAfternoonEnd} onChange={setClassAfternoonEnd} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <TimeInput label={t('profile_user_profile_class_evening_start')} value={classEveningStart} onChange={setClassEveningStart} />
+                        <TimeInput label={t('profile_user_profile_class_evening_end')} value={classEveningEnd} onChange={setClassEveningEnd} />
+                      </div>
+                    </div>
+                  </section>
+                )}
 
                 {/* 提醒开关 */}
                 <div className="border-t border-black/5 pt-4 space-y-1.5 relative z-0">
