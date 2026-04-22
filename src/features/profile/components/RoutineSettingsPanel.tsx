@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Clock3, X, ChevronDown, Bell, LayoutGrid, Briefcase, GraduationCap } from 'lucide-react';
+import { ChevronRight, Clock3, X, ChevronDown, Bell } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { checkNotificationPermission, requestNotificationPermission } from '../../../services/notifications/localNotificationService';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -214,6 +214,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [showModal]);
 
   const [identity, setIdentity] = React.useState<IdentityType>('none');
+  const [pendingIdentity, setPendingIdentity] = React.useState<IdentityType | null>(null);
   const [wakeTime, setWakeTime] = React.useState(DEFAULT_WAKE_TIME);
   const [sleepTime, setSleepTime] = React.useState(DEFAULT_SLEEP_TIME);
   const [breakfastTime, setBreakfastTime] = React.useState(DEFAULT_BREAKFAST);
@@ -231,6 +232,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   const [classEveningEnd, setClassEveningEnd] = React.useState('21:00');
   const [reminderEnabled, setReminderEnabled] = React.useState(true);
   const [notifPermission, setNotifPermission] = React.useState<string | null>(null);
+  const [todayCount, setTodayCount] = React.useState<number | null>(null);
 
   const storageKey = React.useMemo(() => getRoutineStorageKey(user?.id), [user?.id]);
 
@@ -279,6 +281,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [userProfileV2, localSnapshot?.reminderEnabled]);
 
   React.useEffect(() => {
+    const count = localStorage.getItem('reminder_today_count');
+    if (count !== null) setTodayCount(Number(count));
     if (!Capacitor.isNativePlatform()) return;
     checkNotificationPermission().then((status) => setNotifPermission(status)).catch(() => {});
   }, []);
@@ -294,6 +298,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [breakfastTime, lunchTime, dinnerTime]);
 
   const hasUnsavedChanges = currentSig !== baselineSig;
+  const savedIdentity = React.useMemo<IdentityType>(() => {
+    const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
+    return v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
+  }, [userProfileV2?.manual]);
+
   const baselineFullSig = React.useMemo(() => {
     const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
     const baselineIdentity: IdentityType = v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
@@ -399,6 +408,10 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   };
   const requestCloseModal = () => {
     if (saving) return;
+    if (pendingIdentity !== null) {
+      setPendingIdentity(null);
+      return;
+    }
     if (hasFullUnsavedChanges) {
       void performSave();
       return;
@@ -418,12 +431,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     </div>
   );
 
-  const identityOptions: Array<{ id: IdentityType; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = [
-    { id: 'none', label: t('profile_schedule_identity_free'), icon: LayoutGrid },
-    { id: 'work', label: t('profile_schedule_identity_work'), icon: Briefcase },
-    { id: 'class', label: t('profile_schedule_identity_class'), icon: GraduationCap },
-  ];
-
   return (
     <>
       <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
@@ -432,12 +439,12 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
         className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
       >
         <div className="flex items-start gap-2.5 text-left">
-          <Clock3 size={18} strokeWidth={2} className="mt-0.5 text-[#000000]" />
+          <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
           <div>
             <p className="profile-fn-title">{t('profile_routine_title')}</p>
           </div>
         </div>
-        <ChevronRight size={18} strokeWidth={2.5} className="text-[#5F7A63]" />
+        <ChevronRight size={16} strokeWidth={1.5} className="text-slate-400" />
       </button>
       </div>
 
@@ -468,6 +475,109 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               {/* 滚动内容 */}
               <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
 
+                {/* 身份 */}
+                <section className="relative z-10">
+                  <SectionLabel title={t('profile_schedule_section_title')} />
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([
+                      { id: 'none', label: t('profile_schedule_identity_free') },
+                      { id: 'work', label: t('profile_schedule_identity_work') },
+                      { id: 'class', label: t('profile_schedule_identity_class') },
+                    ] as const).map((item) => {
+                      const isCurrent = item.id === identity;
+                      const isSelected = item.id === identity;
+                      return (
+                        <button key={item.id}
+                          onClick={() => {
+                            if (item.id === identity) return;
+                            if (item.id !== savedIdentity) {
+                              setPendingIdentity(item.id);
+                            } else {
+                              setIdentity(item.id);
+                              setPendingIdentity(null);
+                            }
+                          }}
+                          className={`relative flex flex-col items-center justify-center py-2 rounded-lg border text-[12px] font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
+                          style={isSelected ? {
+                            background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+                            border: '0.5px solid transparent',
+                            boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+                            color: '#426D56',
+                          } : undefined}>
+                          {isCurrent && (
+                            <span className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-[#8fae91]">
+                              {t('profile_schedule_identity_current')}
+                            </span>
+                          )}
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div
+                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'work' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_work')}</p>
+                      <p className="mt-1 text-[13px] font-semibold text-black/80">{workStart} - {workEnd}</p>
+                      <p className="text-[12px] text-black/55">{workLunchStart} - {workLunchEnd}</p>
+                    </div>
+                    <div
+                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'class' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_class')}</p>
+                      <p className="mt-1 text-[12px] text-black/70">{classMorningStart} - {classMorningEnd}</p>
+                      <p className="text-[12px] text-black/70">{classAfternoonStart} - {classAfternoonEnd}</p>
+                      <p className="text-[12px] text-black/70">{classEveningStart} - {classEveningEnd}</p>
+                    </div>
+                  </div>
+
+                  {/* 身份切换确认弹窗 */}
+                  <AnimatePresence>
+                    {pendingIdentity !== null && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.32)', backdropFilter: 'blur(4px)' }}
+                        onClick={() => setPendingIdentity(null)}
+                      >
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.94, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.94, y: 10 }}
+                          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+                          className="w-full max-w-xs mx-5 rounded-3xl bg-white p-6"
+                          style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.14)' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-sm font-black text-[#1C2E24] mb-1.5">{t('profile_schedule_identity_switch_title')}</p>
+                          <p className="text-[13px] text-[#4A7560] leading-relaxed mb-5">
+                            {t('profile_schedule_identity_switch_body', {
+                              name: t(`profile_schedule_identity_${pendingIdentity}`),
+                            })}
+                          </p>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => setPendingIdentity(null)}
+                              className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-[#4A7560] border border-[#CBE7D7] bg-white transition active:scale-95">
+                              {t('cancel')}
+                            </button>
+                            <button
+                              onClick={() => { setIdentity(pendingIdentity); setPendingIdentity(null); }}
+                              className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white transition active:scale-95"
+                              style={{ background: 'linear-gradient(135deg, #6D9B74 0%, #4E7A57 100%)' }}>
+                              {t('confirm')}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </section>
+
                 {/* 基础作息 */}
                 <section className="relative z-[9]">
                   <SectionLabel title={t('profile_routine_time_section')} />
@@ -484,64 +594,39 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                   </div>
                 </section>
 
-                <section className="relative z-[8]">
-                  <SectionLabel title={t('onboarding2_routine_identity_title')} />
-                  <div className="grid grid-cols-3 gap-2">
-                    {identityOptions.map((item) => {
-                      const Icon = item.icon;
-                      const active = identity === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setIdentity(item.id)}
-                          className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-2.5 text-[11px] font-black transition-all ${
-                            active ? 'border-black bg-black text-white' : 'border-black/10 bg-zinc-50 text-black/70 hover:border-black/20'
-                          }`}
-                        >
-                          <Icon size={14} className={active ? 'text-white' : 'text-black/55'} />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {identity === 'work' && (
-                  <section className="relative z-[7]">
-                    <SectionLabel title={t('profile_schedule_work_fields')} />
-                    <div className="space-y-3.5">
-                      <div className="grid grid-cols-2 gap-3">
+                {/* 工作 / 课程 */}
+                <AnimatePresence mode="wait">
+                  {identity === 'work' && (
+                    <motion.section key="work" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-[8]">
+                      <SectionLabel title={t('profile_schedule_work_fields')} />
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
                         <TimeInput label={t('profile_user_profile_work_start')} value={workStart} onChange={setWorkStart} />
-                        <TimeInput label={t('profile_user_profile_work_end')} value={workEnd} onChange={setWorkEnd} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
                         <TimeInput label={t('profile_user_profile_lunch_start')} value={workLunchStart} onChange={setWorkLunchStart} />
                         <TimeInput label={t('profile_user_profile_lunch_end')} value={workLunchEnd} onChange={setWorkLunchEnd} />
+                        <TimeInput label={t('profile_user_profile_work_end')} value={workEnd} onChange={setWorkEnd} />
                       </div>
-                    </div>
-                  </section>
-                )}
-
-                {identity === 'class' && (
-                  <section className="relative z-[7]">
-                    <SectionLabel title={t('profile_schedule_class_fields')} />
-                    <div className="space-y-3.5">
-                      <div className="grid grid-cols-2 gap-3">
-                        <TimeInput label={t('profile_user_profile_class_morning_start')} value={classMorningStart} onChange={setClassMorningStart} />
-                        <TimeInput label={t('profile_user_profile_class_morning_end')} value={classMorningEnd} onChange={setClassMorningEnd} />
+                    </motion.section>
+                  )}
+                  {identity === 'class' && (
+                    <motion.section key="class" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-[8]">
+                      <SectionLabel title={t('profile_schedule_class_fields')} />
+                      <div className="space-y-3.5">
+                        <div className="grid grid-cols-2 gap-3">
+                          <TimeInput label={t('profile_user_profile_class_morning_start')} value={classMorningStart} onChange={setClassMorningStart} />
+                          <TimeInput label={t('profile_user_profile_class_morning_end')} value={classMorningEnd} onChange={setClassMorningEnd} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <TimeInput label={t('profile_user_profile_class_afternoon_start')} value={classAfternoonStart} onChange={setClassAfternoonStart} />
+                          <TimeInput label={t('profile_user_profile_class_afternoon_end')} value={classAfternoonEnd} onChange={setClassAfternoonEnd} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <TimeInput label={t('profile_user_profile_class_evening_start')} value={classEveningStart} onChange={setClassEveningStart} />
+                          <TimeInput label={t('profile_user_profile_class_evening_end')} value={classEveningEnd} onChange={setClassEveningEnd} />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <TimeInput label={t('profile_user_profile_class_afternoon_start')} value={classAfternoonStart} onChange={setClassAfternoonStart} />
-                        <TimeInput label={t('profile_user_profile_class_afternoon_end')} value={classAfternoonEnd} onChange={setClassAfternoonEnd} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <TimeInput label={t('profile_user_profile_class_evening_start')} value={classEveningStart} onChange={setClassEveningStart} />
-                        <TimeInput label={t('profile_user_profile_class_evening_end')} value={classEveningEnd} onChange={setClassEveningEnd} />
-                      </div>
-                    </div>
-                  </section>
-                )}
+                    </motion.section>
+                  )}
+                </AnimatePresence>
 
                 {/* 提醒开关 */}
                 <div className="border-t border-black/5 pt-4 space-y-1.5 relative z-0">
@@ -563,6 +648,9 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                       onClick={() => { void requestNotificationPermission().then((granted) => { if (granted) setNotifPermission('granted'); }).catch(() => {}); }}>
                       去授权通知权限
                     </button>
+                  )}
+                  {todayCount !== null && (
+                    <p className="text-[11px] text-black/30">⏰ {t('profile_user_profile_reminder_today_count')}：{todayCount} 条</p>
                   )}
                 </div>
               </div>
