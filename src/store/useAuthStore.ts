@@ -12,6 +12,7 @@ import { useStardustStore } from './useStardustStore';
 import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
+import { useReminderStore } from './useReminderStore';
 import { isLegacyChatActivityType } from '../lib/activityType';
 import type { AiCompanionMode } from '../lib/aiCompanion';
 import type { UserProfileV2 } from '../types/userProfile';
@@ -46,6 +47,7 @@ import {
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
+import type { ReminderType } from '../services/reminder/reminderTypes';
 
 export type AnnotationDropRate = 'low' | 'medium' | 'high';
 export type UiLanguage = SupportedUiLanguage;
@@ -163,6 +165,15 @@ function clearLocalDomainStores(): void {
   });
   useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null, queue: [], queueIndex: -1 });
   useStardustStore.getState().clear();
+  useReminderStore.setState({
+    confirmedToday: new Set<ReminderType>(),
+    confirmedDate: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
+    activePopupType: null,
+    lastSessionActivity: null,
+    showQuickPicker: false,
+    pickerContext: null,
+  });
+  localStorage.removeItem('seeday:v1:reminder');
 }
 
 function hasAnyLocalDataToMigrate(): boolean {

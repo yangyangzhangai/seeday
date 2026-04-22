@@ -16,6 +16,7 @@
 | `useMoodStore.ts` | 心情映射、自定义标签（含裁剪） | Yes |
 | `useAnnotationStore.ts` | AI 批注触发与展示 | Yes |
 | `useStardustStore.ts` | 星尘生成与同步 | Yes |
+| `useReminderStore.ts` | 主动提醒当日确认态、前台弹窗与快捷记录上下文 | Yes |
 
 ## 组织约定
 
@@ -59,12 +60,14 @@
 - `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
 - `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
 - `useFocusStore` 现持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话；`useTimingStore` 已接入 persist，冷启动可直接恢复当日计时状态。
+- `useReminderStore` 已从裸 localStorage 迁移为 Zustand persist（`seeday:v1:reminder`），并在 merge 中保留跨日自动重置 confirmed 状态。
 
 ## 变更自检
 
 - `useGrowthStore.ts`（2026-04）：Bottle 新增 `checkinDates`（按 `YYYY-MM-DD` 去重）用于 Growth 瓶子详情面板统计：近 7 天打卡天数、当前连续天数、历史最长连续天数。
 - `useTodoStore.ts`（2026-04）：`fetchTodos()` 同步改为“父待办先推、子待办后推”，并增加 `parent_id` 外键冲突恢复（父任务补推 + 孤儿 `parentId` 去引用兜底），避免重试循环失败。
 - `useTodoStore.ts` + `dbMappers.ts`（2026-04）：新增待办 `sortOrder` 及 bigint 字段写库夹紧，避免异常极值导致 Supabase `22003 bigint out of range`。
+- `useTodoStore.ts` + `useGrowthStore.ts`（2026-04）：新增待办完成奖励星数映射（`todoCompletionRewardStarsMap`）与 `decrementBottleStars()` 回滚 action；取消完成时按历史奖励值对称扣星，并在当日无其他同瓶完成时回滚 `checkinDates`。
 
 ```bash
 npx tsc --noEmit

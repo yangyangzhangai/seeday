@@ -138,6 +138,19 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'todos', filter: `user_id=eq.${userId}` },
         ({ new: row }) => {
+          const updatedRow = row as { id: string; deleted_at?: string | null };
+          if (updatedRow.deleted_at) {
+            useTodoStore.setState(state => {
+              const nextPending = { ...state.pendingDeletedTodoIds };
+              delete nextPending[updatedRow.id];
+              return {
+                todos: state.todos.filter(t => t.id !== updatedRow.id),
+                pendingDeletedTodoIds: nextPending,
+              };
+            });
+            return;
+          }
+
           const todo = fromDbTodo(row);
           useTodoStore.setState(state => ({
             todos: state.todos.map(t => t.id === todo.id ? { ...t, ...todo } : t),

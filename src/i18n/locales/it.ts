@@ -32,6 +32,7 @@ const it: TranslationKeys = {
     chat_placeholder_mood: 'Registra il tuo umore (es. entusiasta)… Tocca ❤️ per passare alle attività',
     chat_placeholder_activity: 'Registra la tua attività (es. pranzo)… Tocca ❤️ per passare all\'umore',
     chat_placeholder_neutral: 'Scrivi questo momento, l\'albero lo ricorderà',
+    chat_historical_read_only: 'Le date passate sono di sola lettura',
     chat_switch_to_activity: 'Passa alla modalità attività',
     chat_switch_to_mood: 'Passa alla modalità umore',
     chat_confirm_delete: 'Sei sicuro di voler eliminare questo record?',

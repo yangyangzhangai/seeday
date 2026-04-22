@@ -17,25 +17,16 @@ import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useGrowthStore } from './useGrowthStore';
 import type { AnnotationEvent } from '../types/annotation';
-import i18n from '../i18n';
-import type { SupportedLang } from '../services/input/lexicon/getLexicon';
-
-function resolveCurrentLang(): SupportedLang {
-  const lang = i18n.language?.toLowerCase() ?? 'zh';
-  if (lang.startsWith('en')) return 'en';
-  if (lang.startsWith('it')) return 'it';
-  return 'zh';
-}
-
-function resolveLangForText(content: string): SupportedLang {
-  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
-  const lowered = content.toLowerCase();
-  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
-    return 'it';
-  }
-  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
-  return resolveCurrentLang();
-}
+import { resolveCurrentLang, resolveLangForText } from './storeLangHelpers';
+import {
+  getLocalDayRange,
+  getTodoFreshness,
+  isTodoParentForeignKeyError,
+  sanitizeSortOrder,
+  todayDateStr,
+  todayDayOfMonth,
+  todayDayOfWeek,
+} from './todoStoreHelpers';
 
 // ── Priority types ──────────────────────────────────────────
 export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
@@ -78,41 +69,6 @@ export interface Todo {
 
 /** Backward-compat alias for growth components */
 export type GrowthTodo = Todo;
-
-const SORT_ORDER_SAFE_MIN = -9_000_000_000_000_000;
-const SORT_ORDER_SAFE_MAX = 9_000_000_000_000_000;
-
-function sanitizeSortOrder(value: unknown, fallback: number): number {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return Math.trunc(fallback);
-  const truncated = Math.trunc(numeric);
-  if (truncated < SORT_ORDER_SAFE_MIN) return SORT_ORDER_SAFE_MIN;
-  if (truncated > SORT_ORDER_SAFE_MAX) return SORT_ORDER_SAFE_MAX;
-  return truncated;
-}
-
-// ── Helpers ─────────────────────────────────────────────────
-function todayDateStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-function todayDayOfWeek(): number {
-  return new Date().getDay();
-}
-
-function todayDayOfMonth(): number {
-  return new Date().getDate();
-}
-
-function getTodoFreshness(todo: Todo): number {
-  return Math.max(
-    Number(todo.completedAt ?? 0),
-    Number(todo.startedAt ?? 0),
-    Number(todo.dueAt ?? 0),
-    Number(todo.sortOrder ?? 0),
-    Number(todo.createdAt ?? 0),
-  );
-}
-
 /** Check if a recurrence value means "non-recurring" */
 export function isNonRecurring(r?: Recurrence): boolean {
   return !r || r === 'none' || r === 'once';
@@ -219,31 +175,24 @@ async function bgSyncInsert(todo: Todo): Promise<void> {
 }
 
 // bgSyncDelete：软删除（UPDATE deleted_at），不再硬删除
-async function bgSyncDelete(id: string): Promise<void> {
+async function bgSyncDelete(id: string): Promise<boolean> {
   try {
     const session = await getSupabaseSession();
-    if (!session) return;
+    if (!session) return false;
     const { error } = await supabase
       .from('todos')
       .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', session.user.id);
-    if (error) console.error('Error syncing todo soft-delete:', error);
+    if (error) {
+      console.error('Error syncing todo soft-delete:', error);
+      return false;
+    }
+    return true;
   } catch (e) {
     console.error('bgSyncDelete failed:', e);
+    return false;
   }
-}
-
-function isTodoParentForeignKeyError(err: unknown): boolean {
-  const message = (typeof err === 'object' && err !== null)
-    ? String((err as Record<string, unknown>).message ?? '')
-    : String(err ?? '');
-  const lower = message.toLowerCase();
-  return (
-    lower.includes('todos_parent_id_fkey') ||
-    (lower.includes('violates foreign key constraint') && lower.includes('parent_id')) ||
-    (lower.includes('key is not present in table') && lower.includes('todos'))
-  );
 }
 
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
@@ -274,6 +223,8 @@ interface TodoState {
   lastSyncError: string | null;
   activeTodoId: string | null;
   lastGeneratedDate: string;
+  suppressedTemplateDateMap: Record<string, string>;
+  pendingDeletedTodoIds: Record<string, number>;
   activeMessageMap: Record<string, string>;
   todoCompletionMessageMap: Record<string, string>;
   todoBottleStarRewardMap: Record<string, { bottleId: string; stars: number }>;
@@ -328,6 +279,8 @@ export const useTodoStore = create<TodoState>()(
       lastSyncError: null,
       activeTodoId: null,
       lastGeneratedDate: '',
+      suppressedTemplateDateMap: {},
+      pendingDeletedTodoIds: {},
       activeMessageMap: {},
       todoCompletionMessageMap: {},
       todoBottleStarRewardMap: {},
@@ -344,10 +297,20 @@ export const useTodoStore = create<TodoState>()(
             set({ isLoading: false, hasHydrated: true });
             return;
           }
+          const now = Date.now();
+          const pendingDeleteEntries = Object.entries(get().pendingDeletedTodoIds)
+            .filter(([, at]) => Number.isFinite(at) && now - at < 3 * 24 * 60 * 60 * 1000);
+          const pendingDeletedIds = new Set(pendingDeleteEntries.map(([id]) => id));
+          if (pendingDeleteEntries.length !== Object.keys(get().pendingDeletedTodoIds).length) {
+            set({ pendingDeletedTodoIds: Object.fromEntries(pendingDeleteEntries) });
+          }
+          if (pendingDeletedIds.size > 0) {
+            await Promise.all(Array.from(pendingDeletedIds).map((todoId) => bgSyncDelete(todoId)));
+          }
 
           // ① 找出本地所有未同步的条目（pending / failed / 无 syncState 的旧数据）
           //    并先修复本地明显孤儿 parentId（本地父任务不存在）
-          const localTodos = get().todos;
+          const localTodos = get().todos.filter((todo) => !pendingDeletedIds.has(todo.id));
           const localTodoIdSet = new Set(localTodos.map((t) => t.id));
           let hasLocalOrphanParent = false;
           const normalizedLocalTodos = localTodos.map((todo) => {
@@ -439,7 +402,9 @@ export const useTodoStore = create<TodoState>()(
             return;
           }
 
-          const cloudTodos = data.map(fromDbTodo); // syncState: 'synced'
+          const cloudTodosRaw = data.map(fromDbTodo); // syncState: 'synced'
+          const cloudIdsRaw = new Set(cloudTodosRaw.map((t) => t.id));
+          const cloudTodos = cloudTodosRaw.filter((todo) => !pendingDeletedIds.has(todo.id));
 
           // 顺手修正 category（历史数据标准化）
           data.forEach((row) => {
@@ -452,15 +417,20 @@ export const useTodoStore = create<TodoState>()(
           // ④ 合并：云端数据 + 仍然失败的本地条目（云端没有的才保留）
           const cloudIds = new Set(cloudTodos.map((t) => t.id));
           const survivingFailed = stillFailed
-            .filter((t) => !cloudIds.has(t.id))
+            .filter((t) => !cloudIds.has(t.id) && !pendingDeletedIds.has(t.id))
             .map((t) => ({ ...t, syncState: 'failed' as const }));
 
           // ⑤ 一次性迁移旧 todo-storage（历史兼容）
-          const migrated = migrateOldTodoStorage(cloudIds);
+          const migrated = migrateOldTodoStorage(cloudIdsRaw);
           migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+
+          const nextPendingDeleted = Object.fromEntries(
+            pendingDeleteEntries.filter(([id]) => cloudIdsRaw.has(id))
+          );
 
           set({
             todos: [...cloudTodos, ...survivingFailed, ...migrated],
+            pendingDeletedTodoIds: nextPendingDeleted,
             isLoading: false,
             hasHydrated: true,
             lastSyncError: stillFailed.length > 0
@@ -620,7 +590,23 @@ export const useTodoStore = create<TodoState>()(
       deleteTodo: (id) => {
         const todo = get().todos.find((t) => t.id === id);
         if (!todo) return;
-
+        const markPendingDeletion = (ids: string[]) => {
+          const deletedAt = Date.now();
+          set((state) => ({
+            pendingDeletedTodoIds: {
+              ...state.pendingDeletedTodoIds,
+              ...Object.fromEntries(ids.map((todoId) => [todoId, deletedAt])),
+            },
+          }));
+        };
+        const clearPendingDeletion = (todoId: string) => {
+          set((state) => {
+            if (!(todoId in state.pendingDeletedTodoIds)) return state;
+            const nextPending = { ...state.pendingDeletedTodoIds };
+            delete nextPending[todoId];
+            return { pendingDeletedTodoIds: nextPending };
+          });
+        };
         if (todo.isTemplate) {
           const instanceIds = get()
             .todos.filter((t) => t.templateId === id && !t.completed)
@@ -635,6 +621,9 @@ export const useTodoStore = create<TodoState>()(
             todos: s.todos.filter(
               (t) => t.id !== id && !(t.templateId === id && !t.completed)
             ),
+            suppressedTemplateDateMap: Object.fromEntries(
+              Object.entries(s.suppressedTemplateDateMap).filter(([templateId]) => templateId !== id)
+            ),
             todoCompletionMessageMap: Object.fromEntries(
               Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
             ),
@@ -645,8 +634,11 @@ export const useTodoStore = create<TodoState>()(
               Object.entries(s.messageBottleStarRewardMap).filter(([, reward]) => reward.todoId !== id && !instanceIds.includes(reward.todoId || ''))
             ),
           }));
-          bgSyncDelete(id).catch(console.error);
-          instanceIds.forEach((iid) => bgSyncDelete(iid).catch(console.error));
+          idsToDelete.forEach((todoId) => {
+            void bgSyncDelete(todoId).then((ok) => {
+              if (ok) clearPendingDeletion(todoId);
+            });
+          });
         } else {
           const reward = get().consumeBottleStarRewardByTodo(id);
           if (reward) {
@@ -654,11 +646,19 @@ export const useTodoStore = create<TodoState>()(
           }
           set((s) => ({
             todos: s.todos.filter((t) => t.id !== id),
+            suppressedTemplateDateMap: todo.templateId
+              ? { ...s.suppressedTemplateDateMap, [todo.templateId]: todayDateStr() }
+              : s.suppressedTemplateDateMap,
             todoCompletionMessageMap: Object.fromEntries(
               Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id)
             ),
+            todoCompletionRewardStarsMap: Object.fromEntries(
+              Object.entries(s.todoCompletionRewardStarsMap).filter(([todoId]) => todoId !== id)
+            ),
           }));
-          bgSyncDelete(id).catch(console.error);
+          void bgSyncDelete(id).then((ok) => {
+            if (ok) clearPendingDeletion(id);
+          });
         }
 
         const annotationStore = useAnnotationStore.getState();
@@ -815,13 +815,25 @@ export const useTodoStore = create<TodoState>()(
 
       // ── Generate recurring todos for today ──
       generateRecurringTodos: () => {
-        const { todos, lastGeneratedDate } = get();
+        const { todos, lastGeneratedDate, suppressedTemplateDateMap } = get();
         const today = todayDateStr();
-        if (lastGeneratedDate === today) return;
+        const templates = todos.filter((t) => t.isTemplate);
+        const templateIdSet = new Set(templates.map((tpl) => tpl.id));
+        const nextSuppressedTemplateDateMap = Object.fromEntries(
+          Object.entries(suppressedTemplateDateMap).filter(
+            ([templateId, dateKey]) => dateKey === today && templateIdSet.has(templateId)
+          )
+        );
+        if (lastGeneratedDate === today) {
+          if (Object.keys(nextSuppressedTemplateDateMap).length !== Object.keys(suppressedTemplateDateMap).length) {
+            set({ suppressedTemplateDateMap: nextSuppressedTemplateDateMap });
+          }
+          return;
+        }
 
         const dayOfWeek = todayDayOfWeek();
         const dayOfMonth = todayDayOfMonth();
-        const templates = todos.filter((t) => t.isTemplate);
+        const { start: todayStart, end: todayEnd } = getLocalDayRange(today);
         const newInstances: Todo[] = [];
 
         for (const tpl of templates) {
@@ -835,13 +847,13 @@ export const useTodoStore = create<TodoState>()(
             continue;
           }
 
+          if (nextSuppressedTemplateDateMap[tpl.id] === today) continue;
+
           const hasUnfinishedInstance = todos.some(
             (t) => t.templateId === tpl.id && !t.completed
           );
           if (hasUnfinishedInstance) continue;
 
-          const todayStart = new Date(today).getTime();
-          const todayEnd = todayStart + 86400000;
           const exists = todos.some(
             (t) =>
               t.templateId === tpl.id &&
@@ -871,6 +883,7 @@ export const useTodoStore = create<TodoState>()(
         set((s) => ({
           todos: [...s.todos, ...newInstances],
           lastGeneratedDate: today,
+          suppressedTemplateDateMap: nextSuppressedTemplateDateMap,
         }));
       },
 
@@ -933,7 +946,6 @@ export const useTodoStore = create<TodoState>()(
       },
 
       getTodoCompletionMessage: (todoId) => get().todoCompletionMessageMap[todoId],
-
       clearTodoCompletionMessage: (todoId) => {
         set((s) => ({
           todoCompletionMessageMap: Object.fromEntries(
@@ -1007,6 +1019,8 @@ export const useTodoStore = create<TodoState>()(
         categories: state.categories,
         activeTodoId: state.activeTodoId,
         lastGeneratedDate: state.lastGeneratedDate,
+        suppressedTemplateDateMap: state.suppressedTemplateDateMap,
+        pendingDeletedTodoIds: state.pendingDeletedTodoIds,
         activeMessageMap: state.activeMessageMap,
         todoCompletionMessageMap: state.todoCompletionMessageMap,
         todoBottleStarRewardMap: state.todoBottleStarRewardMap,

@@ -473,6 +473,7 @@ export const ChatPage = () => {
           input={input}
           isLoading={isLoading || isMagicPenSending || isSending}
           isReadOnly={!isSelectedDateToday}
+          readOnlyMessage={!isSelectedDateToday ? t('chat_historical_read_only') : undefined}
           isMagicPenModeOn={isMagicPenModeOn}
           onInputChange={setInput}
           onSend={() => { void handleSend(); }}

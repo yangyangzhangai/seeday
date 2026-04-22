@@ -371,7 +371,11 @@ export async function sendAutoRecognizedInputFlow(
   };
 }
 
-export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
+export function closePreviousActivityLocal(messages: Message[], now: number): {
+  messages: Message[];
+  closedMessage: Message | null;
+  duration: number;
+} {
   const updatedMessages = [...messages];
 
   let lastRecordIndex = -1;
@@ -383,7 +387,7 @@ export async function closePreviousActivity(messages: Message[], now: number): P
   }
 
   if (lastRecordIndex === -1) {
-    return updatedMessages;
+    return { messages: updatedMessages, closedMessage: null, duration: 0 };
   }
 
   const lastMessage = updatedMessages[lastRecordIndex];
@@ -396,19 +400,26 @@ export async function closePreviousActivity(messages: Message[], now: number): P
     await supabase
       .from('messages')
       .update({ duration, is_active: false })
-      .eq('id', lastMessage.id)
+      .eq('id', closedMessage.id)
       .eq('user_id', session.user.id);
   })();
 
   const moodStore = useMoodStore.getState();
-  if (!moodStore.getMood(lastMessage.id)) {
+  if (!moodStore.getMood(closedMessage.id)) {
     moodStore.setMood(
-      lastMessage.id,
-      autoDetectMood(lastMessage.content, duration, resolveLangForText(lastMessage.content)),
+      closedMessage.id,
+      autoDetectMood(closedMessage.content, duration, resolveLangForText(closedMessage.content)),
     );
   }
+}
 
-  return updatedMessages;
+/** @deprecated use closePreviousActivityLocal + syncClosedActivityToCloud instead */
+export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
+  const { messages: updated, closedMessage, duration } = closePreviousActivityLocal(messages, now);
+  if (closedMessage) {
+    await syncClosedActivityToCloud(closedMessage, duration);
+  }
+  return updated;
 }
 
 export function buildInsertedActivityResult(
