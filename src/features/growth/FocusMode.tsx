@@ -30,7 +30,6 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const endActivity = useChatStore((s) => s.endActivity);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
-  const setTodoCompletionRewardStars = useTodoStore((s) => s.setTodoCompletionRewardStars);
   const todos = useTodoStore((s) => s.todos);
   const bottles = useGrowthStore((s) => s.bottles);
   const [durationMinutes, setDurationMinutes] = useState(() => normalizeDurationMinutes(queueTodos?.[0]?.suggestedDuration ?? todo.suggestedDuration));

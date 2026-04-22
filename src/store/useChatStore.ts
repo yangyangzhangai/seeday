@@ -16,6 +16,7 @@ import { mergePersistedChatState, pruneDateCache } from './chatPersistenceHelper
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
 import { callClassifierAPI } from '../api/client';
+import i18n from '../i18n';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
 import { buildTodoCompletionAnnotationPayload } from '../lib/todoCompletionAnnotation';
 import { buildClassifierRawInput } from '../lib/classifierRawInput';
@@ -23,11 +24,11 @@ import {
   classifyRecordActivityType,
 } from '../lib/activityType';
 import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
 import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
-import { resolveCurrentLang, resolveLangForText } from './storeLangHelpers';
 import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 import {
   applyReclassifyMoodSideEffects,
@@ -35,14 +36,30 @@ import {
   sendAutoRecognizedInputFlow,
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
-  closePreviousActivityLocal,
-  syncClosedActivityToCloud,
+  closePreviousActivity,
   persistReclassifiedMessages,
   persistInsertedActivityResult,
   persistMessageDurationUpdate,
   persistMessageToSupabase,
   triggerMoodDetection,
 } from './chatActions';
+
+function resolveCurrentLang(): SupportedLang {
+  const lang = i18n.language?.toLowerCase() ?? 'zh';
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
+function resolveLangForText(content: string): SupportedLang {
+  if (/[\u3400-\u9fff]/.test(content)) return 'zh';
+  const lowered = content.toLowerCase();
+  if (/\b(sono|sto|stanco|stanca|felice|ansioso|ansiosa|sollevato|sollevata|sollievo|riunione|lezione|lavorando|studiando)\b/.test(lowered)) {
+    return 'it';
+  }
+  if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
+  return resolveCurrentLang();
+}
 
 function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
@@ -449,10 +466,9 @@ export const useChatStore = create<ChatState>()(
         },
       ) => {
         const now = customTimestamp ?? Date.now();
+        let updatedMessages = [...get().messages];
 
-        // ── Local state: close previous activity and create new message (sync, 0ms) ──
-        const { messages: closedMessages, closedMessage, duration: closedDuration } =
-          closePreviousActivityLocal([...get().messages], now);
+        updatedMessages = await closePreviousActivity(updatedMessages, now);
 
         const classifiedByRule = !options?.activityTypeOverride
           ? classifyRecordActivityType(content, resolveLangForText(content))
@@ -468,9 +484,10 @@ export const useChatStore = create<ChatState>()(
           isActive: true,
         };
 
-        // ── Optimistic write: message appears instantly ──
+        updatedMessages.push(newMessage);
+
         set({
-          messages: [...closedMessages, newMessage],
+          messages: updatedMessages,
           lastActivityTime: now,
         });
 
