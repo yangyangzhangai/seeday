@@ -518,17 +518,17 @@ export const useChatStore = create<ChatState>()(
           lastActivityTime: now,
         });
 
-        // ── Background: sync to cloud (fire-and-forget) ──
         void (async () => {
-          if (closedMessage) {
-            await syncClosedActivityToCloud(closedMessage, closedDuration);
-          }
           const session = await getSupabaseSession();
-          if (session) {
-            await persistMessageToSupabase(newMessage, session.user.id);
-            void useTimingStore.getState().endActive(session.user.id);
+          if (!session) return;
+          await persistMessageToSupabase(newMessage, session.user.id);
+          // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
+          void useTimingStore.getState().endActive(session.user.id);
+        })().catch((error) => {
+          if (import.meta.env.DEV) {
+            console.warn('[sendMessage] background sync skipped:', error);
           }
-        })();
+        });
 
         if (!options?.skipMoodDetection) {
           void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
@@ -732,6 +732,12 @@ export const useChatStore = create<ChatState>()(
 
         const todoStore = useTodoStore.getState();
         const completedTodo = todoStore.completeTodoByMessage(id);
+        const completionMappedTodoId = Object.entries(todoStore.todoCompletionMessageMap)
+          .find(([, messageId]) => messageId === id)?.[0];
+        const associatedTodo = completedTodo
+          ?? (completionMappedTodoId
+            ? todoStore.todos.find((todo) => todo.id === completionMappedTodoId) ?? null
+            : null);
         if (completedTodo) {
           const growthStore = useGrowthStore.getState();
           const linkedBottle = completedTodo.bottleId
@@ -757,61 +763,69 @@ export const useChatStore = create<ChatState>()(
         }
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
+        const todoRewardStore = useTodoStore.getState();
         const grantBottleStars = (bottleId: string) => {
           const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({ bottleId });
           growthStore.incrementBottleStars(bottleId, stars);
-          if (completedTodo?.id && completedTodo.bottleId === bottleId) {
-            todoStore.setTodoCompletionRewardStars(completedTodo.id, stars);
-          }
+          todoRewardStore.registerBottleStarReward({
+            ...(associatedTodo?.id ? { todoId: associatedTodo.id } : {}),
+            messageId: id,
+            bottleId,
+            stars,
+          });
         };
+        const linkedBottleId = associatedTodo?.bottleId;
         const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
+        const allActiveBottles = activeBottles.map((b) => ({ id: b.id, name: b.name }));
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
+        const keywordMatch = (text: string, bottles: { id: string; name: string }[]): string | null => {
+          const lower = text.toLowerCase();
+          for (const b of bottles) {
+            const words = b.name.toLowerCase().split(/\s+/);
+            if (words.some(w => w.length >= 2 && lower.includes(w))) return b.id;
+          }
+          return null;
+        };
 
+        // Priority 1: linked todo bottle
+        if (linkedBottleId) {
+          grantBottleStars(linkedBottleId);
+          return;
+        }
+
+        // Priority 2: keyword match against active bottle names
+        const keywordMatchedBottleId = keywordMatch(target.content, allActiveBottles);
+        if (keywordMatchedBottleId) {
+          grantBottleStars(keywordMatchedBottleId);
+          return;
+        }
+
+        // Priority 3: classifier semantic match
         if (habits.length > 0 || goals.length > 0) {
-          const lang = resolveCurrentLang();
-
-          // Keyword fallback: match activity content against bottle names
-          const keywordMatch = (text: string, bottles: { id: string; name: string }[]): string | null => {
-            const lower = text.toLowerCase();
-            for (const b of bottles) {
-              const words = b.name.toLowerCase().split(/\s+/);
-              if (words.some(w => w.length >= 2 && lower.includes(w))) return b.id;
-            }
-            return null;
-          };
-
+          const lang = resolveLangForText(target.content);
           callClassifierAPI({ rawInput: target.content, lang, habits, goals })
             .then((result) => {
-                if (!result.success || !result.data?.items) {
-                  // API failed — use keyword fallback
-                  const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) grantBottleStars(matched);
-                  return;
-                }
-                let aiMatched = false;
-                for (const item of result.data.items) {
-                  if (item.matched_bottle?.id) {
+              if (!result.success || !result.data?.items) return;
+              if (!get().messages.some((m) => m.id === id)) return;
+              for (const item of result.data.items) {
+                if (item.matched_bottle?.id) {
                   grantBottleStars(item.matched_bottle.id);
-                    aiMatched = true;
-                    break; // max one star per activity
-                  }
+                  break; // max one star per activity
                 }
-                // AI returned no match — try keyword fallback
-                if (!aiMatched) {
-                  const matched = keywordMatch(target.content, [...habits, ...goals]);
-                if (matched) grantBottleStars(matched);
-                }
-              })
-              .catch(() => {
-                // API error — use keyword fallback
-                const matched = keywordMatch(target.content, [...habits, ...goals]);
-              if (matched) grantBottleStars(matched);
-              });
+              }
+            })
+            .catch(() => {
+              return;
+            });
         }
       },
 
       deleteActivity: async (id) => {
+        const reward = useTodoStore.getState().consumeBottleStarRewardByMessage(id);
+        if (reward) {
+          useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
+        }
         set(state => ({
           messages: state.messages.filter(m => m.id !== id)
         }));
@@ -937,8 +951,9 @@ export const useChatStore = create<ChatState>()(
         };
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
 
-        const session = await getSupabaseSession();
-        if (session) {
+        void (async () => {
+          const session = await getSupabaseSession();
+          if (!session) return;
           const moodMessageToPersist = get().messages.find((message) => message.id === newMessage.id)
             ?? (isCrossDay ? { ...newMessage, detached: true } : newMessage);
           await persistMessageToSupabase(moodMessageToPersist, session.user.id, true);
@@ -946,7 +961,11 @@ export const useChatStore = create<ChatState>()(
             const updated = get().messages.find(m => m.id === latestEvent.id);
             if (updated) await persistMessageToSupabase(updated, session.user.id);
           }
-        }
+        })().catch((error) => {
+          if (import.meta.env.DEV) {
+            console.warn('[sendMood] background sync skipped:', error);
+          }
+        });
 
         return newMessage.id;
       },

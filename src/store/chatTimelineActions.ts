@@ -6,6 +6,8 @@ import type { Message } from './useChatStore.types';
 import type { MoodDescription } from './useChatStore.types';
 import { useMoodStore } from './useMoodStore';
 import { useAnnotationStore } from './useAnnotationStore';
+import { useTodoStore } from './useTodoStore';
+import { useGrowthStore } from './useGrowthStore';
 import {
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
@@ -245,6 +247,10 @@ export function createChatTimelineActions(
   };
 
   const deleteActivity = async (id: string) => {
+    const reward = useTodoStore.getState().consumeBottleStarRewardByMessage(id);
+    if (reward) {
+      useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
+    }
     set(state => ({
       messages: state.messages.filter(m => m.id !== id)
     }));

@@ -61,7 +61,7 @@ interface GrowthState {
   removeBottle: (id: string) => void;
   incrementBottleStar: (id: string) => void;
   incrementBottleStars: (id: string, amount: number) => void;
-  decrementBottleStars: (id: string, amount: number, options?: { removeTodayCheckin?: boolean }) => void;
+  decrementBottleStars: (id: string, amount: number) => void;
   markBottleAchieved: (id: string) => void;
   markBottleIrrigated: (id: string) => void;
   continueBottle: (id: string) => void;
@@ -250,27 +250,19 @@ export const useGrowthStore = create<GrowthState>()(
         });
       },
 
-      decrementBottleStars: (id, amount, options) => {
+      decrementBottleStars: (id, amount) => {
         const starsToRemove = Math.max(1, Math.floor(amount || 1));
-        const today = todayDateStr();
-        const removeTodayCheckin = options?.removeTodayCheckin === true;
-
+        let didDecrement = false;
         set((s) => ({
           bottles: s.bottles.map((b) => {
-            if (b.id !== id || b.status === 'irrigated') return b;
+            if (b.id !== id) return b;
+            didDecrement = true;
             const nextStars = Math.max(0, b.stars - starsToRemove);
-            const nextStatus: BottleStatus = nextStars >= 21 ? 'achieved' : 'active';
-            const nextCheckinDates = removeTodayCheckin
-              ? normalizeCheckinDates((b.checkinDates ?? []).filter((date) => date !== today))
-              : normalizeCheckinDates(b.checkinDates);
-            return {
-              ...b,
-              stars: nextStars,
-              status: nextStatus,
-              checkinDates: nextCheckinDates,
-            };
+            const nextStatus: BottleStatus = nextStars >= 21 ? b.status : 'active';
+            return { ...b, stars: nextStars, status: nextStatus };
           }),
         }));
+        if (!didDecrement) return;
 
         void withDbRetry('GrowthStore:decrementStars', async () => {
           const session = await getSupabaseSession();
@@ -286,7 +278,11 @@ export const useGrowthStore = create<GrowthState>()(
           const { error } = await supabase.from('bottles').update(payload).eq('id', id).eq('user_id', session.user.id);
           if (error) {
             if (!isMissingCheckinDatesColumnError(error)) throw error;
-            const fallback = await supabase.from('bottles').update(removeCheckinDatesField(payload)).eq('id', id).eq('user_id', session.user.id);
+            const fallback = await supabase
+              .from('bottles')
+              .update(removeCheckinDatesField(payload))
+              .eq('id', id)
+              .eq('user_id', session.user.id);
             if (fallback.error) throw fallback.error;
           }
         });

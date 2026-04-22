@@ -46,7 +46,7 @@ export const StarAnimationOverlay: React.FC = () => {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[95]">
-      <div className="absolute left-[58%] top-[54%] -translate-x-1/2 -translate-y-1/2">
+      <div className="absolute left-[66%] top-[54%] -translate-x-1/2 -translate-y-1/2">
         <iframe
           key={runKey}
           src="/animations/star-animation.html"
