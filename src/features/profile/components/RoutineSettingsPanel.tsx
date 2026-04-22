@@ -298,10 +298,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [breakfastTime, lunchTime, dinnerTime]);
 
   const hasUnsavedChanges = currentSig !== baselineSig;
-  const savedIdentity = React.useMemo<IdentityType>(() => {
-    const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
-    return v2?.hasWorkSchedule ? 'work' : v2?.hasClassSchedule ? 'class' : 'none';
-  }, [userProfileV2?.manual]);
 
   const baselineFullSig = React.useMemo(() => {
     const v2 = userProfileV2?.manual as UserProfileManualV2 | undefined;
@@ -490,12 +486,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                         <button key={item.id}
                           onClick={() => {
                             if (item.id === identity) return;
-                            if (item.id !== savedIdentity) {
-                              setPendingIdentity(item.id);
-                            } else {
-                              setIdentity(item.id);
-                              setPendingIdentity(null);
-                            }
+                            setPendingIdentity(item.id);
                           }}
                           className={`relative flex flex-col items-center justify-center py-2 rounded-lg border text-[12px] font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
                           style={isSelected ? {
@@ -513,24 +504,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                         </button>
                       );
                     })}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div
-                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'work' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
-                    >
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_work')}</p>
-                      <p className="mt-1 text-[13px] font-semibold text-black/80">{workStart} - {workEnd}</p>
-                      <p className="text-[12px] text-black/55">{workLunchStart} - {workLunchEnd}</p>
-                    </div>
-                    <div
-                      className={`rounded-2xl border px-3 py-2.5 transition-all ${identity === 'class' ? 'border-[#A4CDB7] bg-[#F2F9F4]' : 'border-black/5 bg-zinc-50/60'}`}
-                    >
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#426D56]">{t('profile_schedule_identity_class')}</p>
-                      <p className="mt-1 text-[12px] text-black/70">{classMorningStart} - {classMorningEnd}</p>
-                      <p className="text-[12px] text-black/70">{classAfternoonStart} - {classAfternoonEnd}</p>
-                      <p className="text-[12px] text-black/70">{classEveningStart} - {classEveningEnd}</p>
-                    </div>
                   </div>
 
                   {/* 身份切换确认弹窗 */}
@@ -556,7 +529,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                           <p className="text-sm font-black text-[#1C2E24] mb-1.5">{t('profile_schedule_identity_switch_title')}</p>
                           <p className="text-[13px] text-[#4A7560] leading-relaxed mb-5">
                             {t('profile_schedule_identity_switch_body', {
-                              name: t(`profile_schedule_identity_${pendingIdentity}`),
+                              name: t(
+                                pendingIdentity === 'none'
+                                  ? 'profile_schedule_identity_free'
+                                  : pendingIdentity === 'work'
+                                    ? 'profile_schedule_identity_work'
+                                    : 'profile_schedule_identity_class',
+                              ),
                             })}
                           </p>
                           <div className="flex gap-3">
