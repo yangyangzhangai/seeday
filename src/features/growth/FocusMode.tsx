@@ -110,7 +110,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
 
   const completeTodoAndEndActivity = useCallback(async (targetTodo: GrowthTodo) => {
     if (activeMessageId) {
-      await endActivity(activeMessageId);
+      await endActivity(activeMessageId, { todoId: targetTodo.id });
     }
     const session = endFocus();
     if (!targetTodo.completed) {

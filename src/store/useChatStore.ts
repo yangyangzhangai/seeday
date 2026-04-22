@@ -732,9 +732,13 @@ export const useChatStore = create<ChatState>()(
 
         const todoStore = useTodoStore.getState();
         const completedTodo = todoStore.completeTodoByMessage(id);
+        const optsTodo = opts?.todoId
+          ? todoStore.todos.find((todo) => todo.id === opts.todoId) ?? null
+          : null;
         const completionMappedTodoId = Object.entries(todoStore.todoCompletionMessageMap)
           .find(([, messageId]) => messageId === id)?.[0];
-        const associatedTodo = completedTodo
+        const associatedTodo = optsTodo
+          ?? completedTodo
           ?? (completionMappedTodoId
             ? todoStore.todos.find((todo) => todo.id === completionMappedTodoId) ?? null
             : null);

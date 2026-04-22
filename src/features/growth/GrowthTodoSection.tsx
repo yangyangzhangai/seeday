@@ -159,7 +159,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       });
       if (msgId) {
         setTodoCompletionMessage(todo.id, msgId);
-        await endActivity(msgId);
+        await endActivity(msgId, { todoId: todo.id });
       } else {
         clearTodoCompletionMessage(todo.id);
       }
