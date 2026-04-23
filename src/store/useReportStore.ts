@@ -24,6 +24,7 @@ import {
 import { getDateRange } from './reportHelpers';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 export interface ReportStats {
   completedTodos: number;
@@ -339,6 +340,8 @@ export const useReportStore = create<ReportState>()(
     }),
     {
       name: PERSIST_KEYS.report,
+      storage: createScopedJSONStorage<Partial<ReportState>>('report'),
+      skipHydration: true,
       partialize: (state) => ({
         reports: state.reports.map(r => ({
           ...r,

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ReminderType } from '../services/reminder/reminderTypes';
 import { PERSIST_KEYS } from './persistKeys';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 // ─────────────────────────────────────────────
 // 状态定义
@@ -146,6 +147,8 @@ export const useReminderStore = create<ReminderState>()(
     }),
     {
       name: REMINDER_PERSIST_KEY,
+      storage: createScopedJSONStorage<ReminderPersistedState>('reminder'),
+      skipHydration: true,
       partialize: (state) => ({
         confirmedToday: Array.from(state.confirmedToday),
         confirmedDate: state.confirmedDate,

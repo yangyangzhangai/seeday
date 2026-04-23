@@ -9,6 +9,18 @@ import {
   type LocalNotificationPayload,
 } from '../notifications/localNotificationService';
 
+function getScopedClientStorageKey(baseKey: string, userId?: string): string {
+  const normalized = baseKey.trim();
+  if (!normalized) return baseKey;
+  const rawFlag = String(import.meta.env.VITE_MULTI_ACCOUNT_ISOLATION_V2 ?? '').trim().toLowerCase();
+  const enabled = rawFlag === '1' || rawFlag === 'true' || rawFlag === 'on';
+  if (!enabled) return normalized;
+  if (userId && userId.trim()) {
+    return `seeday:v2:user:${userId.trim()}:local:${normalized}`;
+  }
+  return `seeday:v2:anon:local:${normalized}`;
+}
+
 // ─────────────────────────────────────────────
 // 通知 ID 生成（命名规范：reminder_<type>_<HHMM>）
 // ─────────────────────────────────────────────
@@ -50,9 +62,9 @@ function resolveActionTypeId(
 // 节假日检测（结果缓存到 localStorage，当日有效）
 // ─────────────────────────────────────────────
 
-export async function getIsFreeDay(date: Date, countryCode: string): Promise<boolean> {
+export async function getIsFreeDay(date: Date, countryCode: string, storageUserId?: string): Promise<boolean> {
   const localDate = toLocalDateStr(date);
-  const key = `freeDay_${localDate}`;
+  const key = getScopedClientStorageKey(`freeDay_${localDate}`, storageUserId);
   const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
 
@@ -151,6 +163,7 @@ function timeStringToDate(hhmm: string, baseDate: Date): Date {
 export interface ScheduleOptions {
   manual: UserProfileManualV2;
   aiMode: string;
+  storageUserId?: string;
   userName?: string;
   countryCode: string;
   notificationTitle?: string;
@@ -160,6 +173,7 @@ export interface ScheduleOptions {
 }
 
 const SCHEDULE_DONE_KEY = 'reminder_scheduled_date';
+const REMINDER_TODAY_COUNT_KEY = 'reminder_today_count';
 
 /** 将队列 + 日期转换为通知 payload 列表 */
 function buildPayloads(
@@ -181,17 +195,19 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   if (opts.reminderEnabled === false) return;
 
   const todayKey = toLocalDateStr(new Date());
-  const wasMarkedToday = localStorage.getItem(SCHEDULE_DONE_KEY) === todayKey;
+  const scheduleDoneKey = getScopedClientStorageKey(SCHEDULE_DONE_KEY, opts.storageUserId);
+  const reminderTodayCountKey = getScopedClientStorageKey(REMINDER_TODAY_COUNT_KEY, opts.storageUserId);
+  const wasMarkedToday = localStorage.getItem(scheduleDoneKey) === todayKey;
 
   const now = new Date();
-  const isTodayFreeDay = await getIsFreeDay(now, opts.countryCode);
+  const isTodayFreeDay = await getIsFreeDay(now, opts.countryCode, opts.storageUserId);
   const todayQueue = buildReminderQueue(opts.manual, now, isTodayFreeDay);
   const futureTodayQueue = todayQueue.filter(({ time }) => timeStringToDate(time, now) > now);
   const todayPayloads = buildPayloads(futureTodayQueue, now, opts);
 
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode);
+  const isTomorrowFreeDay = await getIsFreeDay(tomorrow, opts.countryCode, opts.storageUserId);
   const tomorrowQueue = buildReminderQueue(opts.manual, tomorrow, isTomorrowFreeDay);
   const tomorrowPayloads = buildPayloads(tomorrowQueue, tomorrow, opts);
 
@@ -206,7 +222,7 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     const allAlreadyScheduled =
       expectedIds.length === 0 || expectedIds.every((id) => pendingIds.includes(id));
     if (allAlreadyScheduled) {
-      localStorage.setItem('reminder_today_count', String(todayFutureCount));
+      localStorage.setItem(reminderTodayCountKey, String(todayFutureCount));
       return;
     }
   }
@@ -217,6 +233,6 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     const scheduled = await scheduleBatchNotifications(combinedPayloads);
     if (!scheduled) return;
   }
-  localStorage.setItem(SCHEDULE_DONE_KEY, todayKey);
-  localStorage.setItem('reminder_today_count', String(todayFutureCount));
+  localStorage.setItem(scheduleDoneKey, todayKey);
+  localStorage.setItem(reminderTodayCountKey, String(todayFutureCount));
 }

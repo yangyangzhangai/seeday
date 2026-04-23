@@ -8,6 +8,7 @@ import { withDbRetry } from '../lib/dbRetry';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { useOutboxStore } from './useOutboxStore';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 const MAX_MOOD_ENTRIES = 500;
 
@@ -377,6 +378,8 @@ export const useMoodStore = create<MoodState>()(
     }),
     {
       name: PERSIST_KEYS.mood,
+      storage: createScopedJSONStorage<Partial<MoodState>>('mood'),
+      skipHydration: true,
       partialize: (state) => ({
         activityMood: state.activityMood,
         activityMoodMeta: state.activityMoodMeta,

@@ -10,6 +10,8 @@ import type { AIAnnotation } from '../types/annotation';
 import type { PlantCategoryKey } from '../types/plant';
 import type { Message } from './useChatStore.types';
 import type { Report } from './useReportStore';
+import { createScopedJSONStorage } from './scopedPersistStorage';
+import { isMultiAccountIsolationV2Enabled, readActiveStorageScope } from './storageScope';
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const OUTBOX_COOLDOWN_MS = 60 * 60 * 1000;
@@ -262,6 +264,12 @@ export const useOutboxStore = create<OutboxState>()(
       flush: async (userId) => {
         const resolvedUserId = userId || (await getSupabaseSession())?.user?.id;
         if (!resolvedUserId) return;
+        if (isMultiAccountIsolationV2Enabled()) {
+          const activeScope = readActiveStorageScope();
+          if (activeScope.type !== 'user' || activeScope.userId !== resolvedUserId) {
+            return;
+          }
+        }
 
         const now = Date.now();
         const snapshot = get().entries.filter((entry) => (
@@ -324,6 +332,8 @@ export const useOutboxStore = create<OutboxState>()(
     }),
     {
       name: PERSIST_KEYS.outbox,
+      storage: createScopedJSONStorage<Pick<OutboxState, 'entries'>>('outbox'),
+      skipHydration: true,
       partialize: (state) => ({ entries: state.entries }),
     },
   ),

@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { playSound } from '../../services/sound/soundService';
 import { useSearchParams } from 'react-router-dom';
 import imgBirdZep02 from '../../assets/zep02.png';
@@ -35,6 +35,11 @@ import type { MagicPenAutoWrittenItem, MagicPenDraftItem } from '../../services/
 import { handleMagicPenModeSend, handleLatestMessageReclassify } from './chatPageActions';
 import { toLocalDateStr } from '../../lib/dateUtils';
 import { format } from 'date-fns';
+import {
+  getScopedClientStorageKey,
+  isMultiAccountIsolationV2Enabled,
+  resolveStorageScopeForUser,
+} from '../../store/storageScope';
 
 export const ChatPage = () => {
   const todayStr = toLocalDateStr(new Date());
@@ -51,7 +56,7 @@ export const ChatPage = () => {
   const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
   const fetchStardusts = useStardustStore(state => state.fetchStardusts);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [input, setInput] = useState(() => localStorage.getItem('chat_input_draft') ?? '');
+  const [input, setInput] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoadingDate, setIsLoadingDate] = useState(false);
   const [isMagicPenOpen, setIsMagicPenOpen] = useState(false);
@@ -78,6 +83,11 @@ export const ChatPage = () => {
 
   const aiMode = useAuthStore(state => state.preferences.aiMode);
   const isPlus = useAuthStore(state => state.isPlus);
+  const userId = useAuthStore(state => state.user?.id);
+  const draftStorageKey = useMemo(
+    () => getScopedClientStorageKey('chat_input_draft', resolveStorageScopeForUser(userId ?? null)),
+    [userId],
+  );
 
   const personaImages: Record<string, [string, string]> = {
     van: [imgVan01, imgVan02],
@@ -136,12 +146,27 @@ export const ChatPage = () => {
 
   // ── 草稿持久化 ─────────────────────────────────────────────
   useEffect(() => {
-    if (input) {
-      localStorage.setItem('chat_input_draft', input);
-    } else {
-      localStorage.removeItem('chat_input_draft');
+    try {
+      const scopedDraft = localStorage.getItem(draftStorageKey);
+      const legacyDraft = isMultiAccountIsolationV2Enabled() ? localStorage.getItem('chat_input_draft') : null;
+      const resolvedDraft = scopedDraft ?? legacyDraft ?? '';
+      if (!scopedDraft && legacyDraft) {
+        localStorage.setItem(draftStorageKey, legacyDraft);
+        localStorage.removeItem('chat_input_draft');
+      }
+      setInput(resolvedDraft);
+    } catch {
+      setInput('');
     }
-  }, [input]);
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (input) {
+      localStorage.setItem(draftStorageKey, input);
+    } else {
+      localStorage.removeItem(draftStorageKey);
+    }
+  }, [input, draftStorageKey]);
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');

@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { callPlantAssetTelemetryAPI } from '../../../api/client';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../../store/storageScope';
 import type { PlantStage, RootType } from '../../../types/plant';
 import { buildPlantAssetCandidates, resolvePlantFallbackLevelFromCandidateIndex } from './plantImageResolver';
 
@@ -15,16 +17,16 @@ interface PlantImageProps {
 // Cache the resolved URL per plantId so subsequent renders skip failed attempts
 const CACHE_PREFIX = 'plant_img_v1_';
 
-function getCachedUrl(plantId: string): string | null {
-  try { return localStorage.getItem(CACHE_PREFIX + plantId); } catch { return null; }
+function getCachedUrl(storageKey: string): string | null {
+  try { return localStorage.getItem(storageKey); } catch { return null; }
 }
 
-function setCachedUrl(plantId: string, url: string): void {
-  try { localStorage.setItem(CACHE_PREFIX + plantId, url); } catch { /* quota exceeded, ignore */ }
+function setCachedUrl(storageKey: string, url: string): void {
+  try { localStorage.setItem(storageKey, url); } catch { /* quota exceeded, ignore */ }
 }
 
-function resolveInitialIndex(plantId: string, candidates: string[]): number {
-  const cached = getCachedUrl(plantId);
+function resolveInitialIndex(storageKey: string, candidates: string[]): number {
+  const cached = getCachedUrl(storageKey);
   if (!cached) return 0;
   const idx = candidates.indexOf(cached);
   return idx >= 0 ? idx : 0;
@@ -32,19 +34,27 @@ function resolveInitialIndex(plantId: string, candidates: string[]): number {
 
 export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plantStage, imgClassName }) => {
   const { t, i18n } = useTranslation();
+  const userId = useAuthStore((state) => state.user?.id);
   const candidates = useMemo(
     () => buildPlantAssetCandidates(plantId, rootType, plantStage),
     [plantId, plantStage, rootType],
   );
+  const cacheStorageKey = useMemo(
+    () => getScopedClientStorageKey(
+      `${CACHE_PREFIX}${plantId}`,
+      resolveStorageScopeForUser(userId ?? null),
+    ),
+    [plantId, userId],
+  );
 
   // Start from cached index to avoid flicker on re-open
-  const [index, setIndex] = useState(() => resolveInitialIndex(plantId, candidates));
+  const [index, setIndex] = useState(() => resolveInitialIndex(cacheStorageKey, candidates));
   const [reportedKey, setReportedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setIndex(resolveInitialIndex(plantId, candidates));
+    setIndex(resolveInitialIndex(cacheStorageKey, candidates));
     setReportedKey(null);
-  }, [candidates, plantId]);
+  }, [cacheStorageKey, candidates]);
 
   const emitResolvedTelemetry = async (): Promise<void> => {
     const resolvedAssetUrl = candidates[index];
@@ -53,7 +63,7 @@ export const PlantImage: React.FC<PlantImageProps> = ({ plantId, rootType, plant
     if (reportedKey === key) return;
     setReportedKey(key);
     // Persist resolved URL so next mount starts here directly (no flicker)
-    setCachedUrl(plantId, resolvedAssetUrl);
+    setCachedUrl(cacheStorageKey, resolvedAssetUrl);
     try {
       const lang = i18n.language?.toLowerCase() ?? 'en';
       await callPlantAssetTelemetryAPI({

@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { isSameDay } from 'date-fns';
 import { usePlantStore } from '../store/usePlantStore';
 import { useReportStore } from '../store/useReportStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../store/storageScope';
 import type { DailyPlantRecord } from '../types/plant';
 import type { Report } from '../store/useReportStore';
 
@@ -13,8 +15,8 @@ function getTodayStr(): string {
   return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
-function isAlreadyDismissedToday(): boolean {
-  return localStorage.getItem(DISMISSED_KEY) === getTodayStr();
+function isAlreadyDismissedToday(storageKey: string): boolean {
+  return localStorage.getItem(storageKey) === getTodayStr();
 }
 
 function isPlantGeneratedToday(todayPlant: DailyPlantRecord | null): boolean {
@@ -33,8 +35,10 @@ function isDiaryGeneratedToday(reports: Report[]): boolean {
 
 export function useNightReminder() {
   const [showReminder, setShowReminder] = useState(false);
+  const userId = useAuthStore((s) => s.user?.id);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const reports = useReportStore(state => state.reports);
+  const dismissedStorageKey = getScopedClientStorageKey(DISMISSED_KEY, resolveStorageScopeForUser(userId ?? null));
 
   const todayPlantRef = useRef(todayPlant);
   todayPlantRef.current = todayPlant;
@@ -43,7 +47,7 @@ export function useNightReminder() {
 
   useEffect(() => {
     const check = () => {
-      if (isAlreadyDismissedToday()) return;
+      if (isAlreadyDismissedToday(dismissedStorageKey)) return;
       const plantDone = isPlantGeneratedToday(todayPlantRef.current);
       const diaryDone = isDiaryGeneratedToday(reportsRef.current);
       if (!plantDone && !diaryDone) {
@@ -62,10 +66,10 @@ export function useNightReminder() {
     }
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [dismissedStorageKey]);
 
   const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, getTodayStr());
+    localStorage.setItem(dismissedStorageKey, getTodayStr());
     setShowReminder(false);
   };
 

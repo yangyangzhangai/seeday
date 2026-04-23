@@ -30,6 +30,7 @@ import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 import {
   applyReclassifyMoodSideEffects,
   buildRecentReclassifyResult,
@@ -974,6 +975,8 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: PERSIST_KEYS.chat,
+      storage: createScopedJSONStorage<Partial<ChatState>>('chat'),
+      skipHydration: true,
       merge: (persistedState, currentState) => {
         const legacyState = readLegacyPersistedState<ChatState>(LEGACY_PERSIST_KEYS.chat);
         return mergePersistedChatState(persistedState || legacyState, currentState as ChatState);

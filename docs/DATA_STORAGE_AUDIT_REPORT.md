@@ -628,6 +628,28 @@ DB 层: `src/api/supabase.ts`, `src/lib/dbRetry.ts`, `src/lib/dbMappers.ts`, `sr
 | P2-6 | **Plant / Annotation 全面引入 syncState + outbox** | 大 | **Q7** |
 | P2-7 | 离线行为 Playwright 测试 harness | 中 | — |
 
+### P2-4.1 非 domain key 分类清单（2026-04-23）
+
+| Key | 归类 | 当前状态 | 备注 |
+|-----|------|----------|------|
+| `chat_input_draft` | user-scoped | ✅ 已接入 | `seeday:v2:*:local:chat_input_draft` |
+| `yesterday_popup_date` | user-scoped | ✅ 已接入 | 按用户分桶避免跨账号去重串扰 |
+| `night_reminder_dismissed_date` | user-scoped | ✅ 已接入 | 夜间提醒 dismiss 按账号隔离 |
+| `pending_notification_confirm_action` | user-scoped | ✅ 已接入 | 通知确认补偿动作按账号隔离 |
+| `reminder_scheduled_date` | user-scoped | ✅ 已接入 | 提醒重排标记按账号隔离 |
+| `reminder_today_count` | user-scoped | ✅ 已接入 | 今日提醒计数按账号隔离 |
+| `plant_img_v1_<plantId>` | user-scoped | ✅ 已接入 | 植物图片缓存按账号隔离 |
+| `growth:first-login-date:<userId>` | user-scoped | ✅ 保持 | key 已含 userId，无需改造 |
+| `growth:is-first-login:<userId>:<date>` | user-scoped | ✅ 保持 | session key 已含 userId |
+| `profile:routine:v1:<userId>` | user-scoped | ✅ 保持 | 例外：历史 key 但已按 userId 分桶 |
+| `dev_preview` | global | ✅ 保持 | DEV 设备级开关 |
+| `seeday_onboarded` | global | ✅ 保持 | 设备级 onboarding 状态 |
+| `i18nextLng` | global | ✅ 保持 | 设备级语言偏好（并有云端 metadata 同步） |
+| `freeDay_<date>` | 待评估 | ⏳ 下一批 | 当前仍为全局 key |
+| `reminder_error_log` | global | ✅ 保持 | 诊断日志，设备级聚合 |
+| `idle_nudge_scheduled_at` | user-scoped | ✅ 已接入 | 改为 `seeday:v2:*:local:idle_nudge_scheduled_at` |
+| `live_input_session_id`（sessionStorage） | global | ✅ 保持 | 会话级去重 id，设备级语义 |
+
 ### 关键注意事项（写给后续接手的人）
 
 - **P0-3 必须在 P0 里做**（即使 Q3 拆 profiles 表留给了 v1.1）：`user_metadata` 的并发竞争是今天就会发生的数据丢失 Bug，不能等到 v1.1 表结构重构才解决；先用"排队写入"兜住，等 profiles 表上线后自然消解。

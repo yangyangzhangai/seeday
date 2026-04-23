@@ -7,6 +7,7 @@ import { withDbRetry } from '../lib/dbRetry';
 import { playSound } from '../services/sound/soundService';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 export type BottleType = 'habit' | 'goal';
 export type BottleStatus = 'active' | 'achieved' | 'irrigated';
@@ -441,6 +442,8 @@ export const useGrowthStore = create<GrowthState>()(
     }),
     {
       name: PERSIST_KEYS.growth,
+      storage: createScopedJSONStorage<Partial<GrowthState>>('growth'),
+      skipHydration: true,
       partialize: (state) => ({
         bottles: state.bottles,
         dailyGoal: state.dailyGoal,

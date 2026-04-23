@@ -175,16 +175,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               triggerLightHaptic();
               setShowMonthPicker(p => !p);
             }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
+            className="w-11 h-11 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-2xl border border-[#8fae9130] shadow-[0_8px_20px_rgba(143,174,145,0.12)] cursor-pointer transition-all hover:scale-105 active:scale-95 group"
+            aria-label={t('diary_shelf_open_calendar')}
+            title={t('diary_shelf_open_calendar')}
           >
-            <span className="text-base" style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>
-              {MONTHS[viewMonth]} {viewYear}
-            </span>
-            <span className="material-symbols-outlined"
-              style={{ fontSize: 18, color: '#94a3b8', transition: 'transform 0.2s',
-                transform: showMonthPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-              expand_more
+            <span
+              className="material-symbols-outlined text-[#5F7A63] group-hover:text-[#5F7A63] transition-colors"
+              style={{ fontSize: 24 }}
+            >
+              calendar_month
             </span>
           </button>
 
@@ -360,7 +359,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               }}
             >
               <span style={{ fontSize: 12, lineHeight: 1, fontWeight: 700, letterSpacing: '0.10em',
-                textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
+                 textTransform: 'uppercase', color: sel ? BLUE_SELECTED_TEXT : '#94a3b8', transition: 'color 0.18s' }}>
                 {day}
               </span>
               <div style={{ width: 44, height: 44, borderRadius: '50%',

@@ -6,6 +6,63 @@ All notable effective changes are documented here.
 
 ## 2026-04-23
 
+### Improve: DATA_STORAGE_P2 phase-4 second batch scoped local keys
+
+- `src/features/report/plant/PlantImage.tsx` 将植物图片缓存 key 从全局 `plant_img_v1_<plantId>` 改为 scope-aware key，避免多账号切换后读取到其他账号缓存
+- `src/services/notifications/localNotificationService.ts` 的 `idle_nudge_scheduled_at` 改为 scope-aware key，并调整 `scheduleIdleNudge/cancelIdleNudge` 支持按 userId 分桶
+- `src/hooks/useReminderSystem.ts` 前后台切换链路透传 userId 给 idle nudge 调度/取消
+- `docs/DATA_STORAGE_AUDIT_REPORT.md` 新增 P2-4.1 非 domain key 分类清单，并将 `P2-4.1` 在 `docs/CURRENT_TASK.md` 标记为完成
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run "src/store/storageScope.test.ts"` ✅
+- `npm run build` ✅
+
+### Improve: DATA_STORAGE_P2 phase-4 first batch non-domain key scoping
+
+- `storageScope.ts` 新增 `getScopedClientStorageKey()`，用于非 domain local/session key 的 scope-aware 命名（`seeday:v2:user:<userId>:local:<key>` / `seeday:v2:anon:local:<key>`）
+- 首批用户行为 key 改为 user-scoped：
+  - `chat_input_draft`（`src/features/chat/ChatPage.tsx`，并在 v2 开关开启时做 legacy key 迁移）
+  - `yesterday_popup_date`（`src/features/chat/components/YesterdaySummaryPopup.tsx`）
+  - `night_reminder_dismissed_date`（`src/hooks/useNightReminder.ts`）
+  - `pending_notification_confirm_action`（`src/hooks/useReminderSystem.ts`）
+  - `reminder_today_count` / `reminder_scheduled_date`（`src/services/reminder/reminderScheduler.ts` + `src/features/profile/components/RoutineSettingsPanel.tsx`）
+- `src/store/storageScope.test.ts` 增补非 domain scoped key 断言
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run "src/store/storageScope.test.ts"` ✅
+- `npm run build` ✅
+
+### Build: DATA_STORAGE_P2 phase-2/3 scope-first auth + scoped persist rollout
+
+- 新增 `src/store/scopedPersistStorage.ts`，将 Zustand persist storage 统一切到 scope-aware key 解析：`VITE_MULTI_ACCOUNT_ISOLATION_V2=true` 时读写 `seeday:v2:user:<userId>:<domain>` / `seeday:v2:anon:<domain>`，关闭开关时兼容回退 `seeday:v1:<domain>`
+- 12 个 persisted domain store 全量接入 `storage: createScopedJSONStorage(...) + skipHydration: true`，由 `domainPersistHydration.ts` 统一手动 rehydrate
+- `useAuthStore.initialize()` / `SIGNED_IN` / `SIGNED_OUT` / `signOut()` 改为 scope-first：先切 scope，再 rehydrate，再执行迁移判定与 sync/fetch；`clearLocalDomainStores` 改为 scope-aware 清理
+- `useOutboxStore.flush()` 新增 active scope guard，v2 模式下仅允许当前 scope 的 userId 触发补推，避免切号串 flush
+- 新增 `src/store/storageScope.test.ts` 与 `docs/MULTI_ACCOUNT_ISOLATION_E2E.md`，补齐 P2-0.3 最小测试基座（单测骨架 + 手工 e2e 脚本）
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run "src/store/useAuthStore.test.ts" "src/store/useOutboxStore.test.ts"` ✅
+- `npm run build` ✅
+
+### Build: DATA_STORAGE_P2 phase-0/1 scaffolding
+
+- 新增 `src/store/storageScope.ts`：提供 `VITE_MULTI_ACCOUNT_ISOLATION_V2` 特性开关、active scope 读写、v2 scoped key 生成与 scoped key 清理能力
+- 新增 `src/store/scopedPersistMigration.ts`：提供 legacy `seeday:v1:*` -> scoped v2 的 dry-run 迁移工具（默认不写入）
+- 新增 `src/store/domainPersistHydration.ts`：提供 12 个 persisted store 的批量 rehydrate orchestrator
+- `src/store/persistKeys.ts` 补充 domain 枚举与 `getV1PersistKey()`，为 v2 key 迁移工具统一 domain 源
+- `src/store/useAuthStore.ts` 接入 scope 设置与 DEV 结构化日志；当 `VITE_MULTI_ACCOUNT_ISOLATION_V2` 开启时，阻断 `unknown-owner + hasLocalData` 自动迁移
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
 ### Improve: Outbox failed UI simplified to cloud-retry action
 
 - 按 Young 对齐结果，将 outbox 失败提示实现为极简「小云朵 + 重试」按钮：不展示技术日志，不展示复杂失败清单

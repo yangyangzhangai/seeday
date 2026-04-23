@@ -8,6 +8,7 @@ import { fromDbStardust, toDbStardust } from '../lib/dbMappers';
 import { useChatStore } from './useChatStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 import type {
   StardustMemory,
   CreateStardustRequest,
@@ -358,6 +359,8 @@ export const useStardustStore = create<StardustStore>()(
     }),
     {
       name: PERSIST_KEYS.stardust,
+      storage: createScopedJSONStorage<Partial<StardustStore>>('stardust'),
+      skipHydration: true,
       partialize: (state) => ({
         memories: state.memories,
         memoryIdByMessageId: state.memoryIdByMessageId,

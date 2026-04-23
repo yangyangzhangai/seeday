@@ -221,7 +221,7 @@ export const BookRevealAnimation: React.FC<BookRevealAnimationProps> = ({
           className="mt-6 text-xs font-medium transition-opacity duration-500"
           style={{ color: '#e0c898', opacity: emerging ? 0 : 1 }}
         >
-          {t('report_generating')}
+          {t('plant_generating')}
         </p>
       </div>
     </>

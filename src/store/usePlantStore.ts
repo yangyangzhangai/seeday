@@ -12,6 +12,7 @@ import { useChatStore } from './useChatStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { useOutboxStore } from './useOutboxStore';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 import type {
   DailyPlantRecord,
   PlantCategoryKey,
@@ -383,6 +384,8 @@ export const usePlantStore = create<PlantState>()(
     }),
     {
       name: PERSIST_KEYS.plant,
+      storage: createScopedJSONStorage<Partial<PlantState>>('plant'),
+      skipHydration: true,
       partialize: (state) => ({
         todayPlant: state.todayPlant,
         directionOrder: state.directionOrder,

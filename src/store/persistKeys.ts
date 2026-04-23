@@ -1,17 +1,41 @@
 // DOC-DEPS: LLM.md -> docs/DATA_STORAGE_AUDIT_REPORT.md -> src/store/README.md
+const PERSIST_V1_PREFIX = 'seeday:v1';
+
+const DOMAIN_KEY_SUFFIX = {
+  chat: 'chat',
+  todo: 'todo',
+  growth: 'growth',
+  mood: 'mood',
+  report: 'report',
+  annotation: 'annotation',
+  focus: 'focus',
+  plant: 'plant',
+  timing: 'timing',
+  stardust: 'stardust',
+  reminder: 'reminder',
+  outbox: 'outbox',
+} as const;
+
+export type PersistDomain = keyof typeof DOMAIN_KEY_SUFFIX;
+export const PERSIST_DOMAINS = Object.keys(DOMAIN_KEY_SUFFIX) as PersistDomain[];
+
+export function getV1PersistKey(domain: PersistDomain): string {
+  return `${PERSIST_V1_PREFIX}:${DOMAIN_KEY_SUFFIX[domain]}`;
+}
+
 export const PERSIST_KEYS = {
-  chat: 'seeday:v1:chat',
-  todo: 'seeday:v1:todo',
-  growth: 'seeday:v1:growth',
-  mood: 'seeday:v1:mood',
-  report: 'seeday:v1:report',
-  annotation: 'seeday:v1:annotation',
-  focus: 'seeday:v1:focus',
-  plant: 'seeday:v1:plant',
-  timing: 'seeday:v1:timing',
-  stardust: 'seeday:v1:stardust',
-  reminder: 'seeday:v1:reminder',
-  outbox: 'seeday:v1:outbox',
+  chat: getV1PersistKey('chat'),
+  todo: getV1PersistKey('todo'),
+  growth: getV1PersistKey('growth'),
+  mood: getV1PersistKey('mood'),
+  report: getV1PersistKey('report'),
+  annotation: getV1PersistKey('annotation'),
+  focus: getV1PersistKey('focus'),
+  plant: getV1PersistKey('plant'),
+  timing: getV1PersistKey('timing'),
+  stardust: getV1PersistKey('stardust'),
+  reminder: getV1PersistKey('reminder'),
+  outbox: getV1PersistKey('outbox'),
 } as const;
 
 export const LEGACY_PERSIST_KEYS = {

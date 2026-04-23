@@ -15,6 +15,7 @@ import {
 } from '../services/timing/timingSessionService';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 interface TimingState {
   activeSession: TimingSession | null;
@@ -78,6 +79,8 @@ export const useTimingStore = create<TimingState>()(
     }),
     {
       name: PERSIST_KEYS.timing,
+      storage: createScopedJSONStorage<Partial<TimingState>>('timing'),
+      skipHydration: true,
       partialize: (state) => ({
         activeSession: state.activeSession,
         todaySessions: state.todaySessions,

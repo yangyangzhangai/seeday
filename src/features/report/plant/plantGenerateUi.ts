@@ -14,7 +14,7 @@ interface BuildPlantGenerateUiStateInput {
 export function buildPlantGenerateUiState(input: BuildPlantGenerateUiStateInput): PlantGenerateUiState {
   if (input.isGenerating) {
     return {
-      buttonKey: 'report_generating',
+      buttonKey: 'plant_generating',
       hintKey: 'plant_generate_ready_hint',
       disabled: true,
     };

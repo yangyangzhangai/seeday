@@ -8,8 +8,8 @@ import { callClassifierAPI } from '../api/client';
 import {
   classifyRecordActivityType,
   normalizeTodoCategory,
-  type ActivityRecordType,
 } from '../lib/activityType';
+import type { ActivityRecordType } from '../lib/activityType';
 import { buildClassifierRawInput } from '../lib/classifierRawInput';
 import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import { getSupabaseSession } from '../lib/supabase-utils';
@@ -17,6 +17,8 @@ import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useGrowthStore } from './useGrowthStore';
 import type { AnnotationEvent } from '../types/annotation';
+import type { Recurrence, Todo, TodoPriority, TodoScope, TodoState } from './todoStoreTypes';
+export type { GrowthPriority, GrowthTodo, Priority, Recurrence, Todo, TodoPriority, TodoScope } from './todoStoreTypes';
 import { resolveCurrentLang, resolveLangForText } from './storeLangHelpers';
 import {
   getLocalDayRange,
@@ -30,46 +32,7 @@ import {
 } from './todoStoreHelpers';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
-
-export type Priority = 'urgent-important' | 'urgent-not-important' | 'important-not-urgent' | 'not-important-not-urgent';
-export type GrowthPriority = 'high' | 'medium' | 'low';
-export type TodoPriority = Priority | GrowthPriority;
-export type TodoScope = 'daily' | 'weekly' | 'monthly';
-export type Recurrence = 'none' | 'once' | 'daily' | 'weekly' | 'monthly';
-
-export interface Todo {
-  id: string;
-  title: string;                     // was 'content' in old store
-  completed: boolean;
-  createdAt: number;
-  priority: TodoPriority;
-  dueAt?: number;                    // was 'dueDate' in old store
-  startedAt?: number;
-  completedAt?: number;
-  duration?: number;                 // elapsed minutes
-  // Categorization (legacy, used by Report / MagicPen)
-  category?: ActivityRecordType;
-  scope?: TodoScope;
-  // Recurrence
-  recurrence?: Recurrence;
-  recurrenceDays?: number[];         // 0-6 (Sun-Sat), for weekly
-  isTemplate?: boolean;
-  templateId?: string;
-  recurrenceId?: string;             // legacy grouping key
-  // Growth-specific
-  bottleId?: string;
-  sortOrder: number;
-  // Sub-todo (AI decompose)
-  parentId?: string;
-  suggestedDuration?: number; // AI-suggested duration in minutes
-  // UI
-  isPinned?: boolean;
-  // Sync state tracking（离线优先）
-  syncState?: 'pending' | 'synced' | 'failed';
-}
-
-/** Backward-compat alias for growth components */
-export type GrowthTodo = Todo;
+import { createScopedJSONStorage } from './scopedPersistStorage';
 /** Check if a recurrence value means "non-recurring" */
 export function isNonRecurring(r?: Recurrence): boolean {
   return !r || r === 'none' || r === 'once';
@@ -163,60 +126,6 @@ async function refineTodoCategoryWithAI(id: string, title: string): Promise<void
   } catch {
     return;
   }
-}
-
-interface TodoState {
-  todos: Todo[];
-  categories: ActivityRecordType[];
-  isLoading: boolean;
-  hasHydrated: boolean;
-  lastFetchedAt: number | null;
-  lastSyncError: string | null;
-  activeTodoId: string | null;
-  lastGeneratedDate: string;
-  suppressedTemplateDateMap: Record<string, string>;
-  pendingDeletedTodoIds: Record<string, number>;
-  activeMessageMap: Record<string, string>;
-  todoCompletionMessageMap: Record<string, string>;
-  todoBottleStarRewardMap: Record<string, { bottleId: string; stars: number }>;
-  messageBottleStarRewardMap: Record<string, { bottleId: string; stars: number; todoId?: string }>;
-
-  fetchTodos: () => Promise<void>;
-  addTodo: (input: {
-    title: string;
-    priority: TodoPriority;
-    bottleId?: string;
-    dueAt?: number;
-    recurrence?: Recurrence;
-    recurrenceDays?: number[];
-    category?: ActivityRecordType;
-    scope?: TodoScope;
-  }) => void;
-  addSubTodos: (
-    parentId: string,
-    steps: Array<{ title: string; suggestedDuration: number }>,
-    options?: { replaceExisting?: boolean }
-  ) => void;
-  updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => Promise<void>;
-  toggleTodo: (id: string) => void;
-  togglePin: (id: string) => void;
-  deleteTodo: (id: string) => void;
-  addCategory: (category: ActivityRecordType) => void;
-  startTodo: (id: string) => void;
-  completeActiveTodo: () => Promise<void>;
-  completeTodoWithDuration: (id: string, duration: number) => Promise<void>;
-  setActiveTodoId: (id: string | null) => void;
-  reorderTodos: (id: string, direction: 'up' | 'down') => void;
-  reorderTodosByIds: (orderedIds: string[]) => void;
-  generateRecurringTodos: () => void;
-  linkMessageToTodo: (messageId: string, todoId: string) => void;
-  completeTodoByMessage: (messageId: string) => Todo | null;
-  setTodoCompletionMessage: (todoId: string, messageId: string) => void;
-  getTodoCompletionMessage: (todoId: string) => string | undefined;
-  clearTodoCompletionMessage: (todoId: string) => void;
-  registerBottleStarReward: (params: { todoId?: string; messageId?: string; bottleId: string; stars: number }) => void;
-  consumeBottleStarRewardByTodo: (todoId: string) => { bottleId: string; stars: number } | null;
-  consumeBottleStarRewardByMessage: (messageId: string) => { bottleId: string; stars: number } | null;
 }
 
 // ── Unified Store ───────────────────────────────────────────
@@ -970,6 +879,8 @@ export const useTodoStore = create<TodoState>()(
     }),
     {
       name: PERSIST_KEYS.todo,
+      storage: createScopedJSONStorage<Partial<TodoState>>('todo'),
+      skipHydration: true,
       partialize: (state) => ({
         todos: state.todos,
         categories: state.categories,

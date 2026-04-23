@@ -17,6 +17,7 @@ import {
   toHourText,
 } from './userProfilePanelHelpers';
 import type { UserProfileManualV2, ClassSchedule } from '../../../types/userProfile';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../../store/storageScope';
 
 interface Props { plain?: boolean; }
 type IdentityType = 'none' | 'work' | 'class';
@@ -235,6 +236,14 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   const [todayCount, setTodayCount] = React.useState<number | null>(null);
 
   const storageKey = React.useMemo(() => getRoutineStorageKey(user?.id), [user?.id]);
+  const reminderTodayCountStorageKey = React.useMemo(
+    () => getScopedClientStorageKey('reminder_today_count', resolveStorageScopeForUser(user?.id ?? null)),
+    [user?.id],
+  );
+  const reminderScheduledDateStorageKey = React.useMemo(
+    () => getScopedClientStorageKey('reminder_scheduled_date', resolveStorageScopeForUser(user?.id ?? null)),
+    [user?.id],
+  );
 
   const cloudSnapshot = React.useMemo<RoutineSnapshot>(() => {
     const m = userProfileV2?.manual;
@@ -281,11 +290,11 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
   }, [userProfileV2, localSnapshot?.reminderEnabled]);
 
   React.useEffect(() => {
-    const count = localStorage.getItem('reminder_today_count');
+    const count = localStorage.getItem(reminderTodayCountStorageKey);
     if (count !== null) setTodayCount(Number(count));
     if (!Capacitor.isNativePlatform()) return;
     checkNotificationPermission().then((status) => setNotifPermission(status)).catch(() => {});
-  }, []);
+  }, [reminderTodayCountStorageKey]);
 
   const currentSig = React.useMemo(
     () => routineSig({ wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime }),
@@ -372,7 +381,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
     setSaving(true);
     // Persist locally first, then sync to Supabase in background.
     writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime, reminderEnabled });
-    localStorage.removeItem('reminder_scheduled_date');
+    localStorage.removeItem(reminderScheduledDateStorageKey);
 
     const hasWork = identity === 'work';
     const hasClass = identity === 'class';

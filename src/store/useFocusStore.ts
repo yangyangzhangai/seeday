@@ -7,6 +7,7 @@ import { withDbRetry } from '../lib/dbRetry';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { useOutboxStore } from './useOutboxStore';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 
 const MAX_RESUMABLE_SESSION_MS = 24 * 60 * 60 * 1000;
 
@@ -243,6 +244,8 @@ export const useFocusStore = create<FocusState>()(
     }),
     {
       name: PERSIST_KEYS.focus,
+      storage: createScopedJSONStorage<Partial<FocusState>>('focus'),
+      skipHydration: true,
       partialize: (state) => ({
         sessions: state.sessions,
         lastFetchedAt: state.lastFetchedAt,

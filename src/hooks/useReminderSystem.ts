@@ -5,7 +5,7 @@
  * - App 前后台切换：调度/取消 idle nudge
  * - 前台时：到时间弹 App 内弹窗
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import i18next from 'i18next';
 import { useAuthStore } from '../store/useAuthStore';
@@ -26,6 +26,7 @@ import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
 import { useTimingStore } from '../store/useTimingStore';
 import type { TimingType } from '../services/timing/timingSessionService';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../store/storageScope';
 
 // ─────────────────────────────────────────────
 // 工具：判断植物/日记今日是否已生成
@@ -91,10 +92,10 @@ function getActivityTextForType(type: ReminderType): string | null {
 const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
 const PENDING_NOTIFICATION_CONFIRM_MAX_AGE = 10 * 60 * 1000;
 
-function queuePendingNotificationConfirm(type: ReminderType): void {
+function queuePendingNotificationConfirm(type: ReminderType, storageKey: string): void {
   try {
     localStorage.setItem(
-      PENDING_NOTIFICATION_CONFIRM_KEY,
+      storageKey,
       JSON.stringify({ type, createdAt: Date.now() }),
     );
   } catch {
@@ -102,11 +103,11 @@ function queuePendingNotificationConfirm(type: ReminderType): void {
   }
 }
 
-function consumePendingNotificationConfirm(): ReminderType | null {
+function consumePendingNotificationConfirm(storageKey: string): ReminderType | null {
   try {
-    const raw = localStorage.getItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
-    localStorage.removeItem(PENDING_NOTIFICATION_CONFIRM_KEY);
+    localStorage.removeItem(storageKey);
     const parsed = JSON.parse(raw) as { type?: ReminderType; createdAt?: number };
     if (!parsed?.type || typeof parsed.createdAt !== 'number') return null;
     if (Date.now() - parsed.createdAt > PENDING_NOTIFICATION_CONFIRM_MAX_AGE) return null;
@@ -171,6 +172,10 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   const userProfileV2 = useAuthStore((s) => s.userProfileV2);
   const metadataCountryCode = useAuthStore((s) => s.user?.user_metadata?.country_code);
   const { showPopup, shouldSkipReminder } = useReminderStore();
+  const pendingConfirmStorageKey = useMemo(
+    () => getScopedClientStorageKey(PENDING_NOTIFICATION_CONFIRM_KEY, resolveStorageScopeForUser(user?.id ?? null)),
+    [user?.id],
+  );
   const navigateRef = useRef(navigate);
   const todayPlant = usePlantStore((s) => s.todayPlant);
   const reports = useReportStore((s) => s.reports);
@@ -194,6 +199,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         await scheduleRemindersForToday({
           manual,
           aiMode: preferences.aiMode,
+          storageUserId: user.id,
           countryCode,
           reminderEnabled,
           getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
@@ -213,7 +219,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   // ── 兜底：若通知动作触发时用户态尚未恢复，恢复后补执行一次计时动作 ──
   useEffect(() => {
     if (!user?.id) return;
-    const pendingType = consumePendingNotificationConfirm();
+    const pendingType = consumePendingNotificationConfirm(pendingConfirmStorageKey);
     if (!pendingType) return;
     const action = getTimingAction(pendingType);
     if (!action) return;
@@ -223,7 +229,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     } else {
       void timing.endActive(user.id);
     }
-  }, [user?.id]);
+  }, [user?.id, pendingConfirmStorageKey]);
 
   // ── 注册通知点击回调（一次） ──
   useEffect(() => {
@@ -246,7 +252,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         if (action) {
           const userId = useAuthStore.getState().user?.id;
           if (!userId) {
-            queuePendingNotificationConfirm(type);
+            queuePendingNotificationConfirm(type, pendingConfirmStorageKey);
             return;
           }
           const timing = useTimingStore.getState();
@@ -286,7 +292,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pendingConfirmStorageKey]);
 
   // ── App 前后台切换：idle nudge ──
   useEffect(() => {
@@ -298,7 +304,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
       const userName = manual.freeText;
 
       if (isActive) {
-        void cancelIdleNudge();
+        void cancelIdleNudge(user?.id);
         // Re-check daily schedule on foreground (cross-day / cold wake safety net)
         scheduleTodayNativeReminders();
         // Show in-app popup if a reminder fired in the last 5 minutes while app was in background
@@ -321,7 +327,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         }
       } else {
         const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
-        void scheduleIdleNudge(body);
+        void scheduleIdleNudge(body, user?.id);
       }
     });
 

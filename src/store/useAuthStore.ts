@@ -15,8 +15,6 @@ import { useFocusStore } from './useFocusStore';
 import { useReminderStore } from './useReminderStore';
 import { useOutboxStore } from './useOutboxStore';
 import { isLegacyChatActivityType } from '../lib/activityType';
-import type { AiCompanionMode } from '../lib/aiCompanion';
-import type { UserProfileV2 } from '../types/userProfile';
 import { syncLocalDataToSupabase } from './authDataSyncHelpers';
 import {
   DEFAULT_PREFERENCES,
@@ -29,8 +27,25 @@ import {
   normalizeUiLanguage,
   persistLanguageToLocalStorage,
   syncI18nLanguageFromMeta,
-  type SupportedUiLanguage,
 } from './authLanguageHelpers';
+import type {
+  AnnotationDropRate,
+  AuthState,
+  LocationMetadataInput,
+  MembershipPlan,
+  MembershipSource,
+  MembershipState,
+  UserPreferences,
+} from './authStoreTypes';
+export type {
+  AnnotationDropRate,
+  LocationMetadataInput,
+  MembershipPlan,
+  MembershipSource,
+  MembershipState,
+  UiLanguage,
+  UserPreferences,
+} from './authStoreTypes';
 import {
   markLocalDataOwnerAnonymous,
   markLocalDataOwnerUser,
@@ -50,35 +65,19 @@ import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
 import { ALL_DOMAIN_PERSIST_KEYS } from './persistKeys';
 import { clearPersistedKeys } from './persistMigrationHelpers';
+import {
+  clearScopedDomainPersistKeys,
+  isMultiAccountIsolationV2Enabled,
+  logStorageScopeEvent,
+  readActiveStorageScope,
+  resolveStorageScopeForUser,
+  setActiveStorageScope,
+  type StorageScope,
+} from './storageScope';
+import { migrateLegacyV1PersistToScope } from './scopedPersistMigration';
+import { rehydrateAllDomainPersistStores } from './domainPersistHydration';
 import type { ReminderType } from '../services/reminder/reminderTypes';
-
 const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
-
-export type AnnotationDropRate = 'low' | 'medium' | 'high';
-export type UiLanguage = SupportedUiLanguage;
-export type MembershipPlan = 'free' | 'plus';
-export type MembershipSource = 'metadata' | 'trial' | 'temporary_unlock' | 'default_free';
-
-export interface UserPreferences {
-  aiMode: AiCompanionMode;
-  aiModeEnabled: boolean;
-  dailyGoalEnabled: boolean;
-  annotationDropRate: AnnotationDropRate;
-}
-
-export interface MembershipState {
-  plan: MembershipPlan;
-  isPlus: boolean;
-  source: MembershipSource;
-}
-
-export interface LocationMetadataInput {
-  countryCode: string;
-  latitude: number;
-  longitude: number;
-  locationLabel?: string;
-  source?: 'manual_geocode' | 'device_gps';
-}
 
 const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = {
   low: 3,
@@ -88,54 +87,21 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
 
 const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
-const IOS_OAUTH_REDIRECT_URL =
-  (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
+const IOS_OAUTH_REDIRECT_URL = (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
-
-const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED
-  ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' }
-  : { plan: 'free', isPlus: false, source: 'default_free' };
-
-interface AuthState {
-  user: any | null;
-  loading: boolean;
-  preferences: UserPreferences;
-  longTermProfileEnabled: boolean;
-  userProfileV2: UserProfileV2 | null;
-  membershipPlan: MembershipPlan;
-  membershipSource: MembershipSource;
-  isPlus: boolean;
-  /** Consecutive days with recorded activities, null = not yet fetched */
-  activityStreak: number | null;
-  initialize: () => Promise<void>;
-  signIn: (email: string, pass: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
-  signInWithApple: () => Promise<{ error: any }>;
-  signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-  updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
-  updateLocationMetadata: (input: LocationMetadataInput) => Promise<{ error: any }>;
-  updateLongTermProfileEnabled: (enabled: boolean) => Promise<{ error: any }>;
-  updateUserProfile: (
-    updater: Partial<UserProfileV2> | ((prev: UserProfileV2 | null) => UserProfileV2),
-  ) => Promise<{ error: any }>;
-  updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
-  updateLanguagePreference: (language: string) => Promise<{ error: any }>;
-  /** Re-compute activityStreak from Supabase — call after recording a new activity */
-  refreshActivityStreak: () => Promise<void>;
-}
+const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' } : { plan: 'free', isPlus: false, source: 'default_free' };
 
 function toLocalDateStr(ts: number): string {
   const d = new Date(ts);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
 function getTodayDateStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-function clearLocalDomainStores(): void {
+function clearLocalDomainStores(scope?: StorageScope): void {
   useChatStore.setState({
     messages: [],
     hasInitialized: false,
@@ -189,6 +155,10 @@ function clearLocalDomainStores(): void {
     showQuickPicker: false,
     pickerContext: null,
   });
+  if (isMultiAccountIsolationV2Enabled()) {
+    clearScopedDomainPersistKeys(scope ?? readActiveStorageScope());
+    return;
+  }
   clearPersistedKeys(ALL_DOMAIN_PERSIST_KEYS);
 }
 
@@ -196,7 +166,6 @@ function shouldFetchDomain(lastFetchedAt: number | null | undefined): boolean {
   if (!lastFetchedAt) return true;
   return Date.now() - lastFetchedAt > DOMAIN_FETCH_FRESHNESS_MS;
 }
-
 function refreshDomainStoresForSession(userId: string): void {
   const annotationStore = useAnnotationStore.getState();
   const chatStore = useChatStore.getState();
@@ -206,9 +175,7 @@ function refreshDomainStoresForSession(userId: string): void {
   const growthStore = useGrowthStore.getState();
   const focusStore = useFocusStore.getState();
   const stardustStore = useStardustStore.getState();
-
   void useOutboxStore.getState().flush(userId).catch(() => {});
-
   void Promise.all([
     shouldFetchDomain(annotationStore.lastFetchedAt) ? annotationStore.fetchAnnotations() : Promise.resolve(),
     shouldFetchDomain(chatStore.lastFetchedAt) ? chatStore.fetchMessages() : Promise.resolve(),
@@ -220,7 +187,6 @@ function refreshDomainStoresForSession(userId: string): void {
       shouldFetchDomain(focusStore.lastFetchedAt) ? focusStore.fetchSessions() : Promise.resolve()
     )),
   ]).catch(() => {});
-
   void Promise.resolve().then(async () => {
     await stardustStore.syncPendingStardusts();
     if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
@@ -245,6 +211,18 @@ function hasAnyLocalDataToMigrate(): boolean {
     || Object.keys(mood.moodNote).length > 0;
 
   return hasMessages || hasTodos || hasReports || hasBottles || hasFocusSessions || hasDailyGoal || hasMoodData;
+}
+
+function hasAnyPersistedDomainData(): boolean {
+  if (typeof window === 'undefined' || !window.localStorage) return false;
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key) continue;
+    if (key.startsWith('seeday:v1:') || key.startsWith('seeday:v2:user:') || key.startsWith('seeday:v2:anon:')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function normalizeLoginDays(rawDays: unknown): string[] {
@@ -441,6 +419,29 @@ function markGrowthDailyLoginSession(userId: string): void {
   window.sessionStorage.setItem(sessionFlagKey, '1');
 }
 
+function setScopeForAuthUser(userId?: string | null, source: string = 'unknown'): StorageScope {
+  const scope = resolveStorageScopeForUser(userId);
+  setActiveStorageScope(scope);
+  logStorageScopeEvent('scope_set', { source, scope: scope.type, userId: scope.userId });
+  return scope;
+}
+
+function dryRunLegacyScopeMigration(scope: StorageScope, source: string): void {
+  if (!isMultiAccountIsolationV2Enabled()) return;
+  const result = migrateLegacyV1PersistToScope(scope, { dryRun: true });
+  if (result.moved.length === 0) return;
+  logStorageScopeEvent('migration_dry_run', {
+    source,
+    scope: scope.type,
+    userId: scope.userId,
+    candidates: result.moved.map((item) => ({
+      domain: item.domain,
+      fromKey: item.fromKey,
+      toKey: item.toKey,
+    })),
+  });
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
@@ -455,6 +456,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     // Get initial session
     const session = await getSupabaseSession();
+    const owner = readLocalDataOwner();
+    const hasPersistedDomainData = hasAnyPersistedDomainData();
+    const initialScope = setScopeForAuthUser(session?.user?.id, 'initialize:start');
+    dryRunLegacyScopeMigration(initialScope, 'initialize:start');
+    await rehydrateAllDomainPersistStores();
     let sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     sessionUser = await ensureCloudLanguageMetadata(sessionUser);
     const meta = sessionUser?.user_metadata || {};
@@ -513,19 +519,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       queuePreferenceSnapshot(nextPreferences);
     }
     if (session?.user) {
-      const owner = readLocalDataOwner();
       const hasLocalData = hasAnyLocalDataToMigrate();
       const isCrossAccountData = owner.type === 'user' && owner.userId !== session.user.id;
+      const shouldMigrateUnknownOwnerData = owner.type === 'unknown' && hasLocalData && !isMultiAccountIsolationV2Enabled();
 
       if (isCrossAccountData) {
-        clearLocalDomainStores();
-      } else if (hasLocalData) {
+        clearLocalDomainStores(initialScope);
+      } else if (hasLocalData && (owner.type !== 'unknown' || shouldMigrateUnknownOwnerData)) {
         // Existing-session restore path (app cold start / refresh):
         // push any local data first, then pull cloud state.
         // This avoids local-vs-cloud drift when the same account worked offline.
         await syncLocalDataToSupabase(session.user.id, {
           currentUser: sessionUser,
           onUserUpdated: (user) => set({ user }),
+        });
+      } else if (owner.type === 'unknown' && hasLocalData && isMultiAccountIsolationV2Enabled()) {
+        logStorageScopeEvent('unknown_owner_migration_blocked', {
+          source: 'initialize',
+          userId: session.user.id,
         });
       }
 
@@ -540,8 +551,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       refreshDomainStoresForSession(session.user.id);
       markLocalDataOwnerUser(session.user.id);
     } else {
-      const owner = readLocalDataOwner();
-      if (owner.type === 'unknown' && !hasAnyLocalDataToMigrate()) {
+      if (owner.type === 'unknown' && !hasPersistedDomainData) {
         markLocalDataOwnerAnonymous();
       }
     }
@@ -603,22 +613,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         event === 'SIGNED_IN' && currentUser && (!previousUser || previousUser.id !== currentUser.id);
 
       if (isNewOrSwitchedAccount && currentUser) {
+        const signedInScope = setScopeForAuthUser(currentUser.id, 'onAuthStateChange:signed-in');
+        dryRunLegacyScopeMigration(signedInScope, 'onAuthStateChange:signed-in');
+        await rehydrateAllDomainPersistStores();
         markGrowthDailyLoginSession(currentUser.id);
 
         const owner = readLocalDataOwner();
         const hasLocalData = hasAnyLocalDataToMigrate();
         const isCrossAccountData = owner.type === 'user' && owner.userId !== currentUser.id;
         const canMigrateAnonymousData = owner.type === 'anonymous' && hasLocalData;
+        const canMigrateUnknownOwnerData = owner.type === 'unknown' && hasLocalData && !isMultiAccountIsolationV2Enabled();
 
         if (isCrossAccountData) {
-          clearLocalDomainStores();
-        } else if (canMigrateAnonymousData || (owner.type === 'unknown' && hasLocalData)) {
+          clearLocalDomainStores(signedInScope);
+        } else if (canMigrateAnonymousData || canMigrateUnknownOwnerData) {
           // canMigrateAnonymousData: 明确的访客数据
           // unknown + hasLocalData: 老用户（owner 标记添加前就在用 app），同样迁移而非清空
           if (import.meta.env.DEV) console.log('[AuthStore] syncing local data to cloud...');
           await syncLocalDataToSupabase(currentUser.id, {
             currentUser,
             onUserUpdated: (user) => set({ user }),
+          });
+        } else if (owner.type === 'unknown' && hasLocalData && isMultiAccountIsolationV2Enabled()) {
+          logStorageScopeEvent('unknown_owner_migration_blocked', {
+            source: 'onAuthStateChange',
+            userId: currentUser.id,
           });
         }
 
@@ -635,7 +654,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');
-        clearLocalDomainStores();
+        const signedOutScope = resolveStorageScopeForUser(previousUser?.id || null);
+        setScopeForAuthUser(null, 'onAuthStateChange:signed-out');
+        clearLocalDomainStores(signedOutScope);
+        await rehydrateAllDomainPersistStores();
         markLocalDataOwnerAnonymous();
         set({
           preferences: DEFAULT_PREFERENCES,
@@ -718,7 +740,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     // Reset store + local state immediately — no network required
-    clearLocalDomainStores();
+    const previousUserId = get().user?.id || null;
+    setScopeForAuthUser(null, 'signOut:action');
+    clearLocalDomainStores(resolveStorageScopeForUser(previousUserId));
+    await rehydrateAllDomainPersistStores();
     markLocalDataOwnerAnonymous();
     set({
       user: null,

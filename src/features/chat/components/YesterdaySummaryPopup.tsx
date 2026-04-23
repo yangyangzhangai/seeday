@@ -11,6 +11,7 @@ import { cn } from '../../../lib/utils';
 import { APP_MODAL_CARD_CLASS } from '../../../lib/modalTheme';
 import type { Message } from '../../../store/useChatStore';
 import { mapDbRowToMessage } from '../../../store/chatHelpers';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../../store/storageScope';
 
 const STORAGE_KEY = 'yesterday_popup_date';
 
@@ -20,12 +21,12 @@ export const YesterdaySummaryPopup: React.FC = () => {
   const [userInteracted, setUserInteracted] = useState(false);
 
   useEffect(() => {
-    const today = toLocalDateStr(new Date());
-    if (localStorage.getItem(STORAGE_KEY) === today) return;
-
     (async () => {
       const session = await getSupabaseSession();
       if (!session) return;
+      const today = toLocalDateStr(new Date());
+      const storageKey = getScopedClientStorageKey(STORAGE_KEY, resolveStorageScopeForUser(session.user.id));
+      if (localStorage.getItem(storageKey) === today) return;
 
       const yesterdayStr = getYesterdayStr();
       const dayStart = new Date(yesterdayStr + 'T00:00:00').getTime();
@@ -45,7 +46,7 @@ export const YesterdaySummaryPopup: React.FC = () => {
       if (latestRuntimeRow) {
         setEvent(mapDbRowToMessage(latestRuntimeRow));
         // 成功后才写，失败不记录，下次还会弹
-        localStorage.setItem(STORAGE_KEY, today);
+        localStorage.setItem(storageKey, today);
       }
     })();
   }, []);

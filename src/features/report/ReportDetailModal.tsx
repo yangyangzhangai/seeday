@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { DailyPlantRecord } from '../../types/plant';
 import type { MoodDistributionItem } from './reportPageHelpers';
 import type { ActivityDistributionItem } from './reportPageHelpers';
@@ -38,6 +39,25 @@ interface ReportDetailModalProps {
 }
 
 type Lang = 'zh' | 'en' | 'it';
+type ReportGeneratingVariantKey =
+  | 'report_generating_variant_1'
+  | 'report_generating_variant_2'
+  | 'report_generating_variant_3'
+  | 'report_generating_variant_4';
+
+const REPORT_GENERATING_VARIANTS: ReportGeneratingVariantKey[] = [
+  'report_generating_variant_1',
+  'report_generating_variant_2',
+  'report_generating_variant_3',
+  'report_generating_variant_4',
+];
+
+function getCompanionName(mode: string): string {
+  if (mode === 'agnes') return 'Agnes';
+  if (mode === 'zep') return 'Zep';
+  if (mode === 'momo') return 'Momo';
+  return 'Van';
+}
 
 
 const COPY: Record<Lang, {
@@ -275,11 +295,14 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const activityMood = useMoodStore((state) => state.activityMood);
   const customMoodLabel = useMoodStore((state) => state.customMoodLabel);
   const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
+  const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [todoInsight, setTodoInsight] = useState('');
   const [habitInsight, setHabitInsight] = useState('');
   const [dayPlant, setDayPlant] = useState<DailyPlantRecord | null>(null);
+  const [reportGeneratingVariantKey, setReportGeneratingVariantKey] =
+    useState<ReportGeneratingVariantKey>(REPORT_GENERATING_VARIANTS[0]);
   const plantAutoAttemptedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -290,6 +313,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       pagesRef.current.scrollLeft = page === 1 ? pagesRef.current.clientWidth : 0;
     });
   }, [selectedReport?.id, initialPage]);
+
+  useEffect(() => {
+    if (selectedReport?.analysisStatus !== 'generating') return;
+    const randomIndex = Math.floor(Math.random() * REPORT_GENERATING_VARIANTS.length);
+    setReportGeneratingVariantKey(REPORT_GENERATING_VARIANTS[randomIndex]);
+  }, [selectedReport?.id, selectedReport?.analysisStatus]);
 
   const lang = useMemo<Lang>(() => {
     const raw = i18n.language?.split('-')[0] ?? 'en';
@@ -487,12 +516,26 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [onNavigateNext, canNavigateNext, activePage]);
 
   const observationText = useMemo(() => {
+    const isGenerating = selectedReport?.analysisStatus === 'generating';
+    if (isGenerating) {
+      return t(reportGeneratingVariantKey, { companion: getCompanionName(aiMode) });
+    }
     const raw = isPlus
       ? selectedReport?.aiAnalysis?.trim()
       : selectedReport?.teaserText?.trim();
     const text = raw && raw.length > 0 ? raw : copy.observationFallback;
     return text.replace(/\s+/g, ' ');
-  }, [isPlus, selectedReport?.aiAnalysis, selectedReport?.teaserText, copy.observationFallback]);
+  }, [
+    aiMode,
+    copy.observationFallback,
+    isPlus,
+    reportGeneratingVariantKey,
+    selectedReport?.aiAnalysis,
+    selectedReport?.analysisStatus,
+    selectedReport?.teaserText,
+    t,
+  ]);
+  const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating';
 
   const myDiaryText = useMemo(() => {
     const raw = selectedReport?.userNote?.trim();
@@ -686,7 +729,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                           <div style={{ width: '100%', height: 150 }} />
                         )}
                       </div>
-                      {isPlus ? (
+                      {!shouldShowUpgradeMask ? (
                         <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                           {observationText}
                         </p>

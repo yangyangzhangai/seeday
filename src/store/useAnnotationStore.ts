@@ -48,6 +48,7 @@ import {
 } from './annotationPersistenceHelpers';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
+import { createScopedJSONStorage } from './scopedPersistStorage';
 import { useOutboxStore } from './useOutboxStore';
 
 const MAX_TODAY_EVENTS = 150;
@@ -855,6 +856,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
     }),
     {
       name: PERSIST_KEYS.annotation,
+      storage: createScopedJSONStorage<Partial<AnnotationStore>>('annotation'),
+      skipHydration: true,
       partialize: (state) => ({
         todayStats: {
           ...state.todayStats,

@@ -289,8 +289,20 @@ export async function getPendingNotificationIds(): Promise<number[]> {
 const IDLE_NUDGE_ID = 999001;
 const IDLE_NUDGE_KEY = 'idle_nudge_scheduled_at';
 
+function getScopedClientStorageKey(baseKey: string, userId?: string): string {
+  const normalized = baseKey.trim();
+  if (!normalized) return baseKey;
+  const rawFlag = String(import.meta.env.VITE_MULTI_ACCOUNT_ISOLATION_V2 ?? '').trim().toLowerCase();
+  const enabled = rawFlag === '1' || rawFlag === 'true' || rawFlag === 'on';
+  if (!enabled) return normalized;
+  if (userId && userId.trim()) {
+    return `seeday:v2:user:${userId.trim()}:local:${normalized}`;
+  }
+  return `seeday:v2:anon:local:${normalized}`;
+}
+
 /** App 进入后台时安排 idle_nudge（4h 后，夜间推迟到次日 08:00） */
-export async function scheduleIdleNudge(body: string): Promise<void> {
+export async function scheduleIdleNudge(body: string, userId?: string): Promise<void> {
   // 先取消旧的
   await cancelNotifications([IDLE_NUDGE_ID]);
 
@@ -308,7 +320,7 @@ export async function scheduleIdleNudge(body: string): Promise<void> {
     triggerAt = next8am;
   }
 
-  localStorage.setItem(IDLE_NUDGE_KEY, String(triggerAt.getTime()));
+  localStorage.setItem(getScopedClientStorageKey(IDLE_NUDGE_KEY, userId), String(triggerAt.getTime()));
 
   await scheduleLocalNotification({
     id: IDLE_NUDGE_ID,
@@ -321,9 +333,9 @@ export async function scheduleIdleNudge(body: string): Promise<void> {
 }
 
 /** App 回到前台时取消 idle_nudge */
-export async function cancelIdleNudge(): Promise<void> {
+export async function cancelIdleNudge(userId?: string): Promise<void> {
   await cancelNotifications([IDLE_NUDGE_ID]);
-  localStorage.removeItem(IDLE_NUDGE_KEY);
+  localStorage.removeItem(getScopedClientStorageKey(IDLE_NUDGE_KEY, userId));
 }
 
 /** 注册通知动作回调（App 启动时执行一次） */

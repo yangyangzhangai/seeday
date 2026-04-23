@@ -74,6 +74,11 @@
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。
+- `DATA_STORAGE_P2` Phase 2/3 已接入：新增 `scopedPersistStorage.ts` 并将 12 个 persisted domain store 统一改为 `skipHydration + 手动 rehydrate`，在 `VITE_MULTI_ACCOUNT_ISOLATION_V2` 开启时按 active scope 读写 `seeday:v2:user:<userId>:<domain>` / `seeday:v2:anon:<domain>`；关闭开关时保持 `seeday:v1:<domain>` 兼容行为。
+- `useAuthStore.initialize()` / `SIGNED_IN` / `SIGNED_OUT` 已改为 scope-first 顺序：先切换 scope，再 `rehydrateAllDomainPersistStores()`，最后执行 sync/fetch；`clearLocalDomainStores` 改为 scope-aware 清理，避免全域盲清。
+- `useOutboxStore.flush()` 已增加 active scope 校验：在 v2 模式下仅当 `activeScope.userId === resolvedUserId` 时才执行 flush，避免切号后串账号补推。
+- `storageScope.ts` 新增 `getScopedClientStorageKey()` 供非 domain key 使用；首批用户行为 key（聊天草稿、昨日日志弹窗去重、提醒确认 pending、night reminder dismiss、提醒调度计数）已改为 scope-aware 命名。
+- 非 domain key 第二批已接入：植物图片 URL 缓存（`PlantImage`）与 idle nudge 调度时间戳（`localNotificationService`）现按 user scope 分桶，避免切号后读取到其他账号本地痕迹。
 
 ## 变更自检
 
