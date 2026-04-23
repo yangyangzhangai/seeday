@@ -16,6 +16,7 @@ interface OpenMeteoGeocodeItem {
   latitude?: number;
   longitude?: number;
   timezone?: string;
+  feature_code?: string;
 }
 
 interface OpenMeteoGeocodeResponse {
@@ -37,6 +38,15 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
   } finally {
     clearTimeout(timer);
   }
+}
+
+function normalizeToken(input: string): string {
+  return input.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+function isCountryFeatureCode(featureCode: unknown): boolean {
+  if (typeof featureCode !== 'string') return false;
+  return /^PCL/.test(featureCode.trim().toUpperCase());
 }
 
 function normalizeResult(item: OpenMeteoGeocodeItem): GeocodeResult | null {
@@ -76,6 +86,37 @@ export async function geocodeLocationName(query: string, lang: 'zh' | 'en' | 'it
   const first = payload.results?.[0];
   if (!first) return null;
   return normalizeResult(first);
+}
+
+export async function geocodeCountryName(query: string, lang: 'zh' | 'en' | 'it'): Promise<GeocodeResult | null> {
+  const normalized = query.trim();
+  if (!normalized) return null;
+
+  const params = new URLSearchParams({
+    name: normalized,
+    count: '8',
+    language: lang,
+    format: 'json',
+  });
+  const response = await fetchWithTimeout(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`, 5000);
+  if (!response.ok) return null;
+
+  const payload = await response.json() as OpenMeteoGeocodeResponse;
+  const results = payload.results || [];
+  if (results.length === 0) return null;
+
+  const explicitCountry = results.find((item) => isCountryFeatureCode(item.feature_code));
+  if (explicitCountry) {
+    return normalizeResult(explicitCountry);
+  }
+
+  const queryToken = normalizeToken(normalized);
+  const nameMatched = results.find((item) => normalizeToken(String(item.name || '')) === queryToken && !item.admin1);
+  if (nameMatched) {
+    return normalizeResult(nameMatched);
+  }
+
+  return null;
 }
 
 export async function reverseGeocodeLocation(latitude: number, longitude: number): Promise<GeocodeResult | null> {

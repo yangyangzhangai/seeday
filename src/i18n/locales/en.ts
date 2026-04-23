@@ -541,6 +541,8 @@ const en = {
     profile_region_save: 'Save region',
     profile_region_saving: 'Saving...',
     profile_region_not_found: 'Region not found. Try a more specific name.',
+    profile_region_country_fallback_hint: 'No exact region match. Save country instead: {{value}}',
+    profile_region_save_country: 'Save country',
     profile_region_save_error: 'Failed to save region. Please try again.',
     profile_region_locate_error: 'Failed to locate. Please check location permission.',
     profile_root_direction_settings: 'Root Direction Settings',

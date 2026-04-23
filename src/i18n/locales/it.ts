@@ -542,6 +542,8 @@ const it: TranslationKeys = {
     profile_region_save: 'Salva area',
     profile_region_saving: 'Salvataggio...',
     profile_region_not_found: 'Area non trovata. Prova con un nome piu specifico.',
+    profile_region_country_fallback_hint: 'Nessuna area precisa trovata. Vuoi salvare il paese: {{value}}',
+    profile_region_save_country: 'Salva paese',
     profile_region_save_error: 'Salvataggio area non riuscito. Riprova.',
     profile_region_locate_error: 'Localizzazione non riuscita. Controlla i permessi posizione.',
     profile_root_direction_settings: 'Impostazioni Direzione Radici',

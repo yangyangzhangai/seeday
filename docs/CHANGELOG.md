@@ -4,6 +4,30 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-23
+
+### Improve: Outbox failed UI simplified to cloud-retry action
+
+- 按 Young 对齐结果，将 outbox 失败提示实现为极简「小云朵 + 重试」按钮：不展示技术日志，不展示复杂失败清单
+- 新增 `CloudRetryButton` 统一样式；主布局（非 Growth 页）与 Growth 页顶部重试入口对齐到同一视觉语言
+- `useOutboxStore` 新增 `retryNow()`：手动点击后会将 `failed/cooldown` 项立即转入 pending 并触发一次 flush
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
+### Improve: 地区设置严格匹配 + 国家兜底
+
+- `RegionSettingsPanel` 继续保持“仅匹配结果可保存”的严格模式：城市/地区检索命中后才会提交，不支持自由文本直存
+- 当地区检索未命中时，新增国家级候选兜底提示；用户可一键确认“保存国家”，并继续写入标准化的 `country_code + latitude + longitude`
+- `geocode.ts` 新增国家检索分支（优先识别国家级 feature code），降低“小地名搜不到”时的卡住率
+- 补充中/英/意 i18n 文案：国家兜底提示与“保存国家”动作文案
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-22
 
 ### Improve: Profile save flicker reduction

@@ -214,6 +214,7 @@ interface OutboxState {
   entries: OutboxEntry[];
   enqueue: (entry: OutboxEntryInput) => string;
   flush: (userId?: string) => Promise<void>;
+  retryNow: (userId?: string) => Promise<void>;
   markFailed: (id: string, error: string, attempts?: number) => void;
   clearSucceeded: () => void;
 }
@@ -305,6 +306,21 @@ export const useOutboxStore = create<OutboxState>()(
           }
         }
       },
+      retryNow: async (userId) => {
+        set((state) => ({
+          entries: state.entries.map((entry) => (
+            entry.status === 'failed' || entry.status === 'cooldown'
+              ? {
+                  ...entry,
+                  status: 'pending',
+                  consecutiveFailures: 0,
+                  nextRetryAt: undefined,
+                }
+              : entry
+          )),
+        }));
+        await get().flush(userId);
+      },
     }),
     {
       name: PERSIST_KEYS.outbox,
@@ -312,6 +328,10 @@ export const useOutboxStore = create<OutboxState>()(
     },
   ),
 );
+
+export function getOutboxRetryableCount(entries: OutboxEntry[]): number {
+  return entries.filter((entry) => entry.status === 'failed' || entry.status === 'cooldown').length;
+}
 
 export function setOutboxExecutorForTests(kind: OutboxEntry['kind'], executor: OutboxExecutor): void {
   outboxExecutors[kind] = executor;

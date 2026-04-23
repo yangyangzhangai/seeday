@@ -10,6 +10,8 @@ import { BottleList } from './BottleList';
 import { GrowthTodoSection } from './GrowthTodoSection';
 import { FocusMode } from './FocusMode';
 import { type GrowthTodo } from './GrowthTodoCard';
+import { useOutboxStore, getOutboxRetryableCount } from '../../store/useOutboxStore';
+import { CloudRetryButton } from '../../components/feedback/CloudRetryButton';
 
 function localDateStr(): string {
   const d = new Date();
@@ -63,12 +65,14 @@ export const GrowthPage = () => {
   const fetchTodos = useTodoStore((s) => s.fetchTodos);
   const todoLoading = useTodoStore((s) => s.isLoading);
   const todoSyncError = useTodoStore((s) => s.lastSyncError);
+  const outboxRetryCount = useOutboxStore((s) => getOutboxRetryableCount(s.entries));
+  const retryOutboxNow = useOutboxStore((s) => s.retryNow);
 
   const isSyncing = growthLoading || todoLoading;
-  const hasSyncError = Boolean(growthSyncError || todoSyncError);
+  const hasSyncError = Boolean(growthSyncError || todoSyncError || outboxRetryCount > 0);
 
   const handleManualSync = () => {
-    void Promise.all([fetchBottles(), fetchTodos()]);
+    void Promise.all([fetchBottles(), fetchTodos(), retryOutboxNow(userId ?? undefined)]);
   };
 
   // 监听 AI 建议待办高亮事件
@@ -173,14 +177,11 @@ export const GrowthPage = () => {
         >
           <h1 className="text-2xl font-extrabold" style={{ color: '#1e293b', letterSpacing: '-0.02em' }}>{t('growth_title')}</h1>
           {hasSyncError ? (
-            <button
+            <CloudRetryButton
               onClick={handleManualSync}
               disabled={isSyncing}
               title={growthSyncError || todoSyncError || ''}
-              className="rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSyncing ? t('loading') : t('retry')}
-            </button>
+            />
           ) : null}
         </header>
 

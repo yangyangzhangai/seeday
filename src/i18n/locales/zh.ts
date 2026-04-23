@@ -542,6 +542,8 @@ const zh: TranslationKeys = {
     profile_region_save: '保存地区',
     profile_region_saving: '保存中...',
     profile_region_not_found: '未找到该地区，请换个更具体的名称',
+    profile_region_country_fallback_hint: '未匹配到具体地区，可改为保存国家：{{value}}',
+    profile_region_save_country: '保存国家',
     profile_region_save_error: '地区保存失败，请稍后重试',
     profile_region_locate_error: '定位失败，请检查定位权限后重试',
     profile_root_direction_settings: '根系方向设置',

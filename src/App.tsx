@@ -34,6 +34,8 @@ import { ReminderPopup, EveningCheckPopup } from './components/ReminderPopup';
 import { useReminderStore } from './store/useReminderStore';
 import { getReminderCopy } from './services/reminder/reminderCopy';
 import { QuickActivityPicker } from './components/QuickActivityPicker';
+import { CloudRetryButton } from './components/feedback/CloudRetryButton';
+import { useOutboxStore, getOutboxRetryableCount } from './store/useOutboxStore';
 
 const BlankScreen: React.FC = () => (
   <div className="fixed inset-0 bg-gray-50" />
@@ -145,9 +147,12 @@ const PageOutlet: React.FC = () => {
 };
 
 const MainLayout = () => {
+  const location = useLocation();
   const messages = useChatStore(state => state.messages);
   const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
+  const outboxRetryCount = useOutboxStore((state) => getOutboxRetryableCount(state.entries));
+  const retryOutboxNow = useOutboxStore((state) => state.retryNow);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
   const { confirmReminderFromPopup } = useReminderSystem(navigate);
@@ -230,6 +235,13 @@ const MainLayout = () => {
     }
   }, [condenseTargetMessage]);
 
+  const shouldShowOutboxRetry = Boolean(user?.id) && outboxRetryCount > 0 && location.pathname !== '/growth';
+
+  const handleOutboxRetry = React.useCallback(() => {
+    if (!user?.id) return;
+    void retryOutboxNow(user.id);
+  }, [retryOutboxNow, user?.id]);
+
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -303,6 +315,14 @@ const MainLayout = () => {
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-white md:bg-white">
       <PageOutlet />
       <BottomNav />
+      {shouldShowOutboxRetry ? (
+        <div className="pointer-events-none fixed right-4 z-40" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)' }}>
+          <CloudRetryButton
+            onClick={handleOutboxRetry}
+            className="pointer-events-auto"
+          />
+        </div>
+      ) : null}
       {/* AI 批注气泡 - 全局显示 */}
       {aiModeEnabled ? (
         <AIAnnotationBubble
