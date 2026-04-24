@@ -47,8 +47,18 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-0 pb-0">
-      <div className="w-full max-w-lg rounded-t-3xl bg-[#F7F9F8] px-5 pt-6 pb-10 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-0 pb-0"
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-lg rounded-t-3xl bg-[#F7F9F8] px-5 pt-6 shadow-2xl overflow-y-auto"
+        style={{
+          maxHeight: '88vh',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 32px)',
+        }}
+      >
         {/* Handle */}
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
 

@@ -107,7 +107,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({
         boxShadow: 'none',
         position: 'relative',
         overflow: 'hidden',
-        padding: '10px 13px 9px',
+        padding: '13px 15px 12px',
       }}
       onClick={() => {
         if (readonly || cardActive) return;
