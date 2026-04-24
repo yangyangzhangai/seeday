@@ -206,7 +206,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   };
 
   const moodTagColor = getStrongerMoodTagColor(moodColor);
-  const moodTagBg = withHexAlpha(moodTagColor, 0.2);
+  const moodTagBg = withHexAlpha(moodTagColor, 0.1);
   const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
 
   return (
@@ -222,7 +222,7 @@ export const EventCard: React.FC<EventCardProps> = ({
         boxShadow: 'none',
         position: 'relative',
         overflow: 'hidden',
-        padding: '10px 13px 9px',
+        padding: '13px 15px 12px',
       }}
       onClick={() => {
         if (readonly || cardActive) return;

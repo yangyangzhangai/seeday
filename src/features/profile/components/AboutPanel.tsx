@@ -66,10 +66,10 @@ interface RowProps {
 }
 
 const Row: React.FC<RowProps> = ({ label, value, href }) => (
-  <div className="flex items-center justify-between px-4 py-3">
+  <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
     <span className="text-sm text-slate-700">{label}</span>
     {href ? (
-      <a href={href} className="text-sm text-[#5F7A63]">
+      <a href={href} className="text-sm text-[#5F7A63] active:opacity-60">
         {value}
       </a>
     ) : (

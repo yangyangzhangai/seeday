@@ -114,7 +114,6 @@ export function MembershipPurchaseModal({
   disableInitialAnimation = false,
   initialPlanId,
 }: MembershipPurchaseModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<MembershipPopularPlanId>('yearly');
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, isPlus } = useAuthStore((state) => ({
@@ -124,6 +123,7 @@ export function MembershipPurchaseModal({
   const trialEligible = isEligibleForMembershipTrial(user, isPlus);
   const popularPlanId = getMembershipPopularPlanId(user, isPlus);
   const preferredPlanId = initialPlanId ?? popularPlanId;
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPopularPlanId>(preferredPlanId);
 
   useEffect(() => {
     if (!isOpen) return;

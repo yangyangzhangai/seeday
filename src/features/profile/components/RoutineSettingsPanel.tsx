@@ -465,7 +465,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
               className="relative w-full sm:max-w-md bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
-              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 8px)' }}
+              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
             >
               <style dangerouslySetInnerHTML={{ __html: `.cr-scroll::-webkit-scrollbar{width:4px}.cr-scroll::-webkit-scrollbar-thumb{background:#8fae9130;border-radius:20px}` }} />
 
@@ -644,7 +644,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 保存按钮 */}
-              <div className="px-5 sm:px-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-6 pt-3.5 shrink-0">
+              <div className="px-5 sm:px-7 pt-3.5 shrink-0" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 20px)' }}>
                 {saveText && <p className="mb-2 text-center text-[11px] text-slate-500">{saveText}</p>}
                 <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave(); }} disabled={saving}
                   className="w-full py-3 rounded-2xl text-sm font-semibold disabled:opacity-60"

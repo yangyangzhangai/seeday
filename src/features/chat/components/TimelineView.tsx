@@ -133,9 +133,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               />
 
               {/* Time label */}
-              <div style={{ width: 44, paddingTop: 8, textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+              <div style={{ width: 50, paddingTop: 8, textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
                 <span
-                  className="text-xs"
+                  className="text-sm"
                   style={{ fontWeight: 700, color: '#94a3b8',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
                     cursor: (!cardReadonly && onTimeClick) ? 'pointer' : 'default' }}

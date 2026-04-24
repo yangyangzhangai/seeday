@@ -44,6 +44,12 @@ export const TelemetryHubPage: React.FC = () => {
       description: t('telemetry_hub_module_profile_desc'),
       useCase: t('telemetry_hub_module_profile_usecase'),
     },
+    {
+      title: t('telemetry_hub_module_feedback_title'),
+      route: '/telemetry/feedback',
+      description: t('telemetry_hub_module_feedback_desc'),
+      useCase: t('telemetry_hub_module_feedback_usecase'),
+    },
   ];
 
   return (

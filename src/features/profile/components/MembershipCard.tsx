@@ -127,12 +127,18 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
             return (
               <div
                 key={labelKey}
-                className="flex items-center justify-center gap-1.5 rounded-full px-2 py-1"
+                className="flex items-center justify-between gap-1.5 rounded-full px-2.5 py-1"
                 style={{
                   background: unlocked ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.38)',
                   border: unlocked ? '1px solid rgba(168,85,247,0.20)' : '1px solid rgba(255,255,255,0.58)',
                 }}
               >
+                <span
+                  className="text-xs leading-tight"
+                  style={{ color: unlocked ? MEMBERSHIP_TEXT : '#545f78' }}
+                >
+                  {t(labelKey)}
+                </span>
                 {unlocked ? (
                   <Check
                     size={12}
@@ -148,18 +154,9 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                     size={12}
                     strokeWidth={1.7}
                     aria-hidden
-                    style={{
-                      color: '#8b93a8',
-                      flexShrink: 0,
-                    }}
+                    style={{ color: '#8b93a8', flexShrink: 0 }}
                   />
                 )}
-                <span
-                  className="text-xs leading-tight"
-                  style={{ color: unlocked ? MEMBERSHIP_TEXT : '#545f78' }}
-                >
-                  {t(labelKey)}
-                </span>
               </div>
             );
           })}
