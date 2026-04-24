@@ -6,6 +6,39 @@ All notable effective changes are documented here.
 
 ## 2026-04-24
 
+### Build: Membership AI classification tiering phase-1
+
+- `/api/classify` 接入 `requireSupabaseRequestAuth`，并在服务端强制 Plus 校验；非 Plus 统一返回 `403 { error: 'membership_required' }`（包含 classify 与 todo_decompose 分支）
+- `src/api/client.ts` 的 `callClassifierAPI()` 开始透传 Supabase `Authorization` 头，统一走鉴权 classify
+- `src/store/useChatStore.ts` 完成 Free/Plus 分流与 classify 去重：
+  - Free 仅本地规则，不触发 classify
+  - Plus 按 `messageId` 复用单次 classify promise，避免 `sendMessage/endActivity` 重复调用
+  - 星星判定改为 Plus 优先消费 AI `matched_bottle`，未命中再关键词兜底
+  - AI 失败自动回退本地分类，不阻断记录链路
+- `src/store/useTodoStore.ts` 的 `refineTodoCategoryWithAI()` 增加 Plus 门控，Free 不再触发该 AI 精修
+- 文档同步：`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md` 增加可持续打勾执行看板；`docs/CURRENT_TASK.md` 新增主线 E；`api/README.md`、`src/api/README.md`、`src/store/README.md` 同步策略口径
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run "src/store/useChatStore.integration.test.ts"` ✅
+
+### Improve: DATA_STORAGE_P2 phase-5 owner-trusted migration guard
+
+- 新增 `src/store/authLocalMigrationPolicy.ts`，收敛本地数据迁移决策：`sync_local_to_cloud / clear_local / block_unknown_owner / noop`
+- `src/store/useAuthStore.ts` 在 `initialize` 与 `SIGNED_IN` 路径统一复用迁移策略：
+  - owner 跨账号时清理当前 scope 本地域数据，阻断串号
+  - v2 开启 + owner=unknown + 有本地数据时进入安全模式并记录 `unknown_owner_migration_blocked`
+  - 仅 owner 可信（`anonymous` / `user(current)`）时自动执行 legacy `seeday:v1:* -> seeday:v2:*` 迁移
+- `src/store/useAuthStore.ts` 在 unknown-owner 安全模式下停止 `syncLocalAnnotations(...)` 自动上云，避免旧本地数据误传当前账号
+- 新增 `src/store/authLocalMigrationPolicy.test.ts`，覆盖 owner-trusted 迁移准入、unknown-owner v2 阻断、v1 兼容迁移与跨账号清理决策
+
+Validation:
+
+- `npx vitest run "src/store/authLocalMigrationPolicy.test.ts" "src/store/storageScope.test.ts" "src/services/reminder/reminderScheduler.scope.test.ts" "src/services/reminder/reminderScheduler.account-switch.test.ts"` ✅
+- `npx tsc --noEmit` ✅
+- `npm run build` ✅
+
 ### Improve: DATA_STORAGE_P2 phase-4.2 freeDay scoped policy finalized
 
 - `src/services/reminder/reminderScheduler.ts` 将 `freeDay_<date>` 明确纳入 user-scoped key（`seeday:v2:*:local:freeDay_<date>`），避免同设备多账号共用节假日缓存

@@ -52,6 +52,10 @@ import {
   readLocalDataOwner,
 } from './authLocalOwnerHelpers';
 import {
+  canAutoMigrateLegacyV1Persist,
+  resolveLocalDataMigrationDecision,
+} from './authLocalMigrationPolicy';
+import {
   clearPendingProfileWrite,
   getPendingProfileWrite,
   LONG_TERM_PROFILE_ENABLED_KEY,
@@ -80,16 +84,13 @@ import type { ReminderType } from '../services/reminder/reminderTypes';
 import { callDeleteAccountAPI } from '../api/client';
 
 const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
-
 const PENDING_DELETION_GRACE_MS = 5 * 24 * 60 * 60 * 1000;
 
 async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?: Record<string, unknown> }): Promise<void> {
   const pendingAt = user.user_metadata?.pending_deletion_at;
   if (!pendingAt || typeof pendingAt !== 'string') return;
-
   const deletionTime = new Date(pendingAt).getTime();
   const now = Date.now();
-
   if (now < deletionTime) {
     // Within grace period — restore: clear the flag
     await supabase.auth.updateUser({ data: { pending_deletion_at: null } });
@@ -110,7 +111,6 @@ const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = 
   medium: 5,
   high: 8,
 };
-
 const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
 const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
 const IOS_OAUTH_REDIRECT_URL = (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
@@ -122,7 +122,6 @@ function toLocalDateStr(ts: number): string {
   const d = new Date(ts);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
 function getTodayDateStr(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -192,6 +191,7 @@ function shouldFetchDomain(lastFetchedAt: number | null | undefined): boolean {
   if (!lastFetchedAt) return true;
   return Date.now() - lastFetchedAt > DOMAIN_FETCH_FRESHNESS_MS;
 }
+
 function refreshDomainStoresForSession(userId: string): void {
   const annotationStore = useAnnotationStore.getState();
   const chatStore = useChatStore.getState();
@@ -235,7 +235,6 @@ function hasAnyLocalDataToMigrate(): boolean {
     || Object.keys(mood.customMoodLabel).length > 0
     || Object.keys(mood.customMoodApplied).length > 0
     || Object.keys(mood.moodNote).length > 0;
-
   return hasMessages || hasTodos || hasReports || hasBottles || hasFocusSessions || hasDailyGoal || hasMoodData;
 }
 
@@ -263,10 +262,8 @@ async function ensureTodayLoginDay(user: any): Promise<any> {
   const today = getTodayDateStr();
   const existingDays = normalizeLoginDays(user?.user_metadata?.login_days);
   if (existingDays.includes(today)) return user;
-
   const nextDays = [...existingDays, today].slice(-90);
   const { user: updatedUser, error } = await patchUserMetadata({ login_days: nextDays });
-
   if (error || !updatedUser) {
     console.warn('Failed to persist login_days:', error);
     return user;
@@ -279,9 +276,7 @@ function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
   if (typeof raw === 'boolean') {
     return raw ? 'plus' : 'free';
   }
-
   if (typeof raw !== 'string') return null;
-
   const normalized = raw.trim().toLowerCase();
   if (!normalized) return null;
   if (PLUS_PLAN_ALIASES.has(normalized)) return 'plus';
@@ -298,7 +293,6 @@ function resolveOAuthRedirectUrl(): string {
       return false;
     }
   };
-
   if (Capacitor.isNativePlatform()) {
     const nativeRedirect = IOS_OAUTH_REDIRECT_URL.trim();
     if (nativeRedirect && isValidAbsoluteUrl(nativeRedirect)) {
@@ -306,7 +300,6 @@ function resolveOAuthRedirectUrl(): string {
     }
     return 'com.seeday.app://auth/callback';
   }
-
   const webOrigin = typeof window !== 'undefined' ? window.location?.origin || '' : '';
   if (webOrigin && isValidAbsoluteUrl(webOrigin)) {
     return webOrigin;
@@ -344,7 +337,6 @@ export function resolveMembershipState(
     appMeta.vip,
     userMeta.vip,
   ];
-
   for (const candidate of membershipCandidates) {
     const plan = normalizeMembershipPlan(candidate);
     if (plan) {
@@ -355,7 +347,6 @@ export function resolveMembershipState(
       };
     }
   }
-
   const trialStartedAtRaw = appMeta.trial_started_at ?? userMeta.trial_started_at;
   const trialStartedAtMs = typeof trialStartedAtRaw === 'string' || typeof trialStartedAtRaw === 'number'
     ? new Date(trialStartedAtRaw).getTime()
@@ -364,11 +355,9 @@ export function resolveMembershipState(
   if (Number.isFinite(trialStartedAtMs) && trialStartedAtMs <= nowMs && nowMs - trialStartedAtMs < trialWindowMs) {
     return { plan: 'plus', isPlus: true, source: 'trial' };
   }
-
   if (temporaryUnlockEnabled) {
     return { plan: 'plus', isPlus: true, source: 'temporary_unlock' };
   }
-
   return { plan: 'free', isPlus: false, source: 'default_free' };
 }
 
@@ -435,12 +424,10 @@ function markGrowthDailyLoginSession(userId: string): void {
   const firstLoginDateKey = `growth:first-login-date:${userId}`;
   const sessionFlagKey = `growth:is-first-login:${userId}:${today}`;
   const hasLoggedInToday = window.localStorage.getItem(firstLoginDateKey) === today;
-
   if (hasLoggedInToday) {
     window.sessionStorage.setItem(sessionFlagKey, '0');
     return;
   }
-
   window.localStorage.setItem(firstLoginDateKey, today);
   window.sessionStorage.setItem(sessionFlagKey, '1');
 }
@@ -452,20 +439,20 @@ function setScopeForAuthUser(userId?: string | null, source: string = 'unknown')
   return scope;
 }
 
-function dryRunLegacyScopeMigration(scope: StorageScope, source: string): void {
+function applyLegacyScopeMigrationIfAllowed(scope: StorageScope, source: string, currentUserId: string): void {
   if (!isMultiAccountIsolationV2Enabled()) return;
-  const result = migrateLegacyV1PersistToScope(scope, { dryRun: true });
-  if (result.moved.length === 0) return;
-  logStorageScopeEvent('migration_dry_run', {
-    source,
-    scope: scope.type,
-    userId: scope.userId,
-    candidates: result.moved.map((item) => ({
-      domain: item.domain,
-      fromKey: item.fromKey,
-      toKey: item.toKey,
-    })),
+  const owner = readLocalDataOwner();
+  const dryRun = migrateLegacyV1PersistToScope(scope, { dryRun: true });
+  if (dryRun.moved.length === 0) return;
+  const autoMigrate = canAutoMigrateLegacyV1Persist({
+    owner,
+    currentUserId,
+    isolationV2Enabled: true,
   });
+  logStorageScopeEvent('migration_decision', { source, autoMigrate, ownerType: owner.type });
+  if (!autoMigrate) return;
+  migrateLegacyV1PersistToScope(scope, { dryRun: false });
+  logStorageScopeEvent('migration_executed', { source, ownerType: owner.type });
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -485,7 +472,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const owner = readLocalDataOwner();
     const hasPersistedDomainData = hasAnyPersistedDomainData();
     const initialScope = setScopeForAuthUser(session?.user?.id, 'initialize:start');
-    dryRunLegacyScopeMigration(initialScope, 'initialize:start');
+    if (session?.user?.id) {
+      applyLegacyScopeMigrationIfAllowed(initialScope, 'initialize:start', session.user.id);
+    }
     await rehydrateAllDomainPersistStores();
     let sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
     sessionUser = await ensureCloudLanguageMetadata(sessionUser);
@@ -496,11 +485,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
     syncI18nLanguageFromMeta(meta);
     syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
-
     // Apply locally-cached profile if Supabase metadata is missing/stale
     const pendingProfile = sessionUser ? getPendingProfileWrite(sessionUser.id) : null;
     const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
-
     set({
       user: sessionUser,
       loading: false,
@@ -511,7 +498,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       membershipSource: membership.source,
       isPlus: membership.isPlus,
     });
-
     // Retry syncing pending profile write to Supabase in the background
     if (sessionUser && pendingProfile && !profileState.userProfileV2) {
       const retryPatch = {
@@ -528,6 +514,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }).catch(() => { /* stay silent — will retry on next init */ });
     }
+
     if (import.meta.env.DEV && sessionUser) {
       console.log('[Membership] resolved membership:', {
         userId: sessionUser.id,
@@ -546,26 +533,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session?.user) {
       const hasLocalData = hasAnyLocalDataToMigrate();
-      const isCrossAccountData = owner.type === 'user' && owner.userId !== session.user.id;
-      const shouldMigrateUnknownOwnerData = owner.type === 'unknown' && hasLocalData && !isMultiAccountIsolationV2Enabled();
-
-      if (isCrossAccountData) {
+      const migrationDecision = resolveLocalDataMigrationDecision({
+        owner,
+        hasLocalData,
+        currentUserId: session.user.id,
+        isolationV2Enabled: isMultiAccountIsolationV2Enabled(),
+      });
+      if (migrationDecision.action === 'clear_local') {
         clearLocalDomainStores(initialScope);
-      } else if (hasLocalData && (owner.type !== 'unknown' || shouldMigrateUnknownOwnerData)) {
-        // Existing-session restore path (app cold start / refresh):
-        // push any local data first, then pull cloud state.
-        // This avoids local-vs-cloud drift when the same account worked offline.
+      } else if (migrationDecision.action === 'sync_local_to_cloud') {
         await syncLocalDataToSupabase(session.user.id, {
           currentUser: sessionUser,
           onUserUpdated: (user) => set({ user }),
         });
-      } else if (owner.type === 'unknown' && hasLocalData && isMultiAccountIsolationV2Enabled()) {
+      } else if (migrationDecision.action === 'block_unknown_owner') {
         logStorageScopeEvent('unknown_owner_migration_blocked', {
           source: 'initialize',
           userId: session.user.id,
         });
       }
-
       markGrowthDailyLoginSession(session.user.id);
       hydrateGrowthDailyGoalFromMeta(meta);
       // Non-blocking background sync: local persist data shows immediately,
@@ -581,17 +567,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         markLocalDataOwnerAnonymous();
       }
     }
-
     // Listen for changes
     supabase.auth.onAuthStateChange(async (event, session) => {
       const previousUser = get().user;
       let currentUser = session?.user || null;
-
       if (event === 'SIGNED_IN' && currentUser) {
         currentUser = await ensureTodayLoginDay(currentUser);
         currentUser = await ensureCloudLanguageMetadata(currentUser);
       }
-
       const rawPreferences = currentUser
         ? preferencesFromMeta(currentUser.user_metadata || {})
         : DEFAULT_PREFERENCES;
@@ -629,55 +612,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ) {
         queuePreferenceSnapshot(nextPreferences);
       }
-
       if (event === 'SIGNED_IN' && currentUser) {
         const meta = currentUser.user_metadata || {};
         hydrateGrowthDailyGoalFromMeta(meta);
       }
-
       const isNewOrSwitchedAccount =
         event === 'SIGNED_IN' && currentUser && (!previousUser || previousUser.id !== currentUser.id);
-
       if (isNewOrSwitchedAccount && currentUser) {
         const signedInScope = setScopeForAuthUser(currentUser.id, 'onAuthStateChange:signed-in');
-        dryRunLegacyScopeMigration(signedInScope, 'onAuthStateChange:signed-in');
+        applyLegacyScopeMigrationIfAllowed(signedInScope, 'onAuthStateChange:signed-in', currentUser.id);
         await rehydrateAllDomainPersistStores();
         markGrowthDailyLoginSession(currentUser.id);
-
         const owner = readLocalDataOwner();
         const hasLocalData = hasAnyLocalDataToMigrate();
-        const isCrossAccountData = owner.type === 'user' && owner.userId !== currentUser.id;
-        const canMigrateAnonymousData = owner.type === 'anonymous' && hasLocalData;
-        const canMigrateUnknownOwnerData = owner.type === 'unknown' && hasLocalData && !isMultiAccountIsolationV2Enabled();
-
-        if (isCrossAccountData) {
+        const migrationDecision = resolveLocalDataMigrationDecision({
+          owner,
+          hasLocalData,
+          currentUserId: currentUser.id,
+          isolationV2Enabled: isMultiAccountIsolationV2Enabled(),
+        });
+        if (migrationDecision.action === 'clear_local') {
           clearLocalDomainStores(signedInScope);
-        } else if (canMigrateAnonymousData || canMigrateUnknownOwnerData) {
-          // canMigrateAnonymousData: 明确的访客数据
-          // unknown + hasLocalData: 老用户（owner 标记添加前就在用 app），同样迁移而非清空
+        } else if (migrationDecision.action === 'sync_local_to_cloud') {
           if (import.meta.env.DEV) console.log('[AuthStore] syncing local data to cloud...');
           await syncLocalDataToSupabase(currentUser.id, {
             currentUser,
             onUserUpdated: (user) => set({ user }),
           });
-        } else if (owner.type === 'unknown' && hasLocalData && isMultiAccountIsolationV2Enabled()) {
+        } else if (migrationDecision.action === 'block_unknown_owner') {
           logStorageScopeEvent('unknown_owner_migration_blocked', {
             source: 'onAuthStateChange',
             userId: currentUser.id,
           });
         }
-
         // 更新连续登录天数（后台写，不阻塞 UI）
         void updateLoginStreak(currentUser.id).catch(() => {});
-
         // 先同步本地 annotation 到云端，再后台拉取所有云端数据
-        void useAnnotationStore.getState().syncLocalAnnotations(currentUser.id).catch(() => {});
+        if (migrationDecision.action !== 'block_unknown_owner') {
+          void useAnnotationStore.getState().syncLocalAnnotations(currentUser.id).catch(() => {});
+        }
         fetchActivityStreak(currentUser.id)
           .then((streak) => set({ activityStreak: streak }))
           .catch(() => {});
         refreshDomainStoresForSession(currentUser.id);
         markLocalDataOwnerUser(currentUser.id);
-
         // Pending deletion check: restore or execute hard delete
         void checkAndHandlePendingDeletion(currentUser).catch(() => {});
       }
@@ -954,7 +932,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         createdAt: nextProfile.createdAt || new Date().toISOString(),
       },
     };
-
     // 2. Sync to Supabase in background — don't block the caller
     const userId = currentUser.id;
     patchUserMetadata(patch).then(({ user, error }) => {
@@ -968,10 +945,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         clearPendingProfileWrite(userId);
       }
     }).catch(() => { /* will retry on next initialize() */ });
-
     return { error: null };
   },
-
   updatePreferences: async (partial: Partial<UserPreferences>) => {
     const merged = { ...get().preferences, ...partial };
     const normalized = normalizePreferencesForMembership(merged, get().isPlus);
@@ -979,17 +954,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     syncAnnotationStateWithPreferences(normalized, get().isPlus);
     queuePreferenceSnapshot(normalized);
   },
-
   updateLanguagePreference: async (language: string) => {
     const normalized = normalizeUiLanguage(language);
     await i18n.changeLanguage(normalized);
     persistLanguageToLocalStorage(normalized);
-
     const currentUser = get().user;
     if (!currentUser) {
       return { error: null };
     }
-
     set({
       user: {
         ...currentUser,
@@ -999,7 +971,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         },
       },
     });
-
     void patchUserMetadata({ i18nextLng: normalized })
       .then(({ user, error }) => {
         if (!error && user) {
@@ -1015,10 +986,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           console.warn('[auth] updateLanguagePreference cloud sync failed (local saved):', error);
         }
       });
-
     return { error: null };
   },
-
   refreshActivityStreak: async () => {
     const userId = get().user?.id;
     if (!userId) return;

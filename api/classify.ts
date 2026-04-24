@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
+import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 import { decomposeTodoWithAIDiagnostics } from '../src/server/todo-decompose-service.js';
 
 const CLASSIFIER_PROMPT = `你是一个时间记录分类器。
@@ -320,6 +321,78 @@ function extractKeywords(name: string): string[] {
 
 type BottleRef = { id: string; name: string; type: 'habit' | 'goal' };
 
+type MembershipPlan = 'free' | 'plus';
+
+const PLUS_PLAN_ALIASES = new Set([
+  'plus',
+  'premium',
+  'pro',
+  'vip',
+  'true',
+  '1',
+]);
+
+const FREE_PLAN_ALIASES = new Set([
+  'free',
+  'basic',
+  'false',
+  '0',
+]);
+
+function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
+  if (typeof raw === 'boolean') return raw ? 'plus' : 'free';
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw > 0 ? 'plus' : 'free';
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (PLUS_PLAN_ALIASES.has(normalized)) return 'plus';
+  if (FREE_PLAN_ALIASES.has(normalized)) return 'free';
+  return null;
+}
+
+function resolveMembershipPlan(user: { user_metadata?: Record<string, any>; app_metadata?: Record<string, any> }): MembershipPlan {
+  const userMeta = user.user_metadata || {};
+  const appMeta = user.app_metadata || {};
+  const candidates = [
+    appMeta.membership_plan,
+    userMeta.membership_plan,
+    appMeta.plan,
+    userMeta.plan,
+    appMeta.subscription_plan,
+    userMeta.subscription_plan,
+    appMeta.membership_tier,
+    userMeta.membership_tier,
+    appMeta.tier,
+    userMeta.tier,
+    appMeta.membership?.plan,
+    userMeta.membership?.plan,
+    appMeta.subscription?.plan,
+    userMeta.subscription?.plan,
+    appMeta.is_plus,
+    userMeta.is_plus,
+    appMeta.plus_member,
+    userMeta.plus_member,
+    appMeta.vip,
+    userMeta.vip,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeMembershipPlan(candidate);
+    if (normalized) return normalized;
+  }
+
+  const trialStartedAtRaw = appMeta.trial_started_at ?? userMeta.trial_started_at;
+  const trialStartedAtMs = typeof trialStartedAtRaw === 'string' || typeof trialStartedAtRaw === 'number'
+    ? new Date(trialStartedAtRaw).getTime()
+    : Number.NaN;
+  const trialWindowMs = 7 * 24 * 60 * 60 * 1000;
+  if (Number.isFinite(trialStartedAtMs) && trialStartedAtMs <= Date.now() && Date.now() - trialStartedAtMs < trialWindowMs) {
+    return 'plus';
+  }
+
+  return 'free';
+}
+
 /**
  * Try to keyword-match an item name against a list of bottles.
  * Returns the first bottle whose keywords appear in the item text, or null.
@@ -441,6 +514,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
+
+  const auth = await requireSupabaseRequestAuth(req, res);
+  if (!auth) return;
+  if (resolveMembershipPlan(auth.user) !== 'plus') {
+    jsonError(res, 403, 'membership_required');
+    return;
+  }
 
   const isTodoDecomposeMode = req.body?.module === 'todo_decompose'
     || (typeof req.body?.title === 'string' && typeof req.body?.rawInput !== 'string');

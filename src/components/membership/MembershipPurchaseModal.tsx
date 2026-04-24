@@ -8,7 +8,6 @@ import {
   History,
   Zap,
   Sparkles,
-  TrendingUp,
   Brain,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -40,21 +39,6 @@ const PLANS = [
 ] as const;
 
 const PRO_FEATURES = [
-  {
-    icon: <Sparkles size={18} />,
-    labelKey: 'membership_purchase_feat_all_roles_title',
-    descKey: 'membership_purchase_feat_all_roles_desc',
-  },
-  {
-    icon: <TrendingUp size={18} />,
-    labelKey: 'membership_purchase_feat_growth_title',
-    descKey: 'membership_purchase_feat_growth_desc',
-  },
-  {
-    icon: <Brain size={18} />,
-    labelKey: 'membership_purchase_feat_memory_title',
-    descKey: 'membership_purchase_feat_memory_desc',
-  },
   {
     icon: (
       <span
@@ -90,6 +74,21 @@ const PRO_FEATURES = [
     ),
     labelKey: 'membership_purchase_feat_monthly_title',
     descKey: 'membership_purchase_feat_monthly_desc',
+  },
+  {
+    icon: <Brain size={18} />,
+    labelKey: 'membership_purchase_feat_mood_ai_title',
+    descKey: 'membership_purchase_feat_mood_ai_desc',
+  },
+  {
+    icon: <Sparkles size={18} />,
+    labelKey: 'membership_purchase_feat_star_ai_title',
+    descKey: 'membership_purchase_feat_star_ai_desc',
+  },
+  {
+    icon: <Brain size={18} />,
+    labelKey: 'membership_purchase_feat_memory_title',
+    descKey: 'membership_purchase_feat_memory_desc',
   },
   {
     icon: <History size={18} />,

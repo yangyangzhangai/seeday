@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Crown } from 'lucide-react';
+import { Check, Crown, Lock } from 'lucide-react';
 import { purchase } from '@payment';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { isEligibleForMembershipTrial } from '../membershipTrialEligibility';
@@ -17,10 +17,11 @@ export const MEMBERSHIP_FEATURES = [
   { labelKey: 'membership_feat_ai_chat', free: true },
   { labelKey: 'membership_feat_daily_plant', free: true },
   { labelKey: 'membership_feat_daily_report', free: false },
-  { labelKey: 'membership_feat_monthly_report', free: false },
-  { labelKey: 'membership_feat_advanced_analysis', free: false },
-  { labelKey: 'membership_feat_ai_memory', free: false },
   { labelKey: 'membership_feat_weekly_report', free: false },
+  { labelKey: 'membership_feat_monthly_report', free: false },
+  { labelKey: 'membership_feat_mood_ai', free: false },
+  { labelKey: 'membership_feat_star_bottle_ai', free: false },
+  { labelKey: 'membership_feat_ai_memory', free: false },
   { labelKey: 'membership_feat_yearly_report', free: false },
 ];
 
@@ -143,7 +144,15 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
                     }}
                   />
                 ) : (
-                  <span aria-hidden style={{ width: 12, height: 12, display: 'inline-block', flexShrink: 0 }} />
+                  <Lock
+                    size={12}
+                    strokeWidth={1.7}
+                    aria-hidden
+                    style={{
+                      color: '#8b93a8',
+                      flexShrink: 0,
+                    }}
+                  />
                 )}
                 <span
                   className="text-xs leading-tight"

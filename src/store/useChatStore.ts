@@ -15,6 +15,7 @@ import { createChatTimelineActions } from './chatTimelineActions';
 import { mergePersistedChatState, pruneDateCache } from './chatPersistenceHelpers';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
+import { useAuthStore } from './useAuthStore';
 import { callClassifierAPI } from '../api/client';
 import i18n from '../i18n';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
@@ -68,6 +69,86 @@ function resolveLangForText(content: string): SupportedLang {
 
 function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
+}
+
+type MessageClassificationResult = {
+  activityType: ActivityRecordType;
+  matchedBottleId: string | null;
+  classificationPath: 'local_rule' | 'ai' | 'ai_fallback_local';
+  aiCalled: boolean;
+};
+
+const messageClassificationTaskMap = new Map<string, Promise<MessageClassificationResult>>();
+
+function keywordMatchBottleId(text: string, bottles: { id: string; name: string }[]): string | null {
+  const lower = text.toLowerCase();
+  for (const bottle of bottles) {
+    const words = bottle.name.toLowerCase().split(/\s+/);
+    if (words.some((word) => word.length >= 2 && lower.includes(word))) {
+      return bottle.id;
+    }
+  }
+  return null;
+}
+
+function resolveMatchedBottleId(aiResult: Awaited<ReturnType<typeof callClassifierAPI>>): string | null {
+  if (!aiResult.success || !Array.isArray(aiResult.data?.items)) return null;
+  for (const item of aiResult.data.items) {
+    if (item.matched_bottle?.id) return item.matched_bottle.id;
+  }
+  return null;
+}
+
+function ensureMessageClassification(params: {
+  messageId: string;
+  content: string;
+  lang: SupportedLang;
+  isPlus: boolean;
+  habits: Array<{ id: string; name: string }>;
+  goals: Array<{ id: string; name: string }>;
+}): Promise<MessageClassificationResult> {
+  const existingTask = messageClassificationTaskMap.get(params.messageId);
+  if (existingTask) return existingTask;
+
+  const task = (async (): Promise<MessageClassificationResult> => {
+    const fallbackType = classifyRecordActivityType(params.content, params.lang).activityType;
+    if (!params.isPlus) {
+      return {
+        activityType: fallbackType,
+        matchedBottleId: null,
+        classificationPath: 'local_rule',
+        aiCalled: false,
+      };
+    }
+
+    try {
+      const aiResult = await callClassifierAPI({
+        rawInput: buildClassifierRawInput(params.content, params.lang),
+        lang: params.lang,
+        habits: params.habits,
+        goals: params.goals,
+      });
+      const aiCategory = aiResult.data?.items?.[0]?.category;
+      return {
+        activityType: aiCategory
+          ? mapDiaryClassifierCategoryToActivityType(aiCategory, params.content, params.lang)
+          : fallbackType,
+        matchedBottleId: resolveMatchedBottleId(aiResult),
+        classificationPath: 'ai',
+        aiCalled: true,
+      };
+    } catch {
+      return {
+        activityType: fallbackType,
+        matchedBottleId: null,
+        classificationPath: 'ai_fallback_local',
+        aiCalled: true,
+      };
+    }
+  })();
+
+  messageClassificationTaskMap.set(params.messageId, task);
+  return task;
 }
 
 async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: number): Promise<void> {
@@ -493,39 +574,44 @@ export const useChatStore = create<ChatState>()(
           void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
         }
 
-        if (
-          !options?.activityTypeOverride
-          && classifiedByRule?.confidence === 'low'
-        ) {
-          void (async () => {
-            try {
-              const lang = resolveLangForText(content);
-              const aiResult = await callClassifierAPI({
-                rawInput: buildClassifierRawInput(content, lang),
-                lang,
-              });
-              const aiCategory = aiResult.data?.items?.[0]?.category;
-              if (!aiCategory) {
-                return;
-              }
-              const refinedType = mapDiaryClassifierCategoryToActivityType(aiCategory, content, lang);
-              set((currentState) => ({
-                messages: currentState.messages.map((item) => (
-                  item.id === newMessage.id ? { ...item, activityType: refinedType } : item
-                )),
-              }));
-              const latestSession = await getSupabaseSession();
-              if (latestSession) {
-                await supabase
-                  .from('messages')
-                  .update({ activity_type: refinedType })
-                  .eq('id', newMessage.id)
-                  .eq('user_id', latestSession.user.id);
-              }
-            } catch {
-              return;
+        if (!options?.activityTypeOverride) {
+          const isPlus = useAuthStore.getState().isPlus;
+          const growthStore = useGrowthStore.getState();
+          const activeBottles = growthStore.bottles.filter((b) => b.status === 'active');
+          const habits = activeBottles
+            .filter((b) => b.type === 'habit')
+            .map((b) => ({ id: b.id, name: b.name }));
+          const goals = activeBottles
+            .filter((b) => b.type === 'goal')
+            .map((b) => ({ id: b.id, name: b.name }));
+          const lang = resolveLangForText(content);
+
+          void ensureMessageClassification({
+            messageId: newMessage.id,
+            content,
+            lang,
+            isPlus,
+            habits,
+            goals,
+          }).then(async (classification) => {
+            set((currentState) => ({
+              messages: currentState.messages.map((item) => (
+                item.id === newMessage.id
+                  ? { ...item, activityType: classification.activityType }
+                  : item
+              )),
+            }));
+            const latestSession = await getSupabaseSession();
+            if (latestSession) {
+              await supabase
+                .from('messages')
+                .update({ activity_type: classification.activityType })
+                .eq('id', newMessage.id)
+                .eq('user_id', latestSession.user.id);
             }
-          })();
+          }).catch(() => {
+            return;
+          });
         }
 
         // 触发 AI 批注
@@ -742,14 +828,7 @@ export const useChatStore = create<ChatState>()(
         const allActiveBottles = activeBottles.map((b) => ({ id: b.id, name: b.name }));
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
-        const keywordMatch = (text: string, bottles: { id: string; name: string }[]): string | null => {
-          const lower = text.toLowerCase();
-          for (const b of bottles) {
-            const words = b.name.toLowerCase().split(/\s+/);
-            if (words.some(w => w.length >= 2 && lower.includes(w))) return b.id;
-          }
-          return null;
-        };
+        const isPlus = useAuthStore.getState().isPlus;
 
         // Priority 1: linked todo bottle
         if (linkedBottleId) {
@@ -757,34 +836,42 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        // Priority 2: keyword match against active bottle names
-        const keywordMatchedBottleId = keywordMatch(target.content, allActiveBottles);
-        if (keywordMatchedBottleId) {
-          grantBottleStars(keywordMatchedBottleId);
+        if (!isPlus) {
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
           return;
         }
 
-        // Priority 3: classifier semantic match
-        if (habits.length > 0 || goals.length > 0) {
-          const lang = resolveLangForText(target.content);
-          callClassifierAPI({ rawInput: target.content, lang, habits, goals })
-            .then((result) => {
-              if (!result.success || !result.data?.items) return;
-              if (!get().messages.some((m) => m.id === id)) return;
-              for (const item of result.data.items) {
-                if (item.matched_bottle?.id) {
-                  grantBottleStars(item.matched_bottle.id);
-                  break; // max one star per activity
-                }
-              }
-            })
-            .catch(() => {
-              return;
-            });
-        }
+        const lang = resolveLangForText(target.content);
+        void ensureMessageClassification({
+          messageId: id,
+          content: target.content,
+          lang,
+          isPlus: true,
+          habits,
+          goals,
+        }).then((classification) => {
+          if (!get().messages.some((m) => m.id === id)) return;
+          if (classification.matchedBottleId) {
+            grantBottleStars(classification.matchedBottleId);
+            return;
+          }
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
+        }).catch(() => {
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
+        });
       },
 
       deleteActivity: async (id) => {
+        messageClassificationTaskMap.delete(id);
         const reward = useTodoStore.getState().consumeBottleStarRewardByMessage(id);
         if (reward) {
           useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
@@ -959,6 +1046,7 @@ export const useChatStore = create<ChatState>()(
 
       setHasInitialized: (value) => set({ hasInitialized: value }),
       clearHistory: async () => {
+        messageClassificationTaskMap.clear();
         set({ messages: [], lastActivityTime: null });
       },
 

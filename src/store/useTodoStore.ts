@@ -16,6 +16,7 @@ import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useGrowthStore } from './useGrowthStore';
+import { useAuthStore } from './useAuthStore';
 import type { AnnotationEvent } from '../types/annotation';
 import type { Recurrence, Todo, TodoPriority, TodoScope, TodoState } from './todoStoreTypes';
 export type { GrowthPriority, GrowthTodo, Priority, Recurrence, Todo, TodoPriority, TodoScope } from './todoStoreTypes';
@@ -110,6 +111,9 @@ async function bgSyncDelete(id: string): Promise<boolean> {
 }
 
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
+  if (!useAuthStore.getState().isPlus) {
+    return;
+  }
   try {
     const lang = resolveLangForText(title);
     const result = await callClassifierAPI({

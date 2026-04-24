@@ -28,6 +28,7 @@
 | `GET` | `/api/live-input-telemetry` | `live-input-telemetry.ts` | default: `{ success, summary, byInternalKind, correctionPaths, topReasons, byLang, plantFallbackLevels, diaryStickerActions, series, recentEvents }`; when `module=user_analytics`: `{ overview, dailySeries, retention, generatedAt }` or `{ found, user }` (`type=user_lookup`); when `module=holiday_check`: `{ isFreeDay, reason, name? }` |
 | `POST` | `/api/subscription` | `subscription.ts` | iap: `{ success, plan, isPlus, expiresAt, verificationEnvironment }`; stripe checkout: `{ success, checkoutUrl }`; stripe finalize: `{ success, plan, isPlus, expiresAt, verificationEnvironment }` |
 
+`/api/classify` requires `Authorization: Bearer <supabase access token>` and enforces Plus membership; non-Plus requests return `403 { error: 'membership_required' }`.
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 `/api/magic-pen-parse` currently tries DashScope OpenAI-compatible Qwen first (`qwen-flash`, overridable by `MAGIC_PEN_FALLBACK_MODEL`), then falls back to Zhipu (`glm-4.7-flash`) when needed.

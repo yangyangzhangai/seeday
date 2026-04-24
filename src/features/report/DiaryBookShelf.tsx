@@ -14,9 +14,9 @@ const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b11355
 const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
 
 const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
-const DAY_MARK_LIGHT = 'linear-gradient(160deg, rgba(228, 239, 231, 0.92), rgba(205, 223, 210, 0.88))';
-const DAY_MARK_MID = 'linear-gradient(160deg, rgba(191, 212, 197, 0.92), rgba(168, 195, 177, 0.88))';
-const DAY_MARK_DEEP = 'linear-gradient(160deg, rgba(120, 152, 131, 0.96), rgba(98, 131, 111, 0.94))';
+const DAY_MARK_LIGHT    = 'rgba(208,232,216,0.76)';
+const DAY_MARK_MID      = 'rgba(118,168,136,0.76)';
+const DAY_MARK_DEEP     = 'rgba(76,118,92,0.80)';
 const DAY_MARK_SELECTED = 'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
 
 type ParsedDateInput = {
@@ -26,6 +26,8 @@ type ParsedDateInput = {
   selectedDate: Date | null;
   isValid: boolean;
 };
+
+type SearchResult = { date: Date; snippet: string; field: 'diary' | 'observation' | 'activity' | 'mood' };
 
 function parseContinuousMonthDay(restDigits: string): { month: number | null; day: number | null } {
   if (!restDigits) return { month: null, day: null };
@@ -277,6 +279,35 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
   const toDateKey = useCallback((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`, []);
   const parsedDateInput = useMemo(() => parseDateInput(searchInput), [searchInput]);
+  const lang = i18n.language?.split('-')[0] ?? 'en';
+  const isTextSearch = useMemo(() => /[^\d\s\-/.]/.test(searchInput) && searchInput.trim().length > 0, [searchInput]);
+  const textSearchResults = useMemo((): SearchResult[] => {
+    if (!isTextSearch) return [];
+    const q = searchInput.trim().toLowerCase();
+    if (q.length < 1) return [];
+    const found: SearchResult[] = [];
+    for (const report of reports) {
+      if (report.type !== 'daily') continue;
+      const date = new Date(report.date);
+      const candidates: Array<{ text: string; field: SearchResult['field'] }> = [
+        { text: report.userNote ?? '', field: 'diary' },
+        { text: report.aiAnalysis ?? report.teaserText ?? '', field: 'observation' },
+        { text: report.stats?.actionSummary ?? '', field: 'activity' },
+        { text: report.stats?.moodSummary ?? '', field: 'mood' },
+      ];
+      for (const { text, field } of candidates) {
+        if (!text) continue;
+        const lower = text.toLowerCase();
+        const idx = lower.indexOf(q);
+        if (idx === -1) continue;
+        const start = Math.max(0, idx - 12);
+        const snippet = (start > 0 ? '…' : '') + text.slice(start, start + 55) + (start + 55 < text.length ? '…' : '');
+        found.push({ date, snippet, field });
+        break;
+      }
+    }
+    return found.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+  }, [isTextSearch, searchInput, reports]);
   const activeYear = parsedDateInput.year ?? new Date().getFullYear();
   const activeMonth = parsedDateInput.month;
   const showMonthView = activeMonth != null && parsedDateInput.isValid;
@@ -530,7 +561,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                   <input
                     value={searchInput}
                     onChange={(e) => {
-                      setSearchInput(e.target.value.replace(/[^\d\s\-/.]/g, ''));
+                      setSearchInput(e.target.value);
                       if (searchError) setSearchError('');
                     }}
                     onKeyDown={(e) => {
@@ -540,9 +571,9 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                         void handleSearchSubmit();
                       }
                     }}
-                    placeholder="2026 / 04 / 20"
+                    placeholder=""
                     className="w-full outline-none"
-                    inputMode="numeric"
+                    inputMode="text"
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck={false}
@@ -590,8 +621,8 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                   <Search size={18} strokeWidth={2.2} />
                 </button>
               </div>
-              <div style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(74,93,76,0.55)', letterSpacing: '0.03em' }}>
-                {i18n.language?.split('-')[0] === 'zh' ? '仅输入数字，如 20260420' : i18n.language?.split('-')[0] === 'it' ? 'Solo numeri, es. 20260420' : 'Digits only, e.g. 20260420'}
+              <div style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(74,93,76,0.52)', letterSpacing: '0.03em' }}>
+                {t('diary_shelf_search_hint')}
               </div>
               {searchError ? (
                 <div style={{ marginTop: '6px', fontSize: '11px', color: '#b54b4b', fontWeight: 600 }}>
@@ -601,23 +632,63 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
             </div>
 
             {/* Calendar body */}
-            <div className="calendar-wrapper report-calendar-frost relative">
-              {!showMonthView ? (
+            <div className="calendar-wrapper relative" style={{ paddingTop: 4 }}>
+              {isTextSearch ? (
+                /* Text search results */
+                textSearchResults.length === 0 ? (
+                  searchInput.trim().length > 0 ? (
+                    <div style={{ padding: '20px 0 8px', textAlign: 'center', fontSize: 13, color: 'rgba(74,93,76,0.45)' }}>
+                      {t('diary_shelf_text_no_results')}
+                    </div>
+                  ) : null
+                ) : (
+                  <div>
+                    <div style={{ marginBottom: 8, fontSize: 11, color: 'rgba(74,93,76,0.42)', fontWeight: 500 }}>
+                      {t('diary_shelf_text_results_count', { count: textSearchResults.length })}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 230, overflowY: 'auto', scrollbarWidth: 'none' }}>
+                      {textSearchResults.map((result, idx) => {
+                        const fieldLabel: Record<SearchResult['field'], string> = {
+                          diary: t('diary_shelf_field_diary'),
+                          observation: t('diary_shelf_field_observation'),
+                          activity: t('diary_shelf_field_activity'),
+                          mood: t('diary_shelf_field_mood'),
+                        };
+                        const dateLabel = format(result.date, lang === 'zh' ? 'M月d日' : 'MMM d, yyyy', { locale: calendarLocale });
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => { void openMonthByDate(result.date); }}
+                            style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 16, background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(210,228,218,0.60)', cursor: 'pointer', width: '100%' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#2f4232' }}>{dateLabel}</span>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: '#7a9a7e', background: 'rgba(120,165,135,0.12)', padding: '2px 7px', borderRadius: 999 }}>{fieldLabel[result.field]}</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: '#5a7460', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>{result.snippet}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              ) : !showMonthView ? (
                 /* Year view — month grid */
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <button
                       type="button"
                       onClick={() => setSearchInput(String(activeYear - 1))}
-                      style={{ width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(255,255,255,0.78)', color: '#4a5d4c' }}
+                      style={{ width: 30, height: 30, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,251,249,0.92)', border: '1px solid rgba(205,225,212,0.60)', color: '#4a5d4c', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
                     >
                       <ChevronLeft size={16} strokeWidth={2} />
                     </button>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#4a5d4c' }}>{activeYear}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#4a5d4c' }}>{activeYear}</span>
                     <button
                       type="button"
                       onClick={() => setSearchInput(String(activeYear + 1))}
-                      style={{ width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(255,255,255,0.78)', color: '#4a5d4c' }}
+                      style={{ width: 30, height: 30, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,251,249,0.92)', border: '1px solid rgba(205,225,212,0.60)', color: '#4a5d4c', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
                     >
                       <ChevronRight size={16} strokeWidth={2} />
                     </button>
@@ -626,21 +697,21 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     {Array.from({ length: 12 }).map((_, idx) => {
                       const monthNum = idx + 1;
                       const isPicked = parsedDateInput.month === monthNum;
-                      const label = format(new Date(activeYear, idx, 1), i18n.language?.split('-')[0] === 'zh' ? 'M月' : 'MMM', { locale: calendarLocale });
+                      const label = format(new Date(activeYear, idx, 1), lang === 'zh' ? 'M月' : 'MMM', { locale: calendarLocale });
                       return (
                         <button
                           key={monthNum}
                           type="button"
                           onClick={() => setSearchInput(`${activeYear} ${monthNum}`)}
                           style={{
-                            borderRadius: '14px',
+                            borderRadius: 18,
                             padding: '10px 6px',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            background: isPicked ? DAY_MARK_SELECTED : 'transparent',
-                            border: isPicked ? '0.5px solid transparent' : '1px solid rgba(255,255,255,0.62)',
+                            fontSize: 13,
+                            fontWeight: isPicked ? 600 : 400,
+                            background: isPicked ? DAY_MARK_SELECTED : 'rgba(248,251,249,0.80)',
+                            border: isPicked ? '0.5px solid transparent' : '1px solid rgba(205,225,212,0.50)',
                             color: isPicked ? '#1d4ed8' : '#4a5d4c',
-                            boxShadow: isPicked ? '0 6px 14px rgba(59,130,246,0.14)' : 'none',
+                            boxShadow: isPicked ? '0 3px 8px rgba(59,130,246,0.10)' : '0 1px 3px rgba(0,0,0,0.04)',
                             transition: 'background 0.15s, color 0.15s',
                           }}
                         >
@@ -664,12 +735,12 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                           setSearchInput(`${activeYear} ${prevMonth}`);
                         }
                       }}
-                      style={{ width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(255,255,255,0.78)', color: '#4a5d4c' }}
+                      style={{ width: 30, height: 30, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,251,249,0.92)', border: '1px solid rgba(205,225,212,0.60)', color: '#4a5d4c', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
                     >
                       <ChevronLeft size={15} strokeWidth={2} />
                     </button>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#4a5d4c' }}>
-                      {format(new Date(activeYear, (activeMonth ?? 1) - 1, 1), i18n.language?.split('-')[0] === 'zh' ? 'yyyy年M月' : 'MMMM yyyy', { locale: calendarLocale })}
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#4a5d4c' }}>
+                      {format(new Date(activeYear, (activeMonth ?? 1) - 1, 1), lang === 'zh' ? 'yyyy年M月' : 'MMMM yyyy', { locale: calendarLocale })}
                     </span>
                     <button
                       type="button"
@@ -681,14 +752,14 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                           setSearchInput(`${activeYear} ${nextMonth}`);
                         }
                       }}
-                      style={{ width: '30px', height: '30px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(255,255,255,0.78)', color: '#4a5d4c' }}
+                      style={{ width: 30, height: 30, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,251,249,0.92)', border: '1px solid rgba(205,225,212,0.60)', color: '#4a5d4c', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
                     >
                       <ChevronRight size={15} strokeWidth={2} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-7 gap-1" style={{ marginBottom: '6px' }}>
+                  <div className="grid grid-cols-7 gap-1" style={{ marginBottom: 6 }}>
                     {weekdayLabels.map((label) => (
-                      <div key={label} style={{ textAlign: 'center', fontSize: '13px', fontWeight: 500, color: '#8da0b8', paddingBottom: '4px' }}>
+                      <div key={label} style={{ textAlign: 'center', fontSize: 11, fontWeight: 500, color: '#a0b2a4', paddingBottom: 4 }}>
                         {label}
                       </div>
                     ))}
@@ -700,35 +771,33 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                       const isSelected = parsedDateInput.selectedDate ? isSameDay(date, parsedDateInput.selectedDate) : false;
 
                       let bg = 'transparent';
-                      let textColor = inMonth ? '#2f4232' : 'rgba(100,120,100,0.25)';
+                      let textColor = inMonth ? '#2f4232' : 'rgba(100,120,100,0.22)';
                       let borderStyle = 'none';
                       let shadow = 'none';
+                      let fw: React.CSSProperties['fontWeight'] = 400;
 
-                      if (!inMonth) {
-                        bg = 'transparent';
-                      } else if (isSelected) {
+                      if (isSelected) {
                         bg = DAY_MARK_SELECTED;
                         textColor = '#1d4ed8';
                         borderStyle = '0.5px solid transparent';
-                        shadow = '0 6px 14px rgba(59,130,246,0.14)';
+                        shadow = '0 3px 10px rgba(59,130,246,0.12)';
+                        fw = 600;
                       } else if (count > 5) {
                         bg = DAY_MARK_DEEP;
-                        textColor = '#1f3525';
-                        borderStyle = '1px solid rgba(97,129,109,0.42)';
-                        shadow = '0 4px 12px rgba(95,130,106,0.16), inset 0 1px 0 rgba(255,255,255,0.32)';
+                        textColor = 'rgba(238,248,242,0.95)';
+                        borderStyle = '1px solid rgba(44,88,64,0.30)';
+                        shadow = '0 2px 8px rgba(40,80,58,0.12)';
+                        fw = 500;
                       } else if (count >= 3) {
                         bg = DAY_MARK_MID;
-                        textColor = '#2b4430';
-                        borderStyle = '1px solid rgba(144,175,153,0.42)';
-                        shadow = '0 3px 10px rgba(110,142,119,0.12), inset 0 1px 0 rgba(255,255,255,0.45)';
+                        textColor = '#1c3422';
+                        borderStyle = '1px solid rgba(88,145,112,0.34)';
+                        shadow = '0 1px 5px rgba(80,130,100,0.08)';
+                        fw = 500;
                       } else if (count > 0) {
                         bg = DAY_MARK_LIGHT;
-                        borderStyle = '1px solid rgba(171,199,178,0.45)';
-                        shadow = 'inset 0 1px 0 rgba(255,255,255,0.5)';
-                      } else {
-                        bg = 'transparent';
-                        borderStyle = 'none';
-                        shadow = 'none';
+                        borderStyle = '1px solid rgba(165,208,180,0.45)';
+                        fw = 400;
                       }
 
                       return (
@@ -745,23 +814,13 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                             setSearchInput(`${activeYear} ${activeMonth} ${date.getDate()}`);
                           }}
                           style={{
-                            height: '36px',
-                            width: '100%',
-                            borderRadius: '999px',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            background: bg,
-                            border: borderStyle,
-                            color: textColor,
+                            height: 36, width: '100%', borderRadius: 999,
+                            fontSize: 13, fontWeight: fw,
+                            background: bg, border: borderStyle, color: textColor,
                             boxShadow: shadow,
                             transition: 'background 0.12s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: inMonth ? 'pointer' : 'default',
-                            position: 'relative',
-                            backdropFilter: inMonth ? 'blur(8px)' : undefined,
-                            WebkitBackdropFilter: inMonth ? 'blur(8px)' : undefined,
                           }}
                         >
                           {inMonth && date.getDate()}
@@ -770,22 +829,22 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     })}
                   </div>
                   {parsedDateInput.selectedDate && (
-                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <div style={{ marginTop: 12 }}>
                       <button
                         type="button"
                         onClick={() => void handleSearchSubmit()}
                         disabled={searchPending}
                         style={{
-                          width: '100%', borderRadius: '14px', padding: '11px',
-                          background: '#3d5244', color: '#ffffff',
-                          fontSize: '14px', fontWeight: 700, border: 'none',
-                          boxShadow: '0 4px 14px rgba(61,82,68,0.3)',
+                          width: '100%', borderRadius: 14, padding: '11px',
+                          background: 'rgba(52,96,70,0.84)', color: 'rgba(238,248,242,0.95)',
+                          fontSize: 14, fontWeight: 700, border: 'none',
+                          boxShadow: '0 2px 10px rgba(52,96,70,0.16)',
                           opacity: searchPending ? 0.6 : 1,
                         }}
                       >
                         {(() => {
                           const d = parsedDateInput.selectedDate!;
-                          return t('diary_shelf_open_date', { date: format(d, i18n.language?.split('-')[0] === 'zh' ? 'M月d日' : 'MMM d', { locale: calendarLocale }) });
+                          return t('diary_shelf_open_date', { date: format(d, lang === 'zh' ? 'M月d日' : 'MMM d', { locale: calendarLocale }) });
                         })()}
                       </button>
                     </div>

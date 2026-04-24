@@ -45,6 +45,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 ## Current Notes
 
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
+- `callClassifierAPI()` now forwards Supabase `Authorization` header; backend `/api/classify` enforces Plus membership and can return `403 membership_required` for non-Plus users.
 - Added Magic Pen parse contract for `/api/magic-pen-parse` to support AI-first draft extraction.
 - `callMagicPenParseAPI()` supports `lang` (`zh`/`en`/`it`), and server prompt routing now follows this field.
 - Magic Pen parse `segments[*].kind` now supports four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (plus `unparsed` array for unmatched content).

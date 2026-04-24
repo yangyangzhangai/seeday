@@ -391,7 +391,8 @@ interface DiaryResponse {
  * 步骤1: 调用分类器 API - 将用户原始输入分类为结构化数据
  */
 export async function callClassifierAPI(request: ClassifyRequest): Promise<ClassifyResponse> {
-  return postJson<ClassifyRequest, ClassifyResponse>('/classify', request);
+  const headers = await getAuthHeaders();
+  return postJson<ClassifyRequest, ClassifyResponse>('/classify', request, { headers });
 }
 
 /**

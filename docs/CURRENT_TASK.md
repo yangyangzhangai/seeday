@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-23
+Last Updated: 2026-04-24
 Owner: current working session
 
 ---
@@ -31,6 +31,27 @@ Status: 实施中（高优先）
 - [ ] 删除后 UI 立即移除，前后台切换/网络抖动后不复活
 - [ ] 编辑哪条改哪条，连续 20 次无错位
 - [ ] iOS 拖拽重排稳定可用（长按或拖拽手柄手测通过）
+
+---
+
+## 当前主线 E：会员 AI 分类分层（MEMBERSHIP_AI_CLASSIFICATION）
+
+Status: 实施中（第一阶段已落地）
+规格文档：`docs/MEMBERSHIP_AI_CLASSIFICATION_PRD.md`、`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md`
+
+### 第一阶段已完成（2026-04-24）
+
+- [x] `/api/classify` 接入 Supabase 鉴权 + Plus 强校验，非 Plus 返回 `403 membership_required`
+- [x] `callClassifierAPI` 增加 Authorization 透传，统一走鉴权 classify
+- [x] `useChatStore` 完成 Free/Plus 分流：Free 不触发 classify；Plus 每条记录复用同一 classify promise
+- [x] 星星判定优先级重排：Free=todo/关键词，Plus=AI matched_bottle 优先 + 关键词兜底
+- [x] `useTodoStore.refineTodoCategoryWithAI` 增加 Plus 门控（Free 不再触发）
+
+### 下一步待完成
+
+- [ ] classify 调用链埋点：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`
+- [ ] 单元 + 集成测试补齐（Free=0、Plus=单条1次、403 防绕过、AI 失败降级）
+- [ ] 评估并决定 todo 分类是否升级为“Plus 全量 AI”而非“低置信度触发”
 
 ---
 
@@ -239,6 +260,9 @@ Status: 实施中（Phase 0/1 基础设施已起步，Phase 2 起）
 触达（预期）：`src/features/**`、`src/hooks/**`、`src/services/**` 中直接 localStorage/sessionStorage 使用点
 
 ##### Phase 5（迁移、灰度、验收）
+
+- 2026-04-24：`useAuthStore` 新增 owner-trusted 迁移决策收口（`authLocalMigrationPolicy`），并在 v2 开启时仅允许 `owner=anonymous` 或 `owner=user(current)` 自动执行 legacy `seeday:v1:* -> scoped v2` 迁移
+- 2026-04-24：unknown-owner 安全模式收敛：迁移决策统一返回 `block_unknown_owner`，登录切换链路下停止 `syncLocalAnnotations` 自动上云；新增策略单测覆盖
 
 - [ ] P2-5.1 老用户迁移策略上线（仅 owner 可信时自动迁移）
 - [ ] P2-5.2 unknown-owner 进入安全模式（只读本地，不自动上云）
