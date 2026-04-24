@@ -12,6 +12,10 @@ import { normalizeAiCompanionMode } from '../../lib/aiCompanion';
 import momoBubbleAvatar from '../../assets/ai-companions/momo-bubble.png';
 import { playSound } from '../../services/sound/soundService';
 
+const SAGE_GREEN_DEEP = '#5F7A63';
+const SEND_BUTTON_BG = 'rgba(144.67, 212.06, 122.21, 0.20)';
+const SEND_BUTTON_SHADOW = '0px 2px 2px #C8C8C8';
+
 interface AIAnnotationBubbleProps {
   relatedMessage?: Message; // 关联的消息对象，用于创建珍藏
   onCondense?: (emojiChar?: string) => void; // 凝结按钮点击回调，传递emoji用于动画
@@ -273,15 +277,17 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
       >
         {/* 毛玻璃气泡 */}
         <div
-          className="pointer-events-auto relative rounded-2xl border border-white/50 bg-white/70 p-4 pr-10 shadow-xl backdrop-blur-lg"
+          className="pointer-events-auto relative rounded-2xl border border-white/60 p-4 pr-10 shadow-xl backdrop-blur-xl"
           style={{
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)',
+            background:
+              'linear-gradient(135deg, rgba(250,245,255,0.94) 0%, rgba(237,233,254,0.90) 44%, rgba(216,180,254,0.76) 100%)',
+            boxShadow: '0 14px 36px rgba(126, 34, 206, 0.18), inset 0 1px 0 rgba(255,255,255,0.72)',
           }}
         >
           {/* 关闭按钮 */}
           <button
             onClick={handleDismiss}
-            className="absolute right-2 top-2 h-6 w-6 rounded-full bg-gray-100 text-gray-500 shadow-sm transition-colors hover:bg-gray-200 flex items-center justify-center"
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/55 text-violet-500 shadow-sm transition-colors hover:bg-white/80"
           >
             <X size={14} />
           </button>
@@ -297,7 +303,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
           {/* 批注内容 */}
           <div className="min-w-0 pl-8">
-            <p className="text-sm text-gray-800 leading-relaxed">
+            <p className="text-sm leading-relaxed text-violet-950/85">
               {currentAnnotation.content}
             </p>
           </div>
@@ -343,23 +349,24 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               transition={{ delay: 0.3 }}
               onClick={handleCondense}
               disabled={isGenerating}
-              className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
-                         bg-gradient-to-r from-purple-500 to-blue-500
-                         hover:from-purple-600 hover:to-blue-600
-                         text-white text-sm font-medium rounded-full
-                         shadow-md hover:shadow-lg
-                         transition-all duration-300
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         animate-pulse-slow"
+              className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                background: SEND_BUTTON_BG,
+                boxShadow: SEND_BUTTON_SHADOW,
+                color: SAGE_GREEN_DEEP,
+              }}
             >
               {isGenerating ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-current/25 border-t-current"
+                    aria-hidden="true"
+                  />
                   <span>{t('annotation_condensing')}</span>
                 </>
               ) : (
                 <>
-                  <Sparkles size={16} className="animate-pulse" />
+                  <Sparkles size={16} />
                   <span>{t('annotation_condense')}</span>
                 </>
               )}
@@ -380,9 +387,9 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
           )}
 
           {/* 进度条 */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200/50 rounded-b-2xl overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-2xl bg-white/45">
             <motion.div
-              className="h-full bg-gradient-to-r from-purple-400 to-blue-500"
+              className="h-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-purple-500"
               style={{ width: `${progress}%` }}
               transition={{ duration: 0 }}
             />
@@ -402,7 +409,7 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
 
         {/* 装饰性光晕 */}
         <div
-          className="pointer-events-none absolute -inset-1 -z-10 rounded-2xl bg-gradient-to-r from-purple-400/20 to-blue-500/20 blur-xl"
+          className="pointer-events-none absolute -inset-1 -z-10 rounded-2xl bg-gradient-to-r from-violet-400/35 via-fuchsia-300/25 to-purple-500/30 blur-xl"
           style={{
             animation: 'pulse 3s ease-in-out infinite',
           }}

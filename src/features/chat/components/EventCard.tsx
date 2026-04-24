@@ -207,7 +207,6 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const moodTagColor = getStrongerMoodTagColor(moodColor);
   const moodTagBg = withHexAlpha(moodTagColor, 0.2);
-  const moodTagShadow = withHexAlpha(moodTagColor, 0.22);
   const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
 
   return (
@@ -277,13 +276,14 @@ export const EventCard: React.FC<EventCardProps> = ({
           {hasMoodChip ? (
             <button
               onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-              className="text-xs"
-              style={{ fontWeight: 400, padding: '3px 8px', borderRadius: 9999,
-                background: moodTagBg, color: moodTagColor, border: 'none',
+              className="inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs transition-colors"
+              style={{ fontWeight: 400,
+                background: moodTagBg, color: moodTagColor, border: '0.5px solid rgba(255,255,255,0.72)',
                 cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
                 backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-                letterSpacing: '0.03em', transition: 'all 0.15s',
-                boxShadow: `0 1px 2px ${moodTagShadow}` }}
+                fontFamily: 'Songti SC, SimSun, STSong, serif',
+                letterSpacing: 0, transition: 'all 0.15s',
+                boxShadow: 'none' }}
             >
               {getTranslatedMood(displayLabel)}
             </button>

@@ -24,6 +24,20 @@ function normalizeDurationMinutes(value: number | undefined): number {
   return Math.max(1, Math.min(60, Math.round(value)));
 }
 
+const CONFETTI_PIECES = Array.from({ length: 42 }, (_, index) => {
+  const colors = ['#7dd3fc', '#a78bfa', '#f9a8d4', '#facc15', '#86efac', '#fb7185'];
+  return {
+    id: index,
+    left: `${(index * 23) % 100}%`,
+    delay: `${(index % 14) * 0.075}s`,
+    duration: `${2.4 + (index % 7) * 0.18}s`,
+    color: colors[index % colors.length],
+    size: 6 + (index % 4) * 2,
+    drift: `${((index % 9) - 4) * 12}px`,
+    rotate: `${(index * 37) % 360}deg`,
+  };
+});
+
 export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
   const { t } = useTranslation();
   const { currentSession, activeMessageId, startFocus, startFocusQueue, advanceQueue, clearQueue, queueIndex, queue, setActiveMessageId, endFocus } = useFocusStore();
@@ -223,7 +237,9 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[rgba(10,18,36,0.92)] backdrop-blur-[20px]">
       <button
         onClick={() => { if (isRunning || isResting) setShowConfirmEnd(true); else handleClose(); }}
-        className="absolute right-6 top-6 text-white/60 transition hover:text-white"
+        className="absolute right-6 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/65 transition hover:bg-white/15 hover:text-white"
+        style={{ top: 'var(--app-top-action-y)' }}
+        aria-label={t('close')}
       >
         <X size={24} strokeWidth={1.5} />
       </button>
@@ -258,12 +274,29 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
       )}
 
       {summary ? (
-        <div className="flex flex-col items-center">
-          <div className="text-6xl mb-6">🎉</div>
-          <p className="text-white text-xl font-medium mb-8">{t('growth_focus_summary', { duration: '' }).replace('：', '')}</p>
+        <div className="relative flex flex-col items-center">
+          <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+            {CONFETTI_PIECES.map((piece) => (
+              <span
+                key={piece.id}
+                className="absolute top-[-24px] rounded-[2px] opacity-0"
+                style={{
+                  left: piece.left,
+                  width: piece.size,
+                  height: piece.size * 1.5,
+                  background: piece.color,
+                  animation: `focus-confetti-fall ${piece.duration} ease-out ${piece.delay} forwards`,
+                  ['--focus-confetti-drift' as string]: piece.drift,
+                  ['--focus-confetti-rotate' as string]: piece.rotate,
+                }}
+              />
+            ))}
+          </div>
+          <div className="relative z-10 mb-6 text-6xl animate-[focus-celebrate-pop_720ms_cubic-bezier(0.2,0.9,0.2,1.2)_both]">🎉</div>
+          <p className="relative z-10 mb-8 text-xl font-medium text-white">{summary}</p>
           <button
             onClick={handleClose}
-            className="rounded-full bg-white px-8 py-3 text-lg font-medium text-slate-900"
+            className="relative z-10 rounded-full bg-white px-8 py-3 text-lg font-medium text-slate-900"
           >
             {t('close')}
           </button>
@@ -425,6 +458,39 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
           </div>
         </div>
       )}
+      <style>{`
+        @keyframes focus-confetti-fall {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, -24px, 0) rotate(0deg) scale(0.8);
+          }
+          10% {
+            opacity: 1;
+          }
+          82% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(var(--focus-confetti-drift), 105vh, 0) rotate(calc(var(--focus-confetti-rotate) + 720deg)) scale(1);
+          }
+        }
+
+        @keyframes focus-celebrate-pop {
+          0% {
+            opacity: 0;
+            transform: translateY(12px) scale(0.55) rotate(-8deg);
+          }
+          55% {
+            opacity: 1;
+            transform: translateY(-4px) scale(1.14) rotate(5deg);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotate(0deg);
+          }
+        }
+      `}</style>
     </div>
   );
 };

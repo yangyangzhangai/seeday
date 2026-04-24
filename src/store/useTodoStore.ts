@@ -476,6 +476,8 @@ export const useTodoStore = create<TodoState>()(
           const instanceIds = get()
             .todos.filter((t) => t.templateId === id && !t.completed)
             .map((t) => t.id);
+          const idsToDelete = [id, ...instanceIds];
+          markPendingDeletion(idsToDelete);
           [id, ...instanceIds].forEach((todoId) => {
             const reward = get().consumeBottleStarRewardByTodo(todoId);
             if (reward) {
@@ -509,6 +511,7 @@ export const useTodoStore = create<TodoState>()(
           if (reward) {
             useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
           }
+          markPendingDeletion([id]);
           set((s) => ({
             todos: s.todos.filter((t) => t.id !== id),
             suppressedTemplateDateMap: todo.templateId
@@ -517,8 +520,11 @@ export const useTodoStore = create<TodoState>()(
             todoCompletionMessageMap: Object.fromEntries(
               Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id)
             ),
-            todoCompletionRewardStarsMap: Object.fromEntries(
-              Object.entries(s.todoCompletionRewardStarsMap).filter(([todoId]) => todoId !== id)
+            todoBottleStarRewardMap: Object.fromEntries(
+              Object.entries(s.todoBottleStarRewardMap).filter(([todoId]) => todoId !== id)
+            ),
+            messageBottleStarRewardMap: Object.fromEntries(
+              Object.entries(s.messageBottleStarRewardMap).filter(([, reward]) => reward.todoId !== id)
             ),
           }));
           void bgSyncDelete(id).then((ok) => {

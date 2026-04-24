@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, MoreHorizontal, X } from 'lucide-react';
+import { ChevronDown, LogIn, MoreHorizontal, X } from 'lucide-react';
 import { toLocalDateStr } from '../../../lib/dateUtils';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { blobToDataUrl } from '../../../lib/imageUtils';
@@ -49,11 +49,10 @@ const DATE_PREPEND_STEP_DAYS = 21;
 const DATE_ITEM_WIDTH = 60;
 const DATE_ITEM_GAP = 8;
 const DATE_PREPEND_TRIGGER_PX = 100;
-const BLUE_SELECTED_BG =
-  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
-const BLUE_SELECTED_BORDER = '0.5px solid transparent';
-const BLUE_SELECTED_SHADOW = '0 6px 14px rgba(59,130,246,0.14)';
 const BLUE_SELECTED_TEXT = '#1D4ED8';
+const BLUE_SELECTED_BG = '#BFDBFE';
+const BLUE_SELECTED_BORDER = '1px solid rgba(147, 197, 253, 0.72)';
+const BLUE_SELECTED_SHADOW = 'none';
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
@@ -107,6 +106,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
   useEffect(() => {
     if (!showMonthPicker) return;
+    setViewMonth(selectedDate.getMonth());
+    setViewYear(selectedDate.getFullYear());
     const handle = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         setShowMonthPicker(false);
@@ -114,7 +115,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
-  }, [showMonthPicker]);
+  }, [selectedDate, showMonthPicker]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
@@ -132,6 +133,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
     setViewYear(dateObj.getFullYear());
     setShowMonthPicker(false);
   }, [onDateChange, todayStr]); // eslint-disable-line
+
+  const handleMonthClick = useCallback((monthIndex: number) => {
+    const nextDate = new Date(viewYear, monthIndex, selectedDate.getDate());
+    if (nextDate.getMonth() !== monthIndex) {
+      nextDate.setDate(0);
+    }
+    if (isFuture(nextDate)) {
+      onDateChange(today);
+    } else {
+      onDateChange(nextDate);
+    }
+    setViewMonth(monthIndex);
+    setShowMonthPicker(false);
+  }, [onDateChange, selectedDate, today, todayStr, viewYear]); // eslint-disable-line
 
   const prependPastDates = useCallback(() => {
     const strip = stripRef.current;
@@ -175,25 +190,40 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
               triggerLightHaptic();
               setShowMonthPicker(p => !p);
             }}
-            className="w-11 h-11 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-2xl border border-[#8fae9130] shadow-[0_8px_20px_rgba(143,174,145,0.12)] cursor-pointer transition-all hover:scale-105 active:scale-95 group"
+            className="flex items-center gap-2 rounded-2xl border border-transparent p-0 text-left cursor-pointer transition-all active:scale-[0.98] group"
             aria-label={t('diary_shelf_open_calendar')}
             title={t('diary_shelf_open_calendar')}
           >
-            <span
-              className="material-symbols-outlined text-[#5F7A63] group-hover:text-[#5F7A63] transition-colors"
-              style={{ fontSize: 24 }}
-            >
-              calendar_month
+            <span style={{
+              color: '#1e293b',
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.5,
+            }}>
+              {MONTHS[selectedDate.getMonth()]}
             </span>
+            <span style={{
+              color: '#1e293b',
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.5,
+            }}>
+              {selectedDate.getFullYear()}
+            </span>
+            <ChevronDown size={22} strokeWidth={3} color="#94a3b8" style={{ marginLeft: 4 }} />
           </button>
 
           {/* Month picker dropdown */}
           {showMonthPicker && (
             <div style={{
               position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
-              background: '#ffffff', borderRadius: '1rem',
-              border: '1px solid rgba(0,0,0,0.08)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.08)',
+              background: 'rgba(255,255,255,0.72)', borderRadius: '1rem',
+              border: '1px solid rgba(255,255,255,0.82)',
+              boxShadow: '0 16px 38px rgba(40,56,44,0.14), inset 0 1px 0 rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(18px) saturate(130%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(130%)',
               padding: '8px 6px', width: 164,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -214,11 +244,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 {MONTHS.map((m, idx) => {
                   const isCur = idx === viewMonth;
                   return (
-                    <button key={m} onClick={() => { triggerLightHaptic(); setViewMonth(idx); setShowMonthPicker(false); }}
+                    <button key={m} onClick={() => { triggerLightHaptic(); handleMonthClick(idx); }}
                       className="text-xs"
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
-                        border: isCur ? BLUE_SELECTED_BORDER : '1px solid rgba(0,0,0,0.05)',
-                        background: isCur ? BLUE_SELECTED_BG : '#F8FAFC',
+                        border: isCur ? BLUE_SELECTED_BORDER : '1px solid transparent',
+                        background: isCur ? BLUE_SELECTED_BG : 'rgba(248,250,252,0.56)',
                         boxShadow: isCur ? BLUE_SELECTED_SHADOW : 'none',
                         color: isCur ? BLUE_SELECTED_TEXT : '#475569',
                         fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>

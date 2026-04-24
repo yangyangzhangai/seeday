@@ -188,6 +188,14 @@ export const GrowthTodoCard = ({
     onEditingChange?.(null);
   };
 
+  const confirmExpandedEdits = async () => {
+    triggerLightHaptic();
+    if (isEditingTitle) {
+      await commitTitle();
+    }
+    setExpanded(false);
+  };
+
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
   const getPrioritySelectedStyle = (priority: GrowthPriority) => {
     if (priority === 'high') {
@@ -492,6 +500,32 @@ export const GrowthTodoCard = ({
             onFocusSub={onFocus}
             onSequentialFocus={onSequentialFocus ?? (() => {})}
           />
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              data-no-drag="true"
+              aria-label={t('confirm')}
+              title={t('confirm')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void confirmExpandedEdits();
+              }}
+              className="flex items-center justify-center transition-opacity active:scale-[0.98]"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                background: 'rgba(144.67, 212.06, 122.21, 0.20)',
+                boxShadow: '0px 2px 2px #C8C8C8',
+                color: '#5F7A63',
+                border: 'none',
+              }}
+            >
+              <Check size={18} strokeWidth={2.2} />
+            </button>
+          </div>
         </div>
       )}
     </div>

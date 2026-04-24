@@ -160,7 +160,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const handleDelete = (id: string) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
-    if (todo.templateId && !todo.completed) {
+    if (todo.templateId || todo.recurrenceId || todo.recurrence === 'daily' || todo.recurrence === 'weekly') {
       setPendingDelete(todo);
     } else {
       deleteTodo(id);
@@ -472,7 +472,12 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
             <button
               className="w-full py-3 rounded-xl bg-red-50/80 text-red-600 font-medium text-sm border border-red-100"
               onClick={() => {
-                if (pendingDelete.templateId) deleteTodo(pendingDelete.templateId);
+                const templateId = pendingDelete.templateId ?? pendingDelete.recurrenceId;
+                if (templateId) {
+                  deleteTodo(templateId);
+                } else {
+                  deleteTodo(pendingDelete.id);
+                }
                 setPendingDelete(null);
               }}
             >

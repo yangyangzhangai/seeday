@@ -470,7 +470,7 @@ export const ChatPage = () => {
 
         {/* Header — frosted glass */}
         <header
-          className="app-mobile-page-header sticky top-0 z-20 px-4 pb-2 pt-11"
+          className="app-mobile-page-header sticky top-0 z-20 px-4 pb-3 pt-11"
           style={{
             background: 'rgba(252,250,247,0.38)',
             backdropFilter: 'blur(14px) saturate(150%)',

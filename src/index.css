@@ -64,6 +64,8 @@ img {
   --app-page-gutter-x-right: max(12px, calc(env(safe-area-inset-right, 0px) + 10px));
   --app-page-gutter-top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
   --app-page-gutter-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  --app-page-header-top: max(52px, calc(env(safe-area-inset-top, 0px) + 24px));
+  --app-top-action-y: max(44px, calc(env(safe-area-inset-top, 0px) + 24px));
   --app-modal-gutter-x: max(14px, calc(env(safe-area-inset-left, 0px) + 10px));
   --app-modal-gutter-x-right: max(14px, calc(env(safe-area-inset-right, 0px) + 10px));
   --app-modal-gutter-top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
@@ -142,7 +144,7 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
 }
 
 .app-mobile-page-header {
-  padding-top: 2.75rem;
+  padding-top: var(--app-page-header-top);
 }
 
 .app-modal-overlay {
@@ -186,7 +188,7 @@ html.keyboard-open .chat-input-bottom-nav {
   }
 
   .app-mobile-page-header {
-    padding-top: max(40px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+    padding-top: var(--app-page-header-top) !important;
     padding-left: 16px !important;
     padding-right: 16px !important;
   }

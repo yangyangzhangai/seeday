@@ -792,7 +792,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
               ? format(activeHeaderDate, isZhHeader ? 'yyyy年 M月d日' : 'PPP', { locale: headerLocale })
               : format(currentMonth, isZhHeader ? 'yyyy年 M月' : 'MMMM yyyy', { locale: headerLocale })}
           </div>
-          <div className="text-[10px] font-medium" style={{ color: '#4a5d4c', marginTop: 2 }}>
+          <div className="font-medium" style={{ color: '#4a5d4c', marginTop: 2, fontSize: 13 }}>
             {activeHeaderDate ? format(activeHeaderDate, 'EEEE', { locale: headerLocale }) : t('diary_days_count', { count: daysInMonth })}
           </div>
         </div>
