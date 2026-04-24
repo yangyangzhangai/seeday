@@ -37,7 +37,61 @@ const configuredApiBase = String(import.meta.env.VITE_API_BASE ?? '')
 const API_BASE = configuredApiBase || '/api';
 
 interface ApiErrorShape {
+  code?: string;
   error?: string;
+  message?: string;
+  details?: unknown;
+}
+
+export type ApiErrorCode =
+  | 'membership_required'
+  | 'unauthorized'
+  | 'network_error'
+  | 'server_error'
+  | 'unknown';
+
+interface ApiClientErrorOptions {
+  code: ApiErrorCode;
+  status?: number;
+  details?: unknown;
+  path?: string;
+  requestId?: string;
+  traceId?: string;
+}
+
+export class ApiClientError extends Error {
+  readonly code: ApiErrorCode;
+
+  readonly status?: number;
+
+  readonly details?: unknown;
+
+  readonly path?: string;
+
+  readonly requestId?: string;
+
+  readonly traceId?: string;
+
+  constructor(message: string, options: ApiClientErrorOptions) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.code = options.code;
+    this.status = options.status;
+    this.details = options.details;
+    this.path = options.path;
+    this.requestId = options.requestId;
+    this.traceId = options.traceId;
+  }
+}
+
+export function isApiClientError(error: unknown): error is ApiClientError {
+  return error instanceof ApiClientError;
+}
+
+export function isMembershipRequiredError(error: unknown): boolean {
+  return isApiClientError(error)
+    ? error.code === 'membership_required'
+    : (error instanceof Error && error.message.trim().toLowerCase() === 'membership_required');
 }
 
 type ApiLang = 'zh' | 'en' | 'it';
@@ -68,6 +122,52 @@ function logApiDebug(step: string, payload: Record<string, unknown>): void {
   console.log(`[api-client] ${step}`, payload);
 }
 
+function inferApiErrorCode(status: number | undefined, rawCode: unknown, rawMessage: string): ApiErrorCode {
+  const normalizedCode = typeof rawCode === 'string' ? rawCode.trim().toLowerCase() : '';
+  const normalizedMessage = rawMessage.trim().toLowerCase();
+
+  if (normalizedCode === 'membership_required' || normalizedMessage === 'membership_required') {
+    return 'membership_required';
+  }
+  if (status === 401 || normalizedCode === 'unauthorized' || normalizedMessage === 'unauthorized') {
+    return 'unauthorized';
+  }
+  if (status !== undefined && status >= 500) {
+    return 'server_error';
+  }
+  return 'unknown';
+}
+
+function buildApiClientError(params: {
+  path: string;
+  requestId: string;
+  message: string;
+  status?: number;
+  details?: unknown;
+  code?: unknown;
+  traceId?: string;
+}): ApiClientError {
+  return new ApiClientError(params.message, {
+    code: inferApiErrorCode(params.status, params.code, params.message),
+    status: params.status,
+    details: params.details,
+    path: params.path,
+    requestId: params.requestId,
+    traceId: params.traceId,
+  });
+}
+
+function createUnauthorizedApiError(path: string): ApiClientError {
+  const requestId = createApiRequestId(path);
+  return buildApiClientError({
+    path,
+    requestId,
+    message: 'Unauthorized',
+    status: 401,
+    code: 'unauthorized',
+  });
+}
+
 async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit): Promise<TRes> {
   const requestId = createApiRequestId(path);
   const startedAt = Date.now();
@@ -76,15 +176,25 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
     path,
   });
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...(init ?? {}),
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...(init ?? {}),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new ApiClientError('Network error', {
+      code: 'network_error',
+      path,
+      requestId,
+      details: error,
+    });
+  }
 
   const elapsedMs = Date.now() - startedAt;
   const responseText = await response.text();
@@ -101,16 +211,25 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
 
   if (!response.ok) {
     const error = (parsedBody || { error: 'Unknown error' }) as ApiErrorShape;
+    const message = error.error || error.message || `HTTP ${response.status}`;
     logApiDebug('request.error', {
       requestId,
       path,
       status: response.status,
       elapsedMs,
       traceId,
-      error: error.error || `HTTP ${response.status}`,
+      error: message,
       responsePreview: previewApiText(responseText),
     });
-    throw new Error(error.error || `HTTP ${response.status}`);
+    throw buildApiClientError({
+      path,
+      requestId,
+      status: response.status,
+      details: error.details,
+      code: error.code,
+      message,
+      traceId,
+    });
   }
 
   logApiDebug('request.success', {
@@ -123,7 +242,13 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
   });
 
   if (parsedBody === undefined) {
-    throw new Error(`Invalid JSON response from ${path}`);
+    throw buildApiClientError({
+      path,
+      requestId,
+      status: response.status,
+      message: `Invalid JSON response from ${path}`,
+      traceId,
+    });
   }
 
   return parsedBody as TRes;
@@ -137,10 +262,20 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
     path,
   });
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: 'GET',
-    ...(init ?? {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: 'GET',
+      ...(init ?? {}),
+    });
+  } catch (error) {
+    throw new ApiClientError('Network error', {
+      code: 'network_error',
+      path,
+      requestId,
+      details: error,
+    });
+  }
 
   const elapsedMs = Date.now() - startedAt;
   const responseText = await response.text();
@@ -156,19 +291,32 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
 
   if (!response.ok) {
     const error = (parsedBody || { error: 'Unknown error' }) as ApiErrorShape;
+    const message = error.error || error.message || `HTTP ${response.status}`;
     logApiDebug('request.error', {
       requestId,
       path,
       status: response.status,
       elapsedMs,
-      error: error.error || `HTTP ${response.status}`,
+      error: message,
       responsePreview: previewApiText(responseText),
     });
-    throw new Error(error.error || `HTTP ${response.status}`);
+    throw buildApiClientError({
+      path,
+      requestId,
+      status: response.status,
+      details: error.details,
+      code: error.code,
+      message,
+    });
   }
 
   if (parsedBody === undefined) {
-    throw new Error(`Invalid JSON response from ${path}`);
+    throw buildApiClientError({
+      path,
+      requestId,
+      status: response.status,
+      message: `Invalid JSON response from ${path}`,
+    });
   }
 
   return parsedBody as TRes;
@@ -209,7 +357,7 @@ interface StripeCheckoutResponse {
 export async function callSubscriptionAPI(request: SubscriptionRequest): Promise<SubscriptionResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
-    throw new Error('Unauthorized');
+    throw createUnauthorizedApiError('/subscription');
   }
   return postJson<SubscriptionRequest, SubscriptionResponse>('/subscription', request, { headers });
 }
@@ -217,7 +365,7 @@ export async function callSubscriptionAPI(request: SubscriptionRequest): Promise
 export async function callStripeCheckoutAPI(planType: SubscriptionPlanType): Promise<StripeCheckoutResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
-    throw new Error('Unauthorized');
+    throw createUnauthorizedApiError('/subscription');
   }
   return postJson<
   {
@@ -238,7 +386,7 @@ export async function callStripeCheckoutAPI(planType: SubscriptionPlanType): Pro
 export async function callStripeFinalizeAPI(sessionId: string): Promise<SubscriptionResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
-    throw new Error('Unauthorized');
+    throw createUnauthorizedApiError('/subscription');
   }
   return postJson<
   {
@@ -347,27 +495,34 @@ interface ClassifyMatchedBottle {
   stars: number;
 }
 
+type ClassifyKind = 'activity' | 'mood';
+
+type ClassifyActivityType =
+  | 'study'
+  | 'work'
+  | 'social'
+  | 'life'
+  | 'entertainment'
+  | 'health';
+
+type ClassifyMoodType =
+  | 'happy'
+  | 'calm'
+  | 'focused'
+  | 'satisfied'
+  | 'tired'
+  | 'anxious'
+  | 'bored'
+  | 'down';
+
 interface ClassifyResponse {
   success: boolean;
   data: {
-    total_duration_min: number;
-    items: Array<{
-      name: string;
-      duration_min: number;
-      time_slot: 'morning' | 'afternoon' | 'evening' | null;
-      category: string;
-      flag: 'ambiguous' | null;
-      matched_bottle?: ClassifyMatchedBottle | null;
-    }>;
-    todos: {
-      completed: number;
-      total: number;
-    };
-    energy_log: Array<{
-      time_slot: 'morning' | 'afternoon' | 'evening';
-      energy_level: 'high' | 'medium' | 'low' | null;
-      mood: string | null;
-    }>;
+    kind: ClassifyKind;
+    activity_type: ClassifyActivityType;
+    mood_type: ClassifyMoodType | null;
+    matched_bottle?: ClassifyMatchedBottle | null;
+    confidence: number;
   };
 }
 
@@ -493,7 +648,7 @@ export async function callLiveInputTelemetryDashboardAPI(
 ): Promise<LiveInputTelemetryDashboardResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
-    throw new Error('Unauthorized');
+    throw createUnauthorizedApiError('/live-input-telemetry');
   }
 
   const params = new URLSearchParams({ days: String(days) });
@@ -544,21 +699,21 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
 
 export async function callUserAnalyticsDashboardAPI(days = 30): Promise<UserAnalyticsDashboardResponse> {
   const headers = await getAuthHeaders();
-  if (!headers.Authorization) throw new Error('Unauthorized');
+  if (!headers.Authorization) throw createUnauthorizedApiError('/live-input-telemetry');
   const params = new URLSearchParams({ module: 'user_analytics', days: String(days) });
   return getJson<UserAnalyticsDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAnalyticsLookupResponse> {
   const headers = await getAuthHeaders();
-  if (!headers.Authorization) throw new Error('Unauthorized');
+  if (!headers.Authorization) throw createUnauthorizedApiError('/live-input-telemetry');
   const params = new URLSearchParams({ module: 'user_analytics', type: 'user_lookup', query });
   return getJson<UserAnalyticsLookupResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
 export async function callProfileSettingsTelemetryDashboardAPI(days = 14): Promise<ProfileSettingsTelemetryDashboardResponse> {
   const headers = await getAuthHeaders();
-  if (!headers.Authorization) throw new Error('Unauthorized');
+  if (!headers.Authorization) throw createUnauthorizedApiError('/live-input-telemetry');
   const params = new URLSearchParams({ module: 'profile_settings', days: String(days) });
   return getJson<ProfileSettingsTelemetryDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
@@ -567,7 +722,7 @@ export async function callProfileSettingsTelemetryDashboardAPI(days = 14): Promi
 
 export async function callDeleteAccountAPI(): Promise<void> {
   const headers = await getAuthHeaders();
-  if (!headers.Authorization) throw new Error('Unauthorized');
+  if (!headers.Authorization) throw createUnauthorizedApiError('/delete-account');
   await postJson<Record<string, never>, { ok: boolean }>('/delete-account', {}, { headers });
 }
 
@@ -602,7 +757,11 @@ export interface TodoDecomposeResult {
  * 调用 Todo 拆解 API - AI 将待办拆成 3-6 个子步骤
  */
 export async function callTodoDecomposeAPI(title: string, lang: 'zh' | 'en' | 'it' = 'zh'): Promise<TodoDecomposeResult> {
-  const data = await postJson<TodoDecomposeRequest, TodoDecomposeResponse>('/todo-decompose', { title, lang });
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw createUnauthorizedApiError('/todo-decompose');
+  }
+  const data = await postJson<TodoDecomposeRequest, TodoDecomposeResponse>('/todo-decompose', { title, lang }, { headers });
   return {
     steps: data.steps ?? [],
     parseStatus: data.parseStatus === 'parse_failed' ? 'parse_failed' : 'ok',

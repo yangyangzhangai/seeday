@@ -1,9 +1,8 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
 import i18n from '../i18n';
-import { callClassifierAPI } from '../api/client';
-import { buildClassifierRawInput } from '../lib/classifierRawInput';
-import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
+import { callClassifierAPI, isMembershipRequiredError } from '../api/client';
 import { classifyRecordActivityType, type ActivityRecordType } from '../lib/activityType';
+import { matchBottleIdByKeywords } from '../lib/bottleMatcher';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { supabase } from '../api/supabase';
 import { resolveAutoActivityDurationMinutes } from './chatDayBoundary';
@@ -35,22 +34,11 @@ export function resolveLangForText(content: string): SupportedLang {
 }
 
 export function keywordMatchBottleId(text: string, bottles: { id: string; name: string }[]): string | null {
-  const lower = text.toLowerCase();
-  for (const bottle of bottles) {
-    const words = bottle.name.toLowerCase().split(/\s+/);
-    if (words.some((word) => word.length >= 2 && lower.includes(word))) {
-      return bottle.id;
-    }
-  }
-  return null;
+  return matchBottleIdByKeywords(text, bottles);
 }
 
 function resolveMatchedBottleId(aiResult: Awaited<ReturnType<typeof callClassifierAPI>>): string | null {
-  if (!aiResult.success || !Array.isArray(aiResult.data?.items)) return null;
-  for (const item of aiResult.data.items) {
-    if (item.matched_bottle?.id) return item.matched_bottle.id;
-  }
-  return null;
+  return aiResult.success ? aiResult.data?.matched_bottle?.id ?? null : null;
 }
 
 export function ensureMessageClassification(params: {
@@ -77,21 +65,27 @@ export function ensureMessageClassification(params: {
 
     try {
       const aiResult = await callClassifierAPI({
-        rawInput: buildClassifierRawInput(params.content, params.lang),
+        rawInput: params.content,
         lang: params.lang,
         habits: params.habits,
         goals: params.goals,
       });
-      const aiCategory = aiResult.data?.items?.[0]?.category;
+      const aiActivityType = aiResult.data?.activity_type;
       return {
-        activityType: aiCategory
-          ? mapDiaryClassifierCategoryToActivityType(aiCategory, params.content, params.lang)
-          : fallbackType,
+        activityType: aiActivityType ?? fallbackType,
         matchedBottleId: resolveMatchedBottleId(aiResult),
         classificationPath: 'ai',
         aiCalled: true,
       };
-    } catch {
+    } catch (error) {
+      if (isMembershipRequiredError(error)) {
+        return {
+          activityType: fallbackType,
+          matchedBottleId: null,
+          classificationPath: 'local_rule',
+          aiCalled: false,
+        };
+      }
       return {
         activityType: fallbackType,
         matchedBottleId: null,

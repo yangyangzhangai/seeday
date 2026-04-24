@@ -67,8 +67,8 @@
 - `useAuthStore.initialize()` 现按各 domain store 的 `lastFetchedAt` 做 60 秒新鲜度门控；本地缓存足够新时跳过重复拉云，仅保留本地恢复、pending push 与 realtime 增量更新。
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
-- 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`），Plus 路径按 messageId 复用单次 classify 结果（活动分类 + matched_bottle），并在结束活动时按“AI 优先、关键词兜底”判定星星来源。
-- `useTodoStore.refineTodoCategoryWithAI()` 已增加 Plus 门控，Free 用户不再触发该 AI 精修调用。
+- 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`），Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），并在结束活动时按“AI 优先、关键词兜底”判定星星来源。
+- `useTodoStore.refineTodoCategoryWithAI()` 已接入 Plus 路径统一 classify 结果消费（读取 `data.activity_type`），Free 用户不触发该 AI 分类调用。
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。

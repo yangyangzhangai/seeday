@@ -46,6 +46,8 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
 - `callClassifierAPI()` now forwards Supabase `Authorization` header; backend `/api/classify` enforces Plus membership and can return `403 membership_required` for non-Plus users.
+- `callClassifierAPI()` unified response is now single-input schema: `data.kind` (`activity|mood`, mandatory binary), `data.activity_type` (six activity classes), `data.mood_type` (8-key mood enum or null), `data.matched_bottle` (optional), and `data.confidence` (0~1).
+- API client now normalizes server errors into `ApiClientError` (`code/status/details/path/requestId`) and exports `isMembershipRequiredError()` for stable branch handling without brittle string matching.
 - Added Magic Pen parse contract for `/api/magic-pen-parse` to support AI-first draft extraction.
 - `callMagicPenParseAPI()` supports `lang` (`zh`/`en`/`it`), and server prompt routing now follows this field.
 - Magic Pen parse `segments[*].kind` now supports four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (plus `unparsed` array for unmatched content).
@@ -66,6 +68,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - Annotation model/provider 路由：`zh` 使用 `deepseek-chat`（`DEEPSEEK_API_KEY` + 可选 `ANNOTATION_DEEPSEEK_BASE_URL`，走 `chat.completions`），`en/it` 使用 `gpt-4.1-mini`（`OPENAI_API_KEY` + 可选 `OPENAI_BASE_URL`）。
 - Annotation 事件层新增待办完成透传：完成待办时会发送 `activity_completed`，并在 `eventData` 附带 `todoCompletionContext`（important/recurrence/createdAt/threeMonth）与按条件附加的紧凑 `summary`，普通输入继续走 `activity_recorded`。
 - `callTodoDecomposeAPI()` routes to `/api/todo-decompose`（由 `vercel.json` rewrite 到 `/api/classify` 的 `todo_decompose` 分支）；zh defaults to DashScope `qwen-plus` (`QWEN_API_KEY`, override via `TODO_DECOMPOSE_MODEL_ZH`), en/it default to Gemini `gemini-2.5-flash` (`GEMINI_API_KEY`, override via `TODO_DECOMPOSE_MODEL`, auto-fallback via `TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`).
+- `callTodoDecomposeAPI()` now forwards Supabase `Authorization` header as a member-only path guard, aligned with `/api/classify` auth + Plus enforcement.
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.
 

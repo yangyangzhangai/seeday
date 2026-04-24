@@ -6,12 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
 import { callClassifierAPI } from '../api/client';
 import {
-  classifyRecordActivityType,
   normalizeTodoCategory,
 } from '../lib/activityType';
 import type { ActivityRecordType } from '../lib/activityType';
-import { buildClassifierRawInput } from '../lib/classifierRawInput';
-import { mapDiaryClassifierCategoryToActivityType } from '../lib/categoryAdapters';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
@@ -117,12 +114,11 @@ async function refineTodoCategoryWithAI(id: string, title: string): Promise<void
   try {
     const lang = resolveLangForText(title);
     const result = await callClassifierAPI({
-      rawInput: buildClassifierRawInput(title, lang),
+      rawInput: title,
       lang,
     });
-    const firstItem = result.data?.items?.[0];
-    if (!firstItem?.category) return;
-    const nextCategory = mapDiaryClassifierCategoryToActivityType(firstItem.category, title, lang);
+    const nextCategory = result.data?.activity_type;
+    if (!nextCategory) return;
     useTodoStore.setState((state) => ({
       todos: state.todos.map((todo) => (todo.id === id ? { ...todo, category: nextCategory } : todo)),
     }));
@@ -327,9 +323,8 @@ export const useTodoStore = create<TodoState>()(
         const recurrence = input.recurrence ?? 'once';
         const isRecurring = !isNonRecurring(recurrence);
         const lang = resolveLangForText(input.title);
-        const ruleClassified = classifyRecordActivityType(input.title, lang);
         const normalizedCategory = normalizeTodoCategory(input.category, input.title, lang);
-        const shouldRefineByAI = ruleClassified.confidence === 'low';
+        const shouldRefineByAI = useAuthStore.getState().isPlus;
 
         if (isRecurring) {
           const templateId = uuidv4();

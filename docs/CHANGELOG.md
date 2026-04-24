@@ -16,12 +16,30 @@ All notable effective changes are documented here.
   - 星星判定改为 Plus 优先消费 AI `matched_bottle`，未命中再关键词兜底
   - AI 失败自动回退本地分类，不阻断记录链路
 - `src/store/useTodoStore.ts` 的 `refineTodoCategoryWithAI()` 增加 Plus 门控，Free 不再触发该 AI 精修
+- `src/api/client.ts` 的 `callTodoDecomposeAPI()` 补齐 Supabase `Authorization` 透传，和 `/api/classify` 的 Plus 鉴权策略保持一致，避免会员请求因缺少 token 被误判为 401
+- `src/api/client.ts` 新增标准化 `ApiClientError`（`code/status/details/path/requestId`）与 `isMembershipRequiredError()`，统一承接 `membership_required` / `unauthorized` / `network_error` 等错误分支
+- `src/store/chatClassificationHelpers.ts` 对 `membership_required` 显式回退 `local_rule` 路径（`aiCalled=false`），避免会员状态漂移时重复走 AI 失败降级
+- `src/features/growth/SubTodoList.tsx` 在 todo 拆解失败分支使用 `isMembershipRequiredError()` 稳定识别会员权限错误并跳转升级页
 - 文档同步：`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md` 增加可持续打勾执行看板；`docs/CURRENT_TASK.md` 新增主线 E；`api/README.md`、`src/api/README.md`、`src/store/README.md` 同步策略口径
 
 Validation:
 
 - `npx tsc --noEmit` ✅
 - `npx vitest run "src/store/useChatStore.integration.test.ts"` ✅
+
+### Build: Membership AI classification prompt/schema realignment
+
+- `api/classify.ts` 将旧“时间流水解析”prompt替换为单条输入 unified classify prompt（kind/activity_type/mood_type/matched_bottle/confidence），并明确 `kind` 必须在 `activity|mood` 二选一
+- `api/classify.ts` 新增 classify 结果归一化：强制校正非法 kind/activity_type，限制 mood 枚举，confidence 归一到 0~1，并校验 `matched_bottle` 只能命中现有 habits/goals
+- `api/classify.ts` 保留关键词兜底匹配作为 `matched_bottle` fallback，避免 AI 未命中时星星链路降级
+- `src/api/client.ts` 更新 `callClassifierAPI` 返回结构类型到 unified classify schema（移除旧 `items/todos/energy_log`）
+- `src/store/chatClassificationHelpers.ts` 与 `src/store/useTodoStore.ts` 改为直接消费 `data.activity_type` 与 `data.matched_bottle`，并移除旧 category 映射依赖
+- `src/store/useTodoStore.ts` 新建 todo 分类改为 Plus 全量 AI 路径（由 `isPlus` 决定是否触发 classify），不再仅限低置信度场景
+
+Validation:
+
+- `npm run -s tsc -- --noEmit` ✅
+- `npx vitest run src/store/useChatStore.integration.test.ts src/store/chatActions.test.ts` ✅
 
 ### Improve: DATA_STORAGE_P2 phase-5 owner-trusted migration guard
 

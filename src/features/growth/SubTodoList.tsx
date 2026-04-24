@@ -5,7 +5,7 @@ import { Check, AlarmClock, Play } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { triggerLightHaptic } from '../../lib/haptics';
-import { callTodoDecomposeAPI } from '../../api/client';
+import { callTodoDecomposeAPI, isMembershipRequiredError } from '../../api/client';
 import { reportTelemetryEvent } from '../../services/input/reportTelemetryEvent';
 import { useTodoStore, type GrowthTodo } from '../../store/useTodoStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -89,8 +89,13 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
         stepsCount: normalizedSteps.length,
         durationTotalMin: normalizedSteps.reduce((sum, step) => sum + step.suggestedDuration, 0),
       });
-    } catch {
+    } catch (error) {
       void reportTelemetryEvent('todo_decompose_failed', telemetryBase);
+      if (isMembershipRequiredError(error)) {
+        window.alert(t('profile_plus_only'));
+        navigate('/upgrade');
+        return;
+      }
       setErrorType('request');
     } finally {
       setLoading(false);

@@ -36,22 +36,52 @@ Status: 实施中（高优先）
 
 ## 当前主线 E：会员 AI 分类分层（MEMBERSHIP_AI_CLASSIFICATION）
 
-Status: 实施中（第一阶段已落地）
-规格文档：`docs/MEMBERSHIP_AI_CLASSIFICATION_PRD.md`、`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md`
+Status: 待开发（按 PRD + Tech Design 执行）
+执行前必读：`docs/MEMBERSHIP_AI_CLASSIFICATION_PRD.md`、`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md`
 
-### 第一阶段已完成（2026-04-24）
+### 开发前阅读清单（必须）
 
-- [x] `/api/classify` 接入 Supabase 鉴权 + Plus 强校验，非 Plus 返回 `403 membership_required`
-- [x] `callClassifierAPI` 增加 Authorization 透传，统一走鉴权 classify
-- [x] `useChatStore` 完成 Free/Plus 分流：Free 不触发 classify；Plus 每条记录复用同一 classify promise
-- [x] 星星判定优先级重排：Free=todo/关键词，Plus=AI matched_bottle 优先 + 关键词兜底
-- [x] `useTodoStore.refineTodoCategoryWithAI` 增加 Plus 门控（Free 不再触发）
+- [ ] 阅读需求文档：`docs/MEMBERSHIP_AI_CLASSIFICATION_PRD.md`
+- [ ] 阅读技术文档：`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md`
+- [ ] 对照现有代码入口：`src/store/useChatStore.ts`、`src/store/useTodoStore.ts`、`src/api/client.ts`、`api/classify.ts`、`src/store/useAuthStore.ts`
+
+### 开发任务规划（按顺序执行）
+
+1) **后端鉴权与会员门控**
+- [ ] `api/classify.ts` 接入 Supabase 鉴权与 Plus 校验
+- [ ] 非 Plus 返回 `403 membership_required`，并保持错误结构稳定
+
+2) **前端 classify 调用改造**
+- [ ] `src/api/client.ts` 的 `callClassifierAPI` 透传 Authorization
+- [x] `src/api/client.ts` 的 `callTodoDecomposeAPI` 透传 Authorization（与 classify 会员门控一致）
+- [x] 统一处理 `membership_required` 错误分支（`ApiClientError` + `isMembershipRequiredError`）
+
+3) **聊天主链路分流（Free/Plus）**
+- [ ] `src/store/useChatStore.ts`：Free 完全不触发 classify
+- [ ] `src/store/useChatStore.ts`：Plus 每条消息仅调用一次 classify（去重多调用点）
+- [ ] Plus 将 AI 结果统一用于 activity/mood/bottle 三类判定
+
+4) **星星判定策略收敛**
+- [ ] Free：仅 todo 绑定 + 关键词命中，不做 AI 语义兜底
+- [ ] Plus：优先 `matched_bottle`，必要时关键词兜底
+
+5) **Todo 分类策略对齐**
+- [x] `src/store/useTodoStore.ts` 增加 Plus 门控（Free 不调 AI）
+- [x] 明确 todo 是否执行“Plus 全量 AI”或“Plus 低置信度 AI”（按 PRD 决策记录；本轮确认采用 Plus 全量 AI，并同步改造 classify prompt/schema）
+
+6) **降级与可观测**
+- [ ] AI 失败回退本地规则，不阻断主链路
+- [ ] 增加最小埋点：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`
+
+7) **测试与验收**
+- [ ] 单元测试：Free=0 调用、Plus=每条 1 次、失败降级
+- [ ] 集成测试：非 Plus 直调 classify 返回 403
+- [ ] 手测 50 条回归：Free 0 调用、Plus 50 调用
 
 ### 下一步待完成
 
-- [ ] classify 调用链埋点：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`
-- [ ] 单元 + 集成测试补齐（Free=0、Plus=单条1次、403 防绕过、AI 失败降级）
-- [ ] 评估并决定 todo 分类是否升级为“Plus 全量 AI”而非“低置信度触发”
+- [ ] 文档同步：更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`
+- [ ] 回环检查：`npm run lint:all` + `npx tsc --noEmit` + `npm run build`
 
 ---
 
