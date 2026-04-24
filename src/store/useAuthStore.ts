@@ -77,7 +77,33 @@ import {
 import { migrateLegacyV1PersistToScope } from './scopedPersistMigration';
 import { rehydrateAllDomainPersistStores } from './domainPersistHydration';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import { callDeleteAccountAPI } from '../api/client';
+
 const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
+
+const PENDING_DELETION_GRACE_MS = 5 * 24 * 60 * 60 * 1000;
+
+async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?: Record<string, unknown> }): Promise<void> {
+  const pendingAt = user.user_metadata?.pending_deletion_at;
+  if (!pendingAt || typeof pendingAt !== 'string') return;
+
+  const deletionTime = new Date(pendingAt).getTime();
+  const now = Date.now();
+
+  if (now < deletionTime) {
+    // Within grace period — restore: clear the flag
+    await supabase.auth.updateUser({ data: { pending_deletion_at: null } });
+  } else {
+    // Grace period expired — execute hard delete
+    try {
+      await callDeleteAccountAPI();
+    } catch {
+      // If API fails, still sign out to prevent access
+    } finally {
+      await supabase.auth.signOut({ scope: 'global' });
+    }
+  }
+}
 
 const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = {
   low: 3,
@@ -651,6 +677,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .catch(() => {});
         refreshDomainStoresForSession(currentUser.id);
         markLocalDataOwnerUser(currentUser.id);
+
+        // Pending deletion check: restore or execute hard delete
+        void checkAndHandlePendingDeletion(currentUser).catch(() => {});
       }
       else if (event === 'SIGNED_OUT') {
         console.log('User signed out. Clearing local state...');

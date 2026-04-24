@@ -444,7 +444,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
         className="flex w-full items-center justify-between px-4 py-3 transition hover:bg-white/70"
       >
         <div className="flex items-start gap-2.5 text-left">
-          <Clock3 size={16} strokeWidth={1.5} className="mt-0.5 text-[#5F7A63]" />
+          <Clock3 size={18} strokeWidth={2} className="text-[#000000]" />
           <div>
             <p className="profile-fn-title">{t('profile_routine_title')}</p>
           </div>

@@ -562,6 +562,14 @@ export async function callProfileSettingsTelemetryDashboardAPI(days = 14): Promi
   return getJson<ProfileSettingsTelemetryDashboardResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
+// ── Delete Account API ────────────────────────────────────────────────────────
+
+export async function callDeleteAccountAPI(): Promise<void> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) throw new Error('Unauthorized');
+  await postJson<Record<string, never>, { ok: boolean }>('/delete-account', {}, { headers });
+}
+
 // ── Todo Decompose API ────────────────────────────────────────────────────────
 
 export interface DecomposeStep {

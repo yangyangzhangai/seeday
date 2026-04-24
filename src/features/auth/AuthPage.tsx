@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { ArrowLeft, Mail, Lock, Loader2, User, MoreHorizontal, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
+import { PrivacyPolicyPanel } from '../profile/components/PrivacyPolicyPanel';
 
 export const AuthPage = () => {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export const AuthPage = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [tosAgreed, setTosAgreed] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const googleTimeoutRef = useRef<number | null>(null);
   const appleTimeoutRef = useRef<number | null>(null);
@@ -286,6 +289,28 @@ export const AuthPage = () => {
             </div>
           </div>
 
+          {/* ToS agreement (register only) */}
+          {!isLogin && (
+            <label className="flex cursor-pointer items-start gap-2.5 py-0.5">
+              <input
+                type="checkbox"
+                checked={tosAgreed}
+                onChange={e => setTosAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[#5F7A63]"
+              />
+              <span className="text-xs leading-relaxed text-slate-500">
+                {t('auth_tos_prefix')}{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacy(true)}
+                  className="text-[#5F7A63] underline underline-offset-2"
+                >
+                  {t('auth_tos_privacy_link')}
+                </button>
+              </span>
+            </label>
+          )}
+
           {/* Error / success messages */}
           {error && (
             <div className="rounded-xl border border-red-200/60 bg-red-50/80 px-3 py-2 text-center text-xs text-red-500">
@@ -301,7 +326,7 @@ export const AuthPage = () => {
           {/* Submit button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (!isLogin && !tosAgreed)}
             className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-2.5 text-sm font-semibold text-[#5F7A63] shadow-[0px_2px_2px_#C8C8C8] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               background: 'rgba(144.67,212.06,122.21,0.22)',
@@ -372,6 +397,7 @@ export const AuthPage = () => {
               setIsLogin(!isLogin);
               setError(null);
               setMessage(null);
+              setTosAgreed(false);
             }}
             className="text-sm font-medium text-[#5F7A63] transition-colors hover:text-[#2F3E33]"
           >
@@ -379,6 +405,8 @@ export const AuthPage = () => {
           </button>
         </div>
       </div>
+
+      {showPrivacy && <PrivacyPolicyPanel onClose={() => setShowPrivacy(false)} />}
 
       {/* Avatar preview modal */}
       {showAvatarModal && (

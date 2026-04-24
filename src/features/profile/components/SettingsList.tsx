@@ -1,11 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { HelpCircle, Shield, Info, LogOut, ChevronRight, Sprout, BarChart3, MapPin } from 'lucide-react';
+import { HelpCircle, Info, LogOut, ChevronRight, Sprout, BarChart3, MapPin, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { reportTelemetryEvent } from '../../../services/input/reportTelemetryEvent';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { DirectionSettingsPanel } from './DirectionSettingsPanel';
 import { RegionSettingsPanel } from './RegionSettingsPanel';
+import { HelpSupportPanel } from './HelpSupportPanel';
+import { AboutPanel } from './AboutPanel';
+import { DeleteAccountModal } from './DeleteAccountModal';
 import { isTelemetryAdmin } from '../../telemetry/isTelemetryAdmin';
 
 interface Props {
@@ -18,6 +21,9 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   const { signOut, user } = useAuthStore();
   const [isRegionOpen, setIsRegionOpen] = React.useState(false);
   const [isDirectionOpen, setIsDirectionOpen] = React.useState(false);
+  const [isHelpOpen, setIsHelpOpen] = React.useState(false);
+  const [isAboutOpen, setIsAboutOpen] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const canSeeTelemetry = isTelemetryAdmin(user);
 
   const handleLogout = () => {
@@ -28,12 +34,17 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
   };
 
   const SETTINGS = [
-    { icon: HelpCircle, labelKey: 'profile_help', action: () => {} },
-    { icon: Shield, labelKey: 'profile_privacy', action: () => {} },
-    { icon: Info, labelKey: 'profile_about', action: () => {} },
+    { icon: HelpCircle, labelKey: 'profile_help', action: () => setIsHelpOpen(true) },
+    { icon: Info, labelKey: 'profile_about', action: () => setIsAboutOpen(true) },
   ];
 
   return (
+    <>
+    {isHelpOpen && <HelpSupportPanel onClose={() => setIsHelpOpen(false)} />}
+    {isDeleteOpen && <DeleteAccountModal onClose={() => setIsDeleteOpen(false)} />}
+    {isAboutOpen && (
+      <AboutPanel onClose={() => setIsAboutOpen(false)} />
+    )}
     <div className={plain ? 'overflow-hidden' : 'overflow-hidden rounded-2xl border border-white/65 bg-[#F7F9F8] [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
       <button
         onClick={() => setIsRegionOpen(prev => !prev)}
@@ -106,6 +117,14 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
           </button>
         ) : null}
 
+      <button
+        onClick={() => setIsDeleteOpen(true)}
+        className={`flex w-full items-center space-x-2.5 px-4 py-3 transition hover:bg-white/70 ${plain ? '' : 'border-t border-slate-200/60'}`}
+      >
+        <UserX size={18} strokeWidth={2} className="text-[#000000]" />
+        <span className="profile-fn-title">{t('delete_account_label')}</span>
+      </button>
+
       {/* Logout */}
       <button
         onClick={handleLogout}
@@ -115,5 +134,6 @@ export const SettingsList: React.FC<Props> = ({ plain = false }) => {
         <span className="profile-fn-title">{t('profile_logout')}</span>
       </button>
     </div>
+    </>
   );
 };
