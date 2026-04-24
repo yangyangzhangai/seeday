@@ -884,16 +884,22 @@ export default async function handler(req, res) {
 
 ```ts
 // src/services/reminder/reminderScheduler.ts
-async function getIsFreeDay(date: Date, countryCode: string): Promise<boolean> {
-  const key = `freeDay_${date.toISOString().slice(0, 10)}`;
+async function getIsFreeDay(date: Date, countryCode: string, storageUserId?: string): Promise<boolean> {
+  const localDate = toLocalDateStr(date);
+  const key = getScopedClientStorageKey(
+    `freeDay_${localDate}`,
+    resolveStorageScopeForUser(storageUserId ?? null),
+  );
   const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
-  const res = await fetch(`/api/live-input-telemetry?module=holiday_check&date=${date.toISOString().slice(0, 10)}&country=${countryCode}`);
+  const res = await fetch(`/api/live-input-telemetry?module=holiday_check&date=${localDate}&country=${countryCode}`);
   const { isFreeDay } = await res.json();
   localStorage.setItem(key, String(isFreeDay));
   return isFreeDay;
 }
 ```
+
+> 兼容迁移：若 v2 开启且命中 legacy 全局 key（`freeDay_<date>`），会自动写回 scoped key 并移除旧 key。
 
 - **判定优先级**：周末（`Date.getDay() in [0,6]`） > 法定节假日（`type === 'legal'`） > 工作日
 - **社交节日**（情人节/圣诞等）**不切换自由作息模式**，仅在 AI 批注文案中使用（原有行为不变）

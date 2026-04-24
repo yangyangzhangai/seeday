@@ -79,6 +79,8 @@
 - `useOutboxStore.flush()` 已增加 active scope 校验：在 v2 模式下仅当 `activeScope.userId === resolvedUserId` 时才执行 flush，避免切号后串账号补推。
 - `storageScope.ts` 新增 `getScopedClientStorageKey()` 供非 domain key 使用；首批用户行为 key（聊天草稿、昨日日志弹窗去重、提醒确认 pending、night reminder dismiss、提醒调度计数）已改为 scope-aware 命名。
 - 非 domain key 第二批已接入：植物图片 URL 缓存（`PlantImage`）与 idle nudge 调度时间戳（`localNotificationService`）现按 user scope 分桶，避免切号后读取到其他账号本地痕迹。
+- `reminderScheduler` 的 `freeDay_<date>` 缓存已定稿为 user-scoped，并与 `localNotificationService` 一起统一复用 `storageScope.getScopedClientStorageKey()`，避免分散实现导致的命名漂移。
+- `reminderScheduler` 额外补齐 legacy 迁移：v2 开启时若命中旧 `freeDay_<date>` 全局 key，会自动迁移到 scoped key 并清理旧 key；`todoStoreHelpers` 也已将 `todo-storage` 明确标注为 legacy 迁移键常量。
 
 ## 变更自检
 

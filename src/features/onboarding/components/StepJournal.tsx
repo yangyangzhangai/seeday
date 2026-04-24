@@ -1,15 +1,85 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/chat/components/EventCard.tsx -> src/features/chat/components/MoodCard.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, ArrowLeft, ArrowRightLeft, ChevronRight, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '../../../store/useChatStore';
 import { useMoodStore, type MoodOption } from '../../../store/useMoodStore';
+import { autoDetectMood } from '../../../lib/mood';
+import { getMoodColor } from '../../../lib/moodColor';
+import { getMoodDisplayLabel } from '../../../lib/moodOptions';
 import { EventCard } from '../../chat/components/EventCard';
 import { MoodCard } from '../../chat/components/MoodCard';
 import { MoodPickerModal } from '../../chat/MoodPickerModal';
 
 type Phase = 'activity' | 'activity_shown' | 'mood' | 'complete';
+
+const MOOD_TAG_FALLBACK_COLOR = '#0F766E';
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const safeS = clamp01(s);
+  const safeL = clamp01(l);
+  const a = safeS * Math.min(safeL, 1 - safeL);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = safeL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3
+    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
+    : cleaned;
+  if (normalized.length !== 6) return null;
+
+  const r = parseInt(normalized.slice(0, 2), 16) / 255;
+  const g = parseInt(normalized.slice(2, 4), 16) / 255;
+  const b = parseInt(normalized.slice(4, 6), 16) / 255;
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s, l };
+}
+
+function withHexAlpha(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3
+    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
+    : cleaned;
+  if (normalized.length !== 6) return hex;
+  const alphaHex = Math.round(clamp01(alpha) * 255).toString(16).padStart(2, '0');
+  return `#${normalized}${alphaHex}`;
+}
+
+function getStrongerMoodTagColor(hex: string | undefined): string {
+  const parsed = hex ? hexToHsl(hex) : null;
+  if (!parsed) return MOOD_TAG_FALLBACK_COLOR;
+  const strongerS = Math.max(0.6, Math.min(1, parsed.s * 1.45));
+  const strongerL = Math.max(0.25, Math.min(0.42, parsed.l - 0.24));
+  return hslToHex(parsed.h, strongerS, strongerL);
+}
 
 // ── Shared input block ──
 
@@ -65,6 +135,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const setMood = useMoodStore(s => s.setMood);
   const setCustomMoodLabel = useMoodStore(s => s.setCustomMoodLabel);
   const setCustomMoodApplied = useMoodStore(s => s.setCustomMoodApplied);
+  const activityMoodMap = useMoodStore(s => s.activityMood);
   const customMoodLabel = useMoodStore(s => s.customMoodLabel);
   const customMoodApplied = useMoodStore(s => s.customMoodApplied);
 
@@ -79,6 +150,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const [selectedMoodOpt, setSelectedMoodOpt] = useState<string | null>(null);
   const [customLabelInput, setCustomLabelInput] = useState('');
   const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
+  const prevActivityWasMoodRef = useRef(false);
 
   const activityMessage = activityMessageId
     ? messages.find((msg) => msg.id === activityMessageId)
@@ -97,6 +169,19 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const mustRestoreBeforeNext = convertedToMoodCard || previewMoodConvertedToEvent;
   const customLabelDefault = t('chat_custom_label_default');
   const moodPickerReadonly = false;
+  const onboardingMoodRawLabel = activityMessage
+    ? ((customMoodApplied[activityMessage.id] && customMoodLabel[activityMessage.id])
+      ? customMoodLabel[activityMessage.id]
+      : activityMoodMap[activityMessage.id])
+    : undefined;
+  const onboardingMoodFallback =
+    !onboardingMoodRawLabel && activityMessage && activityMessage.mode === 'record' && !activityMessage.isMood && activityMessage.duration != null
+      ? autoDetectMood(activityMessage.content, 0)
+      : undefined;
+  const onboardingMoodColor = getMoodColor(onboardingMoodRawLabel || onboardingMoodFallback) || '#10B981';
+  const onboardingMoodTagColor = getStrongerMoodTagColor(onboardingMoodColor);
+  const onboardingMoodTagBg = withHexAlpha(onboardingMoodTagColor, 0.2);
+  const onboardingMoodTagLabel = getMoodDisplayLabel(onboardingMoodRawLabel || onboardingMoodFallback, t) || t('mood_calm');
   const isDefaultCustomLabel = (label: string) =>
     !label || label === customLabelDefault || label === '自定义';
 
@@ -109,13 +194,28 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
       setMoodText('');
       setInput('');
       setPhase('activity');
+      prevActivityWasMoodRef.current = false;
       return;
     }
+    const wasMood = prevActivityWasMoodRef.current;
     if (activityMessage.isMood && phase !== 'complete') {
       setMoodText((prev) => prev || activityMessage.content);
       setPhase('complete');
+      prevActivityWasMoodRef.current = true;
+      return;
     }
-  }, [activityMessageId, activityMessage, phase]);
+
+    if (wasMood && !activityMessage.isMood) {
+      setMoodText('');
+      setInput('');
+      if (!linkedMoodDescription?.id) {
+        setMoodMessageId(null);
+        setPhase('mood');
+      }
+    }
+
+    prevActivityWasMoodRef.current = activityMessage.isMood;
+  }, [activityMessageId, activityMessage, phase, linkedMoodDescription]);
 
   useEffect(() => {
     if (moodMessageId && !previewMoodMessage) {
@@ -207,7 +307,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
 
   const headerMap: Record<Phase, { title: string; desc: string }> = {
     activity:       { title: t('onboarding_j3_activity_title'), desc: t('onboarding_j3_activity_hint') },
-    activity_shown: { title: `✨ ${t('onboarding_j3_shown_title')}`, desc: t('onboarding_j3_shown_desc') },
+    activity_shown: { title: t('onboarding_j3_shown_title'), desc: t('onboarding_j3_shown_desc') },
     mood:           { title: t('onboarding_j3_mood_title'), desc: t('onboarding_j3_mood_hint') },
     complete:       {
       title: t('onboarding_j3_complete_title'),
@@ -225,10 +325,13 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
       {/* Header */}
       <div className="mb-6 px-1 shrink-0">
         <AnimatePresence mode="wait">
-          <motion.div key={phase}
-            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}>
-            <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight">{title}</h2>
+            <motion.div key={phase}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}>
+            <h2 className="text-2xl font-black text-[#4a5d4c] tracking-tight flex items-center gap-3">
+              {phase === 'activity_shown' && <span className="text-3xl leading-none">🪄</span>}
+              <span>{title}</span>
+            </h2>
             <p className="text-[#4a5d4c]/55 text-sm mt-1 font-medium">{desc}</p>
           </motion.div>
         </AnimatePresence>
@@ -341,8 +444,23 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
                 <span className="text-sm text-[#4a5d4c]/70 font-medium">{t('onboarding_j3_tip_convert_intent')}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-[#4a5d4c]/70 font-medium">
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 bg-[#EAF5FF] text-[#2563EB] text-xs font-semibold">
-                  Calm
+                <span
+                  className="inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs transition-colors"
+                  style={{
+                    fontWeight: 400,
+                    background: onboardingMoodTagBg,
+                    color: onboardingMoodTagColor,
+                    border: '0.5px solid rgba(255,255,255,0.72)',
+                    whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    fontFamily: 'Songti SC, SimSun, STSong, serif',
+                    letterSpacing: 0,
+                    transition: 'all 0.15s',
+                    boxShadow: 'none',
+                  }}
+                >
+                  {onboardingMoodTagLabel}
                 </span>
                 <span>{t('onboarding_j3_tip_mood_tag')}</span>
               </div>

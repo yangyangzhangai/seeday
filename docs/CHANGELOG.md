@@ -4,6 +4,28 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-24
+
+### Improve: DATA_STORAGE_P2 phase-4.2 freeDay scoped policy finalized
+
+- `src/services/reminder/reminderScheduler.ts` 将 `freeDay_<date>` 明确纳入 user-scoped key（`seeday:v2:*:local:freeDay_<date>`），避免同设备多账号共用节假日缓存
+- `src/services/reminder/reminderScheduler.ts` 与 `src/services/notifications/localNotificationService.ts` 统一复用 `src/store/storageScope.ts` 的 `getScopedClientStorageKey()/resolveStorageScopeForUser()`，移除重复 scoped key 拼接逻辑
+- 新增 `src/services/reminder/reminderScheduler.scope.test.ts`，覆盖 `freeDay_<date>` 在 A/B 账号下分桶缓存不串读，以及 v2 关闭时 legacy key 兼容
+- 新增 `src/services/reminder/reminderScheduler.account-switch.test.ts`，覆盖 A/B 账号切换下 `reminder_scheduled_date` / `reminder_today_count` 按 user scope 隔离
+- `src/services/reminder/reminderScheduler.ts` 增加 `freeDay_<date>` legacy key 迁移：v2 开启且命中旧全局 key 时，自动迁移到 scoped key 并删除旧 key
+- `src/store/todoStoreHelpers.ts` 将 `todo-storage` 明确标注为 legacy 迁移键常量，保留兼容读取并在迁移后删除
+- `docs/CURRENT_TASK.md` 将 `P2-4.2` / `P2-4.3` 标记为完成；`docs/DATA_STORAGE_AUDIT_REPORT.md` 同步扩展非 domain key 全量分类清单（user/global/待淘汰）
+- `docs/CURRENT_TASK.md` 将 `P2-4.4` 标记为完成，并补充遗留 key 清理记录
+- `docs/PROACTIVE_REMINDER_SPEC.md` 同步 `freeDay` 缓存示例为 scoped key 版本，避免规格与实现偏差
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run "src/store/storageScope.test.ts"` ✅
+- `npx vitest run "src/store/storageScope.test.ts" "src/services/reminder/reminderScheduler.scope.test.ts"` ✅
+- `npx vitest run "src/store/storageScope.test.ts" "src/services/reminder/reminderScheduler.scope.test.ts" "src/services/reminder/reminderScheduler.account-switch.test.ts"` ✅
+- `npm run build` ✅
+
 ## 2026-04-23
 
 ### Improve: DATA_STORAGE_P2 phase-4 second batch scoped local keys

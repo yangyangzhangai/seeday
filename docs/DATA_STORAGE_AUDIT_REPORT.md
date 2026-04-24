@@ -642,13 +642,18 @@ DB 层: `src/api/supabase.ts`, `src/lib/dbRetry.ts`, `src/lib/dbMappers.ts`, `sr
 | `growth:first-login-date:<userId>` | user-scoped | ✅ 保持 | key 已含 userId，无需改造 |
 | `growth:is-first-login:<userId>:<date>` | user-scoped | ✅ 保持 | session key 已含 userId |
 | `profile:routine:v1:<userId>` | user-scoped | ✅ 保持 | 例外：历史 key 但已按 userId 分桶 |
+| `seeday_pending_profile_v2_<userId>` | user-scoped | ✅ 保持 | Profile V2 写回失败的本地补偿草稿 |
+| `streakDate_<userId>` / `streakValue_<userId>` | user-scoped | ✅ 保持 | 连续打卡缓存按 userId 分桶 |
 | `dev_preview` | global | ✅ 保持 | DEV 设备级开关 |
 | `seeday_onboarded` | global | ✅ 保持 | 设备级 onboarding 状态 |
 | `i18nextLng` | global | ✅ 保持 | 设备级语言偏好（并有云端 metadata 同步） |
-| `freeDay_<date>` | 待评估 | ⏳ 下一批 | 当前仍为全局 key |
+| `freeDay_<date>` | user-scoped | ✅ 已接入 | 改为 `seeday:v2:*:local:freeDay_<date>`，按账号隔离节假日缓存 |
 | `reminder_error_log` | global | ✅ 保持 | 诊断日志，设备级聚合 |
 | `idle_nudge_scheduled_at` | user-scoped | ✅ 已接入 | 改为 `seeday:v2:*:local:idle_nudge_scheduled_at` |
 | `live_input_session_id`（sessionStorage） | global | ✅ 保持 | 会话级去重 id，设备级语义 |
+| `seeday:active-storage-scope:v2` | global（infra） | ✅ 保持 | active scope 游标，本地隔离基础设施键 |
+| `seeday:local-data-owner:v1` | global（infra） | ✅ 保持 | owner 风控与迁移判定元数据，不承载用户域业务数据 |
+| `todo-storage`（legacy） | 待淘汰 | ⏳ 兼容保留 | 仅用于旧版本 todo 一次性迁移（`todoStoreHelpers` 读取后移除） |
 
 ### 关键注意事项（写给后续接手的人）
 

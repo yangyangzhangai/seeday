@@ -1,6 +1,8 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
 const SORT_ORDER_SAFE_MIN = -9_000_000_000_000_000;
 const SORT_ORDER_SAFE_MAX = 9_000_000_000_000_000;
+// Legacy v0 todo cache key. Keep migration read path for old installs, then remove this key once migrated.
+const LEGACY_TODO_STORAGE_KEY = 'todo-storage';
 
 type TodoFreshnessLike = {
   completedAt?: number;
@@ -91,7 +93,7 @@ export function migrateOldTodoStorage(
   { normalizeTodoCategory, resolveLangForText }: LegacyTodoMigrationInput,
 ): MigratedTodoShape[] {
   try {
-    const raw = localStorage.getItem('todo-storage');
+    const raw = localStorage.getItem(LEGACY_TODO_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     const oldTodos: Array<Record<string, unknown>> = parsed?.state?.todos ?? [];
@@ -132,7 +134,7 @@ export function migrateOldTodoStorage(
       });
 
     if (migrated.length > 0) {
-      localStorage.removeItem('todo-storage');
+      localStorage.removeItem(LEGACY_TODO_STORAGE_KEY);
     }
     return migrated;
   } catch {

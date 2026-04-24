@@ -226,11 +226,15 @@ Status: 实施中（Phase 0/1 基础设施已起步，Phase 2 起）
 ##### Phase 4（非 domain key 治理与策略固化）
 
 - 2026-04-23（续）首批已接入 user-scoped：`chat_input_draft`、`yesterday_popup_date`、`night_reminder_dismissed_date`、`pending_notification_confirm_action`、`reminder_today_count`、`reminder_scheduled_date`（均通过 active scope 生成 `seeday:v2:*:local:*` key；开关关闭时回退旧 key）
+- 2026-04-24：`freeDay_<date>` 策略定稿并落地为 user-scoped，提醒调度链路统一复用 `storageScope.getScopedClientStorageKey()` 生成 scoped local key
+- 2026-04-24：补齐非 domain key 全量归档（新增 `seeday_pending_profile_v2_<userId>`、`streakDate_/streakValue_`、`seeday:active-storage-scope:v2`、`seeday:local-data-owner:v1`、`todo-storage` legacy）
+- 2026-04-24：完成 Phase 4 收尾清理：`freeDay_<date>` 增加 legacy key 迁移（命中旧全局 key 时写回 scoped 并移除旧 key）；`todo-storage` 标记为 legacy 迁移专用常量并补注释
+- 2026-04-24：新增提醒调度账号切换隔离测试，覆盖 A/B 账号下 `reminder_scheduled_date` / `reminder_today_count` 不串读
 
 - [x] P2-4.1 建立 key 分类清单（user-scoped / global / 待淘汰）
-- [ ] P2-4.2 将用户行为类 key（如聊天草稿、提醒确认等）按规则 user-scoped 化
-- [ ] P2-4.3 保持设备偏好类 key 全局（语言、dev preview、onboarded）并文档固化
-- [ ] P2-4.4 清理遗留不可达 key，补迁移脚本与注释
+- [x] P2-4.2 将用户行为类 key（如聊天草稿、提醒确认等）按规则 user-scoped 化
+- [x] P2-4.3 保持设备偏好类 key 全局（语言、dev preview、onboarded）并文档固化
+- [x] P2-4.4 清理遗留不可达 key，补迁移脚本与注释
 
 触达（预期）：`src/features/**`、`src/hooks/**`、`src/services/**` 中直接 localStorage/sessionStorage 使用点
 

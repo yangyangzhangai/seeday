@@ -3,23 +3,16 @@ import type { ScheduledReminder, ReminderType } from './reminderTypes';
 import type { UserProfileManualV2 } from '../../types/userProfile';
 import { toLocalDateStr } from '../../lib/dateUtils';
 import {
+  getScopedClientStorageKey,
+  isMultiAccountIsolationV2Enabled,
+  resolveStorageScopeForUser,
+} from '../../store/storageScope';
+import {
   scheduleBatchNotifications,
   cancelAllNotifications,
   getPendingNotificationIds,
   type LocalNotificationPayload,
 } from '../notifications/localNotificationService';
-
-function getScopedClientStorageKey(baseKey: string, userId?: string): string {
-  const normalized = baseKey.trim();
-  if (!normalized) return baseKey;
-  const rawFlag = String(import.meta.env.VITE_MULTI_ACCOUNT_ISOLATION_V2 ?? '').trim().toLowerCase();
-  const enabled = rawFlag === '1' || rawFlag === 'true' || rawFlag === 'on';
-  if (!enabled) return normalized;
-  if (userId && userId.trim()) {
-    return `seeday:v2:user:${userId.trim()}:local:${normalized}`;
-  }
-  return `seeday:v2:anon:local:${normalized}`;
-}
 
 // ─────────────────────────────────────────────
 // 通知 ID 生成（命名规范：reminder_<type>_<HHMM>）
@@ -64,9 +57,21 @@ function resolveActionTypeId(
 
 export async function getIsFreeDay(date: Date, countryCode: string, storageUserId?: string): Promise<boolean> {
   const localDate = toLocalDateStr(date);
-  const key = getScopedClientStorageKey(`freeDay_${localDate}`, storageUserId);
+  const legacyKey = `freeDay_${localDate}`;
+  const key = getScopedClientStorageKey(
+    legacyKey,
+    resolveStorageScopeForUser(storageUserId ?? null),
+  );
   const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
+  if (isMultiAccountIsolationV2Enabled()) {
+    const legacyCached = localStorage.getItem(legacyKey);
+    if (legacyCached !== null) {
+      localStorage.setItem(key, legacyCached);
+      localStorage.removeItem(legacyKey);
+      return legacyCached === 'true';
+    }
+  }
 
   // 周末直接判定，无需请求
   const day = date.getDay();
@@ -195,8 +200,9 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   if (opts.reminderEnabled === false) return;
 
   const todayKey = toLocalDateStr(new Date());
-  const scheduleDoneKey = getScopedClientStorageKey(SCHEDULE_DONE_KEY, opts.storageUserId);
-  const reminderTodayCountKey = getScopedClientStorageKey(REMINDER_TODAY_COUNT_KEY, opts.storageUserId);
+  const storageScope = resolveStorageScopeForUser(opts.storageUserId ?? null);
+  const scheduleDoneKey = getScopedClientStorageKey(SCHEDULE_DONE_KEY, storageScope);
+  const reminderTodayCountKey = getScopedClientStorageKey(REMINDER_TODAY_COUNT_KEY, storageScope);
   const wasMarkedToday = localStorage.getItem(scheduleDoneKey) === todayKey;
 
   const now = new Date();

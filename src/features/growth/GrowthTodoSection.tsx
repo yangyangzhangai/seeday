@@ -8,12 +8,16 @@ import { useChatStore } from '../../store/useChatStore';
 import { normalizeTodoCategory } from '../../lib/activityType';
 import { buildTodoCompletionAnnotationPayload } from '../../lib/todoCompletionAnnotation';
 import { cn } from '../../lib/utils';
+import { triggerHaptic } from '../../lib/haptics';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_OVERLAY_CLASS,
   APP_MODAL_SECONDARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
 import { GrowthTodoCard } from './GrowthTodoCard';
+
+const LONG_PRESS_MS = 220;
+const PRE_ACTIVATION_MOVE_TOLERANCE_PX = 30;
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
@@ -61,6 +65,8 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const [dragOffsetY, setDragOffsetY] = useState(0);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const dragOrderRef = useRef<string[] | null>(null);
+  const justDraggedRef = useRef(false);
+  const justDraggedTimerRef = useRef<number | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dragSessionRef = useRef<{
     sourceId: string;
@@ -255,6 +261,15 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       }
     }
 
+    if (session.activated) {
+      justDraggedRef.current = true;
+      if (justDraggedTimerRef.current) window.clearTimeout(justDraggedTimerRef.current);
+      justDraggedTimerRef.current = window.setTimeout(() => {
+        justDraggedRef.current = false;
+        justDraggedTimerRef.current = null;
+      }, 400);
+    }
+
     dragSessionRef.current = null;
     setDraggingId(null);
     setDragOffsetY(0);
@@ -285,7 +300,8 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         setDragOffsetY(0);
         setDragOrder(current.initialOrder);
         document.body.style.userSelect = 'none';
-      }, 220),
+        triggerHaptic('heavy');
+      }, LONG_PRESS_MS),
     };
     dragSessionRef.current = session;
 
@@ -295,7 +311,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       current.lastY = evt.clientY;
 
       if (!current.activated) {
-        if (Math.abs(evt.clientY - current.startY) > 14) {
+        if (Math.abs(evt.clientY - current.startY) > PRE_ACTIVATION_MOVE_TOLERANCE_PX) {
           clearDragTimer();
           dragSessionRef.current = null;
           window.removeEventListener('pointermove', onPointerMove);
@@ -350,6 +366,10 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
 
   useEffect(() => () => {
     clearDragTimer();
+    if (justDraggedTimerRef.current) {
+      window.clearTimeout(justDraggedTimerRef.current);
+      justDraggedTimerRef.current = null;
+    }
     document.body.style.userSelect = '';
   }, []);
 
@@ -399,6 +419,17 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
                 cardRefs.current[todo.id] = node;
               }}
               onPointerDown={handleCardPointerDown(todo.id)}
+              onPointerUpCapture={(e) => {
+                if (dragSessionRef.current?.activated) {
+                  e.stopPropagation();
+                }
+              }}
+              onClickCapture={(e) => {
+                if (justDraggedRef.current) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }
+              }}
               className="transition-transform duration-150"
               style={
                 draggingId === todo.id

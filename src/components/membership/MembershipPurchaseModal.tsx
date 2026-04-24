@@ -5,9 +5,6 @@ import {
   Crown,
   Check,
   Rocket,
-  FileText,
-  CalendarDays,
-  CalendarRange,
   History,
   Zap,
   Sparkles,
@@ -59,17 +56,38 @@ const PRO_FEATURES = [
     descKey: 'membership_purchase_feat_memory_desc',
   },
   {
-    icon: <FileText size={18} />,
+    icon: (
+      <span
+        className="material-symbols-outlined"
+        style={{ fontSize: 18, lineHeight: 1, color: 'currentColor' }}
+      >
+        menu_book
+      </span>
+    ),
     labelKey: 'membership_purchase_feat_daily_title',
     descKey: 'membership_purchase_feat_daily_desc',
   },
   {
-    icon: <CalendarDays size={18} />,
+    icon: (
+      <span
+        className="material-symbols-outlined"
+        style={{ fontSize: 18, lineHeight: 1, color: 'currentColor' }}
+      >
+        auto_fix_high
+      </span>
+    ),
     labelKey: 'membership_purchase_feat_weekly_title',
     descKey: 'membership_purchase_feat_weekly_desc',
   },
   {
-    icon: <CalendarRange size={18} />,
+    icon: (
+      <span
+        className="material-symbols-outlined"
+        style={{ fontSize: 18, lineHeight: 1, color: 'currentColor' }}
+      >
+        checklist
+      </span>
+    ),
     labelKey: 'membership_purchase_feat_monthly_title',
     descKey: 'membership_purchase_feat_monthly_desc',
   },
