@@ -4,6 +4,17 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-25
+
+### Fix: Supabase auth path uses real origin instead of proxy URL
+
+- `src/server/supabase-request-auth.ts` 新增 Supabase URL 归一化：当 `SUPABASE_URL`/`VITE_SUPABASE_URL` 被配置为 `/supabase-proxy` 时，服务端会基于 `SUPABASE_ANON_KEY` 自动解析项目 `ref` 并改为直连 `https://<ref>.supabase.co`
+- `src/server/plant-shared.ts` 改为复用 `supabase-request-auth` 的 `getSupabaseUrl/getSupabaseAnonKey`，统一所有植物接口鉴权链路 URL 解析口径，避免 proxy rewrite 未命中时 `auth.getUser` 误验失败返回 `401 Unauthorized`
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-24
 
 ### Build: Membership AI classification tiering phase-1

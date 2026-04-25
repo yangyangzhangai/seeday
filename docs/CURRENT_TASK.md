@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-24
+Last Updated: 2026-04-25
 Owner: current working session
 
 ---
@@ -355,6 +355,7 @@ Status: 主链路可用，剩余增强项
 
 ## 近期完成（仅保留 2 条）
 
+- [x] Supabase 鉴权链路回退真实域名：服务端在 `SUPABASE_URL` 配置为 `/supabase-proxy` 时自动解析 anon key 的项目 ref 并直连 `https://<ref>.supabase.co`，修复 `/api/plant-generate` 被 rewrite 漏接后 `401 Unauthorized`
 - [x] 会员购买界面统一：Onboarding 第 7 步改为复用 `MembershipPurchaseModal`，与 `/upgrade` 共用同一套购买弹窗；并按用户试用/购买历史动态切换“人气首选”（未试用→试用档、已试用未购→月度、已购老用户→年度）
 - [x] 根系方向设置收口：`usePlantStore` 改为 local-first 合并方向配置（云端空值/默认值不再覆盖本地自定义），并补齐 profile 侧打开/修改/重置/保存 telemetry
 - [x] Chat 连续活动记录修复：修复 `closePreviousActivityLocal()` 变量/return 缺失，恢复“吃饭 -> 睡觉”连续发送，并补回归测试

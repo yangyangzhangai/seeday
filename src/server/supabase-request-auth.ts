@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { jsonError } from './http.js';
 
+const DEFAULT_SUPABASE_URL = 'https://oxsbukofipeoikirkyyy.supabase.co';
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -11,11 +13,62 @@ function requireEnv(name: string): string {
 }
 
 export function getSupabaseUrl(): string {
-  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || requireEnv('SUPABASE_URL');
+  const raw = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim();
+  if (!raw) {
+    return requireEnv('SUPABASE_URL');
+  }
+
+  const anonKey = getSupabaseAnonKey();
+  return resolveSupabaseUrl(raw, anonKey);
 }
 
 export function getSupabaseAnonKey(): string {
   return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || requireEnv('SUPABASE_ANON_KEY');
+}
+
+function decodeBase64Url(input: string): string | null {
+  try {
+    const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return Buffer.from(padded, 'base64').toString('utf-8');
+  } catch {
+    return null;
+  }
+}
+
+function resolveSupabaseUrl(raw: string, anonKey: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return DEFAULT_SUPABASE_URL;
+  }
+
+  const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+  const looksLikeProxy = /(^|\/)supabase-proxy$/.test(normalizedPath);
+  if (!looksLikeProxy) {
+    return parsed.origin;
+  }
+
+  const payload = anonKey.split('.')[1];
+  if (!payload) {
+    return DEFAULT_SUPABASE_URL;
+  }
+  const decoded = decodeBase64Url(payload);
+  if (!decoded) {
+    return DEFAULT_SUPABASE_URL;
+  }
+
+  try {
+    const parsedPayload = JSON.parse(decoded) as { ref?: unknown };
+    const ref = typeof parsedPayload.ref === 'string' ? parsedPayload.ref.trim() : '';
+    if (!ref) {
+      return DEFAULT_SUPABASE_URL;
+    }
+    return `https://${ref}.supabase.co`;
+  } catch {
+    return DEFAULT_SUPABASE_URL;
+  }
 }
 
 export function getSupabaseServiceRoleKey(): string | null {

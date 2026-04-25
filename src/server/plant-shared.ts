@@ -3,24 +3,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { DailyPlantRecord, RootMetrics, RootType } from '../types/plant.js';
 import { jsonError } from './http.js';
+import { getSupabaseAnonKey, getSupabaseUrl } from './supabase-request-auth.js';
 
 const ROOT_TYPES: RootType[] = ['tap', 'fib', 'sha', 'bra', 'bul'];
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing env: ${name}`);
-  }
-  return value;
-}
-
-function getSupabaseUrl(): string {
-  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || requireEnv('SUPABASE_URL');
-}
-
-function getSupabaseAnonKey(): string {
-  return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || requireEnv('SUPABASE_ANON_KEY');
-}
 
 function getBearerToken(req: VercelRequest): string | null {
   const raw = req.headers.authorization;
