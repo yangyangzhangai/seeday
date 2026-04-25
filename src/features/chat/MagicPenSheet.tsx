@@ -412,24 +412,28 @@ export function MagicPenSheet({
         <div className="sticky bottom-0 bg-white px-5 pb-5 pt-3 border-t border-[rgba(255,255,255,0.82)]">
           {statusText && <p className="text-xs text-center text-[#2563EB] mb-2">{statusText}</p>}
           <div className="flex gap-3">
+            {pendingDrafts.length > 0 && (
+              <button
+                type="button"
+                onClick={onClose}
+                className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2.5 text-sm')}
+              >
+                {t('chat_magic_pen_cancel')}
+              </button>
+            )}
             <button
               type="button"
-              onClick={onClose}
-              className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2.5 text-sm')}
-            >
-              {t('chat_magic_pen_cancel')}
-            </button>
-            <button
-              type="button"
-              disabled={isConfirmDisabled}
-              onClick={handleConfirm}
+              disabled={isSubmitting}
+              onClick={pendingDrafts.length === 0 ? onClose : handleConfirm}
               className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2.5 text-sm font-medium disabled:opacity-40')}
             >
               {isSubmitting
                 ? t('loading')
-                : failedDraftCount > 0 && idleDraftCount === 0
-                  ? t('chat_magic_pen_retry_failed')
-                  : t('chat_magic_pen_confirm')}
+                : pendingDrafts.length === 0
+                  ? t('chat_magic_pen_cancel')
+                  : failedDraftCount > 0 && idleDraftCount === 0
+                    ? t('chat_magic_pen_retry_failed')
+                    : t('chat_magic_pen_confirm')}
             </button>
           </div>
         </div>

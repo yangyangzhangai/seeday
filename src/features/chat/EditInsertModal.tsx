@@ -69,6 +69,8 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             type="text"
                             value={editContent}
                             onChange={(e) => onContentChange(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onSave(); } }}
+                            enterKeyHint="done"
                             className={cn(APP_MODAL_INPUT_CLASS, 'w-full px-3 py-2 text-base')}
                             placeholder={t('chat_placeholder_content')}
                         />

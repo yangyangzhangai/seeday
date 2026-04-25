@@ -112,6 +112,8 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
             <input
               value={title}
               onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
+              enterKeyHint="done"
               placeholder={t('growth_todo_title_placeholder')}
               className={cn(
                 APP_MODAL_INPUT_CLASS,

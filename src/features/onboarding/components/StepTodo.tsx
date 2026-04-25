@@ -71,7 +71,8 @@ export function StepTodo({ onNext }: StepTodoProps) {
               value={todo}
               onChange={(e) => setTodo(e.target.value)}
               onFocus={() => setIsExpanded(true)}
-              onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTodo(); } }}
+              enterKeyHint="done"
               className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
               placeholder={t('onboarding2_todo_add_placeholder')}
             />

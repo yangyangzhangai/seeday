@@ -52,6 +52,8 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
+          enterKeyHint="done"
           placeholder={t('growth_bottle_name_placeholder')}
           className={cn(
             APP_MODAL_INPUT_CLASS,

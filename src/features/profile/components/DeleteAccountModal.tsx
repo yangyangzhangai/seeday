@@ -31,7 +31,7 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
       });
       if (updateError) throw updateError;
       await signOut();
-      navigate('/auth', { replace: true });
+      navigate('/onboarding', { replace: true });
     } catch {
       setError(t('delete_account_error'));
       setLoading(false);

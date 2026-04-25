@@ -176,7 +176,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
 
   const handleAuthClick = async () => {
     if (!user) {
-      navigate('/auth');
+      navigate('/onboarding');
     }
   };
 

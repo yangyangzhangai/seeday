@@ -15,14 +15,10 @@ interface Props {
   isPlus: boolean;
 }
 
-const MEMBERSHIP_VIOLET = '#5242de';
-const MEMBERSHIP_VIOLET_DEEP = '#4058d5';
-const MEMBERSHIP_BLUE = '#4f8fff';
-const MEMBERSHIP_TEXT = '#3f43aa';
-const MEMBERSHIP_ICON = '#4c61d8';
-const MEMBERSHIP_TEXT_SUB = '#5e65b2';
-const MEMBERSHIP_TEXT_HINT = '#6675b6';
-const MEMBERSHIP_TEXT_HINT_SOFT = '#7884bc';
+const MEMBERSHIP_PURPLE = '#a855f7';
+const MEMBERSHIP_PURPLE_DEEP = '#9333ea';
+const MEMBERSHIP_PINK = '#ec4899';
+const MEMBERSHIP_TEXT = '#7e22ce';
 
 // Returns local date string YYYY-MM-DD for a timestamp (ms)
 function toLocalDate(ts: number): string {
@@ -171,11 +167,11 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
   const plusCardStyle: React.CSSProperties = isPlus
     ? {
-      background: 'linear-gradient(132deg, #f5f3ff 0%, #ecebff 38%, #e5f0ff 100%)',
+      background: 'linear-gradient(132deg, #fcf9ff 0%, #f6f0ff 24%, #f8f2ff 52%, #fef8fc 100%)',
       backdropFilter: 'blur(22px) saturate(145%)',
       WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-      border: 'none',
-      boxShadow: 'none',
+      border: '1px solid rgba(168,85,247,0.22)',
+      boxShadow: '0 10px 28px rgba(168,85,247,0.16)',
     }
     : {};
 
@@ -186,37 +182,6 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
         : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75)]'}
       style={plusCardStyle}
     >
-      {isPlus ? (
-        <>
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: -26,
-              right: -22,
-              width: 132,
-              height: 132,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(82,66,222,0.40) 0%, rgba(82,66,222,0.12) 45%, rgba(82,66,222,0) 76%)',
-              filter: 'blur(0.5px)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: 22,
-              bottom: -30,
-              width: 180,
-              height: 100,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(79,143,255,0.34) 0%, rgba(79,143,255,0.08) 48%, rgba(79,143,255,0) 78%)',
-              pointerEvents: 'none',
-            }}
-          />
-        </>
-      ) : null}
 
       <div className={isPlus ? 'relative z-[1] flex items-center space-x-3' : 'flex items-center space-x-3'}>
         {/* Avatar */}
@@ -275,9 +240,9 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
               <span
                 className="flex items-center space-x-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
                 style={{
-                  background: `linear-gradient(135deg, ${MEMBERSHIP_VIOLET} 0%, ${MEMBERSHIP_VIOLET_DEEP} 56%, ${MEMBERSHIP_BLUE} 100%)`,
+                  background: `linear-gradient(135deg, ${MEMBERSHIP_PURPLE_DEEP} 0%, ${MEMBERSHIP_PURPLE} 56%, ${MEMBERSHIP_PINK} 100%)`,
                   color: '#f4f8ff',
-                  boxShadow: '0 5px 12px rgba(82,66,222,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
+                  boxShadow: '0 5px 12px rgba(168,85,247,0.3), inset 0 1px 1px rgba(240,246,255,0.78)',
                 }}
               >
                 <Crown size={10} strokeWidth={1.5} />
@@ -301,8 +266,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 right: 0,
                 top: 0,
                 height: 1,
-                background: 'linear-gradient(90deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.82) 50%, rgba(82,66,222,0.08) 100%)',
-                boxShadow: '0 0 8px rgba(82,66,222,0.42)',
+                background: 'linear-gradient(90deg, rgba(168,85,247,0.08) 0%, rgba(168,85,247,0.82) 50%, rgba(168,85,247,0.08) 100%)',
+                boxShadow: '0 0 8px rgba(168,85,247,0.42)',
                 pointerEvents: 'none',
               }}
             />
@@ -314,8 +279,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 top: 6,
                 bottom: 6,
                 width: 1,
-                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
-                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
+                background: 'linear-gradient(180deg, rgba(168,85,247,0.08) 0%, rgba(168,85,247,0.76) 50%, rgba(168,85,247,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(168,85,247,0.34)',
                 pointerEvents: 'none',
               }}
             />
@@ -327,8 +292,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
                 top: 6,
                 bottom: 6,
                 width: 1,
-                background: 'linear-gradient(180deg, rgba(82,66,222,0.08) 0%, rgba(82,66,222,0.76) 50%, rgba(82,66,222,0.08) 100%)',
-                boxShadow: '0 0 7px rgba(82,66,222,0.34)',
+                background: 'linear-gradient(180deg, rgba(168,85,247,0.08) 0%, rgba(168,85,247,0.76) 50%, rgba(168,85,247,0.08) 100%)',
+                boxShadow: '0 0 7px rgba(168,85,247,0.34)',
                 pointerEvents: 'none',
               }}
             />
@@ -352,28 +317,18 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             />
           </>
         ) : null}
-        <div className={isPlus ? 'grid grid-cols-3' : 'grid grid-cols-3'}>
-        <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_streak')}</span>
-          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{weeklyLoginDays}</span>
-          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
-            {t('profile_weekly_login_hint', { days: weeklyLoginDays })}
-          </span>
-        </div>
-        <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_today_activities')}</span>
-          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{todayActs}</span>
-          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
-            {t('profile_today_activities_hint', { count: todayActs })}
-          </span>
-        </div>
-        <div className="flex flex-col items-center py-1">
-          <span className="mt-0.5 text-[12px] font-medium" style={{ color: '#5F7A63' }}>{t('profile_completed_goals')}</span>
-          <span className="mt-0.5 text-base font-bold" style={{ color: '#5F7A63' }}>{completedGoals}</span>
-          <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: '#5F7A63' }}>
-            {t('profile_completed_goals_hint')}
-          </span>
-        </div>
+        <div className="grid grid-cols-3">
+        {[
+          { label: t('profile_streak'), value: weeklyLoginDays, hint: t('profile_weekly_login_hint', { days: weeklyLoginDays }) },
+          { label: t('profile_today_activities'), value: todayActs, hint: t('profile_today_activities_hint', { count: todayActs }) },
+          { label: t('profile_completed_goals'), value: completedGoals, hint: t('profile_completed_goals_hint') },
+        ].map(({ label, value, hint }) => (
+          <div key={label} className="flex flex-col items-center py-1">
+            <span className="mt-0.5 text-[12px] font-medium" style={{ color: isPlus ? MEMBERSHIP_TEXT : '#5F7A63' }}>{label}</span>
+            <span className="mt-0.5 text-base font-bold" style={{ color: isPlus ? MEMBERSHIP_PURPLE_DEEP : '#5F7A63' }}>{value}</span>
+            <span className="mt-0.5 px-1 text-center text-[10px] font-light leading-tight" style={{ color: isPlus ? '#9333ea99' : '#5F7A63' }}>{hint}</span>
+          </div>
+        ))}
         </div>
       </div>
 

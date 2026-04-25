@@ -476,8 +476,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       applyLegacyScopeMigrationIfAllowed(initialScope, 'initialize:start', session.user.id);
     }
     await rehydrateAllDomainPersistStores();
-    let sessionUser = session?.user ? await ensureTodayLoginDay(session.user) : null;
-    sessionUser = await ensureCloudLanguageMetadata(sessionUser);
+    const sessionUser = session?.user ?? null;
+    // Fire metadata writes in the background — don't block loading screen
+    if (sessionUser) {
+      void ensureTodayLoginDay(sessionUser)
+        .then((u) => ensureCloudLanguageMetadata(u))
+        .then((u) => { if (u !== sessionUser) set({ user: u }); })
+        .catch(() => {});
+    }
     const meta = sessionUser?.user_metadata || {};
     const rawPreferences = sessionUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
     const profileState = profileStateFromMeta(meta);
@@ -572,8 +578,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const previousUser = get().user;
       let currentUser = session?.user || null;
       if (event === 'SIGNED_IN' && currentUser) {
-        currentUser = await ensureTodayLoginDay(currentUser);
-        currentUser = await ensureCloudLanguageMetadata(currentUser);
+        const capturedUser = currentUser;
+        void ensureTodayLoginDay(capturedUser)
+          .then((u) => ensureCloudLanguageMetadata(u))
+          .then((u) => { if (u !== capturedUser) set({ user: u }); })
+          .catch(() => {});
       }
       const rawPreferences = currentUser
         ? preferencesFromMeta(currentUser.user_metadata || {})
@@ -738,7 +747,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         data: {
           display_name: nickname || email.split('@')[0],
           avatar_url: avatarDataUrl || null,
-          trial_started_at: new Date().toISOString(),
         },
       },
     });

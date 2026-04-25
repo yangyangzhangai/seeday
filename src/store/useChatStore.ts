@@ -262,7 +262,9 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        // 本地无缓存 → 等云端（loading 由调用方控制）
+        // 本地无缓存 → 先清空当前视图，再等云端（避免 Supabase 失败时残留其他日期数据）
+        set({ messages: [], activeViewDateStr: dateStr });
+
         const session = await getSupabaseSession();
         if (!session) return;
 

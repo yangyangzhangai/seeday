@@ -637,9 +637,6 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
                       去授权通知权限
                     </button>
                   )}
-                  {todayCount !== null && (
-                    <p className="text-[11px] text-black/30">⏰ {t('profile_user_profile_reminder_today_count')}：{todayCount} 条</p>
-                  )}
                 </div>
               </div>
 

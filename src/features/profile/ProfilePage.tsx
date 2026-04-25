@@ -22,7 +22,7 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') return;
     if (!loading && !user) {
-      navigate('/auth');
+      navigate('/onboarding');
     }
   }, [user, loading, navigate]);
 
