@@ -136,7 +136,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      navigate('/onboarding');
     }
   }, [loading, navigate, user]);
 

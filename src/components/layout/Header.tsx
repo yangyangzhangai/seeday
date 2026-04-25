@@ -23,7 +23,7 @@ export const Header = () => {
 
   const handleAuthClick = () => {
     if (!user) {
-      navigate('/auth');
+      navigate('/onboarding');
     }
   };
 

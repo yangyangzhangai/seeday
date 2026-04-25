@@ -257,8 +257,15 @@ async function verifyIapMembership(params: {
   planType: PlanType;
   originalTransactionId: string | null;
 }): Promise<VerifiedMembership> {
+  console.log('[IAP] verifyIapMembership start', {
+    transactionId: params.transactionId,
+    productId: params.productId,
+    planType: params.planType,
+  });
+
   const bypass = process.env.APPLE_IAP_VERIFY_BYPASS === 'true';
   if (bypass) {
+    console.log('[IAP] bypass mode enabled, skipping Apple verification');
     const defaultExpire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     return {
       plan: 'plus',
@@ -274,20 +281,35 @@ async function verifyIapMembership(params: {
   const allowedProductIds = productIdsByPlan(params.planType);
   const expectedProductId = productIdByPlan(params.planType);
 
+  console.log('[IAP] allowedBundleIds:', allowedBundleIds);
+  console.log('[IAP] allowedProductIds:', allowedProductIds);
+
+  const hasIssuerId = !!process.env.APPLE_IAP_ISSUER_ID;
+  const hasKeyId = !!process.env.APPLE_IAP_KEY_ID;
+  const hasPrivateKey = !!process.env.APPLE_IAP_PRIVATE_KEY;
+  console.log('[IAP] env check — ISSUER_ID:', hasIssuerId, 'KEY_ID:', hasKeyId, 'PRIVATE_KEY:', hasPrivateKey);
+
   let payload: AppleTransactionPayload | null = null;
   let env: 'production' | 'sandbox' = 'production';
   let lastError: Error | null = null;
 
   for (const bundleId of allowedBundleIds) {
     try {
+      console.log('[IAP] building token for bundleId:', bundleId);
       const token = buildAppleApiToken(bundleId);
+      console.log('[IAP] token built OK, querying prod API...');
       const prod = await fetchAppleTransaction(APPLE_PROD_API_BASE, token, params.transactionId);
       const nextEnv: 'production' | 'sandbox' = prod.notFound ? 'sandbox' : 'production';
+      console.log('[IAP] prod lookup notFound:', prod.notFound, '→ env:', nextEnv);
       const source = prod.notFound
         ? await fetchAppleTransaction(APPLE_SANDBOX_API_BASE, token, params.transactionId)
         : prod;
       const candidate = source.payload;
-      if (!candidate) continue;
+      if (!candidate) {
+        console.log('[IAP] no payload from Apple for bundleId:', bundleId);
+        continue;
+      }
+      console.log('[IAP] Apple payload bundleId:', candidate.bundleId, 'productId:', candidate.productId);
       if (candidate.bundleId && !allowedBundleIds.includes(candidate.bundleId)) {
         throw new Error(`Bundle ID mismatch: ${candidate.bundleId}`);
       }
@@ -296,20 +318,26 @@ async function verifyIapMembership(params: {
       break;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      console.error('[IAP] error for bundleId:', bundleId, lastError.message);
     }
   }
 
   if (!payload) {
+    const msg = (lastError || new Error('Transaction not found in Apple production/sandbox')).message;
+    console.error('[IAP] verification failed — no valid payload. lastError:', msg);
     throw lastError || new Error('Transaction not found in Apple production/sandbox');
   }
   if (!payload.productId) {
+    console.error('[IAP] Apple payload missing productId');
     throw new Error('Apple payload missing productId');
   }
   if (!allowedProductIds.includes(payload.productId)) {
+    console.error('[IAP] product mismatch — got:', payload.productId, 'allowed:', allowedProductIds);
     throw new Error('Purchased product does not match requested plan');
   }
 
   const isActive = isActiveSubscription(payload);
+  console.log('[IAP] verification success — isActive:', isActive, 'env:', env);
   return {
     plan: isActive ? 'plus' : 'free',
     expiresAt: toIso(payload.expiresDate),
@@ -383,6 +411,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const action = normalizeAction(body.action);
   const source = normalizeSource(body.source);
   const planType = normalizePlanType(body.planType);
+
+  console.log('[subscription] request — action:', action, 'source:', source, 'planType:', planType,
+    'transactionId:', normalizeString(body.transactionId)?.slice(0, 20),
+    'productId:', normalizeString(body.productId));
 
   if (!action || !source) {
     jsonError(res, 400, 'Invalid action or source');
@@ -494,6 +526,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Subscription operation failed';
+    console.error('[subscription] handler error:', message, error instanceof Error ? error.stack?.split('\n')[1] : '');
     jsonError(res, 400, 'Subscription operation failed', message);
   }
 }

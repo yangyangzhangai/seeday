@@ -6,7 +6,6 @@ import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
-import { AuthPage } from './features/auth/AuthPage';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
@@ -58,7 +57,6 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
   const userProfileV2 = useAuthStore(state => state.userProfileV2);
-  const location = useLocation();
 
   // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
   if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') {
@@ -67,10 +65,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
 
   if (loading) return <BlankScreen />;
   if (!user) {
-    const hasOnboarded = localStorage.getItem('seeday_onboarded') === 'true';
-    return hasOnboarded
-      ? <Navigate to="/auth" replace state={{ from: location.pathname }} />
-      : <Navigate to="/onboarding" replace />;
+    return <Navigate to="/onboarding" replace />;
   }
   // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
   const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
@@ -79,16 +74,6 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   }
 
   return children;
-};
-
-const AuthRoute: React.FC = () => {
-  const user = useAuthStore(state => state.user);
-  const loading = useAuthStore(state => state.loading);
-
-  if (loading) return <BlankScreen />;
-  if (user) return <Navigate to="/chat" replace />;
-
-  return <AuthPage />;
 };
 
 /** 新版引导流：允许未登录（StepAuth 处理鉴权），已完成 onboarding 的已登录用户直接进首页 */
@@ -125,7 +110,7 @@ const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ chi
   const loading = useAuthStore(state => state.loading);
 
   if (loading) return <BlankScreen />;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/onboarding" replace />;
   if (!isTelemetryAdmin(user)) return <Navigate to="/profile" replace />;
   return children;
 };
@@ -402,7 +387,6 @@ function App() {
           <Route path="telemetry/profile-settings" element={<RequireTelemetryAdmin><ProfileSettingsTelemetryPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/feedback" element={<RequireTelemetryAdmin><FeedbackTelemetryPage /></RequireTelemetryAdmin>} />
         </Route>
-        <Route path="/auth" element={<AuthRoute />} />
         <Route path="/onboarding" element={<OnboardingRoute />} />
       </Routes>
     </BrowserRouter>

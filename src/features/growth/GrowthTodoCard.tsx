@@ -328,6 +328,7 @@ export const GrowthTodoCard = ({
                 }
               }}
               onBlur={() => { void commitTitle(); }}
+              enterKeyHint="done"
               placeholder={t('growth_todo_title_placeholder')}
               className="w-full bg-transparent text-sm text-[#334155] focus:outline-none"
             />

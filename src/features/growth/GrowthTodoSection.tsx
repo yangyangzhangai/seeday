@@ -404,7 +404,8 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
         <input
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(); } }}
+          enterKeyHint="done"
           placeholder={t('growth_todo_quick_add_placeholder')}
           className="flex-1 bg-transparent text-sm text-[#334155] placeholder:text-[#94a3b8] focus:outline-none"
         />
