@@ -6,6 +6,15 @@ All notable effective changes are documented here.
 
 ## 2026-04-26
 
+### Fix: iOS 套壳下 Profile 弹窗保存按钮丢失
+
+- `src/features/profile/components/RoutineSettingsPanel.tsx`：弹窗卡片加 `min-h-0`，滚动内容区加 `min-h-0`，并将弹窗最大高度口径从 `100dvh` 调整为 `100vh` + safe-area 兜底，避免 iOS WebView 下 footer 被裁切
+- `src/features/profile/components/DirectionSettingsPanel.tsx`：改为 `flex` 列布局（header/content/footer），中间内容区改 `min-h-0 flex-1 overflow-y-auto`，并统一 `100vh` + safe-area 高度口径，确保底部保存区始终可见
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ### Refactor: split `useAuthStore` to resolve max-lines hard limit
 
 - `src/store/useAuthStore.ts` 拆分为“初始化/鉴权主链路”入口，行数从 1000+ 降至 400 以下 warning 线以内
@@ -41,6 +50,16 @@ Validation:
 
 - `npx tsc --noEmit` ✅
 
+### Fix: Diary flip reveal page now locks to static spread geometry
+
+- `src/features/report/DiaryBookViewer.tsx` 将 live drag 期间的 reveal sheet 强制对齐静止摊开页几何（`top=0`、`height=pageH`、同款 clip 规则），不再沿用堆叠层的缩高/上移形态
+- 翻页渲染新增 `liveFlip.side` 与 reveal/companion 判定：拖拽时只保留“翻动页 + reveal 下一页 + 对侧当前页”，其余 stack sheet 暂时隐藏，书脊厚度仅保留边缘层
+- 修复翻页中下一页初始斜率过大、主阅读面出现异形白块的视觉问题，翻后下一页起始态与静止态一致
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ### Build: Membership AI classification phase-2 closure
 
 - `src/store/chatClassificationHelpers.ts` 扩展 classify 结果消费：在单条消息单次 classify 结果中补齐 `kind/moodType/classificationPath/aiCalled`，并保持 `membership_required` 与超时失败回退本地规则
@@ -48,11 +67,13 @@ Validation:
 - `src/store/useChatStore.ts` 在 Plus classify 成功时复用 `mood_type` 回写 mood store（仅自动情绪，无手动覆盖时生效），统一 activity/mood/bottle 三类消费口径
 - `src/services/input/liveInputTelemetryCloud.ts` 新增会员分类最小埋点上报（复用 `/api/live-input-telemetry` classification 事件，`reasons[]` 携带 `user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`）
 - 新增测试：`src/store/chatClassificationHelpers.test.ts`（Free=0 调用、Plus=单条单次、membership_required 与失败降级）；`api/classify.test.ts`（非 Plus 403 防绕过）
+- 新增 50 条回归脚本：`src/store/useChatStore.membership-classification.test.ts`，覆盖 Free 50 条=0 调用、Plus 50 条=50 调用、`sendMessage+endActivity` 单条去重=1 次
 - 文档同步：`docs/CURRENT_TASK.md`、`src/store/README.md`、`src/api/README.md`、`api/README.md`
 
 Validation:
 
 - `npx vitest run src/store/chatClassificationHelpers.test.ts api/classify.test.ts` ✅
+- `npx vitest run src/store/chatClassificationHelpers.test.ts api/classify.test.ts src/store/useChatStore.membership-classification.test.ts` ✅
 - `npx tsc --noEmit` ✅
 
 ## 2026-04-25

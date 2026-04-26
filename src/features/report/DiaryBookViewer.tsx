@@ -24,6 +24,7 @@ const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
 const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
 const CUSTOM_MOOD_LABEL = '自定义';
 
+/* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
 const BASE_PAGE_H = 255; // A5 ratio: 180 × (210/148) ≈ 255
 const FLIP_MS = 550;
@@ -43,61 +44,7 @@ const SPINE_STRIP_W = 14;
 const BASE_SHEET_SPINE_OVERLAP = 2;
 const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
 
-type Point2D = [number, number];
-function solveLinear8(equations: number[][]): number[] {
-  const m = equations.map((row) => [...row]);
-  const size = 8;
-  for (let col = 0; col < size; col++) {
-    let pivot = col;
-    for (let row = col + 1; row < size; row++) {
-      if (Math.abs(m[row][col]) > Math.abs(m[pivot][col])) pivot = row;
-    }
-    if (pivot !== col) {
-      const tmp = m[col];
-      m[col] = m[pivot];
-      m[pivot] = tmp;
-    }
-    const pivotVal = m[col][col] || 1e-8;
-    for (let j = col; j <= size; j++) m[col][j] /= pivotVal;
-    for (let row = 0; row < size; row++) {
-      if (row === col) continue;
-      const factor = m[row][col];
-      if (factor === 0) continue;
-      for (let j = col; j <= size; j++) m[row][j] -= factor * m[col][j];
-    }
-  }
-  return m.map((row) => row[size]);
-}
-
-function buildPagePlaneTransform(width: number, height: number, destination: [Point2D, Point2D, Point2D, Point2D]): string {
-  const source: [Point2D, Point2D, Point2D, Point2D] = [[0, 0], [width, 0], [width, height], [0, height]];
-  const equations: number[][] = [];
-  for (let i = 0; i < 4; i++) {
-    const [x, y] = source[i];
-    const [u, v] = destination[i];
-    equations.push([x, 0, y, 0, 1, 0, -x * u, -y * u, u]);
-    equations.push([0, x, 0, y, 0, 1, -x * v, -y * v, v]);
-  }
-  const [a, b, c, d, e, f, g, h] = solveLinear8(equations);
-  return `matrix3d(${a},${b},0,${g},${c},${d},0,${h},0,0,1,0,${e},${f},0,1)`;
-}
-
-function buildPageDestination(side: 'left' | 'right', width: number, height: number, trapInset: number): [Point2D, Point2D, Point2D, Point2D] {
-  const horizonY = height / 2;
-  const vpDistance = width * 8;
-  const vpX = side === 'left' ? width + vpDistance : -vpDistance;
-  const topOuter = trapInset;
-  const bottomOuter = height - trapInset;
-  const yOnLineAtX = (x: number, x0: number, y0: number) => horizonY + (y0 - horizonY) * ((x - vpX) / (x0 - vpX));
-  if (side === 'left') {
-    const topInner = yOnLineAtX(width, 0, topOuter);
-    const bottomInner = yOnLineAtX(width, 0, bottomOuter);
-    return [[0, topOuter], [width, topInner], [width, bottomInner], [0, bottomOuter]];
-  }
-  const topInner = yOnLineAtX(0, width, topOuter);
-  const bottomInner = yOnLineAtX(0, width, bottomOuter);
-  return [[0, topInner], [width, topOuter], [width, bottomOuter], [0, bottomInner]];
-}
+/* ──────────────────────────────── types ──────────────────────────────── */
 interface Props {
   onClose: () => void;
   onBackToShelf?: () => void;
@@ -178,6 +125,7 @@ const DIARY_COPY: Record<DiaryLang, {
   },
 };
 
+/* ──────────────────────────────── data ───────────────────────────────── */
 /** Each day occupies TWO pages: day-left (diary page 1) and day-right (diary page 2). */
 function buildPages(month: Date, reports: Report[]): PageData[] {
   const days = getDaysInMonth(month);
@@ -194,6 +142,7 @@ function buildPages(month: Date, reports: Report[]): PageData[] {
   return pages;
 }
 
+/* ──────────────────────────── page content ───────────────────────────── */
 function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFlipCard }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string; onOpenFlipCard?: (plant: DailyPlantRecord, msgs: Message[]) => void }) {
   const px = (n: number) => n * scale;
   const { i18n, t: tr } = useTranslation();
@@ -206,27 +155,28 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
   const langRaw = i18n.language?.split('-')[0] ?? 'en';
   const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
   const copy = DIARY_COPY[lang];
-  const pageWidth = BASE_PAGE_W * scale;
-  const pageHeight = BASE_PAGE_H * scale;
 
-  const leftPageTransform = useMemo(
-    () => buildPagePlaneTransform(pageWidth, pageHeight, buildPageDestination('left', pageWidth, pageHeight, trapInset)),
-    [pageHeight, pageWidth, trapInset]
-  );
+  const W = BASE_PAGE_W * scale;
+  const H_p = BASE_PAGE_H * scale;
+  const t = trapInset;
+  const lk = H_p / (H_p - 2 * t);
+  const leftPageTransform  = `matrix3d(${lk},${(t*lk)/W},0,${(2*t*lk)/(H_p*W)},0,1,0,0,0,0,1,0,0,0,0,1)`;
+  const rk = (H_p - 2 * t) / H_p;
+  const rightPageTransform = `matrix3d(${rk},${-t/W},0,${-2*t/(H_p*W)},0,${rk},0,0,0,0,1,0,0,${t},0,1)`;
 
-  const rightPageTransform = useMemo(
-    () => buildPagePlaneTransform(pageWidth, pageHeight, buildPageDestination('right', pageWidth, pageHeight, trapInset)),
-    [pageHeight, pageWidth, trapInset]
-  );
-
+  /* ── cover ── */
   if (page.type === 'cover') {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        {/* Spine */}
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to right, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
+        {/* Sheen */}
         <div style={{ position: 'absolute', left: px(20), right: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)', transform: 'skewX(-15deg)', pointerEvents: 'none' }} />
+        {/* Text */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
           <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{tr('report_view_diary_book')}</div>
           <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Diary</div>
@@ -235,17 +185,21 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
     );
   }
 
+  /* ── back cover ── */
   if (page.type === 'back') {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden' }}>
+        {/* Spine on right for back */}
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to left, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
+        {/* Texture overlays */}
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
       </div>
     );
   }
 
+  /* ── blank ── */
   if (page.type === 'blank') {
     return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
   }
@@ -374,6 +328,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
   };
   const donutSize = px(26);
 
+  /* ── day-left: same structure as diary page first screen ── */
   if (page.type === 'day-left') {
     const activitySummary = report?.stats?.actionSummary?.trim() || copy.activityFallback;
     const moodSummary = report?.stats?.moodSummary?.trim() || copy.moodFallback;
@@ -449,6 +404,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
     );
   }
 
+  /* ── day-right: same structure as diary page second screen ── */
   if (page.type === 'day-right') {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
@@ -544,6 +500,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
   return null;
 }
 
+/* ──────────────────────────── main viewer ────────────────────────────── */
 export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, reports, initialMonth, initialFlippedCount, onOpenDiaryPage }) => {
   const { t, i18n } = useTranslation();
   const today = new Date();
@@ -595,7 +552,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     startClientX: number; lastClientX: number; lastT: number; velDeg: number;
     isDragging: boolean;
   } | null>(null);
-  const [liveFlip, setLiveFlip] = useState<{ sheetIdx: number; rotY: number } | null>(null);
+  const [liveFlip, setLiveFlip] = useState<{ sheetIdx: number; rotY: number; side: 'left' | 'right' } | null>(null);
   const [snapDur, setSnapDur] = useState<{ sheetIdx: number; ms: number } | null>(null);
   const pageWRef = useRef(BASE_PAGE_W);
   const [viewport, setViewport] = useState(() => ({
@@ -638,6 +595,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     setTimeout(() => setIsAnimating(false), FLIP_MS);
   }, [isAnimating, flippedCount]);
 
+  /* ── double-click / double-tap to expand ── */
   const handleZoneClick = useCallback((side: 'left' | 'right') => {
     if (dblClickTimer.current?.side === side) {
       clearTimeout(dblClickTimer.current.timer);
@@ -708,7 +666,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     const rotY = drag.side === 'right'
       ? Math.max(-180, Math.min(0, (deltaX / pw) * 180))
       : Math.max(-180, Math.min(0, -180 + (deltaX / pw) * 180));
-    setLiveFlip({ sheetIdx: drag.sheetIdx, rotY });
+    setLiveFlip({ sheetIdx: drag.sheetIdx, rotY, side: drag.side });
   }, []);
 
   const onZonePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -736,8 +694,8 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
     const target = shouldComplete ? (drag.side === 'right' ? -180 : 0) : (drag.side === 'right' ? 0 : -180);
     const remaining = Math.abs(target - curRotY);
-    const speed = Math.max(0.35, Math.abs(drag.velDeg) * 0.72);
-    const dur = Math.max(180, Math.min(FLIP_MS, remaining / speed));
+    const speed = Math.max(0.5, Math.abs(drag.velDeg));
+    const dur = Math.max(60, Math.min(FLIP_MS, remaining / speed));
 
     setSnapDur({ sheetIdx: drag.sheetIdx, ms: dur });
     setLiveFlip(null);
@@ -760,6 +718,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     return `${flippedCount} / ${numSheets}`;
   };
 
+  /* ── scaling ── */
   const baseSideMargin = MAX_VIS * BASE_SIDE_GAP;
   const shelfThumbW = (Math.min(viewport.width, 430) - 48 - 20) / 2;
   const scaleFromCover = shelfThumbW / BASE_PAGE_W;
@@ -809,6 +768,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const isNearBackClosingDrag =
     !!liveFlip && flippedCount === numSheets - 1 && liveFlip.sheetIdx === numSheets - 1 && liveFlip.rotY < -162;
   const isolateActiveDragSheet = isNearCoverClosingDrag || isNearBackClosingDrag;
+  const liveFlipRevealSheetIdx = liveFlip
+    ? (liveFlip.side === 'right' ? liveFlip.sheetIdx + 1 : liveFlip.sheetIdx - 1)
+    : null;
+  const liveFlipCompanionSheetIdx = liveFlip
+    ? (liveFlip.side === 'right' ? liveFlip.sheetIdx - 1 : liveFlip.sheetIdx + 1)
+    : null;
 
   return (
     <div style={{
@@ -873,6 +838,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           {Array.from({ length: numSheets }, (_, i) => {
             const isFlipped = i < flippedCount;
             const dist = isFlipped ? (flippedCount - 1 - i) : (i - flippedCount);
+            const isLive = liveFlip?.sheetIdx === i;
+            const isRevealDuringTurn = liveFlipRevealSheetIdx != null && i === liveFlipRevealSheetIdx;
+            const keepDuringDrag = !liveFlip || isLive || isRevealDuringTurn || i === liveFlipCompanionSheetIdx;
+            if (!keepDuringDrag) return null;
             if (isolateActiveDragSheet && liveFlip && i !== liveFlip.sheetIdx) return null;
             if (isCoverFullyClosed && i !== 0) return null;
             if (isBackFullyClosed && i !== numSheets - 1) return null;
@@ -881,24 +850,26 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
 
             const stackZ = (MAX_VIS - vis) * 4 * scale;
             const rotY = isFlipped ? -180 : 0;
-            const isLive = liveFlip?.sheetIdx === i;
             const isSnap = snapDur?.sheetIdx === i;
             const effectiveRotY = isLive ? liveFlip!.rotY : rotY;
             const offset = dist === 0 ? 0 : vis * sideGap;
-            const shiftX = (isEdgeLiveFlip || isEdgeSnapAnimating) ? 0 : (isFlipped ? -offset : offset);
             const isCurrent = dist === 0;
-            const layerShrink = isCurrent ? 0 : (dist - 1) * heightShrink;
-            const sheetH = isCurrent ? pageH : pageH - 2 * trapezoidInset - layerShrink;
-            const topOffset = isCurrent ? 0 : trapezoidInset + layerShrink / 2;
+            const useStaticGeometry = isCurrent || isRevealDuringTurn;
+            const shiftX = useStaticGeometry
+              ? 0
+              : ((isEdgeLiveFlip || isEdgeSnapAnimating) ? 0 : (isFlipped ? -offset : offset));
+            const layerShrink = useStaticGeometry ? 0 : (dist - 1) * heightShrink;
+            const sheetH = useStaticGeometry ? pageH : pageH - 2 * trapezoidInset - layerShrink;
+            const topOffset = useStaticGeometry ? 0 : trapezoidInset + layerShrink / 2;
             const isCoverFront = pages[2 * i]?.type === 'cover';
             const isBackCoverBack = pages[2 * i + 1]?.type === 'back';
-            const frontClip = (isCurrent && !isCoverFront)
+            const frontClip = (useStaticGeometry && !isCoverFront)
               ? `polygon(0 ${trapezoidInset}px, 100% 0, 100% 100%, 0 calc(100% - ${trapezoidInset}px))` : undefined;
-            const backClip = (isCurrent && !isBackCoverBack)
+            const backClip = (useStaticGeometry && !isBackCoverBack)
               ? `polygon(0 0, 100% ${trapezoidInset}px, 100% calc(100% - ${trapezoidInset}px), 0 100%)` : undefined;
             const effectiveDur = isSnap ? snapDur!.ms : FLIP_MS;
             return (
-              <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1), top ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1), height ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1), left ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
+              <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: frontClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
                   <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} onOpenFlipCard={(plant, msgs) => setFlipModal({ plant, dayMessages: msgs })} />
                 </div>

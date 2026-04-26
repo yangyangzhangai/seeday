@@ -18,6 +18,7 @@ Status: 实施中（高优先）
 - [x] 星星回滚链路补齐（完成加星/取消完成扣星对称）
 - [x] iOS 手势/拖拽稳定性收口（按钮 pointer-first + click 吞并；新增拖拽手柄并保留长按兜底）
 - [x] 编辑命中稳定性收口（编辑目标 id 锁定 + 编辑态禁拖拽，避免错位到下一条）
+- [x] Profile 作息/根系方向弹窗在 iOS 套壳下保存按钮可见性修复（弹窗容器改 `min-h-0` + 滚动区收缩 + `100vh` 高度兜底）
 
 ### 待完成（本线核心）
 
@@ -78,6 +79,9 @@ Status: 实施中（第二阶段收口中）
 - [x] 单元测试：Free=0 调用、Plus=每条 1 次、失败降级
 - [x] 集成测试：非 Plus 直调 classify 返回 403
 - [ ] 手测 50 条回归：Free 0 调用、Plus 50 调用
+
+补充验收记录（2026-04-26）：
+- [x] 脚本回归（`useChatStore.membership-classification.test.ts`）：Free 50 条调用数=0、Plus 50 条调用数=50、send+endActivity 去重=1 次
 
 ### 下一步待完成
 
@@ -340,6 +344,7 @@ Status: 主链路可用，剩余增强项
 
 - [x] 2026-04-26：`DiaryBookViewer` 翻页透视收口——按“中缝消失点 + 中线水平”重建页内投影，左右页统一向中缝收敛并保持同平面 `matrix3d`，修复斜度反向与边线不共视线问题
 - [x] 2026-04-26：`DiaryBookViewer` 翻页松手跳变收口——拖拽回弹最短时长从 60ms 提升至 180ms，并让 `top/height/left` 与 `transform` 同步补间，修复“翻到下一页后斜度瞬跳回正”
+- [x] 2026-04-26：`DiaryBookViewer` 下一页静止态对齐——翻页进行中将 reveal sheet 强制对齐静止摊开几何（`top=0` / `height=pageH` / 同款裁切），并在拖拽时仅保留“翻动页 + 下一页 + 对侧当前页”，避免堆叠层侵入主阅读面导致的畸形白边
 
 - [ ] V3：MoodEnergyTimeline（补时间轴结构）
 - [ ] D5（剩余）：历史趋势补 mood key 跨日分布

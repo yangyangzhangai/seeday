@@ -464,8 +464,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="relative w-full sm:max-w-md bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
-              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
+              className="relative w-full sm:max-w-md bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col min-h-0"
+              style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
             >
               <style dangerouslySetInnerHTML={{ __html: `.cr-scroll::-webkit-scrollbar{width:4px}.cr-scroll::-webkit-scrollbar-thumb{background:#8fae9130;border-radius:20px}` }} />
 
@@ -478,7 +478,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 滚动内容 */}
-              <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
 
                 {/* 身份 */}
                 <section className="relative z-10">

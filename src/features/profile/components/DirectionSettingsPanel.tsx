@@ -120,17 +120,17 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
         onClick={onClose}
       />
       <div
-        className="relative w-full sm:max-w-md rounded-t-[28px] sm:rounded-[30px] bg-white shadow-2xl"
-        style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 8px)' }}
+        className="relative w-full sm:max-w-md rounded-t-[28px] sm:rounded-[30px] bg-white shadow-2xl overflow-hidden flex min-h-0 flex-col"
+        style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
           <h3 className="text-base font-bold text-[#1C2E24]">{t('profile_root_direction_settings')}</h3>
           <button type="button" onClick={onClose} className="rounded-full p-2 transition hover:bg-black/5">
             <X size={18} className="text-[#1C2E24]" />
           </button>
         </div>
 
-        <div className="max-h-[62dvh] overflow-y-auto px-5 pb-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
           <p className="text-[12px] font-medium text-[#5F7A63]">{t('profile_root_direction_settings_desc')}</p>
 
           <div className="mt-3 space-y-2">
@@ -174,7 +174,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2">
+        <div className="shrink-0 flex items-center justify-end gap-2 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2">
           <button
             type="button"
             onClick={() => {
