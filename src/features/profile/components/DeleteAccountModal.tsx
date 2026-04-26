@@ -55,8 +55,10 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
         onClick={e => e.stopPropagation()}
         className="w-full max-w-lg rounded-t-3xl bg-[#F7F9F8] px-5 pt-6 shadow-2xl overflow-y-auto"
         style={{
-          maxHeight: '88vh',
+          maxHeight: '88dvh',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 32px)',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
         }}
       >
         {/* Handle */}

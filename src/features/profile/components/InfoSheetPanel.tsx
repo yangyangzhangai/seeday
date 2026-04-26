@@ -24,7 +24,11 @@ export const InfoSheetPanel: React.FC<Props> = ({ title, onClose, children }) =>
     </div>
     <div
       className="flex-1 overflow-y-auto px-5 py-4"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
+      style={{
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+      }}
     >
       {children}
     </div>

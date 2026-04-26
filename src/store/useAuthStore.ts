@@ -819,6 +819,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: null };
   },
 
+  updateDisplayName: async (displayName: string) => {
+    const currentUser = get().user;
+    if (!currentUser) {
+      return { error: new Error('Not signed in') };
+    }
+
+    set({
+      user: {
+        ...currentUser,
+        user_metadata: {
+          ...(currentUser.user_metadata || {}),
+          display_name: displayName,
+        },
+      },
+    });
+
+    void patchUserMetadata({ display_name: displayName })
+      .then(({ user, error }) => {
+        if (!error && user) {
+          set({ user });
+          return;
+        }
+        if (import.meta.env.DEV && error) {
+          console.warn('[auth] updateDisplayName cloud sync failed (local saved):', error);
+        }
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateDisplayName cloud sync failed (local saved):', error);
+        }
+      });
+
+    return { error: null };
+  },
+
   updateLocationMetadata: async (input) => {
     const currentUser = get().user;
     if (!currentUser) {

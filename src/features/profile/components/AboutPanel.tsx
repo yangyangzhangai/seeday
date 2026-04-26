@@ -5,7 +5,7 @@ import { InfoSheetPanel } from './InfoSheetPanel';
 import { PrivacyPolicyPanel } from './PrivacyPolicyPanel';
 
 const APP_VERSION = '1.0.0';
-const SUPPORT_EMAIL = 'houanni1314@gmail.com';
+const SUPPORT_EMAIL = 'hello@seedayapp.com';
 
 interface Props {
   onClose: () => void;

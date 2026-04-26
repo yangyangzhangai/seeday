@@ -351,9 +351,10 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               disabled={isGenerating}
               className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: SEND_BUTTON_BG,
-                boxShadow: SEND_BUTTON_SHADOW,
-                color: SAGE_GREEN_DEEP,
+                background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(139,92,246,0.12) 100%)',
+                boxShadow: '0px 2px 8px rgba(168,85,247,0.18)',
+                color: '#9333ea',
+                border: '1px solid rgba(168,85,247,0.22)',
               }}
             >
               {isGenerating ? (

@@ -139,9 +139,6 @@ export const GrowthPage = () => {
         const { data } = await supabase.auth.getUser();
         const latestMetaDate = normalizeDateKey(data.user?.user_metadata?.daily_goal_date);
         if (latestMetaDate) freshestRemoteGoalDate = latestMetaDate;
-        if (!cancelled && data.user && data.user.id === userId) {
-          useAuthStore.setState({ user: data.user });
-        }
       } catch {
         // fall back to currently cached metadata
       }

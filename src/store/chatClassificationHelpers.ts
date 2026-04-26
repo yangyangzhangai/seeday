@@ -15,6 +15,16 @@ export type MessageClassificationResult = {
 };
 
 const messageClassificationTaskMap = new Map<string, Promise<MessageClassificationResult>>();
+const CLASSIFICATION_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('classification_timeout')), ms),
+    ),
+  ]);
+}
 
 export function resolveCurrentLang(): SupportedLang {
   const lang = i18n.language?.toLowerCase() ?? 'zh';
@@ -64,12 +74,15 @@ export function ensureMessageClassification(params: {
     }
 
     try {
-      const aiResult = await callClassifierAPI({
-        rawInput: params.content,
-        lang: params.lang,
-        habits: params.habits,
-        goals: params.goals,
-      });
+      const aiResult = await withTimeout(
+        callClassifierAPI({
+          rawInput: params.content,
+          lang: params.lang,
+          habits: params.habits,
+          goals: params.goals,
+        }),
+        CLASSIFICATION_TIMEOUT_MS,
+      );
       const aiActivityType = aiResult.data?.activity_type;
       return {
         activityType: aiActivityType ?? fallbackType,

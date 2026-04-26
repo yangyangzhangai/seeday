@@ -3,7 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoSheetPanel } from './InfoSheetPanel';
 
-const SUPPORT_EMAIL = 'houanni1314@gmail.com';
+const SUPPORT_EMAIL = 'hello@seedayapp.com';
 
 const SECTIONS = [
   { title: 'privacy_s1_title', body: 'privacy_s1_body' },

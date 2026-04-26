@@ -54,7 +54,10 @@
       "Bash(sort -k1)",
       "Bash(awk 'prev==$1{print \"DUPLICATE:\", prev_file, \"==\", $2} {prev=$1; prev_file=$2}')",
       "Bash(sort -t: -k2 -rn)",
-      "Bash(xargs sed *)"
+      "Bash(xargs sed *)",
+      "Bash(awk 'NR>=1100 && NR<=1200' /Users/annie/.claude/projects/-Users-annie-Seeday/dce29d8f-4d3c-4bd0-8fd4-08b19c6d003c.jsonl)",
+      "Bash(awk 'NR>=900 && NR<=1180' /Users/annie/.claude/projects/-Users-annie-Seeday/dce29d8f-4d3c-4bd0-8fd4-08b19c6d003c.jsonl)",
+      "Bash(awk 'NR>=950 && NR<=1100' /Users/annie/.claude/projects/-Users-annie-Seeday/dce29d8f-4d3c-4bd0-8fd4-08b19c6d003c.jsonl)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

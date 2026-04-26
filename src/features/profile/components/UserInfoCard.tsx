@@ -64,7 +64,7 @@ function calcCompletedGoals(bottles: any[]): number {
 
 export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const { t } = useTranslation();
-  const { user, updateAvatar } = useAuthStore();
+  const { user, updateAvatar, updateDisplayName } = useAuthStore();
   const messages = useChatStore((s) => s.messages);
   const bottles = useGrowthStore((s) => s.bottles);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -152,10 +152,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const handleNameSave = async () => {
     const trimmed = nameValue.trim();
     if (trimmed && trimmed !== displayName) {
-      await supabase.auth.updateUser({ data: { display_name: trimmed } });
-      // refresh user in store
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) useAuthStore.setState({ user: data.user });
+      await updateDisplayName(trimmed);
     }
     setEditingName(false);
   };

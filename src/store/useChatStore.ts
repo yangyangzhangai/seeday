@@ -643,10 +643,11 @@ export const useChatStore = create<ChatState>()(
           )
         }));
 
-        const session = await getSupabaseSession();
-        if (session) {
-          await supabase.from('messages').update({ duration, is_active: false }).eq('id', id).eq('user_id', session.user.id);
-        }
+        void getSupabaseSession().then((session) => {
+          if (session) {
+            void supabase.from('messages').update({ duration, is_active: false }).eq('id', id).eq('user_id', session.user.id);
+          }
+        });
 
         const moodStore = useMoodStore.getState();
         if (!moodStore.getMood(id)) {
@@ -714,13 +715,15 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        if (!isPlus) {
-          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
-          if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
-          }
+        // Priority 2: keyword matching (instant, for all users)
+        const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+        if (keywordMatchedBottleId) {
+          grantBottleStars(keywordMatchedBottleId);
           return;
         }
+
+        // Priority 3: Pro AI classification (only if keyword didn't match)
+        if (!isPlus) return;
 
         const lang = resolveLangForText(target.content);
         void ensureMessageClassification({
@@ -734,18 +737,8 @@ export const useChatStore = create<ChatState>()(
           if (!get().messages.some((m) => m.id === id)) return;
           if (classification.matchedBottleId) {
             grantBottleStars(classification.matchedBottleId);
-            return;
           }
-          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
-          if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
-          }
-        }).catch(() => {
-          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
-          if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
-          }
-        });
+        }).catch(() => {});
       },
 
       deleteActivity: async (id) => {

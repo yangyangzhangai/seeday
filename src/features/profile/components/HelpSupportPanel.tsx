@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { InfoSheetPanel } from './InfoSheetPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 
-const SUPPORT_EMAIL = 'houanni1314@gmail.com';
+const SUPPORT_EMAIL = 'hello@seedayapp.com';
 
 interface QAItem {
   q: string;

@@ -68,6 +68,8 @@ export function playSound(key: SoundKey) {
   try {
     const audio = getAudio(key);
     audio.loop = false;
+    // Pause before seeking to avoid AbortError on iOS when audio is already playing
+    if (!audio.paused) audio.pause();
     audio.currentTime = 0;
     void audio.play().catch(() => { /* 用户未授权或静音模式下静默忽略 */ });
   } catch {
