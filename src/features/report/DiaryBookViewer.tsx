@@ -302,9 +302,13 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
   const dateLocale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
   const datePattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
   const headerDate = dayDate ? format(dayDate, datePattern, { locale: dateLocale }) : '';
+  // Free: show loading state (not fallback) until teaser is generated, to avoid text flicker
+  const isFreeWaitingForTeaser = !isPlus && !report?.teaserText?.trim() && report?.analysisStatus !== 'error' && report?.analysisStatus !== 'generating';
   const observationText = isPlus
     ? (report?.aiAnalysis?.trim() || copy.observationFallback)
-    : (report?.teaserText?.trim() || copy.observationFallback);
+    : isFreeWaitingForTeaser
+      ? tr('report_generating_variant_1', { companion: 'Van' })
+      : (report?.teaserText?.trim() || copy.observationFallback);
   const myDiary = report?.userNote?.trim() || copy.diaryPlaceholder;
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -451,35 +455,37 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
             </div>
             {observationText}
             <div style={{ clear: 'both' }} />
-            {!isPlus ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0) 36%, rgba(255,255,255,0.9) 68%, rgba(255,255,255,1) 100%)',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'center',
-                  paddingBottom: px(3),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => navigate('/upgrade')}
+            {isFreeWaitingForTeaser ? null : (
+              !isPlus ? (
+                <div
                   style={{
-                    border: 'none',
-                    borderRadius: 999,
-                    background: '#4f46e5',
-                    color: '#fff',
-                    fontSize: px(4.4),
-                    fontWeight: 700,
-                    padding: `${px(1.5)}px ${px(3)}px`,
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0) 36%, rgba(255,255,255,0.9) 68%, rgba(255,255,255,1) 100%)',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    paddingBottom: px(3),
                   }}
                 >
-                  {tr('report_teaser_unlock')}
-                </button>
-              </div>
-            ) : null}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/upgrade')}
+                    style={{
+                      border: 'none',
+                      borderRadius: 999,
+                      background: '#4f46e5',
+                      color: '#fff',
+                      fontSize: px(4.4),
+                      fontWeight: 700,
+                      padding: `${px(1.5)}px ${px(3)}px`,
+                    }}
+                  >
+                    {tr('report_teaser_unlock')}
+                  </button>
+                </div>
+              ) : null
+            )}
           </div>
 
           <div style={{ borderTop: DIARY_LINE_DASHED }} />
@@ -774,6 +780,8 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const liveFlipCompanionSheetIdx = liveFlip
     ? (liveFlip.side === 'right' ? liveFlip.sheetIdx - 1 : liveFlip.sheetIdx + 1)
     : null;
+  const showFlipEdgeStacks = !hideAllEdgeStacks && (isAnimating || !!liveFlip);
+  const edgeStackCount = 3;
 
   return (
     <div style={{
@@ -833,6 +841,47 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           ) && (
             <div style={{ position: 'absolute', left: spineX + bookShiftX - sideGap - sheetSpineOverlap, top: trapezoidInset, width: sideGap + sheetSpineOverlap, height: pageH - trapezoidInset * 2, background: PAPER_COLOR, transform: `translateZ(${(MAX_VIS * 4 - 2) * scale}px)`, pointerEvents: 'none' }} />
           )}
+
+          {/* Decorative edge stacks during flipping */}
+          {showFlipEdgeStacks && Array.from({ length: edgeStackCount }, (_, idx) => {
+            const layer = idx + 1;
+            const width = Math.max(1.5, sideGap * 0.85);
+            const offset = layer * Math.max(1.25, sideGap * 0.55);
+            const alpha = Math.max(0.08, 0.24 - idx * 0.06);
+            const z = (MAX_VIS * 4 - layer) * scale;
+            return (
+              <React.Fragment key={`flip-edge-stack-${layer}`}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: bookShiftX + sideMargin - offset - width,
+                    top: trapezoidInset,
+                    width,
+                    height: pageH - trapezoidInset * 2,
+                    background: `linear-gradient(to right, rgba(214,208,196,${alpha}), rgba(255,255,255,0.88))`,
+                    borderLeft: `1px solid rgba(173,163,146,${Math.max(0.08, alpha * 0.7)})`,
+                    borderRight: `1px solid rgba(255,255,255,${Math.min(0.42, alpha + 0.16)})`,
+                    transform: `translateZ(${z}px)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: bookShiftX + sideMargin + pageW * 2 + offset,
+                    top: trapezoidInset,
+                    width,
+                    height: pageH - trapezoidInset * 2,
+                    background: `linear-gradient(to left, rgba(214,208,196,${alpha}), rgba(255,255,255,0.88))`,
+                    borderLeft: `1px solid rgba(255,255,255,${Math.min(0.42, alpha + 0.16)})`,
+                    borderRight: `1px solid rgba(173,163,146,${Math.max(0.08, alpha * 0.7)})`,
+                    transform: `translateZ(${z}px)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+              </React.Fragment>
+            );
+          })}
 
           {/* Sheets */}
           {Array.from({ length: numSheets }, (_, i) => {

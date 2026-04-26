@@ -345,6 +345,7 @@ Status: 主链路可用，剩余增强项
 - [x] 2026-04-26：`DiaryBookViewer` 翻页透视收口——按“中缝消失点 + 中线水平”重建页内投影，左右页统一向中缝收敛并保持同平面 `matrix3d`，修复斜度反向与边线不共视线问题
 - [x] 2026-04-26：`DiaryBookViewer` 翻页松手跳变收口——拖拽回弹最短时长从 60ms 提升至 180ms，并让 `top/height/left` 与 `transform` 同步补间，修复“翻到下一页后斜度瞬跳回正”
 - [x] 2026-04-26：`DiaryBookViewer` 下一页静止态对齐——翻页进行中将 reveal sheet 强制对齐静止摊开几何（`top=0` / `height=pageH` / 同款裁切），并在拖拽时仅保留“翻动页 + 下一页 + 对侧当前页”，避免堆叠层侵入主阅读面导致的畸形白边
+- [x] 2026-04-26：`DiaryBookViewer` 翻页边缘堆叠补强——在 live flip / snap 动画阶段新增左右两侧装饰性纸边堆叠层，仅恢复书页厚度观感，不改现有翻页几何与主阅读面裁切
 
 - [ ] V3：MoodEnergyTimeline（补时间轴结构）
 - [ ] D5（剩余）：历史趋势补 mood key 跨日分布
@@ -364,6 +365,7 @@ Status: 主链路可用，剩余增强项
 
 ## 近期完成（仅保留 2 条）
 
+- [x] Auth / Onboarding 分流收口：新增独立 `/auth` 登录注册页；`RequireAuth` 未登录跳转改为 `/auth`；`/onboarding` 改为仅允许已登录且满足“新账号（<72h）+ 无 profile”时进入，解决“退出登录后默认回 onboarding”
 - [x] iOS 订阅错误可观测性收口：`@payment iap` 不再把所有失败统一映射为 `subscription_failed`，前端购买弹窗优先显示真实错误信息；并在 restore 侧增加 Seeday 商品 ID 过滤，避免误取非本应用 entitlement
 - [x] Supabase 鉴权链路回退真实域名：服务端在 `SUPABASE_URL` 配置为 `/supabase-proxy` 时自动解析 anon key 的项目 ref 并直连 `https://<ref>.supabase.co`，修复 `/api/plant-generate` 被 rewrite 漏接后 `401 Unauthorized`
 - [x] 会员购买界面统一：Onboarding 第 7 步改为复用 `MembershipPurchaseModal`，与 `/upgrade` 共用同一套购买弹窗；并按用户试用/购买历史动态切换“人气首选”（未试用→试用档、已试用未购→月度、已购老用户→年度）

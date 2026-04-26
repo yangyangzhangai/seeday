@@ -6,6 +6,17 @@ All notable effective changes are documented here.
 
 ## 2026-04-26
 
+### Fix: sign-out no longer falls back to onboarding
+
+- 新增 `src/features/auth/AuthPage.tsx` 作为独立登录/注册入口，并挂载 `/auth` 路由
+- `src/App.tsx` 路由守卫调整：未登录统一跳转 `/auth`；`/onboarding` 改为仅允许已登录用户访问
+- 保持 onboarding 触发条件不变（账号 < 72h 且 profile 缺失），因此新注册且未完成引导的账号仍会继续 onboarding
+- `src/features/auth/README.md` 同步模块边界与 onboarding gate 规则
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ### Fix: iOS 套壳下 Profile 弹窗保存按钮丢失
 
 - `src/features/profile/components/RoutineSettingsPanel.tsx`：弹窗卡片加 `min-h-0`，滚动内容区加 `min-h-0`，并将弹窗最大高度口径从 `100dvh` 调整为 `100vh` + safe-area 兜底，避免 iOS WebView 下 footer 被裁切
@@ -55,6 +66,15 @@ Validation:
 - `src/features/report/DiaryBookViewer.tsx` 将 live drag 期间的 reveal sheet 强制对齐静止摊开页几何（`top=0`、`height=pageH`、同款 clip 规则），不再沿用堆叠层的缩高/上移形态
 - 翻页渲染新增 `liveFlip.side` 与 reveal/companion 判定：拖拽时只保留“翻动页 + reveal 下一页 + 对侧当前页”，其余 stack sheet 暂时隐藏，书脊厚度仅保留边缘层
 - 修复翻页中下一页初始斜率过大、主阅读面出现异形白块的视觉问题，翻后下一页起始态与静止态一致
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Fix: Diary flip keeps visible edge page stacks
+
+- `src/features/report/DiaryBookViewer.tsx` 在翻页进行中（live drag 与 snap 动画阶段）新增左右两侧装饰性纸边堆叠层，恢复“书页厚度”视觉线索
+- 新堆叠层仅为边缘装饰（`pointerEvents: none`），不参与翻页几何计算，不改变主阅读面 `keepDuringDrag` 策略与既有透视/裁切收口
 
 Validation:
 

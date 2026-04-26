@@ -520,6 +520,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     if (isGenerating) {
       return t(reportGeneratingVariantKey, { companion: getCompanionName(aiMode) });
     }
+    // Free: show loading state (not fallback) until teaser is generated, to avoid text flicker
+    const isFreeWaitingForTeaser = !isPlus && !selectedReport?.teaserText?.trim() && selectedReport?.analysisStatus !== 'error';
+    if (isFreeWaitingForTeaser) {
+      return t(reportGeneratingVariantKey, { companion: getCompanionName(aiMode) });
+    }
     const raw = isPlus
       ? selectedReport?.aiAnalysis?.trim()
       : selectedReport?.teaserText?.trim();
@@ -535,7 +540,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     selectedReport?.teaserText,
     t,
   ]);
-  const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating';
+  const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating' && !selectedReport?.teaserText?.trim();
 
   const myDiaryText = useMemo(() => {
     const raw = selectedReport?.userNote?.trim();

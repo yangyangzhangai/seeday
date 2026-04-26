@@ -10,9 +10,15 @@
 - Main actions:
   - Sign in / sign up
   - OAuth sign-in (Google / Apple) with platform-aware redirect (`web origin` vs `iOS deep link`)
-  - Avatar selection/update during auth flow
+  - Auth-only entry for signed-out users (sign-out does not jump to onboarding)
   - Session restore via `useAuthStore.initialize()`
   - Sign out / preference updates are exposed by `useAuthStore` and consumed by other pages such as `/profile`
+
+## Onboarding Gate
+
+- Onboarding route: `/onboarding`
+- Trigger rule (in `src/App.tsx`): user is signed in, account age < 72h, and profile metadata is still missing
+- Signed-out users always enter `/auth`; onboarding is reserved for newly registered users that still need first-time setup
 
 ## Upstream Dependencies
 

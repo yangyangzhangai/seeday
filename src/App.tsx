@@ -7,6 +7,7 @@ import { ChatPage } from './features/chat/ChatPage';
 import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
+import { AuthPage } from './features/auth/AuthPage';
 import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { UpgradePage } from './features/profile/UpgradePage';
@@ -65,7 +66,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
 
   if (loading) return <BlankScreen />;
   if (!user) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/auth" replace />;
   }
   // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
   const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
@@ -76,7 +77,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   return children;
 };
 
-/** 新版引导流：允许未登录（StepAuth 处理鉴权），已完成 onboarding 的已登录用户直接进首页 */
+/** 新版引导流：仅已登录新账号可进入；已完成 onboarding 或老账号直接进首页 */
 const OnboardingRoute: React.FC = () => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
@@ -95,11 +96,13 @@ const OnboardingRoute: React.FC = () => {
   }
 
   // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
-  if (user) {
-    const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
-    if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
-      return <Navigate to="/chat" replace />;
-    }
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
+  if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
+    return <Navigate to="/chat" replace />;
   }
 
   return <OnboardingFlow />;
@@ -110,7 +113,7 @@ const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ chi
   const loading = useAuthStore(state => state.loading);
 
   if (loading) return <BlankScreen />;
-  if (!user) return <Navigate to="/onboarding" replace />;
+  if (!user) return <Navigate to="/auth" replace />;
   if (!isTelemetryAdmin(user)) return <Navigate to="/profile" replace />;
   return children;
 };
@@ -388,6 +391,7 @@ function App() {
           <Route path="telemetry/feedback" element={<RequireTelemetryAdmin><FeedbackTelemetryPage /></RequireTelemetryAdmin>} />
         </Route>
         <Route path="/onboarding" element={<OnboardingRoute />} />
+        <Route path="/auth" element={<AuthPage />} />
       </Routes>
     </BrowserRouter>
   );
