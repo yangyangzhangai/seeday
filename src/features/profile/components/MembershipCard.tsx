@@ -35,6 +35,30 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
   const user = useAuthStore((state) => state.user);
   const showTrialCta = isEligibleForMembershipTrial(user, isPlus);
 
+  const resolvePaymentErrorMessage = (code: string | undefined, message: string | undefined): string => {
+    const detail = (message || '').trim();
+    if (detail && detail !== code) {
+      return detail;
+    }
+
+    const errorKey = !code
+      ? 'upgrade_error_generic'
+      : code === 'iap_client_not_ready'
+        ? 'upgrade_error_iap_not_ready'
+        : code === 'subscription_failed'
+          ? 'upgrade_error_subscription_failed'
+          : code === 'activate_failed'
+            ? 'upgrade_error_activate_failed'
+            : code === 'restore_failed'
+              ? 'upgrade_error_restore_failed'
+              : code === 'stripe_not_ready'
+                ? 'upgrade_error_stripe_not_ready'
+                : code === 'stripe_not_supported'
+                  ? 'upgrade_error_stripe_not_supported'
+                  : 'upgrade_error_generic';
+    return t(errorKey);
+  };
+
   const handleDirectUpgrade = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -44,23 +68,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
         if (result.code === 'payment_redirect') {
           return;
         }
-        const code = result.code;
-        const errorKey = !code
-          ? 'upgrade_error_generic'
-          : code === 'iap_client_not_ready'
-            ? 'upgrade_error_iap_not_ready'
-            : code === 'subscription_failed'
-              ? 'upgrade_error_subscription_failed'
-              : code === 'activate_failed'
-                ? 'upgrade_error_activate_failed'
-                : code === 'restore_failed'
-                  ? 'upgrade_error_restore_failed'
-                  : code === 'stripe_not_ready'
-                    ? 'upgrade_error_stripe_not_ready'
-                    : code === 'stripe_not_supported'
-                      ? 'upgrade_error_stripe_not_supported'
-                      : 'upgrade_error_generic';
-        window.alert(t(errorKey));
+        window.alert(resolvePaymentErrorMessage(result.code, result.message));
         return;
       }
 

@@ -6,6 +6,10 @@ import {
   type LiveInputTelemetryLang,
 } from './liveInputTelemetryApi';
 
+type MembershipClassificationPath = 'local_rule' | 'ai' | 'ai_fallback_local';
+type MembershipAiResultKind = 'activity' | 'mood' | 'unknown';
+type MembershipBottleMatchSource = 'todo_link' | 'keyword' | 'ai' | 'none';
+
 const SESSION_STORAGE_KEY = 'live-input-telemetry-session-id';
 
 function inferTelemetryLang(content: string): LiveInputTelemetryLang {
@@ -118,6 +122,61 @@ export function emitLiveInputCorrectionTelemetry(params: {
   }).catch((error) => {
     if (import.meta.env.DEV) {
       console.warn('[live-input-telemetry] correction ingest failed', error);
+    }
+  });
+}
+
+export function emitMembershipClassificationTelemetry(params: {
+  rawInput: string;
+  messageId: string;
+  userPlan: 'free' | 'plus';
+  classificationPath: MembershipClassificationPath;
+  aiCalled: boolean;
+  aiResultKind: MembershipAiResultKind;
+  bottleMatchSource: MembershipBottleMatchSource;
+}): void {
+  if (shouldSkipCloudTelemetry()) {
+    return;
+  }
+
+  const trimmed = params.rawInput.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  const kind = params.aiResultKind === 'mood'
+    ? 'mood'
+    : 'activity';
+  const confidence = params.classificationPath === 'ai'
+    ? 'high'
+    : params.classificationPath === 'ai_fallback_local'
+      ? 'medium'
+      : 'low';
+
+  void callLiveInputTelemetryIngestAPI({
+    eventType: 'classification',
+    rawInput: trimmed,
+    inputLength: trimmed.length,
+    kind,
+    internalKind: 'new_activity',
+    confidence,
+    reasons: [
+      'membership_classification',
+      `user_plan:${params.userPlan}`,
+      `classification_path:${params.classificationPath}`,
+      `ai_called:${params.aiCalled}`,
+      `ai_result_kind:${params.aiResultKind}`,
+      `bottle_match_source:${params.bottleMatchSource}`,
+    ],
+    containsMoodSignal: params.aiResultKind === 'mood',
+    messageId: params.messageId,
+    lang: inferTelemetryLang(trimmed),
+    sessionId: getTelemetrySessionId(),
+    platform: getPlatform(),
+    appVersion: import.meta.env.VITE_APP_VERSION || undefined,
+  }).catch((error) => {
+    if (import.meta.env.DEV) {
+      console.warn('[live-input-telemetry] membership classification ingest failed', error);
     }
   });
 }

@@ -46,6 +46,7 @@ export interface AuthState {
   signUp: (email: string, pass: string, nickname?: string, avatarDataUrl?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarDataUrl: string) => Promise<{ error: any }>;
+  updateDisplayName: (displayName: string) => Promise<{ error: any }>;
   updateLocationMetadata: (input: LocationMetadataInput) => Promise<{ error: any }>;
   updateLongTermProfileEnabled: (enabled: boolean) => Promise<{ error: any }>;
   updateUserProfile: (

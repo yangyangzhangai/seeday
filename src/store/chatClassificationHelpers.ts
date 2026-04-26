@@ -2,13 +2,16 @@
 import i18n from '../i18n';
 import { callClassifierAPI, isMembershipRequiredError } from '../api/client';
 import { classifyRecordActivityType, type ActivityRecordType } from '../lib/activityType';
+import { normalizeMoodKey, type MoodKey } from '../lib/moodOptions';
 import { matchBottleIdByKeywords } from '../lib/bottleMatcher';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { supabase } from '../api/supabase';
 import { resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 
 export type MessageClassificationResult = {
+  kind: 'activity' | 'mood' | 'unknown';
   activityType: ActivityRecordType;
+  moodType: MoodKey | null;
   matchedBottleId: string | null;
   classificationPath: 'local_rule' | 'ai' | 'ai_fallback_local';
   aiCalled: boolean;
@@ -66,7 +69,9 @@ export function ensureMessageClassification(params: {
     const fallbackType = classifyRecordActivityType(params.content, params.lang).activityType;
     if (!params.isPlus) {
       return {
+        kind: 'activity',
         activityType: fallbackType,
+        moodType: null,
         matchedBottleId: null,
         classificationPath: 'local_rule',
         aiCalled: false,
@@ -85,7 +90,9 @@ export function ensureMessageClassification(params: {
       );
       const aiActivityType = aiResult.data?.activity_type;
       return {
+        kind: aiResult.data?.kind ?? 'unknown',
         activityType: aiActivityType ?? fallbackType,
+        moodType: normalizeMoodKey(aiResult.data?.mood_type) ?? null,
         matchedBottleId: resolveMatchedBottleId(aiResult),
         classificationPath: 'ai',
         aiCalled: true,
@@ -93,14 +100,18 @@ export function ensureMessageClassification(params: {
     } catch (error) {
       if (isMembershipRequiredError(error)) {
         return {
+          kind: 'activity',
           activityType: fallbackType,
+          moodType: null,
           matchedBottleId: null,
           classificationPath: 'local_rule',
           aiCalled: false,
         };
       }
       return {
+        kind: 'unknown',
         activityType: fallbackType,
+        moodType: null,
         matchedBottleId: null,
         classificationPath: 'ai_fallback_local',
         aiCalled: true,

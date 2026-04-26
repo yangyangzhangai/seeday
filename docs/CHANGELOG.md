@@ -4,6 +4,57 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-26
+
+### Refactor: split `useAuthStore` to resolve max-lines hard limit
+
+- `src/store/useAuthStore.ts` 拆分为“初始化/鉴权主链路”入口，行数从 1000+ 降至 400 以下 warning 线以内
+- 新增 `src/store/authStoreRuntimeHelpers.ts` 承载作用域切换、membership 解析、domain 刷新、迁移判定等运行时 helper
+- 新增 `src/store/authStoreAccountActions.ts` 承载登录/登出、资料更新、语言切换等账号动作；`useAuthStore` 通过 `...createAuthAccountActions(set, get)` 组合
+- `src/store/authStoreTypes.ts` 补齐 `updateDisplayName` 方法签名，和现有 `UserInfoCard` 调用保持一致
+- `src/store/README.md` 同步 store 拆分约定（`authStoreRuntimeHelpers.ts` / `authStoreAccountActions.ts`）
+
+Validation:
+
+- `npm run lint:max-lines` ✅（`useAuthStore.ts` 不再触发超限）
+- `npx tsc --noEmit` ✅
+
+### Fix: iOS 订阅错误透传与 IAP restore 过滤收口
+
+- `src/services/payment/iap/index.ts` 不再把所有异常统一吞成 `subscription_failed`；新增分型透传 `auth_required` / `already_subscribed` / `user_cancelled` / `purchase_pending` / `iap_client_not_ready`，前端可直接显示真实失败原因
+- `src/services/payment/iap/index.ts` 的 restore 结果改为仅接受 Seeday 订阅商品（`seeday.pro.monthly(.intro)` / `seeday.pro.annual` 及环境别名），避免误拾取其他 App entitlement 导致后续校验失败
+- `src/features/profile/UpgradePage.tsx` 与 `src/features/profile/components/MembershipCard.tsx` 在购买失败时优先展示原始 `result.message`（若可用），不再一律回退到泛化文案“订阅请求失败”
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:all` ⚠️ 未通过（仓库既有 `src/store/useAuthStore.ts` 超过 max-lines 硬限，与本次改动无关）
+
+### Fix: Diary book flip perspective follows paper geometry
+
+- `src/features/report/DiaryBookViewer.tsx` 新增 VP（消失点）驱动的页面目标点生成：以“中线水平 + 左右页向中缝收敛”为约束，生成左右页四角投影后再求解同平面 `matrix3d`（8 元线性方程）
+- `PageContent` 左右页内容统一应用该投影，确保文字、分隔线、图形与页边裁切线在同一视线组，不再出现同页内斜度反向
+- 修复翻页过程中“前一页内容斜度/透视与纸面边缘不一致”的视觉错位
+- `src/features/report/DiaryBookViewer.tsx` 调整拖拽松手回弹：最短补间时长由 `60ms` 提升到 `180ms`，并补齐 sheet 容器 `top/height/left` 与 `transform` 同步 transition，避免翻页完成瞬间斜度突变
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Build: Membership AI classification phase-2 closure
+
+- `src/store/chatClassificationHelpers.ts` 扩展 classify 结果消费：在单条消息单次 classify 结果中补齐 `kind/moodType/classificationPath/aiCalled`，并保持 `membership_required` 与超时失败回退本地规则
+- `src/store/useChatStore.ts` 收敛 Free/Plus 星星判定策略：`todo_link` 优先；Free 仅关键词兜底；Plus 优先消费 AI `matched_bottle`，未命中再关键词兜底
+- `src/store/useChatStore.ts` 在 Plus classify 成功时复用 `mood_type` 回写 mood store（仅自动情绪，无手动覆盖时生效），统一 activity/mood/bottle 三类消费口径
+- `src/services/input/liveInputTelemetryCloud.ts` 新增会员分类最小埋点上报（复用 `/api/live-input-telemetry` classification 事件，`reasons[]` 携带 `user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`）
+- 新增测试：`src/store/chatClassificationHelpers.test.ts`（Free=0 调用、Plus=单条单次、membership_required 与失败降级）；`api/classify.test.ts`（非 Plus 403 防绕过）
+- 文档同步：`docs/CURRENT_TASK.md`、`src/store/README.md`、`src/api/README.md`、`api/README.md`
+
+Validation:
+
+- `npx vitest run src/store/chatClassificationHelpers.test.ts api/classify.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-25
 
 ### Fix: Supabase auth path uses real origin instead of proxy URL

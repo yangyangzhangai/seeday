@@ -53,6 +53,7 @@ Annotation suggestion payload may include reward metadata (`rewardStars`, `rewar
 Live input telemetry ingest/dashboard currently share one endpoint (`/api/live-input-telemetry`) and use `Authorization: Bearer <supabase access token>`; dashboard additionally requires `SUPABASE_SERVICE_ROLE_KEY` plus admin allowlist/metadata. The dashboard now aggregates `live_input_events`, `plant_asset_events`, and `telemetry_events` (`diary_sticker_*` + annotation telemetry events such as `density_scored/event_triggered/lateral_sampled`) as a unified telemetry view.
 `/api/live-input-telemetry` `GET` now also supports `module=user_analytics` to return growth/premium/retention metrics and `type=user_lookup` user diagnostics without a separate `/api/user-analytics` function.
 `/api/live-input-telemetry` `GET` also supports `module=holiday_check&date=YYYY-MM-DD&country=XX` for reminder scheduling (weekend/legal holiday check), replacing standalone `/api/check-holiday` to keep Hobby deployment within the function limit.
+Membership AI classification path observability is recorded through `/api/live-input-telemetry` `eventType='classification'` by attaching tags in `reasons[]` (`membership_classification`, `user_plan:*`, `classification_path:*`, `ai_called:*`, `ai_result_kind:*`, `bottle_match_source:*`).
 
 当前 provider 映射：
 

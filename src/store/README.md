@@ -25,6 +25,7 @@
 3. `xxxHelpers.ts`: 可复用纯函数，避免在 store 内堆叠长函数。
 4. `useXxxStore.types.ts`: 当 store 入口过长时，抽离类型与接口定义。
 5. `xxxLegacy.ts`: 历史数据兼容/回填逻辑，避免污染主 store 可读性。
+6. `authStoreRuntimeHelpers.ts` / `authStoreAccountActions.ts`: `useAuthStore` 的运行时编排与账号动作拆分文件（用于控制入口文件体积，保持初始化主链路可读）。
 
 ## 代码约束
 
@@ -67,7 +68,9 @@
 - `useAuthStore.initialize()` 现按各 domain store 的 `lastFetchedAt` 做 60 秒新鲜度门控；本地缓存足够新时跳过重复拉云，仅保留本地恢复、pending push 与 realtime 增量更新。
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
-- 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`），Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），并在结束活动时按“AI 优先、关键词兜底”判定星星来源。
+- 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`）；Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），`mood_type` 在无手动覆盖时回写 mood store。
+- 星星判定策略已收敛：`todo_link` 优先；Free 仅关键词兜底；Plus 优先 `matched_bottle` 后再关键词兜底。
+- 会员分类最小埋点已接入 live-input telemetry reasons：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`（含 `membership_classification` 标记）。
 - `useTodoStore.refineTodoCategoryWithAI()` 已接入 Plus 路径统一 classify 结果消费（读取 `data.activity_type`），Free 用户不触发该 AI 分类调用。
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。

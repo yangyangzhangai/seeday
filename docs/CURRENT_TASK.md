@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-25
+Last Updated: 2026-04-26
 Owner: current working session
 
 ---
@@ -11,6 +11,7 @@ Status: 实施中（高优先）
 
 ### 已完成（本轮）
 
+- [x] `useAuthStore` 超长文件拆分：初始化主链路保留在 `useAuthStore.ts`，账号动作与运行时 helper 下沉到 `authStoreAccountActions.ts` / `authStoreRuntimeHelpers.ts`
 - [x] Telemetry Center 新增根系方向设置看板入口与聚合接口，可在管理员后台直接观察打开/修改/重置/保存结果
 - [x] 日期口径统一为本地日历日（修复 recurring 判定偏移）
 - [x] 删除一致性第一轮：pending delete tombstone + fetch 合并保护
@@ -36,7 +37,7 @@ Status: 实施中（高优先）
 
 ## 当前主线 E：会员 AI 分类分层（MEMBERSHIP_AI_CLASSIFICATION）
 
-Status: 待开发（按 PRD + Tech Design 执行）
+Status: 实施中（第二阶段收口中）
 执行前必读：`docs/MEMBERSHIP_AI_CLASSIFICATION_PRD.md`、`docs/MEMBERSHIP_AI_CLASSIFICATION_TECH_DESIGN.md`
 
 ### 开发前阅读清单（必须）
@@ -48,40 +49,40 @@ Status: 待开发（按 PRD + Tech Design 执行）
 ### 开发任务规划（按顺序执行）
 
 1) **后端鉴权与会员门控**
-- [ ] `api/classify.ts` 接入 Supabase 鉴权与 Plus 校验
-- [ ] 非 Plus 返回 `403 membership_required`，并保持错误结构稳定
+- [x] `api/classify.ts` 接入 Supabase 鉴权与 Plus 校验
+- [x] 非 Plus 返回 `403 membership_required`，并保持错误结构稳定
 
 2) **前端 classify 调用改造**
-- [ ] `src/api/client.ts` 的 `callClassifierAPI` 透传 Authorization
+- [x] `src/api/client.ts` 的 `callClassifierAPI` 透传 Authorization
 - [x] `src/api/client.ts` 的 `callTodoDecomposeAPI` 透传 Authorization（与 classify 会员门控一致）
 - [x] 统一处理 `membership_required` 错误分支（`ApiClientError` + `isMembershipRequiredError`）
 
 3) **聊天主链路分流（Free/Plus）**
-- [ ] `src/store/useChatStore.ts`：Free 完全不触发 classify
-- [ ] `src/store/useChatStore.ts`：Plus 每条消息仅调用一次 classify（去重多调用点）
-- [ ] Plus 将 AI 结果统一用于 activity/mood/bottle 三类判定
+- [x] `src/store/useChatStore.ts`：Free 完全不触发 classify
+- [x] `src/store/useChatStore.ts`：Plus 每条消息仅调用一次 classify（去重多调用点）
+- [x] Plus 将 AI 结果统一用于 activity/mood/bottle 三类判定
 
 4) **星星判定策略收敛**
-- [ ] Free：仅 todo 绑定 + 关键词命中，不做 AI 语义兜底
-- [ ] Plus：优先 `matched_bottle`，必要时关键词兜底
+- [x] Free：仅 todo 绑定 + 关键词命中，不做 AI 语义兜底
+- [x] Plus：优先 `matched_bottle`，必要时关键词兜底
 
 5) **Todo 分类策略对齐**
 - [x] `src/store/useTodoStore.ts` 增加 Plus 门控（Free 不调 AI）
 - [x] 明确 todo 是否执行“Plus 全量 AI”或“Plus 低置信度 AI”（按 PRD 决策记录；本轮确认采用 Plus 全量 AI，并同步改造 classify prompt/schema）
 
 6) **降级与可观测**
-- [ ] AI 失败回退本地规则，不阻断主链路
-- [ ] 增加最小埋点：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`
+- [x] AI 失败回退本地规则，不阻断主链路
+- [x] 增加最小埋点：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`
 
 7) **测试与验收**
-- [ ] 单元测试：Free=0 调用、Plus=每条 1 次、失败降级
-- [ ] 集成测试：非 Plus 直调 classify 返回 403
+- [x] 单元测试：Free=0 调用、Plus=每条 1 次、失败降级
+- [x] 集成测试：非 Plus 直调 classify 返回 403
 - [ ] 手测 50 条回归：Free 0 调用、Plus 50 调用
 
 ### 下一步待完成
 
-- [ ] 文档同步：更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`
-- [ ] 回环检查：`npm run lint:all` + `npx tsc --noEmit` + `npm run build`
+- [x] 文档同步：更新 `api/README.md`、`src/api/README.md`、`src/store/README.md`
+- [x] 回环检查：`npm run lint:all` + `npx tsc --noEmit` + `npm run build`
 
 ---
 
@@ -337,6 +338,9 @@ Status: P0-P6 已完成，剩联调与运营化
 
 Status: 主链路可用，剩余增强项
 
+- [x] 2026-04-26：`DiaryBookViewer` 翻页透视收口——按“中缝消失点 + 中线水平”重建页内投影，左右页统一向中缝收敛并保持同平面 `matrix3d`，修复斜度反向与边线不共视线问题
+- [x] 2026-04-26：`DiaryBookViewer` 翻页松手跳变收口——拖拽回弹最短时长从 60ms 提升至 180ms，并让 `top/height/left` 与 `transform` 同步补间，修复“翻到下一页后斜度瞬跳回正”
+
 - [ ] V3：MoodEnergyTimeline（补时间轴结构）
 - [ ] D5（剩余）：历史趋势补 mood key 跨日分布
 - [ ] V5（可选）：TodoCompletionCard 组件化视觉升级
@@ -355,6 +359,7 @@ Status: 主链路可用，剩余增强项
 
 ## 近期完成（仅保留 2 条）
 
+- [x] iOS 订阅错误可观测性收口：`@payment iap` 不再把所有失败统一映射为 `subscription_failed`，前端购买弹窗优先显示真实错误信息；并在 restore 侧增加 Seeday 商品 ID 过滤，避免误取非本应用 entitlement
 - [x] Supabase 鉴权链路回退真实域名：服务端在 `SUPABASE_URL` 配置为 `/supabase-proxy` 时自动解析 anon key 的项目 ref 并直连 `https://<ref>.supabase.co`，修复 `/api/plant-generate` 被 rewrite 漏接后 `401 Unauthorized`
 - [x] 会员购买界面统一：Onboarding 第 7 步改为复用 `MembershipPurchaseModal`，与 `/upgrade` 共用同一套购买弹窗；并按用户试用/购买历史动态切换“人气首选”（未试用→试用档、已试用未购→月度、已购老用户→年度）
 - [x] 根系方向设置收口：`usePlantStore` 改为 local-first 合并方向配置（云端空值/默认值不再覆盖本地自定义），并补齐 profile 侧打开/修改/重置/保存 telemetry

@@ -48,6 +48,7 @@ All AI-facing requests must route through `/api/*` serverless handlers.
 - `callClassifierAPI()` now forwards Supabase `Authorization` header; backend `/api/classify` enforces Plus membership and can return `403 membership_required` for non-Plus users.
 - `callClassifierAPI()` unified response is now single-input schema: `data.kind` (`activity|mood`, mandatory binary), `data.activity_type` (six activity classes), `data.mood_type` (8-key mood enum or null), `data.matched_bottle` (optional), and `data.confidence` (0~1).
 - API client now normalizes server errors into `ApiClientError` (`code/status/details/path/requestId`) and exports `isMembershipRequiredError()` for stable branch handling without brittle string matching.
+- Membership classification observability now reuses `/api/live-input-telemetry` `classification` ingest path with `reasons[]` tags (`membership_classification`, `user_plan:*`, `classification_path:*`, `ai_called:*`, `ai_result_kind:*`, `bottle_match_source:*`) to avoid adding extra endpoint/files.
 - Added Magic Pen parse contract for `/api/magic-pen-parse` to support AI-first draft extraction.
 - `callMagicPenParseAPI()` supports `lang` (`zh`/`en`/`it`), and server prompt routing now follows this field.
 - Magic Pen parse `segments[*].kind` now supports four kinds: `activity` / `mood` / `todo_add` / `activity_backfill` (plus `unparsed` array for unmatched content).

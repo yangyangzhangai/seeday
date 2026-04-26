@@ -1,20 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/auth/README.md
 import { create } from 'zustand';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '../api/supabase';
+import { callDeleteAccountAPI } from '../api/client';
 import { getSupabaseSession } from '../lib/supabase-utils';
-import i18n from '../i18n';
-import { useChatStore } from './useChatStore';
-import { useTodoStore } from './useTodoStore';
-import { useReportStore } from './useReportStore';
 import { useAnnotationStore } from './useAnnotationStore';
-import { useStardustStore } from './useStardustStore';
-import { useMoodStore } from './useMoodStore';
-import { useGrowthStore } from './useGrowthStore';
-import { useFocusStore } from './useFocusStore';
-import { useReminderStore } from './useReminderStore';
-import { useOutboxStore } from './useOutboxStore';
-import { isLegacyChatActivityType } from '../lib/activityType';
+import { createAuthAccountActions } from './authStoreAccountActions';
 import { syncLocalDataToSupabase } from './authDataSyncHelpers';
 import {
   DEFAULT_PREFERENCES,
@@ -24,19 +14,9 @@ import {
 } from './authPreferenceHelpers';
 import {
   ensureCloudLanguageMetadata,
-  normalizeUiLanguage,
-  persistLanguageToLocalStorage,
   syncI18nLanguageFromMeta,
 } from './authLanguageHelpers';
-import type {
-  AnnotationDropRate,
-  AuthState,
-  LocationMetadataInput,
-  MembershipPlan,
-  MembershipSource,
-  MembershipState,
-  UserPreferences,
-} from './authStoreTypes';
+import type { AuthState } from './authStoreTypes';
 export type {
   AnnotationDropRate,
   LocationMetadataInput,
@@ -46,45 +26,46 @@ export type {
   UiLanguage,
   UserPreferences,
 } from './authStoreTypes';
+export {
+  getAnnotationConfigFromPreferences,
+  resolveMembershipState,
+} from './authStoreRuntimeHelpers';
 import {
   markLocalDataOwnerAnonymous,
   markLocalDataOwnerUser,
   readLocalDataOwner,
 } from './authLocalOwnerHelpers';
-import {
-  canAutoMigrateLegacyV1Persist,
-  resolveLocalDataMigrationDecision,
-} from './authLocalMigrationPolicy';
+import { resolveLocalDataMigrationDecision } from './authLocalMigrationPolicy';
 import {
   clearPendingProfileWrite,
   getPendingProfileWrite,
-  LONG_TERM_PROFILE_ENABLED_KEY,
-  mergeUserProfile,
-  parseUserProfileV2,
   profileStateFromMeta,
-  savePendingProfileWrite,
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
-import { ALL_DOMAIN_PERSIST_KEYS } from './persistKeys';
-import { clearPersistedKeys } from './persistMigrationHelpers';
 import {
-  clearScopedDomainPersistKeys,
   isMultiAccountIsolationV2Enabled,
   logStorageScopeEvent,
-  readActiveStorageScope,
   resolveStorageScopeForUser,
-  setActiveStorageScope,
-  type StorageScope,
 } from './storageScope';
-import { migrateLegacyV1PersistToScope } from './scopedPersistMigration';
-import { rehydrateAllDomainPersistStores } from './domainPersistHydration';
-import type { ReminderType } from '../services/reminder/reminderTypes';
-import { callDeleteAccountAPI } from '../api/client';
-
-const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
-const PENDING_DELETION_GRACE_MS = 5 * 24 * 60 * 60 * 1000;
+import {
+  applyLegacyScopeMigrationIfAllowed,
+  clearLocalDomainStores,
+  DEFAULT_MEMBERSHIP_STATE,
+  ensureTodayLoginDay,
+  getAnnotationConfigFromPreferences,
+  hasAnyLocalDataToMigrate,
+  hasAnyPersistedDomainData,
+  hydrateGrowthDailyGoalFromMeta,
+  markGrowthDailyLoginSession,
+  refreshDomainStoresForSession,
+  rehydrateAllDomainPersistStores,
+  resolveMembershipState,
+  resolveOAuthRedirectUrl,
+  setScopeForAuthUser,
+  syncAnnotationStateWithPreferences,
+} from './authStoreRuntimeHelpers';
 
 async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?: Record<string, unknown> }): Promise<void> {
   const pendingAt = user.user_metadata?.pending_deletion_at;
@@ -92,367 +73,16 @@ async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?:
   const deletionTime = new Date(pendingAt).getTime();
   const now = Date.now();
   if (now < deletionTime) {
-    // Within grace period — restore: clear the flag
     await supabase.auth.updateUser({ data: { pending_deletion_at: null } });
-  } else {
-    // Grace period expired — execute hard delete
-    try {
-      await callDeleteAccountAPI();
-    } catch {
-      // If API fails, still sign out to prevent access
-    } finally {
-      await supabase.auth.signOut({ scope: 'global' });
-    }
-  }
-}
-
-const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = {
-  low: 3,
-  medium: 5,
-  high: 8,
-};
-const MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED = false;
-const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
-const IOS_OAUTH_REDIRECT_URL = (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
-const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
-const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
-const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' } : { plan: 'free', isPlus: false, source: 'default_free' };
-
-function toLocalDateStr(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function getTodayDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function clearLocalDomainStores(scope?: StorageScope): void {
-  useChatStore.setState({
-    messages: [],
-    hasInitialized: false,
-    lastFetchedAt: null,
-    currentDateStr: null,
-    activeViewDateStr: null,
-    dateCache: {},
-    yesterdaySummary: null,
-  });
-  useTodoStore.setState({
-    todos: [],
-    isLoading: false,
-    hasHydrated: false,
-    lastFetchedAt: null,
-    lastSyncError: null,
-  });
-  useReportStore.setState({ reports: [], computedHistory: [], lastFetchedAt: null });
-  useAnnotationStore.setState((state) => ({
-    annotations: [],
-    currentAnnotation: null,
-    lastFetchedAt: null,
-    todayStats: {
-      date: toLocalDateStr(Date.now()),
-      speakCount: 0,
-      lastSpeakTime: 0,
-      events: [],
-    },
-    config: {
-      ...state.config,
-      ...getAnnotationConfigFromPreferences(DEFAULT_PREFERENCES, DEFAULT_MEMBERSHIP_STATE.isPlus),
-    },
-  }));
-  useMoodStore.getState().clear();
-  useGrowthStore.setState({
-    bottles: [],
-    dailyGoal: '',
-    goalDate: '',
-    popupDisabled: false,
-    isLoading: false,
-    hasHydrated: false,
-    lastFetchedAt: null,
-    lastSyncError: null,
-  });
-  useFocusStore.setState({ sessions: [], currentSession: null, activeMessageId: null, queue: [], queueIndex: -1, lastFetchedAt: null });
-  useStardustStore.getState().clear();
-  useReminderStore.setState({
-    confirmedToday: new Set<ReminderType>(),
-    confirmedDate: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
-    activePopupType: null,
-    lastSessionActivity: null,
-    showQuickPicker: false,
-    pickerContext: null,
-  });
-  if (isMultiAccountIsolationV2Enabled()) {
-    clearScopedDomainPersistKeys(scope ?? readActiveStorageScope());
     return;
   }
-  clearPersistedKeys(ALL_DOMAIN_PERSIST_KEYS);
-}
-
-function shouldFetchDomain(lastFetchedAt: number | null | undefined): boolean {
-  if (!lastFetchedAt) return true;
-  return Date.now() - lastFetchedAt > DOMAIN_FETCH_FRESHNESS_MS;
-}
-
-function refreshDomainStoresForSession(userId: string): void {
-  const annotationStore = useAnnotationStore.getState();
-  const chatStore = useChatStore.getState();
-  const todoStore = useTodoStore.getState();
-  const reportStore = useReportStore.getState();
-  const moodStore = useMoodStore.getState();
-  const growthStore = useGrowthStore.getState();
-  const focusStore = useFocusStore.getState();
-  const stardustStore = useStardustStore.getState();
-  void useOutboxStore.getState().flush(userId).catch(() => {});
-  void Promise.all([
-    shouldFetchDomain(annotationStore.lastFetchedAt) ? annotationStore.fetchAnnotations() : Promise.resolve(),
-    shouldFetchDomain(chatStore.lastFetchedAt) ? chatStore.fetchMessages() : Promise.resolve(),
-    shouldFetchDomain(todoStore.lastFetchedAt) ? todoStore.fetchTodos() : Promise.resolve(),
-    shouldFetchDomain(reportStore.lastFetchedAt) ? reportStore.fetchReports() : Promise.resolve(),
-    shouldFetchDomain(moodStore.lastFetchedAt) ? moodStore.fetchMoods() : Promise.resolve(),
-    shouldFetchDomain(growthStore.lastFetchedAt) ? growthStore.fetchBottles() : Promise.resolve(),
-    focusStore.recoverSessionAfterHydration().then(() => (
-      shouldFetchDomain(focusStore.lastFetchedAt) ? focusStore.fetchSessions() : Promise.resolve()
-    )),
-  ]).catch(() => {});
-  void Promise.resolve().then(async () => {
-    await stardustStore.syncPendingStardusts();
-    if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
-      await stardustStore.fetchStardusts();
-    }
-  }).catch(() => {});
-}
-
-function hasAnyLocalDataToMigrate(): boolean {
-  const hasMessages = useChatStore.getState().messages.length > 0;
-  const hasTodos = useTodoStore.getState().todos.length > 0;
-  const hasReports = useReportStore.getState().reports.length > 0;
-  const hasBottles = useGrowthStore.getState().bottles.length > 0;
-  const hasFocusSessions = useFocusStore.getState().sessions.length > 0;
-  const growth = useGrowthStore.getState();
-  const hasDailyGoal = Boolean(growth.dailyGoal && growth.goalDate);
-  const mood = useMoodStore.getState();
-  const hasMoodData =
-    Object.keys(mood.activityMood).length > 0
-    || Object.keys(mood.customMoodLabel).length > 0
-    || Object.keys(mood.customMoodApplied).length > 0
-    || Object.keys(mood.moodNote).length > 0;
-  return hasMessages || hasTodos || hasReports || hasBottles || hasFocusSessions || hasDailyGoal || hasMoodData;
-}
-
-function hasAnyPersistedDomainData(): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) return false;
-  for (let i = 0; i < window.localStorage.length; i += 1) {
-    const key = window.localStorage.key(i);
-    if (!key) continue;
-    if (key.startsWith('seeday:v1:') || key.startsWith('seeday:v2:user:') || key.startsWith('seeday:v2:anon:')) {
-      return true;
-    }
+  try {
+    await callDeleteAccountAPI();
+  } catch {
+    // noop
+  } finally {
+    await supabase.auth.signOut({ scope: 'global' });
   }
-  return false;
-}
-
-function normalizeLoginDays(rawDays: unknown): string[] {
-  if (!Array.isArray(rawDays)) return [];
-  const uniq = new Set(
-    rawDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
-  );
-  return Array.from(uniq).sort();
-}
-
-async function ensureTodayLoginDay(user: any): Promise<any> {
-  const today = getTodayDateStr();
-  const existingDays = normalizeLoginDays(user?.user_metadata?.login_days);
-  if (existingDays.includes(today)) return user;
-  const nextDays = [...existingDays, today].slice(-90);
-  const { user: updatedUser, error } = await patchUserMetadata({ login_days: nextDays });
-  if (error || !updatedUser) {
-    console.warn('Failed to persist login_days:', error);
-    return user;
-  }
-
-  return updatedUser;
-}
-
-function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {
-  if (typeof raw === 'boolean') {
-    return raw ? 'plus' : 'free';
-  }
-  if (typeof raw !== 'string') return null;
-  const normalized = raw.trim().toLowerCase();
-  if (!normalized) return null;
-  if (PLUS_PLAN_ALIASES.has(normalized)) return 'plus';
-  if (FREE_PLAN_ALIASES.has(normalized)) return 'free';
-  return null;
-}
-
-function resolveOAuthRedirectUrl(): string {
-  const isValidAbsoluteUrl = (value: string): boolean => {
-    try {
-      const parsed = new URL(value);
-      return Boolean(parsed.protocol);
-    } catch {
-      return false;
-    }
-  };
-  if (Capacitor.isNativePlatform()) {
-    const nativeRedirect = IOS_OAUTH_REDIRECT_URL.trim();
-    if (nativeRedirect && isValidAbsoluteUrl(nativeRedirect)) {
-      return nativeRedirect;
-    }
-    return 'com.seeday.app://auth/callback';
-  }
-  const webOrigin = typeof window !== 'undefined' ? window.location?.origin || '' : '';
-  if (webOrigin && isValidAbsoluteUrl(webOrigin)) {
-    return webOrigin;
-  }
-  return '';
-}
-
-export function resolveMembershipState(
-  user: { user_metadata?: Record<string, any>; app_metadata?: Record<string, any> } | null | undefined,
-  options?: { temporaryUnlockEnabled?: boolean; nowMs?: number },
-): MembershipState {
-  const temporaryUnlockEnabled = options?.temporaryUnlockEnabled ?? MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED;
-  const nowMs = options?.nowMs ?? Date.now();
-  const userMeta = user?.user_metadata || {};
-  const appMeta = user?.app_metadata || {};
-  const membershipCandidates = [
-    appMeta.membership_plan,
-    userMeta.membership_plan,
-    appMeta.plan,
-    userMeta.plan,
-    appMeta.subscription_plan,
-    userMeta.subscription_plan,
-    appMeta.membership_tier,
-    userMeta.membership_tier,
-    appMeta.tier,
-    userMeta.tier,
-    appMeta.membership?.plan,
-    userMeta.membership?.plan,
-    appMeta.subscription?.plan,
-    userMeta.subscription?.plan,
-    appMeta.is_plus,
-    userMeta.is_plus,
-    appMeta.plus_member,
-    userMeta.plus_member,
-    appMeta.vip,
-    userMeta.vip,
-  ];
-  for (const candidate of membershipCandidates) {
-    const plan = normalizeMembershipPlan(candidate);
-    if (plan) {
-      return {
-        plan,
-        isPlus: plan === 'plus',
-        source: 'metadata',
-      };
-    }
-  }
-  const trialStartedAtRaw = appMeta.trial_started_at ?? userMeta.trial_started_at;
-  const trialStartedAtMs = typeof trialStartedAtRaw === 'string' || typeof trialStartedAtRaw === 'number'
-    ? new Date(trialStartedAtRaw).getTime()
-    : Number.NaN;
-  const trialWindowMs = 7 * 24 * 60 * 60 * 1000;
-  if (Number.isFinite(trialStartedAtMs) && trialStartedAtMs <= nowMs && nowMs - trialStartedAtMs < trialWindowMs) {
-    return { plan: 'plus', isPlus: true, source: 'trial' };
-  }
-  if (temporaryUnlockEnabled) {
-    return { plan: 'plus', isPlus: true, source: 'temporary_unlock' };
-  }
-  return { plan: 'free', isPlus: false, source: 'default_free' };
-}
-
-export function getAnnotationConfigFromPreferences(
-  preferences: Pick<UserPreferences, 'aiModeEnabled' | 'annotationDropRate'>,
-  isPlus = DEFAULT_MEMBERSHIP_STATE.isPlus,
-): { enabled: boolean; dailyLimit: number; dropRate: AnnotationDropRate } {
-  return {
-    enabled: preferences.aiModeEnabled,
-    dailyLimit: isPlus
-      ? PLUS_ANNOTATION_DAILY_LIMIT
-      : (ANNOTATION_DAILY_LIMIT_BY_DROP_RATE[preferences.annotationDropRate] ?? 3),
-    dropRate: preferences.annotationDropRate,
-  };
-}
-
-function syncAnnotationStateWithPreferences(preferences: UserPreferences, isPlus: boolean): void {
-  const nextConfig = getAnnotationConfigFromPreferences(preferences, isPlus);
-  useAnnotationStore.setState((state) => ({
-    config: {
-      ...state.config,
-      ...nextConfig,
-    },
-    currentAnnotation: preferences.aiModeEnabled ? state.currentAnnotation : null,
-  }));
-  if (import.meta.env.DEV) {
-    console.log('[Membership] synced annotation quota:', {
-      isPlus,
-      aiModeEnabled: preferences.aiModeEnabled,
-      annotationDropRate: preferences.annotationDropRate,
-      dailyLimit: nextConfig.dailyLimit,
-    });
-  }
-}
-
-function hydrateGrowthDailyGoalFromMeta(meta: Record<string, any>): void {
-  const remoteGoal = typeof meta.daily_goal === 'string' ? meta.daily_goal : '';
-  const remoteGoalDate = normalizeDailyGoalDate(meta.daily_goal_date);
-  if (!remoteGoal && !remoteGoalDate) return;
-  useGrowthStore.setState((state) => ({
-    dailyGoal: remoteGoal || state.dailyGoal,
-    goalDate: remoteGoalDate || state.goalDate,
-  }));
-}
-
-function normalizeDailyGoalDate(raw: unknown): string {
-  if (typeof raw !== 'string') return '';
-  const value = raw.trim();
-  if (!value) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const slash = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if (slash) {
-    const [, y, m, d] = slash;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  return toLocalDateStr(parsed.getTime());
-}
-
-function markGrowthDailyLoginSession(userId: string): void {
-  if (typeof window === 'undefined' || !window.localStorage || !window.sessionStorage) return;
-  const today = toLocalDateStr(Date.now());
-  const firstLoginDateKey = `growth:first-login-date:${userId}`;
-  const sessionFlagKey = `growth:is-first-login:${userId}:${today}`;
-  const hasLoggedInToday = window.localStorage.getItem(firstLoginDateKey) === today;
-  if (hasLoggedInToday) {
-    window.sessionStorage.setItem(sessionFlagKey, '0');
-    return;
-  }
-  window.localStorage.setItem(firstLoginDateKey, today);
-  window.sessionStorage.setItem(sessionFlagKey, '1');
-}
-
-function setScopeForAuthUser(userId?: string | null, source: string = 'unknown'): StorageScope {
-  const scope = resolveStorageScopeForUser(userId);
-  setActiveStorageScope(scope);
-  logStorageScopeEvent('scope_set', { source, scope: scope.type, userId: scope.userId });
-  return scope;
-}
-
-function applyLegacyScopeMigrationIfAllowed(scope: StorageScope, source: string, currentUserId: string): void {
-  if (!isMultiAccountIsolationV2Enabled()) return;
-  const owner = readLocalDataOwner();
-  const dryRun = migrateLegacyV1PersistToScope(scope, { dryRun: true });
-  if (dryRun.moved.length === 0) return;
-  const autoMigrate = canAutoMigrateLegacyV1Persist({
-    owner,
-    currentUserId,
-    isolationV2Enabled: true,
-  });
-  logStorageScopeEvent('migration_decision', { source, autoMigrate, ownerType: owner.type });
-  if (!autoMigrate) return;
-  migrateLegacyV1PersistToScope(scope, { dryRun: false });
-  logStorageScopeEvent('migration_executed', { source, ownerType: owner.type });
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -688,353 +318,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  signIn: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
-  },
-
-  signInWithGoogle: async () => {
-    try {
-      const redirectTo = resolveOAuthRedirectUrl();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: redirectTo ? { redirectTo } : undefined,
-      });
-      return { error };
-    } catch (error: any) {
-      return { error };
-    }
-  },
-
-  signInWithApple: async () => {
-    const { Capacitor } = await import('@capacitor/core');
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
-        const result = await SignInWithApple.authorize({
-          clientId: 'com.seeday.app',
-          redirectURI: 'https://placeholder.seeday.app',
-          scopes: 'email name',
-        });
-        const identityToken = result.response?.identityToken;
-        if (!identityToken) return { error: new Error('No identity token') };
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: 'apple',
-          token: identityToken,
-        });
-        return { error };
-      } catch (e: any) {
-        return { error: e };
-      }
-    }
-    try {
-      const redirectTo = resolveOAuthRedirectUrl();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: redirectTo ? { redirectTo } : undefined,
-      });
-      return { error };
-    } catch (error: any) {
-      return { error };
-    }
-  },
-
-  signUp: async (email, password, nickname, avatarDataUrl) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: nickname || email.split('@')[0],
-          avatar_url: avatarDataUrl || null,
-        },
-      },
-    });
-    return { error };
-  },
-
-  signOut: async () => {
-    // Reset store + local state immediately — no network required
-    const previousUserId = get().user?.id || null;
-    setScopeForAuthUser(null, 'signOut:action');
-    clearLocalDomainStores(resolveStorageScopeForUser(previousUserId));
-    await rehydrateAllDomainPersistStores();
-    markLocalDataOwnerAnonymous();
-    set({
-      user: null,
-      preferences: DEFAULT_PREFERENCES,
-      longTermProfileEnabled: false,
-      userProfileV2: null,
-      membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
-      membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
-      isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
-      activityStreak: null,
-    });
-    // Clear Supabase local session keys so app doesn't restore session on reload
-    try {
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch { /* storage unavailable */ }
-    // Invalidate server-side token in background
-    supabase.auth.signOut({ scope: 'global' }).catch(() => {});
-  },
-
-  updateAvatar: async (avatarDataUrl: string) => {
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: new Error('Not signed in') };
-    }
-
-    // Optimistic local update: reflect avatar immediately.
-    set({
-      user: {
-        ...currentUser,
-        user_metadata: {
-          ...(currentUser.user_metadata || {}),
-          avatar_url: avatarDataUrl,
-        },
-      },
-    });
-
-    // Sync to Supabase silently in background.
-    void patchUserMetadata({ avatar_url: avatarDataUrl })
-      .then(({ user, error }) => {
-        if (!error && user) {
-          set({ user });
-          return;
-        }
-        if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
-        }
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
-          console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
-        }
-      });
-
-    return { error: null };
-  },
-
-  updateDisplayName: async (displayName: string) => {
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: new Error('Not signed in') };
-    }
-
-    set({
-      user: {
-        ...currentUser,
-        user_metadata: {
-          ...(currentUser.user_metadata || {}),
-          display_name: displayName,
-        },
-      },
-    });
-
-    void patchUserMetadata({ display_name: displayName })
-      .then(({ user, error }) => {
-        if (!error && user) {
-          set({ user });
-          return;
-        }
-        if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateDisplayName cloud sync failed (local saved):', error);
-        }
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
-          console.warn('[auth] updateDisplayName cloud sync failed (local saved):', error);
-        }
-      });
-
-    return { error: null };
-  },
-
-  updateLocationMetadata: async (input) => {
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: new Error('Not signed in') };
-    }
-
-    const normalizedCountryCode = input.countryCode.trim().toUpperCase();
-    const latitude = Number(input.latitude);
-    const longitude = Number(input.longitude);
-    if (!/^[A-Z]{2}$/.test(normalizedCountryCode) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      return { error: new Error('Invalid location metadata') };
-    }
-
-    const patch = {
-      country_code: normalizedCountryCode,
-      latitude: Number(latitude.toFixed(6)),
-      longitude: Number(longitude.toFixed(6)),
-      location_label: typeof input.locationLabel === 'string' && input.locationLabel.trim()
-        ? input.locationLabel.trim()
-        : null,
-      location_source: input.source || 'manual_geocode',
-      location_updated_at: new Date().toISOString(),
-    };
-
-    const nextMetadata = {
-      ...(currentUser.user_metadata || {}),
-      ...patch,
-    };
-
-    // Save locally first to keep interaction instant.
-    set({
-      user: {
-        ...currentUser,
-        user_metadata: nextMetadata,
-      },
-    });
-
-    // Sync to Supabase silently in background via serialized metadata queue.
-    void patchUserMetadata(patch)
-      .then(({ user, error }) => {
-        if (!error && user) {
-          set({ user });
-          return;
-        }
-        if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateLocationMetadata cloud sync failed (local saved):', error);
-        }
-      });
-
-    return { error: null };
-  },
-
-  updateLongTermProfileEnabled: async (enabled) => {
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: new Error('Not signed in') };
-    }
-
-    const patch = {
-      [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
-    };
-
-    set({
-      user: {
-        ...currentUser,
-        user_metadata: {
-          ...(currentUser.user_metadata || {}),
-          ...patch,
-        },
-      },
-      longTermProfileEnabled: enabled,
-    });
-
-    void patchUserMetadata(patch)
-      .then(({ user, error }) => {
-        if (!error && user) {
-          const profileState = profileStateFromMeta(user.user_metadata || {});
-          set({
-            user,
-            longTermProfileEnabled: profileState.longTermProfileEnabled,
-            userProfileV2: profileState.userProfileV2,
-          });
-          return;
-        }
-        if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
-        }
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
-          console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
-        }
-      });
-
-    return { error: null };
-  },
-
-  updateUserProfile: async (updater) => {
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: new Error('Not signed in') };
-    }
-
-    // Use cached user_metadata — no network call here
-    const baseMeta: Record<string, any> = currentUser.user_metadata || {};
-    const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
-    const nextProfile = typeof updater === 'function'
-      ? updater(prev)
-      : mergeUserProfile(prev, updater);
-
-    // 1. Update store + localStorage immediately — user proceeds without waiting
-    set({ userProfileV2: nextProfile });
-    savePendingProfileWrite(currentUser.id, nextProfile);
-
-    const patch = {
-      [USER_PROFILE_METADATA_KEY]: {
-        ...nextProfile,
-        updatedAt: new Date().toISOString(),
-        createdAt: nextProfile.createdAt || new Date().toISOString(),
-      },
-    };
-    // 2. Sync to Supabase in background — don't block the caller
-    const userId = currentUser.id;
-    patchUserMetadata(patch).then(({ user, error }) => {
-      if (!error && user) {
-        const profileState = profileStateFromMeta(user.user_metadata || {});
-        set({
-          user,
-          longTermProfileEnabled: profileState.longTermProfileEnabled,
-          userProfileV2: profileState.userProfileV2,
-        });
-        clearPendingProfileWrite(userId);
-      }
-    }).catch(() => { /* will retry on next initialize() */ });
-    return { error: null };
-  },
-  updatePreferences: async (partial: Partial<UserPreferences>) => {
-    const merged = { ...get().preferences, ...partial };
-    const normalized = normalizePreferencesForMembership(merged, get().isPlus);
-    set({ preferences: normalized });
-    syncAnnotationStateWithPreferences(normalized, get().isPlus);
-    queuePreferenceSnapshot(normalized);
-  },
-  updateLanguagePreference: async (language: string) => {
-    const normalized = normalizeUiLanguage(language);
-    await i18n.changeLanguage(normalized);
-    persistLanguageToLocalStorage(normalized);
-    const currentUser = get().user;
-    if (!currentUser) {
-      return { error: null };
-    }
-    set({
-      user: {
-        ...currentUser,
-        user_metadata: {
-          ...(currentUser.user_metadata || {}),
-          i18nextLng: normalized,
-        },
-      },
-    });
-    void patchUserMetadata({ i18nextLng: normalized })
-      .then(({ user, error }) => {
-        if (!error && user) {
-          set({ user });
-          return;
-        }
-        if (import.meta.env.DEV && error) {
-          console.warn('[auth] updateLanguagePreference cloud sync failed (local saved):', error);
-        }
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
-          console.warn('[auth] updateLanguagePreference cloud sync failed (local saved):', error);
-        }
-      });
-    return { error: null };
-  },
-  refreshActivityStreak: async () => {
-    const userId = get().user?.id;
-    if (!userId) return;
-    const streak = await fetchActivityStreak(userId, true); // force bypass cache
-    set({ activityStreak: streak });
-  },
+  ...createAuthAccountActions(set, get),
 }));

@@ -9,7 +9,7 @@ import { useMoodStore } from './useMoodStore';
 import { autoDetectMood } from '../lib/mood';
 import type { AnnotationEvent } from '../types/annotation';
 import { recordLiveInputCorrection } from '../services/input/liveInputTelemetry';
-import { emitLiveInputCorrectionTelemetry } from '../services/input/liveInputTelemetryCloud';
+import { emitLiveInputCorrectionTelemetry, emitMembershipClassificationTelemetry } from '../services/input/liveInputTelemetryCloud';
 import { getLocalDateString, mapDbRowToMessage } from './chatHelpers';
 import { createChatTimelineActions } from './chatTimelineActions';
 import { mergePersistedChatState, pruneDateCache } from './chatPersistenceHelpers';
@@ -18,9 +18,7 @@ import { useGrowthStore } from './useGrowthStore';
 import { useAuthStore } from './useAuthStore';
 import { isLegacyChatActivityType, type ActivityRecordType } from '../lib/activityType';
 import { buildTodoCompletionAnnotationPayload } from '../lib/todoCompletionAnnotation';
-import {
-  classifyRecordActivityType,
-} from '../lib/activityType';
+import { classifyRecordActivityType } from '../lib/activityType';
 import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
 import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
@@ -57,7 +55,6 @@ import {
 function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
   return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 }
-
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -479,6 +476,14 @@ export const useChatStore = create<ChatState>()(
                   : item
               )),
             }));
+            if (classification.moodType) {
+              const moodStore = useMoodStore.getState();
+              const meta = moodStore.activityMoodMeta[newMessage.id];
+              const hasManualMood = moodStore.customMoodApplied[newMessage.id] === true || meta?.source === 'manual';
+              if (!hasManualMood) {
+                moodStore.setMood(newMessage.id, classification.moodType, 'auto');
+              }
+            }
             const latestSession = await getSupabaseSession();
             if (latestSession) {
               await supabase
@@ -491,7 +496,6 @@ export const useChatStore = create<ChatState>()(
             return;
           });
         }
-
         // 触发 AI 批注
         if (!options?.skipAnnotation) {
           const annotationStore = useAnnotationStore.getState();
@@ -708,23 +712,35 @@ export const useChatStore = create<ChatState>()(
         const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
         const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
         const isPlus = useAuthStore.getState().isPlus;
-
-        // Priority 1: linked todo bottle
+        const trackMembership = (payload: Omit<Parameters<typeof emitMembershipClassificationTelemetry>[0], 'rawInput' | 'messageId' | 'userPlan'>) => emitMembershipClassificationTelemetry({
+          rawInput: target.content,
+          messageId: id,
+          userPlan: isPlus ? 'plus' : 'free',
+          ...payload,
+        });
         if (linkedBottleId) {
           grantBottleStars(linkedBottleId);
+          trackMembership({
+            classificationPath: 'local_rule',
+            aiCalled: false,
+            aiResultKind: 'unknown',
+            bottleMatchSource: 'todo_link',
+          });
           return;
         }
-
-        // Priority 2: keyword matching (instant, for all users)
-        const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
-        if (keywordMatchedBottleId) {
-          grantBottleStars(keywordMatchedBottleId);
+        if (!isPlus) {
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
+          trackMembership({
+            classificationPath: 'local_rule',
+            aiCalled: false,
+            aiResultKind: 'unknown',
+            bottleMatchSource: keywordMatchedBottleId ? 'keyword' : 'none',
+          });
           return;
         }
-
-        // Priority 3: Pro AI classification (only if keyword didn't match)
-        if (!isPlus) return;
-
         const lang = resolveLangForText(target.content);
         void ensureMessageClassification({
           messageId: id,
@@ -737,8 +753,36 @@ export const useChatStore = create<ChatState>()(
           if (!get().messages.some((m) => m.id === id)) return;
           if (classification.matchedBottleId) {
             grantBottleStars(classification.matchedBottleId);
+            trackMembership({
+              classificationPath: classification.classificationPath,
+              aiCalled: classification.aiCalled,
+              aiResultKind: classification.kind,
+              bottleMatchSource: 'ai',
+            });
+            return;
           }
-        }).catch(() => {});
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
+          trackMembership({
+            classificationPath: classification.classificationPath,
+            aiCalled: classification.aiCalled,
+            aiResultKind: classification.kind,
+            bottleMatchSource: keywordMatchedBottleId ? 'keyword' : 'none',
+          });
+        }).catch(() => {
+          const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
+          if (keywordMatchedBottleId) {
+            grantBottleStars(keywordMatchedBottleId);
+          }
+          trackMembership({
+            classificationPath: 'ai_fallback_local',
+            aiCalled: true,
+            aiResultKind: 'unknown',
+            bottleMatchSource: keywordMatchedBottleId ? 'keyword' : 'none',
+          });
+        });
       },
 
       deleteActivity: async (id) => {

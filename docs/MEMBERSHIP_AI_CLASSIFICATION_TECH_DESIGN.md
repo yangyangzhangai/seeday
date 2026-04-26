@@ -154,7 +154,7 @@ Plus 用户 AI 异常处理顺序：
 
 - [x] **API Client 任务**
   - [x] `callClassifierAPI` 支持鉴权头。
-  - [ ] 标准化 `membership_required` 错误处理（业务层可识别错误对象/错误码）。
+  - [x] 标准化 `membership_required` 错误处理（业务层可识别错误对象/错误码）。
 
 - [x] **Serverless 任务**
   - [x] `api/classify.ts` 接入 `requireSupabaseRequestAuth`。
@@ -171,11 +171,11 @@ Plus 用户 AI 异常处理顺序：
 
 - [ ] **Fallback 与日志任务（第二阶段）**
   - [x] 实现 AI 失败降级（`ai_fallback_local` 路径已在 store 内落地）。
-  - [ ] 增加最小埋点字段（`user_plan/path/ai_called/ai_result_kind/bottle_match_source`）。
+  - [x] 增加最小埋点字段（`user_plan/path/ai_called/ai_result_kind/bottle_match_source`）。
 
 - [ ] **Todo 分类对齐任务（可选范围）**
   - [x] `useTodoStore.refineTodoCategoryWithAI` 增加 Plus 门控（Free 不再触发该 AI 精修）。
-  - [ ] 评估是否升级为“Plus 每条 todo 新建都走 AI”（当前仍是低置信度触发）。
+  - [x] 升级为“Plus 每条 todo 新建都走 AI”（当前已改为新建 todo 的 Plus 全量 classify 精修）。
 
 - [ ] **测试任务**
   - [ ] 单元测试：Free/Plus 分流、单条仅一次 AI、降级分支。

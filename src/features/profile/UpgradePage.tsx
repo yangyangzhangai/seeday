@@ -18,6 +18,18 @@ function resolvePaymentResultKey(code: string | undefined): string {
   return 'upgrade_error_generic';
 }
 
+function resolvePaymentErrorMessage(
+  t: (key: string) => unknown,
+  code: string | undefined,
+  message: string | undefined,
+): string {
+  const detail = (message || '').trim();
+  if (detail && detail !== code) {
+    return detail;
+  }
+  return String(t(resolvePaymentResultKey(code)));
+}
+
 export const UpgradePage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -44,7 +56,7 @@ export const UpgradePage: React.FC = () => {
 
         if (cancelled) return;
         if (!result.success) {
-          window.alert(t(resolvePaymentResultKey(result.code)));
+          window.alert(resolvePaymentErrorMessage(t, result.code, result.message));
           return;
         }
 
@@ -72,7 +84,7 @@ export const UpgradePage: React.FC = () => {
       const result = await purchase(paymentPlan);
       if (!result.success) {
         if (result.code === 'payment_redirect') return;
-        window.alert(t(resolvePaymentResultKey(result.code)));
+        window.alert(resolvePaymentErrorMessage(t, result.code, result.message));
         return;
       }
       syncMembershipAfterPayment(result.plan);

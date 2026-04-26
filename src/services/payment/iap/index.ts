@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/MEMBERSHIP_SPEC.md
-import { callSubscriptionAPI } from '../../../api/client';
+import { callSubscriptionAPI, isApiClientError } from '../../../api/client';
 import type { PaymentActionResult, PaymentPlan, PaymentPlanType } from '../types';
 
 const IAP_PLANS: PaymentPlan[] = [
@@ -115,13 +115,53 @@ function getBridge(): IapBridge | null {
 }
 
 function toActionResult(error: unknown): PaymentActionResult {
-  const message = error instanceof Error ? error.message : 'subscription_failed';
-  const normalized = message.toLowerCase();
-  const isBridgeTimeout = normalized.includes('timeout');
+  const rawMessage = error instanceof Error ? error.message : String(error ?? 'subscription_failed');
+  const normalized = rawMessage.toLowerCase();
+
+  if (isApiClientError(error) && error.code === 'unauthorized') {
+    return {
+      success: false,
+      code: 'auth_required',
+      message: 'Unauthorized: please sign in again and retry.',
+    };
+  }
+
+  if (normalized.includes('currently subscribed') || normalized.includes('already subscribed')) {
+    return {
+      success: false,
+      code: 'already_subscribed',
+      message: rawMessage,
+    };
+  }
+
+  if (normalized.includes('user cancelled')) {
+    return {
+      success: false,
+      code: 'user_cancelled',
+      message: rawMessage,
+    };
+  }
+
+  if (normalized.includes('pending parental approval')) {
+    return {
+      success: false,
+      code: 'purchase_pending',
+      message: rawMessage,
+    };
+  }
+
+  if (normalized.includes('timeout')) {
+    return {
+      success: false,
+      code: 'iap_client_not_ready',
+      message: rawMessage,
+    };
+  }
+
   return {
     success: false,
-    code: isBridgeTimeout ? 'iap_client_not_ready' : 'subscription_failed',
-    message: isBridgeTimeout ? 'iap_client_not_ready' : message,
+    code: 'subscription_failed',
+    message: rawMessage,
   };
 }
 
@@ -156,6 +196,11 @@ function detectPlanTypeByProductId(productId: string | undefined, fallback: Paym
   return fallback;
 }
 
+function isSupportedProductId(productId: string | undefined): boolean {
+  if (!productId) return false;
+  return MONTHLY_PRODUCT_ID_ALIASES.has(productId) || ANNUAL_PRODUCT_ID_ALIASES.has(productId);
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
@@ -188,12 +233,17 @@ async function runBridgeRestore(): Promise<IapTransactionLike | null> {
   const restored = await bridge.restorePurchases();
   if (!restored) return null;
   if ('transactionId' in restored) {
-    return normalizeTransaction(restored, IAP_PRODUCT_IDS.monthly);
+    if (!isSupportedProductId(restored.productId)) return null;
+    return normalizeTransaction(restored, restored.productId || IAP_PRODUCT_IDS.monthly);
   }
   const transactions = Array.isArray(restored.transactions) ? restored.transactions : [];
   const latest = [...transactions]
     .reverse()
-    .find((item) => typeof item?.transactionId === 'string' && item.transactionId.trim());
+    .find((item) => (
+      typeof item?.transactionId === 'string'
+      && item.transactionId.trim()
+      && isSupportedProductId(item.productId)
+    ));
   return latest ? normalizeTransaction(latest, latest.productId || IAP_PRODUCT_IDS.monthly) : null;
 }
 
