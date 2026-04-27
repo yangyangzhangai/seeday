@@ -11,7 +11,7 @@ export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
-  const { signIn, signUp, verifySignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { signIn, signUp, verifySignUpCode, resendSignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [nickname, setNickname] = React.useState('');
@@ -23,6 +23,7 @@ export const AuthPage: React.FC = () => {
   const [appleLoading, setAppleLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
+  const [resendLoading, setResendLoading] = React.useState(false);
 
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
@@ -40,6 +41,21 @@ export const AuthPage: React.FC = () => {
   const resetSignUpCodeState = () => {
     setVerificationCode('');
     setPendingSignUpEmail(null);
+  };
+
+  const handleResend = async () => {
+    if (!pendingSignUpEmail) return;
+    setResendLoading(true);
+    setError(null);
+    try {
+      const { error } = await resendSignUpCode(pendingSignUpEmail);
+      if (error) throw error;
+      setMessage(t('auth_register_success'));
+    } catch (err: any) {
+      setError(getErrorMessage(err.message || t('auth_error_generic')));
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -183,6 +199,7 @@ export const AuthPage: React.FC = () => {
                     void handleSubmit();
                   }
                 }}
+                placeholder={t('auth_otp_placeholder')}
                 className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
               />
             </div>
@@ -206,6 +223,19 @@ export const AuthPage: React.FC = () => {
             </div>
           )}
 
+          {pendingSignUpEmail ? (
+            <div className="flex justify-end px-1">
+              <button
+                type="button"
+                onClick={() => { void handleResend(); }}
+                disabled={resendLoading}
+                className="text-xs font-bold text-[#4a5d4c]/50 underline decoration-[#4a5d4c]/20 disabled:opacity-40"
+              >
+                {resendLoading ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
+                {t('auth_resend_code')}
+              </button>
+            </div>
+          ) : null}
           {error ? <p className="px-2 text-xs text-red-500">{error}</p> : null}
           {message ? <p className="px-2 text-xs text-[#4a5d4c]">{message}</p> : null}
           <p className="pt-1 text-center text-xs text-[#4a5d4c]/40">
@@ -266,7 +296,7 @@ export const AuthPage: React.FC = () => {
               <Loader2 size={20} className="animate-spin" />
             ) : (
               <>
-                {isLogin ? t('auth_login_button') : t('auth_register_button')} <ChevronRight size={20} />
+                {isLogin ? t('auth_login_button') : pendingSignUpEmail ? t('auth_verify_button') : t('auth_register_button')} <ChevronRight size={20} />
               </>
             )}
           </motion.button>

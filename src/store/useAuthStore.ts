@@ -106,7 +106,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       applyLegacyScopeMigrationIfAllowed(initialScope, 'initialize:start', session.user.id);
     }
     await rehydrateAllDomainPersistStores();
-    const sessionUser = session?.user ?? null;
+    // getSession() reads the local JWT which may be stale after server-side metadata updates.
+    // getUser() makes a server round-trip and returns the current raw_user_meta_data / raw_app_meta_data,
+    // which is required for membership resolution to reflect the latest subscription state.
+    let sessionUser = session?.user ?? null;
+    if (session?.user) {
+      try {
+        const { data: freshUser } = await supabase.auth.getUser();
+        if (freshUser?.user) sessionUser = freshUser.user;
+      } catch {
+        // fall back to JWT user on network error
+      }
+    }
     // Fire metadata writes in the background — don't block loading screen
     if (sessionUser) {
       void ensureTodayLoginDay(sessionUser)
