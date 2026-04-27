@@ -61,6 +61,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        }
+
         let scrollView = webView.scrollView
         scrollView.bounces = false
         scrollView.alwaysBounceVertical = false
