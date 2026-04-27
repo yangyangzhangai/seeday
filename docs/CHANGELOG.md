@@ -6,6 +6,16 @@ All notable effective changes are documented here.
 
 ## 2026-04-27
 
+### Fix: align static edge stacks during diary page flip
+
+- `src/features/report/DiaryBookViewer.tsx` 将翻页阶段（live drag + snap 动画）两侧装饰堆叠层改为复用静止态同一套几何口径：`offset=vis*sideGap`、`layerShrink=(vis-1)*heightShrink`、`top/height` 与 `stackZ` 同步
+- 装饰堆叠层数由固定 `3` 调整为 `MAX_VIS`，与静止态可见层级一致，减少翻页中“厚度突变”
+- 边缘层颜色从独立渐变改为 `PAPER_COLOR + 轻边线`，使翻页期两侧静止页堆叠观感对齐正常静止状态
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ### Fix: reminder popup confirm no longer loses timeline activity state
 
 - `src/store/useChatStore.ts` 修复 reminder ✓ 触发记录链路的时间线竞态：`sendMessage()`/`sendMood()` 现在按同一份最新消息源同时回写 `messages + dateCache`，确保“自动结束上一条活动”后的 `duration/isActive` 不会只更新内存列表而遗漏缓存

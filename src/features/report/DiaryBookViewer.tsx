@@ -694,7 +694,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     ? (liveFlip.side === 'right' ? liveFlip.sheetIdx - 1 : liveFlip.sheetIdx + 1)
     : null;
   const showFlipEdgeStacks = !hideAllEdgeStacks && (isAnimating || !!liveFlip);
-  const edgeStackCount = 3;
+  const edgeStackCount = MAX_VIS;
 
   return (
     <div style={{
@@ -758,22 +758,26 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           {/* Decorative edge stacks during flipping */}
           {showFlipEdgeStacks && Array.from({ length: edgeStackCount }, (_, idx) => {
             const layer = idx + 1;
-            const width = Math.max(1.5, sideGap * 0.85);
-            const offset = layer * Math.max(1.25, sideGap * 0.55);
-            const alpha = Math.max(0.08, 0.24 - idx * 0.06);
-            const z = (MAX_VIS * 4 - layer) * scale;
+            const vis = Math.min(layer, MAX_VIS);
+            const offset = vis * sideGap;
+            const layerShrink = (vis - 1) * heightShrink;
+            const width = Math.max(1.25, sideGap);
+            const top = trapezoidInset + layerShrink / 2;
+            const height = pageH - trapezoidInset * 2 - layerShrink;
+            const z = (MAX_VIS - vis) * 4 * scale;
+            const borderAlpha = Math.max(0.08, 0.18 - idx * 0.03);
             return (
               <React.Fragment key={`flip-edge-stack-${layer}`}>
                 <div
                   style={{
                     position: 'absolute',
                     left: bookShiftX + sideMargin - offset - width,
-                    top: trapezoidInset,
+                    top,
                     width,
-                    height: pageH - trapezoidInset * 2,
-                    background: `linear-gradient(to right, rgba(214,208,196,${alpha}), rgba(255,255,255,0.88))`,
-                    borderLeft: `1px solid rgba(173,163,146,${Math.max(0.08, alpha * 0.7)})`,
-                    borderRight: `1px solid rgba(255,255,255,${Math.min(0.42, alpha + 0.16)})`,
+                    height,
+                    background: PAPER_COLOR,
+                    borderLeft: `1px solid rgba(170,162,147,${borderAlpha})`,
+                    borderRight: `1px solid rgba(255,255,255,0.7)`,
                     transform: `translateZ(${z}px)`,
                     pointerEvents: 'none',
                   }}
@@ -782,12 +786,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
                   style={{
                     position: 'absolute',
                     left: bookShiftX + sideMargin + pageW * 2 + offset,
-                    top: trapezoidInset,
+                    top,
                     width,
-                    height: pageH - trapezoidInset * 2,
-                    background: `linear-gradient(to left, rgba(214,208,196,${alpha}), rgba(255,255,255,0.88))`,
-                    borderLeft: `1px solid rgba(255,255,255,${Math.min(0.42, alpha + 0.16)})`,
-                    borderRight: `1px solid rgba(173,163,146,${Math.max(0.08, alpha * 0.7)})`,
+                    height,
+                    background: PAPER_COLOR,
+                    borderLeft: '1px solid rgba(255,255,255,0.7)',
+                    borderRight: `1px solid rgba(170,162,147,${borderAlpha})`,
                     transform: `translateZ(${z}px)`,
                     pointerEvents: 'none',
                   }}
