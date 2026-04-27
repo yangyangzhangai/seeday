@@ -347,7 +347,7 @@ Status: 主链路可用，剩余增强项
 - [x] 2026-04-26：`DiaryBookViewer` 翻页松手跳变收口——拖拽回弹最短时长从 60ms 提升至 180ms，并让 `top/height/left` 与 `transform` 同步补间，修复“翻到下一页后斜度瞬跳回正”
 - [x] 2026-04-26：`DiaryBookViewer` 下一页静止态对齐——翻页进行中将 reveal sheet 强制对齐静止摊开几何（`top=0` / `height=pageH` / 同款裁切），并在拖拽时仅保留“翻动页 + 下一页 + 对侧当前页”，避免堆叠层侵入主阅读面导致的畸形白边
 - [x] 2026-04-26：`DiaryBookViewer` 翻页边缘堆叠补强——在 live flip / snap 动画阶段新增左右两侧装饰性纸边堆叠层，仅恢复书页厚度观感，不改现有翻页几何与主阅读面裁切
-- [x] 2026-04-27：`DiaryBookViewer` 翻页期静止堆叠对齐——翻页阶段两侧装饰堆叠改为复用静止态的 offset/shrink/top/z 几何口径，并将层数补齐到 `MAX_VIS`，修复“翻页中两侧静止页堆叠与正常态不一致”
+- [x] 2026-04-27：`DiaryBookViewer` 翻页期静止堆叠对齐——翻页阶段两侧装饰堆叠改为复用静止态的 offset/shrink/top/z 几何口径，并将层数补齐到 `MAX_VIS`；后续继续升级为整页 ghost sheet（补阴影）对齐正常态体积，并根据反馈将阴影调淡、左右圆角口径改为与静止态一致，随后小幅回调阴影强度补回层次；最终改为按真实 stack 可见缺口动态补 ghost，尾页阶段同量递减
 
 - [ ] V3：MoodEnergyTimeline（补时间轴结构）
 - [ ] D5（剩余）：历史趋势补 mood key 跨日分布

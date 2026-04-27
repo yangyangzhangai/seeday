@@ -11,6 +11,11 @@ All notable effective changes are documented here.
 - `src/features/report/DiaryBookViewer.tsx` 将翻页阶段（live drag + snap 动画）两侧装饰堆叠层改为复用静止态同一套几何口径：`offset=vis*sideGap`、`layerShrink=(vis-1)*heightShrink`、`top/height` 与 `stackZ` 同步
 - 装饰堆叠层数由固定 `3` 调整为 `MAX_VIS`，与静止态可见层级一致，减少翻页中“厚度突变”
 - 边缘层颜色从独立渐变改为 `PAPER_COLOR + 轻边线`，使翻页期两侧静止页堆叠观感对齐正常静止状态
+- 进一步将翻页期两侧堆叠从“窄纸边条”升级为“整页 ghost sheet”轮廓（含 `clipPath + borderRadius + boxShadow`），与正常静止态的整页堆叠体积和阴影一致
+- 修复翻页期 ghost sheet 阴影不可见：将阴影从被 `clipPath` 裁切的同层 `boxShadow` 改为外层 `filter: drop-shadow(...)`，并提升阴影强度，确保两侧堆叠在翻页中可见
+- 视觉微调：按反馈降低翻页期两侧堆叠阴影强度（更淡），并将 ghost sheet 左右圆角改为与正常静止态一致（左堆叠 `R-0-0-R`，右堆叠 `0-R-R-0`）
+- 视觉微调：按反馈将翻页期堆叠阴影小幅回调（`drop-shadow` 半径与 alpha 略增），在保持轻阴影的前提下补回层次感
+- 逻辑修正：翻页期 ghost 堆叠由固定 `MAX_VIS` 改为“按真实可见 stack level 缺口补齐”；临近封底/封面时会随真实剩余页数同步递减，避免尾页阶段伪装堆叠过量
 
 Validation:
 

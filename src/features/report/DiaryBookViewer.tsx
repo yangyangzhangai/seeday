@@ -694,7 +694,30 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
     ? (liveFlip.side === 'right' ? liveFlip.sheetIdx - 1 : liveFlip.sheetIdx + 1)
     : null;
   const showFlipEdgeStacks = !hideAllEdgeStacks && (isAnimating || !!liveFlip);
-  const edgeStackCount = MAX_VIS;
+  const potentialLeftStackCount = hideAllEdgeStacks ? 0 : Math.min(MAX_VIS, Math.max(0, flippedCount - 1));
+  const potentialRightStackCount = hideAllEdgeStacks ? 0 : Math.min(MAX_VIS, Math.max(0, numSheets - flippedCount - 1));
+  const visibleLeftStackLevels = new Set<number>();
+  const visibleRightStackLevels = new Set<number>();
+  if (showFlipEdgeStacks) {
+    for (let i = 0; i < numSheets; i += 1) {
+      const isFlippedSheet = i < flippedCount;
+      const dist = isFlippedSheet ? (flippedCount - 1 - i) : (i - flippedCount);
+      if (dist <= 0 || dist > MAX_VIS) continue;
+      const isLiveSheet = liveFlip?.sheetIdx === i;
+      const isRevealDuringTurn = liveFlipRevealSheetIdx != null && i === liveFlipRevealSheetIdx;
+      const keepDuringDrag = !liveFlip || isLiveSheet || isRevealDuringTurn || i === liveFlipCompanionSheetIdx;
+      if (!keepDuringDrag) continue;
+      if (isolateActiveDragSheet && liveFlip && i !== liveFlip.sheetIdx) continue;
+      if (isCoverFullyClosed && i !== 0) continue;
+      if (isBackFullyClosed && i !== numSheets - 1) continue;
+      if (isFlippedSheet) visibleLeftStackLevels.add(dist);
+      else visibleRightStackLevels.add(dist);
+    }
+  }
+  const hiddenLeftStackLevels = Array.from({ length: potentialLeftStackCount }, (_, idx) => idx + 1)
+    .filter((level) => !visibleLeftStackLevels.has(level));
+  const hiddenRightStackLevels = Array.from({ length: potentialRightStackCount }, (_, idx) => idx + 1)
+    .filter((level) => !visibleRightStackLevels.has(level));
 
   return (
     <div style={{
@@ -756,47 +779,78 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           )}
 
           {/* Decorative edge stacks during flipping */}
-          {showFlipEdgeStacks && Array.from({ length: edgeStackCount }, (_, idx) => {
-            const layer = idx + 1;
-            const vis = Math.min(layer, MAX_VIS);
+          {showFlipEdgeStacks && hiddenLeftStackLevels.map((vis) => {
+            const idx = vis - 1;
             const offset = vis * sideGap;
             const layerShrink = (vis - 1) * heightShrink;
-            const width = Math.max(1.25, sideGap);
             const top = trapezoidInset + layerShrink / 2;
             const height = pageH - trapezoidInset * 2 - layerShrink;
             const z = (MAX_VIS - vis) * 4 * scale;
-            const borderAlpha = Math.max(0.08, 0.18 - idx * 0.03);
+            const shadowAlpha = Math.max(0.03, 0.075 - idx * 0.012);
+            const borderAlpha = Math.max(0.06, 0.12 - idx * 0.018);
+            const radius = Math.round(12 * scale);
             return (
-              <React.Fragment key={`flip-edge-stack-${layer}`}>
+              <div
+                key={`flip-edge-stack-left-${vis}`}
+                style={{
+                  position: 'absolute',
+                  left: bookShiftX + sideMargin - offset,
+                  top,
+                  width: pageW,
+                  height,
+                  transform: `translateZ(${z}px)`,
+                  pointerEvents: 'none',
+                  filter: `drop-shadow(0 3px 8px rgba(0,0,0,${shadowAlpha}))`,
+                }}
+              >
                 <div
                   style={{
                     position: 'absolute',
-                    left: bookShiftX + sideMargin - offset - width,
-                    top,
-                    width,
-                    height,
+                    inset: 0,
                     background: PAPER_COLOR,
-                    borderLeft: `1px solid rgba(170,162,147,${borderAlpha})`,
-                    borderRight: `1px solid rgba(255,255,255,0.7)`,
-                    transform: `translateZ(${z}px)`,
-                    pointerEvents: 'none',
+                    borderRadius: `${radius}px 0 0 ${radius}px`,
+                    borderLeft: '1px solid rgba(255,255,255,0.75)',
+                    borderRight: `1px solid rgba(164,156,141,${borderAlpha})`,
                   }}
                 />
+              </div>
+            );
+          })}
+          {showFlipEdgeStacks && hiddenRightStackLevels.map((vis) => {
+            const idx = vis - 1;
+            const offset = vis * sideGap;
+            const layerShrink = (vis - 1) * heightShrink;
+            const top = trapezoidInset + layerShrink / 2;
+            const height = pageH - trapezoidInset * 2 - layerShrink;
+            const z = (MAX_VIS - vis) * 4 * scale;
+            const shadowAlpha = Math.max(0.03, 0.075 - idx * 0.012);
+            const borderAlpha = Math.max(0.06, 0.12 - idx * 0.018);
+            const radius = Math.round(12 * scale);
+            return (
+              <div
+                key={`flip-edge-stack-right-${vis}`}
+                style={{
+                  position: 'absolute',
+                  left: bookShiftX + sideMargin + pageW + offset,
+                  top,
+                  width: pageW,
+                  height,
+                  transform: `translateZ(${z}px)`,
+                  pointerEvents: 'none',
+                  filter: `drop-shadow(0 3px 8px rgba(0,0,0,${shadowAlpha}))`,
+                }}
+              >
                 <div
                   style={{
                     position: 'absolute',
-                    left: bookShiftX + sideMargin + pageW * 2 + offset,
-                    top,
-                    width,
-                    height,
+                    inset: 0,
                     background: PAPER_COLOR,
-                    borderLeft: '1px solid rgba(255,255,255,0.7)',
-                    borderRight: `1px solid rgba(170,162,147,${borderAlpha})`,
-                    transform: `translateZ(${z}px)`,
-                    pointerEvents: 'none',
+                    borderRadius: `0 ${radius}px ${radius}px 0`,
+                    borderLeft: `1px solid rgba(164,156,141,${borderAlpha})`,
+                    borderRight: '1px solid rgba(255,255,255,0.75)',
                   }}
                 />
-              </React.Fragment>
+              </div>
             );
           })}
 
