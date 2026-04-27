@@ -60,10 +60,12 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const { t } = useTranslation();
-  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { signIn, signUp, verifySignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [nickname, setNickname] = React.useState('');
+  const [verificationCode, setVerificationCode] = React.useState('');
+  const [pendingSignUpEmail, setPendingSignUpEmail] = React.useState<string | null>(null);
   const [isLogin, setIsLogin] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [googleLoading, setGoogleLoading] = React.useState(false);
@@ -71,9 +73,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
 
-  const isValidPhone = (v: string) => /^1[3-9]\d{9}$/.test(v.trim());
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-  const toPhoneAliasEmail = (v: string) => `${v.trim()}@phone.local`;
 
   const getErrorMessage = (msg: string) => {
     if (msg.includes('email rate limit exceeded')) return t('auth_error_rate_limit');
@@ -81,7 +81,14 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
     if (msg.includes('User already registered')) return t('auth_error_user_exists');
     if (msg.includes('Password should be at least')) return t('auth_error_password_short');
     if (msg.includes('invalid_grant')) return t('auth_error_invalid_grant');
+    if (msg.includes('Token has expired') || msg.includes('token is expired')) return t('auth_error_invalid_grant');
+    if (msg.includes('Invalid token') || msg.includes('invalid token')) return t('auth_error_invalid_grant');
     return t('auth_error_generic') + msg;
+  };
+
+  const resetSignUpCodeState = () => {
+    setVerificationCode('');
+    setPendingSignUpEmail(null);
   };
 
   const handleSubmit = async () => {
@@ -90,17 +97,24 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
     setMessage(null);
     try {
       const acc = identifier.trim();
-      if (!isValidPhone(acc) && !isValidEmail(acc)) throw new Error(t('auth_error_invalid_account'));
-      const emailToUse = isValidPhone(acc) ? toPhoneAliasEmail(acc) : acc;
+      if (!isValidEmail(acc)) throw new Error(t('auth_error_invalid_account'));
+      const emailToUse = acc;
       if (isLogin) {
         const { error: err } = await signIn(emailToUse, password);
         if (err) throw err;
         onNext();
       } else {
-        const { error: err } = await signUp(emailToUse, password, nickname || undefined);
-        if (err) throw err;
-        setMessage(t('auth_register_success'));
-        setIsLogin(true);
+        if (pendingSignUpEmail) {
+          const { error: verifyError } = await verifySignUpCode(pendingSignUpEmail, verificationCode);
+          if (verifyError) throw verifyError;
+          resetSignUpCodeState();
+          onNext();
+        } else {
+          const { error: err } = await signUp(emailToUse, password, nickname || undefined);
+          if (err) throw err;
+          setPendingSignUpEmail(emailToUse);
+          setMessage(t('auth_register_success'));
+        }
       }
     } catch (err: any) {
       setError(getErrorMessage(err.message || t('auth_error_generic')));
@@ -131,7 +145,11 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
     }
   };
 
-  const canSubmit = identifier.trim() && password.length >= 6 && !loading;
+  const canSubmit = isLogin
+    ? Boolean(identifier.trim() && password.length >= 6 && !loading)
+    : pendingSignUpEmail
+      ? Boolean(verificationCode.trim().length >= 4 && !loading)
+      : Boolean(identifier.trim() && password.length >= 6 && !loading);
 
   return (
     <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
@@ -163,14 +181,20 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           <input
             type="text"
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            placeholder={t('onboarding2_auth_account_placeholder')}
+            onChange={(e) => {
+              setIdentifier(e.target.value);
+              if (!isLogin) {
+                resetSignUpCodeState();
+                setMessage(null);
+              }
+            }}
+            placeholder={t('auth_account_placeholder')}
             className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
           />
         </div>
 
         {/* 昵称（仅注册） */}
-        {!isLogin && (
+        {!isLogin && !pendingSignUpEmail && (
           <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
             <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
               <User size={20} />
@@ -185,30 +209,49 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           </div>
         )}
 
-        {/* 密码 */}
-        <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
-          <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
-            <Lock size={20} />
+        {pendingSignUpEmail ? (
+          <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
+            <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
+              <Lock size={20} />
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.trim())}
+              onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+              className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
+            />
           </div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
-            placeholder={t('onboarding2_auth_password_placeholder')}
-            className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
-          />
-        </div>
+        ) : (
+          <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
+            <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
+              <Lock size={20} />
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+              placeholder={t('onboarding2_auth_password_placeholder')}
+              className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
+            />
+          </div>
+        )}
 
         {/* 错误 / 成功提示 */}
         {error && <p className="text-red-500 text-xs px-2">{error}</p>}
         {message && <p className="text-[#4a5d4c] text-xs px-2">{message}</p>}
-
         {/* 切换登录/注册 */}
         <p className="text-center text-xs text-[#4a5d4c]/40 pt-1">
           <button
             type="button"
-            onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError(null);
+              setMessage(null);
+              resetSignUpCodeState();
+            }}
             className="text-[#4a5d4c] font-bold underline decoration-[#4a5d4c]/20 ml-1"
           >
             {isLogin ? t('auth_switch_to_register') : t('auth_switch_to_login')}

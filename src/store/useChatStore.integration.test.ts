@@ -17,6 +17,7 @@ import { useChatStore } from './useChatStore';
 import { useOutboxStore } from './useOutboxStore';
 import type { Message } from './useChatStore.types';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
+import { getLocalDateString } from './chatHelpers';
 
 function resetMoodStore() {
   useMoodStore.setState({
@@ -139,10 +140,12 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
   });
 
   it('allows sending two activities back to back and closes the first one', async () => {
-    await useChatStore.getState().sendMessage('吃饭', 1_700_000_000_000);
+    const firstTs = 1_700_000_000_000;
+    await useChatStore.getState().sendMessage('吃饭', firstTs);
     await useChatStore.getState().sendMessage('睡觉', 1_700_000_600_000);
 
-    const messages = useChatStore.getState().messages;
+    const state = useChatStore.getState();
+    const messages = state.messages;
     expect(messages).toHaveLength(2);
     expect(messages[0].content).toBe('吃饭');
     expect(messages[0].duration).toBe(10);
@@ -150,6 +153,13 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(messages[1].content).toBe('睡觉');
     expect(messages[1].duration).toBeUndefined();
     expect(messages[1].isActive).toBe(true);
+
+    const todayKey = getLocalDateString(new Date(firstTs));
+    const cached = state.dateCache[todayKey] ?? [];
+    expect(cached).toHaveLength(2);
+    expect(cached[0].duration).toBe(10);
+    expect(cached[0].isActive).toBe(false);
+    expect(cached[1].isActive).toBe(true);
   });
 
   it('keeps offline chat message as pending and enqueues outbox replay', async () => {

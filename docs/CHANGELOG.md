@@ -4,6 +4,53 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-27
+
+### Fix: reminder popup confirm no longer loses timeline activity state
+
+- `src/store/useChatStore.ts` 修复 reminder ✓ 触发记录链路的时间线竞态：`sendMessage()`/`sendMood()` 现在按同一份最新消息源同时回写 `messages + dateCache`，确保“自动结束上一条活动”后的 `duration/isActive` 不会只更新内存列表而遗漏缓存
+- `src/store/useChatStore.ts` 移除消息写库成功后的即时 `syncState='synced'` 回写，改为等待云端回拉/实时同步统一归并，避免短窗口内被 `_refreshDateSilently` 当成“本地 synced 且云端缺失”而闪现消失
+- `src/store/useChatStore.integration.test.ts` 新增断言：连续两条活动发送后，`dateCache` 与 `messages` 的 closed/open 状态保持一致，防回归“两个活动都进行中”
+- 文档同步：`src/store/README.md`、`docs/CURRENT_TASK.md`
+
+Validation:
+
+- `npx vitest run src/store/useChatStore.integration.test.ts src/store/chatSyncHelpers.test.ts` ✅
+- `npx tsc --noEmit` ✅
+
+### Build: switch signup to email-code verification (remove phone alias path)
+
+- `src/store/authStoreAccountActions.ts` 新增 `verifySignUpCode(email, code)` 与 `resendSignUpCode(email)`，通过 Supabase `verifyOtp(type='signup')` / `resend(type='signup')` 完成验证码确认链路
+- `src/store/authStoreTypes.ts` 同步补齐 `verifySignUpCode`、`resendSignUpCode` 类型签名
+- `src/features/auth/AuthPage.tsx` 与 `src/features/onboarding/OnboardingFlow.tsx` 的 `StepAuth` 统一改为邮箱注册流程：移除手机号伪邮箱（`@phone.local`）映射；注册后进入验证码输入态并完成校验后登录
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts` 同步清理 auth 文案中的“手机号/phone/telefono”表述，统一为邮箱注册提示
+- 文档同步：`src/features/auth/README.md`、`src/store/README.md`、`docs/CURRENT_TASK.md`
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/store/useAuthStore.test.ts` ✅
+
+### Fix: keep Hobby deployment under 12 Serverless functions
+
+- 删除 `api/classify.test.ts`，避免被 Vercel 识别为额外 serverless function
+- 不再保留该接口的独立 serverless 层测试文件，优先保证 Hobby 计划部署可用
+- 该调整后 `api/` 目录仅保留实际线上函数入口（含 `api/supabase-proxy/[...path].ts`），避免触发 Hobby 计划函数数上限报错
+
+Validation:
+
+- `api/**/*.ts` 统计为 12 个函数入口 ✅
+
+### Chore: restore max-lines hard limit and split oversized file
+
+- `scripts/check-max-lines.mjs` 将 `ERROR_LIMIT` 从 `1200` 恢复为 `1000`
+- 将 `src/features/report/DiaryBookViewer.tsx` 的页面数据构建与多语言文案拆分到新文件 `src/features/report/diaryBookViewerData.ts`
+- 拆分后 `DiaryBookViewer.tsx` 行数降到 1000 以下，满足 hard limit
+
+Validation:
+
+- `npm run lint:max-lines` ✅
+
 ## 2026-04-26
 
 ### Fix: sign-out no longer falls back to onboarding

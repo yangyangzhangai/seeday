@@ -76,8 +76,7 @@ export function mergeCloudMessagesWithLocal(cloudMessages: Message[], localMessa
 export function insertChatMessage(state: ChatState, message: Message): Pick<ChatState, 'messages' | 'dateCache'> {
   const dateStr = getLocalDateString(new Date(message.timestamp));
   const nextMessages = [...state.messages, message].sort((left, right) => left.timestamp - right.timestamp);
-  const nextDateMessages = [...(state.dateCache[dateStr] ?? []).filter((item) => item.id !== message.id), message]
-    .sort((left, right) => left.timestamp - right.timestamp);
+  const nextDateMessages = projectMessagesForDate(nextMessages, dateStr);
 
   return {
     messages: nextMessages,
@@ -86,6 +85,12 @@ export function insertChatMessage(state: ChatState, message: Message): Pick<Chat
       [dateStr]: nextDateMessages,
     }),
   };
+}
+
+export function projectMessagesForDate(messages: Message[], dateStr: string): Message[] {
+  return messages
+    .filter((message) => getLocalDateString(new Date(message.timestamp)) === dateStr)
+    .sort((left, right) => left.timestamp - right.timestamp);
 }
 
 export function applyChatMessageSyncState(

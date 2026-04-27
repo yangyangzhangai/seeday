@@ -41,7 +41,7 @@ import {
 import { useOutboxStore } from './useOutboxStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
-import { applyChatMessageSyncState, insertChatMessage, mergeCloudMessagesWithLocal } from './chatSyncHelpers';
+import { applyChatMessageSyncState, mergeCloudMessagesWithLocal, projectMessagesForDate } from './chatSyncHelpers';
 import {
   clearMessageClassificationTasks,
   closeCrossDayActiveMessagesInDb,
@@ -388,14 +388,12 @@ export const useChatStore = create<ChatState>()(
         },
       ) => {
         const now = customTimestamp ?? Date.now();
+        const todayDateStr = getLocalDateString(new Date(now));
         let updatedMessages = [...get().messages];
-
         updatedMessages = await closePreviousActivity(updatedMessages, now);
-
         const classifiedByRule = !options?.activityTypeOverride
           ? classifyRecordActivityType(content, resolveLangForText(content))
           : null;
-
         const newMessage: Message = {
           id: uuidv4(),
           content,
@@ -407,32 +405,33 @@ export const useChatStore = create<ChatState>()(
           syncState: 'pending',
           syncError: null,
         };
-
         updatedMessages.push(newMessage);
-
         set((state) => ({
-          ...insertChatMessage(state as ChatState, newMessage),
           messages: updatedMessages,
           lastActivityTime: now,
+          dateCache: pruneDateCache({
+            ...(state as ChatState).dateCache,
+            [todayDateStr]: projectMessagesForDate(updatedMessages, todayDateStr),
+          }),
         }));
-
         void (async () => {
           const session = await getSupabaseSession();
           if (!session) {
             useOutboxStore.getState().enqueue({
               kind: 'chat.upsert',
               payload: { message: newMessage },
+              consecutiveFailures: 0,
             });
             return;
           }
           await persistMessageToSupabase(newMessage, session.user.id);
-          set((state) => applyChatMessageSyncState(state as ChatState, newMessage.id, 'synced', null));
           // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
           void useTimingStore.getState().endActive(session.user.id);
         })().catch((error) => {
           useOutboxStore.getState().enqueue({
             kind: 'chat.upsert',
             payload: { message: newMessage },
+            consecutiveFailures: 0,
           });
           set((state) => applyChatMessageSyncState(
             state as ChatState,
@@ -444,11 +443,9 @@ export const useChatStore = create<ChatState>()(
             console.warn('[sendMessage] background sync skipped:', error);
           }
         });
-
         if (!options?.skipMoodDetection) {
           void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
         }
-
         if (!options?.activityTypeOverride) {
           const isPlus = useAuthStore.getState().isPlus;
           const growthStore = useGrowthStore.getState();
@@ -854,7 +851,6 @@ export const useChatStore = create<ChatState>()(
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const relatedActivityId = options?.relatedActivityId;
-
         const newMessage: Message = {
           id: uuidv4(),
           content,
@@ -867,12 +863,10 @@ export const useChatStore = create<ChatState>()(
           syncState: 'pending',
           syncError: null,
         };
-
         const { messages } = get();
         const latestEvent = [...messages]
           .filter(m => !m.isMood && m.mode === 'record')
           .sort((a, b) => b.timestamp - a.timestamp)[0];
-
         const { toLocalDateStr } = await import('../lib/dateUtils');
         const isCrossDay = !latestEvent ||
           toLocalDateStr(new Date(now)) !== toLocalDateStr(new Date(latestEvent.timestamp));
@@ -880,9 +874,14 @@ export const useChatStore = create<ChatState>()(
         set(state => {
           if (isCrossDay) {
             const detachedMessage = { ...newMessage, detached: true };
+            const dateStr = getLocalDateString(new Date(detachedMessage.timestamp));
+            const nextMessages = [...state.messages, detachedMessage];
             return {
-              ...insertChatMessage(state as ChatState, detachedMessage),
-              messages: [...state.messages, detachedMessage],
+              messages: nextMessages,
+              dateCache: pruneDateCache({
+                ...state.dateCache,
+                [dateStr]: projectMessagesForDate(nextMessages, dateStr),
+              }),
             };
           }
           const newDesc: MoodDescription = {
@@ -890,18 +889,22 @@ export const useChatStore = create<ChatState>()(
             content,
             timestamp: now,
           };
+          const nextMessages = state.messages
+            .map(m =>
+              m.id === latestEvent.id
+                ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
+                : m,
+            )
+            .concat(newMessage);
+          const dateStr = getLocalDateString(new Date(newMessage.timestamp));
           return {
-            ...insertChatMessage(state as ChatState, newMessage),
-            messages: state.messages
-              .map(m =>
-                m.id === latestEvent.id
-                  ? { ...m, moodDescriptions: [...(m.moodDescriptions || []), newDesc] }
-                  : m,
-              )
-              .concat(newMessage),
+            messages: nextMessages,
+            dateCache: pruneDateCache({
+              ...state.dateCache,
+              [dateStr]: projectMessagesForDate(nextMessages, dateStr),
+            }),
           };
         });
-
         // 兼容旧有 relatedActivityId 逻辑
         if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
@@ -914,7 +917,6 @@ export const useChatStore = create<ChatState>()(
             linkedMoodMessageId: newMessage.id,
           }, resolveCurrentLang());
         }
-
         const annotationStore = useAnnotationStore.getState();
         const moodEvent: AnnotationEvent = {
           type: 'mood_recorded',
@@ -922,20 +924,19 @@ export const useChatStore = create<ChatState>()(
           data: { messageId: newMessage.id, mood: content },
         };
         annotationStore.triggerAnnotation(moodEvent).catch(console.error);
-
         void (async () => {
           const session = await getSupabaseSession();
           if (!session) {
             useOutboxStore.getState().enqueue({
               kind: 'chat.upsert',
               payload: { message: isCrossDay ? { ...newMessage, detached: true } : newMessage },
+              consecutiveFailures: 0,
             });
             return;
           }
           const moodMessageToPersist = get().messages.find((message) => message.id === newMessage.id)
             ?? (isCrossDay ? { ...newMessage, detached: true } : newMessage);
           await persistMessageToSupabase(moodMessageToPersist, session.user.id, true);
-          set((state) => applyChatMessageSyncState(state as ChatState, newMessage.id, 'synced', null));
           if (!isCrossDay && latestEvent) {
             const updated = get().messages.find(m => m.id === latestEvent.id);
             if (updated) await persistMessageToSupabase(updated, session.user.id);
@@ -944,6 +945,7 @@ export const useChatStore = create<ChatState>()(
           useOutboxStore.getState().enqueue({
             kind: 'chat.upsert',
             payload: { message: isCrossDay ? { ...newMessage, detached: true } : newMessage },
+            consecutiveFailures: 0,
           });
           set((state) => applyChatMessageSyncState(
             state as ChatState,
@@ -955,7 +957,6 @@ export const useChatStore = create<ChatState>()(
             console.warn('[sendMood] background sync skipped:', error);
           }
         });
-
         return newMessage.id;
       },
 

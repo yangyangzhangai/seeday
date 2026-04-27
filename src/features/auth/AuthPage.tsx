@@ -11,10 +11,12 @@ export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
-  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { signIn, signUp, verifySignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [nickname, setNickname] = React.useState('');
+  const [verificationCode, setVerificationCode] = React.useState('');
+  const [pendingSignUpEmail, setPendingSignUpEmail] = React.useState<string | null>(null);
   const [isLogin, setIsLogin] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [googleLoading, setGoogleLoading] = React.useState(false);
@@ -22,9 +24,7 @@ export const AuthPage: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
 
-  const isValidPhone = (value: string) => /^1[3-9]\d{9}$/.test(value.trim());
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-  const toPhoneAliasEmail = (value: string) => `${value.trim()}@phone.local`;
 
   const getErrorMessage = (msg: string) => {
     if (msg.includes('email rate limit exceeded')) return t('auth_error_rate_limit');
@@ -32,7 +32,14 @@ export const AuthPage: React.FC = () => {
     if (msg.includes('User already registered')) return t('auth_error_user_exists');
     if (msg.includes('Password should be at least')) return t('auth_error_password_short');
     if (msg.includes('invalid_grant')) return t('auth_error_invalid_grant');
+    if (msg.includes('Token has expired') || msg.includes('token is expired')) return t('auth_error_invalid_grant');
+    if (msg.includes('Invalid token') || msg.includes('invalid token')) return t('auth_error_invalid_grant');
     return t('auth_error_generic') + msg;
+  };
+
+  const resetSignUpCodeState = () => {
+    setVerificationCode('');
+    setPendingSignUpEmail(null);
   };
 
   const handleSubmit = async () => {
@@ -41,19 +48,26 @@ export const AuthPage: React.FC = () => {
     setMessage(null);
     try {
       const account = identifier.trim();
-      if (!isValidPhone(account) && !isValidEmail(account)) {
+      if (!isValidEmail(account)) {
         throw new Error(t('auth_error_invalid_account'));
       }
-      const emailToUse = isValidPhone(account) ? toPhoneAliasEmail(account) : account;
+      const emailToUse = account;
       if (isLogin) {
         const { error: signInError } = await signIn(emailToUse, password);
         if (signInError) throw signInError;
         navigate('/chat', { replace: true });
       } else {
-        const { error: signUpError } = await signUp(emailToUse, password, nickname || undefined);
-        if (signUpError) throw signUpError;
-        setMessage(t('auth_register_success'));
-        setIsLogin(true);
+        if (pendingSignUpEmail) {
+          const { error: verifyError } = await verifySignUpCode(pendingSignUpEmail, verificationCode);
+          if (verifyError) throw verifyError;
+          resetSignUpCodeState();
+          navigate('/chat', { replace: true });
+        } else {
+          const { error: signUpError } = await signUp(emailToUse, password, nickname || undefined);
+          if (signUpError) throw signUpError;
+          setPendingSignUpEmail(emailToUse);
+          setMessage(t('auth_register_success'));
+        }
       }
     } catch (err: any) {
       setError(getErrorMessage(err.message || t('auth_error_generic')));
@@ -84,7 +98,11 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const canSubmit = identifier.trim() && password.length >= 6 && !loading;
+  const canSubmit = isLogin
+    ? Boolean(identifier.trim() && password.length >= 6 && !loading)
+    : pendingSignUpEmail
+      ? Boolean(verificationCode.trim().length >= 4 && !loading)
+      : Boolean(identifier.trim() && password.length >= 6 && !loading);
 
   if (authLoading) {
     return <div className="fixed inset-0 bg-gray-50" />;
@@ -120,16 +138,22 @@ export const AuthPage: React.FC = () => {
             <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
               <Mail size={20} />
             </div>
-            <input
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder={t('onboarding2_auth_account_placeholder')}
-              className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
-            />
-          </div>
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => {
+                  setIdentifier(e.target.value);
+                  if (!isLogin) {
+                    resetSignUpCodeState();
+                    setMessage(null);
+                  }
+                }}
+                placeholder={t('auth_account_placeholder')}
+                className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
+              />
+            </div>
 
-          {!isLogin ? (
+          {!isLogin && !pendingSignUpEmail ? (
             <div className="group flex items-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-all focus-within:border-[#8fae91] focus-within:bg-white">
               <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
                 <User size={20} />
@@ -144,27 +168,46 @@ export const AuthPage: React.FC = () => {
             </div>
           ) : null}
 
-          <div className="group flex items-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-all focus-within:border-[#8fae91] focus-within:bg-white">
-            <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
-              <Lock size={20} />
+          {pendingSignUpEmail ? (
+            <div className="group flex items-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-all focus-within:border-[#8fae91] focus-within:bg-white">
+              <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
+                <Lock size={20} />
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSubmit) {
+                    void handleSubmit();
+                  }
+                }}
+                className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
+              />
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSubmit) {
-                  void handleSubmit();
-                }
-              }}
-              placeholder={t('onboarding2_auth_password_placeholder')}
-              className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
-            />
-          </div>
+          ) : (
+            <div className="group flex items-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-all focus-within:border-[#8fae91] focus-within:bg-white">
+              <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
+                <Lock size={20} />
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSubmit) {
+                    void handleSubmit();
+                  }
+                }}
+                placeholder={t('onboarding2_auth_password_placeholder')}
+                className="flex-1 border-none bg-transparent text-sm font-bold text-[#4a5d4c] outline-none placeholder:text-[#4a5d4c]/20"
+              />
+            </div>
+          )}
 
           {error ? <p className="px-2 text-xs text-red-500">{error}</p> : null}
           {message ? <p className="px-2 text-xs text-[#4a5d4c]">{message}</p> : null}
-
           <p className="pt-1 text-center text-xs text-[#4a5d4c]/40">
             <button
               type="button"
@@ -172,6 +215,7 @@ export const AuthPage: React.FC = () => {
                 setIsLogin(!isLogin);
                 setError(null);
                 setMessage(null);
+                resetSignUpCodeState();
               }}
               className="ml-1 font-bold text-[#4a5d4c] underline decoration-[#4a5d4c]/20"
             >

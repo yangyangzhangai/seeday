@@ -9,6 +9,7 @@
 - Route: `/auth`
 - Main actions:
   - Sign in / sign up
+  - Email-code registration verification (`signUp` + `verifyOtp(type='signup')`)
   - OAuth sign-in (Google / Apple) with platform-aware redirect (`web origin` vs `iOS deep link`)
   - Auth-only entry for signed-out users (sign-out does not jump to onboarding)
   - Session restore via `useAuthStore.initialize()`

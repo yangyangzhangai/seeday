@@ -1,6 +1,6 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-26
+Last Updated: 2026-04-27
 Owner: current working session
 
 ---
@@ -12,6 +12,7 @@ Status: 实施中（高优先）
 ### 已完成（本轮）
 
 - [x] `useAuthStore` 超长文件拆分：初始化主链路保留在 `useAuthStore.ts`，账号动作与运行时 helper 下沉到 `authStoreAccountActions.ts` / `authStoreRuntimeHelpers.ts`
+- [x] Chat 提醒弹窗确认链路竞态修复：`sendMessage/sendMood` 改为同步回写 `messages + dateCache`，并去掉本地即时 `synced` 回写，修复“开始上班闪现后消失 + 上一条未自动结束导致双进行中”
 - [x] Telemetry Center 新增根系方向设置看板入口与聚合接口，可在管理员后台直接观察打开/修改/重置/保存结果
 - [x] 日期口径统一为本地日历日（修复 recurring 判定偏移）
 - [x] 删除一致性第一轮：pending delete tombstone + fetch 合并保护
@@ -365,8 +366,12 @@ Status: 主链路可用，剩余增强项
 
 ## 近期完成（仅保留 2 条）
 
+- [x] Max-lines 红线收口：`scripts/check-max-lines.mjs` 的 `ERROR_LIMIT` 恢复为 `1000`，并将 `DiaryBookViewer.tsx` 的页面数据/文案拆分到 `diaryBookViewerData.ts` 以回到硬限以内
+- [x] Vercel Hobby 函数数上限修复：删除 `api/classify.test.ts`，避免测试文件被计入 Serverless Functions（保持部署函数总数不超过 12）
 - [x] Auth / Onboarding 分流收口：新增独立 `/auth` 登录注册页；`RequireAuth` 未登录跳转改为 `/auth`；`/onboarding` 改为仅允许已登录且满足“新账号（<72h）+ 无 profile”时进入，解决“退出登录后默认回 onboarding”
 - [x] iOS 订阅错误可观测性收口：`@payment iap` 不再把所有失败统一映射为 `subscription_failed`，前端购买弹窗优先显示真实错误信息；并在 restore 侧增加 Seeday 商品 ID 过滤，避免误取非本应用 entitlement
+- [x] Auth 注册链路改造（邮箱验证码版）：移除手机号伪邮箱注册入口（`@phone.local`），`/auth` 与 onboarding `StepAuth` 统一为邮箱注册 + `verifyOtp(type='signup')` 验证码确认流程
+- [x] Auth 三语文案收口：`zh/en/it` 登录注册相关提示统一移除“手机号/phone/telefono”表述，改为仅邮箱输入提示
 - [x] Supabase 鉴权链路回退真实域名：服务端在 `SUPABASE_URL` 配置为 `/supabase-proxy` 时自动解析 anon key 的项目 ref 并直连 `https://<ref>.supabase.co`，修复 `/api/plant-generate` 被 rewrite 漏接后 `401 Unauthorized`
 - [x] 会员购买界面统一：Onboarding 第 7 步改为复用 `MembershipPurchaseModal`，与 `/upgrade` 共用同一套购买弹窗；并按用户试用/购买历史动态切换“人气首选”（未试用→试用档、已试用未购→月度、已购老用户→年度）
 - [x] 根系方向设置收口：`usePlantStore` 改为 local-first 合并方向配置（云端空值/默认值不再覆盖本地自定义），并补齐 profile 侧打开/修改/重置/保存 telemetry

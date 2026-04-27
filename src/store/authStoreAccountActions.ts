@@ -38,6 +38,8 @@ type AccountActionKeys =
   | 'signInWithGoogle'
   | 'signInWithApple'
   | 'signUp'
+  | 'verifySignUpCode'
+  | 'resendSignUpCode'
   | 'signOut'
   | 'updateAvatar'
   | 'updateDisplayName'
@@ -111,6 +113,32 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
             avatar_url: avatarDataUrl || null,
           },
         },
+      });
+      return { error };
+    },
+
+    verifySignUpCode: async (email, code) => {
+      const normalizedEmail = email.trim();
+      const normalizedCode = code.trim();
+      if (!normalizedEmail || !normalizedCode) {
+        return { error: new Error('Invalid verification code') };
+      }
+      const { error } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: normalizedCode,
+        type: 'signup',
+      });
+      return { error };
+    },
+
+    resendSignUpCode: async (email) => {
+      const normalizedEmail = email.trim();
+      if (!normalizedEmail) {
+        return { error: new Error('Invalid email') };
+      }
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: normalizedEmail,
       });
       return { error };
     },
