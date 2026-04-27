@@ -360,8 +360,8 @@ async function persistMembershipMetadata(params: {
   }
 
   const currentMeta = (fetched.data.user.user_metadata || {}) as Record<string, unknown>;
-  const nextMeta: Record<string, unknown> = {
-    ...currentMeta,
+  const currentAppMeta = (fetched.data.user.app_metadata || {}) as Record<string, unknown>;
+  const membershipFields: Record<string, unknown> = {
     membership_plan: params.membership.plan,
     membership_source: params.source,
     membership_expires_at: params.membership.expiresAt,
@@ -370,9 +370,12 @@ async function persistMembershipMetadata(params: {
     membership_transaction_id: params.membership.transactionId,
     membership_original_transaction_id: params.membership.originalTransactionId,
   };
+  const nextMeta: Record<string, unknown> = { ...currentMeta, ...membershipFields };
+  const nextAppMeta: Record<string, unknown> = { ...currentAppMeta, ...membershipFields };
 
   const updated = await params.adminClient.auth.admin.updateUserById(params.userId, {
     user_metadata: nextMeta,
+    app_metadata: nextAppMeta,
   });
   if (updated.error) {
     throw new Error(`Failed to write membership metadata: ${updated.error.message}`);

@@ -32,7 +32,7 @@ function isPremium(user: User): boolean {
 function getMembershipPlan(user: User): string | null {
   const am = (user.app_metadata ?? {}) as Record<string, unknown>;
   const um = (user.user_metadata ?? {}) as Record<string, unknown>;
-  for (const src of [um, am]) {
+  for (const src of [am, um]) {
     for (const key of ['membership_plan', 'plan', 'subscription_plan']) {
       const value = String(src[key] ?? '').trim();
       if (value) return value;

@@ -118,8 +118,8 @@ describe('rootRenderer', () => {
     const originStart = parsePathStart(origin.path);
     const branchStart = parsePathStart(branch.path);
 
-    expect(originStart.y).toBe(52);
-    expect(branchStart.y).toBeGreaterThan(52);
+    expect(originStart.y).toBe(108);
+    expect(branchStart.y).toBeGreaterThan(108);
     expect(branchStart.y).toBeLessThan(branch.tip.y);
   });
 

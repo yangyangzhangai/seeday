@@ -169,8 +169,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const userMeta = auth.user.user_metadata ?? {};
   const appMeta = (auth.user as { app_metadata?: Record<string, unknown> }).app_metadata ?? {};
   const isPlus = ['plus', 'premium', true].includes(
-    userMeta.membership_plan ?? userMeta.membership_tier ?? userMeta.is_plus ??
-    appMeta.membership_plan ?? appMeta.membership_tier ?? appMeta.is_plus ?? false
+    appMeta.membership_plan ?? appMeta.membership_tier ?? appMeta.is_plus ??
+    userMeta.membership_plan ?? userMeta.membership_tier ?? userMeta.is_plus ?? false
   );
 
   const resolvedLang = (body.lang === 'zh' || body.lang === 'it') ? body.lang : 'en';

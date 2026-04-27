@@ -47,6 +47,13 @@ export async function runSuggestionAcceptFlow({
   if (!suggestion || isSuggestionAccepted) return false;
 
   if (suggestion.type === 'activity' && suggestion.activityName) {
+    setPendingSuggestionIntent({
+      type: 'activity',
+      annotationId,
+      activityName: suggestion.activityName,
+      createdAt: Date.now(),
+    });
+    navigate('/chat');
     markSuggestionAccepted();
   } else if (suggestion.type === 'todo' && suggestion.todoId) {
     const decomposeSteps = Array.isArray(suggestion.decomposeSteps)

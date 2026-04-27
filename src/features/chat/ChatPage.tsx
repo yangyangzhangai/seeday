@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useStardustStore } from '../../store/useStardustStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -52,6 +53,8 @@ export const ChatPage = () => {
   } = useChatStore();
 
   const { activeTodoId, completeActiveTodo, todos } = useTodoStore();
+  const pendingSuggestionIntent = useAnnotationStore(s => s.pendingSuggestionIntent);
+  const consumePendingSuggestionIntent = useAnnotationStore(s => s.consumePendingSuggestionIntent);
   const getStardustByMessageId = useStardustStore(state => state.getStardustByMessageId);
   const syncPendingStardusts = useStardustStore(state => state.syncPendingStardusts);
   const fetchStardusts = useStardustStore(state => state.fetchStardusts);
@@ -214,6 +217,15 @@ export const ChatPage = () => {
   useEffect(() => {
     if (searchParams.get('todoId')) setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // ── AI 活动建议意图：直接开始计时 ─────────────────────────
+  useEffect(() => {
+    if (!pendingSuggestionIntent || pendingSuggestionIntent.type !== 'activity') return;
+    const intent = consumePendingSuggestionIntent({ type: 'activity', maxAgeMs: 30_000 });
+    if (intent?.activityName) {
+      void sendMessage(intent.activityName);
+    }
+  }, [pendingSuggestionIntent, consumePendingSuggestionIntent, sendMessage]);
 
   // ── 跨天自动刷新 ──────────────────────────────────────────
   useEffect(() => {
