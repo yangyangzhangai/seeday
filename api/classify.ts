@@ -143,26 +143,26 @@ function resolveMembershipPlan(user: { user_metadata?: Record<string, any>; app_
   const userMeta = user.user_metadata || {};
   const appMeta = user.app_metadata || {};
   const candidates = [
-    appMeta.membership_plan,
     userMeta.membership_plan,
-    appMeta.plan,
+    appMeta.membership_plan,
     userMeta.plan,
-    appMeta.subscription_plan,
+    appMeta.plan,
     userMeta.subscription_plan,
-    appMeta.membership_tier,
+    appMeta.subscription_plan,
     userMeta.membership_tier,
-    appMeta.tier,
+    appMeta.membership_tier,
     userMeta.tier,
-    appMeta.membership?.plan,
+    appMeta.tier,
     userMeta.membership?.plan,
-    appMeta.subscription?.plan,
+    appMeta.membership?.plan,
     userMeta.subscription?.plan,
-    appMeta.is_plus,
+    appMeta.subscription?.plan,
     userMeta.is_plus,
-    appMeta.plus_member,
+    appMeta.is_plus,
     userMeta.plus_member,
-    appMeta.vip,
+    appMeta.plus_member,
     userMeta.vip,
+    appMeta.vip,
   ];
 
   for (const candidate of candidates) {
