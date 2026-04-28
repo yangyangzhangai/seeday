@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
-import { Apple, Chrome, Sparkles, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
+import { Apple, Chrome, Sprout, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTodoStore } from '../../store/useTodoStore';
@@ -158,9 +158,9 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="w-16 h-16 bg-[#8fae91]/20 rounded-[24px] flex items-center justify-center mb-6 shadow-inner"
+          className="w-[72px] h-[72px] bg-[#8fae91]/20 rounded-[22px] flex items-center justify-center mb-8 shadow-inner"
         >
-          <Sparkles className="text-[#4a5d4c]" size={32} />
+          <Sprout className="text-[#4a5d4c]" size={34} strokeWidth={1.5} />
         </motion.div>
 
         <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">

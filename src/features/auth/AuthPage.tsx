@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Apple, Chrome, Mail, Lock, Loader2, User, ChevronRight, Sparkles } from 'lucide-react';
+import { Apple, Chrome, Mail, Lock, Loader2, User, ChevronRight, Sprout } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -135,9 +135,9 @@ export const AuthPage: React.FC = () => {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="mb-6 flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#8fae91]/20 shadow-inner"
+            className="mb-8 flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-[#8fae91]/20 shadow-inner"
           >
-            <Sparkles className="text-[#4a5d4c]" size={32} />
+            <Sprout className="text-[#4a5d4c]" size={34} strokeWidth={1.5} />
           </motion.div>
 
           <h1 className="text-3xl font-black leading-tight tracking-tight text-[#4a5d4c]">

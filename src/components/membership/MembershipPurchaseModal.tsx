@@ -9,6 +9,7 @@ import {
   Zap,
   Sparkles,
   Brain,
+  Scan,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -76,7 +77,7 @@ const PRO_FEATURES = [
     descKey: 'membership_purchase_feat_monthly_desc',
   },
   {
-    icon: <Brain size={18} />,
+    icon: <Scan size={18} />,
     labelKey: 'membership_purchase_feat_mood_ai_title',
     descKey: 'membership_purchase_feat_mood_ai_desc',
   },
