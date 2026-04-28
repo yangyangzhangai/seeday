@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const SUPABASE_ORIGIN = 'https://oxsbukofipeoikirkyyy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY
+  || process.env.VITE_SUPABASE_ANON_KEY
+  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94c2J1a29maXBlb2lraXJreXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzMwNTYsImV4cCI6MjA4NTg0OTA1Nn0.IqVYxwU7r45Mj4kSuJlrI3gFw2rfjr-K48lwJbFq5oQ';
 
 // Hop-by-hop headers must not be forwarded
 const HOP_BY_HOP = new Set([
@@ -8,11 +11,30 @@ const HOP_BY_HOP = new Set([
   'te', 'trailers', 'transfer-encoding', 'upgrade',
 ]);
 
+function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin;
+  res.setHeader('Access-Control-Allow-Origin', typeof origin === 'string' ? origin : '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'authorization, apikey, content-type, x-client-info, x-supabase-api-version, x-requested-with',
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Vary', 'Origin');
+}
+
 export const config = {
   api: { bodyParser: false },
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
   // Reconstruct Supabase path
   const segments = Array.isArray(req.query.path)
     ? req.query.path
@@ -35,6 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     forwardHeaders[key] = Array.isArray(value) ? value.join(', ') : (value ?? '');
   }
   forwardHeaders['host'] = 'oxsbukofipeoikirkyyy.supabase.co';
+  forwardHeaders['apikey'] = forwardHeaders['apikey'] || SUPABASE_ANON_KEY;
+  forwardHeaders['authorization'] = forwardHeaders['authorization'] || `Bearer ${SUPABASE_ANON_KEY}`;
 
   // Read raw body for non-GET requests
   let body: Buffer | undefined;

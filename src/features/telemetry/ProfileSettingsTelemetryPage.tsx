@@ -8,6 +8,7 @@ import type {
   ProfileSettingsTelemetryRecentEvent,
   ProfileSettingsTelemetrySeriesPoint,
 } from '../../types/profileSettingsTelemetry';
+import { TelemetryPageShell } from './TelemetryPageShell';
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -151,8 +152,7 @@ export const ProfileSettingsTelemetryPage: React.FC = () => {
   const summary = dashboard?.summary;
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
+    <TelemetryPageShell backTo="/telemetry">
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -235,7 +235,6 @@ export const ProfileSettingsTelemetryPage: React.FC = () => {
             </section>
           </>
         ) : null}
-      </div>
-    </div>
+    </TelemetryPageShell>
   );
 };

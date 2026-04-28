@@ -62,7 +62,7 @@ export const PrivacyPolicyPanel: React.FC<Props> = ({ onClose }) => {
         </div>
       </div>
 
-      <div className="h-8" />
+      <div style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 112px)' }} />
     </InfoSheetPanel>
   );
 };

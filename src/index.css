@@ -159,6 +159,42 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   overflow: auto;
 }
 
+.app-viewport-fixed {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-mobile-sheet-card {
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+  max-height: calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+}
+
+@media (max-width: 767px) {
+  .app-mobile-sheet-card--tall {
+    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+    height: calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+  }
+}
+
+.app-mobile-sheet-footer {
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.app-modal-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .app-bottom-nav,
 .chat-input-bottom-nav {
   transition: opacity 160ms ease-out, transform 160ms ease-out;
@@ -168,6 +204,14 @@ html.keyboard-open .app-bottom-nav,
 html.keyboard-open .chat-input-bottom-nav {
   opacity: 0;
   transform: translateY(12px);
+  pointer-events: none;
+}
+
+html.profile-sheet-open .app-bottom-nav,
+body.profile-sheet-open .app-bottom-nav {
+  display: none;
+  opacity: 0;
+  transform: translateY(20px);
   pointer-events: none;
 }
 

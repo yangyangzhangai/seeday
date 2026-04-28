@@ -48,17 +48,14 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-0 pb-0"
+      className="app-viewport-fixed z-50 flex items-end justify-center bg-black/40 px-0 pb-0 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-lg rounded-t-3xl bg-[#F7F9F8] px-5 pt-6 shadow-2xl overflow-y-auto"
+        className="app-mobile-sheet-card app-modal-scroll w-full max-w-lg rounded-t-3xl bg-[#F7F9F8] px-5 pt-6 shadow-2xl"
         style={{
-          maxHeight: '88dvh',
-          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 32px)',
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 32px)',
         }}
       >
         {/* Handle */}

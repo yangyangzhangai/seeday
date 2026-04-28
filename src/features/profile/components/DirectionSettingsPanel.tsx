@@ -1,7 +1,8 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { reportTelemetryEvent } from '../../../services/input/reportTelemetryEvent';
 import { usePlantStore } from '../../../store/usePlantStore';
 import { DEFAULT_DIRECTION_ORDER } from '../../../types/plant';
@@ -59,6 +60,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
   const [draft, setDraft] = useState<PlantCategoryKey[]>(() => [...directionOrder]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [focusedSlot, setFocusedSlot] = useState<number | null>(null);
 
   const stableDraft = useMemo(
     () => (draft.length === 5 ? draft : [...DEFAULT_DIRECTION_ORDER]),
@@ -78,6 +80,42 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
   }, [stableDraft]);
 
   const hasDuplicateSelection = duplicateCategories.size > 0;
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    const scrollContainers = Array.from(document.querySelectorAll<HTMLElement>('.app-scroll-container'));
+    const prevScrollStyles = scrollContainers.map((element) => ({
+      element,
+      overflowY: element.style.overflowY,
+      touchAction: element.style.touchAction,
+    }));
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.classList.add('profile-sheet-open');
+    document.body.classList.add('profile-sheet-open');
+    scrollContainers.forEach((element) => {
+      element.style.overflowY = 'hidden';
+      element.style.touchAction = 'none';
+    });
+
+    const preventBackgroundTouchMove = (event: TouchEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-root-direction-card="true"]')) return;
+      event.preventDefault();
+    };
+    document.addEventListener('touchmove', preventBackgroundTouchMove, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.classList.remove('profile-sheet-open');
+      document.body.classList.remove('profile-sheet-open');
+      prevScrollStyles.forEach(({ element, overflowY, touchAction }) => {
+        element.style.overflowY = overflowY;
+        element.style.touchAction = touchAction;
+      });
+      document.removeEventListener('touchmove', preventBackgroundTouchMove);
+    };
+  }, []);
 
   const updateSlot = (slotIndex: 0 | 1 | 2 | 3 | 4, value: PlantCategoryKey) => {
     const next = [...stableDraft];
@@ -111,49 +149,64 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
+  const panel = (
+    <div className="app-viewport-fixed z-[9999] flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="close"
-        className="absolute inset-0 bg-black/35 backdrop-blur-[3px]"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[4px]"
         onClick={onClose}
       />
       <div
-        className="relative w-full sm:max-w-md rounded-t-[28px] sm:rounded-[30px] bg-white shadow-2xl overflow-hidden flex min-h-0 flex-col"
-        style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
+        data-root-direction-card="true"
+        className="app-mobile-sheet-card relative flex min-h-0 w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-md sm:rounded-[30px]"
       >
-        <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
           <h3 className="text-base font-bold text-[#1C2E24]">{t('profile_root_direction_settings')}</h3>
           <button type="button" onClick={onClose} className="rounded-full p-2 transition hover:bg-black/5">
             <X size={18} className="text-[#1C2E24]" />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+        <div className="app-modal-scroll min-h-0 flex-1 px-5 pb-4">
           <p className="text-[12px] font-medium text-[#5F7A63]">{t('profile_root_direction_settings_desc')}</p>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2.5">
             {SLOTS.map(slot => {
               const isDuplicate = duplicateCategories.has(stableDraft[slot.index]);
+              const selectedCategory = stableDraft[slot.index];
+              const isFocused = focusedSlot === slot.index;
               return (
                 <label
                   key={slot.positionKey}
-                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${
-                    isDuplicate ? 'bg-red-50/70' : 'bg-[#F7F9F8]'
+                  className={`relative flex min-h-[58px] cursor-pointer items-center justify-between gap-3 rounded-2xl px-4 py-3 transition active:scale-[0.99] ${
+                    isDuplicate ? 'bg-red-50/80' : 'bg-[#F7F9F8] active:bg-[#EEF5F0]'
                   }`}
                 >
                   <span className={`text-[13px] font-medium ${isDuplicate ? 'text-red-600' : 'text-[#1C2E24]'}`}>
                     {t(slot.positionKey)}
                   </span>
-                  <select
-                    value={stableDraft[slot.index]}
-                    onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
-                    className={`min-h-9 rounded-lg border px-2 text-xs ${
+                  <span
+                    aria-hidden="true"
+                    className={`inline-flex min-h-9 min-w-[112px] items-center justify-between gap-2 rounded-xl border bg-white px-3 text-xs font-semibold ${
                       isDuplicate
-                        ? 'border-red-300 bg-red-50 text-red-600'
-                        : 'border-[#CBE7D7] bg-white text-[#355643]'
+                        ? 'border-red-300 text-red-600'
+                        : 'border-[#CBE7D7] text-[#355643]'
                     }`}
+                  >
+                    <span>{t(toCategoryLabelKey(selectedCategory))}</span>
+                    <ChevronDown
+                      size={16}
+                      strokeWidth={2.3}
+                      className={`shrink-0 transition-transform ${isFocused ? 'rotate-180' : ''}`}
+                    />
+                  </span>
+                  <select
+                    value={selectedCategory}
+                    onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
+                    onFocus={() => setFocusedSlot(slot.index)}
+                    onBlur={() => setFocusedSlot(null)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   >
                     {CATEGORIES.map(category => (
                       <option key={category} value={category}>
@@ -174,7 +227,10 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
           )}
         </div>
 
-        <div className="shrink-0 flex items-center justify-end gap-2 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2">
+        <div
+          className="flex shrink-0 items-center gap-2 border-t border-black/5 bg-white px-5 pt-3"
+          style={{ paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom, 0px) + 10px))' }}
+        >
           <button
             type="button"
             onClick={() => {
@@ -182,7 +238,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
               setSaveError(null);
               void reportTelemetryEvent('root_direction_reset', buildDirectionTelemetryPayload(DEFAULT_DIRECTION_ORDER));
             }}
-            className="min-h-10 rounded-xl border border-[#CBE7D7] bg-white px-4 text-xs font-medium text-[#355643] transition hover:bg-[#F7F9F8]"
+            className="min-h-11 flex-1 rounded-2xl border border-[#CBE7D7] bg-white px-4 text-sm font-semibold text-[#355643] transition hover:bg-[#F7F9F8]"
           >
             {t('profile_root_direction_reset')}
           </button>
@@ -190,7 +246,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
             type="button"
             onClick={handleSave}
             disabled={isSaving || hasDuplicateSelection}
-            className="min-h-10 rounded-xl border border-transparent px-4 text-xs font-medium text-[#355643] disabled:opacity-60"
+            className="min-h-11 flex-1 rounded-2xl border border-transparent px-4 text-sm font-semibold text-[#355643] disabled:opacity-60"
             style={{
               background:
                 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
@@ -203,4 +259,6 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
       </div>
     </div>
   );
+
+  return createPortal(panel, document.body);
 };

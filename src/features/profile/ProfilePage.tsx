@@ -5,9 +5,7 @@ import { Languages } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { UserInfoCard } from './components/UserInfoCard';
 import { AIModeSection } from './components/AIModeSection';
-import { AIAnnotationDropRate } from './components/AIAnnotationDropRate';
 import { DailyGoalToggle } from './components/DailyGoalToggle';
-import { LongTermProfileToggle } from './components/LongTermProfileToggle';
 import { UserProfileSection } from './components/UserProfileSection';
 import { RoutineSettingsPanel } from './components/RoutineSettingsPanel';
 import { MembershipCard } from './components/MembershipCard';
@@ -16,7 +14,7 @@ import { LanguageSwitcher } from '../../components/layout/LanguageSwitcher';
 
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, loading, isPlus, longTermProfileEnabled } = useAuthStore();
+  const { user, loading, isPlus } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,9 +50,6 @@ export const ProfilePage: React.FC = () => {
             <div>
               <AIModeSection isPlus={isPlus} plain />
             </div>
-            <div>
-              <AIAnnotationDropRate isPlus={isPlus} plain />
-            </div>
             {!isPlus ? (
               <div className="px-0 py-2">
                 <MembershipCard isPlus={isPlus} />
@@ -67,11 +62,6 @@ export const ProfilePage: React.FC = () => {
               <RoutineSettingsPanel plain />
             </div>
             {isPlus ? (
-              <div>
-                <LongTermProfileToggle plain />
-              </div>
-            ) : null}
-            {isPlus && longTermProfileEnabled ? (
               <div>
                 <UserProfileSection plain />
               </div>
