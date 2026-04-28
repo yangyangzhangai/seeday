@@ -326,8 +326,10 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
                          text-white text-sm font-medium rounded-full
                          transition-all duration-300"
               style={{
-                background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #c026d3 100%)',
-                boxShadow: '0 4px 15px rgba(139,92,246,0.40)',
+                background: 'linear-gradient(135deg, rgba(168,85,247,0.30) 0%, rgba(139,92,246,0.24) 50%, rgba(217,70,239,0.20) 100%)',
+                boxShadow: '0px 2px 8px rgba(168,85,247,0.22)',
+                color: '#7c3aed',
+                border: '1px solid rgba(168,85,247,0.28)',
               }}
             >
               <Play size={16} />
@@ -358,9 +360,10 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               disabled={isGenerating}
               className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%)',
-                boxShadow: '0 4px 15px rgba(139,92,246,0.40)',
-                color: 'white',
+                background: 'linear-gradient(135deg, rgba(168,85,247,0.30) 0%, rgba(139,92,246,0.24) 50%, rgba(217,70,239,0.20) 100%)',
+                boxShadow: '0px 2px 8px rgba(168,85,247,0.22)',
+                color: '#7c3aed',
+                border: '1px solid rgba(168,85,247,0.28)',
               }}
             >
               {isGenerating ? (
