@@ -323,12 +323,12 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               transition={{ delay: 0.3 }}
                onClick={() => { void handleSuggestionAccept(); }}
               className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
-                         bg-gradient-to-r from-green-500 to-emerald-500
-                         hover:from-green-600 hover:to-emerald-600
                          text-white text-sm font-medium rounded-full
-                         shadow-md hover:shadow-lg
-                         transition-all duration-300
-                         animate-pulse-slow"
+                         transition-all duration-300"
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #c026d3 100%)',
+                boxShadow: '0 4px 15px rgba(139,92,246,0.40)',
+              }}
             >
               <Play size={16} />
               <span>{suggestion.actionLabel}</span>
@@ -358,10 +358,9 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               disabled={isGenerating}
               className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(139,92,246,0.12) 100%)',
-                boxShadow: '0px 2px 8px rgba(168,85,247,0.18)',
-                color: '#9333ea',
-                border: '1px solid rgba(168,85,247,0.22)',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%)',
+                boxShadow: '0 4px 15px rgba(139,92,246,0.40)',
+                color: 'white',
               }}
             >
               {isGenerating ? (

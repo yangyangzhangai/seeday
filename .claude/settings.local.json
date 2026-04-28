@@ -60,7 +60,14 @@
       "Bash(awk 'NR>=950 && NR<=1100' /Users/annie/.claude/projects/-Users-annie-Seeday/dce29d8f-4d3c-4bd0-8fd4-08b19c6d003c.jsonl)",
       "Bash(echo \"\")",
       "Bash(echo \"# 多账号本地隔离 V2（Phase 5）\")",
-      "Bash(echo \"VITE_MULTI_ACCOUNT_ISOLATION_V2=true\")"
+      "Bash(echo \"VITE_MULTI_ACCOUNT_ISOLATION_V2=true\")",
+      "Bash(cat .env)",
+      "Bash(cat .env.local)",
+      "Bash(cat .env.production)",
+      "Bash(cat capacitor.config.ts)",
+      "Bash(cat capacitor.config.json)",
+      "Bash(rm api/supabase-proxy/[...path].ts)",
+      "Bash(rmdir api/supabase-proxy)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
