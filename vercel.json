@@ -2,6 +2,9 @@
   "functions": {
     "api/magic-pen-parse.ts": {
       "maxDuration": 20
+    },
+    "api/plant-generate.ts": {
+      "maxDuration": 20
     }
   },
   "headers": [
@@ -10,16 +13,7 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, apikey, x-client-info, x-supabase-api-version" },
-        { "key": "Access-Control-Max-Age", "value": "86400" }
-      ]
-    },
-    {
-      "source": "/supabase-proxy/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, apikey, x-client-info, x-supabase-api-version, x-requested-with" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
         { "key": "Access-Control-Max-Age", "value": "86400" }
       ]
     }
@@ -27,10 +21,6 @@
   "rewrites": [
     { "source": "/api/todo-decompose", "destination": "/api/classify" },
     { "source": "/api/plant-asset-telemetry", "destination": "/api/live-input-telemetry" },
-    {
-      "source": "/supabase-proxy/:path*",
-      "destination": "/api/supabase-proxy/:path*"
-    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"

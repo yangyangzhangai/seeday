@@ -266,12 +266,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     isTooEarly: plantIsTooEarly,
   });
 
-  const handleGeneratePlant = useCallback(async (options?: { skipConfirm?: boolean }) => {
+  const handleGeneratePlant = useCallback(async () => {
     if (plantIsTooEarly) {
       setShowEarlyCard(prev => !prev);
       return;
     }
-    if (!options?.skipConfirm && !window.confirm(t('plant_generate_confirm'))) return;
     playLoopSound('plantGrow');
     try {
       const response = await generatePlant();
@@ -289,7 +288,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
 
   useEffect(() => {
     if (!autoGeneratePlantToken) return;
-    void handleGeneratePlant({ skipConfirm: true });
+    void handleGeneratePlant();
   }, [autoGeneratePlantToken, handleGeneratePlant]);
 
   useEffect(() => {
