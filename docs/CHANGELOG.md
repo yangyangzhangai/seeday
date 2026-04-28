@@ -4,6 +4,17 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-28
+
+### Feat: todo 卡片置顶功能 + 移除拖拽把手
+
+- `src/features/growth/GrowthTodoCard.tsx` 移除不可靠的 `GripVertical` 拖拽把手；新增 `onTogglePin` prop，在展开面板底部加置顶/取消置顶按钮，已置顶时按钮高亮蓝色
+- `src/features/growth/GrowthTodoSection.tsx` 接入 `togglePin`；排序逻辑新增：未完成项中置顶（`isPinned=true`）始终排在最前，Smart Sort 模式下同样生效
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-27
 
 ### Fix: align static edge stacks during diary page flip

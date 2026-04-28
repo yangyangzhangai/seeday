@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlarmClock, Check, GripVertical, Play, X } from 'lucide-react';
+import { AlarmClock, Check, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
@@ -28,7 +28,7 @@ interface Props {
   onUpdate?: (id: string, updates: Partial<Omit<GrowthTodo, 'id' | 'createdAt'>>) => Promise<void>;
   onSequentialFocus?: (subTodos: GrowthTodo[]) => void;
   isHighlighted?: boolean;
-  onDragHandlePointerDown?: (e: ReactPointerEvent<HTMLButtonElement>) => void;
+  onTogglePin?: (id: string) => void;
   onEditingChange?: (todoId: string | null) => void;
 }
 
@@ -62,7 +62,7 @@ export const GrowthTodoCard = ({
   onUpdate,
   onSequentialFocus,
   isHighlighted,
-  onDragHandlePointerDown,
+  onTogglePin,
   onEditingChange,
 }: Props) => {
   const { t } = useTranslation();
@@ -354,19 +354,6 @@ export const GrowthTodoCard = ({
           {t(`growth_todo_priority_${normalizedPriority}`)}
         </span>
 
-        <button
-          data-drag-handle="true"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onDragHandlePointerDown?.(e);
-          }}
-          onClick={consumeGhostClick}
-          className="p-1.5 rounded-lg text-slate-400 touch-manipulation"
-        >
-          <GripVertical size={16} strokeWidth={1.7} />
-        </button>
-
         {/* Action buttons */}
         {!todo.completed && (
           <>
@@ -502,7 +489,25 @@ export const GrowthTodoCard = ({
             onSequentialFocus={onSequentialFocus ?? (() => {})}
           />
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              data-no-drag="true"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                triggerLightHaptic();
+                onTogglePin?.(todo.id);
+              }}
+              className={cn(
+                "text-xs px-3 py-1.5 rounded-lg font-medium border transition-all",
+                todo.isPinned
+                  ? "text-blue-600 border-blue-200 bg-blue-50"
+                  : "text-gray-400 border-gray-200 bg-white"
+              )}
+            >
+              {todo.isPinned ? t('todo_unpin') : t('todo_pin')}
+            </button>
             <button
               type="button"
               data-no-drag="true"

@@ -43,6 +43,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     lastSyncError,
     fetchTodos,
     toggleTodo,
+    togglePin,
     deleteTodo,
     startTodo,
     addTodo,
@@ -218,6 +219,9 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     })
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      if (!a.completed) {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      }
       if (smartSort) {
         const priorityDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
         if (priorityDiff !== 0) return priorityDiff;
@@ -450,6 +454,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
                 onStart={handleStart}
                 onDelete={handleDelete}
                 onUpdate={updateTodo}
+                onTogglePin={togglePin}
                 onSequentialFocus={onSequentialFocus}
                 isHighlighted={highlightTodoId === todo.id}
               />
