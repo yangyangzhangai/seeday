@@ -124,12 +124,13 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 20,
             }}
           >
+            {/* Corner brackets — only top two + bottom two, spaced away from date */}
             <div style={{ position: 'absolute', top: 14, left: 14, width: 18, height: 18, opacity: 0.2, borderTop: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
             <div style={{ position: 'absolute', top: 14, right: 14, width: 18, height: 18, opacity: 0.2, borderTop: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
-            <div style={{ position: 'absolute', bottom: 26, left: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
-            <div style={{ position: 'absolute', bottom: 26, right: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
+            <div style={{ position: 'absolute', bottom: 38, left: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
+            <div style={{ position: 'absolute', bottom: 38, right: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
 
-            <div style={{ height: '60%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ height: '58%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <PlantImage
                 plantId={plant.plantId}
                 rootType={plant.rootType}
@@ -138,17 +139,19 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               />
             </div>
 
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', paddingTop: 8 }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', width: '100%', paddingTop: 6, overflow: 'hidden' }}>
               {plant.diaryText ? (
-                <p className="line-clamp-3" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.8rem', lineHeight: 1.75, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
+                <p className="line-clamp-5" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.75rem', lineHeight: 1.7, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
                   {plant.diaryText}
                 </p>
               ) : null}
             </div>
 
-            <span style={{ position: 'absolute', bottom: 14, right: 14, opacity: 0.32, fontSize: 9, color: '#5c4b37' }}>{plant.date}</span>
-            <span style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: 'rgba(90,70,40,0.28)', whiteSpace: 'nowrap' }}>
-              {t('plant_tap_to_flip')}
+            {/* Date — centered, clear of corner brackets */}
+            <span style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', opacity: 0.28, fontSize: 9, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
+            {/* Tap-to-flip hint — LXGW font, more visible */}
+            <span style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: 'rgba(90,70,40,0.48)', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.05em' }}>
+              ↻ {t('plant_tap_to_flip')}
             </span>
           </div>
 
