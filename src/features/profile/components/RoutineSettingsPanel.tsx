@@ -456,7 +456,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
       {/* 弹窗 */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="app-viewport-fixed z-50 flex items-end justify-center sm:items-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={requestCloseModal} className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" />
             <motion.div
@@ -464,8 +464,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="relative w-full sm:max-w-md bg-white rounded-t-[28px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col min-h-0"
-              style={{ maxHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px)' }}
+              className="app-mobile-sheet-card relative flex min-h-0 w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-md sm:rounded-[32px]"
             >
               <style dangerouslySetInnerHTML={{ __html: `.cr-scroll::-webkit-scrollbar{width:4px}.cr-scroll::-webkit-scrollbar-thumb{background:#8fae9130;border-radius:20px}` }} />
 
@@ -478,7 +477,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false }) => {
               </div>
 
               {/* 滚动内容 */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
+              <div className="app-modal-scroll min-h-0 flex-1 px-5 sm:px-7 py-1.5 space-y-6 sm:space-y-7 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] sm:pb-5 cr-scroll">
 
                 {/* 身份 */}
                 <section className="relative z-10">

@@ -11,11 +11,30 @@ const HOP_BY_HOP = new Set([
   'te', 'trailers', 'transfer-encoding', 'upgrade',
 ]);
 
+function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin;
+  res.setHeader('Access-Control-Allow-Origin', typeof origin === 'string' ? origin : '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'authorization, apikey, content-type, x-client-info, x-supabase-api-version, x-requested-with',
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Vary', 'Origin');
+}
+
 export const config = {
   api: { bodyParser: false },
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
   // Reconstruct Supabase path
   const segments = Array.isArray(req.query.path)
     ? req.query.path

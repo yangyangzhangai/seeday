@@ -1,6 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/api/README.md
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { callUserAnalyticsDashboardAPI, callUserAnalyticsLookupAPI } from '../../api/client';
 import type {
@@ -9,6 +8,7 @@ import type {
   UserAnalyticsRetentionRow,
   UserAnalyticsLookupResult,
 } from '../../types/userAnalytics';
+import { TelemetryPageShell } from './TelemetryPageShell';
 
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`;
@@ -179,7 +179,6 @@ function Row({ label, value }: { label: string; value: string | number }) {
 }
 
 export function UserAnalyticsDashboardPage() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [days, setDays] = useState(30);
   const [data, setData] = useState<UserAnalyticsDashboardResponse | null>(null);
@@ -204,8 +203,7 @@ export function UserAnalyticsDashboardPage() {
   const ov = data?.overview;
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="mx-auto max-w-4xl space-y-4 px-4 py-4">
+    <TelemetryPageShell backTo="/telemetry" maxWidthClass="max-w-4xl">
         <section className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">{t('ua_title')}</h1>
@@ -226,13 +224,6 @@ export function UserAnalyticsDashboardPage() {
               <option value={30}>{t('ua_days_30')}</option>
               <option value={60}>{t('ua_days_60')}</option>
             </select>
-            <button
-              type="button"
-              onClick={() => navigate('/telemetry')}
-              className="rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              {t('ua_back')}
-            </button>
           </div>
         </section>
 
@@ -264,7 +255,6 @@ export function UserAnalyticsDashboardPage() {
         {data && <RetentionTable rows={data.retention} />}
 
         <UserLookupPanel />
-      </div>
-    </div>
+    </TelemetryPageShell>
   );
 }

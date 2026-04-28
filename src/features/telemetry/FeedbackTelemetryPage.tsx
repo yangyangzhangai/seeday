@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../api/supabase';
+import { TelemetryPageShell } from './TelemetryPageShell';
 
 interface FeedbackRow {
   id: string;
@@ -58,8 +59,7 @@ export const FeedbackTelemetryPage: React.FC = () => {
   }, {});
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="mx-auto max-w-4xl space-y-4 px-4 py-4">
+    <TelemetryPageShell backTo="/telemetry" maxWidthClass="max-w-4xl">
 
         {/* Header */}
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -126,8 +126,7 @@ export const FeedbackTelemetryPage: React.FC = () => {
           ))}
         </section>
 
-      </div>
-    </div>
+    </TelemetryPageShell>
   );
 };
 

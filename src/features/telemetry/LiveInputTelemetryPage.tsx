@@ -10,6 +10,7 @@ import type {
   LiveInputTelemetrySeriesPoint,
 } from '../../services/input/liveInputTelemetryApi';
 import { isTelemetryAdmin } from './isTelemetryAdmin';
+import { TelemetryPageShell } from './TelemetryPageShell';
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -182,8 +183,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
   const likelyAdmin = isTelemetryAdmin(user);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="mx-auto max-w-6xl px-4 py-4 space-y-4">
+    <TelemetryPageShell backTo="/telemetry">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -312,7 +312,6 @@ export const LiveInputTelemetryPage: React.FC = () => {
             </section>
           </>
         ) : null}
-      </div>
-    </div>
+    </TelemetryPageShell>
   );
 };

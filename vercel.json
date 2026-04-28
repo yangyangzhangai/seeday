@@ -13,6 +13,15 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, apikey, x-client-info, x-supabase-api-version" },
         { "key": "Access-Control-Max-Age", "value": "86400" }
       ]
+    },
+    {
+      "source": "/supabase-proxy/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, apikey, x-client-info, x-supabase-api-version, x-requested-with" },
+        { "key": "Access-Control-Max-Age", "value": "86400" }
+      ]
     }
   ],
   "rewrites": [

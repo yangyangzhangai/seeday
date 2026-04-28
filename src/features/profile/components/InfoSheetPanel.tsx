@@ -9,9 +9,9 @@ interface Props {
 }
 
 export const InfoSheetPanel: React.FC<Props> = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex flex-col bg-[#F7F9F8]">
+  <div className="app-viewport-fixed z-50 flex min-h-0 flex-col bg-[#F7F9F8]">
     <div
-      className="flex items-center justify-between border-b border-slate-200/60 bg-[#F7F9F8]/95 px-4 py-3 backdrop-blur-sm"
+      className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-[#F7F9F8]/95 px-4 py-3 backdrop-blur-sm"
       style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
     >
       <h2 className="text-base font-semibold text-slate-800">{title}</h2>
@@ -23,11 +23,9 @@ export const InfoSheetPanel: React.FC<Props> = ({ title, onClose, children }) =>
       </button>
     </div>
     <div
-      className="flex-1 overflow-y-auto px-5 py-4"
+      className="app-modal-scroll min-h-0 flex-1 px-5 py-4"
       style={{
-        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)',
-        WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 32px)',
       }}
     >
       {children}

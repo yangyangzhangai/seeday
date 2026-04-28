@@ -7,6 +7,7 @@ const SUPABASE_PROXY_PATH = '/supabase-proxy';
 function getBrowserOrigin(): string | null {
   if (typeof window === 'undefined') return null;
   if (!window.location.origin || window.location.origin === 'null') return null;
+  if (!/^https?:$/.test(window.location.protocol)) return null;
   return window.location.origin;
 }
 
@@ -26,6 +27,15 @@ function shouldUseSameOriginProxy(raw: string): boolean {
   }
 }
 
+function isSupabaseProxyUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    return /(^|\/)supabase-proxy$/.test(parsed.pathname.replace(/\/+$/, ''));
+  } catch {
+    return false;
+  }
+}
+
 function resolveSupabaseUrl(): string {
   const raw = (import.meta.env.VITE_SUPABASE_URL || '').trim();
   const configured = raw || DEFAULT_SUPABASE_URL;
@@ -36,6 +46,11 @@ function resolveSupabaseUrl(): string {
   }
 
   if (shouldUseSameOriginProxy(configured)) {
+    const origin = getBrowserOrigin();
+    return origin ? `${origin}${SUPABASE_PROXY_PATH}` : configured;
+  }
+
+  if (isSupabaseProxyUrl(configured)) {
     const origin = getBrowserOrigin();
     return origin ? `${origin}${SUPABASE_PROXY_PATH}` : configured;
   }

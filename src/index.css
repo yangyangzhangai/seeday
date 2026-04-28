@@ -159,6 +159,28 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   overflow: auto;
 }
 
+.app-viewport-fixed {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-mobile-sheet-card {
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+  max-height: calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px);
+}
+
+.app-modal-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .app-bottom-nav,
 .chat-input-bottom-nav {
   transition: opacity 160ms ease-out, transform 160ms ease-out;

@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { TelemetryPageShell } from './TelemetryPageShell';
 
 type TelemetryModuleCard = {
   title: string;
@@ -53,8 +54,7 @@ export const TelemetryHubPage: React.FC = () => {
   ];
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F8FA]">
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
+    <TelemetryPageShell backTo="/profile">
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h1 className="text-lg font-semibold text-gray-900">{t('telemetry_hub_title')}</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -78,7 +78,6 @@ export const TelemetryHubPage: React.FC = () => {
             </div>
           ))}
         </section>
-      </div>
-    </div>
+    </TelemetryPageShell>
   );
 };
