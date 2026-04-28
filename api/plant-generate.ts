@@ -71,45 +71,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  // ── 检查是否已生成 ────────────────────────────────────────────────────────
-  const { data: existing, error: existingError } = await auth.db
-    .from('daily_plant_records')
-    .select('*')
-    .eq('user_id', auth.user.id)
-    .eq('date', date)
-    .maybeSingle();
+  // ── 三次 Supabase 查询并行执行，节省 ~600-800ms ──────────────────────────
+  const dayWindow = resolveDayWindow(date, timezone, body.dayStartMs, body.dayEndMs);
+  const { startDate: monthStartDate, endDate: monthEndDate } = resolveMonthRange(date);
 
-  if (existingError) {
-    jsonError(res, 500, 'Failed to read daily plant record', existingError.message);
+  const [existingResult, messagesResult, monthlyResult] = await Promise.all([
+    auth.db
+      .from('daily_plant_records')
+      .select('*')
+      .eq('user_id', auth.user.id)
+      .eq('date', date)
+      .maybeSingle(),
+    auth.db
+      .from('messages')
+      .select('id, content, duration, activity_type, is_mood, timestamp')
+      .eq('user_id', auth.user.id)
+      .gte('timestamp', dayWindow.startMs)
+      .lt('timestamp', dayWindow.endMs)
+      .eq('is_mood', false)
+      .gt('duration', 0)
+      .order('timestamp', { ascending: true }),
+    auth.db
+      .from('daily_plant_records')
+      .select('plant_id')
+      .eq('user_id', auth.user.id)
+      .gte('date', monthStartDate)
+      .lte('date', monthEndDate),
+  ]);
+
+  if (existingResult.error) {
+    jsonError(res, 500, 'Failed to read daily plant record', existingResult.error.message);
     return;
   }
-  if (existing) {
+  if (existingResult.data) {
     res.status(200).json({
       success: true,
       status: 'already_generated',
-      plant: serializePlantRecord(existing),
+      plant: serializePlantRecord(existingResult.data),
     } satisfies PlantGenerateResponse);
     return;
   }
 
-  // ── 读取今日活动 ──────────────────────────────────────────────────────────
-  const window = resolveDayWindow(date, timezone, body.dayStartMs, body.dayEndMs);
-  const { data: rows, error: messageError } = await auth.db
-    .from('messages')
-    .select('id, content, duration, activity_type, is_mood, timestamp')
-    .eq('user_id', auth.user.id)
-    .gte('timestamp', window.startMs)
-    .lt('timestamp', window.endMs)
-    .eq('is_mood', false)
-    .gt('duration', 0)
-    .order('timestamp', { ascending: true });
-
-  if (messageError) {
-    jsonError(res, 500, 'Failed to read activity records', messageError.message);
+  if (messagesResult.error) {
+    jsonError(res, 500, 'Failed to read activity records', messagesResult.error.message);
+    return;
+  }
+  if (monthlyResult.error) {
+    jsonError(res, 500, 'Failed to read monthly plant history', monthlyResult.error.message);
     return;
   }
 
-  const messages = ((rows ?? []) as MessageRow[])
+  const messages = ((messagesResult.data ?? []) as MessageRow[])
     .filter(row => !isLegacyChatActivityType(row.activity_type));
   const activities = mapSourcesToPlantActivities(messages.map(row => ({
     id: row.id,
@@ -137,22 +149,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const rootType: RootType = isAirDay ? 'sha' : matchedRootType;
   const isSupportVariant = !isAirDay && !isEntertainmentDay && resolveSupportVariant(metrics);
 
-  // ── 查询该根系可用植物，交由 AI 选择 ──────────────────────────────────────
+  // ── 筛选该根系本月可用植物 ────────────────────────────────────────────────
   const availablePlants = getAvailablePlants(rootType);
-  const { startDate: monthStartDate, endDate: monthEndDate } = resolveMonthRange(date);
-  const { data: monthlyRows, error: monthlyRowsError } = await auth.db
-    .from('daily_plant_records')
-    .select('plant_id')
-    .eq('user_id', auth.user.id)
-    .gte('date', monthStartDate)
-    .lte('date', monthEndDate);
+  const usedPlantIds = new Set((monthlyResult.data ?? []).map(row => String(row.plant_id ?? '')));
 
-  if (monthlyRowsError) {
-    jsonError(res, 500, 'Failed to read monthly plant history', monthlyRowsError.message);
-    return;
-  }
-
-  const usedPlantIds = new Set((monthlyRows ?? []).map(row => String(row.plant_id ?? '')));
   const monthlyCandidates = availablePlants.filter(plant => !usedPlantIds.has(plant.id));
 
   if (monthlyCandidates.length === 0) {
