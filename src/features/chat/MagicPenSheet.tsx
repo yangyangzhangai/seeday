@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Wand2, X, Clock, CheckSquare, Trash2, Undo2 } from 'lucide-react';
+import { Wand2, X, Clock, CheckSquare, Trash2, Undo2, Pencil } from 'lucide-react';
 import {
   errorToI18nKey,
   toTimeInput,
@@ -222,6 +222,7 @@ export function MagicPenSheet({
                   >
                     <div className="flex items-center gap-2">
                       <input
+                        id={`activity-input-${draft.id}`}
                         type="text"
                         value={draft.content}
                         disabled={!editable}
@@ -230,16 +231,21 @@ export function MagicPenSheet({
                           setDrafts((prev) => prev.map((item) => (item.id === next.id ? next : item)));
                           resetErroredDraftState(draft.id);
                         }}
-                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-none outline-none placeholder:text-[#C4B49A]"
+                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-transparent focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
                       />
                       {editable && (
-                        <button
-                          type="button"
-                          onClick={() => handleDraftDelete(draft.id)}
-                          className="p-1 rounded hover:bg-red-50 text-[#C4B49A] hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <>
+                          <label htmlFor={`activity-input-${draft.id}`} className="cursor-pointer p-1 text-[#C4B49A] hover:text-[#9C8567] transition-colors flex-shrink-0">
+                            <Pencil size={12} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleDraftDelete(draft.id)}
+                            className="p-1 rounded hover:bg-red-50 text-[#C4B49A] hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -320,6 +326,7 @@ export function MagicPenSheet({
                   >
                     <div className="flex items-center gap-2">
                       <input
+                        id={`todo-input-${draft.id}`}
                         type="text"
                         value={draft.content}
                         disabled={!editable}
@@ -328,16 +335,21 @@ export function MagicPenSheet({
                           setDrafts((prev) => prev.map((item) => (item.id === next.id ? next : item)));
                           resetErroredDraftState(draft.id);
                         }}
-                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-none outline-none placeholder:text-[#C4B49A]"
+                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-transparent focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
                       />
                       {editable && (
-                        <button
-                          type="button"
-                          onClick={() => handleDraftDelete(draft.id)}
-                          className="p-1 rounded hover:bg-red-50 text-[#C4B49A] hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <>
+                          <label htmlFor={`todo-input-${draft.id}`} className="cursor-pointer p-1 text-[#C4B49A] hover:text-[#9C8567] transition-colors flex-shrink-0">
+                            <Pencil size={12} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleDraftDelete(draft.id)}
+                            className="p-1 rounded hover:bg-red-50 text-[#C4B49A] hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
                       )}
                     </div>
                     {draft.todo?.dueDate && (

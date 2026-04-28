@@ -47,11 +47,20 @@ kind 含义：
 - endTime 没说的，根据活动类型合理估算（起床≈30min，吃饭≈30min，开会≈60min，通勤≈30min）
 - 没有任何时间信息 → 不填时间字段，timeSource: "missing"
 
+多事件时间推断策略（输入含多个 activity_backfill 时按此步骤推断）：
+  ① 排序：按先后发生顺序把所有活动列出来
+  ② 定锚：找出有明确时刻或时段词的片段作为"时间锚点"
+  ③ 填空：相邻两个锚点之间的活动在该窗口内按顺序分配时长；锚点之前的活动从最早锚点往前倒推；锚点之后的活动从最晚锚点往后顺推，但不超过当前时间 {{currentLocalDateTime}}
+  举例："九点起床，吃了饭，去超市，十一点到家"
+    → 锚点：起床 09:00、到家 11:00
+    → 推断：吃饭 09:30~10:00，超市 10:00~10:45
+
 混合句处理：
 - 一条 segment 只放一种意图，不能把情绪和待办混在同一条里
 - 像“最近太累了有点难过但是决定从明天开始每天跑步”应拆成 mood + mood + todo_add，其中 todo text 只保留“每天跑步”
 - 同一条输入最多只保留一个activity；如果还有其他活动片段，默认判为 activity_backfill
-- 只有用户明确并行表达（如“我在吃饭和下棋”“一边吃饭一边看剧”）时，才允许并行活动
+- 当用户用并行词（”同时”/”一边...一边”/”的同时”）描述两件事同时发生时，合并为一条 activity_backfill，text 写成”活动A+活动B”，startTime 取较早的，endTime 取较晚的
+  例：”八点开始吃饭，同时看了半小时视频” → {“text”:”吃饭+看视频”,”startTime”:”08:00”,”endTime”:”09:00”,”timeSource”:”exact”}
 - 若同句里已识别当前活动，且另一个活动带有比当前时刻更早的明确时间（如“九点出门”），该活动应判为 activity_backfill
 
 ---
@@ -133,6 +142,29 @@ kind 含义：
   "segments": [
     {"text":"改代码","sourceText":"我在改代码","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
     {"text":"买菜","sourceText":"等下要去买菜","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+案例 8（多锚点时间推断）
+输入：九点起床，吃了饭，去超市买了东西，十一点到家
+输出：
+{
+  "segments": [
+    {"text":"起床","sourceText":"九点起床","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:00","endTime":"09:30","timeSource":"exact"},
+    {"text":"吃饭","sourceText":"吃了饭","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"inferred"},
+    {"text":"去超市","sourceText":"去超市买了东西","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:45","timeSource":"inferred"},
+    {"text":"到家","sourceText":"十一点到家","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+案例 9（并行活动合并）
+输入：八点开始吃饭，同时看了半小时视频
+输出：
+{
+  "segments": [
+    {"text":"吃饭+看视频","sourceText":"八点开始吃饭，同时看了半小时视频","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"09:00","timeSource":"exact"}
   ],
   "unparsed": []
 }`;
