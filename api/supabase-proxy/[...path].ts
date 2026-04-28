@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const SUPABASE_ORIGIN = 'https://oxsbukofipeoikirkyyy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY
+  || process.env.VITE_SUPABASE_ANON_KEY
+  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94c2J1a29maXBlb2lraXJreXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzMwNTYsImV4cCI6MjA4NTg0OTA1Nn0.IqVYxwU7r45Mj4kSuJlrI3gFw2rfjr-K48lwJbFq5oQ';
 
 // Hop-by-hop headers must not be forwarded
 const HOP_BY_HOP = new Set([
@@ -35,6 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     forwardHeaders[key] = Array.isArray(value) ? value.join(', ') : (value ?? '');
   }
   forwardHeaders['host'] = 'oxsbukofipeoikirkyyy.supabase.co';
+  forwardHeaders['apikey'] = forwardHeaders['apikey'] || SUPABASE_ANON_KEY;
+  forwardHeaders['authorization'] = forwardHeaders['authorization'] || `Bearer ${SUPABASE_ANON_KEY}`;
 
   // Read raw body for non-GET requests
   let body: Buffer | undefined;
