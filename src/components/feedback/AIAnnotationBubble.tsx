@@ -322,14 +322,13 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
                onClick={() => { void handleSuggestionAccept(); }}
-              className="mt-3 w-full flex items-center justify-center space-x-2 py-2 px-4
-                         text-white text-sm font-medium rounded-full
+              className="mt-3 w-full flex items-center justify-center space-x-2 py-1.5 px-4
+                         text-sm font-medium rounded-full
                          transition-all duration-300"
               style={{
-                background: 'linear-gradient(135deg, rgba(168,85,247,0.30) 0%, rgba(139,92,246,0.24) 50%, rgba(217,70,239,0.20) 100%)',
-                boxShadow: '0px 2px 8px rgba(168,85,247,0.22)',
+                background: 'linear-gradient(140deg, rgba(168,85,247,0.38) 0%, rgba(196,90,238,0.30) 50%, rgba(232,110,200,0.22) 100%)',
+                boxShadow: '0 2px 10px rgba(168,85,247,0.16)',
                 color: '#7c3aed',
-                border: '1px solid rgba(168,85,247,0.28)',
               }}
             >
               <Play size={16} />
@@ -358,12 +357,11 @@ export const AIAnnotationBubble: React.FC<AIAnnotationBubbleProps> = ({
               transition={{ delay: 0.3 }}
               onClick={handleCondense}
               disabled={isGenerating}
-              className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-3 flex w-full items-center justify-center space-x-2 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: 'linear-gradient(135deg, rgba(168,85,247,0.30) 0%, rgba(139,92,246,0.24) 50%, rgba(217,70,239,0.20) 100%)',
-                boxShadow: '0px 2px 8px rgba(168,85,247,0.22)',
+                background: 'linear-gradient(140deg, rgba(168,85,247,0.38) 0%, rgba(196,90,238,0.30) 50%, rgba(232,110,200,0.22) 100%)',
+                boxShadow: '0 2px 10px rgba(168,85,247,0.16)',
                 color: '#7c3aed',
-                border: '1px solid rgba(168,85,247,0.28)',
               }}
             >
               {isGenerating ? (
