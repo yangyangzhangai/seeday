@@ -272,8 +272,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                   setShowAvatarMenu(false);
                 }}
                 style={{
-                  width: 62,
-                  height: 62,
+                  width: 70,
+                  height: 70,
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.90) 100%)',
                   border: '2.5px solid rgba(255,255,255,0.95)',
@@ -290,7 +290,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span className="material-symbols-outlined" style={{ fontSize: 34, color: SAGE_GREEN_DEEP }}>person</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 38, color: SAGE_GREEN_DEEP }}>person</span>
                 )}
               </button>
 

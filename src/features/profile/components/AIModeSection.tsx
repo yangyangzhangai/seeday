@@ -8,6 +8,7 @@ import {
   AI_COMPANION_VISUALS,
 } from '../../../constants/aiCompanionVisuals';
 import type { AiCompanionMode } from '../../../lib/aiCompanion';
+import { AIAnnotationDropRate } from './AIAnnotationDropRate';
 import profileAgnesAvatar from '../../../assets/profile-ai-companions/agnes.png';
 import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
 import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
@@ -62,18 +63,24 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
 
   return (
     <div className={plain ? 'px-4 py-3' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-3 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_4px_12px_rgba(148,163,184,0.08)]'}>
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center space-x-1.5">
-          <span className="profile-fn-title">{t('profile_ai_mode')}</span>
-          <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-xs font-semibold text-[#3f5f35]">
-            {t('profile_free')}
-          </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="profile-fn-title">{t('profile_ai_mode')}</span>
+            <span className="rounded-full border border-[#B2EEDA]/50 bg-[#B2EEDA]/25 px-1.5 py-0.5 text-xs font-semibold text-[#3f5f35]">
+              {t('profile_free')}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] font-medium leading-relaxed text-[#6b7f70]">
+            {t('profile_ai_mode_desc')}
+          </p>
         </div>
         <button
           onClick={() => { void handleToggleEnabled(); }}
-          className="relative w-9 h-5 rounded-full border border-transparent transition-colors"
+          className="relative mt-0.5 h-5 w-9 flex-shrink-0 rounded-full border border-transparent transition-colors"
           style={enabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}
+          aria-pressed={enabled}
+          aria-label={t('profile_ai_mode')}
         >
           <motion.div
             animate={{ x: enabled ? 16 : 2 }}
@@ -83,47 +90,56 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
         </button>
       </div>
 
-      {/* Mode cards — 4 in one row */}
-      <div
-        className={`grid grid-cols-4 gap-1.5 transition-opacity ${
-          !enabled ? 'opacity-40 pointer-events-none' : ''
-        }`}
-      >
-        {AI_COMPANION_ORDER.map((modeKey) => {
-          const mode = AI_COMPANION_VISUALS[modeKey];
-          const locked = !mode.free && !isPlus;
-          const selected = preferences.aiMode === modeKey;
-          return (
-            <button
-              key={modeKey}
-              onClick={() => { void handleModeClick(modeKey, mode.free); }}
-              className={`relative flex flex-col items-center py-2 px-1 rounded-xl border transition-all ${
-                selected
-                  ? ''
-                  : locked
-                  ? 'border-slate-200 bg-slate-100 opacity-60'
-                  : 'border-transparent bg-white/60 hover:border-[#CBE7D7]'
-               }`}
-              style={selected ? selectedModeStyle : undefined}
-             >
-              <img
-                src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
-                alt={`${mode.name} avatar`}
-                className="mb-1 h-9 w-9 object-contain"
-              />
-              <span
-                className="text-[14px] font-semibold leading-tight"
-                style={{ color: selected ? '#426D56' : '#1e293b' }}
-              >
-                {mode.name}
-              </span>
-              {locked && (
-                <Lock size={10} strokeWidth={1.5} className="absolute top-1 right-1 text-gray-400" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {enabled && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-3 space-y-4"
+        >
+          <div>
+            <p className="mb-2 text-[12px] font-semibold text-[#6b7f70]">
+              {t('profile_ai_companion_select')}
+            </p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {AI_COMPANION_ORDER.map((modeKey) => {
+                const mode = AI_COMPANION_VISUALS[modeKey];
+                const locked = !mode.free && !isPlus;
+                const selected = preferences.aiMode === modeKey;
+                return (
+                  <button
+                    key={modeKey}
+                    onClick={() => { void handleModeClick(modeKey, mode.free); }}
+                    className={`relative flex flex-col items-center rounded-xl border px-1 py-2 transition-all ${
+                      selected
+                        ? ''
+                        : locked
+                        ? 'border-slate-200 bg-slate-100 opacity-60'
+                        : 'border-transparent bg-white/60 hover:border-[#CBE7D7]'
+                     }`}
+                    style={selected ? selectedModeStyle : undefined}
+                   >
+                    <img
+                      src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}
+                      alt={`${mode.name} avatar`}
+                      className="mb-1 h-9 w-9 object-contain"
+                    />
+                    <span
+                      className="text-[14px] font-semibold leading-tight"
+                      style={{ color: selected ? '#426D56' : '#1e293b' }}
+                    >
+                      {mode.name}
+                    </span>
+                    {locked && (
+                      <Lock size={10} strokeWidth={1.5} className="absolute right-1 top-1 text-gray-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <AIAnnotationDropRate isPlus={isPlus} embedded />
+        </motion.div>
+      )}
     </div>
   );
 };

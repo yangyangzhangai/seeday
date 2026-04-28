@@ -96,7 +96,7 @@ export const RegionSettingsPanel: React.FC<RegionSettingsPanelProps> = ({ onClos
             if (errorText) setErrorText(null);
           }}
           placeholder={t('profile_region_placeholder')}
-          className="min-h-9 flex-1 rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none"
+          className="min-h-9 flex-1 rounded-lg border border-[#CBE7D7] bg-white/85 px-3 text-xs text-slate-700 outline-none placeholder:text-[10px]"
         />
         <button
           type="button"

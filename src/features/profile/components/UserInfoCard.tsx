@@ -164,11 +164,12 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
   const plusCardStyle: React.CSSProperties = isPlus
     ? {
-      background: 'linear-gradient(132deg, #fcf9ff 0%, #f6f0ff 24%, #f8f2ff 52%, #fef8fc 100%)',
+      background:
+        'radial-gradient(circle at 16% 12%, rgba(216,180,254,0.52) 0%, rgba(216,180,254,0) 34%), radial-gradient(circle at 86% 8%, rgba(236,72,153,0.24) 0%, rgba(236,72,153,0) 30%), linear-gradient(132deg, #f5e8ff 0%, #ead8ff 28%, #f0dcff 58%, #fff0f8 100%)',
       backdropFilter: 'blur(22px) saturate(145%)',
       WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-      border: '1px solid rgba(168,85,247,0.22)',
-      boxShadow: '0 10px 28px rgba(168,85,247,0.16)',
+      border: '1px solid rgba(147,51,234,0.28)',
+      boxShadow: '0 12px 30px rgba(147,51,234,0.20), inset 0 1px 1px rgba(255,255,255,0.72)',
     }
     : {};
 
@@ -186,8 +187,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
           type="button"
           aria-label="Open avatar preview"
           className={isPlus
-            ? 'relative z-[2] h-[62px] w-[62px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
-            : 'h-[62px] w-[62px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
+            ? 'relative z-[2] h-[70px] w-[70px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#eef3ff] bg-white p-0 shadow-[0_4px_14px_rgba(90,116,199,0.18)]'
+            : 'h-[70px] w-[70px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
           onClick={handleAvatarClick}
         >
           {user?.user_metadata?.avatar_url ? (
@@ -198,7 +199,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User size={30} strokeWidth={1.5} className="text-gray-400" />
+              <User size={34} strokeWidth={1.5} className="text-gray-400" />
             </div>
           )}
         </button>

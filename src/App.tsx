@@ -10,6 +10,8 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AuthPage } from './features/auth/AuthPage';
 import { getPendingProfileWrite } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { RoutineSettingsPanel } from './features/profile/components/RoutineSettingsPanel';
+import { UserProfilePanel } from './features/profile/components/UserProfilePanel';
 import { UpgradePage } from './features/profile/UpgradePage';
 import { LiveInputTelemetryPage } from './features/telemetry/LiveInputTelemetryPage';
 import { TelemetryHubPage } from './features/telemetry/TelemetryHubPage';
@@ -122,13 +124,18 @@ const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ chi
 const PageOutlet: React.FC = () => {
   const { pathname } = useLocation();
   const disablePageInAnimation = pathname === '/upgrade';
+  const hideBottomChrome = pathname === '/profile/routine' || pathname === '/profile/memory';
   return (
     <main
       key={pathname}
       className={`relative flex-1 overflow-hidden md:pb-8 ${
         disablePageInAnimation ? '' : 'animate-[pageIn_0.18s_ease-out]'
       }`}
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)' }}
+      style={{
+        paddingBottom: hideBottomChrome
+          ? '0px'
+          : 'calc(env(safe-area-inset-bottom, 0px) + 76px)',
+      }}
     >
       <Outlet />
     </main>
@@ -303,7 +310,7 @@ const MainLayout = () => {
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-white md:bg-white">
       <PageOutlet />
-      <BottomNav />
+      {location.pathname === '/profile/routine' || location.pathname === '/profile/memory' ? null : <BottomNav />}
       {shouldShowOutboxRetry ? (
         <div className="pointer-events-none fixed right-4 z-40" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)' }}>
           <CloudRetryButton
@@ -381,6 +388,8 @@ function App() {
           <Route path="report" element={<ReportPage />} />
           <Route path="growth" element={<GrowthPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile/routine" element={<RoutineSettingsPanel page />} />
+          <Route path="profile/memory" element={<UserProfilePanel page />} />
           <Route path="upgrade" element={<UpgradePage />} />
           <Route path="telemetry" element={<RequireTelemetryAdmin><TelemetryHubPage /></RequireTelemetryAdmin>} />
           <Route path="telemetry/live-input" element={<RequireTelemetryAdmin><LiveInputTelemetryPage /></RequireTelemetryAdmin>} />

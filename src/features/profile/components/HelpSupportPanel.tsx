@@ -103,7 +103,7 @@ export const HelpSupportPanel: React.FC<Props> = ({ onClose }) => {
         {t('feedback_sheet_title')}
       </button>
 
-      <div className="h-8" />
+      <div style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 112px)' }} />
     </InfoSheetPanel>
   );
 };
