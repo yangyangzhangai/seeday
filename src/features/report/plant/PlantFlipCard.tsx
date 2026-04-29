@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Download, PenLine } from 'lucide-react';
+import { ChevronLeft, Download, X } from 'lucide-react';
 import { format } from 'date-fns';
 import html2canvas from 'html2canvas';
 import { useTranslation } from 'react-i18next';
@@ -25,11 +25,11 @@ interface PlantFlipCardProps {
   plant: DailyPlantRecord;
   segments: RootSegment[];
   directionOrder: PlantCategoryKey[];
-  onGenerateDiary: () => void;
+  onClose?: () => void;
 }
 
 export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
-  plant, segments, directionOrder, onGenerateDiary,
+  plant, segments, directionOrder, onClose,
 }) => {
   const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
@@ -103,7 +103,24 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   return (
     <div className="h-full flex flex-col items-center overflow-y-auto px-4 pt-4 pb-6 gap-4">
       {/* ── Flip card ── */}
-      <div style={{ width: '100%', maxWidth: 290, aspectRatio: '3 / 4', flexShrink: 0, perspective: 1200 }}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: 290, aspectRatio: '3 / 4', flexShrink: 0 }}>
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute', top: 10, right: 10, zIndex: 50,
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'rgba(245,238,224,0.88)',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+              border: '1px solid rgba(200,178,138,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} strokeWidth={1.5} color="#5a4028" />
+          </button>
+        )}
+        <div style={{ width: '100%', height: '100%', perspective: 1200 }}>
         <div style={{
           position: 'relative', width: '100%', height: '100%',
           transformStyle: 'preserve-3d',
@@ -124,11 +141,11 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 20,
             }}
           >
-            {/* Corner brackets — only top two + bottom two, spaced away from date */}
-            <div style={{ position: 'absolute', top: 14, left: 14, width: 18, height: 18, opacity: 0.2, borderTop: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
-            <div style={{ position: 'absolute', top: 14, right: 14, width: 18, height: 18, opacity: 0.2, borderTop: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
-            <div style={{ position: 'absolute', bottom: 38, left: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
-            <div style={{ position: 'absolute', bottom: 38, right: 14, width: 18, height: 18, opacity: 0.2, borderBottom: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
+            {/* Corner brackets — all four at true card corners */}
+            <div style={{ position: 'absolute', top: 12, left: 12, width: 16, height: 16, opacity: 0.28, borderTop: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
+            <div style={{ position: 'absolute', top: 12, right: 12, width: 16, height: 16, opacity: 0.28, borderTop: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
+            <div style={{ position: 'absolute', bottom: 12, left: 12, width: 16, height: 16, opacity: 0.28, borderBottom: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
+            <div style={{ position: 'absolute', bottom: 12, right: 12, width: 16, height: 16, opacity: 0.28, borderBottom: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
 
             <div style={{ height: '58%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <PlantImage
@@ -139,18 +156,18 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               />
             </div>
 
-            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', width: '100%', paddingTop: 6, overflow: 'hidden' }}>
+            {/* Text + date — bottom-aligned so content always appears in the lower area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: 8, paddingBottom: 20, overflow: 'hidden' }}>
               {plant.diaryText ? (
                 <p className="line-clamp-5" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.75rem', lineHeight: 1.7, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
                   {plant.diaryText}
                 </p>
               ) : null}
+              <span style={{ opacity: 0.52, fontSize: 11, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
             </div>
 
-            {/* Date — centered, clear of corner brackets */}
-            <span style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', opacity: 0.28, fontSize: 9, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
-            {/* Tap-to-flip hint — LXGW font, more visible */}
-            <span style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: 'rgba(90,70,40,0.48)', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.05em' }}>
+            {/* Tap-to-flip hint */}
+            <span style={{ position: 'absolute', bottom: 7, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: 'rgba(90,70,40,0.4)', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.05em' }}>
               ↻ {t('plant_tap_to_flip')}
             </span>
           </div>
@@ -186,18 +203,11 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* ── Action buttons ── */}
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
-        <button
-          onClick={onGenerateDiary}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-base shadow-md active:scale-95 transition-all"
-          style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
-        >
-          <PenLine size={16} strokeWidth={1.5} />
-          {t('plant_card_diary_button')}
-        </button>
         <button
           onClick={saveCard}
           className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all"

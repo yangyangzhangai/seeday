@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format, isSameDay, startOfDay, endOfDay, startOfMonth, isSunday, endOfMonth } from 'date-fns';
@@ -12,7 +12,6 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { DailyPlantRecord } from '../../types/plant';
-import { callPlantGenerateAPI } from '../../api/client';
 import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
@@ -163,48 +162,6 @@ export const ReportPage = () => {
       void handleGenerateDiary();
     }
   }, [handleGenerateDiary, searchParams, setSearchParams]);
-
-  // Keep a ref so the midnight timer can read latest reports without re-scheduling
-  const reportsRef = useRef(reports);
-  reportsRef.current = reports;
-
-  // Auto-generate today's diary at midnight if the user hasn't done it manually
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
-      timer = setTimeout(async () => {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const existingYesterday = reportsRef.current.find(
-          r => r.type === 'daily' && isSameDay(new Date(r.date), yesterday)
-        );
-        if (!existingYesterday) {
-          await generateReport('daily', yesterday.getTime());
-        }
-        try {
-          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-          const langRaw = i18n.language?.toLowerCase() ?? 'en';
-          const plantLang: 'zh' | 'en' | 'it' = langRaw.startsWith('zh')
-            ? 'zh'
-            : langRaw.startsWith('it')
-              ? 'it'
-              : 'en';
-          await callPlantGenerateAPI({
-            date: format(yesterday, 'yyyy-MM-dd'),
-            timezone,
-            lang: plantLang,
-          });
-        } catch {
-          // best-effort auto generation, ignore network failures
-        }
-        schedule(); // reschedule for next midnight
-      }, midnight.getTime() - now.getTime());
-    };
-    schedule();
-    return () => clearTimeout(timer);
-  }, [generateReport, i18n.language]);
 
   const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1, flippedCount: number) => {
     // Keep book open during async loading — close it only after modal is ready
@@ -358,7 +315,6 @@ export const ReportPage = () => {
       <div className="flex-1 relative overflow-hidden">
         <PlantRootSection
           autoGeneratePlantToken={autoGeneratePlantToken}
-          onGenerateDiary={handleGenerateDiary}
           onDiaryDraftChange={setTodayDiaryDraft}
         />
       </div>
@@ -532,7 +488,6 @@ export const ReportPage = () => {
         <PlantCardModal
           plant={openedPlantCard}
           onClose={() => setOpenedPlantCard(null)}
-          onGenerateDiary={handleGenerateDiary}
         />
       )}
       </div>

@@ -39,4 +39,6 @@ export async function rehydrateAllDomainPersistStores(): Promise<void> {
     rehydrateStore(useReminderStore as unknown as PersistableStore),
     rehydrateStore(useOutboxStore as unknown as PersistableStore),
   ]);
+  // 所有 store 已 hydrate，校验 currentAnnotation 引用的 todo 是否仍存在
+  useAnnotationStore.getState().clearStaleRestoredSuggestion();
 }

@@ -22,7 +22,8 @@ const CLASSIFIER_PROMPT = `你是 Seeday 的单条输入分类器。
 - 输入主要表达心情/感受，且缺少明确事件 -> kind="mood"
 - 若边界不清，优先按“可执行行为”判为 activity
 - activity_type 必须给出（不可为 null）
-- matched_bottle 仅当与 habits/goals 语义相关度 >= 0.6 时返回，否则返回 null
+- 允许上位-下位匹配（如：跑步->运动，看书/读完一个章节->阅读）
+- 当输入与某个 habits/goals 存在明确语义对应时返回 matched_bottle，否则返回 null
 - matched_bottle 最多返回一个，stars 固定为 1
 
 【输出格式】
@@ -51,7 +52,8 @@ Do NOT output explanations, prefixes, suffixes, or Markdown code blocks. Output 
 - If the text mainly expresses feeling/emotion without a clear event -> kind="mood"
 - On ambiguous boundary, prefer activity when there is an actionable behavior
 - activity_type is required and must not be null
-- matched_bottle should be returned only when semantic relevance to habits/goals >= 0.6; otherwise null
+- Allow hypernym-hyponym mapping (e.g., running -> exercise, reading a chapter -> reading)
+- Return matched_bottle when input clearly maps to one habit/goal semantically; otherwise null
 - Return at most one matched_bottle; stars must be 1
 
 [Output]
@@ -80,7 +82,8 @@ NON produrre spiegazioni, prefissi, suffissi o blocchi Markdown. Solo JSON.
 - Se il testo esprime soprattutto uno stato emotivo senza evento chiaro -> kind="mood"
 - In caso di ambiguità, preferisci activity se c'è un comportamento eseguibile
 - activity_type è obbligatorio e non può essere null
-- matched_bottle va restituito solo se la rilevanza semantica verso habits/goals è >= 0.6; altrimenti null
+- Consenti mappature gerarchiche (es. corsa -> esercizio, leggere un capitolo -> lettura)
+- Restituisci matched_bottle quando l'input corrisponde chiaramente a un habit/goal a livello semantico; altrimenti null
 - Restituisci al massimo un matched_bottle; stars deve essere 1
 
 [Output]
@@ -324,7 +327,8 @@ ${goalsStr}
 【匹配规则】
 - 判断当前输入与上述习惯/目标的语义关联度（0%~100%）
 - 必须基于语义理解，不得仅依赖关键词
-- 关联度 >= 60% 时输出 matched_bottle，否则为 null
+- 允许上位-下位匹配（如：跑步->运动，看书/读完一个章节->阅读）
+- 当输入与某个候选存在明确语义对应时输出 matched_bottle，否则为 null
 - matched_bottle 最多输出一个（取最高相关）
 - matched_bottle 格式：{ "type": "habit" | "goal", "id": "瓶子id", "stars": 1 }
 - 严禁臆造不存在的 id`;
@@ -342,7 +346,8 @@ ${goalsStr}
 [Regole di corrispondenza]
 - Valuta la correlazione semantica tra l'input corrente e abitudini/obiettivi (0%~100%)
 - La valutazione deve essere semantica, non solo keyword matching
-- correlazione >= 60%: restituisci matched_bottle; < 60%: matched_bottle = null
+- Consenti mappature gerarchiche (es. corsa -> esercizio, leggere un capitolo -> lettura)
+- Se l'input corrisponde chiaramente a un candidato a livello semantico, restituisci matched_bottle; altrimenti null
 - Restituisci al massimo un bottle (quello con correlazione più alta)
 - Formato matched_bottle: { "type": "habit" | "goal", "id": "id-bottle", "stars": 1 }
 - Non inventare id non presenti`;
@@ -360,7 +365,8 @@ ${goalsStr}
 [Matching Rules]
 - Assess semantic relevance between current input and habits/goals (0%~100%)
 - Matching must be semantic, not just keyword matching
-- relevance >= 60%: return matched_bottle; otherwise matched_bottle = null
+- Allow hypernym-hyponym mapping (e.g., running -> exercise, reading a chapter -> reading)
+- If input clearly maps semantically to a candidate, return matched_bottle; otherwise null
 - Return at most one bottle (highest relevance)
 - matched_bottle format: { "type": "habit" | "goal", "id": "bottle-id", "stars": 1 }
 - Never invent IDs that are not listed`;

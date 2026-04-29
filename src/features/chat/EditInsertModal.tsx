@@ -55,7 +55,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
 
     return (
         <div className={cn('fixed inset-0 flex items-end sm:items-center justify-center z-50 sm:p-4', APP_MODAL_OVERLAY_CLASS)}>
-            <div className={cn(APP_MODAL_CARD_CLASS, 'rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4')}>
+            <div className={cn(APP_MODAL_CARD_CLASS, 'mb-[max(8px,env(safe-area-inset-bottom,0px))] rounded-3xl w-full max-w-sm p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:mb-0 sm:pb-6 space-y-4')}>
                 <div className="flex justify-between items-center">
                     <h3 className="text-lg font-bold text-slate-800">{editingId ? t('chat_edit_record') : t('chat_insert_record')}</h3>
                     <button onClick={onClose} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>

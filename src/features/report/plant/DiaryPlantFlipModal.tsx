@@ -52,7 +52,7 @@ export const DiaryPlantFlipModal: React.FC<Props> = ({ plant, dayMessages, onClo
           plant={plant}
           segments={segments}
           directionOrder={directionOrder}
-          onGenerateDiary={onClose}
+          onClose={onClose}
         />
       </div>
     </div>

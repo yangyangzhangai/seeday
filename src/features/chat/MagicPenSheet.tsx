@@ -231,12 +231,12 @@ export function MagicPenSheet({
                           setDrafts((prev) => prev.map((item) => (item.id === next.id ? next : item)));
                           resetErroredDraftState(draft.id);
                         }}
-                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-transparent focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
+                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-dashed border-[#D8CEBD] focus:border-solid focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
                       />
                       {editable && (
                         <>
-                          <label htmlFor={`activity-input-${draft.id}`} className="cursor-pointer p-1 text-[#C4B49A] hover:text-[#9C8567] transition-colors flex-shrink-0">
-                            <Pencil size={12} />
+                          <label htmlFor={`activity-input-${draft.id}`} className="cursor-pointer p-1 text-[#9C8567] hover:text-[#7A6B55] transition-colors flex-shrink-0">
+                            <Pencil size={14} />
                           </label>
                           <button
                             type="button"
@@ -335,12 +335,12 @@ export function MagicPenSheet({
                           setDrafts((prev) => prev.map((item) => (item.id === next.id ? next : item)));
                           resetErroredDraftState(draft.id);
                         }}
-                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-transparent focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
+                        className="flex-1 text-sm font-medium text-[#4A3520] bg-transparent px-0 py-0.5 border-b border-dashed border-[#D8CEBD] focus:border-solid focus:border-[#9C8567] outline-none placeholder:text-[#C4B49A] transition-colors"
                       />
                       {editable && (
                         <>
-                          <label htmlFor={`todo-input-${draft.id}`} className="cursor-pointer p-1 text-[#C4B49A] hover:text-[#9C8567] transition-colors flex-shrink-0">
-                            <Pencil size={12} />
+                          <label htmlFor={`todo-input-${draft.id}`} className="cursor-pointer p-1 text-[#9C8567] hover:text-[#7A6B55] transition-colors flex-shrink-0">
+                            <Pencil size={14} />
                           </label>
                           <button
                             type="button"

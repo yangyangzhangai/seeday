@@ -6,6 +6,8 @@ import { useReportStore } from '../store/useReportStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { callPlantGenerateAPI } from '../api/client';
 
+const RETRY_COOLDOWN_MS = 60 * 1000;
+
 function resolveLang(rawLang: string): 'zh' | 'en' | 'it' {
   const lang = rawLang.toLowerCase();
   if (lang.startsWith('zh')) return 'zh';
@@ -50,6 +52,10 @@ async function runMidnightGenerate(isPlus: boolean, lang: string): Promise<void>
   }
 }
 
+function shouldSkipDueToCooldown(lastAttemptAtMs: number): boolean {
+  return Date.now() - lastAttemptAtMs < RETRY_COOLDOWN_MS;
+}
+
 export function useMidnightAutoGenerate() {
   const userId = useAuthStore(state => state.user?.id);
   const isPlus = useAuthStore(state => state.isPlus);
@@ -58,6 +64,21 @@ export function useMidnightAutoGenerate() {
   isPlusRef.current = isPlus;
   const langRef = useRef(i18n.language);
   langRef.current = i18n.language;
+  const runningRef = useRef(false);
+  const lastAttemptAtMsRef = useRef(0);
+
+  const runOnce = async (force = false) => {
+    if (!userId) return;
+    if (runningRef.current) return;
+    if (!force && shouldSkipDueToCooldown(lastAttemptAtMsRef.current)) return;
+    runningRef.current = true;
+    lastAttemptAtMsRef.current = Date.now();
+    try {
+      await runMidnightGenerate(isPlusRef.current, langRef.current ?? 'en');
+    } finally {
+      runningRef.current = false;
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -66,11 +87,23 @@ export function useMidnightAutoGenerate() {
       const now = new Date();
       const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
       timer = setTimeout(async () => {
-        await runMidnightGenerate(isPlusRef.current, langRef.current ?? 'en');
+        await runOnce(true);
         schedule();
       }, midnight.getTime() - now.getTime());
     };
+
+    void runOnce(true);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void runOnce(false);
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
     schedule();
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [userId]);
 }

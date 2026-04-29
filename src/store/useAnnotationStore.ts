@@ -126,6 +126,8 @@ interface AnnotationStore extends AnnotationState {
   }) => PendingSuggestionIntent | null;
   /** 删除活动消息时，从今日事件日志中移除关联事件，避免 AI 看到已删活动 */
   removeEventsByMessageId: (messageId: string) => void;
+  /** rehydrate 后校验 currentAnnotation 引用的 todo 是否仍存在，过期则清除 */
+  clearStaleRestoredSuggestion: () => void;
 
   // 云端同步
   fetchAnnotations: () => Promise<void>;
@@ -741,6 +743,19 @@ export const useAnnotationStore = create<AnnotationStore>()(
             events: s.todayStats.events.filter((e) => e.data?.messageId !== messageId),
           },
         }));
+      },
+
+      clearStaleRestoredSuggestion: () => {
+        const annotation = get().currentAnnotation;
+        if (!annotation?.suggestion || annotation.suggestion.type !== 'todo') return;
+        const todoId = annotation.suggestion.todoId;
+        if (!todoId) return;
+        const todoExists = useTodoStore.getState().todos.some(
+          (t) => t.id === todoId && !t.completed
+        );
+        if (!todoExists) {
+          set({ currentAnnotation: null });
+        }
       },
 
       consumePendingSuggestionIntent: ({ type, maxAgeMs = 30_000 }) => {

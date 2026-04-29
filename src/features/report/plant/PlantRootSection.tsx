@@ -31,13 +31,11 @@ function getCategoryKey(category: PlantCategoryKey): string {
 
 interface PlantRootSectionProps {
   autoGeneratePlantToken?: number;
-  onGenerateDiary?: () => void;
   onDiaryDraftChange?: (text: string) => void;
 }
 
 export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   autoGeneratePlantToken,
-  onGenerateDiary,
   onDiaryDraftChange,
 }) => {
   const { t } = useTranslation();
@@ -310,7 +308,6 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           plant={todayPlant}
           segments={flipCardSegments}
           directionOrder={directionOrder}
-          onGenerateDiary={onGenerateDiary ?? (() => {})}
         />
       </div>
     );

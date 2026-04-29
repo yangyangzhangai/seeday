@@ -383,6 +383,23 @@ export async function callStripeCheckoutAPI(planType: SubscriptionPlanType): Pro
   }, { headers });
 }
 
+interface ActivateTrialResponse {
+  success: boolean;
+  alreadyUsed: boolean;
+}
+
+export async function callActivateTrialAPI(): Promise<ActivateTrialResponse> {
+  const headers = await getAuthHeaders();
+  if (!headers.Authorization) {
+    throw createUnauthorizedApiError('/subscription');
+  }
+  return postJson<{ action: 'activate_trial' }, ActivateTrialResponse>(
+    '/subscription',
+    { action: 'activate_trial' },
+    { headers },
+  );
+}
+
 export async function callStripeFinalizeAPI(sessionId: string): Promise<SubscriptionResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {

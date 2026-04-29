@@ -57,11 +57,17 @@ kind 含义：
 
 混合句处理：
 - 一条 segment 只放一种意图，不能把情绪和待办混在同一条里
-- 像“最近太累了有点难过但是决定从明天开始每天跑步”应拆成 mood + mood + todo_add，其中 todo text 只保留“每天跑步”
+- 像”最近太累了有点难过但是决定从明天开始每天跑步”应拆成 mood + mood + todo_add，其中 todo text 只保留”每天跑步”
 - 同一条输入最多只保留一个activity；如果还有其他活动片段，默认判为 activity_backfill
 - 当用户用并行词（”同时”/”一边...一边”/”的同时”）描述两件事同时发生时，合并为一条 activity_backfill，text 写成”活动A+活动B”，startTime 取较早的，endTime 取较晚的
   例：”八点开始吃饭，同时看了半小时视频” → {“text”:”吃饭+看视频”,”startTime”:”08:00”,”endTime”:”09:00”,”timeSource”:”exact”}
-- 若同句里已识别当前活动，且另一个活动带有比当前时刻更早的明确时间（如“九点出门”），该活动应判为 activity_backfill
+- 若同句里已识别当前活动，且另一个活动带有比当前时刻更早的明确时间（如”九点出门”），该活动应判为 activity_backfill
+
+长序列必须全部提取（重要）：
+- 用户连续叙述的每一件事都是一条独立 segment，不得合并、跳过或丢进 unparsed
+- 含有明确时刻（如”11点””4:00””五点”）的片段，无论句子多复杂，都必须提取为 activity_backfill + timeSource:”exact”，禁止放入 unparsed
+- 没有明确时刻但夹在两个锚点之间的片段，用 timeSource:”inferred” 按顺序分配时间，而不是放进 unparsed
+- 只有完全无法判断意图的碎片（如纯感叹词）才能放入 unparsed
 
 ---
 
@@ -165,6 +171,25 @@ kind 含义：
 {
   "segments": [
     {"text":"吃饭+看视频","sourceText":"八点开始吃饭，同时看了半小时视频","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"09:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+案例 10（长序列，每件事都要提取，禁止丢进 unparsed）
+输入：11:00出门上学，12:00开始上课，然后课上也没听讲都在找电子书，一直写到4:00哦，然后4:00回到家，5:00打电话一个小时到6:00，然后又看了会儿视频到7:00，然后又接着写代码写到8:00吃晚饭，然后吃完晚饭又一直写代码写到现在
+输出：
+{
+  "segments": [
+    {"text":"出门上学","sourceText":"11:00出门上学","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"},
+    {"text":"上课","sourceText":"12:00开始上课","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"12:00","endTime":"16:00","timeSource":"exact"},
+    {"text":"找电子书","sourceText":"课上也没听讲都在找电子书","kind":"activity_backfill","confidence":"medium","timeRelation":"past","startTime":"12:30","endTime":"14:00","timeSource":"inferred"},
+    {"text":"写代码","sourceText":"一直写到4:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","endTime":"16:00","timeSource":"exact"},
+    {"text":"回家","sourceText":"4:00回到家","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"16:00","endTime":"16:30","timeSource":"exact"},
+    {"text":"打电话","sourceText":"5:00打电话一个小时到6:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"17:00","endTime":"18:00","timeSource":"exact"},
+    {"text":"看视频","sourceText":"看了会儿视频到7:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"18:00","endTime":"19:00","timeSource":"exact"},
+    {"text":"写代码","sourceText":"接着写代码写到8:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"19:00","endTime":"20:00","timeSource":"exact"},
+    {"text":"吃晚饭","sourceText":"8:00吃晚饭","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"20:00","endTime":"20:30","timeSource":"exact"},
+    {"text":"写代码","sourceText":"吃完晚饭又一直写代码写到现在","kind":"activity","confidence":"high","timeRelation":"realtime","startTime":"20:30","timeSource":"inferred"}
   ],
   "unparsed": []
 }`;

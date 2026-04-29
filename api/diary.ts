@@ -63,12 +63,12 @@ function resolveDiaryAddressee(lang: 'zh' | 'en' | 'it', userName: unknown): str
 
 function buildDiaryAddresseeUserRule(lang: 'zh' | 'en' | 'it', addressee: string): string {
   if (lang === 'zh') {
-    return `对方称呼统一为"${addressee}"。`;
+    return `全文用${addressee}称呼对方，直接输出名字，不加任何引号。`;
   }
   if (lang === 'it') {
-    return `Il nome da usare e solo "${addressee}".`;
+    return `Chiama sempre la persona ${addressee}, scrivi il nome direttamente senza virgolette.`;
   }
-  return `The only addressee name is "${addressee}".`;
+  return `Address the person as ${addressee} throughout, write the name directly with no quotation marks.`;
 }
 
 function stripModelSignoff(content: string): string {
@@ -112,7 +112,9 @@ function forceAddresseeReplacement(content: string, lang: 'zh' | 'en' | 'it', ad
 function hasAnySignoff(content: string): boolean {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const tail = lines.slice(-3);
-  return tail.some((line) => /^[-—–]{1,2}\s*.+/.test(line));
+  return tail.some(
+    (line) => /^[-—–]{1,2}\s*.+/.test(line) || /[—–]{1,2}[一-龥A-Za-z]/.test(line),
+  );
 }
 
 function ensureDiarySignoff(

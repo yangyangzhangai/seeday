@@ -4,6 +4,47 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-29
+
+### Fix: iOS TestFlight 下聊天编辑弹窗“底部被截断”视觉问题
+
+- `src/features/chat/EditInsertModal.tsx` 将移动端弹窗卡片从 `rounded-t-3xl`（贴底 sheet 形态）调整为 `rounded-3xl`，并新增 `mb-[max(8px,env(safe-area-inset-bottom,0px))]` 底部留缝
+- 保留现有 safe-area 底部内边距，确保保存按钮在 iOS Home Indicator 上方稳定可见，同时移除“底部直角贴边像被裁切”的视觉错觉
+
+Validation:
+
+- Not run (UI spacing/style-only change)
+
+### Fix: 跨天自动补生成收口（植物 + 日记）
+
+- `src/hooks/useMidnightAutoGenerate.ts` 新增“次日补偿”执行路径：登录后立即执行一次，且在 App 恢复前台（`visibilitychange=visible`）时再次检查，避免 iOS 后台挂起导致错过 0 点定时
+- 自动补偿链路统一为：先确保昨日 `daily report` 存在，再补生成昨日植物；Plus 用户在同链路下补生成昨日日记（Free 保持现有策略）
+- `src/features/report/ReportPage.tsx` 移除页面内重复的午夜定时生成逻辑，避免与全局 hook 双定时器并发触发
+- `src/hooks/useMidnightAutoGenerate.ts` 新增最小重试冷却（60s）与运行中互斥，减少前后台频繁切换时的重复请求
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Fix: classify 瓶子关联去阈值并增强上位-下位映射
+
+- `api/classify.ts` 删除 `matched_bottle` “语义相关度 >= 60% 才返回”的规则提示（zh/en/it 三语）
+- `api/classify.ts` 在基础 prompt 与 `buildBottleMatchSection` 中补充上位-下位匹配约束：`跑步->运动`、`看书/读完一个章节->阅读`
+- 保持既有安全约束不变：最多返回一个 `matched_bottle`、`stars=1`、禁止臆造候选外 id
+
+Validation:
+
+- Not run (prompt-only change)
+
+### Fix: profile 地区设置保存后回填输入框
+
+- `src/features/profile/components/RegionSettingsPanel.tsx` 读取 `useAuthStore.user.user_metadata` 的已保存地区值（优先 `location_label`，兜底 `country_code`），并将其作为输入框初始值
+- 修复“地区保存成功后重新打开弹窗输入框为空”的问题，改为始终显示当前已保存地区
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
 ## 2026-04-28
 
 ### Feat: todo 卡片置顶功能 + 移除拖拽把手

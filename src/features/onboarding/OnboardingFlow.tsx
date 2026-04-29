@@ -6,10 +6,10 @@ import { Capacitor } from '@capacitor/core';
 import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
 import { Apple, Chrome, Sprout, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { callActivateTrialAPI } from '../../api/client';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
-import { MembershipPurchaseModal } from '../../components/membership/MembershipPurchaseModal';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
 import {
   DEFAULT_WAKE_TIME, DEFAULT_SLEEP_TIME,
@@ -326,6 +326,56 @@ function AuthButton({ icon, text, className = '', onClick, disabled = false }: {
   );
 }
 
+// ── StepTrialIntro ────────────────────────────────────────────
+const TRIAL_FEATURES = [
+  { emoji: '🌸', titleKey: 'onboarding_trial_feat1_title', descKey: 'onboarding_trial_feat1_desc' },
+  { emoji: '🪄', titleKey: 'onboarding_trial_feat2_title', descKey: 'onboarding_trial_feat2_desc' },
+  { emoji: '✅', titleKey: 'onboarding_trial_feat3_title', descKey: 'onboarding_trial_feat3_desc' },
+  { emoji: '🌊', titleKey: 'onboarding_trial_feat4_title', descKey: 'onboarding_trial_feat4_desc' },
+  { emoji: '🎯', titleKey: 'onboarding_trial_feat5_title', descKey: 'onboarding_trial_feat5_desc' },
+  { emoji: '✨', titleKey: 'onboarding_trial_feat6_title', descKey: 'onboarding_trial_feat6_desc' },
+  { emoji: '🌿', titleKey: 'onboarding_trial_feat7_title', descKey: 'onboarding_trial_feat7_desc' },
+] as const;
+
+const StepTrialIntro: React.FC<{ onNext: () => void }> = ({ onNext }) => {
+  const { t } = useTranslation();
+
+  React.useEffect(() => {
+    void callActivateTrialAPI().catch(() => {});
+  }, []);
+
+  return (
+    <div className="flex-1 flex flex-col pb-8 overflow-hidden">
+      <div className="px-8 pt-10 pb-4 shrink-0">
+        <h2 className="text-2xl font-black text-[#4a5d4c] leading-tight">{t('onboarding_trial_title')}</h2>
+        <p className="text-sm text-[#4a5d4c]/60 mt-2 leading-relaxed">{t('onboarding_trial_subtitle')}</p>
+      </div>
+      <div className="flex-1 overflow-y-auto px-8 space-y-3 pb-2">
+        {TRIAL_FEATURES.map((feat) => (
+          <div key={feat.titleKey} className="flex items-start gap-3 bg-white/60 backdrop-blur-xl border border-white rounded-[20px] p-4">
+            <span className="text-xl shrink-0 mt-0.5">{feat.emoji}</span>
+            <div>
+              <p className="text-sm font-bold text-[#4a5d4c]">{t(feat.titleKey)}</p>
+              <p className="text-xs text-[#4a5d4c]/55 mt-0.5 leading-relaxed">{t(feat.descKey)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-8 pt-4 shrink-0">
+        <button
+          onClick={onNext}
+          className="w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20"
+        >
+          {t('onboarding_trial_cta')}
+        </button>
+        <p className="text-center text-[10px] text-[#4a5d4c]/30 mt-3 px-4 leading-relaxed">
+          {t('onboarding_trial_footer')}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // ── StepAI ────────────────────────────────────────────────────
 const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const { t } = useTranslation();
@@ -411,22 +461,6 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   );
 };
 
-// ── StepSubscription ──────────────────────────────────────────
-const StepSubscription: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
-  const navigate = useNavigate();
-
-  const handlePurchase = (planId: 'monthly' | 'yearly') => {
-    navigate('/upgrade', {
-      state: {
-        disableInitialAnimation: true,
-        initialPlanId: planId,
-      },
-    });
-  };
-
-  return <MembershipPurchaseModal isOpen onClose={onFinish} onPurchase={handlePurchase} disableInitialAnimation />;
-};
-
 // ── Main OnboardingFlow ───────────────────────────────────────
 export const OnboardingFlow: React.FC = () => {
   const { user, updateUserProfile, userProfileV2 } = useAuthStore();
@@ -491,7 +525,7 @@ export const OnboardingFlow: React.FC = () => {
     void updateUserProfile({ manual });
     await handleRequestNotificationPermission();
     setSaving(false);
-    setStep((s) => s + 1);
+    handleComplete();
   };
 
   const handleComplete = () => {
@@ -526,11 +560,12 @@ export const OnboardingFlow: React.FC = () => {
         <ProgressBar step={step} />
       <div className="flex-1 overflow-hidden flex flex-col">
         {step === 1 && <StepAuth onNext={next} />}
-        {step === 2 && <StepAI onNext={next} />}
-        {step === 3 && <StepJournal onNext={next} />}
-        {step === 4 && <StepTodo onNext={handleTodoNext} />}
-        {step === 5 && <StepBottle onNext={handleBottleNext} />}
-        {step === 6 && (
+        {step === 2 && <StepTrialIntro onNext={next} />}
+        {step === 3 && <StepAI onNext={next} />}
+        {step === 4 && <StepJournal onNext={next} />}
+        {step === 5 && <StepTodo onNext={handleTodoNext} />}
+        {step === 6 && <StepBottle onNext={handleBottleNext} />}
+        {step === 7 && (
           <OnboardingStepRoutine
             state={routine}
             onChange={handleRoutineChange}
@@ -538,7 +573,7 @@ export const OnboardingFlow: React.FC = () => {
             saving={saving}
           />
         )}
-        {step === 7 && <StepSubscription onFinish={handleComplete} />}
+
       </div>
     </div>
   );

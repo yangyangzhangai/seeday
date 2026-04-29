@@ -580,6 +580,13 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
                   : t('onboarding_j3_tip_switch_back_mood_continue')}
               </div>
             )}
+            <div className="flex items-start gap-3 bg-[#4a5d4c]/5 rounded-[20px] px-4 py-3">
+              <span className="text-lg shrink-0 mt-0.5">🪄</span>
+              <div>
+                <p className="text-sm font-bold text-[#4a5d4c]">{t('onboarding_j3_magic_pen_teaser_title')}</p>
+                <p className="text-xs text-[#4a5d4c]/55 mt-0.5 leading-relaxed">{t('onboarding_j3_magic_pen_teaser_desc')}</p>
+              </div>
+            </div>
             <button
               onClick={() => void handleFinish()}
               disabled={isSending || mustRestoreBeforeNext}

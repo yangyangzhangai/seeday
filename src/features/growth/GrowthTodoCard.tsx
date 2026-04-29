@@ -501,10 +501,9 @@ export const GrowthTodoCard = ({
               }}
               className={cn(
                 "text-xs px-3 py-1.5 rounded-lg font-medium border transition-all",
-                todo.isPinned
-                  ? "text-blue-600 border-blue-200 bg-blue-50"
-                  : "text-gray-400 border-gray-200 bg-white"
+                todo.isPinned ? "text-blue-600" : "border-gray-200 bg-white text-gray-400"
               )}
+              style={todo.isPinned ? BLUE_SELECTED_STYLE : undefined}
             >
               {todo.isPinned ? t('todo_unpin') : t('todo_pin')}
             </button>

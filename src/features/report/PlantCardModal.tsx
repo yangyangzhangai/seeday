@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
-import { X } from 'lucide-react';
 import type { DailyPlantRecord } from '../../types/plant';
 import type { PlantCategoryKey } from '../../types/plant';
 import { buildRootSegments } from '../../lib/rootRenderer';
 import { mapSourcesToPlantActivities } from '../../lib/plantActivityMapper';
 import { cn } from '../../lib/utils';
-import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
+import { APP_MODAL_CARD_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { useChatStore } from '../../store/useChatStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../store/usePlantStore';
 import { PlantFlipCard } from './plant/PlantFlipCard';
@@ -13,10 +12,9 @@ import { PlantFlipCard } from './plant/PlantFlipCard';
 interface PlantCardModalProps {
   plant: DailyPlantRecord;
   onClose: () => void;
-  onGenerateDiary: () => void;
 }
 
-export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, onGenerateDiary }) => {
+export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose }) => {
   const messages = useChatStore(state => state.messages);
   const directionOrder = usePlantStore(state => state.directionOrder);
 
@@ -69,17 +67,10 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose, 
           plant={plant}
           segments={segments}
           directionOrder={directionOrder}
-          onGenerateDiary={onGenerateDiary}
+          onClose={onClose}
         />
       </div>
 
-      <button
-        onClick={onClose}
-        className={cn(APP_MODAL_CLOSE_CLASS, 'absolute right-6 flex h-11 w-11 items-center justify-center')}
-        style={{ top: 'var(--app-top-action-y)' }}
-      >
-        <X size={24} strokeWidth={1.5} />
-      </button>
     </div>
   );
 };

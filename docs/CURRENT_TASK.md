@@ -1,7 +1,21 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-27
+Last Updated: 2026-04-29
 Owner: current working session
+
+---
+
+## 2026-04-29 Session Update（会员瓶子关联灵敏度）
+
+- [x] `/api/classify` 移除 `matched_bottle` 的“语义相关度 >= 60%”阈值提示
+- [x] `/api/classify` 新增上位-下位匹配规则（`跑步->运动`、`看书/读完一个章节->阅读`）
+- [x] 三语 prompt 同步对齐（zh/en/it），保持行为一致
+
+## 2026-04-29 Session Update（跨天自动补生成收口）
+
+- [x] `useMidnightAutoGenerate` 增加登录后立即补偿与前台恢复补偿，修复 iOS 错过 0 点后“昨日未自动生成”
+- [x] 自动补偿链路统一：补 `daily report` 基底 -> 补昨日植物；Plus 再补昨日日记
+- [x] 移除 `ReportPage` 内重复午夜定时器，避免页面级与全局级双触发竞态
 
 ---
 
@@ -20,6 +34,8 @@ Status: 实施中（高优先）
 - [x] iOS 手势/拖拽稳定性收口（按钮 pointer-first + click 吞并；新增拖拽手柄并保留长按兜底）
 - [x] 编辑命中稳定性收口（编辑目标 id 锁定 + 编辑态禁拖拽，避免错位到下一条）
 - [x] Profile 作息/根系方向弹窗在 iOS 套壳下保存按钮可见性修复（弹窗容器改 `min-h-0` + 滚动区收缩 + `100vh` 高度兜底）
+- [x] Profile 地区设置回填收口：保存成功后再次打开弹窗，输入框默认显示已保存 `location_label`（无 label 时兜底 `country_code`）
+- [x] Chat 编辑记录弹窗 iOS 视觉截断收口：`EditInsertModal` 移动端由“贴底上圆角 sheet”改为“四角圆角浮层 + 底部 safe-area 留缝”，消除“底部像被截断”观感
 
 ### 待完成（本线核心）
 

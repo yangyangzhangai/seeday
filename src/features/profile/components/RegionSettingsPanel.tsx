@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/profile/README.md
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { geocodeLocationName, geocodeCountryName, type GeocodeResult } from '../../../services/location/geocode';
@@ -17,10 +17,22 @@ function detectUiLang(i18nLang: string | undefined): 'zh' | 'en' | 'it' {
 
 export const RegionSettingsPanel: React.FC<RegionSettingsPanelProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
-  const { updateLocationMetadata } = useAuthStore();
+  const { user, updateLocationMetadata } = useAuthStore();
   const lang = detectUiLang(i18n.language);
 
-  const [query, setQuery] = useState('');
+  const savedLocationLabel = useMemo(() => {
+    const metadata = user?.user_metadata;
+    if (!metadata) return '';
+    if (typeof metadata.location_label === 'string' && metadata.location_label.trim()) {
+      return metadata.location_label.trim();
+    }
+    if (typeof metadata.country_code === 'string' && metadata.country_code.trim()) {
+      return metadata.country_code.trim().toUpperCase();
+    }
+    return '';
+  }, [user]);
+
+  const [query, setQuery] = useState(savedLocationLabel);
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [countryFallback, setCountryFallback] = useState<GeocodeResult | null>(null);

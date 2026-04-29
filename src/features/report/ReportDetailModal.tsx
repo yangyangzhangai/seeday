@@ -540,7 +540,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     selectedReport?.teaserText,
     t,
   ]);
-  const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating' && !selectedReport?.teaserText?.trim();
+  const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating';
 
   const myDiaryText = useMemo(() => {
     const raw = selectedReport?.userNote?.trim();

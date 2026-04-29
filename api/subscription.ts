@@ -8,7 +8,7 @@ import { createStripeCheckoutSession, verifyStripeMembershipBySession } from '..
 type RequestAuth = NonNullable<Awaited<ReturnType<typeof requireSupabaseRequestAuth>>>;
 type RequestAdminClient = NonNullable<RequestAuth['adminClient']>;
 
-type SubscriptionAction = 'activate' | 'restore' | 'cancel' | 'stripe_checkout' | 'stripe_finalize';
+type SubscriptionAction = 'activate' | 'restore' | 'cancel' | 'stripe_checkout' | 'stripe_finalize' | 'activate_trial';
 type SubscriptionSource = 'iap' | 'stripe';
 type PlanType = 'monthly' | 'annual';
 type MembershipPlan = 'free' | 'plus';
@@ -66,6 +66,7 @@ function normalizeAction(value: unknown): SubscriptionAction | null {
     || value === 'cancel'
     || value === 'stripe_checkout'
     || value === 'stripe_finalize'
+    || value === 'activate_trial'
   ) {
     return value;
   }
@@ -418,6 +419,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   console.log('[subscription] request — action:', action, 'source:', source, 'planType:', planType,
     'transactionId:', normalizeString(body.transactionId)?.slice(0, 20),
     'productId:', normalizeString(body.productId));
+
+  if (action === 'activate_trial') {
+    const fetched = await auth.adminClient.auth.admin.getUserById(auth.user.id);
+    if (fetched.error || !fetched.data.user) {
+      jsonError(res, 500, 'Failed to fetch user');
+      return;
+    }
+    const appMeta = (fetched.data.user.app_metadata || {}) as Record<string, unknown>;
+    if (appMeta.trial_started_at) {
+      res.status(200).json({ success: false, alreadyUsed: true });
+      return;
+    }
+    const updated = await auth.adminClient.auth.admin.updateUserById(auth.user.id, {
+      app_metadata: { ...appMeta, trial_started_at: new Date().toISOString() },
+    });
+    if (updated.error) {
+      jsonError(res, 500, 'Failed to activate trial');
+      return;
+    }
+    res.status(200).json({ success: true, alreadyUsed: false });
+    return;
+  }
 
   if (!action || !source) {
     jsonError(res, 400, 'Invalid action or source');
