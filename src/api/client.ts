@@ -661,7 +661,7 @@ export async function callLiveInputTelemetryIngestAPI(
 }
 
 export async function callLiveInputTelemetryDashboardAPI(
-  days = 14,
+  days = 7,
 ): Promise<LiveInputTelemetryDashboardResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
@@ -714,7 +714,7 @@ function getCurrentAiMode(): AiCompanionMode | undefined {
 
 // ── User Analytics API ────────────────────────────────────────────────────────
 
-export async function callUserAnalyticsDashboardAPI(days = 30): Promise<UserAnalyticsDashboardResponse> {
+export async function callUserAnalyticsDashboardAPI(days = 7): Promise<UserAnalyticsDashboardResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) throw createUnauthorizedApiError('/live-input-telemetry');
   const params = new URLSearchParams({ module: 'user_analytics', days: String(days) });
@@ -728,7 +728,7 @@ export async function callUserAnalyticsLookupAPI(query: string): Promise<UserAna
   return getJson<UserAnalyticsLookupResponse>(`/live-input-telemetry?${params.toString()}`, { headers });
 }
 
-export async function callProfileSettingsTelemetryDashboardAPI(days = 14): Promise<ProfileSettingsTelemetryDashboardResponse> {
+export async function callProfileSettingsTelemetryDashboardAPI(days = 7): Promise<ProfileSettingsTelemetryDashboardResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) throw createUnauthorizedApiError('/live-input-telemetry');
   const params = new URLSearchParams({ module: 'profile_settings', days: String(days) });

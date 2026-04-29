@@ -136,7 +136,7 @@ function productIdsByPlan(planType: PlanType): string[] {
 function bundleIdsForVerification(): string[] {
   const primary = (process.env.APPLE_IAP_BUNDLE_ID || 'com.seeday.app').trim();
   const aliases = parseProductIdAliases(process.env.APPLE_IAP_BUNDLE_ID_ALIASES);
-  const builtInAliases = ['com.seeday.app', 'com.tshine.app'];
+  const builtInAliases = ['com.seeday.app'];
   return Array.from(new Set([primary, ...builtInAliases, ...aliases].filter(Boolean)));
 }
 

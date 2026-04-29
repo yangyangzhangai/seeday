@@ -130,7 +130,7 @@ function RecentEvents({ items }: { items: LiveInputTelemetryRecentEvent[] }) {
 
 export const TodoDecomposeTelemetryPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useState(14);
+  const [days, setDays] = useState(7);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<LiveInputTelemetryDashboardResponse | null>(null);

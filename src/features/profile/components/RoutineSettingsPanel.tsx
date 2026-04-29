@@ -148,6 +148,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
 const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = React.useState(false);
   const [tempHour, setTempHour] = React.useState(value.split(':')[0]);
   const [tempMinute, setTempMinute] = React.useState(value.split(':')[1]);
@@ -190,8 +191,8 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
                 <DrumColumn items={MINUTES} selected={tempMinute} onSelect={setTempMinute} />
               </div>
               <div className="p-2 flex gap-2 bg-zinc-50/20">
-                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.16em]">取消</button>
-                <button onClick={save} className="flex-1 py-2 rounded-xl bg-black text-white text-[11px] font-bold shadow-sm uppercase tracking-[0.16em]">确定</button>
+                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.16em]">{t('onboarding_timepicker_cancel')}</button>
+                <button onClick={save} className="flex-1 py-2 rounded-xl bg-black text-white text-[11px] font-bold shadow-sm uppercase tracking-[0.16em]">{t('onboarding_timepicker_confirm')}</button>
               </div>
             </motion.div>
           </>
@@ -588,7 +589,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
         {Capacitor.isNativePlatform() && notifPermission !== null && notifPermission !== 'granted' && (
           <button type="button" className="text-[11px] text-blue-500 underline"
             onClick={() => { void requestNotificationPermission().then((granted) => { if (granted) setNotifPermission('granted'); }).catch(() => {}); }}>
-            去授权通知权限
+            {t('profile_user_profile_reminder_grant_permission')}
           </button>
         )}
       </div>

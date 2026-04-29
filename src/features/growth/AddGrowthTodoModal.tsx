@@ -36,10 +36,17 @@ interface Props {
   defaultValues?: DefaultValues;
 }
 
-const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
-
 export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Props) => {
   const { t } = useTranslation();
+  const weekdayLabels = [
+    t('weekday_short_sun'),
+    t('weekday_short_mon'),
+    t('weekday_short_tue'),
+    t('weekday_short_wed'),
+    t('weekday_short_thu'),
+    t('weekday_short_fri'),
+    t('weekday_short_sat'),
+  ];
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<GrowthPriority>('medium');
@@ -191,7 +198,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
                   {t('growth_todo_weekly_days')}
                 </label>
                 <div className="flex gap-1 mb-4">
-                  {DAY_LABELS.map((label, i) => (
+                  {weekdayLabels.map((label, i) => (
                     <button
                       key={i}
                       onClick={() => {

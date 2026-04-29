@@ -124,7 +124,7 @@ function generateTS(rows) {
 
   // 构建 TS 内容
   const lines = [
-    '// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/TimeShine_植物生长_技术实现文档_v1.7.docx',
+    '// DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/SEEDAY_植物生长_技术实现文档_v1.7.docx',
     '//',
     '// ⚠️  此文件由脚本自动生成，请勿手动修改',
     '//    修改植物列表请编辑 docs/plant_assets_registry.csv',

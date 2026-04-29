@@ -6,6 +6,131 @@ All notable effective changes are documented here.
 
 ## 2026-04-29
 
+### Fix: Telemetry 看板默认时间窗口统一为 7 天
+
+- `src/features/telemetry/LiveInputTelemetryPage.tsx`、`src/features/telemetry/AiAnnotationTelemetryPage.tsx`、`src/features/telemetry/TodoDecomposeTelemetryPage.tsx`、`src/features/telemetry/ProfileSettingsTelemetryPage.tsx`、`src/features/telemetry/UserAnalyticsDashboardPage.tsx`：默认 `days` 从 14/30 调整为 7，首次进入即展示 7 天口径
+- `src/api/client.ts`：`callLiveInputTelemetryDashboardAPI`、`callUserAnalyticsDashboardAPI`、`callProfileSettingsTelemetryDashboardAPI` 默认参数统一为 7，避免调用端未传参时口径不一致
+
+Validation:
+
+- Not run (telemetry default-window update + docs sync)
+
+### Fix: 日记页恢复“生成日记”入口并补齐当日实时统计
+
+- `src/features/report/ReportDetailModal.tsx`：今日日记页面新增常驻“生成日记”按钮（白天也显示）；20:00 前点击展示 `report_early_tip`，20:00 后调用 `generateAIDiary(reportId)`（Plus 生成完整 AI 观察日记，Free 生成 teaser）
+- 按钮样式复用植物卡片历史版本口径（圆角胶囊、浅绿色半透明背景、轻阴影），与原“植物卡片下方生成按钮”视觉一致
+- 今日日记页面的待办/习惯/目标统计改为实时重算：接入 `useTodoStore` 与 `useGrowthStore`，并使用 `computeDailyTodoStats(...)` 覆盖当日报告快照，确保环形图旁摘要与统计在白天持续更新
+- `src/features/report/DiaryBookViewer.tsx`：放开“今天”页双击打开详情限制（未来日期仍不可打开），支持从日记本翻到今天后直接进入详情并触发生成日记入口
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Update: Telemetry 埋点审计落地 + 看板 PM 注释补齐
+
+- 新增审计报告 `docs/Telemetry_Audit_Report_2026-04-29.doc`，覆盖全量埋点来源、事件口径、业务意义、看板位置与缺口规划
+- `src/features/telemetry/LiveInputTelemetryPage.tsx` 新增“会员分类路径”分区，基于 `topReasons` 聚合展示 `user_plan`、`classification_path`、`ai_called`、`bottle_match_source`
+- `src/features/telemetry/LiveInputTelemetryPage.tsx` 为实时输入核心指标补齐“1-2 句”小字解释，明确统计含义与高低决策方向
+- `src/features/telemetry/UserAnalyticsDashboardPage.tsx` 增加看板说明与核心 KPI 注释，提升 PM 对增长/转化/活跃的解读一致性
+- `src/features/telemetry/FeedbackTelemetryPage.tsx` 增加阅读指南与反馈指标注释，支持按问题类型占比做产品优先级排序
+- `src/features/telemetry/AiAnnotationTelemetryPage.tsx` 为 AI 批注核心 KPI（触发率/样本量/触发事件/平均分/平均概率）补齐小字解释，统一 PM 决策阅读体验
+- `src/i18n/locales/{zh,en,it}.ts` 同步新增上述看板文案键，保持三语一致
+
+Validation:
+
+- Not run (requested report + dashboard copy/readability update)
+
+### Fix: 全量文案三语一致性巡检收口（含 onboarding）
+
+- `src/i18n/locales/{zh,en,it}.ts` 完成三语键位与占位符巡检：三套 key 集合一致（1211 个），并修复 `report_ai_diary_waiting`、`report_generating` 在 `en/it` 缺失 `{{companion}}` 占位符的问题
+- `src/components/layout/Header.tsx` 移除硬编码中文按钮文案“更换头像”，改为 `t('auth_change_avatar')`；头像 `alt` 改为 `t('avatar_alt')`
+- `src/components/QuickActivityPicker.tsx` 将中文前缀模板 `你结束...了` 改为 i18n key `quick_activity_prefix_ended`，统一 zh/en/it
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts` 新增 `avatar_alt`、`quick_activity_prefix_ended` 三语词条
+
+### Fix: 可变日历日期/周标签三语对齐
+
+- `src/features/growth/GrowthTodoCard.tsx`：截止时间展示从 `toLocaleString(undefined, ...)` 改为 `toLocaleString(i18n.language, ...)`，确保随应用语言切换
+- `src/features/growth/GrowthTodoCard.tsx`、`src/features/growth/AddGrowthTodoModal.tsx`：每周重复的周几标签从中文硬编码改为 i18n（`weekday_short_sun`~`weekday_short_sat`）
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts` 新增 `weekday_short_*` 三语词条
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run -s lint:docs-sync` ✅
+
+### Update: Prompt 三语对齐补齐（Magic Pen + Diary Insight）
+
+- `src/server/magic-pen-prompts.ts` 重写 `MAGIC_PEN_PROMPT_EN` 与 `MAGIC_PEN_PROMPT_IT`，补齐与中文主提示一致的结构与约束：角色定位、上下文输入、严格 JSON schema、kind 语义、时间推断、锚点回填策略、混合句拆分规则、长序列“全提取”规则
+- `api/diary.ts` 的 insight 分支新增意大利语 prompt 组装（`topic map` + `behavior rule` + `systemMsg`），避免 `lang=it` 走英文提示，保证 `zh/en/it` 三语规则一致
+
+Validation:
+
+- Not run (prompt text update only)
+
+### Fix: AI 日记输入链路补齐全量意大利语文案
+
+- `src/store/reportActions.ts` 为日记输入构建补齐 `it` 分支：今日目标/时间记录/心情与能量/习惯打卡/目标进展/待办总览/完成事项/历史摘要等标签全部意大利语化
+- `src/store/reportActions.ts` 新增 mood key 到意大利语标签映射（如 `happy -> felice`、`anxious -> ansioso`），避免意语链路混入英文情绪词
+- `src/lib/report-calculator/formatter.ts` 为结构化数据格式化补齐 `it` 分支（标题、总时长、专注时长、todo 汇总、事件清单、省略项、未标注时段、心情日志）
+
+Validation:
+
+- Not run (requested code-only update)
+
+### Update: 四个 AI 人设日记 prompt 的 en/it 向中文语义对齐
+
+- `src/lib/aiCompanion/prompts/van.ts` 重写 `VAN_DIARY_PROMPT_EN` 与 `VAN_DIARY_PROMPT_IT`，按中文版本同步输出结构、写作步骤、素材挖掘项、护短检查与【】段落要求，语气更自然口语化
+- `src/lib/aiCompanion/prompts/agnes.ts` 重写 `AGNES_DIARY_PROMPT_EN` 与 `AGNES_DIARY_PROMPT_IT`，对齐中文版本的“克制+洞察”叙事路径、步骤约束与落款规则
+- `src/lib/aiCompanion/prompts/zep.ts` 重写 `ZEP_DIARY_PROMPT_EN` 与 `ZEP_DIARY_PROMPT_IT`，对齐中文版本的“先扫描分量、再落真话”结构与护短边界
+- `src/lib/aiCompanion/prompts/momo.ts` 重写 `MOMO_DIARY_PROMPT_EN` 与 `MOMO_DIARY_PROMPT_IT`，对齐中文版本的散文诗/微童话写法、三步内化流程与蘑菇视角约束
+- 根据产品文案要求，四个人设 prompt（zh/en/it）中涉及旧品牌名的表述统一替换为“时光温室 / time greenhouse / serra del tempo”
+- 按规则调整称呼注入：移除 system prompt 中 `__ADDRESSEE__` 占位符依赖，改为仅在 `api/diary.ts` 的 user prompt `[Addressee rule - highest priority]` 中强约束称呼
+- `src/lib/aiCompanion/prompts/{van,agnes,zep,momo}.ts` 日记 prompt 同步移除 `__ADDRESSEE__` 文本，改为引用 user prompt 的称呼规则
+- `src/lib/aiCompanion.ts` 新增统一语言硬约束后缀：`zh=en=it` 分别附加“必须使用中文输出 / You must output in English / Devi rispondere in italiano”，覆盖 diary + annotation（含所有人设与轮换版本）
+
+Validation:
+
+- Not run (prompt text update only)
+
+### Fix: 日记全链路三语文案收口（移除单语硬编码）
+
+- `src/features/report/DiaryBookViewerExpandedView.tsx` 改为全量使用 `t(...)` 文案键，并按当前语言切换日期 locale（`zh/en/it`）；移除仅中文的标题、占位和空态提示
+- `src/features/report/DiaryBookViewer.tsx` 移除封面副标题硬编码 `Diary`，改为 i18n；星星计数改为 `diary_star_count` 三语模板
+- `src/features/report/ReportDetailModal.tsx` 星星计数文案改为 i18n（不再固定英文 `stars`）
+- `api/diary.ts` 失败提示按 `lang` 返回三语文案（zh/en/it），避免服务端错误信息固定中文
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts` 新增 diary 扩展页相关 key（expanded view + cover subtitle + star count）
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Fix: Growth 待办子步骤长文本不再单行截断
+
+- `src/features/growth/SubTodoList.tsx` 将子步骤标题从单行 `truncate` 改为最多两行展示（`WebkitLineClamp: 2`），并保留 `min-w-0`，确保在移动端窄屏下优先显示更多步骤语义
+- 保持右侧时长（`5分钟`）与专注按钮区域为 `flex-shrink-0`，避免因标题变长导致操作区被压缩或错位
+
+Validation:
+
+- Not run (UI style-only change)
+
+### Fix: onboarding 试用会员改为点击 CTA 后才激活
+
+- `src/features/onboarding/OnboardingFlow.tsx` 移除 `StepTrialIntro` 挂载即触发的 `callActivateTrialAPI()`，改为用户点击 `onboarding_trial_cta`（Start my experience / 开始体验 / 对应意语文案）后再调用
+- 增加点击防抖状态 `activating`，避免重复点击导致重复请求；接口失败时不阻塞引导流程，仍继续下一步
+
+Validation:
+
+- Not run (frontend interaction flow change)
+
+### Fix: 跨天自动日记空统计（活动/心情/待办）
+
+- `src/hooks/useMidnightAutoGenerate.ts` 在执行“昨日日报 + 植物 + Plus 日记”前新增 domain warmup：确保 chat/todo/mood/growth 至少完成首轮加载，减少“刚登录即补偿”读取到空内存态
+- 新增“稀疏 stats 自动修复”逻辑：若昨日报告 `stats` 近空且昨日存在消息，自动重算昨日报告后再继续 Plus 日记生成，避免出现“有 AI 日记但活动/心情/待办为空”
+
+Validation:
+
+- Not run (pending)
+
 ### Fix: iOS TestFlight 下聊天编辑弹窗“底部被截断”视觉问题
 
 - `src/features/chat/EditInsertModal.tsx` 将移动端弹窗卡片从 `rounded-t-3xl`（贴底 sheet 形态）调整为 `rounded-3xl`，并新增 `mb-[max(8px,env(safe-area-inset-bottom,0px))]` 底部留缝

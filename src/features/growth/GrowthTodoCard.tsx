@@ -10,7 +10,6 @@ import { SubTodoList } from './SubTodoList';
 // Re-export for consumers
 export type { GrowthTodo, GrowthPriority };
 
-const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const BLUE_SELECTED_STYLE = {
   background:
     'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
@@ -65,7 +64,7 @@ export const GrowthTodoCard = ({
   onTogglePin,
   onEditingChange,
 }: Props) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const bottles = useGrowthStore((s) => s.bottles.filter((b) => b.status === 'active'));
   const [expanded, setExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -101,9 +100,18 @@ export const GrowthTodoCard = ({
 
   const normalizedPriority = normalizePriority(todo.priority);
   const cfg = priorityConfig[normalizedPriority];
+  const weekdayLabels = [
+    t('weekday_short_sun'),
+    t('weekday_short_mon'),
+    t('weekday_short_tue'),
+    t('weekday_short_wed'),
+    t('weekday_short_thu'),
+    t('weekday_short_fri'),
+    t('weekday_short_sat'),
+  ];
 
   const dueStr = todo.dueAt
-    ? new Date(todo.dueAt).toLocaleString(undefined, {
+    ? new Date(todo.dueAt).toLocaleString(i18n.language, {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       })
     : null;
@@ -444,7 +452,7 @@ export const GrowthTodoCard = ({
             </div>
             {todo.recurrence === 'weekly' && (
               <div className="flex gap-1 mt-2">
-                {DAY_LABELS.map((label, i) => (
+                {weekdayLabels.map((label, i) => (
                   <button
                     key={i}
                     onClick={() => handleToggleDay(i)}

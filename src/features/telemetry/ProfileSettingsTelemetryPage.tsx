@@ -121,7 +121,7 @@ function RecentEvents({ items }: { items: ProfileSettingsTelemetryRecentEvent[] 
 
 export const ProfileSettingsTelemetryPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useState(14);
+  const [days, setDays] = useState(7);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<ProfileSettingsTelemetryDashboardResponse | null>(null);

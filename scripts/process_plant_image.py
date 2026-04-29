@@ -1,5 +1,5 @@
 """
-Plant image post-processor for Tshine.
+Plant image post-processor for Seeday.
 Usage:
     python scripts/process_plant_image.py <source_image> <root_type> <variant_index> <nameCN> <nameEN> <nameIT>
 
@@ -18,9 +18,12 @@ import sys
 import os
 from PIL import Image
 
+
 def main():
     if len(sys.argv) < 7:
-        print("Usage: python process_plant_image.py <source> <rootType> <variantIndex> <nameCN> <nameEN> <nameIT>")
+        print(
+            "Usage: python process_plant_image.py <source> <rootType> <variantIndex> <nameCN> <nameEN> <nameIT>"
+        )
         sys.exit(1)
 
     source = sys.argv[1]
@@ -47,8 +50,10 @@ def main():
         ratio = pw / ph
         distortion = abs(ratio - 1.0)
         if distortion > 0.1:
-            stretch = max(ratio, 1/ratio)
-            print(f"  [!] distortion warning: {pw}x{ph} (ratio {ratio:.2f}), resizing to {size}x{size} will stretch ~{(stretch-1)*100:.0f}%, consider regenerating")
+            stretch = max(ratio, 1 / ratio)
+            print(
+                f"  [!] distortion warning: {pw}x{ph} (ratio {ratio:.2f}), resizing to {size}x{size} will stretch ~{(stretch - 1) * 100:.0f}%, consider regenerating"
+            )
         else:
             print(f"  [ok] {pw}x{ph} (ratio {ratio:.2f}) -> no visible distortion")
         return panel.resize((size, size), Image.LANCZOS)

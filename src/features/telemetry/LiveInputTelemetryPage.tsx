@@ -43,6 +43,39 @@ function BreakdownSection(props: {
   );
 }
 
+function MetricCard(props: {
+  title: string;
+  value: string;
+  hint: string;
+}) {
+  const { title, value, hint } = props;
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="text-xs uppercase tracking-wide text-gray-400">{title}</div>
+      <div className="mt-2 text-3xl font-semibold text-gray-900">{value}</div>
+      <p className="mt-2 text-xs text-gray-500">{hint}</p>
+    </section>
+  );
+}
+
+function getReasonTagCount(items: LiveInputTelemetryBreakdownItem[], prefix: string): LiveInputTelemetryBreakdownItem[] {
+  const total = items
+    .filter((item) => item.key.startsWith(prefix))
+    .reduce((sum, item) => sum + item.count, 0);
+  if (total <= 0) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item.key.startsWith(prefix))
+    .map((item) => ({
+      key: item.key.slice(prefix.length),
+      count: item.count,
+      percent: item.count / total,
+    }))
+    .sort((left, right) => right.count - left.count);
+}
+
 function SeriesTable({ items }: { items: LiveInputTelemetrySeriesPoint[] }) {
   const { t } = useTranslation();
   return (
@@ -130,7 +163,7 @@ export const LiveInputTelemetryPage: React.FC = () => {
   const { t } = useTranslation();
   const { user, loading } = useAuthStore();
   const navigate = useNavigate();
-  const [days, setDays] = useState(14);
+  const [days, setDays] = useState(7);
   const [dashboard, setDashboard] = useState<LiveInputTelemetryDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +214,10 @@ export const LiveInputTelemetryPage: React.FC = () => {
   }
 
   const likelyAdmin = isTelemetryAdmin(user);
+  const userPlanBreakdown = dashboard ? getReasonTagCount(dashboard.topReasons, 'user_plan:') : [];
+  const classificationPathBreakdown = dashboard ? getReasonTagCount(dashboard.topReasons, 'classification_path:') : [];
+  const aiCalledBreakdown = dashboard ? getReasonTagCount(dashboard.topReasons, 'ai_called:') : [];
+  const bottleSourceBreakdown = dashboard ? getReasonTagCount(dashboard.topReasons, 'bottle_match_source:') : [];
 
   return (
     <TelemetryPageShell backTo="/telemetry">
@@ -235,32 +272,63 @@ export const LiveInputTelemetryPage: React.FC = () => {
 
         {!isLoading && !error && dashboard ? (
           <>
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_classifications')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.classificationCount}</div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_corrections')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.correctionCount}</div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_correction_rate')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{formatPercent(dashboard.summary.correctionRate)}</div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_unique_users')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.uniqueUsers}</div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_plant_assets')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">
-                  {dashboard.summary.plantAssetCount} / {formatPercent(dashboard.summary.plantExactHitRate)}
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_live_summary_diary_stickers')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{dashboard.summary.diaryStickerCount}</div>
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <MetricCard
+                title={t('telemetry_live_summary_classifications')}
+                value={String(dashboard.summary.classificationCount)}
+                hint={t('telemetry_live_hint_classifications')}
+              />
+              <MetricCard
+                title={t('telemetry_live_summary_corrections')}
+                value={String(dashboard.summary.correctionCount)}
+                hint={t('telemetry_live_hint_corrections')}
+              />
+              <MetricCard
+                title={t('telemetry_live_summary_correction_rate')}
+                value={formatPercent(dashboard.summary.correctionRate)}
+                hint={t('telemetry_live_hint_correction_rate')}
+              />
+              <MetricCard
+                title={t('telemetry_live_summary_unique_users')}
+                value={String(dashboard.summary.uniqueUsers)}
+                hint={t('telemetry_live_hint_unique_users')}
+              />
+              <MetricCard
+                title={t('telemetry_live_summary_plant_assets')}
+                value={`${dashboard.summary.plantAssetCount} / ${formatPercent(dashboard.summary.plantExactHitRate)}`}
+                hint={t('telemetry_live_hint_plant_assets')}
+              />
+              <MetricCard
+                title={t('telemetry_live_summary_diary_stickers')}
+                value={String(dashboard.summary.diaryStickerCount)}
+                hint={t('telemetry_live_hint_diary_stickers')}
+              />
+            </section>
+
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <h2 className="text-sm font-semibold text-gray-900">{t('telemetry_live_membership_title')}</h2>
+              <p className="mt-1 text-xs text-gray-500">{t('telemetry_live_membership_desc')}</p>
+              <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <BreakdownSection
+                  title={t('telemetry_live_membership_user_plan')}
+                  items={userPlanBreakdown}
+                  emptyLabel={t('telemetry_live_membership_empty')}
+                />
+                <BreakdownSection
+                  title={t('telemetry_live_membership_classification_path')}
+                  items={classificationPathBreakdown}
+                  emptyLabel={t('telemetry_live_membership_empty')}
+                />
+                <BreakdownSection
+                  title={t('telemetry_live_membership_ai_called')}
+                  items={aiCalledBreakdown}
+                  emptyLabel={t('telemetry_live_membership_empty')}
+                />
+                <BreakdownSection
+                  title={t('telemetry_live_membership_bottle_source')}
+                  items={bottleSourceBreakdown}
+                  emptyLabel={t('telemetry_live_membership_empty')}
+                />
               </div>
             </section>
 

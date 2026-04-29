@@ -1,0 +1,314 @@
+# Seeday 埋点全量盘点与看板映射（2026-04-29）
+
+作者：AI 审计助手  
+范围：`src/**`、`api/**`、`src/server/**`、`src/features/telemetry/**`  
+目标：给产品经理一份“埋点在哪里、统计什么、业务怎么用、看板哪里看、缺口怎么补”的可执行文档。
+
+---
+
+## 1. 执行摘要（先给 PM 看）
+
+1) 当前埋点主数据源有 4 类：
+- `live_input_events`：实时输入分类/纠错事件
+- `plant_asset_events`：植物素材兜底层级事件
+- `telemetry_events`：AI 批注、日记贴纸、待办拆解、根系方向等业务事件
+- `user_feedback`：用户反馈列表（不是事件流，但在看板展示）
+
+2) 看板入口完整，均在 Telemetry Hub：
+- `/telemetry/live-input`
+- `/telemetry/ai-annotation`
+- `/telemetry/todo-decompose`
+- `/telemetry/profile-settings`
+- `/telemetry/user-analytics`
+- `/telemetry/feedback`
+
+3) 主要缺口（本次重点）：
+- 会员分类路径埋点已上报，但仅“混在 live-input 的 topReasons 里”，缺少独立模块化展示（PM 难读）
+- 多个看板虽然有数字，但不是每个 KPI 都有“1-2 句决策注释”（特别是 live-input、user-analytics、feedback）
+- 存在本地内存态埋点 `liveInputTelemetry.ts`（仅会话内统计），未接入云端看板，容易造成“开发调试看得到、运营看不到”
+
+---
+
+## 2. 埋点总表（事件 -> 含义 -> 业务意义 -> 看板位置）
+
+## A. 实时输入与分类（`live_input_events`）
+
+### 事件：`classification`
+- 写入位置：
+  - `src/store/chatActions.ts` -> `emitLiveInputClassificationTelemetry(...)`
+  - `src/store/useChatStore.ts` -> `emitMembershipClassificationTelemetry(...)`（会员路径复用 classification 事件）
+- 核心字段：
+  - `kind`（activity/mood）
+  - `internalKind`（new_activity/activity_with_mood/standalone_mood/mood_about_last_activity）
+  - `confidence`（high/medium/low）
+  - `reasons[]`（包含规则原因码，会员路径会写 `user_plan:*` 等标签）
+  - `lang`、`input_length`、`message_id`
+- 统计含义：
+  - 分类总量 = classification 事件计数
+  - 内部类型分布 = `byInternalKind`
+  - 高频原因 = `topReasons`
+- 业务意义：
+  - 高分类量 + 低纠错率：自动识别可用，可扩大入口
+  - 某 `internalKind` 异常升高：说明输入模式偏移，可能误判策略需调
+- 看板位置：`/telemetry/live-input`
+
+### 事件：`correction`
+- 写入位置：`src/store/useChatStore.ts` -> `emitLiveInputCorrectionTelemetry(...)`
+- 核心字段：`from_kind`、`to_kind`、`lang`、`input_length`
+- 统计含义：
+  - 纠错总量 = correction 事件计数
+  - 纠错率 = `correctionCount / classificationCount`
+  - 纠错路径 = `activity->mood` 等路径分布
+- 业务意义：
+  - 纠错率高：当前分类可解释性或默认路由不符合用户直觉
+  - `activity->mood` 持续高：情绪句被错判为活动，需加强情绪词规则/模型提示
+- 看板位置：`/telemetry/live-input`
+
+### 会员分类路径（复用 `classification` 的 reasons 标签）
+- 写入位置：`src/store/useChatStore.ts` 中 `trackMembership(...)`
+- reasons 标签：
+  - `membership_classification`
+  - `user_plan:free|plus`
+  - `classification_path:local_rule|ai|ai_fallback_local`
+  - `ai_called:true|false`
+  - `ai_result_kind:activity|mood|unknown`
+  - `bottle_match_source:todo_link|keyword|ai|none`
+- 统计含义：会员分层下“走了哪条分类路径、AI 是否参与、最终匹配来源”
+- 业务意义：
+  - `classification_path=ai_fallback_local` 高：AI 可用性或稳定性存在问题
+  - `bottle_match_source=none` 高：星星归因不清晰，影响完成反馈
+- 当前看板位置：`/telemetry/live-input` -> `Top Reasons`（可见但不直观）
+- 缺口判定：**有埋点，缺专门展示分类（建议新增）**
+
+---
+
+## B. 植物素材兜底（`plant_asset_events`）
+
+### 事件：`plant_asset`
+- 写入位置：`src/features/report/plant/PlantImage.tsx` -> `callPlantAssetTelemetryAPI(...)`
+- 核心字段：`requestedPlantId`、`resolvedAssetUrl`、`fallbackLevel(1-4)`、`rootType`、`plantStage`、`lang`
+- 统计含义：
+  - 素材事件总量 = `plantAssetCount`
+  - 精确命中率 = `fallbackLevel=1` 占比（`plantExactHitRate`）
+  - 兜底层级分布 = L1/L2/L3/L4
+- 业务意义：
+  - L1 下降、L3/L4 上升：资源命名/映射质量下降，用户观感风险上升
+  - 某 `rootType + stage` 长期高兜底：应优先补素材或修映射规则
+- 看板位置：`/telemetry/live-input`（合并展示）
+
+---
+
+## C. AI 批注叙事事件（`telemetry_events`）
+
+### 事件集：
+- `density_scored`
+- `trigger_blocked`
+- `event_triggered`
+- `lateral_sampled`
+- `event_condensed`（用户接受触发型建议后凝结）
+
+- 写入位置：
+  - 服务端 `src/server/annotation-handler.ts` -> `reportNarrativeTelemetry(...)`
+  - 前端 `src/store/useAnnotationStore.ts` 在接受建议时补记 `event_condensed`
+- 核心字段：
+  - `currentScore`、`todayRichness`、`finalProbability`、`triggered`
+  - `characterId`、`associationType`
+  - `blockedReason`
+- 统计含义：
+  - 横向触发率 = `lateralTriggeredCount / lateralSampledCount`
+  - 平均叙事分、平均最终概率
+  - 分桶触发率（按叙事分 bucket）
+- 业务意义：
+  - 触发率过高：回复可能跑偏，用户可能觉得“AI 太跳”
+  - 触发率过低：回复可能太模板化，缺少惊喜
+  - `trigger_blocked` 某原因升高：可定向优化拦截策略
+- 看板位置：
+  - 主看：`/telemetry/ai-annotation`
+  - 兼看：`/telemetry/live-input` 最近事件里可见
+
+---
+
+## D. 待办拆解（`telemetry_events`）
+
+### 事件集：
+- `todo_decompose_requested`
+- `todo_decompose_regenerate_clicked`
+- `todo_decompose_succeeded`
+- `todo_decompose_empty`
+- `todo_decompose_parse_failed`
+- `todo_decompose_failed`
+
+- 写入位置：`src/features/growth/SubTodoList.tsx` -> `reportTelemetryEvent(...)`
+- 核心字段：`todoId`、`requestId`、`lang`、`isRegenerate`、`model`、`provider`、`stepsCount`
+- 统计含义（代码口径）：
+  - 空结果率 = `emptyCount / succeededCount`
+  - 解析失败率 = `parseFailedCount / requestedCount`
+  - 请求失败率 = `failedCount / requestedCount`
+  - 重拆率 = `regenerateCount / uniqueTodosDecomposed`
+  - 平均步骤数 = `stepsTotal / succeededCount`
+- 业务意义：
+  - 空结果率高：提示词约束太严或模型理解弱
+  - 重拆率高：第一次拆解不够可执行/不符合心理模型
+- 看板位置：`/telemetry/todo-decompose`
+
+---
+
+## E. Profile 根系方向设置（`telemetry_events`）
+
+### 事件集：
+- `root_direction_opened`
+- `root_direction_changed`
+- `root_direction_reset`
+- `root_direction_saved`
+- `root_direction_save_failed`
+
+- 写入位置：
+  - `src/features/profile/components/SettingsList.tsx`
+  - `src/features/profile/components/DirectionSettingsPanel.tsx`
+- 核心字段：`slotIndex`、`from`、`to`、`order[]`
+- 统计含义：
+  - 保存成功率 = `saved / (saved + save_failed)`
+  - 人均改动深度 = `changed / saved`
+  - 槽位与排序分布
+- 业务意义：
+  - 打开高保存低：入口有吸引力，但交互/理解成本高
+  - `save_failed` 高：优先排查网络与写回稳定性
+- 看板位置：`/telemetry/profile-settings`
+
+---
+
+## F. 用户增长分析（聚合指标看板）
+
+### 指标来源（非单一事件）
+- 数据表：`auth.users`、`messages`、`focus_sessions`、`user_stats`
+- 服务端：`src/server/user-analytics-handler.ts`
+
+### 核心指标
+- 总用户、总付费、转化率
+- 今日活跃、今日新增、新增付费
+- 每日序列（newUsers/DAU/newPremium/activePremium）
+- D7 留存（cohort）
+- 用户查询（按 email/id 诊断）
+
+### 业务意义
+- 转化率高低用于评估会员产品与价格策略
+- D7 留存高低用于评估“首周体验”与核心价值达成
+- 新增高但 DAU 低：拉新质量问题或激活链路断点
+
+### 看板位置
+- `/telemetry/user-analytics`
+
+---
+
+## G. 用户反馈（`user_feedback`）
+
+### 数据来源
+- `src/features/telemetry/FeedbackTelemetryPage.tsx` 直接读 `user_feedback` 表
+
+### 统计项
+- 总反馈量
+- 各 issue_type 分布
+- 最近反馈列表详情
+
+### 业务意义
+- 某 issue_type 占比突增：可以直接指导迭代优先级
+- 订阅/账号类反馈上升：优先排查交易和鉴权链路
+
+### 看板位置
+- `/telemetry/feedback`
+
+---
+
+## 3. “高/低代表什么 + PM 怎么决策”速查（1-2 句版）
+
+### 实时输入
+- 纠错率高：分类策略与用户心智不一致；先看纠错路径再定向优化词典/prompt。
+- 分类量低：入口触达不足或自动识别触发弱；优先做入口曝光与触发条件放宽实验。
+
+### 植物素材
+- L1 命中率低：素材映射/资源缺口导致体验退化；优先补高频 rootType-stage 组合资源。
+- L4 占比高：兜底过深，用户感知“重复图/错图”；需增加中间层候选或改命名规范。
+
+### AI 批注
+- lateral trigger rate > 65%：可能“过于跳跃”；下调基础概率或降低概率增量。
+- lateral trigger rate < 35%：可能“过于平”；上调概率或扩充可触发事件库。
+
+### 待办拆解
+- parse failure rate 高：模型输出协议不稳定；优先增强格式约束与解析容错。
+- regenerate rate 高：首拆可执行性差；优化步骤粒度、时长建议与语义清晰度。
+
+### 根系方向设置
+- opened 高、saved 低：功能被发现但流程不顺；优先做交互减负和即时反馈。
+- save_failed 高：先修稳定性再谈体验优化。
+
+### 用户分析
+- 转化率低：先看新增付费/活跃付费是否同步走低，再判断是定价问题还是价值传达问题。
+- D7 留存低：优先优化 onboarding 首周关键行为（记录、成长反馈、提醒闭环）。
+
+### 用户反馈
+- Bug 占比高：需把当前 sprint 资源向质量修复倾斜。
+- Feature 占比高：说明需求外溢明显，可做 MVP 快速验证。
+
+---
+
+## 4. 缺口清单（有埋点但看板可读性不足 / 未独立展示）
+
+## Gap-1（高优先）
+- 现状：会员分类路径埋点（`membership_classification` + `user_plan:*` + `classification_path:*`）已存在，但在 `/telemetry/live-input` 仅以 `Top Reasons` 混合展示。
+- 问题：PM 不能快速读出 Free/Plus 差异、AI 调用占比、fallback 占比。
+- 建议：在 Live Input 看板新增“会员分类路径”分区（不新建 API）。
+  - 分类 A：`user_plan` 分布
+  - 分类 B：`classification_path` 分布
+  - 分类 C：`ai_called` 占比
+  - 分类 D：`bottle_match_source` 分布
+
+## Gap-2（中优先）
+- 现状：`liveInputTelemetry.ts` 为本地内存快照（开发态可看），未上看板。
+- 建议：保留为调试工具即可；若运营也要看，新增“埋点健康（客户端）”分类，展示客户端发送成功率/失败率（建议采样）。
+
+## Gap-3（中优先）
+- 现状：部分看板缺少逐指标“1-2 句决策注释”（尤其 user-analytics、feedback、live-input 概览卡）。
+- 建议：每个 KPI 卡下统一增加小字：
+  - 公式（分子/分母）
+  - 高低解释
+  - 建议动作（1 句）
+
+---
+
+## 5. 看板注释补齐模板（可直接给设计/前端）
+
+适用于每个指标卡：
+- 含义：`这个值统计了什么`。
+- 口径：`公式 = 分子 / 分母`（如有）。
+- 决策：`高了说明...；低了说明...；建议先看...再做...`。
+
+示例（纠错率）：
+- 含义：用户把系统分类改掉的比例。
+- 口径：`correctionCount / classificationCount`。
+- 决策：高了说明分类与用户心智不一致，先看高频纠错路径并修规则；低了说明分类稳定，可扩大自动识别覆盖。
+
+---
+
+## 6. 实施规划（不新增函数文件，沿用现有接口）
+
+### 阶段 1：只改展示，不改采集（1~2 天）
+1. 在 `/telemetry/live-input` 新增“会员分类路径”区块（从 `topReasons` 解析标签聚合）
+2. 给 live-input、user-analytics、feedback 补齐 KPI 小字注释
+3. 校对中英意三语文案 key
+
+### 阶段 2：埋点健康增强（可选，1~2 天）
+1. 增加客户端上报失败计数（采样）
+2. 在看板新增“埋点投递成功率”
+
+---
+
+## 7. 盘点结论
+
+- 当前埋点链路整体是“有采集、有聚合、有看板”的成熟状态，核心业务闭环（输入 -> 解析 -> 建议 -> 行为）可追。
+- 最值得立刻优化的是“会员分类路径可读性”和“每个 KPI 的 PM 注释标准化”。
+- 完成这两项后，产品经理可直接把看板用于：
+  - 分类策略调优优先级排序
+  - 会员能力价值验证（Free/Plus 差异）
+  - 待办拆解模型优化与回归判定
+  - Profile 功能可用性评估
+  - 用户增长与留存诊断

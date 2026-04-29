@@ -23,7 +23,7 @@ const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549
 const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
 const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
 const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
-const CUSTOM_MOOD_LABEL = '自定义';
+const CUSTOM_MOOD_LABELS = new Set(['自定义', 'Custom', 'Personalizzato']);
 
 /* ────────────────────────── tuning constants ────────────────────────── */
 const BASE_PAGE_W = 180;
@@ -92,7 +92,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
         {/* Text */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
           <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{tr('report_view_diary_book')}</div>
-          <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Diary</div>
+          <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>{tr('diary_cover_subtitle')}</div>
         </div>
       </div>
     );
@@ -150,8 +150,9 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
     const baseMood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
     const customLabel = customMoodLabel[msg.id];
     const useCustom = customMoodApplied[msg.id] === true;
-    const mood = useCustom && customLabel && customLabel.trim() && customLabel.trim() !== CUSTOM_MOOD_LABEL
-      ? customLabel.trim()
+    const normalizedCustomLabel = customLabel?.trim() ?? '';
+    const mood = useCustom && normalizedCustomLabel && !CUSTOM_MOOD_LABELS.has(normalizedCustomLabel)
+      ? normalizedCustomLabel
       : baseMood;
     if (mood && msg.duration && msg.duration > 0) {
       const key = normalizeMoodKey(mood) || mood;
@@ -250,7 +251,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
     const activitySummary = report?.stats?.actionSummary?.trim() || copy.activityFallback;
     const moodSummary = report?.stats?.moodSummary?.trim() || copy.moodFallback;
     const todoSummary = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : copy.todoFallback;
-    const habitSummary = starsToday > 0 ? `${starsToday} stars` : copy.habitsFallback;
+    const habitSummary = starsToday > 0 ? tr('diary_star_count', { count: starsToday }) : copy.habitsFallback;
 
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
@@ -527,7 +528,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           const pageDate = p.date;
           if (!pageDate) return;
           const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-          if (pageDate.getTime() >= todayStart.getTime()) return; // today or future — blank, not clickable
+          if (pageDate.getTime() > todayStart.getTime()) return; // future dates are not clickable
           if (onOpenDiaryPage) {
             onOpenDiaryPage(pageDate, side === 'left' ? 0 : 1, flippedCount);
           } else {

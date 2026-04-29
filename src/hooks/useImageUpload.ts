@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 
-const BUCKET = 'timeshine-images';
+const BUCKET = 'seeday-images';
 /** Maximum dimension (px) before downscaling */
 const MAX_DIM = 1200;
 /** JPEG quality for storage upload (0–1) */

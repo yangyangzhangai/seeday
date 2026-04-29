@@ -22,7 +22,7 @@ interface MoodSnapshot {
   customMoodApplied?: Record<string, boolean | undefined>;
 }
 
-const CUSTOM_MOOD_LABEL = '自定义';
+const CUSTOM_MOOD_LABELS = new Set(['自定义', 'Custom', 'Personalizzato']);
 
 export function getReportRange(report: Report): { start: number; end: number } {
   return {
@@ -67,8 +67,9 @@ export function getDailyMoodDistribution(
       const baseMood = moodSnapshot.activityMood[m.id];
       const customLabel = moodSnapshot.customMoodLabel[m.id];
       const useCustom = moodSnapshot.customMoodApplied?.[m.id] === true;
-      const mood = useCustom && customLabel && customLabel.trim() && customLabel.trim() !== CUSTOM_MOOD_LABEL
-        ? customLabel.trim()
+      const normalizedCustomLabel = customLabel?.trim() ?? '';
+      const mood = useCustom && normalizedCustomLabel && !CUSTOM_MOOD_LABELS.has(normalizedCustomLabel)
+        ? normalizedCustomLabel
         : baseMood;
       if (!mood) return;
       const minutes = m.duration || 0;

@@ -173,8 +173,9 @@ export const ChatPage = () => {
 
   const { t, i18n } = useTranslation();
   const customLabelDefault = t('chat_custom_label_default');
+  const legacyCustomLabels = ['自定义', 'Custom', 'Personalizzato'];
   const isDefaultCustomLabel = (label: string) =>
-    !label || label === customLabelDefault || label === '自定义';
+    !label || label === customLabelDefault || legacyCustomLabels.includes(label);
 
   const {
     setMood, customMoodLabel, setCustomMoodLabel,

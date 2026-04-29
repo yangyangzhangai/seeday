@@ -168,6 +168,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const linkedMoodInPreview = !!linkedMoodDescription && !detachedMoodInPreview;
   const mustRestoreBeforeNext = convertedToMoodCard || previewMoodConvertedToEvent;
   const customLabelDefault = t('chat_custom_label_default');
+  const legacyCustomLabels = ['自定义', 'Custom', 'Personalizzato'];
   const moodPickerReadonly = false;
   const onboardingMoodRawLabel = activityMessage
     ? ((customMoodApplied[activityMessage.id] && customMoodLabel[activityMessage.id])
@@ -183,7 +184,7 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
   const onboardingMoodTagBg = withHexAlpha(onboardingMoodTagColor, 0.2);
   const onboardingMoodTagLabel = getMoodDisplayLabel(onboardingMoodRawLabel || onboardingMoodFallback, t) || t('mood_calm');
   const isDefaultCustomLabel = (label: string) =>
-    !label || label === customLabelDefault || label === '自定义';
+    !label || label === customLabelDefault || legacyCustomLabels.includes(label);
 
   useEffect(() => {
     if (!activityMessageId) return;

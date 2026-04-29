@@ -21,10 +21,9 @@ const openai = new OpenAI();
  * }
  */
 
-function buildDiaryModePrompt(lang: string, addressee: string, aiMode?: string): string {
+function buildDiaryModePrompt(lang: string, aiMode?: string): string {
   const normalizedLang = normalizeAiCompanionLang(lang);
-  const modePrompt = buildAiCompanionModePrompt(normalizedLang, normalizeAiCompanionMode(aiMode), 'diary');
-  return modePrompt.replace(/__ADDRESSEE__/g, addressee);
+  return buildAiCompanionModePrompt(normalizedLang, normalizeAiCompanionMode(aiMode), 'diary');
 }
 
 const FALLBACK_ADDRESSEE: Record<'zh' | 'en' | 'it', string> = {
@@ -52,6 +51,12 @@ const SIGNOFF_FALLBACKS: Record<'zh' | 'en' | 'it', Record<'van' | 'agnes' | 'ze
     zep: '- Il tuo pellicano Zep',
     momo: '- Il tuo piccolo fungo Momo',
   },
+};
+
+const DIARY_ERROR_MESSAGE: Record<'zh' | 'en' | 'it', string> = {
+  zh: '生成 AI 日记时出错，请稍后再试。',
+  en: 'Failed to generate AI diary. Please try again later.',
+  it: 'Errore nella generazione del diario AI. Riprova piu tardi.',
 };
 
 function resolveDiaryAddressee(lang: 'zh' | 'en' | 'it', userName: unknown): string {
@@ -160,20 +165,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       todo: 'todo completion and pacing',
       habit: 'habit and goal completion',
     };
+    const itTopicMap: Record<string, string> = {
+      activity: 'distribuzione delle attivita',
+      mood: 'distribuzione dell umore',
+      todo: 'completamento dei todo e ritmo',
+      habit: 'completamento di abitudini e obiettivi',
+    };
     const topicZh = zhTopicMap[kind] || '今日数据';
     const topicEn = enTopicMap[kind] || 'today data';
+    const topicIt = itTopicMap[kind] || 'dati di oggi';
     const behaviorRule = kind === 'todo'
       ? (normalizedLang === 'zh'
         ? '需覆盖完成内容、完成度和时间安排是否合理。'
-        : 'Cover completion content, completion rate, and whether time planning looks reasonable.')
+        : normalizedLang === 'it'
+          ? 'Devi coprire contenuto completato, tasso di completamento e se la pianificazione del tempo e ragionevole.'
+          : 'Cover completion content, completion rate, and whether time planning looks reasonable.')
       : kind === 'habit'
         ? (normalizedLang === 'zh'
           ? '需概括习惯/目标整体完成度并给出一个微建议。'
-          : 'Summarize overall habit/goal completion and give one tiny suggestion.')
-        : (normalizedLang === 'zh' ? '给出一句具体洞察。' : 'Give one specific insight.');
+          : normalizedLang === 'it'
+            ? 'Riassumi il completamento complessivo di abitudini/obiettivi e dai un micro consiglio.'
+            : 'Summarize overall habit/goal completion and give one tiny suggestion.')
+        : (normalizedLang === 'zh' ? '给出一句具体洞察。' : normalizedLang === 'it' ? 'Dai un osservazione concreta.' : 'Give one specific insight.');
     const systemMsg = normalizedLang === 'zh'
       ? `${modePrompt}\n\n你是一位简洁的生活教练。根据用户提供的${topicZh}数据，输出一句不超过20个中文字的洞察。${behaviorRule}只输出这句话，不加任何多余内容。`
-      : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one short insight sentence (about 20 words max). ${behaviorRule} Output only that sentence.`;
+      : normalizedLang === 'it'
+        ? `${modePrompt}\n\nSei un life coach sintetico. In base alla ${topicIt} dell'utente, scrivi una sola frase di insight (circa massimo 20 parole). ${behaviorRule} Restituisci solo quella frase.`
+        : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one short insight sentence (about 20 words max). ${behaviorRule} Output only that sentence.`;
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -226,10 +244,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const addressee = resolveDiaryAddressee(normalizedLang, userName);
   const addresseeUserRule = buildDiaryAddresseeUserRule(normalizedLang, addressee);
-  userContent += `\n\n[Addressee rule]\n${addresseeUserRule}`;
+  userContent += `\n\n[Addressee rule - highest priority]\n${addresseeUserRule}`;
 
-  // 用户称呼规则通过 system prompt 占位符与 user prompt 显式规则双重注入。
-  const finalSystemPrompt = buildDiaryModePrompt(normalizedLang, addressee, normalizedMode);
+  // 称呼规则仅通过 user prompt 注入，避免在 system prompt 中出现称呼占位符。
+  const finalSystemPrompt = buildDiaryModePrompt(normalizedLang, normalizedMode);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -265,6 +283,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Diary API error:', error);
-    jsonError(res, 500, '生成 AI 日记时出错，请稍后再试。', undefined, error instanceof Error ? error.message : 'Unknown error');
+    jsonError(
+      res,
+      500,
+      DIARY_ERROR_MESSAGE[normalizedLang],
+      undefined,
+      error instanceof Error ? error.message : 'Unknown error',
+    );
   }
 }

@@ -28,7 +28,10 @@ def load_samples(path: Path) -> list[dict[str, Any]]:
     if not rows:
         return []
 
-    header = [str(cell).lower().replace(" ", "_") if cell is not None else "" for cell in rows[0]]
+    header = [
+        str(cell).lower().replace(" ", "_") if cell is not None else ""
+        for cell in rows[0]
+    ]
     samples: list[dict[str, Any]] = []
     for row in rows[1:]:
         if not any(cell is not None for cell in row):
@@ -49,8 +52,7 @@ def main() -> None:
     parser.add_argument(
         "--gold-path",
         default=str(
-            Path(__file__).resolve().parent.parent.parent
-            / "timeshine_gold_samples.xlsx"
+            Path(__file__).resolve().parent.parent.parent / "seeday_gold_samples.xlsx"
         ),
         help="Path to xlsx sample file",
     )

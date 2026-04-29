@@ -40,6 +40,21 @@ function BreakdownSection(props: {
   );
 }
 
+function MetricCard(props: {
+  title: string;
+  value: string;
+  hint: string;
+}) {
+  const { title, value, hint } = props;
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-gray-400">{title}</div>
+      <div className="mt-2 text-3xl font-semibold text-gray-900">{value}</div>
+      <p className="mt-2 text-xs text-gray-500">{hint}</p>
+    </section>
+  );
+}
+
 function BucketTable({ items }: { items: AnnotationScoreBucketItem[] }) {
   const { t } = useTranslation();
   if (items.length === 0) {
@@ -74,7 +89,7 @@ function BucketTable({ items }: { items: AnnotationScoreBucketItem[] }) {
 
 export const AiAnnotationTelemetryPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useState(14);
+  const [days, setDays] = useState(7);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<LiveInputTelemetryDashboardResponse | null>(null);
@@ -156,26 +171,31 @@ export const AiAnnotationTelemetryPage: React.FC = () => {
         {!isLoading && !error && summary ? (
           <>
             <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_trigger_rate')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{formatPercent(summary.lateralTriggerRate)}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_samples')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.lateralSampledCount}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_event_triggered')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.eventTriggeredCount}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_avg_score')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{summary.avgNarrativeScore.toFixed(3)}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-400">{t('telemetry_ai_summary_avg_probability')}</div>
-                <div className="mt-2 text-3xl font-semibold text-gray-900">{formatPercent(summary.avgFinalProbability)}</div>
-              </div>
+              <MetricCard
+                title={t('telemetry_ai_summary_trigger_rate')}
+                value={formatPercent(summary.lateralTriggerRate)}
+                hint={t('telemetry_ai_hint_trigger_rate')}
+              />
+              <MetricCard
+                title={t('telemetry_ai_summary_samples')}
+                value={String(summary.lateralSampledCount)}
+                hint={t('telemetry_ai_hint_samples')}
+              />
+              <MetricCard
+                title={t('telemetry_ai_summary_event_triggered')}
+                value={String(summary.eventTriggeredCount)}
+                hint={t('telemetry_ai_hint_event_triggered')}
+              />
+              <MetricCard
+                title={t('telemetry_ai_summary_avg_score')}
+                value={summary.avgNarrativeScore.toFixed(3)}
+                hint={t('telemetry_ai_hint_avg_score')}
+              />
+              <MetricCard
+                title={t('telemetry_ai_summary_avg_probability')}
+                value={formatPercent(summary.avgFinalProbability)}
+                hint={t('telemetry_ai_hint_avg_probability')}
+              />
             </section>
 
             <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">

@@ -49,7 +49,7 @@ export const QuickActivityPicker: React.FC = () => {
   };
 
   const activityLabel = pickerContext?.activityType
-    ? `你结束${pickerContext.activityType}了，`
+    ? t('quick_activity_prefix_ended', { activity: pickerContext.activityType })
     : '';
 
   return (

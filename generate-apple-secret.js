@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 
 const DEFAULTS = {
   teamId: '89VL28S48Y',
-  clientId: 'com.tshine.app.auth',
+  clientId: 'com.seeday.app.auth',
   keyId: 'Q46FCT9Y3J',
   keyPath: 'C:/Users/yangy/Downloads/AuthKey_Q46FCT9Y3J.p8',
   lifetimeSeconds: 15777000

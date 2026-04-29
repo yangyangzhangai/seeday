@@ -48,6 +48,12 @@ const SURFACE_TITLES: Record<AiCompanionLang, Record<AiCompanionSurface, string>
   it: { annotation: "Priorita dell'annotazione:", diary: 'Priorita del diario:', plant_diary: 'Priorita del diario della pianta:' },
 };
 
+const OUTPUT_LANGUAGE_RULE: Record<AiCompanionLang, string> = {
+  zh: '必须使用中文输出。',
+  en: 'You must output in English.',
+  it: 'Devi rispondere in italiano.',
+};
+
 const MODE_COPY: Record<AiCompanionLang, Record<AiCompanionMode, AiCompanionModeCopy>> = {
   zh: {
     van: {
@@ -453,9 +459,10 @@ export function buildAiCompanionModePrompt(
 
   const copy = MODE_COPY[normalizedLang][normalizedMode];
   const directSurfacePrompt = copy.surfacePrompts?.[surface];
+  const languageRule = OUTPUT_LANGUAGE_RULE[normalizedLang];
 
   if (directSurfacePrompt) {
-    return directSurfacePrompt;
+    return `${directSurfacePrompt}\n${languageRule}`;
   }
 
   return [
@@ -466,5 +473,6 @@ export function buildAiCompanionModePrompt(
     ...copy.rules.map((rule) => `- ${rule}`),
     SURFACE_TITLES[normalizedLang][surface],
     ...copy.surfaceGuidance[surface].map((rule) => `- ${rule}`),
+    languageRule,
   ].join('\n');
 }

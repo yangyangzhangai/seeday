@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
+import { it as itLocale } from 'date-fns/locale';
 import { supabase } from '../api/supabase';
 import { callDiaryAPI, callExtractProfileAPI, callReportAPI, type ExtractProfileRequestMessage } from '../api/client';
 import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
@@ -335,11 +336,12 @@ export async function runAIDiary({
 
   const currentLang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
   const isZh = currentLang === 'zh';
+  const isIt = currentLang === 'it';
 
   if (mode === 'teaser') {
     const teaserResult = await callDiaryAPI({
       mode: 'teaser',
-      structuredData: buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh),
+      structuredData: buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, currentLang),
       rawInput: activities.map((item) => item.content).join('\n').slice(0, 800),
       lang: currentLang,
     });
@@ -353,7 +355,15 @@ export async function runAIDiary({
 
   const reportDateStr = format(start, 'yyyy-MM-dd');
   const effectiveDailyGoal = goalDate === reportDateStr && dailyGoal?.trim() ? dailyGoal.trim() : undefined;
-  const rawInput = buildRawInput(activities, moodMessages, moodStore.moodNote, moodStore, dailyTodoStats, isZh, effectiveDailyGoal);
+  const rawInput = buildRawInput(
+    activities,
+    moodMessages,
+    moodStore.moodNote,
+    moodStore,
+    dailyTodoStats,
+    currentLang,
+    effectiveDailyGoal,
+  );
 
   import.meta.env.DEV && console.log('[Diary] Step 1: 从消息直接构建结构化数据...');
   const classifiedData = buildClassifiedData(activities, dailyTodoStats);
@@ -364,12 +374,16 @@ export async function runAIDiary({
   const structuredData = formatForDiaryAI(computed, currentLang);
 
   const reportNumber = computedHistory.length + 1;
-  const metaTitle = isZh ? `手记编号：第 ${reportNumber} 号\n\n` : `Report No. ${reportNumber}\n\n`;
+  const metaTitle = isZh
+    ? `手记编号：第 ${reportNumber} 号\n\n`
+    : isIt
+      ? `Diario n. ${reportNumber}\n\n`
+      : `Report No. ${reportNumber}\n\n`;
   const structuredDataWithMeta = metaTitle + structuredData;
 
   let historyContext: string | undefined;
   if (computedHistory.length > 0) {
-    historyContext = buildHistoryContext(computedHistory, isZh);
+    historyContext = buildHistoryContext(computedHistory, currentLang);
   }
 
   import.meta.env.DEV && console.log('[Diary] Step 3: 生成 AI 日记...');
@@ -378,7 +392,9 @@ export async function runAIDiary({
 
   const dateStr = isZh
     ? format(start, 'yyyy年MM月dd日 EEEE', { locale: zhCN })
-    : format(start, 'yyyy-MM-dd EEEE');
+    : isIt
+      ? format(start, 'yyyy-MM-dd EEEE', { locale: itLocale })
+      : format(start, 'yyyy-MM-dd EEEE');
 
   const diaryResult = await callDiaryAPI({
     structuredData: structuredDataWithMeta,
@@ -400,8 +416,10 @@ export async function runAIDiary({
 }
 
 type MoodSnapshot = Pick<MoodStoreSnapshot, 'activityMood' | 'customMoodLabel' | 'customMoodApplied'>;
+type SupportedLang = 'zh' | 'en' | 'it';
 
-function resolveMoodLabel(messageId: string, snapshot: MoodSnapshot, isZh: boolean): string | undefined {
+function resolveMoodLabel(messageId: string, snapshot: MoodSnapshot, lang: SupportedLang): string | undefined {
+  const isZh = lang === 'zh';
   const custom = snapshot.customMoodLabel[messageId];
   const useCustom = snapshot.customMoodApplied?.[messageId] === true;
   if (useCustom && custom && custom.trim() && custom.trim() !== '自定义') return custom.trim();
@@ -409,8 +427,26 @@ function resolveMoodLabel(messageId: string, snapshot: MoodSnapshot, isZh: boole
   const base = snapshot.activityMood[messageId];
   if (!base) return undefined;
   const key = normalizeMoodKey(base);
-  if (key) return isZh ? moodKeyToLegacyLabel(key) : key;
+  if (key) {
+    if (lang === 'zh') return moodKeyToLegacyLabel(key);
+    if (lang === 'it') return moodKeyToItalianLabel(key);
+    return key;
+  }
   return base;
+}
+
+function moodKeyToItalianLabel(key: string): string {
+  const moodMap: Record<string, string> = {
+    happy: 'felice',
+    calm: 'calmo',
+    focused: 'concentrato',
+    satisfied: 'soddisfatto',
+    tired: 'stanco',
+    anxious: 'ansioso',
+    bored: 'annoiato',
+    down: 'giu di morale',
+  };
+  return moodMap[key] || key;
 }
 
 function buildRawInput(
@@ -419,34 +455,42 @@ function buildRawInput(
   moodNotes: Record<string, string>,
   moodSnapshot: MoodSnapshot,
   todoStats: DailyTodoStats,
-  isZh: boolean,
+  lang: SupportedLang,
   dailyGoal?: string,
 ): string {
+  const isZh = lang === 'zh';
+  const isIt = lang === 'it';
   const lines: string[] = [];
 
   if (dailyGoal) {
-    lines.push(isZh ? `今日目标：${dailyGoal}` : `Today's Goal: ${dailyGoal}`);
+    lines.push(isZh ? `今日目标：${dailyGoal}` : isIt ? `Obiettivo di oggi: ${dailyGoal}` : `Today's Goal: ${dailyGoal}`);
     lines.push('');
   }
 
-  lines.push(isZh ? '今天的时间记录：' : "Today's Time Log:");
+  lines.push(isZh ? '今天的时间记录：' : isIt ? 'Registro del tempo di oggi:' : "Today's Time Log:");
 
   activities.forEach((message) => {
     const timeStr = format(message.timestamp, 'HH:mm');
-    const durationStr = message.duration ? (isZh ? ` (${message.duration}分钟)` : ` (${message.duration}min)`) : '';
-    const moodLabel = resolveMoodLabel(message.id, moodSnapshot, isZh);
-    const moodSuffix = moodLabel ? (isZh ? ` [心情：${moodLabel}]` : ` [mood: ${moodLabel}]`) : '';
+    const durationStr = message.duration
+      ? (isZh ? ` (${message.duration}分钟)` : isIt ? ` (${message.duration} min)` : ` (${message.duration}min)`)
+      : '';
+    const moodLabel = resolveMoodLabel(message.id, moodSnapshot, lang);
+    const moodSuffix = moodLabel
+      ? (isZh ? ` [心情：${moodLabel}]` : isIt ? ` [umore: ${moodLabel}]` : ` [mood: ${moodLabel}]`)
+      : '';
     lines.push(`- ${timeStr} ${message.content}${durationStr}${moodSuffix}`);
     const note = moodNotes[message.id];
-    if (note && note.trim()) lines.push(isZh ? `  心情备注：${note.trim()}` : `  mood note: ${note.trim()}`);
+    if (note && note.trim()) {
+      lines.push(isZh ? `  心情备注：${note.trim()}` : isIt ? `  nota umore: ${note.trim()}` : `  mood note: ${note.trim()}`);
+    }
   });
 
   if (moodMessages.length > 0) {
     lines.push('');
-    lines.push(isZh ? '心情与能量状态记录：' : 'Mood and Energy Log:');
+    lines.push(isZh ? '心情与能量状态记录：' : isIt ? 'Registro di umore ed energia:' : 'Mood and Energy Log:');
     moodMessages.forEach((message) => {
       const timeStr = format(message.timestamp, 'HH:mm');
-      lines.push(`- ${timeStr} [${isZh ? '状态/心情' : 'Mood/Energy'}] ${message.content}`);
+      lines.push(`- ${timeStr} [${isZh ? '状态/心情' : isIt ? 'Stato/Umore' : 'Mood/Energy'}] ${message.content}`);
     });
   }
 
@@ -454,21 +498,29 @@ function buildRawInput(
 
   if (habitCheckin.length > 0) {
     lines.push('');
-    lines.push(isZh ? '习惯打卡：' : 'Habit Check-in:');
+    lines.push(isZh ? '习惯打卡：' : isIt ? 'Check-in abitudini:' : 'Habit Check-in:');
     habitCheckin.forEach((h) => {
-      const status = h.done ? (isZh ? '✓ 完成' : '✓ done') : (isZh ? '✗ 未完成' : '✗ not done');
+      const status = h.done
+        ? (isZh ? '✓ 完成' : isIt ? '✓ completato' : '✓ done')
+        : (isZh ? '✗ 未完成' : isIt ? '✗ non completato' : '✗ not done');
       lines.push(`- ${h.name}：${status}`);
     });
   }
 
   if (goalProgress.length > 0) {
     lines.push('');
-    lines.push(isZh ? '目标进展：' : 'Goal Progress:');
+    lines.push(isZh ? '目标进展：' : isIt ? 'Progresso obiettivi:' : 'Goal Progress:');
     goalProgress.forEach((g) => {
-      const progress = g.doneToday ? (isZh ? '今日有进展' : 'progressed today') : (isZh ? '今日无进展' : 'no progress');
-      lines.push(isZh
-        ? `- ${g.bottleName}：${progress}（${g.currentStars}/21颗星）`
-        : `- ${g.bottleName}: ${progress} (${g.currentStars}/21 stars)`);
+      const progress = g.doneToday
+        ? (isZh ? '今日有进展' : isIt ? 'progressi oggi' : 'progressed today')
+        : (isZh ? '今日无进展' : isIt ? 'nessun progresso oggi' : 'no progress');
+      lines.push(
+        isZh
+          ? `- ${g.bottleName}：${progress}（${g.currentStars}/21颗星）`
+          : isIt
+            ? `- ${g.bottleName}: ${progress} (${g.currentStars}/21 stelle)`
+            : `- ${g.bottleName}: ${progress} (${g.currentStars}/21 stars)`,
+      );
     });
   }
 
@@ -484,23 +536,33 @@ function buildRawInput(
   lines.push('');
   lines.push(isZh
     ? `待办总览：完成 ${totalCompleted} 件，共 ${totalTasks} 件`
-    : `Todos: ${totalCompleted}/${totalTasks} completed`
+    : isIt
+      ? `Panoramica todo: ${totalCompleted}/${totalTasks} completati`
+      : `Todos: ${totalCompleted}/${totalTasks} completed`
   );
 
   if (oneTimeTasks.completedTitles.length > 0) {
     lines.push(isZh
       ? `完成事项：${oneTimeTasks.completedTitles.join('、')}`
-      : `Completed: ${oneTimeTasks.completedTitles.join(', ')}`
+      : isIt
+        ? `Completati: ${oneTimeTasks.completedTitles.join(', ')}`
+        : `Completed: ${oneTimeTasks.completedTitles.join(', ')}`
     );
   }
 
   return lines.join('\n');
 }
 
-function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
+function buildHistoryContext(history: ComputedResult[], lang: SupportedLang): string {
+  const isZh = lang === 'zh';
+  const isIt = lang === 'it';
   const recent = history.slice(-3);
   const contextLines: string[] = [
-    isZh ? `过去${recent.length}天观察摘要：` : `Past ${recent.length} days summary:`,
+    isZh
+      ? `过去${recent.length}天观察摘要：`
+      : isIt
+        ? `Riepilogo degli ultimi ${recent.length} giorni:`
+        : `Past ${recent.length} days summary:`,
   ];
 
   recent.forEach((item, index) => {
@@ -515,8 +577,12 @@ function buildHistoryContext(history: ComputedResult[], isZh: boolean): string {
       ? (isZh ? `${todoCompleted}/${todoTotal} 项完成` : `${todoCompleted}/${todoTotal} done`)
       : (isZh ? '无待办' : 'no todos');
 
+    const todoStrIt = todoTotal > 0 ? `${todoCompleted}/${todoTotal} completati` : 'nessun todo';
+
     if (isZh) {
       contextLines.push(`  第${dayIndex}日：专注${focusStr}，待办${todoStr}`);
+    } else if (isIt) {
+      contextLines.push(`  Giorno ${dayIndex}: Focus ${focusStr}, Todo ${todoStrIt}`);
     } else {
       contextLines.push(`  Day ${dayIndex}: Focus ${focusStr}, Todo ${todoStr}`);
     }

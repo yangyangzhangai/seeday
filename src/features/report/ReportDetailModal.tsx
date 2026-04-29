@@ -1,19 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { endOfDay, format, isSameDay, startOfDay } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTodoStore } from '../../store/useTodoStore';
+import { useGrowthStore } from '../../store/useGrowthStore';
 import type { DailyPlantRecord } from '../../types/plant';
 import type { MoodDistributionItem } from './reportPageHelpers';
 import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
-import { generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
+import { computeDailyTodoStats, generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
 import {
@@ -295,12 +297,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const activityMood = useMoodStore((state) => state.activityMood);
   const customMoodLabel = useMoodStore((state) => state.customMoodLabel);
   const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
+  const todos = useTodoStore((state) => state.todos);
+  const bottles = useGrowthStore((state) => state.bottles);
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [todoInsight, setTodoInsight] = useState('');
   const [habitInsight, setHabitInsight] = useState('');
   const [dayPlant, setDayPlant] = useState<DailyPlantRecord | null>(null);
+  const [diaryActionHint, setDiaryActionHint] = useState<string | null>(null);
+  const [isDiaryGenerating, setIsDiaryGenerating] = useState(false);
   const [reportGeneratingVariantKey, setReportGeneratingVariantKey] =
     useState<ReportGeneratingVariantKey>(REPORT_GENERATING_VARIANTS[0]);
   const plantAutoAttemptedRef = useRef<Set<string>>(new Set());
@@ -341,12 +347,41 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     [reportMessages, activityMood, customMoodLabel, customMoodApplied, selectedReport],
   );
   const dayMinutes = 24 * 60;
-  const todoCompleted = selectedReport?.stats?.completedTodos ?? 0;
-  const todoTotal = selectedReport?.stats?.totalTodos ?? 0;
+  const isTodayReport = useMemo(
+    () => Boolean(selectedReport?.date && isSameDay(new Date(selectedReport.date), new Date())),
+    [selectedReport?.date],
+  );
+
+  const liveTodayTodoStats = useMemo(() => {
+    if (!isTodayReport || !selectedReport?.date) return null;
+    const targetDate = new Date(selectedReport.date);
+    const dailyStats = computeDailyTodoStats(
+      todos,
+      bottles.map((b) => ({ id: b.id, name: b.name, type: b.type, stars: b.stars })),
+      startOfDay(targetDate),
+      endOfDay(targetDate),
+    );
+    const oneTimeTotal = dailyStats.oneTimeTasks.high.total + dailyStats.oneTimeTasks.medium.total + dailyStats.oneTimeTasks.low.total;
+    const oneTimeCompleted = dailyStats.oneTimeTasks.high.completed + dailyStats.oneTimeTasks.medium.completed + dailyStats.oneTimeTasks.low.completed;
+    const total = oneTimeTotal + dailyStats.independentRecurring.total + dailyStats.habitCheckin.length + dailyStats.goalProgress.length;
+    const completed = oneTimeCompleted + dailyStats.independentRecurring.completed + dailyStats.habitCheckin.filter((item) => item.done).length + dailyStats.goalProgress.filter((item) => item.doneToday).length;
+    return {
+      completed,
+      total,
+      oneTimeCompletedTitles: dailyStats.oneTimeTasks.completedTitles,
+      habitDoneCount: dailyStats.habitCheckin.filter((item) => item.done).length,
+      habitTotalCount: dailyStats.habitCheckin.length,
+      goalDoneCount: dailyStats.goalProgress.filter((item) => item.doneToday).length,
+      goalTotalCount: dailyStats.goalProgress.length,
+    };
+  }, [isTodayReport, selectedReport?.date, todos, bottles]);
+
+  const todoCompleted = liveTodayTodoStats?.completed ?? selectedReport?.stats?.completedTodos ?? 0;
+  const todoTotal = liveTodayTodoStats?.total ?? selectedReport?.stats?.totalTodos ?? 0;
   const todoCompletionRate = todoTotal > 0
     ? todoCompleted / todoTotal
     : Math.max(0, Math.min(1, selectedReport?.stats?.completionRate ?? 0));
-  const todoCompletedTitles = selectedReport?.stats?.oneTimeTasks?.completedTitles ?? [];
+  const todoCompletedTitles = liveTodayTodoStats?.oneTimeCompletedTitles ?? selectedReport?.stats?.oneTimeTasks?.completedTitles ?? [];
   const dominantActivity = useMemo(() => {
     if (activityDistribution.length === 0) return undefined;
     const top = activityDistribution.reduce((best, current) => (
@@ -358,11 +393,26 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     };
   }, [activityDistribution, t]);
 
-  const habitDoneCount = selectedReport?.stats?.habitCheckin?.filter((item) => item.done).length ?? 0;
-  const habitTotalCount = selectedReport?.stats?.habitCheckin?.length ?? 0;
-  const goalDoneCount = selectedReport?.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0;
-  const goalTotalCount = selectedReport?.stats?.goalProgress?.length ?? 0;
+  const habitDoneCount = liveTodayTodoStats?.habitDoneCount ?? selectedReport?.stats?.habitCheckin?.filter((item) => item.done).length ?? 0;
+  const habitTotalCount = liveTodayTodoStats?.habitTotalCount ?? selectedReport?.stats?.habitCheckin?.length ?? 0;
+  const goalDoneCount = liveTodayTodoStats?.goalDoneCount ?? selectedReport?.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0;
+  const goalTotalCount = liveTodayTodoStats?.goalTotalCount ?? selectedReport?.stats?.goalProgress?.length ?? 0;
   const todayStars = habitDoneCount + goalDoneCount;
+
+  const handleGenerateDiaryClick = useCallback(async () => {
+    if (!selectedReport) return;
+    if (new Date().getHours() < 20) {
+      setDiaryActionHint(t('report_early_tip'));
+      return;
+    }
+    setDiaryActionHint(null);
+    setIsDiaryGenerating(true);
+    try {
+      await _generateAIDiary(selectedReport.id);
+    } finally {
+      setIsDiaryGenerating(false);
+    }
+  }, [_generateAIDiary, selectedReport, t]);
 
   const todoInsightSummary = useMemo(() => {
     if (todoTotal <= 0) return '';
@@ -611,7 +661,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const todoAnalysisLine1 = todoInsight || copy.todoFallback;
   const todoAnalysisLine2 = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : '';
   const habitAnalysisLine1 = habitInsight || copy.habitsFallback;
-  const habitAnalysisLine2 = `${todayStars} stars`;
+  const habitAnalysisLine2 = t('diary_star_count', { count: todayStars });
 
   if (!selectedReport) return null;
 
@@ -806,9 +856,28 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               </div>
 
               <div style={{ flexShrink: 0, borderTop: '0.5px solid #D0D0D0', marginTop: '4px' }} />
-            </div>
-          </div>
-      </div>
-    </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isTodayReport ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, paddingTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => { void handleGenerateDiaryClick(); }}
+                        disabled={isDiaryGenerating}
+                        className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
+                        style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
+                      >
+                        {isDiaryGenerating ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('report_generate_button')}
+                      </button>
+                      {diaryActionHint ? (
+                        <p className="text-[10px] font-medium text-center" style={{ color: '#5f6f65', margin: 0 }}>
+                          {diaryActionHint}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
   );
 };

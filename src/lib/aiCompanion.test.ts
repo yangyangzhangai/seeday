@@ -18,7 +18,7 @@ describe('aiCompanion', () => {
   it('uses dedicated english annotation prompt for momo', () => {
     const prompt = buildAiCompanionModePrompt('en', 'momo', 'annotation');
 
-    expect(prompt).toContain('You are Momo, a tiny mushroom living in the Plantime time greenhouse.');
+    expect(prompt).toContain('You are Momo, a tiny mushroom living in the time greenhouse.');
     expect(prompt).toContain('Core stance: hold, do not push');
     expect(prompt).toContain('Exactly one emoji at the end');
   });
@@ -28,9 +28,9 @@ describe('aiCompanion', () => {
     const agnesPrompt = buildAiCompanionModePrompt('en', 'agnes', 'annotation');
     const zepPrompt = buildAiCompanionModePrompt('en', 'zep', 'annotation');
 
-    expect(vanPrompt).toContain('You are Van, a morning glory living in the Plantime time greenhouse.');
-    expect(agnesPrompt).toContain('You are Agnes, a thousand-year dragon tree living in the Plantime time greenhouse.');
-    expect(zepPrompt).toContain('You are Zep, a pelican living in the Plantime time greenhouse.');
+    expect(vanPrompt).toContain('You are Van, a morning glory living in the time greenhouse.');
+    expect(agnesPrompt).toContain('You are Agnes, a thousand-year dragon tree living in the time greenhouse.');
+    expect(zepPrompt).toContain('You are Zep, a pelican living in the time greenhouse.');
     expect(vanPrompt).not.toContain('Annotation priorities:');
   });
 
@@ -39,9 +39,9 @@ describe('aiCompanion', () => {
     const agnesPrompt = buildAiCompanionModePrompt('it', 'agnes', 'annotation');
     const zepPrompt = buildAiCompanionModePrompt('it', 'zep', 'annotation');
 
-    expect(vanPrompt).toContain('Sei Van, una campanula che vive nella serra del tempo di Plantime.');
-    expect(agnesPrompt).toContain('Sei Agnes, una dracena millenaria che vive nella serra del tempo di Plantime.');
-    expect(zepPrompt).toContain('Sei Zep, un pellicano che vive nella serra del tempo di Plantime.');
+    expect(vanPrompt).toContain('Sei Van, una campanula che vive nella serra del tempo.');
+    expect(agnesPrompt).toContain('Sei Agnes, una dracena millenaria che vive nella serra del tempo.');
+    expect(zepPrompt).toContain('Sei Zep, un pellicano che vive nella serra del tempo.');
     expect(vanPrompt).not.toContain("Priorita dell'annotazione:");
   });
 

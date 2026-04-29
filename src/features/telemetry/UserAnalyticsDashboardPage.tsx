@@ -14,12 +14,13 @@ function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`;
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function StatCard({ label, value, sub, hint }: { label: string; value: string | number; sub?: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <p className="text-xs text-gray-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+      {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
     </div>
   );
 }
@@ -180,7 +181,7 @@ function Row({ label, value }: { label: string; value: string | number }) {
 
 export function UserAnalyticsDashboardPage() {
   const { t } = useTranslation();
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(7);
   const [data, setData] = useState<UserAnalyticsDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +208,7 @@ export function UserAnalyticsDashboardPage() {
         <section className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">{t('ua_title')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('ua_desc')}</p>
             {data && (
               <p className="mt-0.5 text-xs text-gray-400">
                 {t('ua_updated')} {new Date(data.generatedAt).toLocaleTimeString()}
@@ -232,21 +234,24 @@ export function UserAnalyticsDashboardPage() {
 
         {ov && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label={t('ua_total_users')} value={ov.totalUsers} />
+            <StatCard label={t('ua_total_users')} value={ov.totalUsers} hint={t('ua_hint_total_users')} />
             <StatCard
               label={t('ua_total_premium')}
               value={ov.totalPremium}
               sub={`${t('ua_conversion')} ${pct(ov.conversionRate)}`}
+              hint={t('ua_hint_total_premium')}
             />
             <StatCard
               label={t('ua_active_today')}
               value={ov.activeToday}
               sub={t('ua_premium_sub', { n: ov.activePremiumToday })}
+              hint={t('ua_hint_active_today')}
             />
             <StatCard
               label={t('ua_new_today')}
               value={ov.newToday}
               sub={t('ua_premium_sub', { n: ov.newPremiumToday })}
+              hint={t('ua_hint_new_today')}
             />
           </div>
         )}

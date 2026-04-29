@@ -3,33 +3,49 @@ import { minutesToDisplay } from './core';
 
 export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it' = 'zh'): string {
   const isZh = lang === 'zh';
-  const lines: string[] = [isZh ? '【今日结构化数据】' : "【Today's Structured Data】", ''];
+  const isIt = lang === 'it';
+  const lines: string[] = [
+    isZh ? '【今日结构化数据】' : isIt ? '【Dati strutturati di oggi】' : "【Today's Structured Data】",
+    '',
+  ];
 
-  lines.push(isZh ? `今日记录总时长：${result.total_duration_str}` : `Total Recorded Duration: ${result.total_duration_str}`);
+  lines.push(
+    isZh
+      ? `今日记录总时长：${result.total_duration_str}`
+      : isIt
+        ? `Durata totale registrata: ${result.total_duration_str}`
+        : `Total Recorded Duration: ${result.total_duration_str}`,
+  );
 
   const focusStr = minutesToDisplay(result.focus_duration_min || 0);
-  lines.push(isZh ? `专注时长（学习+工作）：${focusStr}` : `Focus Duration (study+work): ${focusStr}`);
+  lines.push(
+    isZh
+      ? `专注时长（学习+工作）：${focusStr}`
+      : isIt
+        ? `Durata di concentrazione (studio+lavoro): ${focusStr}`
+        : `Focus Duration (study+work): ${focusStr}`,
+  );
 
   const todoSummary = (result.todo_total || 0) > 0
     ? `${result.todo_completed}/${result.todo_total}`
-    : (isZh ? '无待办' : 'no todos');
-  lines.push(isZh ? `待办完成：${todoSummary}` : `Todos Completed: ${todoSummary}`);
+    : (isZh ? '无待办' : isIt ? 'nessun todo' : 'no todos');
+  lines.push(
+    isZh
+      ? `待办完成：${todoSummary}`
+      : isIt
+        ? `Todo completati: ${todoSummary}`
+        : `Todos Completed: ${todoSummary}`,
+  );
   lines.push('');
 
   const slotLabel: Record<string, string> = isZh
-    ? {
-        morning: '上午',
-        afternoon: '下午',
-        evening: '晚间',
-      }
-    : {
-        morning: 'Morning',
-        afternoon: 'Afternoon',
-        evening: 'Evening',
-      };
+    ? { morning: '上午', afternoon: '下午', evening: '晚间' }
+    : isIt
+      ? { morning: 'Mattina', afternoon: 'Pomeriggio', evening: 'Sera' }
+      : { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
 
   if (result.raw_items && result.raw_items.length > 0) {
-    lines.push(isZh ? '▸ 今日事件清单' : "▸ Today's Event List");
+    lines.push(isZh ? '▸ 今日事件清单' : isIt ? '▸ Elenco eventi di oggi' : "▸ Today's Event List");
     const slotOrder: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
     for (const slot of slotOrder) {
       let slotItems = result.raw_items.filter((i) => i.time_slot === slot);
@@ -47,13 +63,19 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
         lines.push(`    - ${i.name} (${minutesToDisplay(i.duration_min)}) [${catLabel}]`);
       }
       if (omitted > 0) {
-        lines.push(isZh ? `    - 另有 ${omitted} 项零碎事务` : `    - plus ${omitted} minor tasks`);
+        lines.push(
+          isZh
+            ? `    - 另有 ${omitted} 项零碎事务`
+            : isIt
+              ? `    - inoltre ${omitted} attivita minori`
+              : `    - plus ${omitted} minor tasks`,
+        );
       }
     }
 
     const noSlotItems = result.raw_items.filter((i) => !i.time_slot);
     if (noSlotItems.length > 0) {
-      lines.push(isZh ? '  未标注时段:' : '  Unspecified Time:');
+      lines.push(isZh ? '  未标注时段:' : isIt ? '  Fascia oraria non specificata:' : '  Unspecified Time:');
       for (const i of noSlotItems.slice(0, 5)) {
         lines.push(`    - ${i.name} (${minutesToDisplay(i.duration_min)})`);
       }
@@ -62,7 +84,7 @@ export function formatForDiaryAI(result: ComputedResult, lang: 'zh' | 'en' | 'it
   }
 
   if (result.mood_records && result.mood_records.length > 0) {
-    lines.push(isZh ? '▸ 今日心情记录' : "▸ Today's Mood Log");
+    lines.push(isZh ? '▸ 今日心情记录' : isIt ? "▸ Registro dell'umore di oggi" : "▸ Today's Mood Log");
     for (const mood of result.mood_records) {
       lines.push(`  ${mood.time} "${mood.content}"`);
     }

@@ -339,10 +339,20 @@ const TRIAL_FEATURES = [
 
 const StepTrialIntro: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const { t } = useTranslation();
+  const [activating, setActivating] = React.useState(false);
 
-  React.useEffect(() => {
-    void callActivateTrialAPI().catch(() => {});
-  }, []);
+  const handleStartExperience = async () => {
+    if (activating) return;
+    setActivating(true);
+    try {
+      await callActivateTrialAPI();
+    } catch {
+      // no-op: keep onboarding flow unblocked if trial activation request fails
+    } finally {
+      setActivating(false);
+      onNext();
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pb-8 overflow-hidden">
@@ -363,7 +373,8 @@ const StepTrialIntro: React.FC<{ onNext: () => void }> = ({ onNext }) => {
       </div>
       <div className="px-8 pt-4 shrink-0">
         <button
-          onClick={onNext}
+          onClick={() => { void handleStartExperience(); }}
+          disabled={activating}
           className="w-full bg-[#4a5d4c] text-white py-5 rounded-[28px] font-bold text-lg shadow-xl shadow-[#4a5d4c]/20"
         >
           {t('onboarding_trial_cta')}
@@ -476,7 +487,7 @@ export const OnboardingFlow: React.FC = () => {
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [routine, setRoutine] = React.useState<RoutineState>({
-    region: '北京',
+    region: '',
     identity: 'none',
     remindMe: true,
     wakeTime: DEFAULT_WAKE_TIME,

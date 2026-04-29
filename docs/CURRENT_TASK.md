@@ -5,17 +5,89 @@ Owner: current working session
 
 ---
 
+## 2026-04-29 Session Update（日记本当日可生成入口 + 当日实时数据）
+
+- [x] `src/features/report/ReportDetailModal.tsx` 恢复“今日日记生成”入口：用户打开今日日记页时白天/夜晚均显示按钮，点击前 20:00 显示 `report_early_tip`，20:00 后触发 `generateAIDiary(reportId)`
+- [x] 生成按钮样式复用植物卡片同款口径（圆角胶囊 + 绿色半透明底 + 阴影），保持与历史版本视觉一致
+- [x] 当天页面待办/习惯/目标统计改为实时口径：今日日记页基于 `useTodoStore + useGrowthStore + computeDailyTodoStats(...)` 即时重算，不再仅依赖 report 快照
+- [x] `src/features/report/DiaryBookViewer.tsx` 放开今日日历页双击进入（仅未来日期继续禁止），支持白天从日记本直接打开今天详情页并看到“生成日记”按钮
+
+## 2026-04-29 Session Update（Telemetry 看板默认时间窗口统一）
+
+- [x] `src/features/telemetry/{LiveInputTelemetryPage,AiAnnotationTelemetryPage,TodoDecomposeTelemetryPage,ProfileSettingsTelemetryPage,UserAnalyticsDashboardPage}.tsx` 默认 `days` 从 14/30 统一改为 7
+- [x] `src/api/client.ts` telemetry dashboard API 默认参数改为 7 天，避免未显式传参时回退到旧窗口
+
+## 2026-04-29 Session Update（Growth 子步骤长文案可读性）
+
+## 2026-04-29 Session Update（Telemetry 全量埋点审计 + 看板注释补齐）
+
+- [x] 完成埋点全量盘点并输出审计报告：`docs/Telemetry_Audit_Report_2026-04-29.doc`（事件来源、统计口径、业务意义、看板映射、缺口规划）
+- [x] `src/features/telemetry/LiveInputTelemetryPage.tsx` 新增会员分类路径模块（从 reasons 标签聚合 `user_plan/classification_path/ai_called/bottle_match_source`），补齐 PM 可读视角
+- [x] `src/features/telemetry/LiveInputTelemetryPage.tsx` 概览指标卡补齐“小字注释”（含义 + 高低解释 + 决策方向）
+- [x] `src/features/telemetry/UserAnalyticsDashboardPage.tsx` 增加看板说明与核心 KPI 注释，强化增长/转化/留存决策可读性
+- [x] `src/features/telemetry/FeedbackTelemetryPage.tsx` 增加阅读指南与指标注释，支持按反馈类型占比做优先级排序
+- [x] `src/i18n/locales/{zh,en,it}.ts` 新增对应三语文案键（Telemetry live/user analytics/feedback 注释与会员分类路径模块）
+- [x] `src/features/telemetry/AiAnnotationTelemetryPage.tsx` 核心 KPI 卡补齐 PM 注释小字（触发率/样本量/触发事件数/平均叙事分/平均最终概率）
+- [x] `src/i18n/locales/{zh,en,it}.ts` 同步新增 AI 批注看板 KPI 注释三语词条
+
+## 2026-04-29 Session Update（Prompt 三语对齐补齐）
+
+## 2026-04-29 Session Update（全量文案三语巡检 + onboarding 收口）
+
+- [x] 三语词条键位一致性巡检：`src/i18n/locales/{zh,en,it}.ts` 三套 key 数量与集合完全一致（1211/1211/1211）
+- [x] 占位符一致性巡检：修复 `report_ai_diary_waiting`、`report_generating` 的 `{{companion}}` 占位符在 `en/it` 缺失问题，三语占位符现已对齐
+- [x] 硬编码文案收口（含引导链路）：`Header` 头像按钮“更换头像”改为 `auth_change_avatar` i18n；`QuickActivityPicker` 中文前缀改为 `quick_activity_prefix_ended` 三语 i18n 模板
+- [x] 展示元素一致性补齐：头像 `alt` 文案统一走 `avatar_alt` 三语词条
+- [x] 可变日期/周选择文案对齐：Growth 周重复选择的周几标签从中文硬编码改为三语 i18n（`weekday_short_*`）；待办截止时间展示改为按 `i18n.language` 本地化
+
+- [x] `src/server/magic-pen-prompts.ts`：`MAGIC_PEN_PROMPT_EN/IT` 从简版补齐到与中文主提示同等约束（身份、上下文、输出 schema、kind 定义、时间推断、多事件锚点、混合句拆分、长序列全提取）
+- [x] `api/diary.ts`：insight 分支新增意大利语 topic/behavior/system prompt，避免 `it` 回落英文提示词
+
+## 2026-04-29 Session Update（AI 日记意大利语输入链路收口）
+
+- [x] `src/store/reportActions.ts`：日记输入构建新增 `it` 全量文案分支（目标/时间记录/心情能量/习惯/目标/待办总览/完成事项/历史摘要）
+- [x] `src/store/reportActions.ts`：新增 mood key -> 意大利语标签映射，避免意语输出中混入英文情绪键
+- [x] `src/lib/report-calculator/formatter.ts`：结构化数据格式化新增 `it` 分支，补齐标题与各段标签意大利语文案
+
+## 2026-04-29 Session Update（四人设日记 prompt 多语言对齐）
+
+- [x] `src/lib/aiCompanion/prompts/van.ts`：`VAN_DIARY_PROMPT_EN/IT` 重译并向中文版本结构、语气和约束对齐
+- [x] `src/lib/aiCompanion/prompts/agnes.ts`：`AGNES_DIARY_PROMPT_EN/IT` 重译并对齐中文版本（步骤、风格、落款规则）
+- [x] `src/lib/aiCompanion/prompts/zep.ts`：`ZEP_DIARY_PROMPT_EN/IT` 重译并对齐中文版本（分量扫描 + 真话落点）
+- [x] `src/lib/aiCompanion/prompts/momo.ts`：`MOMO_DIARY_PROMPT_EN/IT` 重译并对齐中文版本（散文诗/微童话 + 三步内化）
+- [x] 四人设 prompt（zh/en/it）中与旧品牌名相关的表述已统一移除，改为“时光温室 / time greenhouse / serra del tempo”
+- [x] `api/diary.ts` 称呼规则改为仅通过 user prompt 注入（`[Addressee rule - highest priority]`），system prompt 中不再使用 `__ADDRESSEE__` 占位符
+- [x] 四人设日记 prompt（`van/agnes/zep/momo`）移除 `__ADDRESSEE__` 文本，统一改为引用 user prompt 的称呼规则
+- [x] `src/lib/aiCompanion.ts` 统一为 zh/en/it prompt 追加单句语言强约束（覆盖 diary + annotation）
+
+- [x] `src/features/growth/SubTodoList.tsx` 子步骤标题从单行 `truncate` 调整为最多两行展示（`line-clamp: 2`），保留右侧时长与专注按钮固定不挤压
+- [x] 长文案在窄屏下支持换行与断词（`min-w-0 + break-words`），避免关键信息被过早省略
+
+## 2026-04-29 Session Update（日记三语文案一致性）
+
+- [x] `DiaryBookViewerExpandedView` 全量改为 i18n 文案键，移除仅中文硬编码标题/空态/占位提示
+- [x] 日记页残留单语文案收口：封面副标题 `Diary` 与星星单位 `stars` 改为三语 i18n
+- [x] `/api/diary` 错误提示按 `lang` 返回 zh/en/it，避免服务端固定中文报错
+
+---
+
 ## 2026-04-29 Session Update（会员瓶子关联灵敏度）
 
 - [x] `/api/classify` 移除 `matched_bottle` 的“语义相关度 >= 60%”阈值提示
 - [x] `/api/classify` 新增上位-下位匹配规则（`跑步->运动`、`看书/读完一个章节->阅读`）
 - [x] 三语 prompt 同步对齐（zh/en/it），保持行为一致
+- [x] Onboarding 试用会员激活时机调整：从 Step2 自动激活改为点击 `onboarding_trial_cta` 后激活（Start my experience / 开始体验 / 意语对应按钮）
 
 ## 2026-04-29 Session Update（跨天自动补生成收口）
 
 - [x] `useMidnightAutoGenerate` 增加登录后立即补偿与前台恢复补偿，修复 iOS 错过 0 点后“昨日未自动生成”
 - [x] 自动补偿链路统一：补 `daily report` 基底 -> 补昨日植物；Plus 再补昨日日记
 - [x] 移除 `ReportPage` 内重复午夜定时器，避免页面级与全局级双触发竞态
+
+## 2026-04-29 Session Update（跨天日记空统计修复）
+
+- [x] `useMidnightAutoGenerate` 新增自动生成前 domain warmup（chat/todo/mood/growth），降低“刚登录即补偿”时空快照概率
+- [x] 自动补偿新增稀疏 stats 修复：若昨日日报 `stats` 近空且昨日存在消息，则自动重算昨日日报后再补 Plus 日记
 
 ---
 

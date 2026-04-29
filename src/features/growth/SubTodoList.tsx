@@ -166,7 +166,19 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                 </button>
 
                 {/* Title + duration */}
-                <span className={cn('flex-1 text-xs text-gray-700 truncate', sub.completed && 'line-through text-gray-400')}>
+                <span
+                  title={sub.title}
+                  className={cn(
+                    'flex-1 min-w-0 text-xs text-gray-700 break-words leading-5',
+                    sub.completed && 'line-through text-gray-400'
+                  )}
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
                   {sub.title}
                 </span>
                 {sub.suggestedDuration && !sub.completed && (
