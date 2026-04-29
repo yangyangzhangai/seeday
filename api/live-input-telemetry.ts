@@ -53,7 +53,7 @@ function normalizeFallbackLevel(raw: unknown): 1 | 2 | 3 | 4 | null {
 function handleHolidayCheckGet(req: VercelRequest, res: VercelResponse): void {
   const date = typeof req.query.date === 'string' ? req.query.date : '';
   if (!date) {
-    res.status(400).json(jsonError('missing date'));
+    jsonError(res, 400, 'missing date');
     return;
   }
   const d = new Date(date);
