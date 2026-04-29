@@ -21,6 +21,7 @@ Validation:
 - 按钮样式复用植物卡片历史版本口径（圆角胶囊、浅绿色半透明背景、轻阴影），与原“植物卡片下方生成按钮”视觉一致
 - 今日日记页面的待办/习惯/目标统计改为实时重算：接入 `useTodoStore` 与 `useGrowthStore`，并使用 `computeDailyTodoStats(...)` 覆盖当日报告快照，确保环形图旁摘要与统计在白天持续更新
 - `src/features/report/DiaryBookViewer.tsx`：放开“今天”页双击打开详情限制（未来日期仍不可打开），支持从日记本翻到今天后直接进入详情并触发生成日记入口
+- `src/features/report/plant/PlantFlipCard.tsx` + `src/features/report/plant/PlantRootSection.tsx`：恢复历史双按钮布局（保存卡片 + 生成日记）；生成日记按钮支持 20:00 前提示与 20:00 后触发日记生成
 
 Validation:
 

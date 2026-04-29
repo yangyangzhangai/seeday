@@ -8,8 +8,16 @@ import type { DailyPlantRecord, PlantCategoryKey, RootSegment } from '../../../t
 import { renderRootSegments } from '../../../lib/rootRenderer';
 import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 import { PlantImage } from './PlantImage';
 import { SoilCanvas } from './SoilCanvas';
+
+function getCompanionName(mode: string): string {
+  if (mode === 'agnes') return 'Agnes';
+  if (mode === 'zep') return 'Zep';
+  if (mode === 'momo') return 'Momo';
+  return 'Van';
+}
 
 function getCategoryI18nKey(category: PlantCategoryKey): string {
   switch (category) {
@@ -26,10 +34,13 @@ interface PlantFlipCardProps {
   segments: RootSegment[];
   directionOrder: PlantCategoryKey[];
   onClose?: () => void;
+  onGenerateDiary?: () => void;
+  isGeneratingDiary?: boolean;
+  diaryButtonHint?: string | null;
 }
 
 export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
-  plant, segments, directionOrder, onClose,
+  plant, segments, directionOrder, onClose, onGenerateDiary, isGeneratingDiary = false, diaryButtonHint = null,
 }) => {
   const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
@@ -38,6 +49,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   const backCaptureRef = useRef<HTMLDivElement>(null);
   const renderedSegments = useMemo(() => renderRootSegments(segments), [segments]);
   const messages = useChatStore(state => state.messages);
+  const aiMode = useAuthStore((state) => state.preferences.aiMode);
 
   const messageMap = useMemo(() => {
     const map = new Map<string, { content: string; activityType?: string | null; timestamp: number }>();
@@ -216,6 +228,21 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
           <Download size={16} strokeWidth={1.5} />
           {t('plant_save_card')}
         </button>
+        {onGenerateDiary ? (
+          <button
+            onClick={onGenerateDiary}
+            disabled={isGeneratingDiary}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{ color: '#5e734b', border: '1px solid rgba(94,115,75,0.22)', background: 'rgba(144, 212, 122, 0.2)' }}
+          >
+            {isGeneratingDiary ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('plant_card_diary_button')}
+          </button>
+        ) : null}
+        {diaryButtonHint ? (
+          <p className="text-[10px] font-medium text-center" style={{ color: '#5f6f65', margin: 0 }}>
+            {diaryButtonHint}
+          </p>
+        ) : null}
       </div>
     </div>
   );

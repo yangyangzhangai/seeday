@@ -11,6 +11,7 @@ Owner: current working session
 - [x] 生成按钮样式复用植物卡片同款口径（圆角胶囊 + 绿色半透明底 + 阴影），保持与历史版本视觉一致
 - [x] 当天页面待办/习惯/目标统计改为实时口径：今日日记页基于 `useTodoStore + useGrowthStore + computeDailyTodoStats(...)` 即时重算，不再仅依赖 report 快照
 - [x] `src/features/report/DiaryBookViewer.tsx` 放开今日日历页双击进入（仅未来日期继续禁止），支持白天从日记本直接打开今天详情页并看到“生成日记”按钮
+- [x] `src/features/report/plant/PlantFlipCard.tsx` + `src/features/report/plant/PlantRootSection.tsx` 恢复“植物卡片生成后双按钮”结构：底部同时展示“保存卡片 + 生成日记”，并沿用 20:00 前提示、20:00 后生成逻辑
 
 ## 2026-04-29 Session Update（Telemetry 看板默认时间窗口统一）
 

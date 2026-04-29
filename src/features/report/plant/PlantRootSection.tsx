@@ -42,6 +42,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   const reports = useReportStore(state => state.reports);
   const updateReport = useReportStore(state => state.updateReport);
   const generateReport = useReportStore(state => state.generateReport);
+  const generateAIDiary = useReportStore(state => state.generateAIDiary);
   const todaySegments = usePlantStore(state => state.todaySegments);
   const todayPlant = usePlantStore(state => state.todayPlant);
   const isPlantGenerating = usePlantStore(state => state.isGenerating);
@@ -59,6 +60,8 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   const [isDiaryEditing, setIsDiaryEditing] = useState(false);
   const [isDiarySaving, setIsDiarySaving] = useState(false);
   const [plantStatusHint, setPlantStatusHint] = useState<string | null>(null);
+  const [diaryStatusHint, setDiaryStatusHint] = useState<string | null>(null);
+  const [isDiaryGenerating, setIsDiaryGenerating] = useState(false);
   const [showEarlyCard, setShowEarlyCard] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
@@ -284,6 +287,29 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     }
   }, [generatePlant, plantIsTooEarly, t]);
 
+  const handleGenerateDiary = useCallback(async () => {
+    if (new Date().getHours() < 20) {
+      setDiaryStatusHint(t('report_early_tip'));
+      return;
+    }
+
+    setDiaryStatusHint(null);
+    setIsDiaryGenerating(true);
+    try {
+      const today = new Date();
+      let reportId = todayDailyReport?.id;
+      if (!reportId) {
+        reportId = await generateReport('daily', today.getTime());
+      }
+      await generateAIDiary(reportId);
+      setDiaryStatusHint(t('plant_generate_success'));
+    } catch {
+      setDiaryStatusHint(t('plant_generate_failed'));
+    } finally {
+      setIsDiaryGenerating(false);
+    }
+  }, [generateAIDiary, generateReport, t, todayDailyReport?.id]);
+
   useEffect(() => {
     if (!autoGeneratePlantToken) return;
     void handleGeneratePlant();
@@ -308,6 +334,9 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           plant={todayPlant}
           segments={flipCardSegments}
           directionOrder={directionOrder}
+          onGenerateDiary={() => { void handleGenerateDiary(); }}
+          isGeneratingDiary={isDiaryGenerating}
+          diaryButtonHint={diaryStatusHint}
         />
       </div>
     );
