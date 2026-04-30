@@ -63,6 +63,7 @@ Owner: current working session
 
 - [x] `src/features/growth/SubTodoList.tsx` 子步骤标题从单行 `truncate` 调整为最多两行展示（`line-clamp: 2`），保留右侧时长与专注按钮固定不挤压
 - [x] 长文案在窄屏下支持换行与断词（`min-w-0 + break-words`），避免关键信息被过早省略
+- [x] `src/features/growth/SubTodoList.tsx` 新增子步骤标题点击展开：当 AI 拆解文案超过两行时，点击该条可在浮层查看完整文本（移动端可用）
 
 ## 2026-04-29 Session Update（日记三语文案一致性）
 

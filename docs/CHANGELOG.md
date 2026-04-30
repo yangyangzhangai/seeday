@@ -6,6 +6,15 @@ All notable effective changes are documented here.
 
 ## 2026-04-29
 
+### Fix: Growth 待办拆解长文案支持点击查看完整内容
+
+- `src/features/growth/SubTodoList.tsx`：子步骤标题保留列表内两行截断展示，同时改为可点击；点击后弹出浮层显示完整文本，支持点击遮罩或右上角关闭
+- 保持原有操作不变：勾选完成、单步专注、顺序专注与拆解重生成功能不受影响
+
+Validation:
+
+- Not run (UI interaction update)
+
 ### Fix: Telemetry 看板默认时间窗口统一为 7 天
 
 - `src/features/telemetry/LiveInputTelemetryPage.tsx`、`src/features/telemetry/AiAnnotationTelemetryPage.tsx`、`src/features/telemetry/TodoDecomposeTelemetryPage.tsx`、`src/features/telemetry/ProfileSettingsTelemetryPage.tsx`、`src/features/telemetry/UserAnalyticsDashboardPage.tsx`：默认 `days` 从 14/30 调整为 7，首次进入即展示 7 天口径

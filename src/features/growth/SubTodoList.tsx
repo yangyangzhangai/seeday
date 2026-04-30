@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> src/features/growth/README.md -> src/store/useTodoStore.ts
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, AlarmClock, Play } from 'lucide-react';
+import { Check, AlarmClock, Play, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { triggerLightHaptic } from '../../lib/haptics';
@@ -34,6 +34,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
   const addSubTodos = useTodoStore((s) => s.addSubTodos);
   const [loading, setLoading] = useState(false);
   const [errorType, setErrorType] = useState<'request' | 'empty' | null>(null);
+  const [expandedSubTitle, setExpandedSubTitle] = useState<string | null>(null);
 
   const pendingSubs = subTodos.filter((s) => !s.completed);
   const hasSubTodos = subTodos.length > 0;
@@ -166,10 +167,16 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                 </button>
 
                 {/* Title + duration */}
-                <span
+                <button
+                  type="button"
                   title={sub.title}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setExpandedSubTitle(sub.title);
+                  }}
                   className={cn(
-                    'flex-1 min-w-0 text-xs text-gray-700 break-words leading-5',
+                    'flex-1 min-w-0 text-left text-xs text-gray-700 break-words leading-5',
                     sub.completed && 'line-through text-gray-400'
                   )}
                   style={{
@@ -180,7 +187,7 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
                   }}
                 >
                   {sub.title}
-                </span>
+                </button>
                 {sub.suggestedDuration && !sub.completed && (
                   <span className="text-xs text-gray-400 flex-shrink-0">
                     {sub.suggestedDuration}{t('todo_decompose_min')}
@@ -218,6 +225,30 @@ export const SubTodoList = ({ parentTodo, subTodos, onToggleSub, onFocusSub, onS
             </button>
           )}
         </>
+      )}
+
+      {expandedSubTitle && (
+        <div
+          className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/35"
+          onClick={() => setExpandedSubTitle(null)}
+        >
+          <div
+            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom,0px))] pt-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-1">
+              <button
+                type="button"
+                onClick={() => setExpandedSubTitle(null)}
+                className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100"
+                aria-label={t('confirm')}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-700 leading-6 break-words">{expandedSubTitle}</p>
+          </div>
+        </div>
       )}
     </div>
   );
