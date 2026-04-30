@@ -4,6 +4,20 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-04-30
+
+### Fix: Magic Pen 活动重叠校验改为“允许 ongoing、拦截 ended”
+
+- `src/services/input/magicPenDraftBuilder.ts`：移除“与进行中活动冲突”阻断规则；提交校验改为仅拦截与已结束活动（`mode='record' && !isMood && duration!==undefined`）存在时间区间重叠的补录活动
+- 保持魔法笔按草稿时间写入不变：通过 `insertActivity(null, null, content, startAt, endAt)` 按用户确认后的时间录入
+- `src/store/magicPenActions.test.ts`：将原“ongoing 冲突拦截”改为“ongoing 可提交”，新增“ended 冲突拦截”回归用例
+- `src/services/input/magicPenDraftBuilder.test.ts`：新增 `validateDrafts` 行为测试，覆盖 ended 拦截与 ongoing 放行
+
+Validation:
+
+- `npx vitest run src/store/magicPenActions.test.ts` ✅
+- `npx vitest run src/services/input/magicPenDraftBuilder.test.ts` ⚠️（存在仓库既有时区相关断言失败，与本次规则改动无关）
+
 ## 2026-04-29
 
 ### Fix: Growth 待办拆解长文案支持点击查看完整内容

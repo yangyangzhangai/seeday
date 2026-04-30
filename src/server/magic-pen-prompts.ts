@@ -258,7 +258,131 @@ Long sequence must be fully extracted (important):
 - Every event in a continuous narration must become an independent segment. Do not merge, skip, or dump to unparsed.
 - Any span with explicit clock time (for example "11:00", "4:00", "five o'clock") must be extracted as activity_backfill with timeSource "exact".
 - Segments without explicit time but between anchors should use timeSource "inferred" with ordered time allocation.
-- Only truly uninterpretable fragments (such as pure interjections) may go to unparsed.`;
+- Only truly uninterpretable fragments (such as pure interjections) may go to unparsed.
+
+---
+
+Learning examples:
+
+Example 1
+Input: I am in class, I got up at 8 in the morning, but I only went out at 10
+Output:
+{
+  "segments": [
+    {"text":"attend class","sourceText":"I am in class","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"wake up","sourceText":"I got up at 8 in the morning","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"08:30","timeSource":"exact"},
+    {"text":"go out","sourceText":"I only went out at 10","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:20","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Example 2
+Input: woke up at 9:30
+Output:
+{
+  "segments": [
+    {"text":"wake up","sourceText":"woke up at 9:30","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Example 3
+Input: I am in class and I need to go out at 10:30
+Output:
+{
+  "segments": [
+    {"text":"attend class","sourceText":"I am in class","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"go out","sourceText":"I need to go out at 10:30","kind":"todo_add","confidence":"high","timeRelation":"future","startTime":"10:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Example 4
+Input: exhausted, just finished a meeting, still have two in the afternoon
+Output:
+{
+  "segments": [
+    {"text":"tired","sourceText":"exhausted","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"meeting","sourceText":"just finished a meeting","kind":"activity_backfill","confidence":"high","timeRelation":"past","timeSource":"inferred"},
+    {"text":"meeting","sourceText":"still have two in the afternoon","kind":"todo_add","confidence":"medium","timeRelation":"future","periodLabel":"afternoon","timeSource":"period"}
+  ],
+  "unparsed": []
+}
+
+Example 5
+Input: I've been so tired and a bit sad lately, but I decided to run every day starting tomorrow
+Output:
+{
+  "segments": [
+    {"text":"tired","sourceText":"I've been so tired lately","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"sad","sourceText":"a bit sad","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"run every day","sourceText":"but I decided to run every day starting tomorrow","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Example 6
+Input: I'll play basketball later
+Output:
+{
+  "segments": [
+    {"text":"play basketball","sourceText":"I'll play basketball later","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Example 7
+Input: I'm coding, and later I need to buy groceries
+Output:
+{
+  "segments": [
+    {"text":"code","sourceText":"I'm coding","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"buy groceries","sourceText":"later I need to buy groceries","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Example 8 (multi-anchor inference)
+Input: woke up at 9, had breakfast, went to the supermarket, got home at 11
+Output:
+{
+  "segments": [
+    {"text":"wake up","sourceText":"woke up at 9","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:00","endTime":"09:30","timeSource":"exact"},
+    {"text":"eat","sourceText":"had breakfast","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"inferred"},
+    {"text":"go to supermarket","sourceText":"went to the supermarket","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:45","timeSource":"inferred"},
+    {"text":"arrive home","sourceText":"got home at 11","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Example 9 (parallel actions merge)
+Input: started eating at 8, and watched videos for half an hour at the same time
+Output:
+{
+  "segments": [
+    {"text":"eat+watch videos","sourceText":"started eating at 8, and watched videos for half an hour at the same time","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"09:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Example 10 (long sequence, extract every event, no dumping into unparsed)
+Input: 11:00 went out to school, 12:00 class started, then in class I wasn't listening and kept looking for ebooks, kept writing until 4:00, then got home at 4:00, called for one hour from 5:00 to 6:00, then watched videos until 7:00, then kept coding until 8:00 dinner, then coded again after dinner until now
+Output:
+{
+  "segments": [
+    {"text":"go out to school","sourceText":"11:00 went out to school","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"},
+    {"text":"attend class","sourceText":"12:00 class started","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"12:00","endTime":"16:00","timeSource":"exact"},
+    {"text":"look for ebooks","sourceText":"in class I wasn't listening and kept looking for ebooks","kind":"activity_backfill","confidence":"medium","timeRelation":"past","startTime":"12:30","endTime":"14:00","timeSource":"inferred"},
+    {"text":"code","sourceText":"kept writing until 4:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","endTime":"16:00","timeSource":"exact"},
+    {"text":"go home","sourceText":"got home at 4:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"16:00","endTime":"16:30","timeSource":"exact"},
+    {"text":"make phone call","sourceText":"called for one hour from 5:00 to 6:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"17:00","endTime":"18:00","timeSource":"exact"},
+    {"text":"watch videos","sourceText":"watched videos until 7:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"18:00","endTime":"19:00","timeSource":"exact"},
+    {"text":"code","sourceText":"kept coding until 8:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"19:00","endTime":"20:00","timeSource":"exact"},
+    {"text":"eat dinner","sourceText":"8:00 dinner","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"20:00","endTime":"20:30","timeSource":"exact"},
+    {"text":"code","sourceText":"coded again after dinner until now","kind":"activity","confidence":"high","timeRelation":"realtime","startTime":"20:30","timeSource":"inferred"}
+  ],
+  "unparsed": []
+}`;
 
 export const MAGIC_PEN_PROMPT_IT = `Sei Xiaoshi, un assistente di registrazione del tempo che capisce molto bene il modo colloquiale in cui le persone parlano ogni giorno.
 
@@ -324,4 +448,128 @@ Le sequenze lunghe vanno estratte interamente (importante):
 - Ogni evento in una narrazione continua deve diventare un segmento indipendente. Non unire, non saltare, non spostare in unparsed.
 - Ogni frammento con orario esplicito (es. "11:00", "4:00", "alle cinque") deve essere estratto come activity_backfill con timeSource "exact".
 - I frammenti senza orario esplicito ma tra due ancore vanno con timeSource "inferred" e allocazione temporale in ordine.
-- Solo frammenti davvero incomprensibili (es. pura interiezione) possono andare in unparsed.`;
+- Solo frammenti davvero incomprensibili (es. pura interiezione) possono andare in unparsed.
+
+---
+
+Esempi di riferimento:
+
+Esempio 1
+Input: sono a lezione, mi sono alzato alle otto stamattina, pero sono uscito solo alle dieci
+Output:
+{
+  "segments": [
+    {"text":"seguire lezione","sourceText":"sono a lezione","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"svegliarsi","sourceText":"mi sono alzato alle otto stamattina","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"08:30","timeSource":"exact"},
+    {"text":"uscire","sourceText":"sono uscito solo alle dieci","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:20","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Esempio 2
+Input: sveglia alle 9:30
+Output:
+{
+  "segments": [
+    {"text":"svegliarsi","sourceText":"sveglia alle 9:30","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Esempio 3
+Input: sono a lezione e alle dieci e mezza devo uscire
+Output:
+{
+  "segments": [
+    {"text":"seguire lezione","sourceText":"sono a lezione","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"uscire","sourceText":"alle dieci e mezza devo uscire","kind":"todo_add","confidence":"high","timeRelation":"future","startTime":"10:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Esempio 4
+Input: sono distrutto, ho appena finito una riunione, e nel pomeriggio ne ho altre due
+Output:
+{
+  "segments": [
+    {"text":"stanco","sourceText":"sono distrutto","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"riunione","sourceText":"ho appena finito una riunione","kind":"activity_backfill","confidence":"high","timeRelation":"past","timeSource":"inferred"},
+    {"text":"riunione","sourceText":"nel pomeriggio ne ho altre due","kind":"todo_add","confidence":"medium","timeRelation":"future","periodLabel":"pomeriggio","timeSource":"period"}
+  ],
+  "unparsed": []
+}
+
+Esempio 5
+Input: ultimamente sono molto stanco e un po triste, ma da domani ho deciso di correre ogni giorno
+Output:
+{
+  "segments": [
+    {"text":"stanco","sourceText":"ultimamente sono molto stanco","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"triste","sourceText":"un po triste","kind":"mood","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"correre ogni giorno","sourceText":"ma da domani ho deciso di correre ogni giorno","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Esempio 6
+Input: tra poco vado a giocare a basket
+Output:
+{
+  "segments": [
+    {"text":"giocare a basket","sourceText":"tra poco vado a giocare a basket","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Esempio 7
+Input: sto scrivendo codice, dopo devo andare a comprare la spesa
+Output:
+{
+  "segments": [
+    {"text":"scrivere codice","sourceText":"sto scrivendo codice","kind":"activity","confidence":"high","timeRelation":"realtime","timeSource":"missing"},
+    {"text":"comprare la spesa","sourceText":"dopo devo andare a comprare la spesa","kind":"todo_add","confidence":"high","timeRelation":"future","timeSource":"missing"}
+  ],
+  "unparsed": []
+}
+
+Esempio 8 (inferenza con ancore multiple)
+Input: mi sono svegliato alle nove, ho mangiato, sono andato al supermercato, alle undici ero a casa
+Output:
+{
+  "segments": [
+    {"text":"svegliarsi","sourceText":"mi sono svegliato alle nove","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:00","endTime":"09:30","timeSource":"exact"},
+    {"text":"mangiare","sourceText":"ho mangiato","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"09:30","endTime":"10:00","timeSource":"inferred"},
+    {"text":"andare al supermercato","sourceText":"sono andato al supermercato","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"10:00","endTime":"10:45","timeSource":"inferred"},
+    {"text":"arrivare a casa","sourceText":"alle undici ero a casa","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Esempio 9 (fusione di attivita parallele)
+Input: alle otto ho iniziato a mangiare, nello stesso tempo ho guardato video per mezzora
+Output:
+{
+  "segments": [
+    {"text":"mangiare+guardare video","sourceText":"alle otto ho iniziato a mangiare, nello stesso tempo ho guardato video per mezzora","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"08:00","endTime":"09:00","timeSource":"exact"}
+  ],
+  "unparsed": []
+}
+
+Esempio 10 (sequenza lunga: estrai tutto, niente unparsed)
+Input: alle 11:00 sono uscito per andare a scuola, alle 12:00 e iniziata la lezione, poi non ascoltavo e cercavo ebook, ho scritto fino alle 4:00, alle 4:00 sono tornato a casa, alle 5:00 ho fatto una chiamata fino alle 6:00, poi ho guardato video fino alle 7:00, poi ho continuato a scrivere codice fino alle 8:00 quando ho cenato, e dopo cena ho continuato a scrivere fino adesso
+Output:
+{
+  "segments": [
+    {"text":"uscire per andare a scuola","sourceText":"alle 11:00 sono uscito per andare a scuola","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"11:00","endTime":"11:30","timeSource":"exact"},
+    {"text":"seguire lezione","sourceText":"alle 12:00 e iniziata la lezione","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"12:00","endTime":"16:00","timeSource":"exact"},
+    {"text":"cercare ebook","sourceText":"non ascoltavo e cercavo ebook","kind":"activity_backfill","confidence":"medium","timeRelation":"past","startTime":"12:30","endTime":"14:00","timeSource":"inferred"},
+    {"text":"scrivere codice","sourceText":"ho scritto fino alle 4:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","endTime":"16:00","timeSource":"exact"},
+    {"text":"tornare a casa","sourceText":"alle 4:00 sono tornato a casa","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"16:00","endTime":"16:30","timeSource":"exact"},
+    {"text":"fare una chiamata","sourceText":"alle 5:00 ho fatto una chiamata fino alle 6:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"17:00","endTime":"18:00","timeSource":"exact"},
+    {"text":"guardare video","sourceText":"ho guardato video fino alle 7:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"18:00","endTime":"19:00","timeSource":"exact"},
+    {"text":"scrivere codice","sourceText":"ho continuato a scrivere codice fino alle 8:00","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"19:00","endTime":"20:00","timeSource":"exact"},
+    {"text":"cenare","sourceText":"alle 8:00 quando ho cenato","kind":"activity_backfill","confidence":"high","timeRelation":"past","startTime":"20:00","endTime":"20:30","timeSource":"exact"},
+    {"text":"scrivere codice","sourceText":"dopo cena ho continuato a scrivere fino adesso","kind":"activity","confidence":"high","timeRelation":"realtime","startTime":"20:30","timeSource":"inferred"}
+  ],
+  "unparsed": []
+}`;

@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Download, X } from 'lucide-react';
+import { ChevronLeft, Download, PenLine, X } from 'lucide-react';
 import { format } from 'date-fns';
 import html2canvas from 'html2canvas';
 import { useTranslation } from 'react-i18next';
@@ -220,21 +220,14 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
 
       {/* ── Action buttons ── */}
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
-        <button
-          onClick={saveCard}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all"
-          style={{ color: '#5e734b', border: '1px solid rgba(94,115,75,0.22)', background: 'rgba(255,255,255,0.88)' }}
-        >
-          <Download size={16} strokeWidth={1.5} />
-          {t('plant_save_card')}
-        </button>
         {onGenerateDiary ? (
           <button
             onClick={onGenerateDiary}
             disabled={isGeneratingDiary}
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            style={{ color: '#5e734b', border: '1px solid rgba(94,115,75,0.22)', background: 'rgba(144, 212, 122, 0.2)' }}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-base shadow-md active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
           >
+            <PenLine size={16} strokeWidth={1.5} />
             {isGeneratingDiary ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('plant_card_diary_button')}
           </button>
         ) : null}
@@ -243,6 +236,14 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
             {diaryButtonHint}
           </p>
         ) : null}
+        <button
+          onClick={saveCard}
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all"
+          style={{ color: '#5e734b', border: '1px solid rgba(94,115,75,0.22)', background: 'rgba(255,255,255,0.88)' }}
+        >
+          <Download size={16} strokeWidth={1.5} />
+          {t('plant_save_card')}
+        </button>
       </div>
     </div>
   );

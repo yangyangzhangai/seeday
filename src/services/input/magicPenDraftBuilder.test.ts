@@ -855,4 +855,72 @@ describe('magicPenDraftBuilder', () => {
     expect(aligned[1].activity?.endAt).toBe(new Date(2026, 2, 11, 10, 0, 0, 0).getTime());
     expect(aligned[1].activity?.startAt).toBe(new Date(2026, 2, 11, 9, 30, 0, 0).getTime());
   });
+
+  it('rejects backfill draft overlapping with ended activity record', () => {
+    const drafts: MagicPenDraftItem[] = [
+      {
+        id: 'candidate',
+        kind: 'activity_backfill',
+        content: '写方案',
+        sourceText: '9点20写方案',
+        confidence: 'high',
+        needsUserConfirmation: false,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 20, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 9, 40, 0, 0).getTime(),
+          timeResolution: 'exact',
+        },
+      },
+    ];
+
+    const messages = [
+      {
+        id: 'ended-1',
+        content: '早会',
+        timestamp: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+        duration: 30,
+        type: 'text' as const,
+        mode: 'record' as const,
+        isMood: false,
+      },
+    ];
+
+    const validated = validateDrafts(drafts, messages, fixedNow.getTime());
+    expect(validated[0].errors).toContain('overlap_in_batch');
+  });
+
+  it('allows backfill draft overlapping with ongoing activity record', () => {
+    const drafts: MagicPenDraftItem[] = [
+      {
+        id: 'candidate-ongoing',
+        kind: 'activity_backfill',
+        content: '写方案',
+        sourceText: '9点20写方案',
+        confidence: 'high',
+        needsUserConfirmation: false,
+        errors: [],
+        activity: {
+          startAt: new Date(2026, 2, 11, 9, 20, 0, 0).getTime(),
+          endAt: new Date(2026, 2, 11, 9, 40, 0, 0).getTime(),
+          timeResolution: 'exact',
+        },
+      },
+    ];
+
+    const messages = [
+      {
+        id: 'ongoing-1',
+        content: 'ongoing',
+        timestamp: new Date(2026, 2, 11, 9, 0, 0, 0).getTime(),
+        duration: undefined,
+        type: 'text' as const,
+        mode: 'record' as const,
+        isMood: false,
+      },
+    ];
+
+    const validated = validateDrafts(drafts, messages, fixedNow.getTime());
+    expect(validated[0].errors).toEqual([]);
+  });
 });

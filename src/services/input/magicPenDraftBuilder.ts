@@ -48,12 +48,20 @@ function collectTimeErrors(draft: MagicPenDraftItem, now: number): MagicPenDraft
   return [];
 }
 
-function appendOngoingOverlapError(
+function appendEndedOverlapError(
   draft: MagicPenDraftItem,
-  ongoingActivity: Message | undefined,
+  endedActivities: Array<{ startAt: number; endAt: number }>,
 ): MagicPenDraftErrorCode[] {
-  if (!ongoingActivity || !draft.activity?.endAt) return [];
-  return draft.activity.endAt > ongoingActivity.timestamp ? ['overlap_with_ongoing_activity'] : [];
+  const startAt = draft.activity?.startAt;
+  const endAt = draft.activity?.endAt;
+  if (startAt === undefined || endAt === undefined) return [];
+
+  for (const activity of endedActivities) {
+    if (startAt < activity.endAt && endAt > activity.startAt) {
+      return ['overlap_in_batch'];
+    }
+  }
+  return [];
 }
 
 function getComparableStart(draft: MagicPenDraftItem): number {
@@ -803,14 +811,23 @@ export function validateDrafts(
   messages: Message[],
   now: number = Date.now(),
 ): MagicPenDraftItem[] {
-  const ongoingActivity = [...messages].reverse().find(
-    (message) => message.mode === 'record' && !message.isMood && message.duration === undefined,
-  );
+  const endedActivities = messages
+    .filter(
+      (message) => message.mode === 'record' && !message.isMood && message.duration !== undefined,
+    )
+    .map((message) => ({
+      startAt: message.timestamp,
+      endAt: message.timestamp + message.duration! * 60 * 1000,
+    }))
+    .filter((activity) => activity.endAt > activity.startAt);
 
   const validated = drafts.map((draft) => {
     if (draft.kind !== 'activity_backfill') return cloneDraftWithErrors(draft, []);
     const timeErrors = collectTimeErrors(draft, now);
-    const overlapErrors = appendOngoingOverlapError(draft, ongoingActivity);
+    if (timeErrors.length > 0) {
+      return cloneDraftWithErrors(draft, timeErrors);
+    }
+    const overlapErrors = appendEndedOverlapError(draft, endedActivities);
     return cloneDraftWithErrors(draft, [...timeErrors, ...overlapErrors]);
   });
 
