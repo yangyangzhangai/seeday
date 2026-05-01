@@ -6,6 +6,86 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Fix: 登录与新手引导登录使用统一吉祥物图片
+
+- `src/features/auth/AuthPage.tsx`：将登录头部树苗图标从 `Sprout` 替换为图片资源 `/assets/auth-login-mascot.png`
+- `src/features/onboarding/OnboardingFlow.tsx`：`StepAuth` 同步替换为同一图片资源，确保新用户/老用户登录界面一致
+
+Validation:
+
+- Not run (UI asset wiring only)
+
+### Fix: 日记按钮“生成中”文案缩短并保留人设名
+
+- `src/i18n/locales/zh.ts`：`report_generating` 改为 `{{companion}} 正在写日记...`，减少按钮占位宽度
+- `src/i18n/locales/en.ts`：`report_generating` 改为 `{{companion}} is writing...`
+- `src/i18n/locales/it.ts`：`report_generating` 改为 `{{companion}} sta scrivendo...`
+- 影响范围：`ReportDetailModal` 与 `PlantFlipCard` 两处按钮继续复用同一 key，按当前人设显示 `Van/Agnes/Zep/Momo`
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: 帮助与支持 FAQ 文案与真实交互对齐
+
+- `src/i18n/locales/zh.ts`：将“AI 伴侣”统一为“AI 伙伴”；将“编辑/删除记录”改为分入口说明（消息点击删除、时间轴编辑活动时间与内容）；将“报告实时生成”改为“每日植物与今日日记 20:00 后可见/可生成”
+- `src/features/profile/components/HelpSupportPanel.tsx`：Growth 分组新增 3 条 FAQ，补充“如何添加/编辑待办”“待办按钮作用（置顶/开始/专注/会员分步拆解）”“点击瓶子可查看打卡数据、生成待办、删除瓶子”
+- `src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：补齐新增 FAQ keys（`help_q11~help_q13`）以保持三语 key 集一致
+- `src/features/profile/components/HelpSupportPanel.tsx`：新增“联系我们”信息卡，显示支持邮箱并提供 `mailto:` 点击入口
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: Onboarding 地区占位示例本地化并移除英文多余逗号感
+
+- `src/i18n/locales/en.ts`：`onboarding2_routine_region_placeholder` 从 `e.g., Milan` 改为 `e.g. New York or London`，更贴近英文用户常见地区示例并去除 `e.g.` 后逗号
+- `src/i18n/locales/it.ts`：`onboarding2_routine_region_placeholder` 从 `es. Roma` 改为 `es. Milano`
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: 帮助与支持中文 FAQ 二次润色与去重
+
+- `src/i18n/locales/zh.ts`：
+  - `help_a1` 去除破折号，改为更连贯口语表述
+  - `help_a4` 改为“点击消息卡片”可删除
+  - `help_a11` 明确“可设置每天或每周重复”
+  - `help_a12` 置顶文案改为“点击置顶按钮，可以把这一条待办置顶”
+  - `help_a5` 去掉与瓶子问答重复的信息
+- `src/features/profile/components/HelpSupportPanel.tsx`：Growth 分组移除“支持重复任务吗”与“瓶子里还可以做什么”两条显示项，避免重复
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: 帮助与支持待办按钮文案定稿（分号节奏 + 分步完成 + 连续专注）
+
+- `src/i18n/locales/zh.ts`：`help_a12` 调整为用户确认版本，统一使用分号连接动作说明，并将会员能力描述更新为“分步完成”+“点击闹钟开启按步骤连续专注模式”
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: 帮助与支持“瓶子是什么”文案改为后续能力表达
+
+- `src/i18n/locales/zh.ts`：`help_a5` 调整为单行文案，改为“后续将开放满瓶浇灌周报与月报植物能力，敬请期待”
+
+Validation:
+
+- Not run (copy update only)
+
+### Fix: 帮助与支持三语文案对齐 + 联系方式降级为单行灰字
+
+- `src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：FAQ 文案同步中文现状口径（AI 伙伴命名、消息卡片删除入口、20:00 可见规则、待办按钮说明、会员分步与连续专注）
+- `src/i18n/locales/{zh,en,it}.ts`：联系文案改为仅“联系我们/Contact us/Contattaci + 邮箱”，移除“几个工作日回复”承诺
+- `src/features/profile/components/HelpSupportPanel.tsx`：将联系方式从高显眼卡片改为底部一行灰色小字（含 `mailto:` 邮箱链接）
+
+Validation:
+
+- Not run (copy + style update)
+
 ### Fix: Onboarding 记录步骤 iOS 键盘弹出时输入区跟随上移
 
 - `src/features/onboarding/components/StepJournal.tsx`：底部输入区容器新增 `padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px))`，复用原生键盘高度变量，在 iOS 套壳键盘弹出时将输入框整体抬升，避免发送区被遮挡

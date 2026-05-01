@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
-import { Apple, Chrome, Sprout, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
+import { Apple, Chrome, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { callActivateTrialAPI } from '../../api/client';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -59,6 +59,7 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
 
 // ── StepAuth ──────────────────────────────────────────────────
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
+  const authMascotSrc = '/assets/auth-login-mascot.png';
   const { t } = useTranslation();
   const { signIn, signUp, verifySignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
@@ -160,7 +161,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           transition={{ duration: 0.5, ease: 'easeOut' }}
           className="w-[72px] h-[72px] bg-[#8fae91]/20 rounded-[22px] flex items-center justify-center mb-8 shadow-inner"
         >
-          <Sprout className="text-[#4a5d4c]" size={34} strokeWidth={1.5} />
+          <img src={authMascotSrc} alt="" aria-hidden="true" className="h-[52px] w-[52px] object-contain" />
         </motion.div>
 
         <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">

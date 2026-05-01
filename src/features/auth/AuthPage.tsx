@@ -2,11 +2,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Apple, Chrome, Mail, Lock, Loader2, User, ChevronRight, Sprout } from 'lucide-react';
+import { Apple, Chrome, Mail, Lock, Loader2, User, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export const AuthPage: React.FC = () => {
+  const authMascotSrc = '/assets/auth-login-mascot.png';
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -137,7 +138,7 @@ export const AuthPage: React.FC = () => {
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className="mb-8 flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-[#8fae91]/20 shadow-inner"
           >
-            <Sprout className="text-[#4a5d4c]" size={34} strokeWidth={1.5} />
+            <img src={authMascotSrc} alt="" aria-hidden="true" className="h-[52px] w-[52px] object-contain" />
           </motion.div>
 
           <h1 className="text-3xl font-black leading-tight tracking-tight text-[#4a5d4c]">

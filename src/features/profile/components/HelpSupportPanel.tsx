@@ -36,7 +36,8 @@ const SECTIONS: Section[] = [
     titleKey: 'help_sec_growth',
     items: [
       { q: 'help_q5', a: 'help_a5' },
-      { q: 'help_q6', a: 'help_a6' },
+      { q: 'help_q11', a: 'help_a11' },
+      { q: 'help_q12', a: 'help_a12' },
     ],
   },
   {
@@ -102,6 +103,13 @@ export const HelpSupportPanel: React.FC<Props> = ({ onClose }) => {
       >
         {t('feedback_sheet_title')}
       </button>
+
+      <p className="mt-3 text-xs text-slate-500">
+        {t('help_contact_desc')}{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-2 hover:text-slate-600">
+          {SUPPORT_EMAIL}
+        </a>
+      </p>
 
       <div style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 112px)' }} />
     </InfoSheetPanel>
