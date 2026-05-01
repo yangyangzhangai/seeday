@@ -4,7 +4,7 @@ const rawApiBase = String(process.env.VITE_API_BASE ?? '').trim();
 
 if (!rawApiBase) {
   console.error(
-    '[build:ios] Missing VITE_API_BASE. Example: VITE_API_BASE=https://your-project.vercel.app/api npm run build:ios',
+    '[build:ios] Missing VITE_API_BASE. Example: VITE_API_BASE=https://seedayapp.com/api npm run build:ios',
   );
   process.exit(1);
 }
@@ -19,7 +19,7 @@ if (!/^https?:\/\//i.test(normalizedApiBase)) {
 }
 
 // Auto-append /api if the URL looks like a bare domain (no path component beyond /)
-// e.g. https://example.vercel.app → https://example.vercel.app/api
+// e.g. https://seedayapp.com → https://seedayapp.com/api
 const parsedUrl = new URL(normalizedApiBase);
 if (parsedUrl.pathname === '/' || parsedUrl.pathname === '') {
   normalizedApiBase = `${normalizedApiBase}/api`;
