@@ -14,8 +14,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    // eslint-disable-next-line no-console
-    console.error('[ErrorBoundary]', error, errorInfo);
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.error('[ErrorBoundary]', error, errorInfo);
+    }
   }
 
   render() {
@@ -32,4 +34,3 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return this.props.children;
   }
 }
-

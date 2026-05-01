@@ -8,11 +8,17 @@
 
 import type { ReminderType } from '../reminder/reminderTypes';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../store/storageScope';
+import i18n from '../../i18n';
 
 const ERROR_LOG_KEY = 'reminder_error_log';
 const MAX_ERROR_ENTRIES = 20;
 let actionTypesRegistered = false;
 let actionTypesRegisterPromise: Promise<void> | null = null;
+
+function tAction(key: string): string {
+  const translated = i18n.t(key);
+  return translated === key ? '' : translated;
+}
 
 function logReminderError(label: string, error: unknown): void {
   try {
@@ -34,7 +40,7 @@ function logReminderError(label: string, error: unknown): void {
 
 // 动态导入避免 Web 环境报错
 interface LocalNotificationsPluginRef {
-  plugin: Awaited<ReturnType<typeof import('@capacitor/local-notifications')>>['LocalNotifications'];
+  plugin: (typeof import('@capacitor/local-notifications'))['LocalNotifications'];
 }
 
 async function getPlugin() {
@@ -81,35 +87,35 @@ export async function registerNotificationCategories(): Promise<void> {
         {
           id: 'CONFIRM_DENY',
           actions: [
-            { id: 'confirm', title: '✓ 确认', foreground: false },
-            { id: 'deny', title: '我在做别的', foreground: false },
+            { id: 'confirm', title: tAction('notification_action_confirm') || '✓ Confirm', foreground: false },
+            { id: 'deny', title: tAction('notification_action_deny') || 'I am busy', foreground: false },
           ],
         },
         {
           id: 'EVENING_CHECK',
           actions: [
-            { id: 'view_report', title: '看日报', foreground: true },
-            { id: 'grow_plant', title: '种植物', foreground: true },
+            { id: 'view_report', title: tAction('notification_action_view_report') || 'View diary', foreground: true },
+            { id: 'grow_plant', title: tAction('notification_action_grow_plant') || 'Grow plant', foreground: true },
           ],
         },
         {
           id: 'WEEKEND_CHECK',
           actions: [
-            { id: 'confirm', title: '记一下', foreground: false },
-            { id: 'deny', title: '忽略', foreground: false },
+            { id: 'confirm', title: tAction('notification_action_weekend_confirm') || 'Log now', foreground: false },
+            { id: 'deny', title: tAction('notification_action_weekend_deny') || 'Ignore', foreground: false },
           ],
         },
         {
           id: 'IDLE_NUDGE',
           actions: [
-            { id: 'open_chat', title: '打开聊天', foreground: true },
+            { id: 'open_chat', title: tAction('notification_action_open_chat') || 'Open chat', foreground: true },
           ],
         },
         {
           id: 'SESSION_CHECK',
           actions: [
-            { id: 'still_yes', title: '✓ 还在', foreground: false },
-            { id: 'still_no', title: '我在做别的', foreground: false },
+            { id: 'still_yes', title: tAction('notification_action_still_yes') || '✓ Still on it', foreground: false },
+            { id: 'still_no', title: tAction('notification_action_still_no') || 'I am busy', foreground: false },
           ],
         },
       ],

@@ -271,6 +271,10 @@ async function verifyIapMembership(params: {
   });
 
   const bypass = process.env.APPLE_IAP_VERIFY_BYPASS === 'true';
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if (bypass && isProduction) {
+    throw new Error('APPLE_IAP_VERIFY_BYPASS must be false in production');
+  }
   if (bypass) {
     logSubscriptionDebug('[IAP] bypass mode enabled, skipping Apple verification');
     const defaultExpire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

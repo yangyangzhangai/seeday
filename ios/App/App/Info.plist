@@ -61,6 +61,6 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>Seeday 需要通知权限，在作息时间提醒你记录日常</string>
+	<string>Seeday sends reminders during your routine to help you record your day.</string>
 </dict>
 </plist>

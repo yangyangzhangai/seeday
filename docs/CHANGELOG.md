@@ -6,6 +6,30 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Fix: iOS 关键本地缓存最小迁移（Auth Session + Reminder Scheduler）
+
+- 新增 `src/services/native/storageService.ts`：统一持久化适配层（native: `@capacitor/preferences`，web: `localStorage`），并在 native 路径对同名 legacy localStorage key 做一次性迁移
+- `src/api/supabase.ts`：Supabase Auth `storage` 改为统一适配器，避免 iOS WKWebView 下会话仅依赖 localStorage
+- `src/services/reminder/reminderScheduler.ts`：`freeDay_<date>`、`reminder_scheduled_date`、`reminder_today_count` 改为通过统一适配层读写，降低调度状态在 iOS 被回收后的丢失风险
+- `package.json` / `package-lock.json`：新增 `@capacitor/preferences@^7.0.0`
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Fix: 提审高风险项收口（Router/IAP/ErrorBoundary）
+
+- `src/App.tsx`：将 `BrowserRouter` 切换为 `HashRouter`，降低 Capacitor 套壳深链/刷新边缘异常风险
+- `api/subscription.ts`：新增生产环境防呆；当 `APPLE_IAP_VERIFY_BYPASS=true` 且 `NODE_ENV/VERCEL_ENV` 为 production 时直接抛错阻断，避免误绕过 Apple 校验
+- `src/components/feedback/ErrorBoundary.tsx`：错误日志改为 DEV-only，避免生产设备暴露原始异常对象
+- `src/services/notifications/localNotificationService.ts`：通知操作按钮文案改为 i18n key（中/英/意），移除中文硬编码
+- `src/i18n/locales/en.ts`、`src/i18n/locales/zh.ts`、`src/i18n/locales/it.ts`：补充通知 action 文案翻译键
+- `ios/App/App/Info.plist` + `ios/App/App/{en,it,zh-Hans}.lproj/InfoPlist.strings`：通知权限说明改为本地化资源，默认文案改为英文基线
+
+Validation:
+
+- Not run (targeted risk fixes + docs sync)
+
 ### Fix: 前端 store 生产日志进一步收口（R-ASR-007 Round 1.12）
 
 - `src/store/reportActions.ts`、`src/store/authStoreRuntimeHelpers.ts`、`src/store/useReportStore.ts`：生产路径 `console.warn/error` 改为 DEV-only

@@ -30,6 +30,7 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/keyboard": "^7.0.0",
     "@capacitor/local-notifications": "^7.0.0",
+    "@capacitor/preferences": "^7.0.4",
     "@chinese-fonts/lxgwwenkai": "^3.0.0",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/material-symbols-outlined": "^5.2.39",

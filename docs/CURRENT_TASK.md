@@ -31,6 +31,9 @@ Session Notes:
 - 2026-05-01: iOS Review（ASR/NR）R-ASR-007 server 日志继续收口：移除 `src/server/annotation-handler.ts`、`src/server/annotation-handler-utils.ts`、`src/server/todo-decompose-service.ts` 非必要 `console.log`；当前 `src/**` 已无 `console.log` 残留
 - 2026-05-01: iOS Review（ASR/NR）R-ASR-007 持续收口：前端 `useChatStore/useTodoStore` 将生产路径 `console.error` 与 `catch(console.error)` 改为 DEV-only；服务端 `api/report.ts`、`api/classify.ts`、`api/diary.ts`、`api/magic-pen-parse.ts` 错误日志改为结构化摘要（长度/状态码），不再输出原始文本预览
 - 2026-05-01: iOS Review（ASR/NR）R-ASR-007 Round 1.12：继续收口前端 store 日志，将 `reportActions`、`authStoreRuntimeHelpers`、`useReportStore`、`useAnnotationStore`、`useStardustStore`、`authDataSyncHelpers`、`authPreferenceHelpers` 的生产路径 `console.warn/error` 改为 DEV-only，减少用户端可见错误对象
+- 2026-05-01: iOS Review（ASR/NR）Round 1.13：`src/App.tsx` 路由切换为 `HashRouter`（Capacitor 场景稳定性）；`src/components/feedback/ErrorBoundary.tsx` 日志改为 DEV-only；`api/subscription.ts` 增加生产环境 `APPLE_IAP_VERIFY_BYPASS=true` 的硬阻断
+- 2026-05-01: iOS 本地持久化最小迁移（第一批关键项）：新增 `src/services/native/storageService.ts`（native 使用 `@capacitor/preferences`，web 保持 localStorage，并自动迁移 legacy key）；`src/api/supabase.ts` auth session 存储改走统一适配器；`src/services/reminder/reminderScheduler.ts` 关键调度键（`freeDay_*` / `reminder_scheduled_date` / `reminder_today_count`）改走统一持久化适配器
+- 2026-05-01: iOS Review（ASR/NR）Round 1.14：通知 action 文案改走 i18n（中/英/意）；`NSUserNotificationsUsageDescription` 改为本地化 `InfoPlist.strings`（`en/it/zh-Hans`）并将 Info.plist 默认文案改为英文基线
 
 ---
 

@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/*/README.md
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { AIAnnotationBubble } from './components/feedback/AIAnnotationBubble';
 import { ChatPage } from './features/chat/ChatPage';
@@ -357,7 +357,7 @@ function App() {
   useAppForegroundRefresh();
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route
           path="/"
@@ -387,7 +387,7 @@ function App() {
         <Route path="/onboarding" element={<OnboardingRoute />} />
         <Route path="/auth" element={<AuthPage />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
