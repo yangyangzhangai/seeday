@@ -301,7 +301,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     const listener = CapApp.addListener('appStateChange', ({ isActive }) => {
       const manual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
       const aiMode = preferences.aiMode;
-      const userName = manual.freeText;
+      const userName = user?.user_metadata?.display_name as string | undefined;
 
       if (isActive) {
         void cancelIdleNudge(user?.id);

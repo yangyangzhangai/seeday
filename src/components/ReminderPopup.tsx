@@ -64,7 +64,7 @@ export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDe
           <img
             src={visual.avatar}
             alt={visual.name}
-            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+            className="w-12 h-12 object-contain flex-shrink-0"
           />
           <p className="text-sm leading-relaxed text-slate-700 pt-1">{copyText}</p>
         </div>
@@ -159,7 +159,7 @@ export const EveningCheckPopup: React.FC<EveningCheckPopupProps> = ({
           <img
             src={visual.avatar}
             alt={visual.name}
-            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+            className="w-12 h-12 object-contain flex-shrink-0"
           />
           <div>
             <p className="text-sm leading-relaxed text-slate-700">{copyText}</p>

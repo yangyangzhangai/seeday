@@ -1,4 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROACTIVE_REMINDER_SPEC.md -> src/services/reminder/reminderTypes.ts
+import i18next from 'i18next';
 import type { AiCompanionMode } from '../../lib/aiCompanion';
 import type { ReminderType } from './reminderTypes';
 
@@ -95,24 +96,25 @@ export const REMINDER_COPY: Record<AiCompanionMode, Record<ReminderType, string>
 };
 
 type ReminderActionHint = {
-  activity: string;
+  activityKey: string;
   mode: 'start' | 'end';
+  eat?: true;
 };
 
 const REMINDER_ACTION_HINTS: Partial<Record<ReminderType, ReminderActionHint>> = {
-  work_start: { activity: '工作', mode: 'start' },
-  lunch_start: { activity: '午饭', mode: 'start' },
-  meal_lunch: { activity: '午饭', mode: 'start' },
-  lunch_end: { activity: '工作', mode: 'start' },
-  work_end: { activity: '工作', mode: 'end' },
-  class_morning_start: { activity: '学习', mode: 'start' },
-  class_afternoon_start: { activity: '学习', mode: 'start' },
-  class_evening_start: { activity: '学习', mode: 'start' },
-  class_morning_end: { activity: '学习', mode: 'end' },
-  class_afternoon_end: { activity: '学习', mode: 'end' },
-  class_evening_end: { activity: '学习', mode: 'end' },
-  meal_dinner: { activity: '晚饭', mode: 'start' },
-  sleep: { activity: '休息', mode: 'end' },
+  work_start: { activityKey: 'reminder_hint_noun_work', mode: 'start' },
+  lunch_start: { activityKey: 'reminder_hint_noun_lunch', mode: 'start', eat: true },
+  meal_lunch: { activityKey: 'reminder_hint_noun_lunch', mode: 'start', eat: true },
+  lunch_end: { activityKey: 'reminder_hint_noun_work', mode: 'start' },
+  work_end: { activityKey: 'reminder_hint_noun_work', mode: 'end' },
+  class_morning_start: { activityKey: 'reminder_hint_noun_study', mode: 'start' },
+  class_afternoon_start: { activityKey: 'reminder_hint_noun_study', mode: 'start' },
+  class_evening_start: { activityKey: 'reminder_hint_noun_study', mode: 'start' },
+  class_morning_end: { activityKey: 'reminder_hint_noun_study', mode: 'end' },
+  class_afternoon_end: { activityKey: 'reminder_hint_noun_study', mode: 'end' },
+  class_evening_end: { activityKey: 'reminder_hint_noun_study', mode: 'end' },
+  meal_dinner: { activityKey: 'reminder_hint_noun_dinner', mode: 'start', eat: true },
+  sleep: { activityKey: 'reminder_hint_noun_rest', mode: 'end' },
 };
 
 function buildReminderActionHintCopy(
@@ -121,11 +123,15 @@ function buildReminderActionHintCopy(
 ): string | null {
   const hint = REMINDER_ACTION_HINTS[type];
   if (!hint) return null;
-  const prefix = vars.name ? `${vars.name}，` : '';
+  const lang = i18next.language ?? 'zh';
+  const sep = lang === 'zh' ? '，' : ', ';
+  const prefix = vars.name ? `${vars.name}${sep}` : '';
+  const activity = i18next.t(hint.activityKey);
   if (hint.mode === 'start') {
-    return `${prefix}现在在做${hint.activity}吗？长按通知可一键开始计时。`;
+    const key = hint.eat ? 'reminder_hint_eat_start' : 'reminder_hint_start';
+    return prefix + i18next.t(key, { activity });
   }
-  return `${prefix}现在准备结束${hint.activity}了吗？长按通知可一键结束计时。`;
+  return prefix + i18next.t('reminder_hint_end', { activity });
 }
 
 /**
