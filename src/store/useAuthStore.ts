@@ -73,15 +73,13 @@ async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?:
   const deletionTime = new Date(pendingAt).getTime();
   const now = Date.now();
   if (now < deletionTime) {
-    await supabase.auth.updateUser({ data: { pending_deletion_at: null } });
     return;
   }
   try {
     await callDeleteAccountAPI();
-  } catch {
-    // noop
-  } finally {
     await supabase.auth.signOut({ scope: 'global' });
+  } catch {
+    // noop: keep pending flag for next sign-in retry
   }
 }
 

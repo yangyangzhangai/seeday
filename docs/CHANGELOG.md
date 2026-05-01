@@ -6,6 +6,25 @@ All notable effective changes are documented here.
 
 ## 2026-04-30
 
+### Fix: Apple 登录回调移除 placeholder URI
+
+- `src/store/authStoreAccountActions.ts`：iOS Apple 登录授权参数 `redirectURI` 从硬编码 `https://placeholder.seeday.app` 改为 `resolveOAuthRedirectUrl()` 的真实回调地址
+- 增加防御校验：当回调地址为空或命中 placeholder 时，直接返回 `Invalid Apple OAuth redirect URI`，避免审核环境触发不可诊断的登录失败
+
+Validation:
+
+- Not run (auth config + runtime guard update)
+
+### Fix: 删除账号改为立即执行服务端硬删除
+
+- `src/features/profile/components/DeleteAccountModal.tsx`：删除确认后直接调用 `callDeleteAccountAPI()`，由服务端统一删除业务数据与 auth 用户，再执行本地登出与跳转
+- `src/store/useAuthStore.ts`：修复 pending 删除分支逻辑；未到期不再清空 `pending_deletion_at`，到期删除失败时保留标记供后续重试
+- `src/features/profile/components/DeleteAccountModal.tsx`：移除宽限期提示 UI，避免与立即删除策略冲突
+
+Validation:
+
+- Not run (account deletion flow update)
+
 ### Fix: Magic Pen 活动重叠校验改为“允许 ongoing、拦截 ended”
 
 - `src/services/input/magicPenDraftBuilder.ts`：移除“与进行中活动冲突”阻断规则；提交校验改为仅拦截与已结束活动（`mode='record' && !isMood && duration!==undefined`）存在时间区间重叠的补录活动

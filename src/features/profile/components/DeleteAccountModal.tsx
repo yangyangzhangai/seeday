@@ -1,12 +1,10 @@
 // DOC-DEPS: LLM.md -> src/features/profile/README.md
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { supabase } from '../../../api/supabase';
-
-const GRACE_DAYS = 5;
+import { callDeleteAccountAPI } from '../../../api/client';
 
 interface Props {
   onClose: () => void;
@@ -25,11 +23,7 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
     setLoading(true);
     setError(null);
     try {
-      const deletionAt = new Date(Date.now() + GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { pending_deletion_at: deletionAt },
-      });
-      if (updateError) throw updateError;
+      await callDeleteAccountAPI();
       await signOut();
       navigate('/onboarding', { replace: true });
     } catch {
@@ -71,12 +65,6 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
         <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3">
           <p className="mb-1 text-xs font-semibold text-amber-700">{t('delete_account_subscription_title')}</p>
           <p className="text-xs leading-relaxed text-amber-600">{t('delete_account_subscription_body')}</p>
-        </div>
-
-        {/* Grace period note */}
-        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-blue-200/60 bg-blue-50/60 px-4 py-3">
-          <Info size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-blue-400" />
-          <p className="text-xs leading-relaxed text-blue-600">{t('delete_account_grace_note')}</p>
         </div>
 
         {/* What gets deleted */}

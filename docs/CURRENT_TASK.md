@@ -1,9 +1,20 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-04-30
+Last Updated: 2026-05-01
 Owner: current working session
 
 ---
+
+## 2026-05-01 Session Update（Apple 登录回调占位修复）
+
+- [x] `src/store/authStoreAccountActions.ts`：iOS Apple 登录不再使用硬编码占位 `https://placeholder.seeday.app`，改为复用 `resolveOAuthRedirectUrl()`
+- [x] `src/store/authStoreAccountActions.ts`：新增回调 URI 防御校验；若为空或仍是 placeholder，直接返回 `Invalid Apple OAuth redirect URI`，避免审核环境下静默失败
+
+## 2026-05-01 Session Update（账号删除主链路修复）
+
+- [x] `src/features/profile/components/DeleteAccountModal.tsx`：删除账号确认后改为直接调用 `callDeleteAccountAPI()` 执行服务端硬删除，不再仅写入 `pending_deletion_at`
+- [x] `src/store/useAuthStore.ts`：修复 `checkAndHandlePendingDeletion` 条件分支，不再在“未到期”时清空 pending 标记；到期删除失败时保留 pending 以便下次重试
+- [x] `src/features/profile/components/DeleteAccountModal.tsx`：移除“宽限期提示”展示，避免与“立即删除”策略冲突
 
 ## 2026-04-29 Session Update（日记本当日可生成入口 + 当日实时数据）
 

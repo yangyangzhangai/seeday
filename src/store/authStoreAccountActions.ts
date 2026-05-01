@@ -74,10 +74,14 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform()) {
         try {
+          const redirectTo = resolveOAuthRedirectUrl();
+          if (!redirectTo || /placeholder\.seeday\.app/i.test(redirectTo)) {
+            return { error: new Error('Invalid Apple OAuth redirect URI') };
+          }
           const { SignInWithApple } = await import('@capacitor-community/apple-sign-in');
           const result = await SignInWithApple.authorize({
             clientId: 'com.seeday.app',
-            redirectURI: 'https://placeholder.seeday.app',
+            redirectURI: redirectTo,
             scopes: 'email name',
           });
           const identityToken = result.response?.identityToken;
