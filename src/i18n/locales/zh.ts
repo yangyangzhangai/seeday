@@ -1278,6 +1278,27 @@ const zh: TranslationKeys = {
     privacy_s9_title: '联系我们',
     privacy_s9_body: '如有隐私相关问题，请联系：',
 
+    // ── 日历 ──
+    cal_month_jan: '一月',
+    cal_month_feb: '二月',
+    cal_month_mar: '三月',
+    cal_month_apr: '四月',
+    cal_month_may: '五月',
+    cal_month_jun: '六月',
+    cal_month_jul: '七月',
+    cal_month_aug: '八月',
+    cal_month_sep: '九月',
+    cal_month_oct: '十月',
+    cal_month_nov: '十一月',
+    cal_month_dec: '十二月',
+    cal_day_sun: '日',
+    cal_day_mon: '一',
+    cal_day_tue: '二',
+    cal_day_wed: '三',
+    cal_day_thu: '四',
+    cal_day_fri: '五',
+    cal_day_sat: '六',
+
     // About
     about_sheet_title: '关于应用',
     about_tagline: '你的 AI 生活日记伴侣',

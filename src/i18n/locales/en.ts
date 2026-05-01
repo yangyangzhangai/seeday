@@ -1275,6 +1275,27 @@ const en = {
     privacy_s9_title: 'Contact Us',
     privacy_s9_body: 'For privacy-related questions, please contact us at',
 
+    // ── Calendar ──
+    cal_month_jan: 'January',
+    cal_month_feb: 'February',
+    cal_month_mar: 'March',
+    cal_month_apr: 'April',
+    cal_month_may: 'May',
+    cal_month_jun: 'June',
+    cal_month_jul: 'July',
+    cal_month_aug: 'August',
+    cal_month_sep: 'September',
+    cal_month_oct: 'October',
+    cal_month_nov: 'November',
+    cal_month_dec: 'December',
+    cal_day_sun: 'S',
+    cal_day_mon: 'M',
+    cal_day_tue: 'T',
+    cal_day_wed: 'W',
+    cal_day_thu: 'T',
+    cal_day_fri: 'F',
+    cal_day_sat: 'S',
+
     // About
     about_sheet_title: 'About Seeday',
     about_tagline: 'Your AI life journal companion.',

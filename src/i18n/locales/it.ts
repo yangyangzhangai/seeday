@@ -1276,6 +1276,27 @@ const it: TranslationKeys = {
     privacy_s9_title: 'Contattaci',
     privacy_s9_body: 'Per domande relative alla privacy, contattaci a',
 
+    // ── Calendario ──
+    cal_month_jan: 'Gennaio',
+    cal_month_feb: 'Febbraio',
+    cal_month_mar: 'Marzo',
+    cal_month_apr: 'Aprile',
+    cal_month_may: 'Maggio',
+    cal_month_jun: 'Giugno',
+    cal_month_jul: 'Luglio',
+    cal_month_aug: 'Agosto',
+    cal_month_sep: 'Settembre',
+    cal_month_oct: 'Ottobre',
+    cal_month_nov: 'Novembre',
+    cal_month_dec: 'Dicembre',
+    cal_day_sun: 'D',
+    cal_day_mon: 'L',
+    cal_day_tue: 'M',
+    cal_day_wed: 'M',
+    cal_day_thu: 'G',
+    cal_day_fri: 'V',
+    cal_day_sat: 'S',
+
     // About
     about_sheet_title: 'Informazioni su Seeday',
     about_tagline: 'Il tuo compagno di diario AI per vivere meglio.',
