@@ -4,6 +4,19 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口的历史记录已清理，避免维护噪音。
 
+## 2026-05-01
+
+### Fix: EN/IT 活动与心情混合句分类准确率提升
+
+- `src/services/input/liveInputClassifier.ts`：Latin 路径的 `hasActivityEvidence` 改为“任一活动信号即计入活动证据”，不再因 mood 句式同时命中而抹掉活动证据
+- `src/services/input/liveInputRules.en.ts`：补充英文短结构活动壳（`finish/write/reply + object`、`study/review/practice + subject`）
+- `src/services/input/liveInputRules.it.ts`：补充意大利语短结构活动壳（`finire/scrivere/rispondere + object`、`studiare/ripassare + subject`）
+- `src/services/input/liveInputClassifier.i18n.test.ts`：新增 EN/IT 回归样例，覆盖混合评价句（`gym was stressful`、`palestra era stressante`）与短壳句（`write notes`、`scrivere appunti`）
+
+Validation:
+
+- Not run (classifier/rules/tests update)
+
 ## 2026-04-30
 
 ### Fix: Apple 登录回调移除 placeholder URI

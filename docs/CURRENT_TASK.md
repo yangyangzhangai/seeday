@@ -7,6 +7,12 @@ Owner: current working session
 
 ## 2026-05-01 Session Update（Apple 登录回调占位修复）
 
+## 2026-05-01 Session Update（EN/IT 活动-心情分类优化）
+
+- [x] `src/services/input/liveInputClassifier.ts`：Latin 分类将 `hasActivityEvidence` 从“活动信号且无 mood pattern”改为“任一活动信号即算活动证据”，修复 EN/IT 混合句被过度判为 mood
+- [x] `src/services/input/liveInputRules.{en,it}.ts`：补齐 EN/IT 高频短结构（动词+宾语）活动壳规则，覆盖 `write notes` / `finish report`、`scrivere appunti` / `finire report` 等短句
+- [x] `src/services/input/liveInputClassifier.i18n.test.ts`：新增 EN/IT 回归用例，覆盖混合评价句（`gym was stressful` / `palestra era stressante`）与短结构壳子命中
+
 - [x] `src/store/authStoreAccountActions.ts`：iOS Apple 登录不再使用硬编码占位 `https://placeholder.seeday.app`，改为复用 `resolveOAuthRedirectUrl()`
 - [x] `src/store/authStoreAccountActions.ts`：新增回调 URI 防御校验；若为空或仍是 placeholder，直接返回 `Invalid Apple OAuth redirect URI`，避免审核环境下静默失败
 
