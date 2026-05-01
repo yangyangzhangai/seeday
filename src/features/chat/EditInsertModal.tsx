@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Save } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { normalizeUiLanguage } from '../../store/authLanguageHelpers';
 import {
     APP_MODAL_CARD_CLASS,
     APP_MODAL_CLOSE_CLASS,
@@ -36,7 +37,9 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
     onSave,
     onClose,
 }) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const language = normalizeUiLanguage(i18n.language);
+    const dateTimeLocale = language === 'zh' ? 'zh-CN' : language === 'it' ? 'it-IT' : 'en-US';
     const clampToMaxDateTime = (next: string): string => {
         if (!next) return next;
         const nextMs = new Date(next).getTime();
@@ -80,6 +83,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             <label className="block text-xs font-medium text-slate-500 mb-1">{t('chat_label_start_time')}</label>
                             <input
                                 type="datetime-local"
+                                lang={dateTimeLocale}
                                 value={editStartTime}
                                 max={maxDateTime}
                                 step={60}
@@ -94,6 +98,7 @@ export const EditInsertModal: React.FC<EditInsertModalProps> = ({
                             <label className="block text-xs font-medium text-slate-500 mb-1">{t('chat_label_end_time')}</label>
                             <input
                                 type="datetime-local"
+                                lang={dateTimeLocale}
                                 value={editEndTime}
                                 max={maxDateTime}
                                 step={60}

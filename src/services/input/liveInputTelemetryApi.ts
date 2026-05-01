@@ -152,6 +152,10 @@ export interface LiveInputTelemetryDashboardSummary {
   correctionCount: number;
   plantAssetCount: number;
   diaryStickerCount: number;
+  bottleLinkedCount: number;
+  plantGenerateRequestedCount: number;
+  plantGenerateSucceededCount: number;
+  plantGenerateFailedCount: number;
   correctionRate: number;
   plantExactHitRate: number;
   uniqueUsers: number;
@@ -166,6 +170,11 @@ export interface LiveInputTelemetryDashboardResponse {
   byLang: LiveInputTelemetryBreakdownItem[];
   plantFallbackLevels: LiveInputTelemetryBreakdownItem[];
   diaryStickerActions: LiveInputTelemetryBreakdownItem[];
+  byKind: LiveInputTelemetryBreakdownItem[];
+  byConfidence: LiveInputTelemetryBreakdownItem[];
+  bottleLinkedSources: LiveInputTelemetryBreakdownItem[];
+  bottleLinkedTargets: LiveInputTelemetryBreakdownItem[];
+  plantGenerateActions: LiveInputTelemetryBreakdownItem[];
   annotationEventNames: LiveInputTelemetryBreakdownItem[];
   annotationCharacters: LiveInputTelemetryBreakdownItem[];
   associationTypes: LiveInputTelemetryBreakdownItem[];

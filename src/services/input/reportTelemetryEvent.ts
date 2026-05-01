@@ -16,7 +16,11 @@ export type DiaryStickerTelemetryEventName =
   | 'todo_decompose_empty'
   | 'todo_decompose_parse_failed'
   | 'todo_decompose_failed'
-  | 'todo_decompose_regenerate_clicked';
+  | 'todo_decompose_regenerate_clicked'
+  | 'bottle_linked'
+  | 'plant_generate_requested'
+  | 'plant_generate_succeeded'
+  | 'plant_generate_failed';
 
 type TelemetryEventPayload = Record<string, unknown>;
 

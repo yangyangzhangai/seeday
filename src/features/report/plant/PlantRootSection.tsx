@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { buildRootSegments, renderRootSegments } from '../../../lib/rootRenderer';
 import { mapSourcesToPlantActivities, toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { useChatStore } from '../../../store/useChatStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 import { useReportStore } from '../../../store/useReportStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../../store/usePlantStore';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
@@ -40,6 +41,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const reports = useReportStore(state => state.reports);
+  const isPlus = useAuthStore(state => state.isPlus);
   const updateReport = useReportStore(state => state.updateReport);
   const generateReport = useReportStore(state => state.generateReport);
   const generateAIDiary = useReportStore(state => state.generateAIDiary);
@@ -261,6 +263,13 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   }, [selectedMessage, selectedSegment]);
 
   const plantIsTooEarly = new Date().getHours() < 20;
+  const diaryAlreadyGenerated = useMemo(() => {
+    if (!todayDailyReport) return false;
+    const fullText = todayDailyReport.aiAnalysis?.trim();
+    const teaserText = todayDailyReport.teaserText?.trim();
+    return isPlus ? Boolean(fullText) : Boolean(teaserText);
+  }, [isPlus, todayDailyReport]);
+  const canGenerateDiary = !plantIsTooEarly && !diaryAlreadyGenerated && !isDiaryGenerating;
   const plantGenerateUi = buildPlantGenerateUiState({
     hasTodayPlant: Boolean(todayPlant),
     isGenerating: isPlantGenerating,
@@ -288,6 +297,10 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   }, [generatePlant, plantIsTooEarly, t]);
 
   const handleGenerateDiary = useCallback(async () => {
+    if (diaryAlreadyGenerated) {
+      setDiaryStatusHint(t('plant_generate_already'));
+      return;
+    }
     if (new Date().getHours() < 20) {
       setDiaryStatusHint(t('report_early_tip'));
       return;
@@ -308,7 +321,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     } finally {
       setIsDiaryGenerating(false);
     }
-  }, [generateAIDiary, generateReport, t, todayDailyReport?.id]);
+  }, [diaryAlreadyGenerated, generateAIDiary, generateReport, t, todayDailyReport?.id]);
 
   useEffect(() => {
     if (!autoGeneratePlantToken) return;
@@ -336,6 +349,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           directionOrder={directionOrder}
           onGenerateDiary={() => { void handleGenerateDiary(); }}
           isGeneratingDiary={isDiaryGenerating}
+          isDiaryButtonDisabled={!canGenerateDiary}
           diaryButtonHint={diaryStatusHint}
         />
       </div>

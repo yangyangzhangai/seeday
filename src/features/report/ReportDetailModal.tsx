@@ -351,6 +351,19 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     () => Boolean(selectedReport?.date && isSameDay(new Date(selectedReport.date), new Date())),
     [selectedReport?.date],
   );
+  const diaryAlreadyGenerated = useMemo(() => {
+    if (!selectedReport) return false;
+    const fullText = selectedReport.aiAnalysis?.trim();
+    const teaserText = selectedReport.teaserText?.trim();
+    return isPlus ? Boolean(fullText) : Boolean(teaserText);
+  }, [isPlus, selectedReport]);
+  const diaryCanGenerate = useMemo(() => {
+    if (!isTodayReport) return false;
+    if (new Date().getHours() < 20) return false;
+    if (diaryAlreadyGenerated) return false;
+    if (isDiaryGenerating || selectedReport?.analysisStatus === 'generating') return false;
+    return true;
+  }, [diaryAlreadyGenerated, isDiaryGenerating, isTodayReport, selectedReport?.analysisStatus]);
 
   const liveTodayTodoStats = useMemo(() => {
     if (!isTodayReport || !selectedReport?.date) return null;
@@ -401,6 +414,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   const handleGenerateDiaryClick = useCallback(async () => {
     if (!selectedReport) return;
+    if (diaryAlreadyGenerated) {
+      setDiaryActionHint(t('plant_generate_already'));
+      return;
+    }
     if (new Date().getHours() < 20) {
       setDiaryActionHint(t('report_early_tip'));
       return;
@@ -412,7 +429,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     } finally {
       setIsDiaryGenerating(false);
     }
-  }, [_generateAIDiary, selectedReport, t]);
+  }, [_generateAIDiary, diaryAlreadyGenerated, selectedReport, t]);
 
   const todoInsightSummary = useMemo(() => {
     if (todoTotal <= 0) return '';
@@ -865,7 +882,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                       <button
                         type="button"
                         onClick={() => { void handleGenerateDiaryClick(); }}
-                        disabled={isDiaryGenerating}
+                        disabled={!diaryCanGenerate}
                         className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
                         style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
                       >

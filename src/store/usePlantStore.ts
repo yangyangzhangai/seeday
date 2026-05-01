@@ -20,6 +20,7 @@ import type {
   RootSegment,
 } from '../types/plant';
 import { DEFAULT_DIRECTION_ORDER } from '../types/plant';
+import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
 interface PlantState {
   todaySegments: RootSegment[];
@@ -266,12 +267,26 @@ export const usePlantStore = create<PlantState>()(
         }
 
         try {
+          void reportTelemetryEvent('plant_generate_requested', {
+            date: previousDate,
+            source: 'auto_backfill',
+            timezone,
+          });
           await callPlantGenerateAPI({
             date: previousDate,
             timezone,
             lang: resolvePlantLang(),
           });
+          void reportTelemetryEvent('plant_generate_succeeded', {
+            date: previousDate,
+            source: 'auto_backfill',
+          });
         } catch (error) {
+          void reportTelemetryEvent('plant_generate_failed', {
+            date: previousDate,
+            source: 'auto_backfill',
+            reason: error instanceof Error ? error.message : 'unknown_error',
+          });
           if (import.meta.env.DEV) {
             console.warn('[plant] auto-backfill failed', error);
           }
@@ -348,6 +363,11 @@ export const usePlantStore = create<PlantState>()(
         const payload = getTodayDateAndRange();
         set({ isGenerating: true });
         try {
+          void reportTelemetryEvent('plant_generate_requested', {
+            date: payload.date,
+            source: 'manual',
+            timezone: payload.timezone,
+          });
           const response = await callPlantGenerateAPI({
             ...payload,
             lang: resolvePlantLang(),
@@ -355,7 +375,19 @@ export const usePlantStore = create<PlantState>()(
           if (response.status === 'generated' || response.status === 'already_generated') {
             set({ todayPlant: response.plant, selectedRootId: null });
           }
+          void reportTelemetryEvent('plant_generate_succeeded', {
+            date: payload.date,
+            source: 'manual',
+            status: response.status,
+          });
           return response;
+        } catch (error) {
+          void reportTelemetryEvent('plant_generate_failed', {
+            date: payload.date,
+            source: 'manual',
+            reason: error instanceof Error ? error.message : 'unknown_error',
+          });
+          throw error;
         } finally {
           set({ isGenerating: false });
         }

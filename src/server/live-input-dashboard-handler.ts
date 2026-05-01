@@ -247,11 +247,16 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
   const events = (rows || []) as LiveInputEventRow[];
   const plantAssetEvents = (plantRows || []) as PlantAssetEventRow[];
   const byInternalKind = new Map<string, number>();
+  const byKind = new Map<string, number>();
+  const byConfidence = new Map<string, number>();
   const correctionPaths = new Map<string, number>();
   const topReasons = new Map<string, number>();
   const byLang = new Map<string, number>();
   const plantFallbackLevels = new Map<string, number>();
   const diaryStickerActions = new Map<string, number>();
+  const bottleLinkedSources = new Map<string, number>();
+  const bottleLinkedTargets = new Map<string, number>();
+  const plantGenerateActions = new Map<string, number>();
   const annotationEventNames = new Map<string, number>();
   const annotationCharacters = new Map<string, number>();
   const associationTypes = new Map<string, number>();
@@ -270,6 +275,10 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
   let correctionCount = 0;
   let plantAssetCount = 0;
   let diaryStickerCount = 0;
+  let bottleLinkedCount = 0;
+  let plantGenerateRequestedCount = 0;
+  let plantGenerateSucceededCount = 0;
+  let plantGenerateFailedCount = 0;
   let annotationTelemetryCount = 0;
   let densityScoredCount = 0;
   let triggerBlockedCount = 0;
@@ -300,6 +309,10 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
 
     if (event.event_type === 'classification') {
       classificationCount += 1;
+      const kind = event.kind || 'unknown';
+      byKind.set(kind, (byKind.get(kind) ?? 0) + 1);
+      const confidence = event.confidence || 'unknown';
+      byConfidence.set(confidence, (byConfidence.get(confidence) ?? 0) + 1);
       const internalKind = event.internal_kind || 'unknown';
       byInternalKind.set(internalKind, (byInternalKind.get(internalKind) ?? 0) + 1);
 
@@ -477,6 +490,23 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
       continue;
     }
 
+    if (eventName === 'bottle_linked') {
+      bottleLinkedCount += 1;
+      const source = parseOptionalString(eventData.source) || 'unknown';
+      const bottleId = parseOptionalString(eventData.bottleId) || 'unknown';
+      bottleLinkedSources.set(source, (bottleLinkedSources.get(source) ?? 0) + 1);
+      bottleLinkedTargets.set(bottleId, (bottleLinkedTargets.get(bottleId) ?? 0) + 1);
+      continue;
+    }
+
+    if (eventName === 'plant_generate_requested' || eventName === 'plant_generate_succeeded' || eventName === 'plant_generate_failed') {
+      plantGenerateActions.set(eventName, (plantGenerateActions.get(eventName) ?? 0) + 1);
+      if (eventName === 'plant_generate_requested') plantGenerateRequestedCount += 1;
+      if (eventName === 'plant_generate_succeeded') plantGenerateSucceededCount += 1;
+      if (eventName === 'plant_generate_failed') plantGenerateFailedCount += 1;
+      continue;
+    }
+
     if (!ANNOTATION_EVENT_NAMES.has(eventName)) {
       continue;
     }
@@ -635,11 +665,17 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
       correctionCount,
       plantAssetCount,
       diaryStickerCount,
+      bottleLinkedCount,
+      plantGenerateRequestedCount,
+      plantGenerateSucceededCount,
+      plantGenerateFailedCount,
       correctionRate: classificationCount > 0 ? correctionCount / classificationCount : 0,
       plantExactHitRate: plantAssetCount > 0 ? plantExactHitCount / plantAssetCount : 0,
       uniqueUsers: uniqueUsers.size,
     },
     byInternalKind: toBreakdownItems(byInternalKind, classificationCount),
+    byKind: toBreakdownItems(byKind, classificationCount),
+    byConfidence: toBreakdownItems(byConfidence, classificationCount),
     correctionPaths: toBreakdownItems(correctionPaths, correctionCount),
     topReasons: toBreakdownItems(topReasons, classificationCount),
     byLang: toBreakdownItems(
@@ -648,6 +684,12 @@ export async function handleLiveInputDashboard(req: VercelRequest, res: VercelRe
     ),
     plantFallbackLevels: toBreakdownItems(plantFallbackLevels, plantAssetCount),
     diaryStickerActions: toBreakdownItems(diaryStickerActions, diaryStickerCount),
+    bottleLinkedSources: toBreakdownItems(bottleLinkedSources, bottleLinkedCount),
+    bottleLinkedTargets: toBreakdownItems(bottleLinkedTargets, bottleLinkedCount),
+    plantGenerateActions: toBreakdownItems(
+      plantGenerateActions,
+      plantGenerateRequestedCount + plantGenerateSucceededCount + plantGenerateFailedCount,
+    ),
     annotationEventNames: toBreakdownItems(annotationEventNames, annotationTelemetryCount),
     annotationCharacters: toBreakdownItems(annotationCharacters, annotationTelemetryCount),
     associationTypes: toBreakdownItems(associationTypes, lateralSampledCount),

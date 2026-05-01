@@ -287,6 +287,9 @@ export const useReportStore = create<ReportState>()(
         const report = state.reports.find((r) => r.id === reportId);
         if (!report) return;
 
+        const isAlreadyGenerated = Boolean((report.aiAnalysis && report.aiAnalysis.trim()) || (report.teaserText && report.teaserText.trim()));
+        if (isAlreadyGenerated) return;
+
         const chatStore = useChatStore.getState();
         const todoStore = useTodoStore.getState();
         const moodStore = useMoodStore.getState();

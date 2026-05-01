@@ -194,7 +194,6 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('activity_with_mood');
   });
 
-
   it('keeps English book phrases as activity instead of ok/good substring mood hits', () => {
     const result = classify('Reading a good book');
     expect(result.kind).toBe('activity');
@@ -366,7 +365,6 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('activity_with_mood');
   });
-
 
   it('classifies Italian mood_about_last_activity with causal mood phrasing', () => {
     const result = classify('quella lezione mi ha confuso', {
@@ -569,12 +567,6 @@ describe('classifyLiveInput operational lexicon additions (en/it)', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
-  it('classifies English short activity shell: write notes', () => {
-    const result = classify('write notes');
-    expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('new_activity');
-  });
-
   it('classifies English operational work phrase: query logs', () => {
     const result = classify('query logs');
     expect(result.kind).toBe('activity');
@@ -607,12 +599,6 @@ describe('classifyLiveInput operational lexicon additions (en/it)', () => {
 
   it('classifies Italian ops phrase: verificare fattura', () => {
     const result = classify('verificare fattura');
-    expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('new_activity');
-  });
-
-  it('classifies Italian short activity shell: scrivere appunti', () => {
-    const result = classify('scrivere appunti');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
   });

@@ -51,10 +51,9 @@ import {
   resolveCurrentLang,
   resolveLangForText,
 } from './chatClassificationHelpers';
+import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
-function filterLegacyChatRows<T extends { activity_type?: string | null }>(rows: T[]): T[] {
-  return rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
-}
+const filterLegacyChatRows = <T extends { activity_type?: string | null }>(rows: T[]): T[] => rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -693,7 +692,7 @@ export const useChatStore = create<ChatState>()(
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
         const todoRewardStore = useTodoStore.getState();
-        const grantBottleStars = (bottleId: string) => {
+        const grantBottleStars = (bottleId: string, source: 'todo_link' | 'keyword' | 'ai') => {
           const stars = useAnnotationStore.getState().consumeRecoveryBonusForCompletion({ bottleId });
           growthStore.incrementBottleStars(bottleId, stars);
           todoRewardStore.registerBottleStarReward({
@@ -701,6 +700,14 @@ export const useChatStore = create<ChatState>()(
             messageId: id,
             bottleId,
             stars,
+          });
+          void reportTelemetryEvent('bottle_linked', {
+            source,
+            bottleId,
+            stars,
+            messageId: id,
+            todoId: associatedTodo?.id,
+            userPlan: isPlus ? 'plus' : 'free',
           });
         };
         const linkedBottleId = associatedTodo?.bottleId;
@@ -716,7 +723,7 @@ export const useChatStore = create<ChatState>()(
           ...payload,
         });
         if (linkedBottleId) {
-          grantBottleStars(linkedBottleId);
+          grantBottleStars(linkedBottleId, 'todo_link');
           trackMembership({
             classificationPath: 'local_rule',
             aiCalled: false,
@@ -728,7 +735,7 @@ export const useChatStore = create<ChatState>()(
         if (!isPlus) {
           const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
           if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
+            grantBottleStars(keywordMatchedBottleId, 'keyword');
           }
           trackMembership({
             classificationPath: 'local_rule',
@@ -749,7 +756,7 @@ export const useChatStore = create<ChatState>()(
         }).then((classification) => {
           if (!get().messages.some((m) => m.id === id)) return;
           if (classification.matchedBottleId) {
-            grantBottleStars(classification.matchedBottleId);
+            grantBottleStars(classification.matchedBottleId, 'ai');
             trackMembership({
               classificationPath: classification.classificationPath,
               aiCalled: classification.aiCalled,
@@ -760,7 +767,7 @@ export const useChatStore = create<ChatState>()(
           }
           const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
           if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
+            grantBottleStars(keywordMatchedBottleId, 'keyword');
           }
           trackMembership({
             classificationPath: classification.classificationPath,
@@ -771,7 +778,7 @@ export const useChatStore = create<ChatState>()(
         }).catch(() => {
           const keywordMatchedBottleId = keywordMatchBottleId(target.content, allActiveBottles);
           if (keywordMatchedBottleId) {
-            grantBottleStars(keywordMatchedBottleId);
+            grantBottleStars(keywordMatchedBottleId, 'keyword');
           }
           trackMembership({
             classificationPath: 'ai_fallback_local',
@@ -797,7 +804,6 @@ export const useChatStore = create<ChatState>()(
           await supabase.from('messages').delete().eq('id', id).eq('user_id', session.user.id);
         }
       },
-
       updateMessageDuration: async (content: string, timestamp: number, duration: number) => {
         const state = get();
 
@@ -817,7 +823,6 @@ export const useChatStore = create<ChatState>()(
           await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
         }
       },
-
       updateMessageImage: async (id, slot, url) => {
         const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
         set(state => ({
@@ -834,7 +839,6 @@ export const useChatStore = create<ChatState>()(
             .eq('user_id', session.user.id);
         }
       },
-
       detachMoodMessage: async (moodId: string) => {
         const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
         get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
@@ -847,7 +851,6 @@ export const useChatStore = create<ChatState>()(
           if (parent) await persistMessageToSupabase(parent, session.user.id);
         }
       },
-
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const relatedActivityId = options?.relatedActivityId;
@@ -905,7 +908,6 @@ export const useChatStore = create<ChatState>()(
             }),
           };
         });
-        // 兼容旧有 relatedActivityId 逻辑
         if (relatedActivityId) {
           const moodStore = useMoodStore.getState();
           moodStore.setMoodNote(relatedActivityId, content, {
@@ -959,13 +961,11 @@ export const useChatStore = create<ChatState>()(
         });
         return newMessage.id;
       },
-
       setHasInitialized: (value) => set({ hasInitialized: value }),
       clearHistory: async () => {
         clearMessageClassificationTasks();
         set({ messages: [], lastActivityTime: null });
       },
-
       attachStardustToMessage: (messageId, stardustId, stardustEmoji) => {
         set((state) => ({
           messages: state.messages.map((message) =>

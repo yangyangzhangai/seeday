@@ -117,7 +117,7 @@ export const UserProfilePanel: React.FC<Props> = ({
           onChange={(e) => setFreeText(e.target.value)}
           placeholder={t('profile_user_profile_personalization_placeholder')}
           rows={page ? 10 : 4}
-          className="w-full rounded-2xl border border-[#CBE7D7] bg-white/85 px-3 py-2 text-xs text-slate-700 outline-none"
+          className="w-full rounded-2xl border border-[#CBE7D7] bg-white/85 px-3 py-2 text-[10px] text-slate-700 outline-none placeholder:text-[10px]"
         />
       </label>
     </div>

@@ -36,11 +36,12 @@ interface PlantFlipCardProps {
   onClose?: () => void;
   onGenerateDiary?: () => void;
   isGeneratingDiary?: boolean;
+  isDiaryButtonDisabled?: boolean;
   diaryButtonHint?: string | null;
 }
 
 export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
-  plant, segments, directionOrder, onClose, onGenerateDiary, isGeneratingDiary = false, diaryButtonHint = null,
+  plant, segments, directionOrder, onClose, onGenerateDiary, isGeneratingDiary = false, isDiaryButtonDisabled = false, diaryButtonHint = null,
 }) => {
   const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
@@ -221,13 +222,13 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
       {/* ── Action buttons ── */}
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
         {onGenerateDiary ? (
-          <button
-            onClick={onGenerateDiary}
-            disabled={isGeneratingDiary}
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-base shadow-md active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
-          >
-            <PenLine size={16} strokeWidth={1.5} />
+            <button
+              onClick={onGenerateDiary}
+              disabled={isDiaryButtonDisabled}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-medium text-base shadow-md active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(to right, #728a5c, #5e734b)' }}
+            >
+              <PenLine size={16} strokeWidth={1.5} />
             {isGeneratingDiary ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('plant_card_diary_button')}
           </button>
         ) : null}

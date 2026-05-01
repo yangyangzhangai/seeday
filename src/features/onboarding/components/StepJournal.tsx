@@ -536,7 +536,10 @@ export const StepJournal: React.FC<StepJournalProps> = ({ onNext }) => {
       </div>
 
       {/* Input / CTA */}
-      <div className="mt-auto">
+      <div
+        className="mt-auto transition-[padding] duration-200"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px))' }}
+      >
         {phase === 'activity' && (
           <InputBlock
             value={input} onChange={setInput} autoFocus
