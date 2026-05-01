@@ -305,7 +305,7 @@ const it: TranslationKeys = {
     auth_change_avatar: 'Cambia avatar',
     avatar_alt: 'Avatar',
     auth_google_signin: 'Continua con Google',
-    auth_apple_signin: 'Continua con Apple',
+    auth_apple_signin: 'Sign in with Apple',
     auth_or_divider: 'oppure',
     // ── Bolla Annotazione AI ──
     annotation_condensing: 'Cristallizzando…',

@@ -197,16 +197,6 @@ export async function decomposeTodoWithAIDiagnostics(params: {
   let modelUsed = model;
   let rawContent = '';
 
-  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-    console.log('[Todo Decompose] request.start', {
-      lang: params.lang,
-      model,
-      preferDashscope,
-      titleLength: params.title.trim().length,
-      titlePreview: previewText(params.title, 120),
-    });
-  }
-
   if (preferDashscope) {
     const qwenApiKey = (params.qwenApiKey || process.env.QWEN_API_KEY || '').trim();
     if (!qwenApiKey) {
@@ -217,12 +207,6 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       || process.env.DASHSCOPE_BASE_URL
       || DEFAULT_DASHSCOPE_BASE_URL
     ).replace(/\/$/, '');
-    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.dashscope.start', {
-        model,
-        baseURL: dashscopeBase,
-      });
-    }
     const response = await fetch(`${dashscopeBase}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -263,16 +247,6 @@ export async function decomposeTodoWithAIDiagnostics(params: {
     };
     rawContent = payload.choices?.[0]?.message?.content || '';
     provider = 'dashscope';
-    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.dashscope.success', {
-        model,
-        finishReason: payload.choices?.[0]?.finish_reason || null,
-        usage: payload.usage,
-        rawLength: rawContent.length,
-        rawPreview: previewText(rawContent),
-        rawFull: rawContent,
-      });
-    }
   } else {
     const geminiApiKey = (params.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
     if (!geminiApiKey) {
@@ -315,13 +289,6 @@ export async function decomposeTodoWithAIDiagnostics(params: {
         }),
       },
     );
-    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.gemini.start', {
-        model: geminiModel,
-        fallbackModel: fallbackGeminiModel,
-        baseURL: geminiBase,
-      });
-    }
     let response = await requestGemini(geminiModel);
     modelUsed = geminiModel;
     if (!response.ok) {
@@ -368,32 +335,11 @@ export async function decomposeTodoWithAIDiagnostics(params: {
       }>;
     };
     rawContent = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
-    if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-      console.log('[Todo Decompose] provider.gemini.success', {
-        model: modelUsed,
-        finishReason: payload.candidates?.[0]?.finishReason || null,
-        usageMetadata: payload.usageMetadata,
-        candidatesCount: payload.candidates?.length || 0,
-        rawLength: rawContent.length,
-        rawPreview: previewText(rawContent),
-        rawFull: rawContent,
-      });
-    }
     provider = 'gemini';
   }
 
   const parsed = parseResponse(rawContent);
   const normalizedSteps = normalizeSteps(parsed.steps);
-  if (ENABLE_VERBOSE_TODO_DECOMPOSE_LOGS) {
-    console.log('[Todo Decompose] request.finish', {
-      provider,
-      model: modelUsed,
-      rawLength: rawContent.length,
-      rawPreview: previewText(rawContent),
-      parseStatus: parsed.parseStatus,
-      stepCount: normalizedSteps.length,
-    });
-  }
   return {
     steps: normalizedSteps,
     parseStatus: parsed.parseStatus,

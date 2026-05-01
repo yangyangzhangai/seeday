@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Apple, Chrome, Mail, Lock, Loader2, User, ChevronRight } from 'lucide-react';
+import { Mail, Lock, Loader2, User, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -268,8 +268,8 @@ export const AuthPage: React.FC = () => {
               disabled={appleLoading || googleLoading}
               className="flex flex-1 items-center justify-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 font-bold text-[#4a5d4c] shadow-sm backdrop-blur-xl transition-all hover:bg-white hover:shadow-md disabled:opacity-50"
             >
-              {appleLoading ? <Loader2 size={20} className="animate-spin" /> : <Apple size={20} fill="currentColor" />}
-              <span className="text-sm">Apple</span>
+              {appleLoading ? <Loader2 size={20} className="animate-spin" /> : null}
+              <span className="text-sm">{t('auth_apple_signin')}</span>
             </button>
             <button
               type="button"
@@ -277,8 +277,8 @@ export const AuthPage: React.FC = () => {
               disabled={appleLoading || googleLoading}
               className="flex flex-1 items-center justify-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 font-bold text-[#4a5d4c] shadow-sm backdrop-blur-xl transition-all hover:bg-white hover:shadow-md disabled:opacity-50"
             >
-              {googleLoading ? <Loader2 size={20} className="animate-spin" /> : <Chrome size={20} />}
-              <span className="text-sm">Google</span>
+              {googleLoading ? <Loader2 size={20} className="animate-spin" /> : null}
+              <span className="text-sm">{t('auth_google_signin')}</span>
             </button>
           </div>
         </div>

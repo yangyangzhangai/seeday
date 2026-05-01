@@ -6,6 +6,102 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Fix: 前端 store 生产日志进一步收口（R-ASR-007 Round 1.12）
+
+- `src/store/reportActions.ts`、`src/store/authStoreRuntimeHelpers.ts`、`src/store/useReportStore.ts`：生产路径 `console.warn/error` 改为 DEV-only
+- `src/store/useAnnotationStore.ts`、`src/store/useStardustStore.ts`、`src/store/authDataSyncHelpers.ts`、`src/store/authPreferenceHelpers.ts`：生产路径 `console.warn/error` 改为 DEV-only，避免在用户设备暴露错误对象细节
+
+Validation:
+
+- `npm run lint:all` ✅
+
+### Fix: 生产日志最小化（R-ASR-007 Round 1.11）
+
+- 前端日志收口：`src/store/useChatStore.ts`、`src/store/useTodoStore.ts` 将生产路径 `console.error` 与 `catch(console.error)` 改为 DEV-only，避免用户设备暴露运行时错误对象
+- 服务端日志脱敏：`api/report.ts`、`api/classify.ts`、`api/diary.ts`、`api/magic-pen-parse.ts` 错误日志改为结构化摘要（`status` / `statusText` / `errorLength`），移除原始文本预览
+- 文档回填：`docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md` 新增 Round 1.11 审计记录，`docs/CURRENT_TASK.md` 同步会话锚点
+
+Validation:
+
+- `npm run lint:all` ✅
+
+### Fix: 清理前端非必要日志（R-ASR-007）
+
+- 移除前端主链路非必要 `console.log`：`src/features/chat/chatPageActions.ts`、`src/services/input/magicPenParser.ts`、`src/store/useAuthStore.ts`、`src/store/annotationHelpers.ts`、`src/store/useAnnotationStore.ts`、`src/store/authDataSyncHelpers.ts`、`src/store/useChatStore.ts`、`src/store/useReportStore.ts`、`src/store/reportActions.ts`、`src/store/useStardustStore.ts`、`src/lib/aiParser.ts`、`src/lib/imageCompressor.ts`、`src/services/timing/timingSessionService.ts`
+- `src/api/client.ts`：前端 debug logger 改为空实现，不再输出 request/response `console.log`
+- `src/store/storageScope.ts`：保留 DEV 分支但移除具体输出，避免前端运行时日志噪音
+- server 侧继续收口：`src/server/annotation-handler.ts`、`src/server/annotation-handler-utils.ts`、`src/server/todo-decompose-service.ts` 删除非必要 `console.log`（保留 `console.warn/error` 诊断）
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Docs: ASR/NR Round 1.9 全量条款补审完成（代码证据驱动）
+
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：补齐剩余 28 条 `ASR & NR` 条款逐条审计，进度更新为 52/52（待审 0）；新增 Round 1.9 结论、风险与证据路径
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：`ASR/NR 全量条款清单` 全部由“待审”更新为“已审（Round 1.9）”
+- `docs/CURRENT_TASK.md`：回填 Round 1.9 会话锚点，明确提审前人工核对项与剩余代码风险聚焦 `R-ASR-007`
+
+Validation:
+
+- Not run (docs audit sync only)
+
+### Fix: 收口订阅服务端详细日志（ASR/NR R-ASR-007）
+
+- `api/subscription.ts`：新增 `SUBSCRIPTION_VERBOSE_LOGS` 开关；将 IAP 校验与订阅请求链路的详细 `console.log` 统一改为受控 debug 日志，生产默认不输出详细轨迹
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：`R-ASR-007` 更新为“修复中（server 侧继续收口）”，补充 Round 1.8 进展与证据
+- `docs/CURRENT_TASK.md`：补充 Round 1.8 会话锚点
+
+Validation:
+
+- Not run (server logging policy + docs update)
+
+### Fix: 收口 WKWebView `isInspectable` 发布配置（ASR/NR R-ASR-005）
+
+- `ios/App/App/AppDelegate.swift`：将 `webView.isInspectable = true` 改为仅在 `#if DEBUG` 条件下开启，确保发布包默认关闭
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：`R-ASR-005` 标记为已修复；`2.5.1` 结论更新为符合并补充 Round 1.7 审核日志
+- `docs/CURRENT_TASK.md`：新增 Round 1.7 会话记录，作为下一会话恢复锚点
+
+Validation:
+
+- Not run (iOS native config + docs update)
+
+### Docs: iOS Review ASR/NR 交接基线补全
+
+- `docs/IOS_REVIEW_ASR_NR_AUDIT_SPEC.md`：
+  - 更新为 Round 1.6 handoff 版本
+  - 新增「6.1 当前风险状态」：明确 `R-ASR-004/006` 已修复、`R-ASR-005` 未收敛、`R-ASR-007` 修复中
+  - 新增「6.2 下一个会话接手清单」：约定下一位执行顺序与回填要求
+- `docs/CURRENT_TASK.md`：新增交接锚点，指向 ASR/NR 规范文档中的接手清单
+
+Validation:
+
+- Not run (docs update only)
+
+### Docs: ASR/NR 审计台账 Round 1.6 更新（代码证据口径）
+
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：
+  - 审核进度更新为 28/52（待审 28）
+  - 新增已审核条款：`4.5.4`（Push 规则）、`5.1.2`（数据使用/共享）
+  - 回填代码证据：通知权限请求入口、提醒开关、隐私面板入口、API 访问边界
+  - 新增提审前人工核对项：App Store Connect 隐私标签与第三方共享披露一致性
+- `docs/CURRENT_TASK.md`：补充 Round 1.6 会话记录，作为后续会话恢复锚点
+
+Validation:
+
+- Not run (docs update only)
+
+### Docs: 新增 ASR/NR 审计执行规范模板
+
+- 新增 `docs/IOS_REVIEW_ASR_NR_AUDIT_SPEC.md`：
+  - 明确以 `docs/ios review.txt` 作为 ASR/NR 规则基准
+  - 固化代码证据驱动审计流程（条款抽取、逐条核验、风险分级、修复回填）
+  - 提供可复用的轮次结论输出模板，便于新人接手与持续审计
+
+Validation:
+
+- Not run (docs only)
+
 ### Fix: 清理前端可见日志并统一 DEV 保护
 
 - `src/store/useAuthStore.ts`：登出时日志改为 DEV-only

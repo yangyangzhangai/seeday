@@ -80,7 +80,6 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
   const text = rawText.trim();
 
   if (isValidComment(text, lang)) {
-    if (import.meta.env.DEV) console.log('[提取成功] 策略：全文直接放行');
     return text;
   }
 
@@ -90,7 +89,6 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
       const lastBlock = jsonBlocks[jsonBlocks.length - 1][0];
       const parsed = JSON.parse(lastBlock);
       if (parsed.comment && typeof parsed.comment === 'string' && isValidComment(parsed.comment, lang)) {
-        if (import.meta.env.DEV) console.log('[提取成功] 策略：JSON解析');
         return parsed.comment.trim();
       }
     }
@@ -111,7 +109,6 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
       .trim();
 
     if (isValidComment(cleaned, lang)) {
-      if (import.meta.env.DEV) console.log('[提取成功] 策略：anchor定位，anchor:', anchor);
       return cleaned;
     }
   }
@@ -124,7 +121,6 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
   if (sentences.length > 0) {
     const lastSentence = sentences[sentences.length - 1];
     if (isValidComment(lastSentence, lang)) {
-      if (import.meta.env.DEV) console.log('[提取成功] 策略：长度过滤');
       return lastSentence;
     }
   }

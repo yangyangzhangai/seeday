@@ -37,7 +37,9 @@ async function flushQueuedPreferences(): Promise<void> {
         annotation_drop_rate: snapshot.annotationDropRate,
       });
       if (error) {
-        console.error('[updatePreferences] supabase error:', error);
+        if (import.meta.env.DEV) {
+          console.error('[updatePreferences] supabase error:', error);
+        }
       }
     }
   } finally {

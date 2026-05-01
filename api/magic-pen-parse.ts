@@ -82,16 +82,12 @@ function createTraceId(): string {
   return `mp-${now}-${rnd}`;
 }
 
-function previewText(input: unknown, maxLength: number = 120): string {
+function summarizeTextLength(input: unknown): string {
   if (typeof input !== 'string') {
     return '[non-string]';
   }
   const compact = input.replace(/\s+/g, ' ').trim();
-  if (!compact) return '[empty]';
-  if (compact.length <= maxLength) return compact;
-  const head = compact.slice(0, Math.floor(maxLength / 2));
-  const tail = compact.slice(-Math.floor(maxLength / 2));
-  return `${head} ... ${tail}`;
+  return `length:${compact.length}`;
 }
 
 function logMagicPen(traceId: string, step: string, payload?: Record<string, unknown>): void {
@@ -313,7 +309,7 @@ async function callProvider(
       return buildProviderFailure(provider, elapsedMs, 'http_error', {
         status: response.status,
         statusText: response.statusText,
-        details: previewText(details, 220),
+        details: summarizeTextLength(details),
       });
     }
 
@@ -336,7 +332,7 @@ async function callProvider(
     if (parsed.strategy === 'fallback_failed') {
       return buildProviderFailure(provider, elapsedMs, 'parse_failed', {
         status: response.status,
-        details: previewText(raw, 220),
+        details: summarizeTextLength(raw),
       });
     }
 
@@ -407,7 +403,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   logMagicPen(traceId, 'request.received', {
     lang: toSupportedLang(lang),
     rawTextLength: rawText.length,
-    rawTextPreview: previewText(rawText),
     todayDateStr,
     currentHour,
     hasCurrentLocalDateTime: Boolean(currentLocalDateTime),
@@ -464,7 +459,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           elapsedMs: fallbackResult.elapsedMs,
           parseStrategy: fallbackResult.parsed.strategy,
           rawLength: fallbackResult.raw.length,
-          rawPreview: previewText(fallbackResult.raw, 220),
           segmentCount: fallbackResult.parsed.data.segments.length,
           unparsedCount: fallbackResult.parsed.data.unparsed.length,
           previousAttempts,
@@ -519,7 +513,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           elapsedMs: primaryResult.elapsedMs,
           parseStrategy: primaryResult.parsed.strategy,
           rawLength: primaryResult.raw.length,
-          rawPreview: previewText(primaryResult.raw, 220),
           segmentCount: primaryResult.parsed.data.segments.length,
           unparsedCount: primaryResult.parsed.data.unparsed.length,
           fallbackFrom: 'qwen',

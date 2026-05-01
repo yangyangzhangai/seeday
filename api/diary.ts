@@ -264,7 +264,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 如果返回内容看起来像错误信息，视为失败
     if (!content || content.startsWith('ERROR:') || content.includes('Cannot read')) {
       const errorMsg = content || 'AI 返回内容为空';
-      console.error('Diary API returned error content:', errorMsg);
+      console.error('Diary API returned error content:', {
+        errorLength: errorMsg.length,
+      });
       jsonError(res, 500, 'AI 服务返回异常', errorMsg);
       return;
     }

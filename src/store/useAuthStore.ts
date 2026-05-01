@@ -160,13 +160,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }).catch(() => { /* stay silent — will retry on next init */ });
     }
 
-    if (import.meta.env.DEV && sessionUser) {
-      console.log('[Membership] resolved membership:', {
-        userId: sessionUser.id,
-        plan: membership.plan,
-        source: membership.source,
-      });
-    }
     if (
       sessionUser
       && (
@@ -244,13 +237,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         membershipSource: membership.source,
         isPlus: membership.isPlus,
       });
-      if (import.meta.env.DEV && currentUser) {
-        console.log('[Membership] resolved membership:', {
-          userId: currentUser.id,
-          plan: membership.plan,
-          source: membership.source,
-        });
-      }
       if (
         currentUser
         && (
@@ -282,7 +268,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (migrationDecision.action === 'clear_local') {
           clearLocalDomainStores(signedInScope);
         } else if (migrationDecision.action === 'sync_local_to_cloud') {
-          if (import.meta.env.DEV) console.log('[AuthStore] syncing local data to cloud...');
           await syncLocalDataToSupabase(currentUser.id, {
             currentUser,
             onUserUpdated: (user) => set({ user }),
@@ -308,7 +293,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void checkAndHandlePendingDeletion(currentUser).catch(() => {});
       }
       else if (event === 'SIGNED_OUT') {
-        if (import.meta.env.DEV) console.log('User signed out. Clearing local state...');
         const signedOutScope = resolveStorageScopeForUser(previousUser?.id || null);
         setScopeForAuthUser(null, 'onAuthStateChange:signed-out');
         clearLocalDomainStores(signedOutScope);

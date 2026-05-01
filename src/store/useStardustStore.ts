@@ -87,7 +87,6 @@ export const useStardustStore = create<StardustStore>()(
 
         // 检查是否已存在
         if (get().hasStardust(messageId)) {
-          if (import.meta.env.DEV) console.log('[Stardust] 该消息已有珍藏，跳过');
           return null;
         }
 
@@ -127,7 +126,9 @@ export const useStardustStore = create<StardustStore>()(
             const chatStore = useChatStore.getState();
             chatStore.attachStardustToMessage(messageId, stardust.id, stardust.emojiChar);
           } catch (e) {
-            console.error('[Stardust] 更新ChatStore失败:', e);
+            if (import.meta.env.DEV) {
+              console.error('[Stardust] 更新ChatStore失败:', e);
+            }
           }
 
           // 2. 异步提交到服务器
@@ -150,14 +151,18 @@ export const useStardustStore = create<StardustStore>()(
                 ),
               }));
             } catch (syncError) {
-              console.error('[Stardust] 同步到服务器失败:', syncError);
+              if (import.meta.env.DEV) {
+                console.error('[Stardust] 同步到服务器失败:', syncError);
+              }
               // 保持pending_sync状态，下次自动重试
             }
           }
 
           return stardust;
         } catch (error) {
-          console.error('[Stardust] 创建珍藏失败:', error);
+          if (import.meta.env.DEV) {
+            console.error('[Stardust] 创建珍藏失败:', error);
+          }
           set({
             isGenerating: false,
             generationError: error instanceof Error ? error.message : '创建失败'
@@ -192,7 +197,9 @@ export const useStardustStore = create<StardustStore>()(
               ),
             }));
           } catch (error) {
-            console.error('[Stardust] 更新Emoji失败:', error);
+            if (import.meta.env.DEV) {
+              console.error('[Stardust] 更新Emoji失败:', error);
+            }
           }
         }
       },
@@ -218,7 +225,9 @@ export const useStardustStore = create<StardustStore>()(
               .eq('id', id)
               .eq('user_id', session.user.id);
           } catch (error) {
-            console.error('[Stardust] 删除同步失败:', error);
+            if (import.meta.env.DEV) {
+              console.error('[Stardust] 删除同步失败:', error);
+            }
           }
         }
       },
@@ -278,7 +287,9 @@ export const useStardustStore = create<StardustStore>()(
               }));
             }
           } catch (error) {
-            console.error(`[Stardust] 同步失败 ${stardust.id}:`, error);
+            if (import.meta.env.DEV) {
+              console.error(`[Stardust] 同步失败 ${stardust.id}:`, error);
+            }
           }
         }
       },
@@ -315,7 +326,9 @@ export const useStardustStore = create<StardustStore>()(
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('[Stardust] 拉取珍藏失败:', error);
+          if (import.meta.env.DEV) {
+            console.error('[Stardust] 拉取珍藏失败:', error);
+          }
           return;
         }
 
@@ -339,7 +352,6 @@ export const useStardustStore = create<StardustStore>()(
               lastFetchedAt: Date.now(),
             };
           });
-          if (import.meta.env.DEV) console.log(`[Stardust] 已拉取 ${cloudMemories.length} 条珍藏`);
         }
       },
 

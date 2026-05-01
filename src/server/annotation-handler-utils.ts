@@ -138,16 +138,6 @@ export async function callAnnotationLLM(
     };
     const outputText = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
     const finishReason = payload.candidates?.[0]?.finishReason || payload.promptFeedback?.blockReason;
-    if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-      console.log('[Annotation API] llm.gemini.success', {
-        model: geminiModel,
-        finishReason: finishReason || null,
-        usageMetadata: payload.usageMetadata,
-        candidatesCount: payload.candidates?.length || 0,
-        rawLength: outputText.length,
-        rawFull: outputText,
-      });
-    }
     return {
       outputText,
       usage: payload.usageMetadata,

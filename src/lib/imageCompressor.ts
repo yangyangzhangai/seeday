@@ -47,10 +47,6 @@ export async function compressImage(
     blob = await canvasToBlob(canvas, quality);
   }
 
-  if (blob.size > opts.maxSize) {
-    import.meta.env.DEV && console.log('[imageCompressor] 压缩后仍超过目标大小', blob.size);
-  }
-
   return blob;
 }
 

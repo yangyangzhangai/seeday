@@ -228,7 +228,11 @@ ${data.activities?.map((a: any) => `- ${a.time}: ${a.content} (耗时: ${a.durat
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Report API error:', response.status, errorText);
+      console.error('Report API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorLength: errorText.length,
+      });
       jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }

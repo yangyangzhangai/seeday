@@ -214,12 +214,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
           if (get().currentAnnotation) {
             set({ currentAnnotation: null });
           }
-          if (import.meta.env.DEV) console.log('[AI Annotator] AI 已关闭，跳过批注:', event.type);
           return;
         }
 
         if (!config.enabled) {
-          if (import.meta.env.DEV) console.log('[AI Annotator] 批注配置已关闭，跳过批注:', event.type);
           return;
         }
 
@@ -271,11 +269,8 @@ export const useAnnotationStore = create<AnnotationStore>()(
         );
 
         if (!shouldGenerate && !explicitSuggestionRequest) {
-          if (import.meta.env.DEV) console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
           return;
         }
-
-        if (import.meta.env.DEV) console.log('[AI Annotator] 批注触发:', event.type);
 
         try {
           // 准备用户上下文
@@ -480,14 +475,6 @@ export const useAnnotationStore = create<AnnotationStore>()(
             aiMode,
           });
           const debugAiMode = response.debugAiMode || aiMode;
-          if (import.meta.env.DEV) console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
-          if (import.meta.env.DEV && response.debugPromptPackage) {
-            console.groupCollapsed('[AI Annotator] Prompt package');
-            console.log('Model:', response.debugPromptPackage.model);
-            console.log('System prompt:\n', response.debugPromptPackage.systemPrompt);
-            console.log('User prompt:\n', response.debugPromptPackage.userPrompt);
-            console.groupEnd();
-          }
 
           // 先创建 id，后续同步需要
           const annotationId = uuidv4();
@@ -577,7 +564,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
               .from('annotations')
               .insert([toDbAnnotation(annotation, session.user.id)]);
             if (insertError) {
-              console.error('[Annotation] 云端同步失败:', insertError);
+              if (import.meta.env.DEV) {
+                console.error('[Annotation] 云端同步失败:', insertError);
+              }
               useOutboxStore.getState().enqueue({
                 kind: 'annotation.insert',
                 payload: { annotation },
@@ -592,19 +581,21 @@ export const useAnnotationStore = create<AnnotationStore>()(
           }
 
           if (response.source === 'default') {
-            console.warn(
-              '[AI Annotator] 批注使用兜底:',
-              `event=${event.type}`,
-              `aiMode=${debugAiMode || 'fallback'}`,
-              `reason=${response.reason || 'unknown'}`,
-              `source=${response.source}`,
-              `content=${response.content}`
-            );
-          } else {
-            if (import.meta.env.DEV) console.log('[AI Annotator] 批注已生成(AI):', response.content);
+            if (import.meta.env.DEV) {
+              console.warn(
+                '[AI Annotator] 批注使用兜底:',
+                `event=${event.type}`,
+                `aiMode=${debugAiMode || 'fallback'}`,
+                `reason=${response.reason || 'unknown'}`,
+                `source=${response.source}`,
+                `content=${response.content}`
+              );
+            }
           }
         } catch (error) {
-          console.error('[AI Annotator] 生成批注失败:', error);
+          if (import.meta.env.DEV) {
+            console.error('[AI Annotator] 生成批注失败:', error);
+          }
         }
       },
 
@@ -674,7 +665,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
             kind: 'annotation.outcome',
             payload: { annotationId, accepted },
           });
-          console.error('[Annotation] suggestion outcome sync failed:', error);
+          if (import.meta.env.DEV) {
+            console.error('[Annotation] suggestion outcome sync failed:', error);
+          }
         }
 
         if (accepted && annotation.narrativeEvent?.isTriggeredReply) {
@@ -865,7 +858,9 @@ export const useAnnotationStore = create<AnnotationStore>()(
           });
           await get().fetchAnnotations();
         } else {
-          console.error('[Annotation] syncLocalAnnotations 失败:', error);
+          if (import.meta.env.DEV) {
+            console.error('[Annotation] syncLocalAnnotations 失败:', error);
+          }
         }
       },
     }),

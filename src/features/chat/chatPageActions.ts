@@ -63,22 +63,6 @@ interface HandleMagicPenModeSendParams {
   setInput: (next: string) => void;
 }
 
-let magicPenSendSequence = 0;
-
-function logMagicPenFlow(step: string, payload: Record<string, unknown>): void {
-  if (!import.meta.env.DEV) return;
-  console.log(`[magic-pen-flow] ${step}`, payload);
-}
-
-function previewMagicPenText(text: string, maxLength: number = 48): string {
-  const compact = text.replace(/\s+/g, ' ').trim();
-  if (!compact) return '[empty]';
-  if (compact.length <= maxLength) return compact;
-  const head = compact.slice(0, Math.floor(maxLength / 2));
-  const tail = compact.slice(-Math.floor(maxLength / 2));
-  return `${head} ... ${tail}`;
-}
-
 function toSupportedLang(inputLang: string): 'zh' | 'en' | 'it' {
   const resolved = inputLang.toLowerCase();
   if (resolved === 'en' || resolved === 'it') {
@@ -167,43 +151,16 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {
   const trimmed = params.input.trim();
   if (!trimmed || params.isMagicPenSending) {
-    logMagicPenFlow('send.skipped', {
-      reason: !trimmed ? 'empty_input' : 'already_sending',
-      inputLength: trimmed.length,
-    });
     return;
   }
-
-  magicPenSendSequence += 1;
-  const sendSeq = magicPenSendSequence;
-  const startedAt = Date.now();
 
   params.setIsMagicPenSending(true);
   const supportedLang = toSupportedLang(params.lang);
 
-  logMagicPenFlow('send.start', {
-    sendSeq,
-    inputLength: trimmed.length,
-    supportedLang,
-    messageCount: params.messages.length,
-    hasActiveTodo: Boolean(params.activeTodoId),
-  });
-
   try {
     const localClassification = classifyLiveInput(trimmed, getLiveInputContext(params.messages));
-    logMagicPenFlow('send.local_classification', {
-      sendSeq,
-      kind: localClassification.kind,
-      internalKind: localClassification.internalKind,
-      confidence: localClassification.confidence,
-      reasons: localClassification.reasons,
-    });
 
     if (shouldUseLocalFastPath(trimmed, localClassification)) {
-      logMagicPenFlow('send.path', {
-        sendSeq,
-        path: 'local_fast_path',
-      });
       const localWriteResult = await params.sendAutoRecognizedInput(trimmed);
       await completeActiveTodoAfterRealtimeIfNeeded(
         [localWriteResult.classification?.kind ?? null],
@@ -214,27 +171,10 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       );
       params.setMagicPenSeedAutoWritten([]);
       params.setInput('');
-      logMagicPenFlow('send.done_fast_path', {
-        sendSeq,
-        elapsedMs: Date.now() - startedAt,
-        source: 'local_fast_path',
-        wroteKind: localWriteResult.classification?.kind,
-        internalKind: localWriteResult.classification?.internalKind,
-      });
       return;
     }
 
-    logMagicPenFlow('send.path', {
-      sendSeq,
-      path: 'parser_path',
-    });
     const parsed = await params.parseMagicPenInput(trimmed, { lang: supportedLang });
-    logMagicPenFlow('send.parser_result', {
-      sendSeq,
-      draftCount: parsed.drafts.length,
-      unparsedCount: parsed.unparsedSegments.length,
-      autoWriteCount: parsed.autoWriteItems.length,
-    });
     const recoveredAutoWriteItems: MagicPenAutoWriteItem[] = parsed.autoWriteItems.map((item) => ({
       ...item,
       source: 'ai' as const,
@@ -242,17 +182,6 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
     const remainingUnparsed = parsed.unparsedSegments
       .map((segment) => segment.trim())
       .filter((segment) => Boolean(segment));
-
-    logMagicPenFlow('send.autowrite_candidates', {
-      sendSeq,
-      candidates: recoveredAutoWriteItems.map((item) => ({
-        id: item.id,
-        kind: item.kind,
-        source: item.source,
-        confidence: item.confidence,
-        contentPreview: previewMagicPenText(item.content),
-      })),
-    });
 
     const autoWriteKinds: Array<'activity' | 'mood' | null> = [];
     const autoWrittenItems: MagicPenAutoWrittenItem[] = [];
@@ -271,22 +200,7 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
         messageId: writeResult.messageId,
         linkedMoodContent: autoWriteItem.linkedMoodContent,
       });
-      logMagicPenFlow('send.autowrite_item_written', {
-        sendSeq,
-        id: autoWriteItem.id,
-        source: autoWriteItem.source,
-        kind: autoWriteItem.kind,
-        contentPreview: previewMagicPenText(autoWriteItem.content),
-      });
     }
-
-    logMagicPenFlow('send.autowrite_done', {
-      sendSeq,
-      attemptedAutoWriteCount: recoveredAutoWriteItems.length,
-      writtenCount: autoWrittenItems.length,
-      remainingUnparsedCount: remainingUnparsed.length,
-      draftCount: parsed.drafts.length,
-    });
 
     await completeActiveTodoAfterRealtimeIfNeeded(
       autoWriteKinds,
@@ -301,26 +215,12 @@ export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParam
       params.setMagicPenSeedUnparsed(remainingUnparsed);
       params.setMagicPenSeedAutoWritten(autoWrittenItems);
       params.setIsMagicPenOpen(true);
-      logMagicPenFlow('send.sheet_open', {
-        sendSeq,
-        draftCount: parsed.drafts.length,
-        unparsedCount: remainingUnparsed.length,
-        autoWrittenCount: autoWrittenItems.length,
-      });
     } else {
       params.setMagicPenSeedAutoWritten([]);
-      logMagicPenFlow('send.no_sheet_needed', {
-        sendSeq,
-        autoWrittenCount: autoWrittenItems.length,
-      });
     }
     params.setInput('');
   } finally {
     params.setIsMagicPenSending(false);
-    logMagicPenFlow('send.finally', {
-      sendSeq,
-      elapsedMs: Date.now() - startedAt,
-    });
   }
 }
 

@@ -85,7 +85,6 @@ export async function startSession(
     .single();
 
   if (error || !data) {
-    import.meta.env.DEV && console.log('[timingSession] startSession error', error);
     return null;
   }
 

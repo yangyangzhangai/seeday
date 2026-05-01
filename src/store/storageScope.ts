@@ -101,5 +101,4 @@ export function getScopedClientStorageKey(baseKey: string, scope?: StorageScope)
 
 export function logStorageScopeEvent(event: string, detail?: Record<string, unknown>): void {
   if (!import.meta.env.DEV) return;
-  console.log('[StorageScope]', event, detail ?? {});
 }

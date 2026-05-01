@@ -48,9 +48,9 @@ async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'crea
       .update({ ...dbUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', session.user.id);
-    if (error) console.error('Error syncing todo update:', error);
+    if (error && import.meta.env.DEV) console.error('Error syncing todo update:', error);
   } catch (e) {
-    console.error('bgSyncUpdate failed:', e);
+    if (import.meta.env.DEV) console.error('bgSyncUpdate failed:', e);
   }
 }
 
@@ -63,7 +63,7 @@ async function bgSyncInsert(todo: Todo): Promise<void> {
       .from('todos')
       .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing todo insert:', error);
+      if (import.meta.env.DEV) console.error('Error syncing todo insert:', error);
       useTodoStore.setState((s) => ({
         todos: s.todos.map((t) =>
           t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
@@ -77,7 +77,7 @@ async function bgSyncInsert(todo: Todo): Promise<void> {
       ),
     }));
   } catch (e) {
-    console.error('bgSyncInsert failed:', e);
+    if (import.meta.env.DEV) console.error('bgSyncInsert failed:', e);
     useTodoStore.setState((s) => ({
       todos: s.todos.map((t) =>
         t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
@@ -97,12 +97,12 @@ async function bgSyncDelete(id: string): Promise<boolean> {
       .eq('id', id)
       .eq('user_id', session.user.id);
     if (error) {
-      console.error('Error syncing todo soft-delete:', error);
+      if (import.meta.env.DEV) console.error('Error syncing todo soft-delete:', error);
       return false;
     }
     return true;
   } catch (e) {
-    console.error('bgSyncDelete failed:', e);
+    if (import.meta.env.DEV) console.error('bgSyncDelete failed:', e);
     return false;
   }
 }
@@ -258,7 +258,7 @@ export const useTodoStore = create<TodoState>()(
             .is('deleted_at', null);
 
           if (error) {
-            console.error('Error fetching todos:', error);
+            if (import.meta.env.DEV) console.error('Error fetching todos:', error);
             set({ isLoading: false, hasHydrated: true, lastSyncError: error.message });
             return;
           }
@@ -286,7 +286,7 @@ export const useTodoStore = create<TodoState>()(
             normalizeTodoCategory,
             resolveLangForText,
           }) as Todo[];
-          migrated.forEach((t) => bgSyncInsert(t).catch(console.error));
+          migrated.forEach((t) => bgSyncInsert(t).catch((error) => import.meta.env.DEV && console.error('[todo] migrate bgSyncInsert failed', error)));
 
           const nextPendingDeleted = Object.fromEntries(
             pendingDeleteEntries.filter(([id]) => cloudIdsRaw.has(id))
@@ -368,13 +368,13 @@ export const useTodoStore = create<TodoState>()(
               syncState: 'pending',
             };
             newTodos.push(instance);
-            bgSyncInsert(instance).catch(console.error);
+            bgSyncInsert(instance).catch((error) => import.meta.env.DEV && console.error('[todo] recurrence bgSyncInsert failed', error));
             if (shouldRefineByAI) {
               void refineTodoCategoryWithAI(instance.id, instance.title);
             }
           }
           set((s) => ({ todos: [...s.todos, ...newTodos] }));
-          bgSyncInsert(template).catch(console.error);
+          bgSyncInsert(template).catch((error) => import.meta.env.DEV && console.error('[todo] add template bgSyncInsert failed', error));
           if (shouldRefineByAI) {
             void refineTodoCategoryWithAI(template.id, template.title);
           }
@@ -395,7 +395,7 @@ export const useTodoStore = create<TodoState>()(
             syncState: 'pending',
           };
           set((s) => ({ todos: [...s.todos, todo] }));
-          bgSyncInsert(todo).catch(console.error);
+          bgSyncInsert(todo).catch((error) => import.meta.env.DEV && console.error('[todo] add todo bgSyncInsert failed', error));
           if (shouldRefineByAI) {
             void refineTodoCategoryWithAI(todo.id, todo.title);
           }
@@ -426,7 +426,7 @@ export const useTodoStore = create<TodoState>()(
             const allDone = siblings.every((t) => t.completed);
             if (allDone) {
               const now = Date.now();
-              bgSyncUpdate(todo.parentId, { completed: true, completedAt: now }).catch(console.error);
+              bgSyncUpdate(todo.parentId, { completed: true, completedAt: now }).catch((error) => import.meta.env.DEV && console.error('[todo] complete parent bgSyncUpdate failed', error));
               return {
                 todos: nextTodos.map((t) =>
                   t.id === todo.parentId ? { ...t, completed: true, completedAt: now } : t
@@ -436,7 +436,7 @@ export const useTodoStore = create<TodoState>()(
           }
           return { todos: nextTodos };
         });
-        bgSyncUpdate(id, { completed, completedAt }).catch(console.error);
+        bgSyncUpdate(id, { completed, completedAt }).catch((error) => import.meta.env.DEV && console.error('[todo] toggle complete bgSyncUpdate failed', error));
       },
 
       // ── Toggle pin ──
@@ -447,7 +447,7 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           todos: state.todos.map((t) => (t.id === id ? { ...t, isPinned } : t)),
         }));
-        bgSyncUpdate(id, { isPinned }).catch(console.error);
+        bgSyncUpdate(id, { isPinned }).catch((error) => import.meta.env.DEV && console.error('[todo] pin bgSyncUpdate failed', error));
       },
 
       // ── Delete todo (template cascade + annotation + Supabase) ──
@@ -537,7 +537,7 @@ export const useTodoStore = create<TodoState>()(
           timestamp: Date.now(),
           data: { content: todo.title },
         };
-        annotationStore.triggerAnnotation(event).catch(console.error);
+        annotationStore.triggerAnnotation(event).catch((error) => import.meta.env.DEV && console.error('[todo] annotation trigger failed', error));
       },
 
       addCategory: (category) =>
@@ -556,7 +556,7 @@ export const useTodoStore = create<TodoState>()(
           ),
           activeTodoId: id,
         }));
-        bgSyncUpdate(id, { startedAt: now, completed: false, completedAt: undefined }).catch(console.error);
+        bgSyncUpdate(id, { startedAt: now, completed: false, completedAt: undefined }).catch((error) => import.meta.env.DEV && console.error('[todo] start focus bgSyncUpdate failed', error));
       },
 
       // ── Complete the currently active todo (for ChatPage) ──
@@ -629,8 +629,8 @@ export const useTodoStore = create<TodoState>()(
             ...subTodos,
           ],
         }));
-        existingSubTodos.forEach((t) => bgSyncDelete(t.id).catch(console.error));
-        subTodos.forEach((t) => bgSyncInsert(t).catch(console.error));
+        existingSubTodos.forEach((t) => bgSyncDelete(t.id).catch((error) => import.meta.env.DEV && console.error('[todo] sync subtodo bgSyncDelete failed', error)));
+        subTodos.forEach((t) => bgSyncInsert(t).catch((error) => import.meta.env.DEV && console.error('[todo] sync subtodo bgSyncInsert failed', error)));
       },
 
       // ── Reorder todos ──
@@ -662,7 +662,7 @@ export const useTodoStore = create<TodoState>()(
         void Promise.all([
           bgSyncUpdate(currentTodoId, { sortOrder: thatOrder }),
           bgSyncUpdate(swapTodoId, { sortOrder: thisOrder }),
-        ]).catch(console.error);
+        ]).catch((error) => import.meta.env.DEV && console.error('[todo] deleteTodo sync failed', error));
       },
 
       reorderTodosByIds: (orderedIds) => {
@@ -680,7 +680,7 @@ export const useTodoStore = create<TodoState>()(
         }));
 
         if (changed.length === 0) return;
-        void Promise.all(changed.map((item) => bgSyncUpdate(item.id, { sortOrder: item.sortOrder }))).catch(console.error);
+        void Promise.all(changed.map((item) => bgSyncUpdate(item.id, { sortOrder: item.sortOrder }))).catch((error) => import.meta.env.DEV && console.error('[todo] reorder bgSyncUpdate failed', error));
       },
 
       // ── Generate recurring todos for today ──
@@ -747,7 +747,7 @@ export const useTodoStore = create<TodoState>()(
             scope: tpl.scope,
           };
           newInstances.push(instance);
-          bgSyncInsert(instance).catch(console.error);
+          bgSyncInsert(instance).catch((error) => import.meta.env.DEV && console.error('[todo] rollover bgSyncInsert failed', error));
         }
 
         set((s) => ({
@@ -790,7 +790,7 @@ export const useTodoStore = create<TodoState>()(
               Object.entries(s.activeMessageMap).filter(([k]) => k !== messageId)
             ),
           }));
-          bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch(console.error);
+          bgSyncUpdate(todoId, { completed: true, completedAt, duration }).catch((error) => import.meta.env.DEV && console.error('[todo] completeFocusTodo bgSyncUpdate failed', error));
           return completedTodo;
         }
         return null;

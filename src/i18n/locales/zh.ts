@@ -305,7 +305,7 @@ const zh: TranslationKeys = {
     auth_change_avatar: '更换头像',
     avatar_alt: '头像',
     auth_google_signin: '使用 Google 继续',
-    auth_apple_signin: '使用 Apple 继续',
+    auth_apple_signin: 'Sign in with Apple',
     auth_or_divider: '或',
     // ── AI 批注气泡 ──
     annotation_condensing: '凝结中...',

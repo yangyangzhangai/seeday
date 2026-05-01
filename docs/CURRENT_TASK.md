@@ -22,6 +22,15 @@ Session Notes:
 - 2026-05-01: iOS Review（ASR/NR）Round 1.3：按产品决策删除 `forceOnboarding` 全部覆盖逻辑（query/env），`R-ASR-004` 标记为已修复
 - 2026-05-01: iOS Review（ASR/NR）Round 1.4：删除账号相关文案统一为“立即删除”（中/英/意），隐私政策数据留存口径同步改为“删除后立即永久删除”；新增 `ios/App/App/PrivacyInfo.xcprivacy` 并加入 iOS target resources，`R-ASR-006` 标记为已修复
 - 2026-05-01: iOS Review（ASR/NR）Round 1.5：按产品决策暂不调整 `isInspectable`；已清理前端可见日志并统一 `import.meta.env.DEV` 保护（auth/report/annotation/stardust/sync/parser 等路径）
+- 2026-05-01: iOS Review（ASR/NR）Round 1.6：补审 `4.5.4`（Push 合规）与 `5.1.2`（数据使用/共享）；确认通知权限非主功能强依赖且权限请求由用户触发，新增提审前人工核对项（ASC 隐私标签与第三方共享披露一致性）
+- 2026-05-01: iOS Review（ASR/NR）交接基线更新：`docs/IOS_REVIEW_ASR_NR_AUDIT_SPEC.md` 新增“当前风险状态 + 下个会话接手清单”；明确优先收敛 `R-ASR-005`（`isInspectable` 发布包默认开启）
+- 2026-05-01: iOS Review（ASR/NR）Round 1.7：完成 `R-ASR-005` 修复，`ios/App/App/AppDelegate.swift` 中 `webView.isInspectable` 改为仅 DEBUG 开启，发布包默认关闭；主台账 `2.5.1` 结论同步更新为符合
+- 2026-05-01: iOS Review（ASR/NR）Round 1.8：继续收敛 `R-ASR-007`，`api/subscription.ts` 新增 `SUBSCRIPTION_VERBOSE_LOGS` 开关并收口详细 IAP/server `console.log`，生产默认关闭详细轨迹日志
+- 2026-05-01: iOS Review（ASR/NR）Round 1.9：完成剩余 `ASR & NR` 条款逐条代码审计（清单待审 0）；新增 28 条审计结论与证据路径，提审前人工核对项聚焦 ASC 分类/年龄分级/隐私标签/开发者身份一致性；代码侧剩余风险继续聚焦 `R-ASR-007`（生产日志收口）
+- 2026-05-01: iOS Review（ASR/NR）R-ASR-007 前端日志进一步收口：移除非必要前端 `console.log`（chat/magic-pen/store/parser/api-client debug 等），当前 `src/**` 仅保留 server 路径日志待继续复核
+- 2026-05-01: iOS Review（ASR/NR）R-ASR-007 server 日志继续收口：移除 `src/server/annotation-handler.ts`、`src/server/annotation-handler-utils.ts`、`src/server/todo-decompose-service.ts` 非必要 `console.log`；当前 `src/**` 已无 `console.log` 残留
+- 2026-05-01: iOS Review（ASR/NR）R-ASR-007 持续收口：前端 `useChatStore/useTodoStore` 将生产路径 `console.error` 与 `catch(console.error)` 改为 DEV-only；服务端 `api/report.ts`、`api/classify.ts`、`api/diary.ts`、`api/magic-pen-parse.ts` 错误日志改为结构化摘要（长度/状态码），不再输出原始文本预览
+- 2026-05-01: iOS Review（ASR/NR）R-ASR-007 Round 1.12：继续收口前端 store 日志，将 `reportActions`、`authStoreRuntimeHelpers`、`useReportStore`、`useAnnotationStore`、`useStardustStore`、`authDataSyncHelpers`、`authPreferenceHelpers` 的生产路径 `console.warn/error` 改为 DEV-only，减少用户端可见错误对象
 
 ---
 

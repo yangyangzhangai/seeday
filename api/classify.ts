@@ -479,7 +479,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Classifier API error:', response.status, errorText);
+      console.error('Classifier API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorLength: errorText.length,
+      });
       jsonError(res, response.status, `AI service error: ${response.statusText}`, errorText);
       return;
     }

@@ -78,14 +78,6 @@ export function syncAnnotationStateWithPreferences(preferences: UserPreferences,
     },
     currentAnnotation: preferences.aiModeEnabled ? state.currentAnnotation : null,
   }));
-  if (import.meta.env.DEV) {
-    console.log('[Membership] synced annotation quota:', {
-      isPlus,
-      aiModeEnabled: preferences.aiModeEnabled,
-      annotationDropRate: preferences.annotationDropRate,
-      dailyLimit: nextConfig.dailyLimit,
-    });
-  }
 }
 
 export function clearLocalDomainStores(scope?: StorageScope): void {
@@ -235,7 +227,9 @@ export async function ensureTodayLoginDay(user: any): Promise<any> {
   const nextDays = [...existingDays, today].slice(-90);
   const { user: updatedUser, error } = await patchUserMetadata({ login_days: nextDays });
   if (error || !updatedUser) {
-    console.warn('Failed to persist login_days:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Failed to persist login_days:', error);
+    }
     return user;
   }
   return updatedUser;

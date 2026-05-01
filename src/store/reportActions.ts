@@ -169,9 +169,6 @@ export async function triggerWeeklyProfileExtraction(messages: Message[]): Promi
 
   const recentMessages = buildExtractProfileMessages(messages);
   if (recentMessages.length === 0) {
-    if (import.meta.env.DEV) {
-      console.log('[WeeklyProfile] skip extraction: empty messages');
-    }
     return;
   }
 
@@ -179,9 +176,6 @@ export async function triggerWeeklyProfileExtraction(messages: Message[]): Promi
     const lang = (i18n.language?.split('-')[0] || 'en') as 'zh' | 'en' | 'it';
     const result = await callExtractProfileAPI({ recentMessages, lang });
     if (!result.success || !result.profile) {
-      if (import.meta.env.DEV) {
-        console.log('[WeeklyProfile] skip extraction:', result.reason || 'empty profile payload');
-      }
       return;
     }
 
@@ -194,15 +188,16 @@ export async function triggerWeeklyProfileExtraction(messages: Message[]): Promi
     });
 
     if (error) {
-      console.warn('[WeeklyProfile] updateUserProfile failed:', error);
+      if (import.meta.env.DEV) {
+        console.warn('[WeeklyProfile] updateUserProfile failed:', error);
+      }
       return;
     }
 
-    if (import.meta.env.DEV) {
-      console.log('[WeeklyProfile] profile extraction synced');
-    }
   } catch (error) {
-    console.warn('[WeeklyProfile] extraction request failed:', error);
+    if (import.meta.env.DEV) {
+      console.warn('[WeeklyProfile] extraction request failed:', error);
+    }
   }
 }
 
@@ -365,10 +360,8 @@ export async function runAIDiary({
     effectiveDailyGoal,
   );
 
-  import.meta.env.DEV && console.log('[Diary] Step 1: 从消息直接构建结构化数据...');
   const classifiedData = buildClassifiedData(activities, dailyTodoStats);
 
-  import.meta.env.DEV && console.log('[Diary] Step 2: 计算层处理...');
   const computed = computeAll(classifiedData, computedHistory, currentLang);
   computed.mood_records = moodRecords;
   const structuredData = formatForDiaryAI(computed, currentLang);
@@ -386,7 +379,6 @@ export async function runAIDiary({
     historyContext = buildHistoryContext(computedHistory, currentLang);
   }
 
-  import.meta.env.DEV && console.log('[Diary] Step 3: 生成 AI 日记...');
   const currentUser = useAuthStore.getState().user;
   const userNickname = currentUser?.user_metadata?.display_name || undefined;
 

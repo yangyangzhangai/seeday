@@ -45,6 +45,12 @@ interface VerifiedMembership {
 
 const APPLE_PROD_API_BASE = 'https://api.storekit.itunes.apple.com';
 const APPLE_SANDBOX_API_BASE = 'https://api.storekit-sandbox.itunes.apple.com';
+const ENABLE_VERBOSE_SUBSCRIPTION_LOGS = process.env.SUBSCRIPTION_VERBOSE_LOGS === 'true';
+
+function logSubscriptionDebug(message: string, ...args: unknown[]): void {
+  if (!ENABLE_VERBOSE_SUBSCRIPTION_LOGS) return;
+  console.log(message, ...args);
+}
 
 function getEnv(name: string): string {
   const value = process.env[name];
@@ -258,7 +264,7 @@ async function verifyIapMembership(params: {
   planType: PlanType;
   originalTransactionId: string | null;
 }): Promise<VerifiedMembership> {
-  console.log('[IAP] verifyIapMembership start', {
+  logSubscriptionDebug('[IAP] verifyIapMembership start', {
     transactionId: params.transactionId,
     productId: params.productId,
     planType: params.planType,
@@ -266,7 +272,7 @@ async function verifyIapMembership(params: {
 
   const bypass = process.env.APPLE_IAP_VERIFY_BYPASS === 'true';
   if (bypass) {
-    console.log('[IAP] bypass mode enabled, skipping Apple verification');
+    logSubscriptionDebug('[IAP] bypass mode enabled, skipping Apple verification');
     const defaultExpire = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     return {
       plan: 'plus',
@@ -282,13 +288,13 @@ async function verifyIapMembership(params: {
   const allowedProductIds = productIdsByPlan(params.planType);
   const expectedProductId = productIdByPlan(params.planType);
 
-  console.log('[IAP] allowedBundleIds:', allowedBundleIds);
-  console.log('[IAP] allowedProductIds:', allowedProductIds);
+  logSubscriptionDebug('[IAP] allowedBundleIds:', allowedBundleIds);
+  logSubscriptionDebug('[IAP] allowedProductIds:', allowedProductIds);
 
   const hasIssuerId = !!process.env.APPLE_IAP_ISSUER_ID;
   const hasKeyId = !!process.env.APPLE_IAP_KEY_ID;
   const hasPrivateKey = !!process.env.APPLE_IAP_PRIVATE_KEY;
-  console.log('[IAP] env check — ISSUER_ID:', hasIssuerId, 'KEY_ID:', hasKeyId, 'PRIVATE_KEY:', hasPrivateKey);
+  logSubscriptionDebug('[IAP] env check — ISSUER_ID:', hasIssuerId, 'KEY_ID:', hasKeyId, 'PRIVATE_KEY:', hasPrivateKey);
 
   let payload: AppleTransactionPayload | null = null;
   let env: 'production' | 'sandbox' = 'production';
@@ -296,21 +302,21 @@ async function verifyIapMembership(params: {
 
   for (const bundleId of allowedBundleIds) {
     try {
-      console.log('[IAP] building token for bundleId:', bundleId);
+      logSubscriptionDebug('[IAP] building token for bundleId:', bundleId);
       const token = buildAppleApiToken(bundleId);
-      console.log('[IAP] token built OK, querying prod API...');
+      logSubscriptionDebug('[IAP] token built OK, querying prod API...');
       const prod = await fetchAppleTransaction(APPLE_PROD_API_BASE, token, params.transactionId);
       const nextEnv: 'production' | 'sandbox' = prod.notFound ? 'sandbox' : 'production';
-      console.log('[IAP] prod lookup notFound:', prod.notFound, '→ env:', nextEnv);
+      logSubscriptionDebug('[IAP] prod lookup notFound:', prod.notFound, '-> env:', nextEnv);
       const source = prod.notFound
         ? await fetchAppleTransaction(APPLE_SANDBOX_API_BASE, token, params.transactionId)
         : prod;
       const candidate = source.payload;
       if (!candidate) {
-        console.log('[IAP] no payload from Apple for bundleId:', bundleId);
+        logSubscriptionDebug('[IAP] no payload from Apple for bundleId:', bundleId);
         continue;
       }
-      console.log('[IAP] Apple payload bundleId:', candidate.bundleId, 'productId:', candidate.productId);
+      logSubscriptionDebug('[IAP] Apple payload bundleId:', candidate.bundleId, 'productId:', candidate.productId);
       if (candidate.bundleId && !allowedBundleIds.includes(candidate.bundleId)) {
         throw new Error(`Bundle ID mismatch: ${candidate.bundleId}`);
       }
@@ -338,7 +344,7 @@ async function verifyIapMembership(params: {
   }
 
   const isActive = isActiveSubscription(payload);
-  console.log('[IAP] verification success — isActive:', isActive, 'env:', env);
+  logSubscriptionDebug('[IAP] verification success — isActive:', isActive, 'env:', env);
   return {
     plan: isActive ? 'plus' : 'free',
     expiresAt: toIso(payload.expiresDate),
@@ -416,7 +422,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const source = normalizeSource(body.source);
   const planType = normalizePlanType(body.planType);
 
-  console.log('[subscription] request — action:', action, 'source:', source, 'planType:', planType,
+  logSubscriptionDebug('[subscription] request — action:', action, 'source:', source, 'planType:', planType,
     'transactionId:', normalizeString(body.transactionId)?.slice(0, 20),
     'productId:', normalizeString(body.productId));
 

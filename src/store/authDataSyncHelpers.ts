@@ -45,9 +45,9 @@ export async function syncLocalDataToSupabase(
     const messagesToUpload = messages.map((m) => toDbMessage(m, userId));
     const { error } = await supabase.from('messages').upsert(messagesToUpload, { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing messages:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${messages.length} messages.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing messages:', error);
+      }
     }
   }
 
@@ -83,9 +83,9 @@ export async function syncLocalDataToSupabase(
       .upsert(moodsToUpload, { onConflict: 'user_id,message_id' });
 
     if (error) {
-      console.error('Error syncing moods:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${moodsToUpload.length} moods.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing moods:', error);
+      }
     }
   }
 
@@ -104,9 +104,9 @@ export async function syncLocalDataToSupabase(
 
     const { error } = await supabase.from('bottles').upsert(bottlesToUpload, { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing bottles:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${bottles.length} bottles.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing bottles:', error);
+      }
     }
   }
 
@@ -115,9 +115,9 @@ export async function syncLocalDataToSupabase(
 
     const { error } = await supabase.from('todos').upsert(todosToUpload, { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing todos:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${todos.length} todos.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing todos:', error);
+      }
     }
   }
 
@@ -134,9 +134,9 @@ export async function syncLocalDataToSupabase(
 
     const { error } = await supabase.from('focus_sessions').upsert(sessionsToUpload, { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing focus sessions:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${focusSessions.length} focus sessions.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing focus sessions:', error);
+      }
     }
   }
 
@@ -146,9 +146,9 @@ export async function syncLocalDataToSupabase(
 
     const { error } = await supabase.from('reports').upsert(reportsToUpload, { onConflict: 'id' });
     if (error) {
-      console.error('Error syncing reports:', error);
-    } else {
-      if (import.meta.env.DEV) console.log(`Synced ${reports.length} reports.`);
+      if (import.meta.env.DEV) {
+        console.error('Error syncing reports:', error);
+      }
     }
   }
 
@@ -164,7 +164,9 @@ export async function syncLocalDataToSupabase(
       });
 
       if (error) {
-        console.error('Error syncing daily goal metadata:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error syncing daily goal metadata:', error);
+        }
       } else if (user) {
         options.onUserUpdated?.(user);
       }

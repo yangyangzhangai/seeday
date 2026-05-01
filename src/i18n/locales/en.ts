@@ -304,7 +304,7 @@ const en = {
     auth_change_avatar: 'Change avatar',
     avatar_alt: 'Avatar',
     auth_google_signin: 'Continue with Google',
-    auth_apple_signin: 'Continue with Apple',
+    auth_apple_signin: 'Sign in with Apple',
     auth_or_divider: 'or',
     // ── AI Annotation Bubble ──
     annotation_condensing: 'Crystallizing…',

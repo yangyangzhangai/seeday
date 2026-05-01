@@ -117,10 +117,7 @@ function previewApiText(value: unknown, maxLength: number = 160): string {
   return `${head} ... ${tail}`;
 }
 
-function logApiDebug(step: string, payload: Record<string, unknown>): void {
-  if (!import.meta.env.DEV) return;
-  console.log(`[api-client] ${step}`, payload);
-}
+function logApiDebug(_step: string, _payload: Record<string, unknown>): void {}
 
 function inferApiErrorCode(status: number | undefined, rawCode: unknown, rawMessage: string): ApiErrorCode {
   const normalizedCode = typeof rawCode === 'string' ? rawCode.trim().toLowerCase() : '';

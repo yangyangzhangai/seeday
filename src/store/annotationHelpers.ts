@@ -140,25 +140,21 @@ export function shouldGenerateAnnotation(
   config: Config
 ): boolean {
   if (FORCE_ANNOTATION_TRIGGER) {
-    if (import.meta.env.DEV) console.log(`[AI Annotator] 测试模式：${event.type} 触发概率 100%`);
     return true;
   }
 
   const now = Date.now();
 
   if (now - todayStats.lastSpeakTime < GLOBAL_COOLDOWN_MS) {
-    if (import.meta.env.DEV) console.log('[AI Annotator] 全局冷却中');
     return false;
   }
 
   if (todayStats.speakCount >= config.dailyLimit) {
-    if (import.meta.env.DEV) console.log('[AI Annotator] 已达到每日限额');
     return false;
   }
 
   const weight = EVENT_WEIGHTS[event.type];
   if (!weight) {
-    if (import.meta.env.DEV) console.log('[AI Annotator] 未知事件类型:', event.type);
     return false;
   }
 
@@ -169,7 +165,6 @@ export function shouldGenerateAnnotation(
   if (lastSameTypeEvent) {
     const timeSinceLast = now - lastSameTypeEvent.timestamp;
     if (timeSinceLast < SAME_EVENT_COOLDOWN_MS) {
-      if (import.meta.env.DEV) console.log(`[AI Annotator] ${event.type} 冷却中`);
       return false;
     }
   }
@@ -180,7 +175,6 @@ export function shouldGenerateAnnotation(
   weight.bonuses.forEach(bonus => {
     if (bonus.check(event, todayStats.events)) {
       probability += bonus.bonus;
-      if (import.meta.env.DEV) console.log(`[AI Annotator] 加成: ${bonus.description} (+${bonus.bonus}%)`);
     }
   });
 
@@ -188,10 +182,6 @@ export function shouldGenerateAnnotation(
 
   const random = Math.random() * 100;
   const shouldTrigger = random < probability;
-
-  if (import.meta.env.DEV) {
-    console.log(`[AI Annotator] 概率计算(${dropRate}): ${probability.toFixed(1)}% (随机值: ${random.toFixed(1)}) - ${shouldTrigger ? '触发' : '未触发'}`);
-  }
 
   return shouldTrigger;
 }

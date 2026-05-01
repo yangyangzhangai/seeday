@@ -70,9 +70,8 @@ const LATERAL_ASSOCIATION_PROBABILITY_DELTA = 0.2;
 const LATERAL_ASSOCIATION_MIN_PROBABILITY = 0.3;
 const LATERAL_ASSOCIATION_MAX_PROBABILITY = 0.7;
 
-function logAnnotationDebug(stage: string, payload: Record<string, unknown>): void {
+function logAnnotationDebug(_stage: string, _payload: Record<string, unknown>): void {
   if (!ENABLE_VERBOSE_ANNOTATION_LOGS) return;
-  console.log(`[Annotation API] ${stage}`, payload);
 }
 
 function normalizeAnnotationLang(lang: unknown): AnnotationLang {
@@ -164,17 +163,6 @@ async function resolveLateralAssociationInstruction(params: {
     state: sampled.nextState,
   });
 
-  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-    console.log('[LateralAssociation]', {
-      userId: params.userId,
-      characterId: params.characterId,
-      lang: params.lang,
-      associationType: sampled.associationType,
-      originType: sampled.originType,
-      toneTag: sampled.toneTag,
-      instruction: sampled.associationInstruction,
-    });
-  }
 
   void reportNarrativeTelemetry({
     userId: params.userId,
@@ -433,17 +421,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     airQuality: airQualityResult.value,
   });
 
-  if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-    console.log('[Annotation API] Env context meta:', {
-      weather_source: weatherContext.source,
-      weather_conditions: weatherContext.conditions,
-      weather_temperature_c: weatherContext.temperatureC,
-      season: seasonContext.season,
-      alerts: weatherAlerts,
-      weather_fetch_ms: weatherResult.elapsedMs,
-      air_quality_fetch_ms: airQualityResult.elapsedMs,
-    });
-  }
 
   const sharedEventSummary = (eventData.summary || eventData.content || eventData.mood || JSON.stringify(eventData).slice(0, 50))
     .replace(/\s+/g, ' ')
@@ -891,17 +868,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const rewriteHasDuplicateEmoji = rewriteEmojis.some(e => recentEmojis.includes(e));
 
           rewrittenContent = extractedRewrite;
-
-          if (ENABLE_VERBOSE_ANNOTATION_LOGS) {
-            console.log('[Annotation API] 重写候选', {
-              attempt,
-              finishReason: rewriteResponse.finishReason,
-              similarity: Number(rewriteSimilarity.toFixed(3)),
-              hasDuplicateEmoji: rewriteHasDuplicateEmoji,
-              rawLength: rewriteRaw.length,
-              rawOutput: rewriteRaw,
-            });
-          }
 
           if (rewriteSimilarity < SIMILARITY_THRESHOLD && !rewriteHasDuplicateEmoji) {
             break;

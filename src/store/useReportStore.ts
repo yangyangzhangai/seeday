@@ -170,7 +170,9 @@ export const useReportStore = create<ReportState>()(
             });
           }
         } catch (error) {
-          console.error('Error fetching reports:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching reports:', error);
+          }
         }
       },
 
@@ -213,7 +215,9 @@ export const useReportStore = create<ReportState>()(
               kind: 'report.upsert',
               payload: { report: nextReport },
             });
-            console.error('[updateReport] supabase error; queued full upsert fallback', error, 'columns attempted:', Object.keys(dbUpdates));
+            if (import.meta.env.DEV) {
+              console.error('[updateReport] supabase error; queued full upsert fallback', error, 'columns attempted:', Object.keys(dbUpdates));
+            }
             return;
           }
         }
@@ -330,10 +334,11 @@ export const useReportStore = create<ReportState>()(
             analysisStatus: 'success',
             stats: existingStats,
           });
-          if (import.meta.env.DEV) console.log('[Diary] AI 日记生成完成');
 
         } catch (error) {
-          console.error('[Diary] 生成 AI 日记失败:', error);
+          if (import.meta.env.DEV) {
+            console.error('[Diary] 生成 AI 日记失败:', error);
+          }
           get().updateReport(reportId, {
             analysisStatus: 'error',
             errorMessage: error instanceof Error ? error.message : i18n.t('report_error_unknown')

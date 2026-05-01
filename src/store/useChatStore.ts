@@ -96,7 +96,9 @@ export const useChatStore = create<ChatState>()(
           try {
             await closeCrossDayActiveMessagesInDb(session.user.id, nowMs);
           } catch (closeError) {
-            console.warn('[fetchMessages] closeCrossDayActiveMessagesInDb failed, continue fetching:', closeError);
+            if (import.meta.env.DEV) {
+              console.warn('[fetchMessages] closeCrossDayActiveMessagesInDb failed, continue fetching:', closeError);
+            }
           }
 
           const todayStart = new Date();
@@ -188,7 +190,7 @@ export const useChatStore = create<ChatState>()(
             dateCache: prunedCache,
           });
         } catch (error) {
-          console.error('Error fetching messages:', error);
+          import.meta.env.DEV && console.error('Error fetching messages:', error);
         } finally {
           set({ isLoading: false, hasInitialized: true });
         }
@@ -224,7 +226,7 @@ export const useChatStore = create<ChatState>()(
             yesterdaySummary: null,
           }));
         } catch (error) {
-          console.error('Error fetching older messages:', error);
+          import.meta.env.DEV && console.error('Error fetching older messages:', error);
         } finally {
           set({ isLoadingMore: false });
         }
@@ -244,7 +246,6 @@ export const useChatStore = create<ChatState>()(
           // 避免用户正在看历史日期时被强制跳回今天
           const userOnHistorical = state.activeViewDateStr != null && state.activeViewDateStr !== state.currentDateStr;
           if (userOnHistorical) return;
-          import.meta.env.DEV && console.log('[DayRefresh] Midnight crossed, refreshing messages...');
           void state.fetchMessages();
         }
       },
@@ -276,7 +277,6 @@ export const useChatStore = create<ChatState>()(
           .order('timestamp', { ascending: true });
 
         if (error) {
-          import.meta.env.DEV && console.log('[fetchMessagesByDate] error', error);
           return;
         }
         queueBackfillLegacyActivityTypes(data || [], session.user.id);
@@ -504,7 +504,7 @@ export const useChatStore = create<ChatState>()(
               ...(options?.annotationEventData || {}),
             },
           };
-          annotationStore.triggerAnnotation(recordEvent).catch(console.error);
+          annotationStore.triggerAnnotation(recordEvent).catch((error) => import.meta.env.DEV && console.error('[annotation] trigger failed', error));
         }
 
         return newMessage.id;
@@ -687,7 +687,7 @@ export const useChatStore = create<ChatState>()(
               todoCompletionContext: payload.context,
             },
           };
-          useAnnotationStore.getState().triggerAnnotation(completionEvent).catch(console.error);
+          useAnnotationStore.getState().triggerAnnotation(completionEvent).catch((error) => import.meta.env.DEV && console.error('[annotation] completion trigger failed', error));
         }
         if (opts?.skipBottleStar) return;
         const growthStore = useGrowthStore.getState();
@@ -925,7 +925,7 @@ export const useChatStore = create<ChatState>()(
           timestamp: Date.now(),
           data: { messageId: newMessage.id, mood: content },
         };
-        annotationStore.triggerAnnotation(moodEvent).catch(console.error);
+        annotationStore.triggerAnnotation(moodEvent).catch((error) => import.meta.env.DEV && console.error('[annotation] mood trigger failed', error));
         void (async () => {
           const session = await getSupabaseSession();
           if (!session) {

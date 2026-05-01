@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { requestNotificationPermission } from '../../services/notifications/localNotificationService';
-import { Apple, Chrome, Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
+import { Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { callActivateTrialAPI } from '../../api/client';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -268,15 +268,15 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
         <div className="flex gap-4">
           <AuthButton
-            icon={appleLoading ? <Loader2 size={20} className="animate-spin" /> : <Apple size={20} fill="currentColor" />}
-            text="Apple"
+            icon={appleLoading ? <Loader2 size={20} className="animate-spin" /> : null}
+            text={t('auth_apple_signin')}
             className="flex-1"
             onClick={handleAppleSignIn}
             disabled={appleLoading || googleLoading}
           />
           <AuthButton
-            icon={googleLoading ? <Loader2 size={20} className="animate-spin" /> : <Chrome size={20} />}
-            text="Google"
+            icon={googleLoading ? <Loader2 size={20} className="animate-spin" /> : null}
+            text={t('auth_google_signin')}
             className="flex-1"
             onClick={handleGoogleSignIn}
             disabled={appleLoading || googleLoading}
@@ -309,7 +309,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 };
 
 function AuthButton({ icon, text, className = '', onClick, disabled = false }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   text: string;
   className?: string;
   onClick?: () => void;
