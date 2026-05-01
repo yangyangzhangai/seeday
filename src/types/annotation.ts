@@ -313,37 +313,3 @@ export interface AnnotationResponse {
     userPrompt: string;
   };
 }
-
-// Chutes API 类型
-export interface ChutesMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface ChutesRequest {
-  model: string;
-  messages: ChutesMessage[];
-  temperature?: number;
-  max_tokens?: number;
-  stream?: boolean;
-}
-
-export interface ChutesResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    index: number;
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}

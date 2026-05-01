@@ -209,7 +209,7 @@ const activeRecord = useMemo(() => {
 | 层级 | 文件 | 说明 |
 |------|------|------|
 | Serverless | `api/classify.ts` | 用智谱 GLM-4.7-flash，OpenAI 兼容协议 |
-| Serverless | `src/server/annotation-handler.ts` | 用 Chutes AI，OpenAI 兼容协议 |
+| Serverless | `src/server/annotation-handler.ts` | 用多提供商路由（DeepSeek/OpenAI 等），OpenAI 兼容协议 |
 | 前端 Client | `src/api/client.ts` | 统一 `postJson` 封装 |
 | 共用基础 | `src/server/http.ts` | CORS、method 校验、`jsonError` 工具 |
 

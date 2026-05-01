@@ -6,6 +6,52 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Copy: 帮助与支持文案更新（取消订阅路径 + 联系支持表达）
+
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：
+  - `help_a9` 统一为双入口说明：`App Store（头像→订阅）` 或 `iPhone 设置（姓名→订阅）`
+  - `help_contact_desc` 统一改为“如需支持请发邮件至”语义，避免仅“联系我们：”的生硬表达
+- `src/features/profile/components/HelpSupportPanel.tsx`：移除支持邮箱链接下划线样式，保留 `mailto:` 点击能力与底部灰字展示
+
+Validation:
+
+- Not run (copy/style update only)
+
+### Docs+Copy: 隐私政策供应商披露补齐 + ASC 提审填写模板
+
+- `src/i18n/locales/zh.ts`：更新设置页隐私政策中文文案
+  - `privacy_updated` 更新为 `2026 年 5 月 1 日`
+  - `privacy_s3_body` 补齐 AI 供应商名单：OpenAI、DeepSeek、Qwen、智谱 AI、Google Gemini
+  - `privacy_s4_body` 补齐第三方服务披露：Open-Meteo（天气+空气质量）并与 AI 供应商列表对齐
+- 新增 `docs/ASC_SUBMISSION_CODE_BASED_FILL_TEMPLATE.md`：基于当前代码的 App Store Connect 提审填写模板（供应商、数据类型、用途、人工核对项）
+- `docs/CURRENT_TASK.md`：同步会话锚点与本轮隐私披露更新记录
+
+### Fix+Docs: Report 功能整体下线（前端链路 + API 端点）
+
+- 删除 `api/report.ts`（Vercel Serverless endpoint）
+- 删除前端调用：
+  - `src/store/reportActions.ts`：`runReportAIAnalysis` 函数（调用 `/api/report`）
+  - `src/store/useReportStore.ts`：`triggerAIAnalysis` action
+  - `src/api/client.ts`：`callReportAPI` + `ReportRequest/ReportResponse` 类型
+  - `src/features/profile/components/HelpSupportPanel.tsx`：`help_q10` 等 report 相关 FAQ 文案待后续清理
+- 遗留：Report 基础功能（日报/月报生成、Diary 日记、AI日记）不受影响，仍正常使用 Supabase + `/api/diary`
+- 关联清理：同步移除隐私政策中的 Chutes 表述（已在上一轮完成）
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+
+### Fix+Docs: 下线 Report 外部模型链路并清理 Chutes 残留
+
+- `api/report.ts`：移除 `CHUTES_API_KEY` 读取与 `llm.chutes.ai` 外部请求链路，改为占位返回（生产简版、非生产附带 debug context）
+- `src/types/annotation.ts`：删除未使用的 `Chutes*` 类型定义
+- 配置与文档清理：`.env`、`.env.example`、`README.md`、`DEPLOY.md`、`docs/PROJECT_MAP.md`、`docs/ARCHITECTURE.md`、`PROJECT_CONTEXT.md`、`docs/SEEDAY_DEV_SPEC.md`、`docs/AI_USAGE_INVENTORY.md`、`api/README.md`、`docs/COMPLIANCE_AND_REVIEW_PLAN.md`、`LLM.md`、`CLAUDE.md` 去除 `CHUTES_API_KEY`/Chutes 相关表述
+- `src/i18n/locales/zh.ts`、`docs/ASC_SUBMISSION_CODE_BASED_FILL_TEMPLATE.md`：同步移除 Chutes 供应商表述；隐私文案维持 iOS 提审口径（不写 Stripe）
+
+Validation:
+
+- Not run (copy/docs update only)
+
 ### Fix: iOS 关键本地缓存最小迁移（Auth Session + Reminder Scheduler）
 
 - 新增 `src/services/native/storageService.ts`：统一持久化适配层（native: `@capacitor/preferences`，web: `localStorage`），并在 native 路径对同名 legacy localStorage key 做一次性迁移

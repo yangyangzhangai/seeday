@@ -88,7 +88,7 @@ src/
 
 1. 前端 `src/**` 不直连第三方 AI 密钥或 SDK。
 2. AI 请求统一走 `src/api/client.ts -> /api/*`。
-3. 服务端密钥只从 `process.env` 读取（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
+3. 服务端密钥只从 `process.env` 读取（如 `OPENAI_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
 4. 页面入口统一放在 `src/features/*`。
 5. 会员升级页入口位于 `src/features/profile/UpgradePage.tsx`（route: `/upgrade`）。
 

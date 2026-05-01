@@ -16,7 +16,6 @@ import { type ComputedResult } from '../lib/reportCalculator';
 import {
   createGeneratedReport,
   mergeReportIntoList,
-  runReportAIAnalysis,
   runAIDiary,
   syncReportToSupabase,
   triggerWeeklyProfileExtraction,
@@ -106,7 +105,6 @@ interface ReportState {
   fetchReports: () => Promise<void>;
   generateReport: (type: 'daily' | 'weekly' | 'monthly' | 'custom', date: number, endDate?: number) => Promise<string>;
   updateReport: (id: string, updates: Partial<Report>) => void;
-  triggerAIAnalysis: (reportId: string) => Promise<void>;
   // 日记三步流程
   generateAIDiary: (reportId: string) => Promise<void>;
   // 存储计算结果供历史对比
@@ -257,27 +255,6 @@ export const useReportStore = create<ReportState>()(
         }
 
         return newReport.id;
-      },
-
-      triggerAIAnalysis: async (reportId) => {
-        const state = get();
-        const report = state.reports.find((r) => r.id === reportId);
-        if (!report) return;
-
-        get().updateReport(reportId, { analysisStatus: 'generating', errorMessage: null });
-
-        const todoStore = useTodoStore.getState();
-        const chatStore = useChatStore.getState();
-
-        try {
-          const analysisContent = await runReportAIAnalysis(report, todoStore.todos, chatStore.messages);
-          get().updateReport(reportId, { aiAnalysis: analysisContent, analysisStatus: 'success' });
-        } catch (error) {
-          get().updateReport(reportId, {
-            analysisStatus: 'error',
-            errorMessage: error instanceof Error ? error.message : i18n.t('report_error_unknown'),
-          });
-        }
       },
 
       /**

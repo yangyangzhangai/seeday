@@ -5,6 +5,7 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-05-01: 帮助与支持底部灰字文案更新（三语）：改为“如需支持请发邮件至 …”；移除邮箱下划线样式；FAQ“取消订阅”改为双入口（App Store 头像→订阅 / 设置→姓名→订阅）
 - 2026-05-01: 日记生成按钮 loading 文案缩短并保留人设名（`report_generating` -> `{{companion}} 正在写日记...`），同步 EN/IT
 - 2026-05-01: Onboarding StepJournal iOS 键盘抬升修复：输入区底部增加 `var(--keyboard-height)`，键盘弹出时输入框随之上移，避免被 WKWebView 键盘遮挡
 - 2026-05-01: 日记按钮规则收口：沿用现有按钮，不新增入口；改为 20:00 后且当日未生成才可点，生成后按钮置灰不可再点（植物翻卡 + 日记详情双入口统一）
@@ -34,6 +35,9 @@ Session Notes:
 - 2026-05-01: iOS Review（ASR/NR）Round 1.13：`src/App.tsx` 路由切换为 `HashRouter`（Capacitor 场景稳定性）；`src/components/feedback/ErrorBoundary.tsx` 日志改为 DEV-only；`api/subscription.ts` 增加生产环境 `APPLE_IAP_VERIFY_BYPASS=true` 的硬阻断
 - 2026-05-01: iOS 本地持久化最小迁移（第一批关键项）：新增 `src/services/native/storageService.ts`（native 使用 `@capacitor/preferences`，web 保持 localStorage，并自动迁移 legacy key）；`src/api/supabase.ts` auth session 存储改走统一适配器；`src/services/reminder/reminderScheduler.ts` 关键调度键（`freeDay_*` / `reminder_scheduled_date` / `reminder_today_count`）改走统一持久化适配器
 - 2026-05-01: iOS Review（ASR/NR）Round 1.14：通知 action 文案改走 i18n（中/英/意）；`NSUserNotificationsUsageDescription` 改为本地化 `InfoPlist.strings`（`en/it/zh-Hans`）并将 Info.plist 默认文案改为英文基线
+- 2026-05-01: 隐私政策补齐供应商披露：设置页中文隐私政策更新 AI 供应商名单（OpenAI/DeepSeek/Qwen/智谱/Gemini）并按 iOS 提审口径仅保留 IAP，不写 Stripe；新增提审填写模板 `docs/ASC_SUBMISSION_CODE_BASED_FILL_TEMPLATE.md` 供 ASC 后台对照
+- 2026-05-01: Report 链路下线收口：`/api/report` 移除 Chutes 外部调用与 `CHUTES_API_KEY` 读取，改为占位返回；同步清理 `CHUTES_API_KEY` 文档/配置残留
+- 2026-05-01: Report 功能整体下线：删除 `api/report.ts` API 端点 + 前端 `runReportAIAnalysis` + `triggerAIAnalysis` action + `callReportAPI` 及类型定义；Report 基础功能（日报/月报生成、Diary 日记、AI日记）不受影响
 
 ---
 

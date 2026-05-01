@@ -47,7 +47,7 @@ Seeday 是一个围绕时间记录的应用，核心闭环是：
 1. 页面触发 store action。
 2. store 读写 Supabase（`src/api/supabase.ts`）和本地持久化状态。
 3. AI 相关能力统一由 `src/api/client.ts` 调用 `api/*` serverless。
-4. serverless 在服务端读取 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY` 等环境变量并请求外部模型。
+4. serverless 在服务端读取 `OPENAI_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY` 等环境变量并请求外部模型。
 
 约束: 前端 `src/**` 不应直连带密钥的第三方 AI 服务。
 
@@ -82,7 +82,6 @@ Seeday 是一个围绕时间记录的应用，核心闭环是：
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `OPENAI_API_KEY`
-- `CHUTES_API_KEY`
 - `QWEN_API_KEY`
 - `ZHIPU_API_KEY`
 

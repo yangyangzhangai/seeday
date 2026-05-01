@@ -3,7 +3,7 @@ import { eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale/zh-CN';
 import { it as itLocale } from 'date-fns/locale';
 import { supabase } from '../api/supabase';
-import { callDiaryAPI, callExtractProfileAPI, callReportAPI, type ExtractProfileRequestMessage } from '../api/client';
+import { callDiaryAPI, callExtractProfileAPI, type ExtractProfileRequestMessage } from '../api/client';
 import { computeAll, formatForDiaryAI, type ClassifiedData, type ComputedResult, type MoodRecord } from '../lib/reportCalculator';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { toDbReport } from '../lib/dbMappers';
@@ -221,28 +221,6 @@ export async function syncReportToSupabase(report: Report): Promise<void> {
       payload: { report },
     });
   }
-}
-
-export async function runReportAIAnalysis(report: Report, todos: Todo[], messages: Message[]): Promise<string> {
-  const range = getDateRange(report.type, report.date, report.endDate);
-  const start = report.startDate ? new Date(report.startDate) : range.start;
-  const end = report.endDate ? new Date(report.endDate) : range.end;
-  const relevantTodos = filterRelevantTodos(todos, start, end, report.type);
-  const activities = filterActivities(messages, start, end).map((message) => ({
-    time: format(message.timestamp, 'MM-dd HH:mm'),
-    content: message.content,
-    duration: message.duration || 0,
-  }));
-
-  return callReportAPI({
-    data: {
-      date: format(start, 'yyyy-MM-dd') + (report.type !== 'daily' ? ` 至 ${format(end, 'yyyy-MM-dd')}` : ''),
-      todos: relevantTodos,
-      activities,
-      stats: report.stats,
-    },
-    type: report.type === 'custom' ? 'daily' : report.type,
-  });
 }
 
 interface AIDiaryResult {

@@ -106,7 +106,7 @@ Browser (React)
 通用约束:
 
 1. 仅接受预期方法（大多数为 `POST`，`plant-history` 为 `GET`）。
-2. 从环境变量读取密钥（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
+2. 从环境变量读取密钥（如 `OPENAI_API_KEY`、`QWEN_API_KEY`、`ZHIPU_API_KEY`）。
 3. 返回结构化错误，避免前端拿到原始异常堆栈。
 
 ## 4. 数据与持久化

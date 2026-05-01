@@ -385,6 +385,27 @@ interface ActivateTrialResponse {
   alreadyUsed: boolean;
 }
 
+export interface ExtractProfileRequestMessage {
+  id: string;
+  content: string;
+  timestamp: number;
+  duration?: number;
+  activityType?: string;
+  isMood?: boolean;
+}
+
+interface ExtractProfileRequest {
+  recentMessages: ExtractProfileRequestMessage[];
+  lang?: 'zh' | 'en' | 'it';
+}
+
+interface ExtractProfileResponse {
+  success: boolean;
+  profile?: Partial<UserProfileV2>;
+  skipped?: boolean;
+  reason?: string;
+}
+
 export async function callActivateTrialAPI(): Promise<ActivateTrialResponse> {
   const headers = await getAuthHeaders();
   if (!headers.Authorization) {
@@ -414,49 +435,6 @@ export async function callStripeFinalizeAPI(sessionId: string): Promise<Subscrip
     source: 'stripe',
     sessionId,
   }, { headers });
-}
-
-interface ReportRequest {
-  data: {
-    date: string;
-    todos: any[];
-    activities: { time: string; content: string; duration: number }[];
-    stats: any;
-  };
-  type: 'daily' | 'weekly' | 'monthly';
-}
-
-interface ReportResponse {
-  content: string;
-}
-
-export interface ExtractProfileRequestMessage {
-  id: string;
-  content: string;
-  timestamp: number;
-  duration?: number;
-  activityType?: string;
-  isMood?: boolean;
-}
-
-interface ExtractProfileRequest {
-  recentMessages: ExtractProfileRequestMessage[];
-  lang?: 'zh' | 'en' | 'it';
-}
-
-interface ExtractProfileResponse {
-  success: boolean;
-  profile?: Partial<UserProfileV2>;
-  skipped?: boolean;
-  reason?: string;
-}
-
-/**
- * 调用 Report API
- */
-export async function callReportAPI(request: ReportRequest): Promise<string> {
-  const data = await postJson<ReportRequest, ReportResponse>('/report', request);
-  return data.content;
 }
 
 export async function callExtractProfileAPI(request: ExtractProfileRequest): Promise<ExtractProfileResponse> {

@@ -545,7 +545,7 @@ export default config;
 npx supabase init
 
 # 2. 配置密钥
-npx supabase secrets set OPENAI_API_KEY=xxx CHUTES_API_KEY=xxx QWEN_API_KEY=xxx ZHIPU_API_KEY=xxx
+npx supabase secrets set OPENAI_API_KEY=xxx QWEN_API_KEY=xxx ZHIPU_API_KEY=xxx
 
 # 3. 部署仍在使用中的函数
 

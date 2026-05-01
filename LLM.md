@@ -77,7 +77,7 @@
 
 ### 架构边界（红线）
 
-- 前端 `src/**` **禁止直连第三方 AI 密钥或 SDK**（OPENAI_API_KEY、CHUTES_API_KEY、QWEN_API_KEY、ZHIPU_API_KEY 均只能在 `api/*.ts` 中读取）
+- 前端 `src/**` **禁止直连第三方 AI 密钥或 SDK**（OPENAI_API_KEY、QWEN_API_KEY、ZHIPU_API_KEY 均只能在 `api/*.ts` 中读取）
 - AI 请求统一走 `src/api/client.ts` → `api/*` serverless handler
 - 密钥只从 `process.env` 读取，任何形式的硬编码都是违规
 - 新页面只能放在 `src/features/*`，禁止在其他位置新建
@@ -167,4 +167,3 @@ npm run build                   # 构建验证（关键改动后执行）
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | **魔法笔实施规格**（AI 提取 + 前端校验 + draft review） |
 | `docs/ACTIVITY_LEXICON.md` | 活动/心情多语言词库（Lexicon SSOT） |
 | `CONTRIBUTING.md` | 贡献规范、包管理、回滚约定 |
-

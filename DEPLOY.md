@@ -7,7 +7,7 @@ Browser (Vite/React)
   -> /api/* (Vercel Serverless)
   -> External AI Providers
      - DeepSeek + OpenAI: annotation（按语言路由）
-     - Chutes: report/diary/stardust/plant-diary
+     - Report: currently disabled (no external model call)
      - DashScope/Qwen: classify
      - Zhipu + Qwen fallback: magic-pen-parse
 ```
@@ -17,7 +17,6 @@ Browser (Vite/React)
 ```bash
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://api.openai.com/v1
-CHUTES_API_KEY=...
 QWEN_API_KEY=...
 QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 GEMINI_API_KEY=...
@@ -31,7 +30,6 @@ VITE_SUPABASE_ANON_KEY=...
 
 说明：
 - `DEEPSEEK_API_KEY` + `OPENAI_API_KEY` 用于 `annotation`（`zh -> deepseek-chat`，`en/it -> gpt-4.1-mini`）
-- `CHUTES_API_KEY` 用于 `report`
 - `QWEN_API_KEY` 用于 `classify`、`todo-decompose(zh)`，也可作为 `magic-pen-parse` 的 fallback provider
 - `GEMINI_API_KEY` 用于 `todo-decompose(en/it)`（Gemini 原生接口）
 - `ZHIPU_API_KEY` 用于 `magic-pen-parse` 主路

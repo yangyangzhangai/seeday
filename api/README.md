@@ -7,13 +7,12 @@
 1. 仅处理服务端逻辑，不依赖 `window`、`localStorage` 等浏览器对象。
 2. 前端统一通过 `src/api/client.ts` 调用，不在 `src/**` 直连第三方 AI。
 3. 所有函数统一设置 CORS，并只接受各自的预期方法（含 `OPTIONS` 预检）；当前绝大多数为 `POST`，`/api/plant-history` 为 `GET`。
-4. 密钥统一从 `process.env` 读取（如 `OPENAI_API_KEY`、`CHUTES_API_KEY`、`QWEN_API_KEY`、`GEMINI_API_KEY`、`ZHIPU_API_KEY`）。
+4. 密钥统一从 `process.env` 读取（如 `OPENAI_API_KEY`、`QWEN_API_KEY`、`GEMINI_API_KEY`、`ZHIPU_API_KEY`）。
 
 ## 端点清单（与当前实现一致）
 
 | Method | Route | File | Success shape |
 | --- | --- | --- | --- |
-| `POST` | `/api/report` | `report.ts` | `{ content }` |
 | `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` + `src/server/annotation-prompt-builder.ts` | `{ content, tone, displayDuration, source, reason?, suggestion? }` |
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
 | `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
@@ -60,7 +59,7 @@ Membership AI classification path observability is recorded through `/api/live-i
 - `/api/annotation` -> `DEEPSEEK_API_KEY`（zh, model `deepseek-chat`）+ `OPENAI_API_KEY`（en/it, model `gpt-4.1-mini`）；可选 `ANNOTATION_DEEPSEEK_BASE_URL`、`OPENAI_BASE_URL`
 - `/api/extract-profile` -> `OPENAI_API_KEY`（可选 `PROFILE_EXTRACT_MODEL`，默认 `gpt-4o-mini`；按 `lang` 路由中/英/意 prompt）
 - `/api/todo-decompose` -> 中文默认走 DashScope `QWEN_API_KEY`（`TODO_DECOMPOSE_MODEL_ZH`，默认 `qwen-plus`），其余语言走 Gemini 原生 `GEMINI_API_KEY`（`TODO_DECOMPOSE_MODEL`，默认 `gemini-2.5-flash`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL`、`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL` 与 `TODO_DECOMPOSE_VERBOSE_LOGS=true`
-- `/api/report` -> `CHUTES_API_KEY`
+- `/api/report` -> 当前未接入外部模型（占位返回）
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
 - `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底

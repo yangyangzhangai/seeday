@@ -106,7 +106,7 @@ export const HelpSupportPanel: React.FC<Props> = ({ onClose }) => {
 
       <p className="mt-3 text-xs text-slate-500">
         {t('help_contact_desc')}{' '}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-2 hover:text-slate-600">
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-slate-600">
           {SUPPORT_EMAIL}
         </a>
       </p>
