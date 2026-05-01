@@ -67,7 +67,10 @@
       "Bash(cat capacitor.config.ts)",
       "Bash(cat capacitor.config.json)",
       "Bash(rm api/supabase-proxy/[...path].ts)",
-      "Bash(rmdir api/supabase-proxy)"
+      "Bash(rmdir api/supabase-proxy)",
+      "Bash(sed -n '703,715p' /Users/annie/Seeday/src/i18n/locales/zh.ts)",
+      "Bash(sed -n '701,715p' /Users/annie/Seeday/src/i18n/locales/en.ts)",
+      "Bash(sed -n '701,715p' /Users/annie/Seeday/src/i18n/locales/it.ts)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

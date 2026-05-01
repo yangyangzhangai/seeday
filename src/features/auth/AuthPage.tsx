@@ -131,21 +131,22 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="fixed inset-0 flex flex-col bg-[#f4f7f4] px-8 pt-safe pb-safe">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col pt-16 pb-12">
-        <div className="mb-8">
-          <motion.div
+        <div className="relative mb-8 pt-20">
+          <motion.img
+            src={authMascotSrc}
+            alt=""
+            aria-hidden="true"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="mb-8 flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-[#8fae91]/20 shadow-inner"
-          >
-            <img src={authMascotSrc} alt="" aria-hidden="true" className="h-[52px] w-[52px] object-contain" />
-          </motion.div>
+            className="absolute -top-[28px] -left-2 h-32 w-32 object-contain"
+          />
 
-          <h1 className="text-3xl font-black leading-tight tracking-tight text-[#4a5d4c]">
+          <h1 className="text-3xl font-black leading-tight tracking-tight text-[#4a5d4c] text-center">
             {isLogin ? t('auth_welcome_back') : t('auth_create_account')}
           </h1>
 
-          <p className="mt-4 text-sm leading-relaxed text-[#4a5d4c]/60">
+          <p className="mt-4 text-sm leading-relaxed text-[#4a5d4c]/60 text-center">
             {isLogin ? t('auth_login_subtitle') : t('auth_register_subtitle')}
           </p>
         </div>

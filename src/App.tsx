@@ -158,7 +158,7 @@ const MainLayout = () => {
   const markConfirmed = useReminderStore((s) => s.markConfirmed);
   const showPickerForDeny = useReminderStore((s) => s.showPickerForDeny);
   const aiMode = useAuthStore((s) => s.preferences.aiMode);
-  const userName = (useAuthStore((s) => s.userProfileV2?.manual?.freeText) as string | undefined) ?? undefined;
+  const userName = (useAuthStore((s) => s.user?.user_metadata?.display_name) as string | undefined) ?? undefined;
   const [animationState, setAnimationState] = React.useState<{
     isActive: boolean;
     sourceRect: DOMRect | null;

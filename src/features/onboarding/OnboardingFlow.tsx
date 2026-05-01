@@ -155,14 +155,15 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   return (
     <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
       <div className="mb-8">
-        <motion.div
+        <motion.img
+          src={authMascotSrc}
+          alt=""
+          aria-hidden="true"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="w-[72px] h-[72px] bg-[#8fae91]/20 rounded-[22px] flex items-center justify-center mb-8 shadow-inner"
-        >
-          <img src={authMascotSrc} alt="" aria-hidden="true" className="h-[52px] w-[52px] object-contain" />
-        </motion.div>
+          className="mb-8 h-24 w-24 object-contain"
+        />
 
         <h2 className="text-3xl font-black text-[#4a5d4c] leading-tight tracking-tight">
           {isLogin ? t('auth_welcome_back') : t('auth_create_account')}
