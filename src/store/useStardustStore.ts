@@ -87,7 +87,7 @@ export const useStardustStore = create<StardustStore>()(
 
         // 检查是否已存在
         if (get().hasStardust(messageId)) {
-          console.log('[Stardust] 该消息已有珍藏，跳过');
+          if (import.meta.env.DEV) console.log('[Stardust] 该消息已有珍藏，跳过');
           return null;
         }
 
@@ -339,7 +339,7 @@ export const useStardustStore = create<StardustStore>()(
               lastFetchedAt: Date.now(),
             };
           });
-          console.log(`[Stardust] 已拉取 ${cloudMemories.length} 条珍藏`);
+          if (import.meta.env.DEV) console.log(`[Stardust] 已拉取 ${cloudMemories.length} 条珍藏`);
         }
       },
 

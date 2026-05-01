@@ -80,7 +80,7 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
   const text = rawText.trim();
 
   if (isValidComment(text, lang)) {
-    console.log('[提取成功] 策略：全文直接放行');
+    if (import.meta.env.DEV) console.log('[提取成功] 策略：全文直接放行');
     return text;
   }
 
@@ -90,12 +90,12 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
       const lastBlock = jsonBlocks[jsonBlocks.length - 1][0];
       const parsed = JSON.parse(lastBlock);
       if (parsed.comment && typeof parsed.comment === 'string' && isValidComment(parsed.comment, lang)) {
-        console.log('[提取成功] 策略：JSON解析');
+        if (import.meta.env.DEV) console.log('[提取成功] 策略：JSON解析');
         return parsed.comment.trim();
       }
     }
   } catch {
-    console.warn('[JSON解析失败] 降级到策略二');
+    if (import.meta.env.DEV) console.warn('[JSON解析失败] 降级到策略二');
   }
 
   for (const anchor of COMMENT_ANCHORS) {
@@ -111,7 +111,7 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
       .trim();
 
     if (isValidComment(cleaned, lang)) {
-      console.log('[提取成功] 策略：anchor定位，anchor:', anchor);
+      if (import.meta.env.DEV) console.log('[提取成功] 策略：anchor定位，anchor:', anchor);
       return cleaned;
     }
   }
@@ -124,11 +124,11 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
   if (sentences.length > 0) {
     const lastSentence = sentences[sentences.length - 1];
     if (isValidComment(lastSentence, lang)) {
-      console.log('[提取成功] 策略：长度过滤');
+      if (import.meta.env.DEV) console.log('[提取成功] 策略：长度过滤');
       return lastSentence;
     }
   }
 
-  console.error('[提取失败] 原始内容:', rawText);
+  if (import.meta.env.DEV) console.error('[提取失败] 原始内容:', rawText);
   return null;
 }

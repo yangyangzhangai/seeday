@@ -308,7 +308,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void checkAndHandlePendingDeletion(currentUser).catch(() => {});
       }
       else if (event === 'SIGNED_OUT') {
-        console.log('User signed out. Clearing local state...');
+        if (import.meta.env.DEV) console.log('User signed out. Clearing local state...');
         const signedOutScope = resolveStorageScopeForUser(previousUser?.id || null);
         setScopeForAuthUser(null, 'onAuthStateChange:signed-out');
         clearLocalDomainStores(signedOutScope);

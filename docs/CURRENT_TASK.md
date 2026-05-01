@@ -18,6 +18,10 @@ Session Notes:
 - 2026-05-01: 帮助与支持“瓶子是什么”文案更新为单行：调整为“后续将开放满瓶浇灌周报与月报植物能力，敬请期待”
 - 2026-05-01: 帮助与支持三语对齐：英文/意大利文 FAQ 同步中文现状口径（AI 伙伴、消息卡片删除、20:00 规则、待办按钮与连续专注）；联系信息改为底部一行灰色小字，仅保留联系邮箱
 - 2026-05-01: 登录页与新手引导登录步骤的树苗图标改为统一图片入口（`/assets/auth-login-mascot.png`），两处视觉保持一致
+- 2026-05-01: iOS Review（ASR/NR）代码审计 Round 1.2 完成并回填主台账：新增 10 条已审条款（`2.4.2`、`2.5.3/2.5.4/2.5.6/2.5.9/2.5.11/2.5.12/2.5.13/2.5.16/2.5.17/2.5.18`）；确认 Apple 登录占位 URI 与删除账号主链路已修复；新增高风险项 `R-ASR-004~007`（`forceOnboarding` 生产可触发、`isInspectable` 生产开启、缺少 `PrivacyInfo.xcprivacy`、生产 `console.log`）
+- 2026-05-01: iOS Review（ASR/NR）Round 1.3：按产品决策删除 `forceOnboarding` 全部覆盖逻辑（query/env），`R-ASR-004` 标记为已修复
+- 2026-05-01: iOS Review（ASR/NR）Round 1.4：删除账号相关文案统一为“立即删除”（中/英/意），隐私政策数据留存口径同步改为“删除后立即永久删除”；新增 `ios/App/App/PrivacyInfo.xcprivacy` 并加入 iOS target resources，`R-ASR-006` 标记为已修复
+- 2026-05-01: iOS Review（ASR/NR）Round 1.5：按产品决策暂不调整 `isInspectable`；已清理前端可见日志并统一 `import.meta.env.DEV` 保护（auth/report/annotation/stardust/sync/parser 等路径）
 
 ---
 

@@ -6,6 +6,57 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Fix: 清理前端可见日志并统一 DEV 保护
+
+- `src/store/useAuthStore.ts`：登出时日志改为 DEV-only
+- `src/store/useReportStore.ts`：AI 日记完成日志改为 DEV-only
+- `src/store/useAnnotationStore.ts`：批注触发/跳过/生成人设等前端日志改为 DEV-only
+- `src/store/useStardustStore.ts`：珍藏重复与拉取数量日志改为 DEV-only
+- `src/store/authDataSyncHelpers.ts`：本地数据同步成功日志改为 DEV-only
+- `src/store/annotationHelpers.ts`：批注概率与冷却日志改为 DEV-only
+- `src/lib/aiParser.ts`：提取策略与失败日志改为 DEV-only
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`、`docs/CURRENT_TASK.md`：同步 Round 1.5 审计进展（`R-ASR-007` 更新为修复中）
+
+Validation:
+
+- Not run (frontend log gating + docs update)
+
+### Fix: 删除账号文案统一为“立即删除” + 补齐 iOS 隐私清单
+
+- `src/i18n/locales/{zh,en,it}.ts`：
+  - 删除账号按钮文案统一为“立即删除”（`delete_account_button`）
+  - 隐私政策数据留存口径统一改为“账号删除后立即永久删除”（`privacy_s5_body`）
+- `ios/App/App/PrivacyInfo.xcprivacy`：新增 iOS 隐私清单（当前声明无追踪、无收集项，包含 `UserDefaults` 访问类别与 reason code）
+- `ios/App/App.xcodeproj/project.pbxproj`：将 `PrivacyInfo.xcprivacy` 加入 App target 的 Resources
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`、`docs/CURRENT_TASK.md`：同步 Round 1.4 审计状态，`R-ASR-006` 标记为已修复
+
+Validation:
+
+- Not run (copy + iOS manifest wiring)
+
+### Fix: 移除 force onboarding 覆盖逻辑
+
+- `src/App.tsx`：删除 `forceOnboarding=1`（query）与 `VITE_FORCE_ONBOARDING`（env）强制进入 onboarding 的全部分支，恢复为仅真实新用户进入 onboarding
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：将 `R-ASR-004` 更新为已修复，并记录 Round 1.3
+- `docs/CURRENT_TASK.md`：补充本次修复记录
+
+Validation:
+
+- Not run (logic removal + docs update)
+
+### Docs: ASR/NR 审计台账 Round 1.2 更新（代码证据口径）
+
+- `docs/APP_REVIEW_ASR_NR_AUDIT_TRACKER.md`：
+  - 审核进度更新为 26/52（待审 30）
+  - 新增已审核条款：`2.4.2`、`2.5.3`、`2.5.4`、`2.5.6`、`2.5.9`、`2.5.11`、`2.5.12`、`2.5.13`、`2.5.16`、`2.5.17`、`2.5.18`
+  - 回填已修复项：`2.1(a)`（Apple 登录占位 URI 已移除）、`5.1.1(v)`（删除账号改为直接硬删除链路）
+  - 新增风险项：`R-ASR-004~007`（生产可触发 onboarding 覆盖开关、`isInspectable` 发布包开启、缺少 `PrivacyInfo.xcprivacy`、生产 `console.log`）
+- `docs/CURRENT_TASK.md`：补充本轮审计结论与高风险待整改清单，作为会话恢复锚点
+
+Validation:
+
+- Not run (docs update only)
+
 ### Fix: 登录与新手引导登录使用统一吉祥物图片
 
 - `src/features/auth/AuthPage.tsx`：将登录头部树苗图标从 `Sprout` 替换为图片资源 `/assets/auth-login-mascot.png`

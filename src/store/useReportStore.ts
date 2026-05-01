@@ -330,7 +330,7 @@ export const useReportStore = create<ReportState>()(
             analysisStatus: 'success',
             stats: existingStats,
           });
-          console.log('[Diary] AI 日记生成完成');
+          if (import.meta.env.DEV) console.log('[Diary] AI 日记生成完成');
 
         } catch (error) {
           console.error('[Diary] 生成 AI 日记失败:', error);

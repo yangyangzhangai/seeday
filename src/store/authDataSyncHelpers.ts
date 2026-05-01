@@ -47,7 +47,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing messages:', error);
     } else {
-      console.log(`Synced ${messages.length} messages.`);
+      if (import.meta.env.DEV) console.log(`Synced ${messages.length} messages.`);
     }
   }
 
@@ -85,7 +85,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing moods:', error);
     } else {
-      console.log(`Synced ${moodsToUpload.length} moods.`);
+      if (import.meta.env.DEV) console.log(`Synced ${moodsToUpload.length} moods.`);
     }
   }
 
@@ -106,7 +106,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing bottles:', error);
     } else {
-      console.log(`Synced ${bottles.length} bottles.`);
+      if (import.meta.env.DEV) console.log(`Synced ${bottles.length} bottles.`);
     }
   }
 
@@ -117,7 +117,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing todos:', error);
     } else {
-      console.log(`Synced ${todos.length} todos.`);
+      if (import.meta.env.DEV) console.log(`Synced ${todos.length} todos.`);
     }
   }
 
@@ -136,7 +136,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing focus sessions:', error);
     } else {
-      console.log(`Synced ${focusSessions.length} focus sessions.`);
+      if (import.meta.env.DEV) console.log(`Synced ${focusSessions.length} focus sessions.`);
     }
   }
 
@@ -148,7 +148,7 @@ export async function syncLocalDataToSupabase(
     if (error) {
       console.error('Error syncing reports:', error);
     } else {
-      console.log(`Synced ${reports.length} reports.`);
+      if (import.meta.env.DEV) console.log(`Synced ${reports.length} reports.`);
     }
   }
 

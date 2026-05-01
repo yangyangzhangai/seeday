@@ -214,12 +214,12 @@ export const useAnnotationStore = create<AnnotationStore>()(
           if (get().currentAnnotation) {
             set({ currentAnnotation: null });
           }
-          console.log('[AI Annotator] AI 已关闭，跳过批注:', event.type);
+          if (import.meta.env.DEV) console.log('[AI Annotator] AI 已关闭，跳过批注:', event.type);
           return;
         }
 
         if (!config.enabled) {
-          console.log('[AI Annotator] 批注配置已关闭，跳过批注:', event.type);
+          if (import.meta.env.DEV) console.log('[AI Annotator] 批注配置已关闭，跳过批注:', event.type);
           return;
         }
 
@@ -271,11 +271,11 @@ export const useAnnotationStore = create<AnnotationStore>()(
         );
 
         if (!shouldGenerate && !explicitSuggestionRequest) {
-          console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
+          if (import.meta.env.DEV) console.log('[AI Annotator] 批注未触发:', event.type, '- 条件不满足');
           return;
         }
 
-        console.log('[AI Annotator] 批注触发:', event.type);
+        if (import.meta.env.DEV) console.log('[AI Annotator] 批注触发:', event.type);
 
         try {
           // 准备用户上下文
@@ -480,7 +480,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
             aiMode,
           });
           const debugAiMode = response.debugAiMode || aiMode;
-          console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
+          if (import.meta.env.DEV) console.log('[AI Annotator] 本次批注人设:', debugAiMode || 'unknown');
           if (import.meta.env.DEV && response.debugPromptPackage) {
             console.groupCollapsed('[AI Annotator] Prompt package');
             console.log('Model:', response.debugPromptPackage.model);
@@ -601,7 +601,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
               `content=${response.content}`
             );
           } else {
-            console.log('[AI Annotator] 批注已生成(AI):', response.content);
+            if (import.meta.env.DEV) console.log('[AI Annotator] 批注已生成(AI):', response.content);
           }
         } catch (error) {
           console.error('[AI Annotator] 生成批注失败:', error);
