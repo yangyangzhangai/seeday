@@ -51,6 +51,8 @@ export const EN_SHORT_REPLY_PATTERNS = [
 export const EN_SHORT_ACTIVITY_SHELL_PATTERNS = [
   /^(drink|boil|cook|steam|prep|prepare|buy|get)\s+(water|tea|rice|meal|lunch|dinner|groceries|veggies|vegetables|fruits?)$/i,
   /^(modify|update|edit|revise|verify|check|reconcile|pay|settle|submit)\s+(order|orders|invoice|invoices|bill|bills|account|accounts|record|records|document|documents|config|request|ticket|tickets|payment)$/i,
+  /^(finish|wrap up|wrapped up|complete|completed|write|wrote|draft|drafted|reply|replied)\s+(report|reports|doc|docs|notes|email|emails|message|messages|ticket|tickets|homework|assignment)$/i,
+  /^(study|review|practice|train)\s+(english|italian|math|statistics|finance|vocabulary|flashcards?|coding|code)$/i,
   /^(meal prep|food prep)$/i,
 ];
 

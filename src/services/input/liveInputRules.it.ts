@@ -65,6 +65,8 @@ export const IT_SHORT_REPLY_PATTERNS = [
 export const IT_SHORT_ACTIVITY_SHELL_PATTERNS = [
   /^(bere|bevo|bollire|cucinare|cuocere|preparare|comprare|fare)\s+(acqua|riso|pranzo|cena|spesa|verdure|frutta|pasti?)$/i,
   /^(modificare|aggiornare|verificare|controllare|riconciliare|pagare|saldare|inviare)\s+(ordine|ordini|fattura|fatture|conto|conti|dati|documento|documenti|configurazione|richiesta|ticket|pagamento)$/i,
+  /^(finire|completare|scrivere|rispondere|preparare|rivedere|ripassare)\s+(report|relazione|appunti|email|mail|messaggio|messaggi|compito|progetto|presentazione|slide|ticket)$/i,
+  /^(studiare|ripassare|allenarsi|esercitarsi)\s+(inglese|italiano|matematica|statistica|finanza|vocaboli|programmazione|codice)$/i,
   /^(fare\s+la\s+spesa|preparare\s+i\s+pasti)$/i,
 ];
 
