@@ -21,8 +21,6 @@ export interface DatePickerProps {
   onDateChange: (date: Date) => void;
 }
 
-const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function shiftDate(base: Date, days: number) {
   const d = new Date(base);
@@ -50,15 +48,26 @@ const DATE_ITEM_WIDTH = 60;
 const DATE_ITEM_GAP = 8;
 const DATE_PREPEND_TRIGGER_PX = 100;
 const BLUE_SELECTED_TEXT = '#1D4ED8';
-const BLUE_SELECTED_BG = '#BFDBFE';
-const BLUE_SELECTED_BORDER = '1px solid rgba(147, 197, 253, 0.72)';
-const BLUE_SELECTED_SHADOW = 'none';
+const BLUE_SELECTED_BG =
+  'linear-gradient(135deg, rgba(219,234,254,0.95) 0%, rgba(191,219,254,0.90) 45%, rgba(147,197,253,0.72) 100%) padding-box, linear-gradient(140deg, rgba(147,197,253,0.52) 0%, rgba(239,246,255,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box';
+const BLUE_SELECTED_BORDER = '0.5px solid transparent';
+const BLUE_SELECTED_SHADOW = '0 6px 14px rgba(59,130,246,0.14)';
 
 export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChange }) => {
   const user = useAuthStore(s => s.user);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const MONTHS = useMemo(() => [
+    t('cal_month_jan'), t('cal_month_feb'), t('cal_month_mar'),
+    t('cal_month_apr'), t('cal_month_may'), t('cal_month_jun'),
+    t('cal_month_jul'), t('cal_month_aug'), t('cal_month_sep'),
+    t('cal_month_oct'), t('cal_month_nov'), t('cal_month_dec'),
+  ], [t]);
+  const DAYS = useMemo(() => [
+    t('cal_day_sun'), t('cal_day_mon'), t('cal_day_tue'),
+    t('cal_day_wed'), t('cal_day_thu'), t('cal_day_fri'), t('cal_day_sat'),
+  ], [t]);
   const today = new Date();
   const todayStr = toLocalDateStr(today);
   const selectedStr = toLocalDateStr(selectedDate);
@@ -219,23 +228,28 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
           {showMonthPicker && (
             <div style={{
               position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
-              background: 'rgba(255,255,255,0.72)', borderRadius: '1rem',
-              border: '1px solid rgba(255,255,255,0.82)',
-              boxShadow: '0 16px 38px rgba(40,56,44,0.14), inset 0 1px 0 rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(18px) saturate(130%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(130%)',
-              padding: '8px 6px', width: 164,
+              background: 'rgba(245,247,250,0.82)',
+              borderRadius: '1.25rem',
+              border: '1px solid rgba(255,255,255,0.6)',
+              boxShadow: '0 8px 40px rgba(30,45,60,0.18), 0 1.5px 8px rgba(30,45,60,0.08), inset 0 1px 0 rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(48px) saturate(180%) brightness(1.04)',
+              WebkitBackdropFilter: 'blur(48px) saturate(180%) brightness(1.04)',
+              padding: '10px 8px', width: 168,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginBottom: 7, padding: '0 2px' }}>
-                <button onClick={() => { triggerLightHaptic(); prevMonth(); }} style={{ background: '#F1F5F9',
-                  border: 'none', borderRadius: '50%',
+                <button onClick={() => { triggerLightHaptic(); prevMonth(); }} style={{
+                  background: 'rgba(255,255,255,0.45)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  borderRadius: '50%',
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_left</span>
                 </button>
                 <span className="text-xs" style={{ fontWeight: 700, color: '#1e293b' }}>{viewYear}</span>
-                <button onClick={() => { triggerLightHaptic(); nextMonth(); }} style={{ background: '#F1F5F9',
-                  border: 'none', borderRadius: '50%',
+                <button onClick={() => { triggerLightHaptic(); nextMonth(); }} style={{
+                  background: 'rgba(255,255,255,0.45)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  borderRadius: '50%',
                   width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#64748b' }}>chevron_right</span>
                 </button>
@@ -248,8 +262,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
                       className="text-xs"
                       style={{ padding: '5px 2px', borderRadius: '0.6rem',
                         border: isCur ? BLUE_SELECTED_BORDER : '1px solid transparent',
-                        background: isCur ? BLUE_SELECTED_BG : 'rgba(248,250,252,0.56)',
-                        boxShadow: isCur ? BLUE_SELECTED_SHADOW : 'none',
+                        background: isCur ? BLUE_SELECTED_BG : 'transparent',
+                        boxShadow: 'none',
                         color: isCur ? BLUE_SELECTED_TEXT : '#475569',
                         fontWeight: isCur ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
                       {m.slice(0, 3)}

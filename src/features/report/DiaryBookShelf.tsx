@@ -778,9 +778,9 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
 
                       if (isSelected) {
                         bg = DAY_MARK_SELECTED;
-                        textColor = '#1d4ed8';
+                        textColor = '#1D4ED8';
                         borderStyle = '0.5px solid transparent';
-                        shadow = '0 3px 10px rgba(59,130,246,0.12)';
+                        shadow = '0 6px 14px rgba(59,130,246,0.14)';
                         fw = 600;
                       } else if (count > 5) {
                         bg = DAY_MARK_DEEP;
