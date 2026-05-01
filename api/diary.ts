@@ -118,7 +118,12 @@ function hasAnySignoff(content: string): boolean {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const tail = lines.slice(-3);
   return tail.some(
-    (line) => /^[-—–]{1,2}\s*.+/.test(line) || /[—–]{1,2}[一-龥A-Za-z]/.test(line),
+    (line) => (
+      /^[-—–]{1,2}\s*.+/.test(line)
+      || /[—–]{1,2}\s*[一-龥A-Za-z]/.test(line)
+      || /(?:van|agnes|zep|momo)\s*[—–-]{1,2}\s*/i.test(line)
+      || /(?:你的喇叭花|你的龙血树|你的鹈鹕|你的小蘑菇)\s*(?:van|agnes|zep|momo)/i.test(line)
+    ),
   );
 }
 

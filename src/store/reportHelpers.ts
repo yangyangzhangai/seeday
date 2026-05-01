@@ -304,6 +304,7 @@ export function generateMoodSummary(
   if (moodDistribution.length === 0) return FALLBACK_SUMMARY[lang];
 
   const totalMinutes = moodDistribution.reduce((acc, item) => acc + item.minutes, 0);
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return FALLBACK_SUMMARY[lang];
   const top = moodDistribution[0];
   const second = moodDistribution[1];
 

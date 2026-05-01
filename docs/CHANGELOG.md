@@ -6,6 +6,27 @@ All notable effective changes are documented here.
 
 ## 2026-05-01
 
+### Fix: Van 日记格式与情绪摘要 NaN 修复
+
+- `src/features/report/ReportDetailModal.tsx`：移除观察日记文案的全局空白折叠（`replace(/\s+/g, ' ')`），保留 AI 输出原始换行，修复 `【】` 小标题前空行被吞掉导致整段粘连
+- `api/diary.ts`：增强落款识别规则，新增“`Van ——` / `Agnes ——`”等尾部签名形态检测，避免模型已落款时再次追加 fallback 造成双落款
+- `src/store/reportHelpers.ts`：`generateMoodSummary(...)` 增加 `totalMinutes <= 0` 兜底，避免情绪占比文案出现 `NaN%`
+
+Validation:
+
+- Not run (targeted formatting + summary guard fix)
+
+### Fix: 植物卡片下载图遮挡修复（移除导出“轻点翻转”）
+
+- `src/features/report/plant/PlantFlipCard.tsx`：下载正面卡片改为抓取 export-only 节点，不再复用交互态 UI 节点
+- export-only 正面节点移除 `plant_tap_to_flip` 提示文案，避免“轻点翻转”进入下载图
+- export-only 正面节点底部留白从交互态分离并加大，修复下载图最底行文案被遮挡/压线
+- `html2canvas` 增加 `useCORS: true`，降低图片导出在 iOS/WebView 场景下的偶发渲染差异
+
+Validation:
+
+- Not run (targeted UI export fix)
+
 ### Copy: 帮助与支持文案更新（取消订阅路径 + 联系支持表达）
 
 - `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：

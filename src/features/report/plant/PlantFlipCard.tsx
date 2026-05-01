@@ -46,7 +46,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const [selectedRootId, setSelectedRootId] = useState<string | null>(null);
-  const frontRef = useRef<HTMLDivElement>(null);
+  const frontExportRef = useRef<HTMLDivElement>(null);
   const backCaptureRef = useRef<HTMLDivElement>(null);
   const renderedSegments = useMemo(() => renderRootSegments(segments), [segments]);
   const messages = useChatStore(state => state.messages);
@@ -90,10 +90,14 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   }, [selectedSegment, selectedMessage, t]);
 
   const saveCard = async () => {
-    const captureRef = flipped ? backCaptureRef : frontRef;
+    const captureRef = flipped ? backCaptureRef : frontExportRef;
     if (!captureRef.current) return;
     try {
-      const canvas = await html2canvas(captureRef.current, { scale: 2, backgroundColor: null });
+      const canvas = await html2canvas(captureRef.current, {
+        scale: 2,
+        backgroundColor: null,
+        useCORS: true,
+      });
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `plant-${plant.date}-${flipped ? 'roots' : 'plant'}.png`;
@@ -111,6 +115,17 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
     WebkitBackfaceVisibility: 'hidden',
     borderRadius: 20,
     overflow: 'hidden',
+  };
+
+  const frontContentStyle: React.CSSProperties = {
+    ...cardFaceStyle,
+    background: 'linear-gradient(145deg, #fdfbf7 0%, #f4eee1 100%)',
+    border: '1px solid rgba(139,115,85,0.15)',
+    boxShadow: '0 8px 32px rgba(90,60,20,0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: 20,
   };
 
   return (
@@ -143,16 +158,8 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
 
           {/* ── Front: plant image (tap to flip) ── */}
           <div
-            ref={frontRef}
             onClick={() => setFlipped(true)}
-            style={{
-              ...cardFaceStyle,
-              cursor: 'pointer',
-              background: 'linear-gradient(145deg, #fdfbf7 0%, #f4eee1 100%)',
-              border: '1px solid rgba(139,115,85,0.15)',
-              boxShadow: '0 8px 32px rgba(90,60,20,0.2)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 20,
-            }}
+            style={{ ...frontContentStyle, cursor: 'pointer' }}
           >
             {/* Corner brackets — all four at true card corners */}
             <div style={{ position: 'absolute', top: 12, left: 12, width: 16, height: 16, opacity: 0.28, borderTop: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
@@ -183,6 +190,54 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
             <span style={{ position: 'absolute', bottom: 7, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: 'rgba(90,70,40,0.4)', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.05em' }}>
               ↻ {t('plant_tap_to_flip')}
             </span>
+          </div>
+
+          {/* Front export-only surface: no tap hint, extra bottom breathing room */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: -9999,
+              top: -9999,
+              width: 290,
+              aspectRatio: '3 / 4',
+              pointerEvents: 'none',
+              opacity: 0,
+            }}
+          >
+            <div
+              ref={frontExportRef}
+              style={{
+                ...frontContentStyle,
+                position: 'relative',
+                inset: 'auto',
+                width: '100%',
+                height: '100%',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 12, left: 12, width: 16, height: 16, opacity: 0.28, borderTop: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
+              <div style={{ position: 'absolute', top: 12, right: 12, width: 16, height: 16, opacity: 0.28, borderTop: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
+              <div style={{ position: 'absolute', bottom: 12, left: 12, width: 16, height: 16, opacity: 0.28, borderBottom: '1.5px solid #6b5a3e', borderLeft: '1.5px solid #6b5a3e' }} />
+              <div style={{ position: 'absolute', bottom: 12, right: 12, width: 16, height: 16, opacity: 0.28, borderBottom: '1.5px solid #6b5a3e', borderRight: '1.5px solid #6b5a3e' }} />
+
+              <div style={{ height: '58%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <PlantImage
+                  plantId={plant.plantId}
+                  rootType={plant.rootType}
+                  plantStage={plant.plantStage}
+                  imgClassName="max-h-full max-w-full object-contain"
+                />
+              </div>
+
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: 8, paddingBottom: 30, overflow: 'hidden' }}>
+                {plant.diaryText ? (
+                  <p className="line-clamp-5" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.75rem', lineHeight: 1.7, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
+                    {plant.diaryText}
+                  </p>
+                ) : null}
+                <span style={{ opacity: 0.52, fontSize: 11, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
+              </div>
+            </div>
           </div>
 
           {/* ── Back: interactive root system ── */}

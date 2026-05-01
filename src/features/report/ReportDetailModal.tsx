@@ -596,7 +596,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       ? selectedReport?.aiAnalysis?.trim()
       : selectedReport?.teaserText?.trim();
     const text = raw && raw.length > 0 ? raw : copy.observationFallback;
-    return text.replace(/\s+/g, ' ');
+    return text;
   }, [
     aiMode,
     copy.observationFallback,
