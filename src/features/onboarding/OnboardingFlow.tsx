@@ -428,31 +428,19 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
               key={modeKey}
               type="button"
               onClick={() => setSelectedMode(modeKey)}
-              className={`p-5 rounded-[28px] border text-left transition-all ${
+              className={`relative flex flex-col items-center p-5 rounded-[28px] border text-center transition-all ${
                 selected
                   ? 'bg-[#4a5d4c] border-[#4a5d4c] shadow-2xl'
                   : 'bg-white/60 backdrop-blur-xl border-white hover:bg-white'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className={`w-12 h-12 rounded-[16px] overflow-hidden ${selected ? 'bg-white/10' : 'bg-[#4a5d4c]/5'}`}>
-                  <img
-                    src={onboardingAvatars[modeKey]}
-                    className={`w-full h-full object-cover ${selected ? 'opacity-80' : 'opacity-70'}`}
-                    alt={mode.name}
-                  />
-                </div>
-                <span
-                  className={`text-[10px] px-2.5 py-1 rounded-full font-black ${
-                    selected
-                      ? 'bg-[#8fae91] text-white'
-                      : 'bg-[#4a5d4c]/10 text-[#4a5d4c]/60'
-                  }`}
-                >
-                  {t(badgeKey)}
-                </span>
-              </div>
-              <div className="mt-4">
+              <img
+                src={onboardingAvatars[modeKey]}
+                className="w-24 h-24 object-contain"
+                style={{ filter: 'saturate(1.4) drop-shadow(0 2px 8px rgba(0,0,0,0.12))' }}
+                alt={mode.name}
+              />
+              <div className="mt-3">
                 <h4 className={`text-lg font-black ${selected ? 'text-white' : 'text-[#4a5d4c]'}`}>
                   {mode.name}
                 </h4>
