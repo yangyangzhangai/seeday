@@ -21,7 +21,8 @@ export const DEFAULT_PREFERENCES: UserPreferencesSnapshot = {
 };
 
 export function queuePreferenceSnapshot(snapshot: UserPreferencesSnapshot): void {
-  useOutboxStore.getState().enqueue({
+  const outboxStore = useOutboxStore.getState();
+  outboxStore.enqueue({
     kind: 'preference.upsert',
     payload: {
       ai_mode: snapshot.aiMode,
@@ -31,6 +32,7 @@ export function queuePreferenceSnapshot(snapshot: UserPreferencesSnapshot): void
     },
     consecutiveFailures: 0,
   });
+  void outboxStore.flush().catch(() => {});
 }
 
 export function preferencesFromMeta(meta: Record<string, any>): UserPreferencesSnapshot {

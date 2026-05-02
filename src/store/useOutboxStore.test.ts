@@ -18,6 +18,7 @@ describe('useOutboxStore', () => {
     const id = useOutboxStore.getState().enqueue({
       kind: 'mood.upsert',
       payload: { messageId: 'm1', patch: { mood_label: 'calm' } },
+      consecutiveFailures: 0,
     });
 
     const [entry] = useOutboxStore.getState().entries;
@@ -27,12 +28,44 @@ describe('useOutboxStore', () => {
     expect(entry.consecutiveFailures).toBe(0);
   });
 
+  it('keeps only latest preference upsert entry', () => {
+    useOutboxStore.getState().enqueue({
+      kind: 'preference.upsert',
+      payload: {
+        ai_mode: 'van',
+        ai_mode_enabled: true,
+        daily_goal_enabled: true,
+        annotation_drop_rate: 'low',
+      },
+      consecutiveFailures: 0,
+    });
+
+    useOutboxStore.getState().enqueue({
+      kind: 'preference.upsert',
+      payload: {
+        ai_mode: 'agnes',
+        ai_mode_enabled: false,
+        daily_goal_enabled: false,
+        annotation_drop_rate: 'high',
+      },
+      consecutiveFailures: 0,
+    });
+
+    const entries = useOutboxStore.getState().entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('preference.upsert');
+    if (entries[0].kind !== 'preference.upsert') return;
+    expect(entries[0].payload.ai_mode).toBe('agnes');
+    expect(entries[0].payload.annotation_drop_rate).toBe('high');
+  });
+
   it('flush removes succeeded entries', async () => {
     const executor = vi.fn().mockResolvedValue(undefined);
     setOutboxExecutorForTests('report.upsert', executor);
     useOutboxStore.getState().enqueue({
       kind: 'report.upsert',
       payload: { report: { id: 'r1', title: 't', date: Date.now(), type: 'daily', content: 'c' } },
+      consecutiveFailures: 0,
     });
 
     await useOutboxStore.getState().flush('u1');
@@ -47,6 +80,7 @@ describe('useOutboxStore', () => {
     useOutboxStore.getState().enqueue({
       kind: 'focus.insert',
       payload: { id: 'f1', todoId: 't1', startedAt: 1, endedAt: 2, setDuration: 3, actualDuration: 4 },
+      consecutiveFailures: 0,
     });
 
     await useOutboxStore.getState().flush('u1');
@@ -63,6 +97,7 @@ describe('useOutboxStore', () => {
     useOutboxStore.getState().enqueue({
       kind: 'plant.directionOrder',
       payload: { order: ['life', 'social', 'work_study', 'exercise', 'entertainment'] },
+      consecutiveFailures: 0,
     });
 
     await useOutboxStore.getState().flush('u1');
@@ -77,6 +112,7 @@ describe('useOutboxStore', () => {
     useOutboxStore.getState().enqueue({
       kind: 'annotation.outcome',
       payload: { annotationId: 'a1', accepted: true },
+      consecutiveFailures: 0,
     });
 
     await useOutboxStore.getState().flush('u1');

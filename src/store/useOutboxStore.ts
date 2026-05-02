@@ -288,14 +288,21 @@ export const useOutboxStore = create<OutboxState>()(
       enqueue: (entry) => {
         const id = uuidv4();
         set((state) => ({
-          entries: [...state.entries, {
-            ...entry,
-            id,
-            attempts: 0,
-            consecutiveFailures: 0,
-            status: 'pending',
-            nextRetryAt: undefined,
-          } as OutboxEntry],
+          entries: [
+            ...(
+              entry.kind === 'preference.upsert'
+                ? state.entries.filter((item) => item.kind !== 'preference.upsert')
+                : state.entries
+            ),
+            {
+              ...entry,
+              id,
+              attempts: 0,
+              consecutiveFailures: 0,
+              status: 'pending',
+              nextRetryAt: undefined,
+            } as OutboxEntry,
+          ],
         }));
         return id;
       },

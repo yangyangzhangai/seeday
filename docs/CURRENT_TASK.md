@@ -41,6 +41,7 @@ Session Notes:
 - 2026-05-01: 隐私政策补齐供应商披露：设置页中文隐私政策更新 AI 供应商名单（OpenAI/DeepSeek/Qwen/智谱/Gemini）并按 iOS 提审口径仅保留 IAP，不写 Stripe；新增提审填写模板 `docs/ASC_SUBMISSION_CODE_BASED_FILL_TEMPLATE.md` 供 ASC 后台对照
 - 2026-05-01: Report 链路下线收口：`/api/report` 移除 Chutes 外部调用与 `CHUTES_API_KEY` 读取，改为占位返回；同步清理 `CHUTES_API_KEY` 文档/配置残留
 - 2026-05-01: Report 功能整体下线：删除 `api/report.ts` API 端点 + 前端 `runReportAIAnalysis` + `triggerAIAnalysis` action + `callReportAPI` 及类型定义；Report 基础功能（日报/月报生成、Diary 日记、AI日记）不受影响
+- 2026-05-02: 偏好 outbox 收口：`preference.upsert` 入队改为同类去重（仅保留最后一条快照），并在 `queuePreferenceSnapshot` 后立即触发一次非阻塞 `outbox.flush()`，减少队列冗余与跨设备偏好生效延迟
 
 ---
 

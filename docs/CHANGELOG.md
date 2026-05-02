@@ -6,6 +6,15 @@ All notable effective changes are documented here.
 
 ## 2026-05-02
 
+### Fix: 偏好 outbox 去重与即时补推
+
+- `src/store/useOutboxStore.ts`：`enqueue()` 对 `preference.upsert` 增加同类去重策略（入队时移除历史 `preference.upsert` 条目，仅保留最新快照），与设置型数据的 last-write-wins 语义对齐，减少冗余队列与重复 metadata 写入
+- `src/store/authPreferenceHelpers.ts`：`queuePreferenceSnapshot(...)` 入队后立即触发一次非阻塞 `outbox.flush()`，在在线场景下加速偏好写云与跨设备可见性
+- `src/store/useOutboxStore.test.ts`：补充 `preference.upsert` 仅保留最新项的单测
+
+Validation:
+- `npx vitest run src/store/useOutboxStore.test.ts` ❌（该测试文件当前存在与 multi-account isolation scope 相关的既有失败；本次新增用例通过，存量用例失败与本改动前一致）
+
 ### Fix: iCloud Sync 审计修复（Apple SynchronizingAppPreferencesWithICloud 规范对齐）
 
 - **F1 — 偏好设置持久化**：`src/store/authPreferenceHelpers.ts` 移除模块级内存队列 (`queuedPreferenceSnapshot` / `flushQueuedPreferences`)，改为调用 `useOutboxStore.enqueue({ kind: 'preference.upsert', ... })`；`src/store/useOutboxStore.ts` 新增 `PreferenceUpsertOutboxEntry` 类型与 `executePreferenceUpsertEntry` 执行器（动态 import `authMetadataQueue`），纳入统一 outbox retry/cooldown 机制
