@@ -1,5 +1,5 @@
 import type { AiCompanionMode } from '../lib/aiCompanion';
-import { patchUserMetadata } from './authMetadataQueue';
+import { useOutboxStore } from './useOutboxStore';
 
 export type AnnotationDropRateSnapshot = 'low' | 'medium' | 'high';
 
@@ -20,39 +20,17 @@ export const DEFAULT_PREFERENCES: UserPreferencesSnapshot = {
   annotationDropRate: 'low',
 };
 
-let queuedPreferenceSnapshot: UserPreferencesSnapshot | null = null;
-let isFlushingPreferenceSnapshot = false;
-
-async function flushQueuedPreferences(): Promise<void> {
-  if (isFlushingPreferenceSnapshot) return;
-  isFlushingPreferenceSnapshot = true;
-  try {
-    while (queuedPreferenceSnapshot) {
-      const snapshot = queuedPreferenceSnapshot;
-      queuedPreferenceSnapshot = null;
-      const { error } = await patchUserMetadata({
-        ai_mode: snapshot.aiMode,
-        ai_mode_enabled: snapshot.aiModeEnabled,
-        daily_goal_enabled: snapshot.dailyGoalEnabled,
-        annotation_drop_rate: snapshot.annotationDropRate,
-      });
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('[updatePreferences] supabase error:', error);
-        }
-      }
-    }
-  } finally {
-    isFlushingPreferenceSnapshot = false;
-    if (queuedPreferenceSnapshot) {
-      void flushQueuedPreferences();
-    }
-  }
-}
-
 export function queuePreferenceSnapshot(snapshot: UserPreferencesSnapshot): void {
-  queuedPreferenceSnapshot = snapshot;
-  void flushQueuedPreferences();
+  useOutboxStore.getState().enqueue({
+    kind: 'preference.upsert',
+    payload: {
+      ai_mode: snapshot.aiMode,
+      ai_mode_enabled: snapshot.aiModeEnabled,
+      daily_goal_enabled: snapshot.dailyGoalEnabled,
+      annotation_drop_rate: snapshot.annotationDropRate,
+    },
+    consecutiveFailures: 0,
+  });
 }
 
 export function preferencesFromMeta(meta: Record<string, any>): UserPreferencesSnapshot {

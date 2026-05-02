@@ -4,6 +4,19 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-05-02
+
+### Fix: iCloud Sync 审计修复（Apple SynchronizingAppPreferencesWithICloud 规范对齐）
+
+- **F1 — 偏好设置持久化**：`src/store/authPreferenceHelpers.ts` 移除模块级内存队列 (`queuedPreferenceSnapshot` / `flushQueuedPreferences`)，改为调用 `useOutboxStore.enqueue({ kind: 'preference.upsert', ... })`；`src/store/useOutboxStore.ts` 新增 `PreferenceUpsertOutboxEntry` 类型与 `executePreferenceUpsertEntry` 执行器（动态 import `authMetadataQueue`），纳入统一 outbox retry/cooldown 机制
+- **F2 — 前台元数据刷新**：`src/hooks/useNetworkSync.ts` 新增 `visibilitychange` 监听，应用从后台切换至前台时触发 `supabase.auth.refreshSession()`，通过现有 `onAuthStateChange → TOKEN_REFRESHED` 链路将其他设备最新偏好同步写入本地 auth store
+- **F3/F5 — 调度器 localStorage 迁移**：`src/services/reminder/reminderScheduler.ts` 将全部 `getPersistentItem`/`setPersistentItem`/`removePersistentItem` 调用改为 `localStorage.getItem/setItem/removeItem`，移除 storageService 依赖；调度器运维键（`freeDay_*` / `reminder_scheduled_date` / `reminder_today_count`）均已通过 `getScopedClientStorageKey` 按用户隔离，存入 WebKit 层（已配置排除 iCloud 备份）
+- **F4 — 多账户隔离 V2 默认开启**：`src/store/storageScope.ts` `isMultiAccountIsolationV2Enabled()` 逻辑反转为默认启用，仅当 `VITE_MULTI_ACCOUNT_ISOLATION_V2=0|false|off` 时关闭；防止账户切换时 V1 key 泄露其他用户数据
+
+Validation:
+- `npx tsc --noEmit` → 通过（无类型错误）
+- `npm run lint:all` → 通过（secrets / max-lines / docs-sync / tsc 全部通过）
+
 ## 2026-05-01
 
 ### Fix: Van 日记格式与情绪摘要 NaN 修复

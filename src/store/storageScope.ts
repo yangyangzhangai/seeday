@@ -16,11 +16,14 @@ type SerializedStorageScope = {
 
 export function isMultiAccountIsolationV2Enabled(): boolean {
   const raw = String(import.meta.env.VITE_MULTI_ACCOUNT_ISOLATION_V2 ?? '').trim().toLowerCase();
-  return raw === '1' || raw === 'true' || raw === 'on';
+  // Default enabled; opt-out only by explicitly setting the env var to a falsy value.
+  return raw !== '0' && raw !== 'false' && raw !== 'off';
 }
 
 export function resolveStorageScopeForUser(userId?: string | null): StorageScope {
-  const trimmed = typeof userId === 'string' ? userId.trim() : '';
+  // normalize('NFC') ensures consistent key generation regardless of Unicode form,
+  // since localStorage keys are normalization-sensitive unlike APFS filenames.
+  const trimmed = typeof userId === 'string' ? userId.trim().normalize('NFC') : '';
   if (trimmed) return { type: 'user', userId: trimmed };
   return { type: 'anonymous', userId: null };
 }

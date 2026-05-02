@@ -8,11 +8,6 @@ import {
   resolveStorageScopeForUser,
 } from '../../store/storageScope';
 import {
-  getPersistentItem,
-  removePersistentItem,
-  setPersistentItem,
-} from '../native/storageService';
-import {
   scheduleBatchNotifications,
   cancelAllNotifications,
   getPendingNotificationIds,
@@ -67,13 +62,13 @@ export async function getIsFreeDay(date: Date, countryCode: string, storageUserI
     legacyKey,
     resolveStorageScopeForUser(storageUserId ?? null),
   );
-  const cached = await getPersistentItem(key);
+  const cached = localStorage.getItem(key);
   if (cached !== null) return cached === 'true';
   if (isMultiAccountIsolationV2Enabled()) {
-    const legacyCached = await getPersistentItem(legacyKey);
+    const legacyCached = localStorage.getItem(legacyKey);
     if (legacyCached !== null) {
-      await setPersistentItem(key, legacyCached);
-      await removePersistentItem(legacyKey);
+      localStorage.setItem(key, legacyCached);
+      localStorage.removeItem(legacyKey);
       return legacyCached === 'true';
     }
   }
@@ -81,7 +76,7 @@ export async function getIsFreeDay(date: Date, countryCode: string, storageUserI
   // 周末直接判定，无需请求
   const day = date.getDay();
   if (day === 0 || day === 6) {
-    await setPersistentItem(key, 'true');
+    localStorage.setItem(key, 'true');
     return true;
   }
 
@@ -91,14 +86,14 @@ export async function getIsFreeDay(date: Date, countryCode: string, storageUserI
     );
     if (res.ok) {
       const { isFreeDay } = (await res.json()) as { isFreeDay: boolean };
-      await setPersistentItem(key, String(isFreeDay));
+      localStorage.setItem(key, String(isFreeDay));
       return isFreeDay;
     }
   } catch {
     // 网络失败时保守当作工作日
   }
 
-  await setPersistentItem(key, 'false');
+  localStorage.setItem(key, 'false');
   return false;
 }
 
@@ -208,7 +203,7 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
   const storageScope = resolveStorageScopeForUser(opts.storageUserId ?? null);
   const scheduleDoneKey = getScopedClientStorageKey(SCHEDULE_DONE_KEY, storageScope);
   const reminderTodayCountKey = getScopedClientStorageKey(REMINDER_TODAY_COUNT_KEY, storageScope);
-  const wasMarkedToday = (await getPersistentItem(scheduleDoneKey)) === todayKey;
+  const wasMarkedToday = localStorage.getItem(scheduleDoneKey) === todayKey;
 
   const now = new Date();
   const isTodayFreeDay = await getIsFreeDay(now, opts.countryCode, opts.storageUserId);
@@ -233,7 +228,7 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     const allAlreadyScheduled =
       expectedIds.length === 0 || expectedIds.every((id) => pendingIds.includes(id));
     if (allAlreadyScheduled) {
-      await setPersistentItem(reminderTodayCountKey, String(todayFutureCount));
+      localStorage.setItem(reminderTodayCountKey, String(todayFutureCount));
       return;
     }
   }
@@ -244,6 +239,6 @@ export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<
     const scheduled = await scheduleBatchNotifications(combinedPayloads);
     if (!scheduled) return;
   }
-  await setPersistentItem(scheduleDoneKey, todayKey);
-  await setPersistentItem(reminderTodayCountKey, String(todayFutureCount));
+  localStorage.setItem(scheduleDoneKey, todayKey);
+  localStorage.setItem(reminderTodayCountKey, String(todayFutureCount));
 }

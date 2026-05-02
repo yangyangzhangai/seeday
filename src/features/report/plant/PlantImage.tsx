@@ -22,7 +22,9 @@ function getCachedUrl(storageKey: string): string | null {
 }
 
 function setCachedUrl(storageKey: string, url: string): void {
-  try { localStorage.setItem(storageKey, url); } catch { /* quota exceeded, ignore */ }
+  try { localStorage.setItem(storageKey, url); } catch (err) {
+    if (import.meta.env.DEV) console.warn('[plant-cache] localStorage quota exceeded, skipping cache write', err);
+  }
 }
 
 function resolveInitialIndex(storageKey: string, candidates: string[]): number {

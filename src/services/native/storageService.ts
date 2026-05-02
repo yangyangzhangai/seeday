@@ -1,4 +1,16 @@
 // DOC-DEPS: LLM.md -> docs/SEEDAY_DEV_SPEC.md -> src/store/storageScope.ts
+//
+// Storage architecture on iOS (two intentional APFS paths):
+//   Path A — Preferences / NSUserDefaults plist (Library/Preferences/):
+//     Used by this module for auth-session tokens and reminder-scheduler state.
+//     Survives WKWebView cache eviction; subject to NSFileProtectionComplete.
+//   Path B — WKWebView localStorage / SQLite (Library/WebKit/):
+//     Used by Zustand persist (12 domains) and ephemeral UI state (drafts, flags).
+//     Subject to WebKit storage-quota eviction; subject to NSFileProtectionComplete.
+//
+// Zustand persist cannot be moved to Preferences without making all store
+// hydration async, so the split is intentional. Both paths are encrypted under
+// the same APFS per-file key class declared in App.entitlements.
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 

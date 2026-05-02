@@ -109,7 +109,34 @@ type PlantDirectionOutboxEntry = {
   lastError?: string;
 };
 
-export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | PlantDirectionOutboxEntry;
+type ImageReuploadOutboxEntry = {
+  id: string;
+  kind: 'image.reupload';
+  payload: { messageId: string; slot: 'imageUrl' | 'imageUrl2' };
+  attempts: number;
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
+  lastError?: string;
+};
+
+type PreferenceUpsertOutboxEntry = {
+  id: string;
+  kind: 'preference.upsert';
+  payload: {
+    ai_mode: string;
+    ai_mode_enabled: boolean;
+    daily_goal_enabled: boolean;
+    annotation_drop_rate: string;
+  };
+  attempts: number;
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
+  lastError?: string;
+};
+
+export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | PlantDirectionOutboxEntry | ImageReuploadOutboxEntry | PreferenceUpsertOutboxEntry;
 export type OutboxEntryInput = Omit<OutboxEntry, 'id' | 'attempts' | 'status' | 'lastError'>;
 
 type OutboxExecutor = (entry: OutboxEntry, userId: string) => Promise<void>;
@@ -166,6 +193,37 @@ async function executeChatEntry(entry: ChatOutboxEntry, userId: string): Promise
   if (error) throw new Error(error.message);
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
+  const binary = atob(b64);
+  const arr = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function executeImageReuploadEntry(entry: ImageReuploadOutboxEntry, userId: string): Promise<void> {
+  const { useChatStore } = await import('./useChatStore');
+  const message = useChatStore.getState().messages.find(m => m.id === entry.payload.messageId);
+  const dataUrl = entry.payload.slot === 'imageUrl' ? message?.imageUrl : message?.imageUrl2;
+  if (!dataUrl?.startsWith('data:')) return; // already uploaded or evicted
+  const blob = dataUrlToBlob(dataUrl);
+  const path = `${userId}/${entry.payload.messageId}.jpg`;
+  const { error } = await supabase.storage
+    .from('seeday-images')
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from('seeday-images').getPublicUrl(path);
+  if (!data.publicUrl) throw new Error('no public URL');
+  await useChatStore.getState().updateMessageImage(entry.payload.messageId, entry.payload.slot, data.publicUrl);
+}
+
+async function executePreferenceUpsertEntry(entry: PreferenceUpsertOutboxEntry, _userId: string): Promise<void> {
+  const { patchUserMetadata } = await import('./authMetadataQueue');
+  const { error } = await patchUserMetadata(entry.payload);
+  if (error) throw new Error(error instanceof Error ? error.message : String(error));
+}
+
 async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, userId: string): Promise<void> {
   const { error: deleteError } = await supabase
     .from('plant_direction_config')
@@ -206,6 +264,8 @@ const outboxExecutors: Record<OutboxEntry['kind'], OutboxExecutor> = {
   'annotation.outcome': (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId),
   'chat.upsert': (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId),
   'plant.directionOrder': (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId),
+  'image.reupload': (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId),
+  'preference.upsert': (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId),
 };
 
 function normalizeErrorMessage(error: unknown): string {
@@ -355,4 +415,6 @@ export function resetOutboxExecutorsForTests(): void {
   outboxExecutors['annotation.outcome'] = (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId);
   outboxExecutors['chat.upsert'] = (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId);
   outboxExecutors['plant.directionOrder'] = (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId);
+  outboxExecutors['image.reupload'] = (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId);
+  outboxExecutors['preference.upsert'] = (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId);
 }

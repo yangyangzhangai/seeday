@@ -36,6 +36,7 @@ Session Notes:
 - 2026-05-01: iOS Review（ASR/NR）R-ASR-007 Round 1.12：继续收口前端 store 日志，将 `reportActions`、`authStoreRuntimeHelpers`、`useReportStore`、`useAnnotationStore`、`useStardustStore`、`authDataSyncHelpers`、`authPreferenceHelpers` 的生产路径 `console.warn/error` 改为 DEV-only，减少用户端可见错误对象
 - 2026-05-01: iOS Review（ASR/NR）Round 1.13：`src/App.tsx` 路由切换为 `HashRouter`（Capacitor 场景稳定性）；`src/components/feedback/ErrorBoundary.tsx` 日志改为 DEV-only；`api/subscription.ts` 增加生产环境 `APPLE_IAP_VERIFY_BYPASS=true` 的硬阻断
 - 2026-05-01: iOS 本地持久化最小迁移（第一批关键项）：新增 `src/services/native/storageService.ts`（native 使用 `@capacitor/preferences`，web 保持 localStorage，并自动迁移 legacy key）；`src/api/supabase.ts` auth session 存储改走统一适配器；`src/services/reminder/reminderScheduler.ts` 关键调度键（`freeDay_*` / `reminder_scheduled_date` / `reminder_today_count`）改走统一持久化适配器
+- 2026-05-02: iCloud Sync 审计修复（F1-F4）：偏好设置改走 outbox（`preference.upsert`）消灭内存队列崩溃丢失；`useNetworkSync` 新增 `visibilitychange` 触发 `refreshSession` 跨设备同步偏好；`reminderScheduler` 调度键从 Preferences 迁移至 localStorage（WebKit 层，已排除 iCloud 备份）；`isMultiAccountIsolationV2Enabled` 改为默认启用防账户数据泄露
 - 2026-05-01: iOS Review（ASR/NR）Round 1.14：通知 action 文案改走 i18n（中/英/意）；`NSUserNotificationsUsageDescription` 改为本地化 `InfoPlist.strings`（`en/it/zh-Hans`）并将 Info.plist 默认文案改为英文基线
 - 2026-05-01: 隐私政策补齐供应商披露：设置页中文隐私政策更新 AI 供应商名单（OpenAI/DeepSeek/Qwen/智谱/Gemini）并按 iOS 提审口径仅保留 IAP，不写 Stripe；新增提审填写模板 `docs/ASC_SUBMISSION_CODE_BASED_FILL_TEMPLATE.md` 供 ASC 后台对照
 - 2026-05-01: Report 链路下线收口：`/api/report` 移除 Chutes 外部调用与 `CHUTES_API_KEY` 读取，改为占位返回；同步清理 `CHUTES_API_KEY` 文档/配置残留

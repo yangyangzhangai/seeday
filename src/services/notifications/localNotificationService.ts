@@ -10,7 +10,7 @@ import type { ReminderType } from '../reminder/reminderTypes';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../store/storageScope';
 import i18n from '../../i18n';
 
-const ERROR_LOG_KEY = 'reminder_error_log';
+const ERROR_LOG_BASE_KEY = 'reminder_error_log';
 const MAX_ERROR_ENTRIES = 20;
 let actionTypesRegistered = false;
 let actionTypesRegisterPromise: Promise<void> | null = null;
@@ -27,11 +27,13 @@ function logReminderError(label: string, error: unknown): void {
       label,
       msg: error instanceof Error ? error.message : String(error),
     };
-    const raw = localStorage.getItem(ERROR_LOG_KEY);
+    // Scope key to active user so multi-account logs don't bleed across accounts.
+    const scopedKey = getScopedClientStorageKey(ERROR_LOG_BASE_KEY);
+    const raw = localStorage.getItem(scopedKey);
     const list: typeof entry[] = raw ? (JSON.parse(raw) as typeof entry[]) : [];
     list.push(entry);
     if (list.length > MAX_ERROR_ENTRIES) list.splice(0, list.length - MAX_ERROR_ENTRIES);
-    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(list));
+    localStorage.setItem(scopedKey, JSON.stringify(list));
   } catch {
     // localStorage 不可用时放弃记录
   }

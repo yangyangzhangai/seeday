@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import { useOutboxStore } from '../store/useOutboxStore';
 
 const BUCKET = 'seeday-images';
 /** Maximum dimension (px) before downscaling */
@@ -61,9 +62,11 @@ export function useImageUpload() {
    * Upload an image (File or pre-cropped Blob) for a message.
    * 1. Compress to ≤MAX_DIM px on longest side (fast, smaller payload)
    * 2. Try Supabase Storage → get permanent public URL
-   * 3. Fallback: data URL stored locally in Zustand / localStorage
+   * 3. Fallback: data URL stored locally in Zustand / localStorage;
+   *    an 'image.reupload' outbox entry is queued so the image is uploaded
+   *    to Supabase (and the local data URL replaced) when connectivity returns.
    */
-  async function upload(file: File | Blob, messageId: string): Promise<string> {
+  async function upload(file: File | Blob, messageId: string, slot: 'imageUrl' | 'imageUrl2' = 'imageUrl'): Promise<string> {
     setUploading(true);
     try {
       // Compress first (even for Supabase path — faster upload + cheaper storage)
@@ -92,11 +95,17 @@ export function useImageUpload() {
         if (import.meta.env.DEV) console.warn('[ImageUpload] Supabase error, using data URL fallback', err);
       }
 
-      // Fallback: compress more aggressively for localStorage then convert to data URL
+      // Fallback: compress more aggressively for localStorage then convert to data URL.
+      // Queue a reupload so Supabase gets the image once connectivity is restored.
       let fallbackBlob = compressed;
       try {
         fallbackBlob = await compressImage(file, FALLBACK_QUALITY);
       } catch { /* use the already-compressed blob */ }
+      useOutboxStore.getState().enqueue({
+        kind: 'image.reupload',
+        payload: { messageId, slot },
+        consecutiveFailures: 0,
+      });
       return await blobToDataUrl(fallbackBlob);
     } finally {
       setUploading(false);

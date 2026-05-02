@@ -16,6 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.applyWebViewScrollBehavior()
         }
+        excludeWebKitStorageFromBackup()
         return true
     }
 
@@ -139,6 +140,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.scheduleSeedayIAPRegistrationIfNeeded()
         }
+    }
+
+    // Exclude WKWebView's localStorage from iCloud backup.
+    // All user data in these directories is synced to Supabase and recoverable
+    // after login, so including it in backups wastes space with no user benefit.
+    // Preferences (NSUserDefaults) are intentionally kept to preserve auth session
+    // and reminder settings across device restores.
+    private func excludeWebKitStorageFromBackup() {
+        let manager = FileManager.default
+        guard let libraryURL = manager.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
+        setExcludedFromBackup(at: libraryURL.appendingPathComponent("WebKit"))
+    }
+
+    private func setExcludedFromBackup(at url: URL) {
+        var url = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? url.setResourceValues(values)
     }
 
 }
