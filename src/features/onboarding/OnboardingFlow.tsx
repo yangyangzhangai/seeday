@@ -23,6 +23,8 @@ import profileZepAvatar from '../../assets/profile-ai-companions/zep.png';
 import profileMomoAvatar from '../../assets/profile-ai-companions/momo.png';
 import { StepTodo, type OnboardingTodoDraft } from './components/StepTodo';
 import { StepBottle, type OnboardingBottleDraft } from './components/StepBottle';
+import { PrivacyPolicyPanel } from '../profile/components/PrivacyPolicyPanel';
+import { TermsPanel } from '../profile/components/TermsPanel';
 import { StepJournal } from './components/StepJournal';
 import {
   AI_COMPANION_ORDER,
@@ -73,6 +75,8 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const [appleLoading, setAppleLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
+  const [showPrivacy, setShowPrivacy] = React.useState(false);
+  const [showTerms, setShowTerms] = React.useState(false);
 
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -151,6 +155,13 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
     : pendingSignUpEmail
       ? Boolean(verificationCode.trim().length >= 4 && !loading)
       : Boolean(identifier.trim() && password.length >= 6 && !loading);
+
+  if (showTerms) {
+    return <TermsPanel onClose={() => setShowTerms(false)} />;
+  }
+  if (showPrivacy) {
+    return <PrivacyPolicyPanel onClose={() => setShowPrivacy(false)} />;
+  }
 
   return (
     <div className="flex-1 flex flex-col px-8 pt-16 pb-12 bg-[#f4f7f4]">
@@ -300,8 +311,15 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           }
         </motion.button>
 
-        <p className="mt-6 text-center text-[10px] text-[#4a5d4c]/30 font-bold uppercase tracking-[0.1em]">
-          {t('onboarding2_auth_agreement')}
+        <p className="mt-6 text-center text-[9px] font-normal normal-case tracking-wide text-[#4a5d4c]/30">
+          {t('auth_agreement_prefix')}{' '}
+          <button type="button" onClick={() => setShowTerms(true)} className="underline underline-offset-2 active:opacity-50">
+            {t('auth_agreement_terms')}
+          </button>
+          {' '}{t('auth_agreement_and')}{' '}
+          <button type="button" onClick={() => setShowPrivacy(true)} className="underline underline-offset-2 active:opacity-50">
+            {t('auth_agreement_privacy')}
+          </button>
         </p>
       </div>
     </div>
