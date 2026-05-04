@@ -174,6 +174,8 @@ const zh: TranslationKeys = {
     report_activity_category: '活动分类',
     report_view_diary_book: '日记本',
     report_generate_button: '生成日记',
+    report_generate_success: '今日日记已生成。',
+    report_generate_already: '日记已经生成，去日记本里看看吧~',
     report_early_tip: '日记只可生成一次，可以在 20:00 之后再来看看哦～',
     report_early_tip_ok: '知道了',
     report_back_diary_book: '日记本',

@@ -415,7 +415,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const handleGenerateDiaryClick = useCallback(async () => {
     if (!selectedReport) return;
     if (diaryAlreadyGenerated) {
-      setDiaryActionHint(t('plant_generate_already'));
+      setDiaryActionHint(t('report_generate_already'));
       return;
     }
     if (new Date().getHours() < 20) {

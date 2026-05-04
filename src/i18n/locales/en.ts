@@ -173,6 +173,8 @@ const en = {
     report_activity_category: 'Activity Breakdown',
     report_view_diary_book: 'Diary Book',
     report_generate_button: 'Generate Diary',
+    report_generate_success: 'Today\'s diary has been generated.',
+    report_generate_already: 'The diary is already generated. Go check it in Diary Book~',
     report_early_tip: 'The diary can only be generated once. Come back after 8:00 PM.',
     report_early_tip_ok: 'Got it',
     report_back_diary_book: 'Diary Book',

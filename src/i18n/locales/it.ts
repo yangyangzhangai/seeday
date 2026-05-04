@@ -174,6 +174,8 @@ const it: TranslationKeys = {
     report_activity_category: 'Distribuzione Attività',
     report_view_diary_book: 'Libro di Diari',
     report_generate_button: 'Genera Diario',
+    report_generate_success: 'Il diario di oggi e stato generato.',
+    report_generate_already: 'Il diario e gia stato generato. Vai a vederlo nel Diario~',
     report_early_tip: 'Il diario può essere generato una sola volta. Torna dopo le 20:00.',
     report_early_tip_ok: 'Capito',
     report_back_diary_book: 'Diari',

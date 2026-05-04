@@ -298,7 +298,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
 
   const handleGenerateDiary = useCallback(async () => {
     if (diaryAlreadyGenerated) {
-      setDiaryStatusHint(t('plant_generate_already'));
+      setDiaryStatusHint(t('report_generate_already'));
       return;
     }
     if (new Date().getHours() < 20) {
@@ -315,7 +315,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
         reportId = await generateReport('daily', today.getTime());
       }
       await generateAIDiary(reportId);
-      setDiaryStatusHint(t('plant_generate_success'));
+      setDiaryStatusHint(t('report_generate_success'));
     } catch {
       setDiaryStatusHint(t('plant_generate_failed'));
     } finally {

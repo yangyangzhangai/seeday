@@ -92,28 +92,31 @@ function buildPromptZh(input: PlantDiaryServiceInput, modeHint: string): string 
   const activities = fmtActivities(input, 'zh');
   const plantList = fmtPlantList(input.availablePlants, 'zh');
   const modeSection = modeHint ? `陪伴风格提示：${modeHint}\n` : '';
-  return [
-    '为日常生活应用选择今日植物，并写一句把“用户今天状态”和“这株植物”联系起来的话。请结合植物的自然习性、外观气质与社会联想意义（如花语等）来写文案，必须写出植物的哪个或哪些特性和用户今日的特点一致。',
-    '请只输出有效JSON，格式：{"plantId":"xxx","text":"一句话"}',
-    '',
-    `可选植物（必须从列表中选一个）：\n${plantList}`,
-    '',
-    '植物选择说明：',
-    '• early（早期）更安静、内敛，常见于“播种/打基础”、“探索”或者“积累”的一天，或者对应平静的情绪，或对应少社交的独处。',
-    '• late（晚期）更热烈、外放，常见于“结果更可见”的一天，或对应情绪激烈（激动、大喜大悲等）的一天，或者对应社会活动频繁，自我展现多的一天',
-    '• 请根据用户今天的活动结构、时长、心情与生活重心，结合植物在自然界的习性、外观气质与联想意义，选最能映射用户今天状态或时间特点的一株。然后请你自行判断更贴近 early 还是 late。',
-    '',
-    '文案要求：',
-    '• 1-2句自然语言（20-60字），语气优美、诗意、自然',
-    '• 文案要明确体现“用户今日特征”与“所选植物特性/意象”的对应关系，找到用户状态和植物之间最贴切或有趣或意外的那个交叉点，只说那一处。',
-    '• JSON字符串内不使用换行符',
-    modeSection,
-    '今天的数据：',
+  const summary = [
     `日期：${input.date}`,
     `根系特征：${rootDesc}`,
     `总时长：${input.totalDuration}分钟`,
     '活动记录：',
     activities,
+  ].join('\n');
+  return [
+    '你是一位博物学气质的诗人，熟悉植物的生长习性、外观形态与文化意象，擅长用植物作隐喻，写出让人心里一动的短句。',
+    '',
+    `今日状态摘要：\n${summary}`,
+    `候选植物：\n${plantList}`,
+    '',
+    '请按以下顺序思考，只输出最终JSON，不输出思考过程：',
+    '1. 从候选植物中选一株，说明选它的理由，理由必须基于这株植物的花语、外观形态、生长习性、生长环境之一。',
+    '2. 找出“植物的这个特性”和“今天这个人最值得被看见的那一层”之间最准确的交叉点。这一层可以是某个细节、今天整体的节奏感、某种贯穿全天的状态，也可以是这个人一贯品质在今天的体现。选其中和这株植物最意外或最准确的那个交叉点，只说那一处。',
+    '3. 用第二人称“你”落笔，20到60字，语气自然诗意。',
+    '',
+    '硬性规则：',
+    '• plantId 必须来自候选植物列表，不得自造。',
+    '• 文案必须包含至少一个植物可辨认特征，不能只写“美丽”“坚韧”这类泛称。',
+    '• 文案不堆砌情绪词，要能让人看出说的是哪株植物、今天是怎样的一天。',
+    '• 只输出JSON：{"plantId":"xxx","text":"xxx"}。',
+    '• 不输出 markdown，不输出任何额外说明。',
+    modeSection,
   ].join('\n');
 }
 
@@ -122,28 +125,31 @@ function buildPromptEn(input: PlantDiaryServiceInput, modeHint: string): string 
   const activities = fmtActivities(input, 'en');
   const plantList = fmtPlantList(input.availablePlants, 'en');
   const modeSection = modeHint ? `Companion style: ${modeHint}\n` : '';
-  return [
-    'Choose today\'s plant for a daily-life app, and write one sentence that links the user\'s state today with that plant. Ground the copy in the plant\'s natural habits, visual temperament, and symbolic associations (such as floriography).',
-    'Output ONLY valid JSON in this format: {"plantId":"xxx","text":"one sentence"}',
-    '',
-    `Available plants (must choose one from this list):\n${plantList}`,
-    '',
-    'Plant selection notes:',
-    '• early: quieter and more inward; often fits a day of seeding/building foundations, exploring, or accumulating, and can also match calm emotions or low-social solo time',
-    '• late: more intense and outward; often fits a day with more visible outcomes, strong emotions (excitement, emotional highs/lows), frequent social activity, and stronger self-expression',
-    '• Based on today\'s activity structure, durations, mood, and life focus, choose the single plant that best mirrors the user\'s state or temporal character through its natural habits, visual temperament, and symbolic associations. Then decide whether it is closer to early or late.',
-    '',
-    'Text rules:',
-    '• 1-2 natural-language sentences (about 10-35 words), with a beautiful, poetic, and natural tone',
-    '• Clearly show the correspondence between the user\'s key trait today and the selected plant\'s traits/imagery; find the single most fitting (or interesting, or unexpected) intersection and speak only to that one point',
-    '• Do not use newline characters inside JSON string values',
-    modeSection,
-    "Today's data:",
+  const summary = [
     `Date: ${input.date}`,
     `Root character: ${rootDesc}`,
     `Total duration: ${input.totalDuration} minutes`,
     'Activities:',
     activities,
+  ].join('\n');
+  return [
+    'You are a naturalist poet. You understand plant growth habits, visible form, and cultural symbolism, and you write short lines that quietly move people.',
+    '',
+    `Today\'s state summary:\n${summary}`,
+    `Candidate plants:\n${plantList}`,
+    '',
+    'Think in this order. Output final JSON only. Do not output your reasoning:',
+    '1. Choose one plant from the candidate list. Your reason must be based on at least one of: floriography/symbolism, visible morphology, growth habit, or habitat.',
+    '2. Find the most accurate intersection between that plant trait and the most worth-seeing layer of today\'s person: a specific detail, the day\'s overall rhythm, a state that ran through the whole day, or a long-term trait revealed today. Pick only one intersection, the most precise or unexpectedly fitting one.',
+    '3. Write in second person ("you"), 20-60 words, natural and poetic.',
+    '',
+    'Hard rules:',
+    '• plantId must come from the candidate list; do not invent IDs.',
+    '• The line must include at least one recognizable plant feature, not only broad labels like "beautiful" or "resilient".',
+    '• Avoid emotional word stacking; the reader should recognize both the plant and what kind of day it was.',
+    '• Output JSON only: {"plantId":"xxx","text":"xxx"}.',
+    '• No markdown. No extra explanation.',
+    modeSection,
   ].join('\n');
 }
 
@@ -152,28 +158,31 @@ function buildPromptIt(input: PlantDiaryServiceInput, modeHint: string): string 
   const activities = fmtActivities(input, 'it');
   const plantList = fmtPlantList(input.availablePlants, 'it');
   const modeSection = modeHint ? `Stile del compagno: ${modeHint}\n` : '';
-  return [
-    'Scegli la pianta di oggi per un\'app della vita quotidiana e scrivi una frase che colleghi lo stato odierno dell\'utente a quella pianta. Basa il testo sulle abitudini naturali della pianta, sul suo carattere visivo e sulle sue associazioni simboliche (per esempio il linguaggio dei fiori).',
-    'Fornisci SOLO JSON valido in questo formato: {"plantId":"xxx","text":"una frase"}',
-    '',
-    `Piante disponibili (devi sceglierne una dalla lista):\n${plantList}`,
-    '',
-    'Indicazioni per la scelta della pianta:',
-    '• early (iniziale): più quieta e introspettiva; tipica di giornate di semina/fondamenta, esplorazione o accumulo, oppure di emozioni calme o momenti più solitari e poco sociali',
-    '• late (avanzata): più intensa ed estroversa; tipica di giornate con risultati più visibili, emozioni forti (eccitazione, grandi alti e bassi), attività sociali frequenti e maggiore auto-espressione',
-    '• In base alla struttura delle attività di oggi, alla durata, all\'umore e al baricentro della vita quotidiana, scegli la singola pianta che rispecchia meglio lo stato o la qualità temporale della giornata, unendo abitudini naturali, carattere visivo e associazioni simboliche. Poi valuta autonomamente se è più vicina a early o late.',
-    '',
-    'Regole del testo:',
-    '• 1-2 frasi in linguaggio naturale (circa 10-35 parole), con tono elegante, poetico e naturale',
-    '• Il testo deve mostrare chiaramente la corrispondenza tra la caratteristica principale della giornata dell\'utente e i tratti/immaginario della pianta scelta; trova il punto d\'incrocio più adatto (o interessante, o inatteso) e parla solo di quello',
-    '• Non usare caratteri di nuova riga nelle stringhe JSON',
-    modeSection,
-    'Dati di oggi:',
+  const summary = [
     `Data: ${input.date}`,
     `Carattere delle radici: ${rootDesc}`,
     `Durata totale: ${input.totalDuration} minuti`,
-    'Attività:',
+    'Attivita:',
     activities,
+  ].join('\n');
+  return [
+    'Sei un poeta con spirito da naturalista. Conosci abitudini di crescita, forma visibile e immaginario culturale delle piante, e sai usare la pianta come metafora in frasi brevi che toccano davvero.',
+    '',
+    `Sintesi dello stato di oggi:\n${summary}`,
+    `Piante candidate:\n${plantList}`,
+    '',
+    'Pensa in questo ordine. Restituisci solo JSON finale, senza il ragionamento:',
+    '1. Scegli una pianta dalla lista candidata. Il motivo deve basarsi su almeno uno tra: linguaggio dei fiori/simbolismo, morfologia visibile, abitudine di crescita o habitat.',
+    '2. Trova il punto di incrocio più preciso tra quel tratto della pianta e lo strato più degno di essere visto nella persona di oggi: un dettaglio, il ritmo complessivo della giornata, uno stato trasversale, oppure una qualità abituale emersa oggi. Scegline uno solo, il più accurato o sorprendentemente adatto.',
+    '3. Scrivi in seconda persona ("tu"), 20-60 parole, tono naturale e poetico.',
+    '',
+    'Regole vincolanti:',
+    '• plantId deve provenire dalla lista candidata; non inventare ID.',
+    '• Il testo deve includere almeno un tratto riconoscibile della pianta, non solo etichette generiche come "bella" o "resiliente".',
+    '• Evita accumuli di parole emotive: deve essere chiaro sia quale pianta sia che tipo di giornata e stata.',
+    '• Output solo JSON: {"plantId":"xxx","text":"xxx"}.',
+    '• Nessun markdown. Nessuna spiegazione extra.',
+    modeSection,
   ].join('\n');
 }
 
@@ -201,6 +210,7 @@ function buildMessages(input: PlantDiaryServiceInput): Array<{ role: string; con
 function parseAiResponse(
   raw: string,
   availablePlants: PlantEntry[],
+  lang: Lang,
 ): { text: string; chosenPlantId: string } {
   const fallbackPlantId = availablePlants[0]?.id ?? 'sha_early_0001';
   const validIds = availablePlants.map(p => p.id);
@@ -216,11 +226,47 @@ function parseAiResponse(
     const rawPlantId = typeof parsed.plantId === 'string' ? parsed.plantId.trim() : '';
     const chosenPlantId = validIds.includes(rawPlantId) ? rawPlantId : fallbackPlantId;
 
-    return { text, chosenPlantId };
+    return { text: normalizePlantDiaryAddressee(text, lang), chosenPlantId };
   } catch {
     const stripped = raw.replace(/^\s*\{[^}]*"text"\s*:\s*"/, '').replace(/"\s*\}.*$/s, '').trim();
-    return { text: stripped || raw.slice(0, 120), chosenPlantId: fallbackPlantId };
+    return {
+      text: normalizePlantDiaryAddressee(stripped || raw.slice(0, 120), lang),
+      chosenPlantId: fallbackPlantId,
+    };
   }
+}
+
+function containsGenericUserRefs(content: string, lang: Lang): boolean {
+  if (lang === 'zh') return /(用户|\bta\b|对方)/i.test(content);
+  if (lang === 'it') return /(the\s+user|my\s+host|\bl['’]?utente\b|\butente\b)/i.test(content);
+  return /(\bthe\s+user\b|\bmy\s+host\b|\bthey\b|\bthem\b|\btheir\b)/i.test(content);
+}
+
+function forceAddresseeReplacement(content: string, lang: Lang): string {
+  if (lang === 'zh') {
+    return content
+      .replace(/用户/g, '你')
+      .replace(/对方/g, '你')
+      .replace(/\bta\b/gi, '你');
+  }
+  if (lang === 'it') {
+    return content
+      .replace(/\bl['’]?utente\b/gi, 'tu')
+      .replace(/\butente\b/gi, 'tu')
+      .replace(/\bthe\s+user\b/gi, 'tu')
+      .replace(/\bmy\s+host\b/gi, 'tu');
+  }
+  return content
+    .replace(/\bthe\s+user\b/gi, 'you')
+    .replace(/\bmy\s+host\b/gi, 'you')
+    .replace(/\bthey\b/gi, 'you')
+    .replace(/\bthem\b/gi, 'you')
+    .replace(/\btheir\b/gi, 'your');
+}
+
+function normalizePlantDiaryAddressee(content: string, lang: Lang): string {
+  if (!containsGenericUserRefs(content, lang)) return content;
+  return forceAddresseeReplacement(content, lang);
 }
 
 // ─── API 调用 ──────────────────────────────────────────────────────────────────
@@ -236,6 +282,7 @@ async function runRequest(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const lang = normalizeAiCompanionLang(input.lang) as Lang;
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -255,7 +302,7 @@ async function runRequest(
     const raw = removeThinkingTags(payload.choices?.[0]?.message?.content ?? '').trim();
     if (!raw) throw new Error('empty response');
 
-    return parseAiResponse(raw, input.availablePlants);
+    return parseAiResponse(raw, input.availablePlants, lang);
   } finally {
     clearTimeout(timer);
   }

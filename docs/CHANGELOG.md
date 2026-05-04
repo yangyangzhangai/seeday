@@ -6,6 +6,19 @@ All notable effective changes are documented here.
 
 ## 2026-05-02
 
+### Fix: 日记生成状态提示文案纠正（避免误显示“植物已生成”）
+
+- `src/features/report/ReportDetailModal.tsx`：日记按钮点击后的“已生成”提示从 `plant_generate_already` 改为 `report_generate_already`
+- `src/features/report/plant/PlantRootSection.tsx`：日记生成链路的“已生成/成功”提示改为 `report_generate_already` / `report_generate_success`
+- `src/i18n/locales/zh.ts`、`src/i18n/locales/en.ts`、`src/i18n/locales/it.ts`：新增三语 key
+  - `report_generate_already`
+  - `report_generate_success`
+- 中文文案更新为：`日记已经生成，去日记本里看看吧~`
+
+Validation:
+
+- Not run (targeted i18n + hint key fix)
+
 ### Fix: 偏好 outbox 去重与即时补推
 
 - `src/store/useOutboxStore.ts`：`enqueue()` 对 `preference.upsert` 增加同类去重策略（入队时移除历史 `preference.upsert` 条目，仅保留最新快照），与设置型数据的 last-write-wins 语义对齐，减少冗余队列与重复 metadata 写入

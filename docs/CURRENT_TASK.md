@@ -5,6 +5,7 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-05-04: 日记生成提示文案修正（三语）：修复“生成日记”流程误复用 `plant_generate_already/plant_generate_success` 导致出现“今日植物已生成”；新增 `report_generate_already/report_generate_success` 并同步 ZH/EN/IT，中文已按产品文案更新为“日记已经生成，去日记本里看看吧~”
 - 2026-05-01: 日记展示与摘要修复：保留 AI 日记原始换行（修复【】小标题前换行丢失）、优化 `/api/diary` 落款识别避免 Van 双落款、`generateMoodSummary` 增加总时长为 0 兜底避免 `NaN%`
 - 2026-05-01: 植物卡片下载导出修复：保存图片改为使用 front export 专用节点（移除“轻点翻转”提示文案、增加底部留白），修复导出图最底行文案被遮挡问题；UI 端保留翻转提示
 - 2026-05-01: 帮助与支持底部灰字文案更新（三语）：改为“如需支持请发邮件至 …”；移除邮箱下划线样式；FAQ“取消订阅”改为双入口（App Store 头像→订阅 / 设置→姓名→订阅）
