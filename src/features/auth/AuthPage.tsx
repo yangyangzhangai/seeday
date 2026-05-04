@@ -5,6 +5,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Loader2, User, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { PrivacyPolicyPanel } from '../profile/components/PrivacyPolicyPanel';
+import { TermsPanel } from '../profile/components/TermsPanel';
 
 export const AuthPage: React.FC = () => {
   const authMascotSrc = '/assets/auth-login-mascot.png';
@@ -25,6 +27,8 @@ export const AuthPage: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
   const [resendLoading, setResendLoading] = React.useState(false);
+  const [showPrivacy, setShowPrivacy] = React.useState(false);
+  const [showTerms, setShowTerms] = React.useState(false);
 
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
@@ -126,6 +130,13 @@ export const AuthPage: React.FC = () => {
   }
   if (user) {
     return <Navigate to="/chat" replace />;
+  }
+
+  if (showTerms) {
+    return <TermsPanel onClose={() => setShowTerms(false)} />;
+  }
+  if (showPrivacy) {
+    return <PrivacyPolicyPanel onClose={() => setShowPrivacy(false)} />;
   }
 
   return (
@@ -303,8 +314,15 @@ export const AuthPage: React.FC = () => {
             )}
           </motion.button>
 
-          <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.1em] text-[#4a5d4c]/30">
-            {t('onboarding2_auth_agreement')}
+          <p className="mt-6 text-center text-[9px] font-normal normal-case tracking-wide text-[#4a5d4c]/30">
+            {t('auth_agreement_prefix')}{' '}
+            <button type="button" onClick={() => setShowTerms(true)} className="underline underline-offset-2 active:opacity-50">
+              {t('auth_agreement_terms')}
+            </button>
+            {' '}{t('auth_agreement_and')}{' '}
+            <button type="button" onClick={() => setShowPrivacy(true)} className="underline underline-offset-2 active:opacity-50">
+              {t('auth_agreement_privacy')}
+            </button>
           </p>
         </div>
       </div>
