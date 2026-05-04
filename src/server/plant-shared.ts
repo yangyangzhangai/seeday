@@ -144,7 +144,7 @@ export function resolvePlantId(params: {
   isAirDay: boolean;
 }): string {
   if (params.isAirDay) {
-    return 'air_001';
+    return 'air_0001';
   }
 
   const hash = params.date

@@ -1,4 +1,4 @@
-﻿plantId,rootType,plantStage,variantIndex,variant,fileName,fileFormat,isFallbackReady,nameCN,nameEN,nameIT,notes
+plantId,rootType,plantStage,variantIndex,variant,fileName,fileFormat,isFallbackReady,nameCN,nameEN,nameIT,notes
 tap_early_0001,tap,early,1,,tap_early_0001.png,png,TRUE,虞美人,Corn Poppy,Papavero,live
 tap_early_0002,tap,early,2,,tap_early_0002.png,png,TRUE,大波斯菊,Cosmos,Cosmea,live
 tap_early_0003,tap,early,3,,tap_early_0003.png,png,TRUE,紫云英,Chinese Milk Vetch,Astragalo cinese,live
@@ -19,6 +19,16 @@ fib_late_0002,fib,late,2,,fib_late_0002.png,png,TRUE,麦穗,Wheat Ear,Spiga di g
 fib_late_0003,fib,late,3,,fib_late_0003.png,png,TRUE,芒草,Miscanthus,Miscanto,live
 fib_late_0004,fib,late,4,,fib_late_0004.png,png,TRUE,粉黛乱子草,Pink Muhly Grass,Erba muhly rosa,live
 fib_late_0005,fib,late,5,,fib_late_0005.png,png,TRUE,海妖女狸藻,Utricularia,Utricularia,live
+fib_early_0006,fib,early ,6,,fib_early_0006.png,png,TRUE,兔尾草,Bunny Tail Grass,Coda di lepre,
+fib_late_0006,fib,late,6,,fib_late_0006.png,png,TRUE,兔尾草,Bunny Tail Grass,Coda di lepre,
+fib_early_0007,fib,early,7,,fib_early_0007.png,png,TRUE,蓝羊茅,Blue Fescue,Festuca azzurra,
+fib_late_0007,fib,late,7,,fib_late_0007.png,png,TRUE,蓝羊茅,Blue Fescue,Festuca azzurra,
+fib_early_0008,fib,early,8,,fib_early_0008.png,png,TRUE,羽毛草,Feather Grass,Stipa pennata,
+fib_late_0008,fib,late,8,,fib_late_0008.png,png,TRUE,羽毛草,Feather Grass,Stipa pennata,
+fib_early_0009,fib,early ,9,,fib_early_0009.png,png,TRUE,细叶芒,Chinese Silver Grass,Miscanto cinese,
+fib_late_0009,fib,late,9,,fib_late_0009.png,png,TRUE,细叶芒,Chinese Silver Grass,Miscanto cinese,
+fib_early_0010,fib,early,10,,fib_early_0010.png,png,TRUE,蒲苇,Pampas Grass,Erba delle Pampas,
+fib_late_0010,fib,late,10,,fib_late_0010.png,png,TRUE,蒲苇,Pampas Grass,Erba delle Pampas,
 sha_early_0001,sha,early,1,,sha_early_0001.png,png,TRUE,绣球花,Hydrangea,Ortensia,global_fallback
 sha_early_0002,sha,early,2,,sha_early_0002.png,png,TRUE,山茶花,Japanese Camellia,Camelia del Giappone,live
 sha_early_0003,sha,early,3,,sha_early_0003.png,png,TRUE,杜鹃花,Azalea,Azalea,live
@@ -49,22 +59,44 @@ bul_late_0002,bul,late,2,,bul_late_0002.png,png,TRUE,风信子,Hyacinth,Giacinto
 bul_late_0003,bul,late,3,,bul_late_0003.png,png,TRUE,朱顶红,Amaryllis,Amarillide,live
 bul_late_0004,bul,late,4,,bul_late_0004.png,png,TRUE,仙客来,Cyclamen,Ciclamino,live
 bul_late_0005,bul,late,5,,bul_late_0005.png,png,TRUE,仙人掌,Cactus,Cactus,live
-bra_early_0007,bra,early,7,,bra_early_0007.png,png,TRUE,,,,live
-bra_late_0007,bra,late,7,,bra_late_0007.png,png,TRUE,,,,live
-bra_early_0008,bra,early,8,,bra_early_0008.png,png,TRUE,,,,live
-bra_late_0008,bra,late,8,,bra_late_0008.png,png,TRUE,,,,live
-bra_early_0010,bra,early,10,,bra_early_0010.png,png,TRUE,,,,live
-bra_late_0010,bra,late,10,,bra_late_0010.png,png,TRUE,,,,live
-sha_early_0006,sha,early,6,,sha_early_0006.png,png,TRUE,,,,live
-sha_late_0006,sha,late,6,,sha_late_0006.png,png,TRUE,,,,live
-sha_early_0007,sha,early,7,,sha_early_0007.png,png,TRUE,,,,live
-sha_late_0007,sha,late,7,,sha_late_0007.png,png,TRUE,,,,live
-tap_early_0006,tap,early,6,,tap_early_0006.png,png,TRUE,,,,live
-tap_late_0006,tap,late,6,,tap_late_0006.png,png,TRUE,,,,live
-tap_early_0007,tap,early,7,,tap_early_0007.png,png,TRUE,,,,live
-tap_late_0007,tap,late,7,,tap_late_0007.png,png,TRUE,,,,live
-tap_early_0008,tap,early,8,,tap_early_0008.png,png,TRUE,,,,live
-tap_late_0009,tap,late,9,,tap_late_0009.png,png,TRUE,,,,live
-tap_early_0010,tap,early,10,,tap_early_0010.png,png,TRUE,,,,live
-tap_late_0010,tap,late,10,,tap_late_0010.png,png,TRUE,,,,live
-air_001,air,special,1,,air_001.png,png,TRUE,空气植物,Air Plant,Tillandsia,live
+bul_early_0006,bul,early,6,,bul_early_0006.png,png,TRUE,百合,Lily,Giglio,
+bul_late_0006,bul,late,6,,bul_late_0006.png,png,TRUE,百合,Lily,Giglio,
+bul_early_0007,bul,late,7,,bul_early_0007.png,png,TRUE,水仙,Narcissus,Narciso,
+bul_late_0007,bul,late,7,,bul_late_0007.png,png,TRUE,水仙,Narcissus,Narciso,
+bul_early_0008,bul,late,8,,bul_early_0008.png,png,TRUE,番红花,Crocus,Croco,
+bul_late_0008,bul,late,8,,bul_late_0008.png,png,TRUE,番红花,Crocus,Croco,
+bul_early_0009,bul,late,9,,bul_early_0009.png,png,TRUE,晚香玉,Tuberose,Tuberosa,
+bul_late_0009,bul,late,9,,bul_late_0009.png,png,TRUE,晚香玉,Tuberose,Tuberosa,
+bul_early_0010,bul,late,10,,bul_early_0010.png,png,TRUE,大丽花,Dahlia,Dalia,
+bul_late_0010,bul,late,10,,bul_late_0010.png,png,TRUE,大丽花,Dahlia,Dalia,
+bra_early_0006,bra,early,6,,bra_early_0006,png,TRUE,蔷薇,Wild Rose,Rosa selvatica,
+bra_late_0006,bra,late,6,,bra_late_0006,png,TRUE,蔷薇,Wild Rose,Rosa selvatica,
+bra_early_0007,bra,early,7,,bra_early_0007.png,png,TRUE,炮仗花,Flame Vine,Pirostigia,live
+bra_late_0007,bra,late,7,,bra_late_0007.png,png,TRUE,炮仗花,Flame Vine,Pirostigia,live
+bra_early_0008,bra,early,8,,bra_early_0008.png,png,TRUE,西番莲,Passionflower,Passiflora,live
+bra_late_0008,bra,late,8,,bra_late_0008.png,png,TRUE,西番莲,Passionflower,Passiflora,live
+bra_early_0009,bra,early,9,,bra_early_0009.png,png,TRUE,络石,Confederate Jasmine,Falso gelsomino,
+bra_late_0009,bra,late,9,,bra_late_0009.png,png,TRUE,络石,Confederate Jasmine,Falso gelsomino,
+bra_early_0010,bra,early,10,,bra_early_0010.png,png,TRUE,使君子,Rangoon Creeper,Quisqualis,live
+bra_late_0010,bra,late,10,,bra_late_0010.png,png,TRUE,使君子,Rangoon Creeper,Quisqualis,live
+sha_early_0006,sha,early,6,,sha_early_0006.png,png,TRUE,月季,Chinese Rose,Rosa cinese,live
+sha_late_0006,sha,late,6,,sha_late_0006.png,png,TRUE,月季,Chinese Rose,Rosa cinese,live
+sha_early_0007,sha,early,7,,sha_early_0007.png,png,TRUE,芍药,Chinese Peony,Peonia erbacea,live
+sha_late_0007,sha,late,7,,sha_late_0007.png,png,TRUE,芍药,Chinese Peony,Peonia erbacea,live
+sha_early_0008,sha,early,8,,sha_early_0008.png,png,TRUE,三角梅,Bougainvillea,Bouganville,
+sha_late_0008,sha,late,8,,sha_late_0008.png,png,TRUE,三角梅,Bougainvillea,Bouganville,
+sha_early_0009,sha,early,9,,sha_early_0009.png,png,TRUE,红叶石楠,Red Robin Photinia,Fotinia rossa,
+sha_late_0009,sha,late,9,,sha_late_0009.png,png,TRUE,红叶石楠,Red Robin Photinia,Fotinia rossa,
+sha_early_0010,sha,early,10,,sha_early_0010.png,png,TRUE,木槿,Rose of Sharon,Ibisco di Siria,
+sha_late_0010,sha,late,10,,sha_late_0010.png,png,TRUE,木槿,Rose of Sharon,Ibisco di Siria,
+tap_early_0006,tap,early,6,,tap_early_0006.png,png,TRUE,金鸡菊,Coreopsis,Coreopsis,live
+tap_late_0006,tap,late,6,,tap_late_0006.png,png,TRUE,金鸡菊,Coreopsis,Coreopsis,live
+tap_early_0007,tap,early,7,,tap_early_0007.png,png,TRUE,矢车菊,Cornflower,Fiordaliso,live
+tap_late_0007,tap,late,7,,tap_late_0007.png,png,TRUE,矢车菊,Cornflower,Fiordaliso,live
+tap_early_0008,tap,early,8,,tap_early_0008.png,png,TRUE,松虫草,Pincushion Flower,Scabiosa,live
+tap_late_0008,tap,late,8,,tap_late_0008.png,png,TRUE,松虫草,Pincushion Flower,Scabiosa,
+tap_early_0009,tap,early,9,,tap_early_0010.png,png,TRUE,毛地黄,Foxglove,Digitale,
+tap_late_0009,tap,late,9,,tap_late_0009.png,png,TRUE,毛地黄,Foxglove,Digitale,live
+tap_early_0010,tap,early,10,,tap_early_0010.png,png,TRUE,金鱼草,Snapdragon,Bocca di leone,live
+tap_late_0010,tap,late,10,,tap_late_0010.png,png,TRUE,金鱼草,Snapdragon,Bocca di leone,live
+air_0001,air,special,1,,air_0001.png,png,TRUE,空气植物,Air Plant,Tillandsia,live
