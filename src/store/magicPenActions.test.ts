@@ -109,7 +109,7 @@ describe('commitMagicPenDrafts', () => {
     expect(result.successActivityCount).toBe(1);
   });
 
-  it('allows submission when draft overlaps ongoing activity', async () => {
+  it('blocks submission when draft overlaps ongoing activity', async () => {
     const insertActivity = vi.fn(async () => undefined);
     vi.spyOn(useChatStore, 'getState').mockReturnValue({
       messages: [
@@ -127,12 +127,12 @@ describe('commitMagicPenDrafts', () => {
     vi.spyOn(useTodoStore, 'getState').mockReturnValue({ addTodo: vi.fn(async () => undefined) } as never);
 
     const result = await commitMagicPenDrafts([buildActivityDraft('overlap', 900, 1_100)]);
-    expect(result.failedDraftIds).toEqual([]);
-    expect(result.successActivityCount).toBe(1);
-    expect(insertActivity).toHaveBeenCalledTimes(1);
+    expect(result.failedDraftIds).toEqual(['overlap']);
+    expect(result.successActivityCount).toBe(0);
+    expect(insertActivity).not.toHaveBeenCalled();
   });
 
-  it('blocks submission when draft overlaps ended activity', async () => {
+  it('allows submission when draft overlaps ended activity', async () => {
     const insertActivity = vi.fn(async () => undefined);
     vi.spyOn(useChatStore, 'getState').mockReturnValue({
       messages: [
@@ -150,7 +150,8 @@ describe('commitMagicPenDrafts', () => {
     vi.spyOn(useTodoStore, 'getState').mockReturnValue({ addTodo: vi.fn(async () => undefined) } as never);
 
     const result = await commitMagicPenDrafts([buildActivityDraft('overlap-ended', 1_200, 1_400)]);
-    expect(result.failedDraftIds).toEqual(['overlap-ended']);
-    expect(insertActivity).not.toHaveBeenCalled();
+    expect(result.failedDraftIds).toEqual([]);
+    expect(result.successActivityCount).toBe(1);
+    expect(insertActivity).toHaveBeenCalledTimes(1);
   });
 });

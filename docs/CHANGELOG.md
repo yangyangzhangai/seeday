@@ -4,7 +4,30 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-05-05
+
+### Fix: 日记超长截断与 Agnes 小标题板块移除
+
+- `src/lib/aiCompanion/prompts/agnes.ts`：Agnes 三语 diary prompt 删除“正文后额外【】板块/小标题”硬要求，改为单段连续正文；同时收紧建议长度（ZH 150-260 字，EN/IT 110-170 词）
+- `api/diary.ts`：新增语言化长度最高优先规则并注入 user prompt（与称呼规则同级）；将 `max_tokens` 从 `1000` 收紧到 `520`
+- `api/diary.ts`：新增服务端后置兜底裁剪（按语言裁剪正文、保留并回挂落款），避免模型偶发超长导致前端展示不全
+- `src/features/report/ReportDetailModal.tsx`、`src/features/report/DiaryBookViewer.tsx`：观察日记展示区增加纵向滚动兜底（iOS touch scroll），避免异常长文被 `overflow: hidden` 直接截断
+
+Validation:
+
+- Not run (targeted prompt/server/UI fallback update)
+
 ## 2026-05-02
+
+### Fix: Magic Pen 时间冲突校验改为“允许 ended、拦截 ongoing”
+
+- `src/services/input/magicPenDraftBuilder.ts`：移除“与已完成活动重叠即报错”逻辑，改为仅校验与进行中活动（`duration === undefined`）冲突；与既有已完成活动重叠允许提交并交由 `insertActivity` 自动切分
+- `src/services/input/magicPenDraftBuilder.ts`：批次重叠错误从“双边标红”改为仅标记后一条冲突草稿（更符合用户修改心智）
+- `src/services/input/magicPenDraftBuilder.test.ts`、`src/store/magicPenActions.test.ts`：同步更新冲突规则断言（ongoing 拦截、ended 放行、batch 仅后条报错）
+
+Validation:
+
+- `npx vitest run src/services/input/magicPenDraftBuilder.test.ts src/store/magicPenActions.test.ts` ⚠️（本次规则相关测试已对齐；`magicPenDraftBuilder.test.ts` 仍存在仓库既有时区相关失败，与本次改动无关）
 
 ### Fix: 日记生成状态提示文案纠正（避免误显示“植物已生成”）
 

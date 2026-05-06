@@ -344,7 +344,7 @@ function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFl
           <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
           <h3 style={sectionTitleStyle}>{copy.sectionObservation}</h3>
-          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
             <div
               style={{
                 float: 'left',

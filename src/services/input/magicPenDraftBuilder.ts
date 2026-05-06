@@ -48,17 +48,17 @@ function collectTimeErrors(draft: MagicPenDraftItem, now: number): MagicPenDraft
   return [];
 }
 
-function appendEndedOverlapError(
+function appendOngoingOverlapError(
   draft: MagicPenDraftItem,
-  endedActivities: Array<{ startAt: number; endAt: number }>,
+  ongoingActivities: Array<{ startAt: number; endAt: number }>,
 ): MagicPenDraftErrorCode[] {
   const startAt = draft.activity?.startAt;
   const endAt = draft.activity?.endAt;
   if (startAt === undefined || endAt === undefined) return [];
 
-  for (const activity of endedActivities) {
+  for (const activity of ongoingActivities) {
     if (startAt < activity.endAt && endAt > activity.startAt) {
-      return ['overlap_in_batch'];
+      return ['overlap_with_ongoing_activity'];
     }
   }
   return [];
@@ -89,7 +89,6 @@ function markBatchOverlapErrors(drafts: MagicPenDraftItem[]): MagicPenDraftItem[
     const currentStart = current.activity?.startAt;
     if (previousEnd === undefined || currentStart === undefined) continue;
     if (currentStart < previousEnd) {
-      overlapIndexes.add(indexed[i - 1].index);
       overlapIndexes.add(indexed[i].index);
     }
   }
@@ -811,13 +810,11 @@ export function validateDrafts(
   messages: Message[],
   now: number = Date.now(),
 ): MagicPenDraftItem[] {
-  const endedActivities = messages
-    .filter(
-      (message) => message.mode === 'record' && !message.isMood && message.duration !== undefined,
-    )
+  const ongoingActivities = messages
+    .filter((message) => message.mode === 'record' && !message.isMood && message.duration === undefined)
     .map((message) => ({
       startAt: message.timestamp,
-      endAt: message.timestamp + message.duration! * 60 * 1000,
+      endAt: now,
     }))
     .filter((activity) => activity.endAt > activity.startAt);
 
@@ -827,7 +824,7 @@ export function validateDrafts(
     if (timeErrors.length > 0) {
       return cloneDraftWithErrors(draft, timeErrors);
     }
-    const overlapErrors = appendEndedOverlapError(draft, endedActivities);
+    const overlapErrors = appendOngoingOverlapError(draft, ongoingActivities);
     return cloneDraftWithErrors(draft, [...timeErrors, ...overlapErrors]);
   });
 

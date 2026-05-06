@@ -741,7 +741,7 @@ describe('magicPenDraftBuilder', () => {
     expect(validated[0].errors).toContain('missing_time');
   });
 
-  it('marks both overlapping activity drafts with overlap_in_batch', () => {
+  it('marks only later overlapping activity draft with overlap_in_batch', () => {
     const drafts: MagicPenDraftItem[] = [
       {
         id: 'left',
@@ -774,7 +774,7 @@ describe('magicPenDraftBuilder', () => {
     ];
 
     const validated = validateDrafts(drafts, [], fixedNow.getTime());
-    expect(validated[0].errors).toContain('overlap_in_batch');
+    expect(validated[0].errors).toEqual([]);
     expect(validated[1].errors).toContain('overlap_in_batch');
   });
 
@@ -856,7 +856,7 @@ describe('magicPenDraftBuilder', () => {
     expect(aligned[1].activity?.startAt).toBe(new Date(2026, 2, 11, 9, 30, 0, 0).getTime());
   });
 
-  it('rejects backfill draft overlapping with ended activity record', () => {
+  it('allows backfill draft overlapping with ended activity record', () => {
     const drafts: MagicPenDraftItem[] = [
       {
         id: 'candidate',
@@ -887,10 +887,10 @@ describe('magicPenDraftBuilder', () => {
     ];
 
     const validated = validateDrafts(drafts, messages, fixedNow.getTime());
-    expect(validated[0].errors).toContain('overlap_in_batch');
+    expect(validated[0].errors).toEqual([]);
   });
 
-  it('allows backfill draft overlapping with ongoing activity record', () => {
+  it('rejects backfill draft overlapping with ongoing activity record', () => {
     const drafts: MagicPenDraftItem[] = [
       {
         id: 'candidate-ongoing',
@@ -921,6 +921,6 @@ describe('magicPenDraftBuilder', () => {
     ];
 
     const validated = validateDrafts(drafts, messages, fixedNow.getTime());
-    expect(validated[0].errors).toEqual([]);
+    expect(validated[0].errors).toContain('overlap_with_ongoing_activity');
   });
 });

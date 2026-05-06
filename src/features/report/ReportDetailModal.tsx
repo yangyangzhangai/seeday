@@ -782,7 +782,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   <div className="text-sm font-bold" style={{ flexShrink: 0, padding: '1px 0' }}>{copy.sectionObservation}</div>
 
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
-                    <div style={{ height: '100%', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                       <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
                         {dayPlant ? (
                           <button

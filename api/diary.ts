@@ -76,6 +76,16 @@ function buildDiaryAddresseeUserRule(lang: 'zh' | 'en' | 'it', addressee: string
   return `Address the person as ${addressee} throughout, write the name directly with no quotation marks.`;
 }
 
+function buildDiaryLengthUserRule(lang: 'zh' | 'en' | 'it'): string {
+  if (lang === 'zh') {
+    return '正文控制在150-260字，不要超过260字；不要输出任何额外小标题或分节。';
+  }
+  if (lang === 'it') {
+    return 'Corpo del diario tra 110 e 170 parole, senza superare 170 parole; non aggiungere sottotitoli o sezioni extra.';
+  }
+  return 'Keep the diary body within 110-170 words, never above 170 words; do not add extra subtitles or section blocks.';
+}
+
 function stripModelSignoff(content: string): string {
   return content
     .replace(/^\s*[【\[]?落款[】\]]?[:：]?\s*$/gmu, '')
@@ -136,6 +146,33 @@ function ensureDiarySignoff(
   if (!trimmed) return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`.trim();
   if (hasAnySignoff(trimmed)) return trimmed;
   return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`;
+}
+
+function splitSignoffTail(content: string): { body: string; signoff: string } {
+  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return { body: '', signoff: '' };
+  const last = lines[lines.length - 1];
+  if (/^[-—–]{1,2}\s*.+/.test(last)) {
+    return {
+      body: lines.slice(0, -1).join('\n').trim(),
+      signoff: last,
+    };
+  }
+  return { body: lines.join('\n').trim(), signoff: '' };
+}
+
+function clampDiaryBodyByLang(content: string, lang: 'zh' | 'en' | 'it'): string {
+  const { body, signoff } = splitSignoffTail(content);
+  if (!body) return signoff ? signoff : '';
+  if (lang === 'zh') {
+    const chars = Array.from(body);
+    const clipped = chars.length > 260 ? chars.slice(0, 260).join('').trim() : body;
+    return signoff ? `${clipped}\n\n${signoff}` : clipped;
+  }
+
+  const words = body.split(/\s+/).filter(Boolean);
+  const clipped = words.length > 170 ? words.slice(0, 170).join(' ').trim() : body;
+  return signoff ? `${clipped}\n\n${signoff}` : clipped;
 }
 
 // buildDiaryTeaser moved to src/server/diaryTeasers.ts
@@ -249,7 +286,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const addressee = resolveDiaryAddressee(normalizedLang, userName);
   const addresseeUserRule = buildDiaryAddresseeUserRule(normalizedLang, addressee);
+  const lengthUserRule = buildDiaryLengthUserRule(normalizedLang);
   userContent += `\n\n[Addressee rule - highest priority]\n${addresseeUserRule}`;
+  userContent += `\n\n[Length rule - highest priority]\n${lengthUserRule}`;
 
   // 称呼规则仅通过 user prompt 注入，避免在 system prompt 中出现称呼占位符。
   const finalSystemPrompt = buildDiaryModePrompt(normalizedLang, normalizedMode);
@@ -262,7 +301,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         { role: 'user', content: userContent },
       ],
       temperature: 0.75,
-      max_tokens: 1000,
+      max_tokens: 520,
     });
     let content = completion.choices?.[0]?.message?.content || '';
 
@@ -283,6 +322,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     content = ensureDiarySignoff(content, normalizedLang, normalizedMode);
+    content = clampDiaryBodyByLang(content, normalizedLang);
 
     res.status(200).json({
       success: true,

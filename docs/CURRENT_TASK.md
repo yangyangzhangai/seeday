@@ -5,6 +5,8 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-05-05: 日记长度与 Agnes 输出结构收口：`/api/diary` 新增长度最高优先规则（随语言限制正文长度）并在服务端增加超长兜底裁剪（保留落款）；Agnes 三语 diary prompt 删除“正文后【】小标题板块”要求，改为单段正文；Report 日记观察区补滚动兜底避免长文被裁切
+- 2026-05-05: Magic Pen 时间冲突规则回调：允许与已完成活动重叠写入（交给 `insertActivity` 自动切分），禁止与进行中活动重叠；batch 内重叠仅标记后一条，修复“与其他条目时间重叠”导致频繁写入失败
 - 2026-05-04: 日记生成提示文案修正（三语）：修复“生成日记”流程误复用 `plant_generate_already/plant_generate_success` 导致出现“今日植物已生成”；新增 `report_generate_already/report_generate_success` 并同步 ZH/EN/IT，中文已按产品文案更新为“日记已经生成，去日记本里看看吧~”
 - 2026-05-01: 日记展示与摘要修复：保留 AI 日记原始换行（修复【】小标题前换行丢失）、优化 `/api/diary` 落款识别避免 Van 双落款、`generateMoodSummary` 增加总时长为 0 兜底避免 `NaN%`
 - 2026-05-01: 植物卡片下载导出修复：保存图片改为使用 front export 专用节点（移除“轻点翻转”提示文案、增加底部留白），修复导出图最底行文案被遮挡问题；UI 端保留翻转提示
