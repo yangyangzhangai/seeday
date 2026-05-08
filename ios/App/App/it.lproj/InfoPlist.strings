@@ -1,1 +1,3 @@
+"NSCameraUsageDescription" = "Seeday ha bisogno della fotocamera per scattare foto per le tue registrazioni.";
+"NSPhotoLibraryUsageDescription" = "Seeday ha bisogno della libreria foto per aggiungere immagini alle tue registrazioni.";
 "NSUserNotificationsUsageDescription" = "Seeday invia promemoria durante la tua routine per aiutarti a registrare la giornata.";
