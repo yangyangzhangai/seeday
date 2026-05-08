@@ -7,6 +7,9 @@ import { matchBottleIdByKeywords } from '../lib/bottleMatcher';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import { supabase } from '../api/supabase';
 import { resolveAutoActivityDurationMinutes } from './chatDayBoundary';
+import { useGrowthStore } from './useGrowthStore';
+import { useAuthStore } from './useAuthStore';
+import type { Message } from './useChatStore.types';
 
 export type MessageClassificationResult = {
   kind: 'activity' | 'mood' | 'unknown';
@@ -160,4 +163,26 @@ export async function closeCrossDayActiveMessagesInDb(userId: string, nowMs: num
       if (updateError) throw updateError;
     }),
   );
+}
+
+export async function runAutoCloseBottleMatch(msg: Message): Promise<void> {
+  const growthStore = useGrowthStore.getState();
+  const activeBottles = growthStore.bottles.filter(b => b.status === 'active');
+  const allActive = activeBottles.map(b => ({ id: b.id, name: b.name }));
+  const habits = activeBottles.filter(b => b.type === 'habit').map(b => ({ id: b.id, name: b.name }));
+  const goals = activeBottles.filter(b => b.type === 'goal').map(b => ({ id: b.id, name: b.name }));
+  const isPlus = useAuthStore.getState().isPlus;
+  const lang = resolveLangForText(msg.content);
+  const grant = (bottleId: string) => growthStore.incrementBottleStars(bottleId, 1);
+  if (!isPlus) {
+    const matched = keywordMatchBottleId(msg.content, allActive);
+    if (matched) grant(matched);
+    return;
+  }
+  try {
+    const result = await ensureMessageClassification({ messageId: msg.id, content: msg.content, lang, isPlus: true, habits, goals });
+    if (result.matchedBottleId) { grant(result.matchedBottleId); return; }
+  } catch { /* fall through to keyword match */ }
+  const matched = keywordMatchBottleId(msg.content, allActive);
+  if (matched) grant(matched);
 }
