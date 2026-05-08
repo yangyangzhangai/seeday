@@ -1,4 +1,5 @@
-// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md -> api/README.md
+// DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md -> api/README.md -> src/lib/activityConceptGroups.ts
+import { ACTIVITY_CONCEPT_GROUPS } from './activityConceptGroups.js';
 
 export type BottleLike = {
   id: string;
@@ -101,6 +102,22 @@ type Candidate<T extends BottleLike> = {
   score: number;
 };
 
+function conceptGroupMatch<T extends BottleLike>(text: string, bottles: T[]): T | null {
+  const matches: T[] = [];
+  for (const bottle of bottles) {
+    const bottleName = bottle.name || '';
+    const matched = ACTIVITY_CONCEPT_GROUPS.some((group) => {
+      const isConceptBottle = group.concepts.some(
+        (c) => c === bottleName || bottleName.includes(c),
+      );
+      if (!isConceptBottle) return false;
+      return group.patterns.some((p) => p.test(text));
+    });
+    if (matched) matches.push(bottle);
+  }
+  return matches.length === 1 ? matches[0] : null;
+}
+
 export function matchBottleByKeywords<T extends BottleLike>(
   text: string,
   bottles: T[],
@@ -123,7 +140,7 @@ export function matchBottleByKeywords<T extends BottleLike>(
     }
   }
 
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) return conceptGroupMatch(text, bottles);
 
   candidates.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -132,9 +149,9 @@ export function matchBottleByKeywords<T extends BottleLike>(
   });
 
   const best = candidates[0];
-  if (best.score < MIN_MATCH_SCORE) return null;
+  if (best.score < MIN_MATCH_SCORE) return conceptGroupMatch(text, bottles) ?? null;
   const second = candidates[1];
-  if (second && best.score - second.score < MIN_SCORE_GAP) return null;
+  if (second && best.score - second.score < MIN_SCORE_GAP) return conceptGroupMatch(text, bottles) ?? null;
 
   return best.bottle;
 }

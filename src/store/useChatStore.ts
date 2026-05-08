@@ -31,7 +31,7 @@ import {
   sendAutoRecognizedInputFlow,
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
-  closePreviousActivity,
+  closePreviousActivityLocal,
   persistReclassifiedMessages,
   persistInsertedActivityResult,
   persistMessageDurationUpdate,
@@ -49,7 +49,7 @@ import {
   ensureMessageClassification,
   keywordMatchBottleId,
   resolveCurrentLang,
-  resolveLangForText,
+  resolveLangForText, runAutoCloseBottleMatch,
 } from './chatClassificationHelpers';
 import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
@@ -389,7 +389,8 @@ export const useChatStore = create<ChatState>()(
         const now = customTimestamp ?? Date.now();
         const todayDateStr = getLocalDateString(new Date(now));
         let updatedMessages = [...get().messages];
-        updatedMessages = await closePreviousActivity(updatedMessages, now);
+        const { messages: afterClose, closedMessage } = closePreviousActivityLocal(updatedMessages, now);
+        if (closedMessage && updatedMessages.find(m => m.id === closedMessage.id)?.isActive) void runAutoCloseBottleMatch(closedMessage); updatedMessages = afterClose;
         const classifiedByRule = !options?.activityTypeOverride
           ? classifyRecordActivityType(content, resolveLangForText(content))
           : null;
@@ -634,9 +635,7 @@ export const useChatStore = create<ChatState>()(
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
-
         const duration = resolveAutoActivityDurationMinutes(target.timestamp, Date.now());
-
         set(state => ({
           messages: state.messages.map(m =>
             m.id === id ? { ...m, duration, isActive: false } : m
