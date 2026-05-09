@@ -7,7 +7,13 @@
 	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>zh-Hans</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+		<string>en</string>
+		<string>it</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Seeday</string>
 	<key>CFBundleExecutable</key>
@@ -66,6 +72,8 @@
 	<string>Seeday needs camera access to take photos for your records.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Seeday needs photo library access to add images to your records.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Seeday needs permission to save photos to your library.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Seeday sends reminders during your routine to help you record your day.</string>
 </dict>

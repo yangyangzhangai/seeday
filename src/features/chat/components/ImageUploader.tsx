@@ -3,8 +3,6 @@ import React, { useRef, useState, useEffect, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
-import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useImageUpload } from '../../../hooks/useImageUpload';
 import { ImageCropModal } from './ImageCropModal';
 
@@ -58,31 +56,10 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
     return () => document.removeEventListener('mousedown', handler);
   }, [imageTapped]);
 
-  const openNativeCamera = async () => {
-    if (readonly || imageUrl || uploading) return;
-    try {
-      const photo = await CapCamera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Prompt,
-      });
-      if (!photo.dataUrl) return;
-      const res = await fetch(photo.dataUrl);
-      const blob = await res.blob();
-      setCropFile(new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' }));
-    } catch {
-      // user cancelled
-    }
-  };
 
   const openFilePicker = () => {
     if (readonly || imageUrl || uploading) return;
-    if (Capacitor.isNativePlatform()) {
-      void openNativeCamera();
-    } else {
-      inputRef.current?.click();
-    }
+    inputRef.current?.click();
   };
 
   useImperativeHandle(ref, () => ({ openFilePicker }), [readonly, imageUrl, uploading]);

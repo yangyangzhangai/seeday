@@ -1,3 +1,4 @@
 "NSCameraUsageDescription" = "Seeday needs camera access to take photos for your records.";
 "NSPhotoLibraryUsageDescription" = "Seeday needs photo library access to add images to your records.";
+"NSPhotoLibraryAddUsageDescription" = "Seeday needs permission to save photos to your library.";
 "NSUserNotificationsUsageDescription" = "Seeday sends reminders during your routine to help you record your day.";
