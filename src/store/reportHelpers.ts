@@ -15,7 +15,7 @@ import {
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 import type { Message } from './useChatStore';
 import type { Todo } from './useTodoStore';
-import { moodKeyToLegacyLabel, normalizeMoodKey } from '../lib/moodOptions';
+import { getMoodLabelByLang, normalizeMoodKey } from '../lib/moodOptions';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
 type ActionCategory = ActivityRecordType;
@@ -203,14 +203,19 @@ export function generateActionSummary(
   const labels = ACTION_CATEGORY_LABELS[lang];
   const encouragement = ACTION_CATEGORY_ENCOURAGEMENT[lang];
 
+  const pct = Math.round(top.percent * 100);
   const parts: string[] = [];
   if (lang === 'zh') {
-    parts.push(`今天你的行动重心在「${labels[top.category]}」，约${Math.round(top.percent * 100)}%。`);
+    parts.push(`今天你的行动重心在「${labels[top.category]}」，约${pct}%。`);
     if (second) parts.push(`其次是「${labels[second.category]}」，节奏平衡。`);
     parts.push(encouragement[top.category]);
     parts.push('继续保持这份诚实与投入，明天也会更好。');
+  } else if (lang === 'it') {
+    parts.push(`Oggi il tuo focus principale era "${labels[top.category]}" (~${pct}%).`);
+    if (second) parts.push(`Seguito da "${labels[second.category]}" — buon equilibrio.`);
+    parts.push(encouragement[top.category]);
   } else {
-    parts.push(`Today your main focus was "${labels[top.category]}" (~${Math.round(top.percent * 100)}%).`);
+    parts.push(`Today your main focus was "${labels[top.category]}" (~${pct}%).`);
     if (second) parts.push(`"${labels[second.category]}" followed — good balance.`);
     parts.push(encouragement[top.category]);
   }
@@ -308,18 +313,21 @@ export function generateMoodSummary(
   const top = moodDistribution[0];
   const second = moodDistribution[1];
 
-  const topMoodKey = normalizeMoodKey(top.mood);
-  const secondMoodKey = second ? normalizeMoodKey(second.mood) : undefined;
-  const topMoodLabel = topMoodKey ? moodKeyToLegacyLabel(topMoodKey) : top.mood;
-  const secondMoodLabel = second ? (secondMoodKey ? moodKeyToLegacyLabel(secondMoodKey) : second.mood) : undefined;
+  const topMoodLabel = getMoodLabelByLang(top.mood, lang);
+  const secondMoodLabel = second ? getMoodLabelByLang(second.mood, lang) : undefined;
 
+  const pct = Math.round((top.minutes / totalMinutes) * 100);
   const parts: string[] = [];
   if (lang === 'zh') {
-    parts.push(`今天你的情绪主色调是「${topMoodLabel}」，约${Math.round((top.minutes / totalMinutes) * 100)}%。`);
+    parts.push(`今天你的情绪主色调是「${topMoodLabel}」，约${pct}%。`);
     if (secondMoodLabel) parts.push(`同时也有「${secondMoodLabel}」穿插其间，节奏自然。`);
     parts.push('谢谢你真诚地记录心情，每一步都不白费。愿你在照顾感受的同时，继续把自己放在第一位。');
+  } else if (lang === 'it') {
+    parts.push(`Il tuo stato d'animo principale oggi era "${topMoodLabel}" (~${pct}%).`);
+    if (secondMoodLabel) parts.push(`Anche "${secondMoodLabel}" si è intrecciato — ritmo naturale.`);
+    parts.push('Grazie per aver registrato i tuoi sentimenti con onestà. Ogni passo conta.');
   } else {
-    parts.push(`Your main mood today was "${topMoodLabel}" (~${Math.round((top.minutes / totalMinutes) * 100)}%).`);
+    parts.push(`Your main mood today was "${topMoodLabel}" (~${pct}%).`);
     if (secondMoodLabel) parts.push(`"${secondMoodLabel}" also weaved through — natural rhythm.`);
     parts.push('Thank you for recording your feelings honestly. Every step counts.');
   }
