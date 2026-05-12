@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon';
 
 export const MOOD_KEYS = [
   'happy',
@@ -67,4 +68,34 @@ export function getMoodDisplayLabel(value: string | undefined, t: TFunction): st
   const key = getMoodI18nKey(value);
   if (!key) return value || '';
   return t(key);
+}
+
+const KEY_TO_LABEL_BY_LANG: Record<SupportedLang, Record<MoodKey, string>> = {
+  zh: KEY_TO_LEGACY_LABEL,
+  en: {
+    happy: 'Happy',
+    calm: 'Calm',
+    focused: 'Focused',
+    satisfied: 'Satisfied',
+    tired: 'Tired',
+    anxious: 'Anxious',
+    bored: 'Bored',
+    down: 'Down',
+  },
+  it: {
+    happy: 'Felice',
+    calm: 'Calmo',
+    focused: 'Concentrato',
+    satisfied: 'Soddisfatto',
+    tired: 'Stanco',
+    anxious: 'Ansioso',
+    bored: 'Annoiato',
+    down: 'Giù',
+  },
+};
+
+export function getMoodLabelByLang(value: string | undefined, lang: SupportedLang): string {
+  const key = normalizeMoodKey(value);
+  if (!key) return value || '';
+  return KEY_TO_LABEL_BY_LANG[lang][key];
 }
