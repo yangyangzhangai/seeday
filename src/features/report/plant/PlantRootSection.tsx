@@ -315,7 +315,12 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
         reportId = await generateReport('daily', today.getTime());
       }
       await generateAIDiary(reportId);
-      setDiaryStatusHint(t('report_generate_success'));
+      const updatedReport = useReportStore.getState().reports.find(r => r.id === reportId);
+      if (updatedReport?.analysisStatus === 'error') {
+        setDiaryStatusHint(t('plant_generate_failed'));
+      } else {
+        setDiaryStatusHint(t('report_generate_success'));
+      }
     } catch {
       setDiaryStatusHint(t('plant_generate_failed'));
     } finally {

@@ -98,9 +98,27 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
         backgroundColor: null,
         useCORS: true,
       });
+      const filename = `plant-${plant.date}-${flipped ? 'roots' : 'plant'}.png`;
+      // iOS WKWebView: use Web Share API to save to Photos
+      if (typeof navigator.share === 'function') {
+        await new Promise<void>((resolve, reject) => {
+          canvas.toBlob(async (blob) => {
+            if (!blob) { reject(new Error('blob null')); return; }
+            const file = new File([blob], filename, { type: 'image/png' });
+            try {
+              await navigator.share({ files: [file] });
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          }, 'image/png');
+        });
+        return;
+      }
+      // Web fallback
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `plant-${plant.date}-${flipped ? 'roots' : 'plant'}.png`;
+      link.download = filename;
       link.href = url;
       link.click();
     } catch (err) {
@@ -202,7 +220,6 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               width: 290,
               aspectRatio: '3 / 4',
               pointerEvents: 'none',
-              opacity: 0,
             }}
           >
             <div
