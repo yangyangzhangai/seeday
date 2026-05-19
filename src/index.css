@@ -151,7 +151,8 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   padding-left: var(--app-modal-gutter-x);
   padding-right: var(--app-modal-gutter-x-right);
   padding-top: var(--app-modal-gutter-top);
-  padding-bottom: var(--app-modal-gutter-bottom);
+  padding-bottom: calc(var(--app-modal-gutter-bottom) + var(--keyboard-height, 0px));
+  transition: padding-bottom 180ms ease-out;
 }
 
 .app-modal-card {

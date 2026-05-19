@@ -162,6 +162,34 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(cached[1].isActive).toBe(true);
   });
 
+  it('keeps date cache in sync when manually ending an activity', async () => {
+    const startedAt = 1_700_000_000_000;
+    const endedAt = startedAt + 12 * 60 * 1000;
+    const dateKey = getLocalDateString(new Date(startedAt));
+    const activity: Message = {
+      id: 'activity-manual-end',
+      content: '写方案',
+      timestamp: startedAt,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work_study',
+      isActive: true,
+      duration: undefined,
+    };
+    resetChatStore([activity]);
+    useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(endedAt);
+
+    await useChatStore.getState().endActivity(activity.id);
+
+    nowSpy.mockRestore();
+    const state = useChatStore.getState();
+    expect(state.messages[0].duration).toBe(12);
+    expect(state.messages[0].isActive).toBe(false);
+    expect(state.dateCache[dateKey][0].duration).toBe(12);
+    expect(state.dateCache[dateKey][0].isActive).toBe(false);
+  });
+
   it('keeps offline chat message as pending and enqueues outbox replay', async () => {
     await useChatStore.getState().sendMessage('离线记录', 1_700_000_000_000);
 

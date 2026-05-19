@@ -95,6 +95,55 @@ export const REMINDER_COPY: Record<AiCompanionMode, Record<ReminderType, string>
   },
 };
 
+type ReminderCopyLang = 'zh' | 'en' | 'it';
+
+const LOCALIZED_REMINDER_COPY: Record<Exclude<ReminderCopyLang, 'zh'>, Record<ReminderType, string>> = {
+  en: {
+    work_start: '{name}, Starting work now?',
+    lunch_start: '{name}, Time for lunch?',
+    lunch_end: '{name}, Heading back after lunch?',
+    work_end: '{name}, Wrapping up work?',
+    class_morning_start: '{name}, Is your morning class starting?',
+    class_morning_end: '{name}, Is your morning class over?',
+    class_afternoon_start: '{name}, Is your afternoon class starting?',
+    class_afternoon_end: '{name}, Is your afternoon class over?',
+    class_evening_start: '{name}, Starting evening study?',
+    class_evening_end: '{name}, Done with evening study?',
+    wake: '{name}, Good morning. Are you up?',
+    sleep: '{name}, Ready to sleep?',
+    meal_lunch: '{name}, Going for lunch?',
+    meal_dinner: '{name}, Dinner time.',
+    evening_check: 'How was today? View your diary or grow a plant.',
+    weekend_morning_check: 'Good weekend morning. What are you doing?',
+    weekend_afternoon_check: 'Good afternoon. Having a nice weekend?',
+    weekend_evening_check: "Weekend evening check-in. Want to view today's diary?",
+    idle_nudge: 'Long time no see. Anything you want to tell me today?',
+    session_check: 'You logged {activity} 3 hours ago. Still doing it?',
+  },
+  it: {
+    work_start: '{name}, Inizi a lavorare adesso?',
+    lunch_start: '{name}, È ora di pranzo?',
+    lunch_end: '{name}, Torni dopo pranzo?',
+    work_end: '{name}, Stai chiudendo il lavoro?',
+    class_morning_start: '{name}, Sta iniziando la lezione del mattino?',
+    class_morning_end: '{name}, È finita la lezione del mattino?',
+    class_afternoon_start: '{name}, Sta iniziando la lezione del pomeriggio?',
+    class_afternoon_end: '{name}, È finita la lezione del pomeriggio?',
+    class_evening_start: '{name}, Inizi lo studio serale?',
+    class_evening_end: '{name}, Hai finito lo studio serale?',
+    wake: '{name}, Buongiorno. Ti sei svegliato?',
+    sleep: '{name}, Pronto per dormire?',
+    meal_lunch: '{name}, Vai a pranzo?',
+    meal_dinner: '{name}, È ora di cena.',
+    evening_check: "Com'è andata oggi? Guarda il diario o fai crescere una pianta.",
+    weekend_morning_check: 'Buon weekend. Cosa stai facendo?',
+    weekend_afternoon_check: 'Buon pomeriggio. Ti stai godendo il weekend?',
+    weekend_evening_check: 'Check-in della sera del weekend. Vuoi vedere il diario di oggi?',
+    idle_nudge: "Non ci vediamo da un po'. Vuoi raccontarmi qualcosa oggi?",
+    session_check: 'Hai registrato {activity} 3 ore fa. Stai ancora continuando?',
+  },
+};
+
 type ReminderActionHint = {
   activityKey: string;
   mode: 'start' | 'end';
@@ -117,13 +166,20 @@ const REMINDER_ACTION_HINTS: Partial<Record<ReminderType, ReminderActionHint>> =
   sleep: { activityKey: 'reminder_hint_noun_rest', mode: 'end' },
 };
 
+function getReminderCopyLang(): ReminderCopyLang {
+  const lang = (i18next.language || 'zh').toLowerCase();
+  if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('it')) return 'it';
+  return 'zh';
+}
+
 function buildReminderActionHintCopy(
   type: ReminderType,
   vars: { name?: string },
 ): string | null {
   const hint = REMINDER_ACTION_HINTS[type];
   if (!hint) return null;
-  const lang = i18next.language ?? 'zh';
+  const lang = getReminderCopyLang();
   const sep = lang === 'zh' ? '，' : ', ';
   const prefix = vars.name ? `${vars.name}${sep}` : '';
   const activity = i18next.t(hint.activityKey);
@@ -146,7 +202,10 @@ export function getReminderCopy(
   const actionHintCopy = buildReminderActionHintCopy(type, vars);
   if (actionHintCopy) return actionHintCopy;
 
-  const template = REMINDER_COPY[mode]?.[type] ?? REMINDER_COPY.van[type];
+  const lang = getReminderCopyLang();
+  const template = lang === 'zh'
+    ? REMINDER_COPY[mode]?.[type] ?? REMINDER_COPY.van[type]
+    : LOCALIZED_REMINDER_COPY[lang][type];
   return template
     .replace('{name}', vars.name ?? '')
     .replace('{activity}', vars.activity ?? '')

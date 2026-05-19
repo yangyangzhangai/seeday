@@ -636,11 +636,19 @@ export const useChatStore = create<ChatState>()(
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
         const duration = resolveAutoActivityDurationMinutes(target.timestamp, Date.now());
-        set(state => ({
-          messages: state.messages.map(m =>
+        const dateStr = getLocalDateString(new Date(target.timestamp));
+        set(state => {
+          const nextMessages = state.messages.map(m =>
             m.id === id ? { ...m, duration, isActive: false } : m
-          )
-        }));
+          );
+          return {
+            messages: nextMessages,
+            dateCache: pruneDateCache({
+              ...state.dateCache,
+              [dateStr]: projectMessagesForDate(nextMessages, dateStr),
+            }),
+          };
+        });
 
         void getSupabaseSession().then((session) => {
           if (session) {

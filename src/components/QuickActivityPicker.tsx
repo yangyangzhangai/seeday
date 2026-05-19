@@ -63,7 +63,11 @@ export const QuickActivityPicker: React.FC = () => {
       {/* Bottom sheet */}
       <div
         className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border border-white/60 bg-white px-5 pb-10 pt-5"
-        style={{ boxShadow: '0 -8px 32px rgba(15,23,42,0.12)' }}
+        style={{
+          bottom: 'var(--keyboard-height, 0px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
+          boxShadow: '0 -8px 32px rgba(15,23,42,0.12)',
+        }}
       >
         {/* 拖拽把手 */}
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
