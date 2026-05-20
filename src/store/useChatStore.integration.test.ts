@@ -452,7 +452,22 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     ]);
   });
 
-  it('recomputes edited activity mood only when source is auto', async () => {
+  it('keeps the first mood label stable when later auto detection runs again', async () => {
+    useMoodStore.getState().setMood('activity-stable', 'happy', 'auto');
+    useMoodStore.getState().setMood('activity-stable', 'calm', 'auto');
+
+    let moodState = useMoodStore.getState();
+    expect(moodState.activityMood['activity-stable']).toBe('happy');
+    expect(moodState.activityMoodMeta['activity-stable']?.source).toBe('auto');
+
+    useMoodStore.getState().setMood('activity-stable', 'calm', 'manual');
+
+    moodState = useMoodStore.getState();
+    expect(moodState.activityMood['activity-stable']).toBe('calm');
+    expect(moodState.activityMoodMeta['activity-stable']?.source).toBe('manual');
+  });
+
+  it('does not recompute edited activity mood after the first auto label is set', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([
       {
@@ -496,7 +511,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     );
 
     const moodState = useMoodStore.getState();
-    expect(moodState.activityMood['activity-auto']).toBe('happy');
+    expect(moodState.activityMood['activity-auto']).toBe('down');
     expect(moodState.activityMoodMeta['activity-auto']?.source).toBe('auto');
     expect(moodState.activityMood['activity-manual']).toBe('happy');
     expect(moodState.activityMoodMeta['activity-manual']?.source).toBe('manual');

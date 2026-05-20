@@ -229,6 +229,13 @@ export const useMoodStore = create<MoodState>()(
       setMood: (activityId, mood, source) => {
         const normalized = normalizeMoodKey(mood);
         const meta = normalizeMoodAttachmentMeta(source);
+        const current = get();
+        if (
+          meta.source === 'auto' &&
+          (current.activityMood[activityId] !== undefined || current.customMoodApplied[activityId] === true)
+        ) {
+          return;
+        }
         set(state =>
           pruneMoodRecordMaps({
             activityMood: { ...state.activityMood, [activityId]: normalized },
