@@ -26,30 +26,19 @@ export type { ChatState, Message, MoodDescription, YesterdaySummary } from './us
 import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import {
-  applyReclassifyMoodSideEffects,
-  buildRecentReclassifyResult,
-  sendAutoRecognizedInputFlow,
-  buildInsertedActivityResult,
-  buildMessageDurationUpdate,
-  closePreviousActivityLocal,
-  persistReclassifiedMessages,
-  persistInsertedActivityResult,
-  persistMessageDurationUpdate,
-  persistMessageToSupabase,
-  triggerMoodDetection,
+  applyReclassifyMoodSideEffects, buildInsertedActivityResult, buildMessageDurationUpdate,
+  buildRecentReclassifyResult, closePreviousActivityLocal, persistInsertedActivityResult,
+  persistMessageDurationUpdate, persistMessageToSupabase, persistReclassifiedMessages,
+  sendAutoRecognizedInputFlow, triggerMoodDetection,
 } from './chatActions';
 import { useOutboxStore } from './useOutboxStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { applyChatMessageSyncState, mergeCloudMessagesWithLocal, projectMessagesForDate } from './chatSyncHelpers';
 import {
-  clearMessageClassificationTasks,
-  closeCrossDayActiveMessagesInDb,
-  deleteMessageClassificationTask,
-  ensureMessageClassification,
-  keywordMatchBottleId,
-  resolveCurrentLang,
-  resolveLangForText, runAutoCloseBottleMatch,
+  clearMessageClassificationTasks, closeCrossDayActiveMessagesInDb, deleteMessageClassificationTask,
+  ensureMessageClassification, keywordMatchBottleId, resolveCurrentLang, resolveLangForText,
+  runAutoCloseBottleMatch,
 } from './chatClassificationHelpers';
 import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 
