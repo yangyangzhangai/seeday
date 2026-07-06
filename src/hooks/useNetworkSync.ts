@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> src/store/README.md
 import { useEffect } from 'react';
-import { supabase } from '../api/supabase';
+import { logSupabaseAuthDebug, refreshSupabaseSession } from '../lib/supabase-utils';
 import { useChatStore } from '../store/useChatStore';
 import { useTodoStore } from '../store/useTodoStore';
 import { useGrowthStore } from '../store/useGrowthStore';
@@ -37,7 +37,11 @@ export function useNetworkSync(): void {
       if (!user) return;
       // Refresh the session to pick up user_metadata changes made on other devices.
       // TOKEN_REFRESHED fires onAuthStateChange which re-applies preferences.
-      try { await supabase.auth.refreshSession(); } catch { }
+      try {
+        await refreshSupabaseSession('useNetworkSync:foreground');
+      } catch (error) {
+        logSupabaseAuthDebug('useNetworkSync:foreground:refresh:unexpected', error);
+      }
     }
 
     window.addEventListener('online', handleOnline);

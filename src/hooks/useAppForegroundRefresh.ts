@@ -7,6 +7,7 @@ import { useChatStore } from '../store/useChatStore';
 import { useMoodStore } from '../store/useMoodStore';
 import { useReportStore } from '../store/useReportStore';
 import { useOutboxStore } from '../store/useOutboxStore';
+import { logSupabaseAuthDebug, refreshSupabaseSession } from '../lib/supabase-utils';
 
 /**
  * iOS/Android only: when the app returns to foreground, re-fetch core data
@@ -24,10 +25,17 @@ export function useAppForegroundRefresh() {
       if (!isActive) return;
       const userId = useAuthStore.getState().user?.id;
       if (!userId) return;
-      void useOutboxStore.getState().flush(userId).catch(() => {});
-      void useChatStore.getState().fetchMessages();
-      void useMoodStore.getState().fetchMoods();
-      void useReportStore.getState().fetchReports();
+      void (async () => {
+        try {
+          await refreshSupabaseSession('useAppForegroundRefresh:appStateChange');
+        } catch (error) {
+          logSupabaseAuthDebug('useAppForegroundRefresh:appStateChange:refresh:unexpected', error);
+        }
+        void useOutboxStore.getState().flush(userId).catch(() => {});
+        void useChatStore.getState().fetchMessages();
+        void useMoodStore.getState().fetchMoods();
+        void useReportStore.getState().fetchReports();
+      })();
     }).then(l => { handle = l; });
 
     return () => {
