@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/MEMBERSHIP_SPEC.md
 import { callSubscriptionAPI, isApiClientError } from '../../../api/client';
+import { formatUserFacingDiagnostic, logDiagnostic } from '../../../lib/diagnostics';
 import type { PaymentActionResult, PaymentPlan, PaymentPlanType } from '../types';
 
 const IAP_PLANS: PaymentPlan[] = [
@@ -60,19 +61,54 @@ async function callNativeBridge(
   methodName: 'purchaseProduct' | 'restorePurchases',
   options?: Record<string, unknown>,
 ): Promise<unknown> {
+  const startedAt = Date.now();
+  logDiagnostic('info', 'iap.native_bridge.start', {
+    methodName,
+    options,
+    pluginIds: NATIVE_PLUGIN_IDS,
+  });
   const capacitor = readCapacitorRuntime();
   const nativePromise = capacitor?.nativePromise;
-  if (typeof nativePromise !== 'function') return null;
+  if (typeof nativePromise !== 'function') {
+    logDiagnostic('warn', 'iap.native_bridge.missing_native_promise', {
+      methodName,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return null;
+  }
 
   let lastError: unknown = null;
   for (const pluginId of NATIVE_PLUGIN_IDS) {
     try {
-      return await nativePromise(pluginId, methodName, options ?? {});
+      const result = await nativePromise(pluginId, methodName, options ?? {});
+      logDiagnostic('info', 'iap.native_bridge.success', {
+        methodName,
+        pluginId,
+        elapsedMs: Date.now() - startedAt,
+        hasResult: Boolean(result),
+      });
+      return result;
     } catch (error) {
       lastError = error;
       if (!isPluginMissingError(error)) {
+        logDiagnostic('error', 'iap.native_bridge.failed', {
+          methodName,
+          pluginId,
+          elapsedMs: Date.now() - startedAt,
+          error,
+          userFacing: formatUserFacingDiagnostic(`IAP native bridge ${methodName}`, error, {
+            path: `SeedayIAP.${methodName}`,
+            elapsedMs: Date.now() - startedAt,
+          }),
+        });
         throw error;
       }
+      logDiagnostic('warn', 'iap.native_bridge.plugin_missing', {
+        methodName,
+        pluginId,
+        elapsedMs: Date.now() - startedAt,
+        error,
+      });
     }
   }
 
@@ -248,21 +284,50 @@ async function runBridgeRestore(): Promise<IapTransactionLike | null> {
 }
 
 async function runBridgePurchaseWithRecovery(plan: PaymentPlanType): Promise<IapTransactionLike | null> {
+  const startedAt = Date.now();
+  logDiagnostic('info', 'iap.purchase.start', { plan });
   try {
     const purchased = await withTimeout(runBridgePurchase(plan), PURCHASE_BRIDGE_TIMEOUT_MS, 'purchaseProduct');
-    if (purchased) return purchased;
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[IAP] purchase bridge timeout/failure, fallback to restorePurchases', error);
+    if (purchased) {
+      logDiagnostic('info', 'iap.purchase.success', {
+        plan,
+        elapsedMs: Date.now() - startedAt,
+        productId: purchased.productId,
+        hasTransactionId: Boolean(purchased.transactionId),
+      });
+      return purchased;
     }
+  } catch (error) {
+    logDiagnostic('warn', 'iap.purchase.failed_fallback_restore', {
+      plan,
+      elapsedMs: Date.now() - startedAt,
+      error,
+      userFacing: formatUserFacingDiagnostic('IAP purchaseProduct', error, {
+        path: 'purchaseProduct',
+        elapsedMs: Date.now() - startedAt,
+      }),
+    });
   }
 
   try {
-    return await withTimeout(runBridgeRestore(), RESTORE_BRIDGE_TIMEOUT_MS, 'restorePurchases');
+    const restored = await withTimeout(runBridgeRestore(), RESTORE_BRIDGE_TIMEOUT_MS, 'restorePurchases');
+    logDiagnostic(restored ? 'info' : 'warn', 'iap.purchase.restore_fallback.done', {
+      plan,
+      elapsedMs: Date.now() - startedAt,
+      hasTransaction: Boolean(restored),
+      productId: restored?.productId,
+    });
+    return restored;
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[IAP] restore fallback timeout/failure', error);
-    }
+    logDiagnostic('error', 'iap.purchase.restore_fallback.failed', {
+      plan,
+      elapsedMs: Date.now() - startedAt,
+      error,
+      userFacing: formatUserFacingDiagnostic('IAP restorePurchases fallback', error, {
+        path: 'restorePurchases',
+        elapsedMs: Date.now() - startedAt,
+      }),
+    });
     return null;
   }
 }
@@ -292,6 +357,7 @@ export async function finalizePendingCheckout(): Promise<PaymentActionResult> {
 }
 
 export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResult> {
+  const startedAt = Date.now();
   try {
     const transaction = await runBridgePurchaseWithRecovery(plan);
     if (!transaction) {
@@ -301,6 +367,12 @@ export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResu
     const resolvedPlanType = detectPlanTypeByProductId(transaction.productId, plan);
     const resolvedProductId = transaction.productId || IAP_PRODUCT_IDS[resolvedPlanType];
 
+    logDiagnostic('info', 'iap.subscription.activate.start', {
+      plan,
+      resolvedPlanType,
+      productId: resolvedProductId,
+      hasTransactionId: Boolean(transaction.transactionId),
+    });
     const response = await callSubscriptionAPI({
       action: 'activate',
       source: 'iap',
@@ -308,6 +380,15 @@ export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResu
       transactionId: transaction.transactionId,
       originalTransactionId: transaction.originalTransactionId,
       productId: resolvedProductId,
+    });
+    logDiagnostic(response.success ? 'info' : 'warn', 'iap.subscription.activate.done', {
+      plan,
+      resolvedPlanType,
+      productId: resolvedProductId,
+      elapsedMs: Date.now() - startedAt,
+      success: response.success,
+      responsePlan: response.plan,
+      expiresAt: response.expiresAt,
     });
     return {
       success: response.success,
@@ -317,6 +398,15 @@ export async function purchase(plan: PaymentPlanType): Promise<PaymentActionResu
       message: response.success ? undefined : 'activate_failed',
     };
   } catch (error) {
+    logDiagnostic('error', 'iap.purchase.failed', {
+      plan,
+      elapsedMs: Date.now() - startedAt,
+      error,
+      userFacing: formatUserFacingDiagnostic('IAP 订阅购买/激活', error, {
+        path: 'purchase',
+        elapsedMs: Date.now() - startedAt,
+      }),
+    });
     return toActionResult(error);
   }
 }

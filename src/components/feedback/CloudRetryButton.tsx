@@ -7,9 +7,10 @@ interface CloudRetryButtonProps {
   disabled?: boolean;
   className?: string;
   title?: string;
+  label?: string;
 }
 
-export function CloudRetryButton({ onClick, disabled = false, className = '', title }: CloudRetryButtonProps) {
+export function CloudRetryButton({ onClick, disabled = false, className = '', title, label }: CloudRetryButtonProps) {
   const { t } = useTranslation();
 
   return (
@@ -20,7 +21,7 @@ export function CloudRetryButton({ onClick, disabled = false, className = '', ti
       className={`inline-flex items-center gap-1.5 rounded-lg bg-[#A86B2B] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       <Cloud size={14} strokeWidth={2.2} />
-      <span>{t('retry')}</span>
+      <span>{label ?? t('retry')}</span>
     </button>
   );
 }

@@ -32,6 +32,7 @@ export interface LocationMetadataInput {
 export interface AuthState {
   user: any | null;
   loading: boolean;
+  initializationStage: string | null;
   preferences: UserPreferences;
   longTermProfileEnabled: boolean;
   userProfileV2: UserProfileV2 | null;

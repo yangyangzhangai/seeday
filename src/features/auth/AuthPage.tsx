@@ -33,6 +33,7 @@ export const AuthPage: React.FC = () => {
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
   const getErrorMessage = (msg: string) => {
+    if (msg.includes('错误类型：') || msg.includes('requestId：') || msg.startsWith('Supabase Auth')) return msg;
     if (msg.includes('email rate limit exceeded')) return t('auth_error_rate_limit');
     if (msg.includes('Invalid login credentials')) return t('auth_error_invalid_credentials');
     if (msg.includes('User already registered')) return t('auth_error_user_exists');

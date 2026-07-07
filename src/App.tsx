@@ -38,11 +38,44 @@ import { useReminderStore } from './store/useReminderStore';
 import { getReminderCopy } from './services/reminder/reminderCopy';
 import { QuickActivityPicker } from './components/QuickActivityPicker';
 import { CloudRetryButton } from './components/feedback/CloudRetryButton';
-import { useOutboxStore, getOutboxRetryableCount } from './store/useOutboxStore';
+import { useOutboxStore, getOutboxRetrySummary } from './store/useOutboxStore';
+import { formatUserFacingDiagnostic, logDiagnostic } from './lib/diagnostics';
 
-const BlankScreen: React.FC = () => (
-  <div className="fixed inset-0 bg-gray-50" />
-);
+const BlankScreen: React.FC<{ stage?: string }> = ({ stage = 'auth.initialize' }) => {
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+
+  React.useEffect(() => {
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const nextElapsed = Math.round((Date.now() - startedAt) / 1000);
+      setElapsedSeconds(nextElapsed);
+      if (nextElapsed === 8 || nextElapsed === 30 || nextElapsed === 60 || nextElapsed === 120) {
+        logDiagnostic('warn', 'boot.loading_still_waiting', {
+          stage,
+          elapsedSeconds: nextElapsed,
+        });
+      }
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [stage]);
+
+  if (elapsedSeconds < 8) {
+    return <div className="fixed inset-0 bg-gray-50" />;
+  }
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-50 px-6 text-[#4a5d4c]">
+      <div className="max-w-sm rounded-2xl border border-[#4a5d4c]/10 bg-white/80 p-5 text-center shadow-sm">
+        <p className="text-sm font-bold">应用启动仍在等待</p>
+        <p className="mt-2 text-xs leading-relaxed text-[#4a5d4c]/70">
+          当前环节：{stage}；已等待 {elapsedSeconds}s。请保留这次 Xcode 控制台日志，里面会有
+          <span className="font-semibold"> boot.loading_still_waiting </span>
+          和每个网络请求的耗时。
+        </p>
+      </div>
+    </div>
+  );
+};
 
 /** 账号创建不足 72 小时且尚无 profile → 视为新用户需要 onboarding */
 function isNewUserAccount(createdAt?: string | null): boolean {
@@ -54,6 +87,7 @@ function isNewUserAccount(createdAt?: string | null): boolean {
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const initializationStage = useAuthStore(state => state.initializationStage);
   const userProfileV2 = useAuthStore(state => state.userProfileV2);
 
   // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
@@ -61,7 +95,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
     return children;
   }
 
-  if (loading) return <BlankScreen />;
+  if (loading) return <BlankScreen stage={initializationStage ?? 'RequireAuth:auth.loading'} />;
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
@@ -78,9 +112,10 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
 const OnboardingRoute: React.FC = () => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const initializationStage = useAuthStore(state => state.initializationStage);
   const userProfileV2 = useAuthStore(state => state.userProfileV2);
 
-  if (loading) return <BlankScreen />;
+  if (loading) return <BlankScreen stage={initializationStage ?? 'OnboardingRoute:auth.loading'} />;
 
   // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
   if (!user) {
@@ -98,8 +133,9 @@ const OnboardingRoute: React.FC = () => {
 const RequireTelemetryAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
+  const initializationStage = useAuthStore(state => state.initializationStage);
 
-  if (loading) return <BlankScreen />;
+  if (loading) return <BlankScreen stage={initializationStage ?? 'RequireTelemetryAdmin:auth.loading'} />;
   if (!user) return <Navigate to="/auth" replace />;
   if (!isTelemetryAdmin(user)) return <Navigate to="/profile" replace />;
   return children;
@@ -132,7 +168,7 @@ const MainLayout = () => {
   const messages = useChatStore(state => state.messages);
   const currentAnnotation = useAnnotationStore(state => state.currentAnnotation);
   const user = useAuthStore(state => state.user);
-  const outboxRetryCount = useOutboxStore((state) => getOutboxRetryableCount(state.entries));
+  const outboxRetrySummary = useOutboxStore((state) => getOutboxRetrySummary(state.entries));
   const retryOutboxNow = useOutboxStore((state) => state.retryNow);
   const aiModeEnabled = useAuthStore(state => state.preferences.aiModeEnabled);
   const navigate = useNavigate();
@@ -216,7 +252,7 @@ const MainLayout = () => {
     }
   }, [condenseTargetMessage]);
 
-  const shouldShowOutboxRetry = Boolean(user?.id) && outboxRetryCount > 0 && location.pathname !== '/growth';
+  const shouldShowOutboxRetry = Boolean(user?.id) && outboxRetrySummary.count > 0 && location.pathname !== '/growth';
 
   const handleOutboxRetry = React.useCallback(() => {
     if (!user?.id) return;
@@ -301,6 +337,8 @@ const MainLayout = () => {
           <CloudRetryButton
             onClick={handleOutboxRetry}
             className="pointer-events-auto"
+            label={`同步失败 ${outboxRetrySummary.count}`}
+            title={outboxRetrySummary.title}
           />
         </div>
       ) : null}
@@ -348,7 +386,26 @@ function App() {
   const initializeAuth = useAuthStore(state => state.initialize);
 
   useEffect(() => {
-    initializeAuth();
+    const startedAt = Date.now();
+    logDiagnostic('info', 'auth.initialize.start');
+    initializeAuth()
+      .then(() => {
+        logDiagnostic('info', 'auth.initialize.success', {
+          elapsedMs: Date.now() - startedAt,
+        });
+      })
+      .catch((error) => {
+        const elapsedMs = Date.now() - startedAt;
+        logDiagnostic('error', 'auth.initialize.failed', {
+          elapsedMs,
+          error,
+          userFacing: formatUserFacingDiagnostic('应用启动认证初始化', error, {
+            path: 'useAuthStore.initialize',
+            elapsedMs,
+          }),
+        });
+        useAuthStore.setState({ loading: false });
+      });
   }, [initializeAuth]);
 
   // Multi-device realtime sync: subscribes when signed in, unsubscribes on sign-out

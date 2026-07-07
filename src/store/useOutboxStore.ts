@@ -12,6 +12,7 @@ import type { Message } from './useChatStore.types';
 import type { Report } from './useReportStore';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import { isMultiAccountIsolationV2Enabled, readActiveStorageScope } from './storageScope';
+import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const OUTBOX_COOLDOWN_MS = 60 * 60 * 1000;
@@ -146,7 +147,7 @@ async function executeMoodEntry(entry: MoodOutboxEntry, userId: string): Promise
     { user_id: userId, message_id: entry.payload.messageId, ...entry.payload.patch },
     { onConflict: 'user_id,message_id' },
   );
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 async function executeFocusEntry(entry: FocusOutboxEntry, userId: string): Promise<void> {
@@ -159,21 +160,21 @@ async function executeFocusEntry(entry: FocusOutboxEntry, userId: string): Promi
     set_duration: entry.payload.setDuration,
     actual_duration: entry.payload.actualDuration,
   }]);
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 async function executeReportEntry(entry: ReportOutboxEntry, userId: string): Promise<void> {
   const { error } = await supabase
     .from('reports')
     .upsert([toDbReport(entry.payload.report, userId)], { onConflict: 'id' });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 async function executeAnnotationEntry(entry: AnnotationOutboxEntry, userId: string): Promise<void> {
   const { error } = await supabase
     .from('annotations')
     .insert([toDbAnnotation(entry.payload.annotation, userId)]);
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 async function executeAnnotationOutcomeEntry(entry: AnnotationOutcomeOutboxEntry, userId: string): Promise<void> {
@@ -182,7 +183,7 @@ async function executeAnnotationOutcomeEntry(entry: AnnotationOutcomeOutboxEntry
     .update({ suggestion_accepted: entry.payload.accepted })
     .eq('id', entry.payload.annotationId)
     .eq('user_id', userId);
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 async function executeChatEntry(entry: ChatOutboxEntry, userId: string): Promise<void> {
@@ -190,7 +191,7 @@ async function executeChatEntry(entry: ChatOutboxEntry, userId: string): Promise
   const { error } = await supabase
     .from('messages')
     .upsert([toDbMessage(entry.payload.message, userId)], { onConflict: 'id' });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -212,7 +213,7 @@ async function executeImageReuploadEntry(entry: ImageReuploadOutboxEntry, userId
   const { error } = await supabase.storage
     .from('seeday-images')
     .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   const { data } = supabase.storage.from('seeday-images').getPublicUrl(path);
   if (!data.publicUrl) throw new Error('no public URL');
   await useChatStore.getState().updateMessageImage(entry.payload.messageId, entry.payload.slot, data.publicUrl);
@@ -221,7 +222,7 @@ async function executeImageReuploadEntry(entry: ImageReuploadOutboxEntry, userId
 async function executePreferenceUpsertEntry(entry: PreferenceUpsertOutboxEntry, _userId: string): Promise<void> {
   const { patchUserMetadata } = await import('./authMetadataQueue');
   const { error } = await patchUserMetadata(entry.payload);
-  if (error) throw new Error(error instanceof Error ? error.message : String(error));
+  if (error) throw error;
 }
 
 async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, userId: string): Promise<void> {
@@ -229,7 +230,7 @@ async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, user
     .from('plant_direction_config')
     .delete()
     .eq('user_id', userId);
-  if (deleteError) throw new Error(deleteError.message);
+  if (deleteError) throw deleteError;
 
   const payload = entry.payload.order.map((categoryKey, index) => ({
     user_id: userId,
@@ -240,7 +241,7 @@ async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, user
   const { error: insertError } = await supabase
     .from('plant_direction_config')
     .insert(payload);
-  if (insertError) throw new Error(insertError.message);
+  if (insertError) throw insertError;
 }
 
 async function updateChatMessageSyncStatus(entry: ChatOutboxEntry, status: 'pending' | 'failed' | 'synced', error?: string): Promise<void> {
@@ -269,7 +270,43 @@ const outboxExecutors: Record<OutboxEntry['kind'], OutboxExecutor> = {
 };
 
 function normalizeErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error ?? 'outbox_flush_failed');
+  return formatUserFacingDiagnostic('云端同步队列', error, {
+    path: 'outbox.flush',
+  });
+}
+
+function describeOutboxEntry(entry: OutboxEntry): Record<string, unknown> {
+  const base = {
+    entryId: entry.id,
+    kind: entry.kind,
+    attempts: entry.attempts,
+    consecutiveFailures: entry.consecutiveFailures,
+    status: entry.status,
+    nextRetryAt: entry.nextRetryAt ? new Date(entry.nextRetryAt).toISOString() : null,
+    lastError: entry.lastError ?? null,
+  };
+  if (entry.kind === 'chat.upsert') {
+    return { ...base, table: 'messages', operation: 'upsert', messageId: entry.payload.message.id };
+  }
+  if (entry.kind === 'mood.upsert') {
+    return { ...base, table: 'moods', operation: 'upsert', messageId: entry.payload.messageId };
+  }
+  if (entry.kind === 'focus.insert') {
+    return { ...base, table: 'focus_sessions', operation: 'insert', focusSessionId: entry.payload.id };
+  }
+  if (entry.kind === 'report.upsert') {
+    return { ...base, table: 'reports', operation: 'upsert', reportId: entry.payload.report.id };
+  }
+  if (entry.kind === 'annotation.insert' || entry.kind === 'annotation.outcome') {
+    return { ...base, table: 'annotations', operation: entry.kind === 'annotation.insert' ? 'insert' : 'update' };
+  }
+  if (entry.kind === 'plant.directionOrder') {
+    return { ...base, table: 'plant_direction_config', operation: 'replace' };
+  }
+  if (entry.kind === 'image.reupload') {
+    return { ...base, bucket: 'seeday-images', operation: 'upload', messageId: entry.payload.messageId, slot: entry.payload.slot };
+  }
+  return { ...base, operation: 'metadata.update' };
 }
 
 interface OutboxState {
@@ -304,6 +341,15 @@ export const useOutboxStore = create<OutboxState>()(
             } as OutboxEntry,
           ],
         }));
+        logDiagnostic('warn', 'outbox.enqueue', {
+          entry: describeOutboxEntry({
+            ...entry,
+            id,
+            attempts: 0,
+            consecutiveFailures: entry.consecutiveFailures ?? 0,
+            status: 'pending',
+          } as OutboxEntry),
+        });
         return id;
       },
       markFailed: (id, error, attempts) => {
@@ -334,6 +380,10 @@ export const useOutboxStore = create<OutboxState>()(
         if (isMultiAccountIsolationV2Enabled()) {
           const activeScope = readActiveStorageScope();
           if (activeScope.type !== 'user' || activeScope.userId !== resolvedUserId) {
+            logDiagnostic('warn', 'outbox.flush.skipped_scope_mismatch', {
+              requestedUserId: resolvedUserId,
+              activeScope,
+            });
             return;
           }
         }
@@ -345,14 +395,25 @@ export const useOutboxStore = create<OutboxState>()(
         ));
         if (snapshot.length === 0) return;
 
+        const flushStartedAt = Date.now();
+        logDiagnostic('info', 'outbox.flush.start', {
+          userId: resolvedUserId,
+          entryCount: snapshot.length,
+          entries: snapshot.map(describeOutboxEntry),
+        });
+
         for (const entry of snapshot) {
           const executor = outboxExecutors[entry.kind];
-          if (!executor) {
-            get().markFailed(entry.id, `Unsupported outbox kind: ${entry.kind}`, MAX_OUTBOX_ATTEMPTS);
-            continue;
-          }
+            if (!executor) {
+              get().markFailed(entry.id, `Unsupported outbox kind: ${entry.kind}`, MAX_OUTBOX_ATTEMPTS);
+              logDiagnostic('error', 'outbox.entry.unsupported', {
+                entry: describeOutboxEntry(entry),
+              });
+              continue;
+            }
 
-          try {
+            try {
+            const entryStartedAt = Date.now();
             if (entry.status === 'cooldown') {
               set((state) => ({
                 entries: state.entries.map((item) => (
@@ -363,6 +424,10 @@ export const useOutboxStore = create<OutboxState>()(
               }));
             }
             await executor(entry, resolvedUserId);
+            logDiagnostic('info', 'outbox.entry.success', {
+              elapsedMs: Date.now() - entryStartedAt,
+              entry: describeOutboxEntry(entry),
+            });
             if (entry.kind === 'chat.upsert') {
               await updateChatMessageSyncStatus(entry as ChatOutboxEntry, 'synced');
             }
@@ -371,6 +436,13 @@ export const useOutboxStore = create<OutboxState>()(
             const nextAttempts = entry.attempts + 1;
             const nextError = normalizeErrorMessage(error);
             get().markFailed(entry.id, nextError, nextAttempts);
+            logDiagnostic('error', 'outbox.entry.failed', {
+              nextAttempts,
+              userId: resolvedUserId,
+              entry: describeOutboxEntry(entry),
+              error,
+              userFacing: nextError,
+            });
             if (entry.kind === 'chat.upsert') {
               await updateChatMessageSyncStatus(
                 entry as ChatOutboxEntry,
@@ -380,8 +452,17 @@ export const useOutboxStore = create<OutboxState>()(
             }
           }
         }
+        logDiagnostic('info', 'outbox.flush.done', {
+          elapsedMs: Date.now() - flushStartedAt,
+          userId: resolvedUserId,
+          entryCount: snapshot.length,
+        });
       },
       retryNow: async (userId) => {
+        logDiagnostic('info', 'outbox.retry_now.clicked', {
+          userId: userId ?? null,
+          entries: get().entries.map(describeOutboxEntry),
+        });
         set((state) => ({
           entries: state.entries.map((entry) => (
             entry.status === 'failed' || entry.status === 'cooldown'
@@ -408,6 +489,30 @@ export const useOutboxStore = create<OutboxState>()(
 
 export function getOutboxRetryableCount(entries: OutboxEntry[]): number {
   return entries.filter((entry) => entry.status === 'failed' || entry.status === 'cooldown').length;
+}
+
+export function getOutboxRetrySummary(entries: OutboxEntry[]): {
+  count: number;
+  title: string;
+  latest: OutboxEntry | null;
+} {
+  const retryable = entries.filter((entry) => entry.status === 'failed' || entry.status === 'cooldown');
+  const latest = retryable[retryable.length - 1] ?? null;
+  if (!latest) {
+    return { count: 0, title: '', latest: null };
+  }
+  const nextRetry = latest.nextRetryAt ? new Date(latest.nextRetryAt).toLocaleString() : 'manual';
+  return {
+    count: retryable.length,
+    latest,
+    title: [
+      `云端同步失败：${latest.kind}`,
+      `状态：${latest.status}`,
+      `尝试次数：${latest.attempts}`,
+      `下次重试：${nextRetry}`,
+      latest.lastError ? `最后错误：${latest.lastError}` : null,
+    ].filter(Boolean).join('\n'),
+  };
 }
 
 export function setOutboxExecutorForTests(kind: OutboxEntry['kind'], executor: OutboxExecutor): void {

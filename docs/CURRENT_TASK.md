@@ -1,9 +1,11 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-05-01
+Last Updated: 2026-07-07
 Owner: current working session
 
 Session Notes:
+
+- 2026-07-07: Supabase/iOS startup diagnostics round 1: app initialization now opens after session restore + storage scope + local cache rehydrate, while cloud refresh, local-to-cloud sync, outbox flush, streak, and deletion checks run in background with per-stage diagnostics. Added request timing/requestId logging for Supabase and `/api/*`, detailed auth/outbox/payment/chat diagnostics, and user-visible failure messages for startup/error-boundary/retry surfaces. Next step: extend the same requestId + structured logs to remaining Vercel endpoints and add business-level logs to Todo/Growth/Report/Mood stores plus native iOS WebView startup logs.
 
 - 2026-05-05: 日记长度与 Agnes 输出结构收口：`/api/diary` 新增长度最高优先规则（随语言限制正文长度）并在服务端增加超长兜底裁剪（保留落款）；Agnes 三语 diary prompt 删除“正文后【】小标题板块”要求，改为单段正文；Report 日记观察区补滚动兜底避免长文被裁切
 - 2026-05-05: Magic Pen 时间冲突规则回调：允许与已完成活动重叠写入（交给 `insertActivity` 自动切分），禁止与进行中活动重叠；batch 内重叠仅标记后一条，修复“与其他条目时间重叠”导致频繁写入失败

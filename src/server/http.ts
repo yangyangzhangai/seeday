@@ -7,7 +7,8 @@ export function applyCors(res: VercelResponse, methods: HttpMethod[] = ['POST'])
   const allowMethods = [...methods, 'OPTIONS'].join(', ');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', allowMethods);
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Tshine-Request-Id');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Tshine-Request-Id, X-Magic-Pen-Trace-Id');
 }
 
 export function handlePreflight(req: VercelRequest, res: VercelResponse): boolean {

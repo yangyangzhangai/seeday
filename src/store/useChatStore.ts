@@ -26,9 +26,8 @@ export type { ChatState, Message, MoodDescription, YesterdaySummary } from './us
 import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import {
-  applyReclassifyMoodSideEffects, buildInsertedActivityResult, buildMessageDurationUpdate,
-  buildRecentReclassifyResult, closePreviousActivityLocal, persistInsertedActivityResult,
-  persistMessageDurationUpdate, persistMessageToSupabase, persistReclassifiedMessages,
+  applyReclassifyMoodSideEffects, buildRecentReclassifyResult, closePreviousActivityLocal,
+  persistMessageToSupabase, persistReclassifiedMessages,
   sendAutoRecognizedInputFlow, triggerMoodDetection,
 } from './chatActions';
 import { useOutboxStore } from './useOutboxStore';
@@ -36,11 +35,12 @@ import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { applyChatMessageSyncState, mergeCloudMessagesWithLocal, projectMessagesForDate } from './chatSyncHelpers';
 import {
-  clearMessageClassificationTasks, closeCrossDayActiveMessagesInDb, deleteMessageClassificationTask,
+  clearMessageClassificationTasks, closeCrossDayActiveMessagesInDb,
   ensureMessageClassification, keywordMatchBottleId, resolveCurrentLang, resolveLangForText,
   runAutoCloseBottleMatch,
 } from './chatClassificationHelpers';
 import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
+import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 
 const filterLegacyChatRows = <T extends { activity_type?: string | null }>(rows: T[]): T[] => rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
 export const useChatStore = create<ChatState>()(
@@ -85,9 +85,13 @@ export const useChatStore = create<ChatState>()(
           try {
             await closeCrossDayActiveMessagesInDb(session.user.id, nowMs);
           } catch (closeError) {
-            if (import.meta.env.DEV) {
-              console.warn('[fetchMessages] closeCrossDayActiveMessagesInDb failed, continue fetching:', closeError);
-            }
+            logDiagnostic('warn', 'chat.fetch.close_cross_day_failed_continue', {
+              userId: session.user.id,
+              error: closeError,
+              userFacing: formatUserFacingDiagnostic('关闭跨天活动', closeError, {
+                path: 'messages.update:is_active',
+              }),
+            });
           }
 
           const todayStart = new Date();
@@ -179,7 +183,13 @@ export const useChatStore = create<ChatState>()(
             dateCache: prunedCache,
           });
         } catch (error) {
-          import.meta.env.DEV && console.error('Error fetching messages:', error);
+          logDiagnostic('error', 'chat.fetch_messages.failed', {
+            userId: session.user.id,
+            error,
+            userFacing: formatUserFacingDiagnostic('加载当天云端消息', error, {
+              path: 'messages.select:today',
+            }),
+          });
         } finally {
           set({ isLoading: false, hasInitialized: true });
         }
@@ -215,7 +225,13 @@ export const useChatStore = create<ChatState>()(
             yesterdaySummary: null,
           }));
         } catch (error) {
-          import.meta.env.DEV && console.error('Error fetching older messages:', error);
+          logDiagnostic('error', 'chat.fetch_older_messages.failed', {
+            userId: session.user.id,
+            error,
+            userFacing: formatUserFacingDiagnostic('加载更早云端消息', error, {
+              path: 'messages.select:older',
+            }),
+          });
         } finally {
           set({ isLoadingMore: false });
         }
@@ -417,6 +433,9 @@ export const useChatStore = create<ChatState>()(
           // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
           void useTimingStore.getState().endActive(session.user.id);
         })().catch((error) => {
+          const userFacingError = formatUserFacingDiagnostic('消息保存到 Supabase', error, {
+            path: 'messages.upsert',
+          });
           useOutboxStore.getState().enqueue({
             kind: 'chat.upsert',
             payload: { message: newMessage },
@@ -426,11 +445,13 @@ export const useChatStore = create<ChatState>()(
             state as ChatState,
             newMessage.id,
             'pending',
-            error instanceof Error ? error.message : 'chat_sync_pending',
+            userFacingError,
           ));
-          if (import.meta.env.DEV) {
-            console.warn('[sendMessage] background sync skipped:', error);
-          }
+          logDiagnostic('error', 'chat.send_message.cloud_sync_failed_queued', {
+            messageId: newMessage.id,
+            error,
+            userFacing: userFacingError,
+          });
         });
         if (!options?.skipMoodDetection) {
           void triggerMoodDetection(newMessage.id, content, 'auto', resolveCurrentLang());
@@ -553,70 +574,6 @@ export const useChatStore = create<ChatState>()(
         const session = await getSupabaseSession();
         if (session) {
           await persistReclassifiedMessages(session.user.id, result.patches);
-        }
-      },
-
-      insertActivity: async (prevId, nextId, content, startTime, endTime) => {
-        const state = get();
-        const { finalMessages, messagesToInsert, messagesToUpdate } = buildInsertedActivityResult(
-          state.messages,
-          content,
-          startTime,
-          endTime,
-          resolveCurrentLang(),
-        );
-
-        set({ messages: finalMessages });
-        const insertedPrimary = messagesToInsert[0];
-
-        const session = await getSupabaseSession();
-        if (session) {
-          await persistInsertedActivityResult(session.user.id, messagesToInsert, messagesToUpdate);
-        }
-
-        if (insertedPrimary && !useMoodStore.getState().getMood(insertedPrimary.id)) {
-          useMoodStore.getState().setMood(
-            insertedPrimary.id,
-            autoDetectMood(insertedPrimary.content, insertedPrimary.duration ?? 0, resolveLangForText(insertedPrimary.content)),
-            'auto',
-          );
-        }
-      },
-
-      updateActivity: async (id, content, startTime, endTime) => {
-        const duration = Math.round((endTime - startTime) / (1000 * 60));
-
-        set(state => ({
-          messages: state.messages.map(m =>
-            m.id === id
-              ? {
-                ...m,
-                content,
-                timestamp: startTime,
-                duration,
-                activityType: m.mode === 'record' && !m.isMood
-                  ? classifyRecordActivityType(content, resolveLangForText(content)).activityType
-                  : m.activityType,
-              }
-              : m
-          ).sort((a, b) => a.timestamp - b.timestamp)
-        }));
-
-        const session = await getSupabaseSession();
-        if (session) {
-          await supabase.from('messages').update({
-            content,
-            timestamp: startTime,
-            duration,
-            activity_type: classifyRecordActivityType(content, resolveLangForText(content)).activityType,
-          }).eq('id', id).eq('user_id', session.user.id);
-        }
-
-        const moodStore = useMoodStore.getState();
-        const moodMeta = moodStore.activityMoodMeta[id];
-        const isCustomApplied = moodStore.customMoodApplied[id] === true;
-        if (moodMeta?.source === 'auto' && !isCustomApplied) {
-          moodStore.setMood(id, autoDetectMood(content, duration, resolveLangForText(content)), 'auto');
         }
       },
 
@@ -785,68 +742,6 @@ export const useChatStore = create<ChatState>()(
         });
       },
 
-      deleteActivity: async (id) => {
-        deleteMessageClassificationTask(id);
-        const reward = useTodoStore.getState().consumeBottleStarRewardByMessage(id);
-        if (reward) {
-          useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
-        }
-        set(state => ({
-          messages: state.messages.filter(m => m.id !== id)
-        }));
-
-        const session = await getSupabaseSession();
-        if (session) {
-          await supabase.from('messages').delete().eq('id', id).eq('user_id', session.user.id);
-        }
-      },
-      updateMessageDuration: async (content: string, timestamp: number, duration: number) => {
-        const state = get();
-
-        const { updatedMessages, targetMessage } = buildMessageDurationUpdate(
-          state.messages,
-          content,
-          timestamp,
-          duration,
-        );
-
-        if (!targetMessage) {
-          return;
-        }
-        set({ messages: updatedMessages });
-        const session = await getSupabaseSession();
-        if (session) {
-          await persistMessageDurationUpdate(session.user.id, targetMessage.id, duration);
-        }
-      },
-      updateMessageImage: async (id, slot, url) => {
-        const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
-        set(state => ({
-          messages: state.messages.map(m =>
-            m.id === id ? { ...m, [slot]: url } : m,
-          ),
-        }));
-        const session = await getSupabaseSession();
-        if (session) {
-          await supabase
-            .from('messages')
-            .update({ [dbCol]: url })
-            .eq('id', id)
-            .eq('user_id', session.user.id);
-        }
-      },
-      detachMoodMessage: async (moodId: string) => {
-        const parentId = get().messages.find(m => m.moodDescriptions?.some(d => d.id === moodId))?.id;
-        get().detachMoodFromEvent(parentId ?? '', moodId); // state: detached:true + remove from moodDescriptions
-        const session = await getSupabaseSession();
-        if (!session) return;
-        const mood = get().messages.find(m => m.id === moodId);
-        if (mood) await persistMessageToSupabase(mood, session.user.id, true);
-        if (parentId) {
-          const parent = get().messages.find(m => m.id === parentId);
-          if (parent) await persistMessageToSupabase(parent, session.user.id);
-        }
-      },
       sendMood: async (content: string, options?: { relatedActivityId?: string }) => {
         const now = Date.now();
         const relatedActivityId = options?.relatedActivityId;
@@ -940,6 +835,9 @@ export const useChatStore = create<ChatState>()(
             if (updated) await persistMessageToSupabase(updated, session.user.id);
           }
         })().catch((error) => {
+          const userFacingError = formatUserFacingDiagnostic('心情消息保存到 Supabase', error, {
+            path: 'messages.upsert:mood',
+          });
           useOutboxStore.getState().enqueue({
             kind: 'chat.upsert',
             payload: { message: isCrossDay ? { ...newMessage, detached: true } : newMessage },
@@ -949,11 +847,13 @@ export const useChatStore = create<ChatState>()(
             state as ChatState,
             newMessage.id,
             'pending',
-            error instanceof Error ? error.message : 'chat_sync_pending',
+            userFacingError,
           ));
-          if (import.meta.env.DEV) {
-            console.warn('[sendMood] background sync skipped:', error);
-          }
+          logDiagnostic('error', 'chat.send_mood.cloud_sync_failed_queued', {
+            messageId: newMessage.id,
+            error,
+            userFacing: userFacingError,
+          });
         });
         return newMessage.id;
       },

@@ -4,6 +4,21 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-07
+
+### Fix: Supabase/iOS startup diagnostics and local-first boot
+
+- `src/store/useAuthStore.ts`: changed initialization to open the app after session restore, storage scope setup, and local cache rehydrate; cloud refresh, local-to-cloud sync, outbox flush, activity streak, and deletion checks now run in background with per-stage diagnostics.
+- `src/store/authStoreRuntimeHelpers.ts` and `src/store/authDataSyncHelpers.ts`: added domain/table-level diagnostics for cloud refresh and local-to-cloud sync so failures show which business area/table failed.
+- `src/lib/diagnostics.ts`, `src/api/client.ts`, `src/api/supabase.ts`, `src/main.tsx`, `src/App.tsx`, and feedback/auth/payment/chat paths: added request timing, requestId, runtime context, retry details, startup/error-boundary diagnostics, and clearer user-visible failure messages.
+- `api/subscription.ts` and `src/server/http.ts`: added requestId propagation for subscription/API responses.
+- `docs/CURRENT_TASK.md`: updated the session anchor and next diagnostic steps.
+
+Validation:
+
+- `.\node_modules\.bin\tsc.cmd --noEmit`
+- `git diff --check`
+
 ## 2026-05-05
 
 ### Fix: 日记超长截断与 Agnes 小标题板块移除

@@ -29,6 +29,7 @@ import {
 } from './storageScope';
 import { useStardustStore } from './useStardustStore';
 import { useTodoStore } from './useTodoStore';
+import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 
 const DOMAIN_FETCH_FRESHNESS_MS = 60_000;
 const ANNOTATION_DAILY_LIMIT_BY_DROP_RATE: Record<AnnotationDropRate, number> = {
@@ -154,7 +155,47 @@ function shouldFetchDomain(lastFetchedAt: number | null | undefined): boolean {
   return Date.now() - lastFetchedAt > DOMAIN_FETCH_FRESHNESS_MS;
 }
 
-export function refreshDomainStoresForSession(userId: string): void {
+async function runDomainRefreshStep(
+  domain: string,
+  userId: string,
+  shouldRun: boolean,
+  task: () => Promise<void>,
+): Promise<void> {
+  if (!shouldRun) {
+    logDiagnostic('debug', 'auth.domain_refresh.skipped_fresh', {
+      domain,
+      userId,
+    });
+    return;
+  }
+
+  const startedAt = Date.now();
+  logDiagnostic('info', 'auth.domain_refresh.start', {
+    domain,
+    userId,
+  });
+  try {
+    await task();
+    logDiagnostic('info', 'auth.domain_refresh.success', {
+      domain,
+      userId,
+      elapsedMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    logDiagnostic('error', 'auth.domain_refresh.failed', {
+      domain,
+      userId,
+      elapsedMs: Date.now() - startedAt,
+      error,
+      userFacing: formatUserFacingDiagnostic(`云端模块刷新 ${domain}`, error, {
+        path: `refreshDomainStoresForSession:${domain}`,
+        elapsedMs: Date.now() - startedAt,
+      }),
+    });
+  }
+}
+
+export async function refreshDomainStoresForSession(userId: string): Promise<void> {
   const annotationStore = useAnnotationStore.getState();
   const chatStore = useChatStore.getState();
   const todoStore = useTodoStore.getState();
@@ -163,24 +204,35 @@ export function refreshDomainStoresForSession(userId: string): void {
   const growthStore = useGrowthStore.getState();
   const focusStore = useFocusStore.getState();
   const stardustStore = useStardustStore.getState();
-  void useOutboxStore.getState().flush(userId).catch(() => {});
-  void Promise.all([
-    shouldFetchDomain(annotationStore.lastFetchedAt) ? annotationStore.fetchAnnotations() : Promise.resolve(),
-    shouldFetchDomain(chatStore.lastFetchedAt) ? chatStore.fetchMessages() : Promise.resolve(),
-    shouldFetchDomain(todoStore.lastFetchedAt) ? todoStore.fetchTodos() : Promise.resolve(),
-    shouldFetchDomain(reportStore.lastFetchedAt) ? reportStore.fetchReports() : Promise.resolve(),
-    shouldFetchDomain(moodStore.lastFetchedAt) ? moodStore.fetchMoods() : Promise.resolve(),
-    shouldFetchDomain(growthStore.lastFetchedAt) ? growthStore.fetchBottles() : Promise.resolve(),
-    focusStore.recoverSessionAfterHydration().then(() => (
-      shouldFetchDomain(focusStore.lastFetchedAt) ? focusStore.fetchSessions() : Promise.resolve()
-    )),
-  ]).catch(() => {});
-  void Promise.resolve().then(async () => {
-    await stardustStore.syncPendingStardusts();
-    if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
-      await stardustStore.fetchStardusts();
-    }
-  }).catch(() => {});
+  const startedAt = Date.now();
+  logDiagnostic('info', 'auth.domain_refresh.all.start', { userId });
+
+  await Promise.allSettled([
+    runDomainRefreshStep('outbox', userId, true, () => useOutboxStore.getState().flush(userId)),
+    runDomainRefreshStep('annotations', userId, shouldFetchDomain(annotationStore.lastFetchedAt), () => annotationStore.fetchAnnotations()),
+    runDomainRefreshStep('chat_messages', userId, shouldFetchDomain(chatStore.lastFetchedAt), () => chatStore.fetchMessages()),
+    runDomainRefreshStep('todos', userId, shouldFetchDomain(todoStore.lastFetchedAt), () => todoStore.fetchTodos()),
+    runDomainRefreshStep('reports', userId, shouldFetchDomain(reportStore.lastFetchedAt), () => reportStore.fetchReports()),
+    runDomainRefreshStep('moods', userId, shouldFetchDomain(moodStore.lastFetchedAt), () => moodStore.fetchMoods()),
+    runDomainRefreshStep('growth_bottles', userId, shouldFetchDomain(growthStore.lastFetchedAt), () => growthStore.fetchBottles()),
+    runDomainRefreshStep('focus_sessions', userId, true, async () => {
+      await focusStore.recoverSessionAfterHydration();
+      if (shouldFetchDomain(focusStore.lastFetchedAt)) {
+        await focusStore.fetchSessions();
+      }
+    }),
+    runDomainRefreshStep('stardust', userId, true, async () => {
+      await stardustStore.syncPendingStardusts();
+      if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
+        await stardustStore.fetchStardusts();
+      }
+    }),
+  ]);
+
+  logDiagnostic('info', 'auth.domain_refresh.all.done', {
+    userId,
+    elapsedMs: Date.now() - startedAt,
+  });
 }
 
 export function hasAnyLocalDataToMigrate(): boolean {

@@ -7,6 +7,11 @@
 
 import { normalizeAiCompanionMode, type AiCompanionMode } from '../lib/aiCompanion';
 import { getSupabaseSession } from '../lib/supabase-utils';
+import {
+  createInstrumentedFetch,
+  formatUserFacingDiagnostic,
+  logDiagnostic,
+} from '../lib/diagnostics';
 import { useAuthStore } from '../store/useAuthStore';
 import type { UserProfileV2 } from '../types/userProfile';
 import type {
@@ -35,6 +40,7 @@ const configuredApiBase = String(import.meta.env.VITE_API_BASE ?? '')
   .trim()
   .replace(/\/+$/, '');
 const API_BASE = configuredApiBase || '/api';
+const apiFetch = createInstrumentedFetch('vercel-api');
 
 interface ApiErrorShape {
   code?: string;
@@ -117,7 +123,9 @@ function previewApiText(value: unknown, maxLength: number = 160): string {
   return `${head} ... ${tail}`;
 }
 
-function logApiDebug(_step: string, _payload: Record<string, unknown>): void {}
+function logApiDebug(step: string, payload: Record<string, unknown>): void {
+  logDiagnostic(step.endsWith('.error') ? 'warn' : 'info', `api.${step}`, payload);
+}
 
 function inferApiErrorCode(status: number | undefined, rawCode: unknown, rawMessage: string): ApiErrorCode {
   const normalizedCode = typeof rawCode === 'string' ? rawCode.trim().toLowerCase() : '';
@@ -175,17 +183,29 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await apiFetch(`${API_BASE}${path}`, {
       ...(init ?? {}),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Tshine-Request-Id': requestId,
         ...(init?.headers ?? {}),
       },
       body: JSON.stringify(body),
     });
   } catch (error) {
-    throw new ApiClientError('Network error', {
+    const elapsedMs = Date.now() - startedAt;
+    logApiDebug('request.network_error', {
+      requestId,
+      path,
+      elapsedMs,
+      error,
+    });
+    throw new ApiClientError(formatUserFacingDiagnostic(`Vercel API ${path}`, error, {
+      requestId,
+      path,
+      elapsedMs,
+    }), {
       code: 'network_error',
       path,
       requestId,
@@ -218,13 +238,21 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
       error: message,
       responsePreview: previewApiText(responseText),
     });
+    const detailedMessage = formatUserFacingDiagnostic(`Vercel API ${path}`, message, {
+      status: response.status,
+      code: error.code,
+      requestId,
+      traceId,
+      path,
+      elapsedMs,
+    });
     throw buildApiClientError({
       path,
       requestId,
       status: response.status,
       details: error.details,
       code: error.code,
-      message,
+      message: detailedMessage,
       traceId,
     });
   }
@@ -243,7 +271,12 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
       path,
       requestId,
       status: response.status,
-      message: `Invalid JSON response from ${path}`,
+      message: formatUserFacingDiagnostic(`Vercel API ${path}`, 'Invalid JSON response', {
+        status: response.status,
+        requestId,
+        traceId,
+        path,
+      }),
       traceId,
     });
   }
@@ -261,12 +294,27 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await apiFetch(`${API_BASE}${path}`, {
       method: 'GET',
       ...(init ?? {}),
+      headers: {
+        'X-Tshine-Request-Id': requestId,
+        ...(init?.headers ?? {}),
+      },
     });
   } catch (error) {
-    throw new ApiClientError('Network error', {
+    const elapsedMs = Date.now() - startedAt;
+    logApiDebug('request.network_error', {
+      requestId,
+      path,
+      elapsedMs,
+      error,
+    });
+    throw new ApiClientError(formatUserFacingDiagnostic(`Vercel API ${path}`, error, {
+      requestId,
+      path,
+      elapsedMs,
+    }), {
       code: 'network_error',
       path,
       requestId,
@@ -297,13 +345,20 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
       error: message,
       responsePreview: previewApiText(responseText),
     });
+    const detailedMessage = formatUserFacingDiagnostic(`Vercel API ${path}`, message, {
+      status: response.status,
+      code: error.code,
+      requestId,
+      path,
+      elapsedMs,
+    });
     throw buildApiClientError({
       path,
       requestId,
       status: response.status,
       details: error.details,
       code: error.code,
-      message,
+      message: detailedMessage,
     });
   }
 
@@ -312,7 +367,11 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
       path,
       requestId,
       status: response.status,
-      message: `Invalid JSON response from ${path}`,
+      message: formatUserFacingDiagnostic(`Vercel API ${path}`, 'Invalid JSON response', {
+        status: response.status,
+        requestId,
+        path,
+      }),
     });
   }
 

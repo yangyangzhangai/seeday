@@ -10,7 +10,32 @@ import "./index.css";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/feedback/ErrorBoundary.tsx";
 import { setupMobileAuthBridge } from "./lib/mobileAuthBridge";
+import { getAppRuntimeContext, logDiagnostic } from "./lib/diagnostics";
 import { setupKeyboardViewportFix } from "./services/native/keyboardService";
+
+logDiagnostic('info', 'boot.main.loaded', {
+  context: getAppRuntimeContext(),
+});
+
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (event) => {
+    logDiagnostic('error', 'boot.window.error', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error,
+      context: getAppRuntimeContext(),
+    });
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    logDiagnostic('error', 'boot.window.unhandled_rejection', {
+      reason: event.reason,
+      context: getAppRuntimeContext(),
+    });
+  });
+}
 
 if (typeof document !== "undefined") {
   const root = document.documentElement;
@@ -26,8 +51,12 @@ if (typeof document !== "undefined") {
   }
 }
 
-void setupMobileAuthBridge();
-void setupKeyboardViewportFix();
+void setupMobileAuthBridge()
+  .then(() => logDiagnostic('info', 'boot.mobile_auth_bridge.ready'))
+  .catch((error) => logDiagnostic('error', 'boot.mobile_auth_bridge.failed', { error }));
+void setupKeyboardViewportFix()
+  .then(() => logDiagnostic('info', 'boot.keyboard_viewport.ready'))
+  .catch((error) => logDiagnostic('error', 'boot.keyboard_viewport.failed', { error }));
 
 if (typeof document !== "undefined") {
   const preventDefault = (event: Event) => {
@@ -48,7 +77,12 @@ if (typeof document !== "undefined") {
 }
 
 import { preloadSounds } from './services/sound/soundService';
-preloadSounds();
+try {
+  preloadSounds();
+  logDiagnostic('info', 'boot.sounds.preloaded');
+} catch (error) {
+  logDiagnostic('warn', 'boot.sounds.preload_failed', { error });
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -57,3 +91,5 @@ createRoot(document.getElementById("root")!).render(
     </ErrorBoundary>
   </StrictMode>
 );
+
+logDiagnostic('info', 'boot.react.render_called');

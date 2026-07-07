@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
 import i18n from '../i18n';
 import { supabase } from '../api/supabase';
+import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 import { persistLanguageToLocalStorage, normalizeUiLanguage } from './authLanguageHelpers';
 import { markLocalDataOwnerAnonymous } from './authLocalOwnerHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
@@ -33,6 +34,58 @@ import { resolveStorageScopeForUser } from './storageScope';
 type AuthSet = (patch: Partial<AuthState>) => void;
 type AuthGet = () => AuthState;
 
+function decorateAuthError(operation: string, error: any, elapsedMs: number): any {
+  if (!error) return null;
+  const detailed = formatUserFacingDiagnostic(`Supabase Auth ${operation}`, error, {
+    path: operation,
+    status: typeof error.status === 'number' ? error.status : undefined,
+    code: typeof error.code === 'string' || typeof error.code === 'number' ? error.code : undefined,
+    elapsedMs,
+  });
+  const nextError = new Error(detailed);
+  Object.assign(nextError, {
+    originalMessage: error.message,
+    status: error.status,
+    code: error.code,
+    name: error.name || 'SupabaseAuthError',
+  });
+  return nextError;
+}
+
+async function runAuthAction<T>(
+  operation: string,
+  fn: () => Promise<{ data?: T; error: any }>,
+): Promise<{ data?: T; error: any }> {
+  const startedAt = Date.now();
+  logDiagnostic('info', 'auth.action.start', { operation });
+  try {
+    const result = await fn();
+    const elapsedMs = Date.now() - startedAt;
+    if (result.error) {
+      const decorated = decorateAuthError(operation, result.error, elapsedMs);
+      logDiagnostic('warn', 'auth.action.failed', {
+        operation,
+        elapsedMs,
+        error: result.error,
+        userFacing: decorated?.message,
+      });
+      return { ...result, error: decorated };
+    }
+    logDiagnostic('info', 'auth.action.success', { operation, elapsedMs });
+    return result;
+  } catch (error: any) {
+    const elapsedMs = Date.now() - startedAt;
+    const decorated = decorateAuthError(operation, error, elapsedMs);
+    logDiagnostic('error', 'auth.action.threw', {
+      operation,
+      elapsedMs,
+      error,
+      userFacing: decorated?.message,
+    });
+    return { error: decorated ?? error };
+  }
+}
+
 type AccountActionKeys =
   | 'signIn'
   | 'signInWithGoogle'
@@ -53,27 +106,25 @@ type AccountActionKeys =
 export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthState, AccountActionKeys> {
   return {
     signIn: async (email, password) => {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await runAuthAction('signInWithPassword', () => supabase.auth.signInWithPassword({ email, password }));
       return { error };
     },
 
     signInWithGoogle: async () => {
-      try {
-        const redirectTo = resolveOAuthRedirectUrl();
-        const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = resolveOAuthRedirectUrl();
+      const { error } = await runAuthAction('signInWithOAuth:google', () => supabase.auth.signInWithOAuth({
           provider: 'google',
           options: redirectTo ? { redirectTo } : undefined,
-        });
-        return { error };
-      } catch (error: any) {
-        return { error };
-      }
+      }));
+      return { error };
     },
 
     signInWithApple: async () => {
       const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform()) {
         try {
+          const nativeStartedAt = Date.now();
+          logDiagnostic('info', 'auth.apple.native_authorize.start');
           const redirectTo = resolveOAuthRedirectUrl();
           if (!redirectTo || /placeholder\.seeday\.app/i.test(redirectTo)) {
             return { error: new Error('Invalid Apple OAuth redirect URI') };
@@ -84,31 +135,36 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
             redirectURI: redirectTo,
             scopes: 'email name',
           });
+          logDiagnostic('info', 'auth.apple.native_authorize.success', {
+            elapsedMs: Date.now() - nativeStartedAt,
+            hasIdentityToken: Boolean(result.response?.identityToken),
+          });
           const identityToken = result.response?.identityToken;
           if (!identityToken) return { error: new Error('No identity token') };
-          const { error } = await supabase.auth.signInWithIdToken({
+          const { error } = await runAuthAction('signInWithIdToken:apple', () => supabase.auth.signInWithIdToken({
             provider: 'apple',
             token: identityToken,
-          });
+          }));
           return { error };
         } catch (e: any) {
-          return { error: e };
+          const decorated = decorateAuthError('Apple native authorize', e, 0);
+          logDiagnostic('error', 'auth.apple.native_authorize.failed', {
+            error: e,
+            userFacing: decorated?.message,
+          });
+          return { error: decorated ?? e };
         }
       }
-      try {
-        const redirectTo = resolveOAuthRedirectUrl();
-        const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = resolveOAuthRedirectUrl();
+      const { error } = await runAuthAction('signInWithOAuth:apple', () => supabase.auth.signInWithOAuth({
           provider: 'apple',
           options: redirectTo ? { redirectTo } : undefined,
-        });
-        return { error };
-      } catch (error: any) {
-        return { error };
-      }
+      }));
+      return { error };
     },
 
     signUp: async (email, password, nickname, avatarDataUrl) => {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await runAuthAction('signUp', () => supabase.auth.signUp({
         email,
         password,
         options: {
@@ -117,7 +173,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
             avatar_url: avatarDataUrl || null,
           },
         },
-      });
+      }));
       return { error };
     },
 
@@ -127,11 +183,11 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       if (!normalizedEmail || !normalizedCode) {
         return { error: new Error('Invalid verification code') };
       }
-      const { error } = await supabase.auth.verifyOtp({
+      const { error } = await runAuthAction('verifyOtp:signup', () => supabase.auth.verifyOtp({
         email: normalizedEmail,
         token: normalizedCode,
         type: 'signup',
-      });
+      }));
       return { error };
     },
 
@@ -140,10 +196,10 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       if (!normalizedEmail) {
         return { error: new Error('Invalid email') };
       }
-      const { error } = await supabase.auth.resend({
+      const { error } = await runAuthAction('resendOtp:signup', () => supabase.auth.resend({
         type: 'signup',
         email: normalizedEmail,
-      });
+      }));
       return { error };
     },
 

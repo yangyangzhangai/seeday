@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { persistentStorageAdapter } from '../services/native/storageService';
+import { createInstrumentedFetch, logDiagnostic } from '../lib/diagnostics';
 
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94c2J1a29maXBlb2lraXJreXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzMwNTYsImV4cCI6MjA4NTg0OTA1Nn0.IqVYxwU7r45Mj4kSuJlrI3gFw2rfjr-K48lwJbFq5oQ';
 const DEFAULT_SUPABASE_URL = 'https://oxsbukofipeoikirkyyy.supabase.co';
@@ -12,6 +13,15 @@ function resolveSupabaseUrl(): string {
 }
 
 const SUPABASE_URL = resolveSupabaseUrl();
+const supabaseFetch = createInstrumentedFetch('supabase');
+
+logDiagnostic('info', 'supabase.client.init', {
+  url: SUPABASE_URL,
+  hasEnvUrl: Boolean(import.meta.env.VITE_SUPABASE_URL),
+  hasEnvAnonKey: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY),
+  isNative: Capacitor.isNativePlatform(),
+  platform: Capacitor.getPlatform(),
+});
 
 const authLocks = new Map<string, Promise<unknown>>();
 
@@ -37,6 +47,9 @@ async function nativeAuthLock<R>(_name: string, _acquireTimeout: number, fn: () 
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: {
+    fetch: supabaseFetch,
+  },
   auth: {
     storage: persistentStorageAdapter,
     persistSession: true,

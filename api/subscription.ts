@@ -410,13 +410,34 @@ function resolveCancelMembership(): VerifiedMembership {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  const requestStartedAt = Date.now();
+  const requestId = String(req.headers['x-tshine-request-id'] || `subscription-${Date.now().toString(36)}`);
   applyCors(res, ['POST']);
+  res.setHeader('X-Tshine-Request-Id', requestId);
   if (handlePreflight(req, res)) return;
   if (!requireMethod(req, res, 'POST')) return;
 
+  console.info('[subscription] request.start', {
+    requestId,
+    method: req.method,
+    url: req.url,
+    hasAuthorization: Boolean(req.headers.authorization),
+  });
+
   const auth = await requireSupabaseRequestAuth(req, res);
-  if (!auth) return;
+  if (!auth) {
+    console.warn('[subscription] request.auth_failed', {
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+    });
+    return;
+  }
   if (!auth.adminClient) {
+    console.error('[subscription] request.missing_service_role', {
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      userId: auth.user.id,
+    });
     jsonError(res, 500, 'Missing SUPABASE_SERVICE_ROLE_KEY');
     return;
   }
@@ -425,6 +446,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const action = normalizeAction(body.action);
   const source = normalizeSource(body.source);
   const planType = normalizePlanType(body.planType);
+  console.info('[subscription] request.parsed', {
+    requestId,
+    elapsedMs: Date.now() - requestStartedAt,
+    userId: auth.user.id,
+    action,
+    source,
+    planType,
+    hasTransactionId: Boolean(normalizeString(body.transactionId)),
+    productId: normalizeString(body.productId),
+  });
 
   logSubscriptionDebug('[subscription] request — action:', action, 'source:', source, 'planType:', planType,
     'transactionId:', normalizeString(body.transactionId)?.slice(0, 20),
@@ -449,6 +480,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return;
     }
     res.status(200).json({ success: true, alreadyUsed: false });
+    console.info('[subscription] trial.success', {
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      userId: auth.user.id,
+    });
     return;
   }
 
@@ -483,6 +519,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       });
 
       res.status(200).json({ success: true, checkoutUrl });
+      console.info('[subscription] stripe_checkout.success', {
+        requestId,
+        elapsedMs: Date.now() - requestStartedAt,
+        userId: auth.user.id,
+        plan,
+      });
       return;
     }
 
@@ -516,6 +558,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         isPlus: persisted.plan === 'plus',
         expiresAt: persisted.expiresAt,
         verificationEnvironment: membership.environment,
+      });
+      console.info('[subscription] stripe_finalize.success', {
+        requestId,
+        elapsedMs: Date.now() - requestStartedAt,
+        userId: auth.user.id,
+        plan: persisted.plan,
+        source,
       });
       return;
     }
@@ -560,9 +609,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       expiresAt: persisted.expiresAt,
       verificationEnvironment: membership.environment,
     });
+    console.info('[subscription] request.success', {
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      userId: auth.user.id,
+      source,
+      action,
+      plan: persisted.plan,
+      verificationEnvironment: membership.environment,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Subscription operation failed';
-    console.error('[subscription] handler error:', message, error instanceof Error ? error.stack?.split('\n')[1] : '');
+    console.error('[subscription] handler error:', {
+      requestId,
+      elapsedMs: Date.now() - requestStartedAt,
+      action,
+      source,
+      planType,
+      userId: auth.user.id,
+      message,
+      stackTop: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined,
+    });
     jsonError(res, 400, 'Subscription operation failed', message);
   }
 }
