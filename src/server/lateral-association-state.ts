@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { CharacterId, LateralAssociationState } from './lateral-association-sampler.js';
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from './supabase-request-auth.js';
+import { sanitizeAuthMetadataForJwt } from '../lib/authMetadataSanitizer.js';
 
 const stateMap = new Map<string, LateralAssociationState>();
 const USER_METADATA_KEY = 'lateral_association_state_v1';
@@ -147,11 +148,12 @@ export async function saveLateralAssociationState(params: {
       [params.characterId]: cloneState(params.state),
     };
 
+    const nextMetadata = sanitizeAuthMetadataForJwt({
+      ...metadata,
+      [USER_METADATA_KEY]: nextRoot,
+    }).metadata;
     await admin.auth.admin.updateUserById(params.userId, {
-      user_metadata: {
-        ...metadata,
-        [USER_METADATA_KEY]: nextRoot,
-      },
+      user_metadata: nextMetadata,
     });
   } catch {
     return;

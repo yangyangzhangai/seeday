@@ -10,6 +10,7 @@ import type {
   TodayNarrativeCache,
 } from './narrative-density-types.js';
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from './supabase-request-auth.js';
+import { sanitizeAuthMetadataForJwt } from '../lib/authMetadataSanitizer.js';
 
 const stateMap = new Map<string, TodayNarrativeCache>();
 
@@ -120,14 +121,15 @@ export async function saveTodayNarrativeCache(params: {
     const { data } = await admin.auth.admin.getUserById(params.userId);
     const metadata = (data?.user?.user_metadata || {}) as Record<string, unknown>;
     const root = (metadata[NARRATIVE_CACHE_KEY] || {}) as Record<string, unknown>;
-    await admin.auth.admin.updateUserById(params.userId, {
-      user_metadata: {
-        ...metadata,
-        [NARRATIVE_CACHE_KEY]: {
-          ...root,
-          [params.characterId]: params.cache,
-        },
+    const nextMetadata = sanitizeAuthMetadataForJwt({
+      ...metadata,
+      [NARRATIVE_CACHE_KEY]: {
+        ...root,
+        [params.characterId]: params.cache,
       },
+    }).metadata;
+    await admin.auth.admin.updateUserById(params.userId, {
+      user_metadata: nextMetadata,
     });
   } catch {
     return;

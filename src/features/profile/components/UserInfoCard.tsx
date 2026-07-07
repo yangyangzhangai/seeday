@@ -10,6 +10,7 @@ import { cn } from '../../../lib/utils';
 import { APP_MODAL_CARD_CLASS, APP_MODAL_CLOSE_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../../lib/modalTheme';
 import { supabase } from '../../../api/supabase';
 import { ImageCropModal } from '../../chat/components/ImageCropModal';
+import { logDiagnostic } from '../../../lib/diagnostics';
 
 interface Props {
   isPlus: boolean;
@@ -46,6 +47,30 @@ function getLoginDaysFromMeta(user: any): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((item): item is string => typeof item === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item));
 }
+
+async function addCloudLoginDays(userId: string, sinceDate: string, target: Set<string>): Promise<void> {
+  const startedAt = Date.now();
+  const { data, error } = await supabase
+    .from('user_login_days')
+    .select('login_date')
+    .eq('user_id', userId)
+    .gte('login_date', sinceDate);
+
+  if (error) {
+    logDiagnostic('warn', 'profile.login_days.fetch.failed_using_metadata', {
+      userId,
+      sinceDate,
+      elapsedMs: Date.now() - startedAt,
+      error,
+    });
+    return;
+  }
+
+  (data || []).forEach((row) => {
+    if (typeof row.login_date === 'string') target.add(row.login_date);
+  });
+}
+
 function calcTodayActivities(messages: any[]): number {
   const today = toLocalDate(Date.now());
   return messages.filter(
@@ -98,6 +123,7 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
         .eq('is_mood', false)
         .gte('timestamp', sevenDaysAgo.getTime());
 
+      await addCloudLoginDays(user.id, toLocalDate(sevenDaysAgo.getTime()), recentDays);
       (data || []).forEach((row) => recentDays.add(toLocalDate(Number(row.timestamp))));
       if (!cancelled) {
         setWeeklyLoginDays(calcLast7DayCount(recentDays));

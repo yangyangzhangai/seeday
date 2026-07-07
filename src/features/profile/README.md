@@ -12,8 +12,8 @@
   - AI companion selection: 4 personas (`van`, `agnes`, `zep`, `momo`) with free/PLUS tiers
   - AI annotation sensitivity: 3-level drop-rate selector (low/medium/high)
   - Daily goal toggle: enable/disable daily goal popup in `/growth`
-  - Routine settings panel (free): edit wake/sleep/meal-time inputs (`user_metadata.user_profile_v2.manual`)
-  - AI personal memory (Plus-only): enable/disable long-term memory pipeline (`user_metadata.long_term_profile_enabled`) and edit memory free text (`user_metadata.user_profile_v2.manual.freeText`)
+  - Routine settings panel (free): edit wake/sleep/meal-time inputs (`user_profiles.profile.manual`)
+  - AI personal memory (Plus-only): enable/disable long-term memory pipeline (`user_profiles.long_term_profile_enabled`) and edit memory free text (`user_profiles.profile.manual.freeText`)
   - User profile snapshot card: show meal-time hints, upcoming anniversaries, and latest recall moment from `buildUserProfileSnapshot(...)`
   - Plant direction customization: 5-slot mapping of activity categories to plant root positions
   - Membership display: FREE/PLUS tier feature matrix with upgrade CTA
@@ -60,7 +60,7 @@ UpgradePage
 - **Routine settings**: wake/sleep/meal-time fields are editable for all users and persisted in `manual`
 - **AI personal memory**: Plus-only; `isPlus && longTermProfileEnabled` controls whether profile snapshot is injected into annotation/suggestion prompt chain and whether weekly extraction runs
 - **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)
-- **Weekly streak**: calculated from Supabase messages table (7-day login history)
+- **Weekly streak**: calculated from `user_login_days` plus activity fallback for older accounts
 - **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()` with local-first restore, and emits telemetry for open/change/reset/save outcomes
 
 ## Downstream Impact

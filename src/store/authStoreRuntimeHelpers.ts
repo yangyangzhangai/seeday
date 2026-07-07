@@ -5,6 +5,7 @@ import { useAnnotationStore } from './useAnnotationStore';
 import { canAutoMigrateLegacyV1Persist } from './authLocalMigrationPolicy';
 import { readLocalDataOwner } from './authLocalOwnerHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
+import { ensureTodayLoginDayInCloud, normalizeLoginDays } from './authProfileCloudStore';
 import { DEFAULT_PREFERENCES } from './authPreferenceHelpers';
 import type { AnnotationDropRate, MembershipPlan, MembershipState, UserPreferences } from './authStoreTypes';
 import { useChatStore } from './useChatStore';
@@ -264,27 +265,22 @@ export function hasAnyPersistedDomainData(): boolean {
   return false;
 }
 
-function normalizeLoginDays(rawDays: unknown): string[] {
-  if (!Array.isArray(rawDays)) return [];
-  const uniq = new Set(
-    rawDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)),
-  );
-  return Array.from(uniq).sort();
-}
-
 export async function ensureTodayLoginDay(user: any): Promise<any> {
   const today = getTodayDateStr();
   const existingDays = normalizeLoginDays(user?.user_metadata?.login_days);
-  if (existingDays.includes(today)) return user;
-  const nextDays = [...existingDays, today].slice(-90);
-  const { user: updatedUser, error } = await patchUserMetadata({ login_days: nextDays });
-  if (error || !updatedUser) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to persist login_days:', error);
-    }
+  const nextDays = existingDays.includes(today) ? existingDays : [...existingDays, today].slice(-90);
+  try {
+    await ensureTodayLoginDayInCloud(user, today);
+  } catch {
     return user;
   }
-  return updatedUser;
+  return {
+    ...user,
+    user_metadata: {
+      ...(user?.user_metadata || {}),
+      login_days: nextDays,
+    },
+  };
 }
 
 function normalizeMembershipPlan(raw: unknown): MembershipPlan | null {

@@ -51,14 +51,14 @@
 - 待办完成事件已与普通记录分流：`GrowthTodoSection`/`FocusMode` 在完成待办时触发 `activity_completed`，普通输入仍走 `activity_recorded`。
 - 待办完成会透传 `eventData.todoCompletionContext`（importance/recurrence/createdAt/ageDays/bottle/threeMonth），用于让 annotation 感知“这是待办完成”。
 - token 控制策略：仅“特殊待办”附加 `eventData.summary`（单行摘要 + 近 90 天统计）。特殊判定为任一命中：关联瓶子、重复任务（daily/weekly/monthly）、创建 >= 3 天；其余一次性新建轻量待办不附加 summary。
-- 用户画像 v1.1 基建已接入：`useAuthStore` 新增 `longTermProfileEnabled` + `userProfileV2` 状态，并提供 `updateLongTermProfileEnabled()` / `updateUserProfile()`（统一按 `read -> merge -> write` 更新 `user_metadata`，避免覆盖 `login_days`、`lateral_association_state_v1` 等并行字段）。
+- 用户画像 v1.1 基建已接入：`useAuthStore` 新增 `longTermProfileEnabled` + `userProfileV2` 状态，并提供 `updateLongTermProfileEnabled()` / `updateUserProfile()`。2026-07-07 起，`login_days` 改写 `user_login_days`，`user_profile_v2` / `long_term_profile_enabled` 改写 `user_profiles`，Auth metadata 仅作为旧账号迁移兜底，避免 JWT 请求头继续增长。
 - 作息与 AI 专属记忆已拆分：作息字段（`wakeTime/sleepTime/mealTimes`）保持普通功能可编辑，AI 专属记忆（`manual.freeText` + prompt 注入）按 Plus 功能门控。
 - 语言偏好已接入云端同步：`useAuthStore.updateLanguagePreference()` 会将 UI 语言写入 `user_metadata.i18nextLng`；登录初始化与 `SIGNED_IN` 时若云端缺失该 key 会自动回填，若存在则优先云端值并同步到 i18n。
 - suggestion 画像门控已接入：`useAnnotationStore` 在 `isPlus && longTermProfileEnabled=true` 时构建并透传 `userContext.userProfileSnapshot`，并将 declared/observed 饭点注入建议上下文提示检测。
 - 周报触发画像提取已接入：`useReportStore.generateReport('weekly', ...)` 会在 `isPlus && longTermProfileEnabled=true` 时并行调用 `/api/extract-profile`（携带最近消息），并在成功后通过 `useAuthStore.updateUserProfile(...)` 合并写回 `observed/dynamicSignals/anniversariesVisible/hiddenMoments/lastExtractedAt`。
 - suggestion 反馈埋点扩展：当用户接受且该条批注 `narrativeEvent.isTriggeredReply=true` 时，会额外写入 `telemetry_events.event_condensed`（携带 `eventType/eventId`）供低叙事密度质量复盘。
 - `useReportStore.generateAIDiary()` now branches by membership: Plus -> full AI diary (`aiAnalysis`), Free -> teaser copy (`teaserText`) for blur-lock upgrade UI.
-- metadata 并发写已串行化：新增 `authMetadataQueue.ts`，`updateLanguagePreference/updateUserProfile/updateLongTermProfileEnabled/updateAvatar/updatePreferences` 及迁移写入统一走 `patchUserMetadata(...)`，避免 `user_metadata` 覆盖竞争。
+- metadata 并发写已串行化：新增 `authMetadataQueue.ts`，`updateLanguagePreference/updateAvatar/updatePreferences` 及迁移写入统一走 `patchUserMetadata(...)`；画像与登录日期已拆到业务表，减少 `user_metadata` 覆盖竞争和 JWT 体积。
 - `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
 - `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
 - `useAnnotationStore` 持久化新增双重裁剪：`annotations` 仅保留最近 30 天（本地未同步项例外），`characterStateTracker` 仅保留最近 7 天/未过期效果，hydration 时也会再次防御性裁剪。
@@ -77,7 +77,7 @@
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。
-- `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 user metadata / UI，再静默走 `patchUserMetadata()`；Profile 面板不再因为后台 metadata 同步而闪出“Saving...”。
+- `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。

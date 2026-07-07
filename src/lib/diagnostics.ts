@@ -208,6 +208,16 @@ function previewText(value: string, maxLength = 500): string {
   return `${compact.slice(0, maxLength)}...`;
 }
 
+function parseResponseErrorBody(text: string): unknown {
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
 function getRequestUrl(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.toString();
@@ -252,13 +262,18 @@ export function createInstrumentedFetch(source: string): typeof fetch {
       };
 
       if (!response.ok) {
+        let responseErrorBody: unknown = undefined;
         try {
           const text = await response.clone().text();
           responsePayload.responsePreview = previewText(text);
+          responseErrorBody = parseResponseErrorBody(text);
+          if (responseErrorBody !== undefined) {
+            responsePayload.responseError = responseErrorBody;
+          }
         } catch {
           responsePayload.responsePreview = '[unavailable]';
         }
-        const summary = summarizeDiagnosticError(responsePayload.responsePreview, {
+        const summary = summarizeDiagnosticError(responseErrorBody ?? responsePayload.responsePreview, {
           status: response.status,
           requestId,
           path: url,

@@ -1,7 +1,9 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/README.md
 import i18n from '../i18n';
 import { supabase } from '../api/supabase';
+import { isDataUrl, uploadAvatarToStorage } from '../lib/avatarStorage';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
+import { upsertCloudUserProfile } from './authProfileCloudStore';
 import { persistLanguageToLocalStorage, normalizeUiLanguage } from './authLanguageHelpers';
 import { markLocalDataOwnerAnonymous } from './authLocalOwnerHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
@@ -15,9 +17,7 @@ import {
   LONG_TERM_PROFILE_ENABLED_KEY,
   mergeUserProfile,
   parseUserProfileV2,
-  profileStateFromMeta,
   savePendingProfileWrite,
-  USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
 import { fetchActivityStreak } from './authStreakHelpers';
 import {
@@ -33,6 +33,11 @@ import { resolveStorageScopeForUser } from './storageScope';
 
 type AuthSet = (patch: Partial<AuthState>) => void;
 type AuthGet = () => AuthState;
+
+function toCloudAvatarUrl(value?: string | null): string | null {
+  if (!value) return null;
+  return isDataUrl(value) ? null : value;
+}
 
 function decorateAuthError(operation: string, error: any, elapsedMs: number): any {
   if (!error) return null;
@@ -170,7 +175,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         options: {
           data: {
             display_name: nickname || email.split('@')[0],
-            avatar_url: avatarDataUrl || null,
+            avatar_url: toCloudAvatarUrl(avatarDataUrl),
           },
         },
       }));
@@ -247,23 +252,39 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         },
       });
 
-      void patchUserMetadata({ avatar_url: avatarDataUrl })
-        .then(({ user, error }) => {
-          if (!error && user) {
-            set({ user });
-            return;
-          }
-          if (import.meta.env.DEV && error) {
-            console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
-          }
-        })
-        .catch((error) => {
-          if (import.meta.env.DEV) {
-            console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
-          }
+      try {
+        const cloudAvatarUrl = isDataUrl(avatarDataUrl)
+          ? await uploadAvatarToStorage(currentUser.id, avatarDataUrl)
+          : avatarDataUrl;
+        const { user, error } = await patchUserMetadata({ avatar_url: cloudAvatarUrl });
+        if (error) throw error;
+        if (user) {
+          set({
+            user: {
+              ...user,
+              user_metadata: {
+                ...(user.user_metadata || {}),
+                avatar_url: cloudAvatarUrl,
+              },
+            },
+          });
+        }
+        logDiagnostic('info', 'auth.avatar_update.cloud_synced', {
+          userId: currentUser.id,
+          avatarUrlChars: cloudAvatarUrl.length,
         });
-
-      return { error: null };
+        return { error: null };
+      } catch (error) {
+        logDiagnostic('error', 'auth.avatar_update.cloud_sync_failed', {
+          userId: currentUser.id,
+          error,
+          note: 'Local preview was kept. Cloud metadata was not updated with a data URL.',
+        });
+        if (import.meta.env.DEV) {
+          console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);
+        }
+        return { error };
+      }
     },
 
     updateDisplayName: async (displayName: string) => {
@@ -355,37 +376,24 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         return { error: new Error('Not signed in') };
       }
 
-      const patch = {
-        [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
-      };
-
       set({
         user: {
           ...currentUser,
           user_metadata: {
             ...(currentUser.user_metadata || {}),
-            ...patch,
+            [LONG_TERM_PROFILE_ENABLED_KEY]: enabled,
           },
         },
         longTermProfileEnabled: enabled,
       });
 
-      void patchUserMetadata(patch)
-        .then(({ user, error }) => {
-          if (!error && user) {
-            const profileState = profileStateFromMeta(user.user_metadata || {});
-            set({
-              user,
-              longTermProfileEnabled: profileState.longTermProfileEnabled,
-              userProfileV2: profileState.userProfileV2,
-            });
-            return;
-          }
-          if (import.meta.env.DEV && error) {
-            console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
-          }
-        })
+      void upsertCloudUserProfile(currentUser.id, { longTermProfileEnabled: enabled })
         .catch((error) => {
+          logDiagnostic('error', 'auth.profile_cloud.enabled_update.failed', {
+            userId: currentUser.id,
+            enabled,
+            error,
+          });
           if (import.meta.env.DEV) {
             console.warn('[auth] updateLongTermProfileEnabled cloud sync failed (local saved):', error);
           }
@@ -401,7 +409,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       }
 
       const baseMeta: Record<string, any> = currentUser.user_metadata || {};
-      const prev = parseUserProfileV2(baseMeta[USER_PROFILE_METADATA_KEY]);
+      const prev = get().userProfileV2 ?? parseUserProfileV2(baseMeta.user_profile_v2);
       const nextProfile = typeof updater === 'function'
         ? updater(prev)
         : mergeUserProfile(prev, updater);
@@ -409,25 +417,21 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       set({ userProfileV2: nextProfile });
       savePendingProfileWrite(currentUser.id, nextProfile);
 
-      const patch = {
-        [USER_PROFILE_METADATA_KEY]: {
-          ...nextProfile,
-          updatedAt: new Date().toISOString(),
-          createdAt: nextProfile.createdAt || new Date().toISOString(),
-        },
+      const profileToSave = {
+        ...nextProfile,
+        updatedAt: new Date().toISOString(),
+        createdAt: nextProfile.createdAt || new Date().toISOString(),
       };
       const userId = currentUser.id;
-      patchUserMetadata(patch).then(({ user, error }) => {
-        if (!error && user) {
-          const profileState = profileStateFromMeta(user.user_metadata || {});
-          set({
-            user,
-            longTermProfileEnabled: profileState.longTermProfileEnabled,
-            userProfileV2: profileState.userProfileV2,
-          });
-          clearPendingProfileWrite(userId);
-        }
-      }).catch(() => {});
+      upsertCloudUserProfile(userId, { profile: profileToSave }).then(() => {
+        set({ userProfileV2: profileToSave });
+        clearPendingProfileWrite(userId);
+      }).catch((error) => {
+        logDiagnostic('error', 'auth.profile_cloud.profile_update.failed', {
+          userId,
+          error,
+        });
+      });
       return { error: null };
     },
 

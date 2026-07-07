@@ -186,6 +186,7 @@ async function postJson<TReq, TRes>(path: string, body: TReq, init?: RequestInit
     response = await apiFetch(`${API_BASE}${path}`, {
       ...(init ?? {}),
       method: 'POST',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'X-Tshine-Request-Id': requestId,
@@ -297,6 +298,7 @@ async function getJson<TRes>(path: string, init?: RequestInit): Promise<TRes> {
     response = await apiFetch(`${API_BASE}${path}`, {
       method: 'GET',
       ...(init ?? {}),
+      credentials: 'omit',
       headers: {
         'X-Tshine-Request-Id': requestId,
         ...(init?.headers ?? {}),

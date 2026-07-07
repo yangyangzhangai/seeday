@@ -1,6 +1,7 @@
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
+import { sanitizeAuthMetadataForJwt } from '../lib/authMetadataSanitizer';
 
 type MetaPatch = Record<string, unknown>;
 
@@ -36,8 +37,15 @@ export async function patchUserMetadata(patch: MetaPatch): Promise<{ user: any |
     }
 
     const baseMeta = (cachedMetadata || sessionMeta) as Record<string, unknown>;
-    const merged = { ...baseMeta, ...patch };
-    const { data, error } = await supabase.auth.updateUser({ data: merged });
+    const sanitized = sanitizeAuthMetadataForJwt({ ...baseMeta, ...patch });
+    if (sanitized.removedKeys.length > 0) {
+      logDiagnostic('warn', 'auth.metadata.patch.sanitized', {
+        userId: sessionUserId,
+        removedKeys: sanitized.removedKeys,
+        jsonChars: sanitized.jsonChars,
+      });
+    }
+    const { data, error } = await supabase.auth.updateUser({ data: sanitized.metadata });
     if (!error && data?.user?.user_metadata) {
       cachedUserId = data.user.id;
       cachedMetadata = { ...(data.user.user_metadata as Record<string, unknown>) };

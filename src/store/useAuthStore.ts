@@ -38,13 +38,15 @@ import {
 } from './authLocalOwnerHelpers';
 import { resolveLocalDataMigrationDecision } from './authLocalMigrationPolicy';
 import {
-  clearPendingProfileWrite,
   getPendingProfileWrite,
   profileStateFromMeta,
-  USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
-import { patchUserMetadata } from './authMetadataQueue';
+import {
+  fetchCloudUserProfileState,
+  flushPendingProfileWriteToCloud,
+  migrateMetadataProfileToCloud,
+} from './authProfileCloudStore';
 import {
   isMultiAccountIsolationV2Enabled,
   logStorageScopeEvent,
@@ -182,6 +184,11 @@ function runSignedInBackgroundTasks(params: {
     if (error) throw error;
     if (!data?.user) return;
     const freshSnapshot = applyUserSnapshot(set, data.user);
+    const cloudProfileState = await fetchCloudUserProfileState(data.user);
+    set({
+      longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
+      userProfileV2: cloudProfileState.userProfileV2,
+    });
     hydrateGrowthDailyGoalFromMeta(freshSnapshot.meta);
     queuePreferenceSnapshotIfNeeded(freshSnapshot);
     logDiagnostic('info', 'auth.store.get_user.background_done', {
@@ -200,26 +207,29 @@ function runSignedInBackgroundTasks(params: {
     }
 
     const activeUser = get().user ?? updatedLanguageUser;
-    const activeProfileState = profileStateFromMeta(activeUser.user_metadata || {});
-    const pendingProfile = getPendingProfileWrite(activeUser.id);
-    if (pendingProfile && !activeProfileState.userProfileV2) {
-      const { user: updatedUser, error } = await patchUserMetadata({
-        [USER_PROFILE_METADATA_KEY]: {
-          ...pendingProfile,
-          updatedAt: new Date().toISOString(),
-        },
-      });
-      if (error) throw error;
-      if (updatedUser) {
-        const synced = profileStateFromMeta(updatedUser.user_metadata || {});
-        set({ user: updatedUser, userProfileV2: synced.userProfileV2 });
-        clearPendingProfileWrite(activeUser.id);
-      }
+    const migratedProfileState = await migrateMetadataProfileToCloud(activeUser);
+    set({
+      longTermProfileEnabled: migratedProfileState.longTermProfileEnabled,
+      userProfileV2: migratedProfileState.userProfileV2,
+    });
+
+    const flushedProfile = await flushPendingProfileWriteToCloud(activeUser.id);
+    if (flushedProfile) {
+      set({ userProfileV2: flushedProfile });
     }
 
     if (localSnapshot) {
       queuePreferenceSnapshotIfNeeded(localSnapshot);
     }
+  });
+
+  runAuthBackgroundTask(`${source}.cloud_profile_refresh`, async () => {
+    const activeUser = get().user ?? user;
+    const cloudProfileState = await fetchCloudUserProfileState(activeUser);
+    set({
+      longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
+      userProfileV2: cloudProfileState.userProfileV2,
+    });
   });
 
   if (migrationDecision?.action === 'sync_local_to_cloud') {

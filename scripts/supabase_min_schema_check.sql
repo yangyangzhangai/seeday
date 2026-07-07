@@ -75,6 +75,10 @@ with expected(table_name, column_name) as (
     ('todos', 'sort_order'),
     ('todos', 'is_template'),
     ('todos', 'template_id'),
+    ('todos', 'parent_id'),
+    ('todos', 'suggested_duration'),
+    ('todos', 'deleted_at'),
+    ('todos', 'updated_at'),
 
     ('bottles', 'id'),
     ('bottles', 'user_id'),
@@ -111,6 +115,7 @@ with expected(table_name, column_name) as (
     ('reports', 'type'),
     ('reports', 'content'),
     ('reports', 'ai_analysis'),
+    ('reports', 'teaser_text'),
     ('reports', 'user_note'),
     ('reports', 'stats'),
 
@@ -184,6 +189,12 @@ order by e.table_name, e.column_name;
 with expected(table_name, normalized_cols, note) as (
   values
     ('moods', 'user_id,message_id', 'required by upsert(onConflict user_id,message_id)'),
+    ('messages', 'id', 'required by upsert(onConflict id)'),
+    ('todos', 'id', 'required by upsert(onConflict id)'),
+    ('bottles', 'id', 'required by upsert(onConflict id)'),
+    ('focus_sessions', 'id', 'required by upsert(onConflict id)'),
+    ('reports', 'id', 'required by upsert(onConflict id)'),
+    ('stardust_memories', 'id', 'required by upsert(onConflict id)'),
     ('daily_plant_records', 'user_id,date', 'recommended: one daily plant row per user/date'),
     ('plant_direction_config', 'user_id,direction_index', 'recommended: one category per direction slot'),
     ('plant_direction_config', 'user_id,category_key', 'recommended: one slot per category'),

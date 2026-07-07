@@ -19,6 +19,18 @@ Validation:
 - `.\node_modules\.bin\tsc.cmd --noEmit`
 - `git diff --check`
 
+### Fix: Move growing Auth metadata to business tables
+
+- `scripts/migrate_auth_metadata_profile_to_tables.sql`: added `user_login_days` and `user_profiles` schema, RLS policies, metadata backfill, and commented cleanup SQL for removing migrated keys after verification.
+- `src/store/authProfileCloudStore.ts`, `src/store/useAuthStore.ts`, and auth account/runtime helpers: moved `login_days`, `user_profile_v2`, and `long_term_profile_enabled` writes to Supabase tables while keeping Auth metadata as a migration fallback.
+- `src/features/profile/components/UserInfoCard.tsx`: reads recent login days from `user_login_days`, falling back to existing metadata when needed.
+
+Validation:
+
+- `.\node_modules\.bin\tsc.cmd --noEmit`
+- `node ./scripts/check-max-lines.mjs`
+- `git diff --check`
+
 ## 2026-05-05
 
 ### Fix: 日记超长截断与 Agnes 小标题板块移除
