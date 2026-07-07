@@ -1,6 +1,8 @@
 const LARGE_METADATA_KEYS = new Set([
   'today_narrative_cache_v1',
   'lateral_association_state_v1',
+  'user_profile_v2',
+  'login_days',
 ]);
 
 const MAX_AUTH_METADATA_JSON_CHARS = 6000;
@@ -32,10 +34,6 @@ function sanitizeValue(key: string, value: unknown, removedKeys: string[]): unkn
       return undefined;
     }
     return value;
-  }
-
-  if (key === 'login_days' && Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string').slice(-90);
   }
 
   return value;

@@ -11,6 +11,7 @@ export const Header = () => {
   const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -38,8 +39,8 @@ export const Header = () => {
               className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer"
               onClick={() => setShowAvatarModal(true)}
             >
-              {user.user_metadata?.avatar_url ? (
-                <img src={user.user_metadata.avatar_url} alt={t('avatar_alt')} className="w-full h-full object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={t('avatar_alt')} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <User size={18} className="text-gray-400" />
@@ -84,8 +85,8 @@ export const Header = () => {
               <X size={16} />
             </button>
             <div className="w-[min(256px,88vw)] h-[min(256px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
-              {user?.user_metadata?.avatar_url ? (
-                <img src={user.user_metadata.avatar_url} alt={t('avatar_alt')} className="w-full h-full object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={t('avatar_alt')} className="w-full h-full object-cover" />
               ) : (
                 <User size={80} className="text-gray-500" />
               )}

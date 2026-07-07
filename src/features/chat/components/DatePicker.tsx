@@ -168,7 +168,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ selectedDate, onDateChan
     prependPastDates();
   }, [prependPastDates]);
 
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   const handleAvatarCropConfirm = useCallback(async (blob: Blob) => {
     setCropFile(null);

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { supabase } from '../../api/supabase';
+import { patchUserMetadata } from '../../store/authMetadataQueue';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
@@ -34,14 +34,12 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
       const goalDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       setIsSaving(true);
       try {
-        const { data } = await supabase.auth.updateUser({
-          data: {
-            daily_goal: text,
-            daily_goal_date: goalDate,
-          },
+        const { user: updatedUser } = await patchUserMetadata({
+          daily_goal: text,
+          daily_goal_date: goalDate,
         });
-        if (data?.user) {
-          useAuthStore.setState({ user: data.user });
+        if (updatedUser) {
+          useAuthStore.setState({ user: updatedUser });
         }
       } finally {
         setIsSaving(false);

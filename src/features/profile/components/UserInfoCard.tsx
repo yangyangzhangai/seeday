@@ -142,6 +142,8 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
   const displayName =
     user?.user_metadata?.display_name || user?.email?.split('@')[0] || '—';
 
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+
   const handleAvatarClick = () => {
     setShowAvatarModal(true);
     setShowAvatarMenu(false);
@@ -217,9 +219,9 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
             : 'h-[70px] w-[70px] flex-shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-white/90 bg-white p-0 shadow-[0_4px_14px_rgba(148,163,184,0.22)]'}
           onClick={handleAvatarClick}
         >
-          {user?.user_metadata?.avatar_url ? (
+          {avatarUrl ? (
             <img
-              src={user.user_metadata.avatar_url}
+              src={avatarUrl}
               alt="avatar"
               className="w-full h-full object-cover"
             />
@@ -402,9 +404,9 @@ export const UserInfoCard: React.FC<Props> = ({ isPlus }) => {
 
             {/* Full avatar */}
             <div className="h-[min(320px,88vw)] w-[min(320px,88vw)] rounded-2xl overflow-hidden bg-gray-900 shadow-2xl flex items-center justify-center">
-              {user?.user_metadata?.avatar_url ? (
+              {avatarUrl ? (
                 <img
-                  src={user.user_metadata.avatar_url}
+                  src={avatarUrl}
                   alt="avatar large"
                   className="w-full h-full object-cover"
                 />
