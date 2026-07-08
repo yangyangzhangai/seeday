@@ -5,6 +5,7 @@ import { createInstrumentedFetch, logDiagnostic } from '../lib/diagnostics';
 
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94c2J1a29maXBlb2lraXJreXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzMwNTYsImV4cCI6MjA4NTg0OTA1Nn0.IqVYxwU7r45Mj4kSuJlrI3gFw2rfjr-K48lwJbFq5oQ';
 const DEFAULT_SUPABASE_URL = 'https://oxsbukofipeoikirkyyy.supabase.co';
+const SUPABASE_DB_TIMEOUT_MS = 30_000;
 
 function resolveSupabaseUrl(): string {
   const raw = (import.meta.env.VITE_SUPABASE_URL || '').trim();
@@ -47,6 +48,9 @@ async function nativeAuthLock<R>(_name: string, _acquireTimeout: number, fn: () 
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  db: {
+    timeout: SUPABASE_DB_TIMEOUT_MS,
+  },
   global: {
     fetch: supabaseFetch,
   },

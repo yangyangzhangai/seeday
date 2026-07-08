@@ -43,6 +43,7 @@ const PLUS_ANNOTATION_DAILY_LIMIT = 9999;
 const IOS_OAUTH_REDIRECT_URL = (import.meta.env.VITE_IOS_OAUTH_REDIRECT_URL || 'com.seeday.app://auth/callback').trim();
 const PLUS_PLAN_ALIASES = new Set(['plus', 'pro', 'premium', 'vip', 'member', 'paid', 'true', '1', 'yes']);
 const FREE_PLAN_ALIASES = new Set(['free', 'basic', 'trial', 'none', 'false', '0', 'no']);
+const DOMAIN_REFRESH_CONCURRENCY = 2;
 
 export const DEFAULT_MEMBERSHIP_STATE: MembershipState = MEMBERSHIP_TEMPORARY_UNLOCK_ENABLED
   ? { plan: 'plus', isPlus: true, source: 'temporary_unlock' }
@@ -196,6 +197,15 @@ async function runDomainRefreshStep(
   }
 }
 
+async function runDomainRefreshQueue(tasks: Array<() => Promise<void>>, concurrency = DOMAIN_REFRESH_CONCURRENCY): Promise<void> {
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, async (_, workerIndex) => {
+    for (let taskIndex = workerIndex; taskIndex < tasks.length; taskIndex += concurrency) {
+      await tasks[taskIndex]();
+    }
+  });
+  await Promise.allSettled(workers);
+}
+
 export async function refreshDomainStoresForSession(userId: string): Promise<void> {
   const annotationStore = useAnnotationStore.getState();
   const chatStore = useChatStore.getState();
@@ -208,27 +218,29 @@ export async function refreshDomainStoresForSession(userId: string): Promise<voi
   const startedAt = Date.now();
   logDiagnostic('info', 'auth.domain_refresh.all.start', { userId });
 
-  await Promise.allSettled([
-    runDomainRefreshStep('outbox', userId, true, () => useOutboxStore.getState().flush(userId)),
-    runDomainRefreshStep('annotations', userId, shouldFetchDomain(annotationStore.lastFetchedAt), () => annotationStore.fetchAnnotations()),
-    runDomainRefreshStep('chat_messages', userId, shouldFetchDomain(chatStore.lastFetchedAt), () => chatStore.fetchMessages()),
-    runDomainRefreshStep('todos', userId, shouldFetchDomain(todoStore.lastFetchedAt), () => todoStore.fetchTodos()),
-    runDomainRefreshStep('reports', userId, shouldFetchDomain(reportStore.lastFetchedAt), () => reportStore.fetchReports()),
-    runDomainRefreshStep('moods', userId, shouldFetchDomain(moodStore.lastFetchedAt), () => moodStore.fetchMoods()),
-    runDomainRefreshStep('growth_bottles', userId, shouldFetchDomain(growthStore.lastFetchedAt), () => growthStore.fetchBottles()),
-    runDomainRefreshStep('focus_sessions', userId, true, async () => {
+  const refreshTasks = [
+    () => runDomainRefreshStep('outbox', userId, true, () => useOutboxStore.getState().flush(userId)),
+    () => runDomainRefreshStep('chat_messages', userId, shouldFetchDomain(chatStore.lastFetchedAt), () => chatStore.fetchMessages()),
+    () => runDomainRefreshStep('reports', userId, shouldFetchDomain(reportStore.lastFetchedAt), () => reportStore.fetchReports()),
+    () => runDomainRefreshStep('annotations', userId, shouldFetchDomain(annotationStore.lastFetchedAt), () => annotationStore.fetchAnnotations()),
+    () => runDomainRefreshStep('todos', userId, shouldFetchDomain(todoStore.lastFetchedAt), () => todoStore.fetchTodos()),
+    () => runDomainRefreshStep('moods', userId, shouldFetchDomain(moodStore.lastFetchedAt), () => moodStore.fetchMoods()),
+    () => runDomainRefreshStep('growth_bottles', userId, shouldFetchDomain(growthStore.lastFetchedAt), () => growthStore.fetchBottles()),
+    () => runDomainRefreshStep('focus_sessions', userId, true, async () => {
       await focusStore.recoverSessionAfterHydration();
       if (shouldFetchDomain(focusStore.lastFetchedAt)) {
         await focusStore.fetchSessions();
       }
     }),
-    runDomainRefreshStep('stardust', userId, true, async () => {
+    () => runDomainRefreshStep('stardust', userId, true, async () => {
       await stardustStore.syncPendingStardusts();
       if (shouldFetchDomain(stardustStore.lastFetchedAt)) {
         await stardustStore.fetchStardusts();
       }
     }),
-  ]);
+  ];
+
+  await runDomainRefreshQueue(refreshTasks);
 
   logDiagnostic('info', 'auth.domain_refresh.all.done', {
     userId,

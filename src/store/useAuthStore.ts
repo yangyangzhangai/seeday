@@ -237,22 +237,18 @@ function runSignedInBackgroundTasks(params: {
     });
   });
 
-  if (migrationDecision?.action === 'sync_local_to_cloud') {
-    runAuthBackgroundTask(`${source}.local_to_cloud`, async () => {
+  runAuthBackgroundTask(`${source}.data_sync`, async () => {
+    if (migrationDecision?.action === 'sync_local_to_cloud') {
       await syncLocalDataToSupabase(userId, {
         currentUser: get().user ?? user,
         onUserUpdated: (updatedUser) => set({ user: updatedUser }),
       });
-    });
-  }
+    }
 
-  if (migrationDecision?.action !== 'block_unknown_owner') {
-    runAuthBackgroundTask(`${source}.annotation_local_sync`, async () => {
+    if (migrationDecision?.action !== 'block_unknown_owner') {
       await useAnnotationStore.getState().syncLocalAnnotations(userId);
-    });
-  }
+    }
 
-  runAuthBackgroundTask(`${source}.domain_refresh`, async () => {
     await refreshDomainStoresForSession(userId);
   });
 
