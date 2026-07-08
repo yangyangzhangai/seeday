@@ -242,15 +242,17 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         return { error: new Error('Not signed in') };
       }
 
-      set({
-        user: {
-          ...currentUser,
-          user_metadata: {
-            ...(currentUser.user_metadata || {}),
-            avatar_url: avatarDataUrl,
+      if (!isDataUrl(avatarDataUrl)) {
+        set({
+          user: {
+            ...currentUser,
+            user_metadata: {
+              ...(currentUser.user_metadata || {}),
+              avatar_url: avatarDataUrl,
+            },
           },
-        },
-      });
+        });
+      }
 
       try {
         const cloudAvatarUrl = isDataUrl(avatarDataUrl)
@@ -276,7 +278,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         logDiagnostic('error', 'auth.avatar_update.cloud_sync_failed', {
           userId: currentUser.id,
           error,
-          note: 'Local preview was kept. Cloud metadata was not updated with a data URL.',
+          note: 'Auth metadata was not updated with a data URL.',
         });
         if (import.meta.env.DEV) {
           console.warn('[auth] updateAvatar cloud sync failed (local saved):', error);

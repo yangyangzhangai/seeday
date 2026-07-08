@@ -30,7 +30,7 @@ export function normalizeLoginDays(rawDays: unknown): string[] {
 function normalizeCloudAvatarUrl(rawValue: unknown): string | null {
   if (typeof rawValue !== 'string') return null;
   const value = rawValue.trim();
-  if (!value || value.toLowerCase().startsWith('data:')) return null;
+  if (!value || value.toLowerCase().startsWith('data:') || value.length > 2048) return null;
   return value;
 }
 
@@ -45,13 +45,22 @@ function profileStateFromMetadata(user: any): CloudUserProfileState {
 }
 
 export function applyCloudAvatarToUser(user: any, avatarUrl: string | null | undefined): any {
-  if (!user || !avatarUrl) return user;
+  if (!user) return user;
+  const normalizedAvatarUrl = normalizeCloudAvatarUrl(avatarUrl);
+  const metadata = user.user_metadata || {};
+  const hasAuthAvatar = Object.prototype.hasOwnProperty.call(metadata, 'avatar_url');
+  if (!normalizedAvatarUrl && !hasAuthAvatar) return user;
+
+  const nextMetadata = { ...metadata };
+  if (normalizedAvatarUrl) {
+    nextMetadata.avatar_url = normalizedAvatarUrl;
+  } else {
+    delete nextMetadata.avatar_url;
+  }
+
   return {
     ...user,
-    user_metadata: {
-      ...(user.user_metadata || {}),
-      avatar_url: avatarUrl,
-    },
+    user_metadata: nextMetadata,
   };
 }
 

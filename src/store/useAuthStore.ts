@@ -103,18 +103,19 @@ function applyUserSnapshot(
   nextPreferences: UserPreferences;
   pendingProfile: ReturnType<typeof getPendingProfileWrite>;
 } {
-  const meta = user?.user_metadata || {};
-  const rawPreferences = user ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
+  const safeUser = applyCloudAvatarToUser(user, null);
+  const meta = safeUser?.user_metadata || {};
+  const rawPreferences = safeUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
   const profileState = profileStateFromMeta(meta);
-  const membership = resolveMembershipState(user);
+  const membership = resolveMembershipState(safeUser);
   const nextPreferences = normalizePreferencesForMembership(rawPreferences, membership.isPlus);
   syncI18nLanguageFromMeta(meta);
   syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
-  const pendingProfile = user ? getPendingProfileWrite(user.id) : null;
+  const pendingProfile = safeUser ? getPendingProfileWrite(safeUser.id) : null;
   const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
 
   set({
-    user,
+    user: safeUser,
     ...(options.loading !== undefined ? { loading: options.loading } : {}),
     ...(options.initializationStage !== undefined ? { initializationStage: options.initializationStage } : {}),
     preferences: nextPreferences,

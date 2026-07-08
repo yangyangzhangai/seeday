@@ -4,6 +4,7 @@ import { createPrivateKey, createSign } from 'node:crypto';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 import { createStripeCheckoutSession, verifyStripeMembershipBySession } from '../src/server/stripe-subscription.js';
+import { sanitizeAuthMetadataForJwt } from '../src/lib/authMetadataSanitizer.js';
 
 type RequestAuth = NonNullable<Awaited<ReturnType<typeof requireSupabaseRequestAuth>>>;
 type RequestAdminClient = NonNullable<RequestAuth['adminClient']>;
@@ -381,7 +382,7 @@ async function persistMembershipMetadata(params: {
     membership_transaction_id: params.membership.transactionId,
     membership_original_transaction_id: params.membership.originalTransactionId,
   };
-  const nextMeta: Record<string, unknown> = { ...currentMeta, ...membershipFields };
+  const nextMeta: Record<string, unknown> = sanitizeAuthMetadataForJwt({ ...currentMeta, ...membershipFields }).metadata;
   const nextAppMeta: Record<string, unknown> = { ...currentAppMeta, ...membershipFields };
 
   const updated = await params.adminClient.auth.admin.updateUserById(params.userId, {
