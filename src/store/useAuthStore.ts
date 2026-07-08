@@ -43,6 +43,7 @@ import {
 } from './authProfileHelpers';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import {
+  applyCloudAvatarToUser,
   fetchCloudUserProfileState,
   flushPendingProfileWriteToCloud,
   migrateMetadataProfileToCloud,
@@ -185,7 +186,9 @@ function runSignedInBackgroundTasks(params: {
     if (!data?.user) return;
     const freshSnapshot = applyUserSnapshot(set, data.user);
     const cloudProfileState = await fetchCloudUserProfileState(data.user);
+    const userWithCloudAvatar = applyCloudAvatarToUser(data.user, cloudProfileState.avatarUrl);
     set({
+      user: userWithCloudAvatar,
       longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
       userProfileV2: cloudProfileState.userProfileV2,
     });
@@ -209,6 +212,7 @@ function runSignedInBackgroundTasks(params: {
     const activeUser = get().user ?? updatedLanguageUser;
     const migratedProfileState = await migrateMetadataProfileToCloud(activeUser);
     set({
+      user: applyCloudAvatarToUser(activeUser, migratedProfileState.avatarUrl),
       longTermProfileEnabled: migratedProfileState.longTermProfileEnabled,
       userProfileV2: migratedProfileState.userProfileV2,
     });
@@ -227,6 +231,7 @@ function runSignedInBackgroundTasks(params: {
     const activeUser = get().user ?? user;
     const cloudProfileState = await fetchCloudUserProfileState(activeUser);
     set({
+      user: applyCloudAvatarToUser(activeUser, cloudProfileState.avatarUrl),
       longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
       userProfileV2: cloudProfileState.userProfileV2,
     });

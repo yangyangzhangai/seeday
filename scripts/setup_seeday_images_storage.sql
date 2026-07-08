@@ -1,5 +1,5 @@
 -- Supabase Storage setup for user avatars and uploaded message images.
--- Avatar uploads use: seeday-images/{user_id}/avatars/profile.jpg
+-- Avatar uploads use: seeday-images/{user_id}/avatars/profile-{timestamp}.jpg
 
 begin;
 

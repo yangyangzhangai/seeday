@@ -6,6 +6,12 @@ All notable effective changes are documented here.
 
 ## 2026-07-07
 
+### Fix: Store avatars outside Auth metadata
+
+- `src/lib/avatarStorage.ts`: uploads replacement avatars to versioned Storage object paths instead of overwriting `profile.jpg`.
+- `src/store/authProfileCloudStore.ts`, `src/store/useAuthStore.ts`, and `src/store/authStoreAccountActions.ts`: persist avatar URLs in `user_profiles.avatar_url` and hydrate existing UI from that cloud field.
+- Supabase schema scripts now include `user_profiles.avatar_url` and backfill existing non-data-URL avatar metadata.
+
 ### Fix: Supabase/iOS startup diagnostics and local-first boot
 
 - `src/store/useAuthStore.ts`: changed initialization to open the app after session restore, storage scope setup, and local cache rehydrate; cloud refresh, local-to-cloud sync, outbox flush, activity streak, and deletion checks now run in background with per-stage diagnostics.

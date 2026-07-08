@@ -13,6 +13,7 @@ import {
 export interface CloudUserProfileState {
   longTermProfileEnabled: boolean;
   userProfileV2: UserProfileV2 | null;
+  avatarUrl: string | null;
   source: 'cloud' | 'metadata_fallback';
 }
 
@@ -26,12 +27,31 @@ export function normalizeLoginDays(rawDays: unknown): string[] {
   return Array.from(uniq).sort();
 }
 
+function normalizeCloudAvatarUrl(rawValue: unknown): string | null {
+  if (typeof rawValue !== 'string') return null;
+  const value = rawValue.trim();
+  if (!value || value.toLowerCase().startsWith('data:')) return null;
+  return value;
+}
+
 function profileStateFromMetadata(user: any): CloudUserProfileState {
   const meta = user?.user_metadata || {};
   return {
     longTermProfileEnabled: meta[LONG_TERM_PROFILE_ENABLED_KEY] === true,
     userProfileV2: parseUserProfileV2(meta[USER_PROFILE_METADATA_KEY]),
+    avatarUrl: normalizeCloudAvatarUrl(meta.avatar_url),
     source: 'metadata_fallback',
+  };
+}
+
+export function applyCloudAvatarToUser(user: any, avatarUrl: string | null | undefined): any {
+  if (!user || !avatarUrl) return user;
+  return {
+    ...user,
+    user_metadata: {
+      ...(user.user_metadata || {}),
+      avatar_url: avatarUrl,
+    },
   };
 }
 
@@ -43,7 +63,7 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('profile,long_term_profile_enabled')
+      .select('profile,long_term_profile_enabled,avatar_url')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -53,12 +73,14 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
     const state: CloudUserProfileState = {
       longTermProfileEnabled: data.long_term_profile_enabled === true,
       userProfileV2: parseUserProfileV2(data.profile),
+      avatarUrl: normalizeCloudAvatarUrl(data.avatar_url) ?? fallback.avatarUrl,
       source: 'cloud',
     };
     logDiagnostic('info', 'auth.profile_cloud.fetch.success', {
       userId: user.id,
       elapsedMs: Date.now() - startedAt,
       hasProfile: Boolean(state.userProfileV2),
+      hasAvatarUrl: Boolean(state.avatarUrl),
       enabled: state.longTermProfileEnabled,
     });
     return state;
@@ -78,7 +100,7 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
 
 export async function upsertCloudUserProfile(
   userId: string,
-  patch: { profile?: UserProfileV2 | null; longTermProfileEnabled?: boolean },
+  patch: { profile?: UserProfileV2 | null; longTermProfileEnabled?: boolean; avatarUrl?: string | null },
 ): Promise<void> {
   const startedAt = Date.now();
   const row: Record<string, unknown> = {
@@ -87,6 +109,7 @@ export async function upsertCloudUserProfile(
   };
   if ('profile' in patch) row.profile = patch.profile;
   if ('longTermProfileEnabled' in patch) row.long_term_profile_enabled = patch.longTermProfileEnabled;
+  if ('avatarUrl' in patch) row.avatar_url = normalizeCloudAvatarUrl(patch.avatarUrl);
 
   const { error } = await supabase
     .from('user_profiles')
@@ -98,6 +121,7 @@ export async function upsertCloudUserProfile(
       elapsedMs: Date.now() - startedAt,
       hasProfilePatch: 'profile' in patch,
       hasEnabledPatch: 'longTermProfileEnabled' in patch,
+      hasAvatarPatch: 'avatarUrl' in patch,
       error,
       userFacing: formatUserFacingDiagnostic('Supabase user_profiles upsert', error, {
         path: 'user_profiles.upsert',
@@ -112,6 +136,7 @@ export async function upsertCloudUserProfile(
     elapsedMs: Date.now() - startedAt,
     hasProfilePatch: 'profile' in patch,
     hasEnabledPatch: 'longTermProfileEnabled' in patch,
+    hasAvatarPatch: 'avatarUrl' in patch,
   });
 }
 
@@ -148,18 +173,25 @@ export async function ensureTodayLoginDayInCloud(user: any, today: string): Prom
 
 export async function migrateMetadataProfileToCloud(user: any): Promise<CloudUserProfileState> {
   const fallback = profileStateFromMetadata(user);
-  if (!user?.id || (!fallback.userProfileV2 && fallback.longTermProfileEnabled !== true)) {
+  if (!user?.id || (!fallback.userProfileV2 && fallback.longTermProfileEnabled !== true && !fallback.avatarUrl)) {
     return fallback;
   }
 
   const cloudState = await fetchCloudUserProfileState(user);
-  if (cloudState.source === 'cloud' && (cloudState.userProfileV2 || cloudState.longTermProfileEnabled)) {
+  const shouldBackfillAvatar = Boolean(fallback.avatarUrl && cloudState.avatarUrl === fallback.avatarUrl);
+  if (shouldBackfillAvatar && cloudState.source === 'cloud') {
+    await upsertCloudUserProfile(user.id, { avatarUrl: fallback.avatarUrl });
+    return { ...cloudState, avatarUrl: fallback.avatarUrl };
+  }
+
+  if (cloudState.source === 'cloud' && (cloudState.userProfileV2 || cloudState.longTermProfileEnabled || cloudState.avatarUrl)) {
     return cloudState;
   }
 
   await upsertCloudUserProfile(user.id, {
     profile: fallback.userProfileV2,
     longTermProfileEnabled: fallback.longTermProfileEnabled,
+    avatarUrl: fallback.avatarUrl,
   });
   return { ...fallback, source: 'cloud' };
 }

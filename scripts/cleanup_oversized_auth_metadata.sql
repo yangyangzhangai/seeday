@@ -14,10 +14,13 @@ create table if not exists public.user_login_days (
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   profile jsonb,
+  avatar_url text,
   long_term_profile_enabled boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_profiles add column if not exists avatar_url text;
 
 insert into public.user_login_days (user_id, login_date)
 select
@@ -38,6 +41,7 @@ on conflict (user_id, login_date) do nothing;
 insert into public.user_profiles (
   user_id,
   profile,
+  avatar_url,
   long_term_profile_enabled,
   created_at,
   updated_at
@@ -45,6 +49,11 @@ insert into public.user_profiles (
 select
   u.id,
   u.raw_user_meta_data -> 'user_profile_v2' as profile,
+  case
+    when coalesce(u.raw_user_meta_data ->> 'avatar_url', '') = '' then null
+    when coalesce(u.raw_user_meta_data ->> 'avatar_url', '') like 'data:%' then null
+    else u.raw_user_meta_data ->> 'avatar_url'
+  end as avatar_url,
   lower(u.raw_user_meta_data ->> 'long_term_profile_enabled') = 'true',
   now(),
   now()
@@ -53,23 +62,19 @@ where u.id = 'cda9b186-d1e1-41a4-b25a-821a40660f66'::uuid
   and (
     u.raw_user_meta_data ? 'user_profile_v2'
     or u.raw_user_meta_data ? 'long_term_profile_enabled'
+    or u.raw_user_meta_data ? 'avatar_url'
   )
 on conflict (user_id) do update
 set
   profile = coalesce(excluded.profile, public.user_profiles.profile),
+  avatar_url = coalesce(excluded.avatar_url, public.user_profiles.avatar_url),
   long_term_profile_enabled = excluded.long_term_profile_enabled,
   updated_at = now();
 
 update auth.users
 set raw_user_meta_data =
-  (
-    case
-      when coalesce(raw_user_meta_data ->> 'avatar_url', '') like 'data:%'
-        or length(coalesce(raw_user_meta_data ->> 'avatar_url', '')) > 2048
-      then raw_user_meta_data - 'avatar_url'
-      else raw_user_meta_data
-    end
-  )
+  raw_user_meta_data
+  - 'avatar_url'
   - 'login_days'
   - 'user_profile_v2'
   - 'long_term_profile_enabled'

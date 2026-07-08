@@ -5,6 +5,10 @@ const AVATAR_BUCKET = 'seeday-images';
 const AVATAR_MAX_DIM = 512;
 const AVATAR_UPLOAD_QUALITY = 0.86;
 
+function createAvatarPath(userId: string): string {
+  return `${userId}/avatars/profile-${Date.now()}.jpg`;
+}
+
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, b64] = dataUrl.split(',');
   if (!header || !b64) {
@@ -55,7 +59,7 @@ export function isDataUrl(value?: string | null): boolean {
 
 export async function uploadAvatarToStorage(userId: string, avatarDataUrl: string): Promise<string> {
   const startedAt = Date.now();
-  const path = `${userId}/avatars/profile.jpg`;
+  const path = createAvatarPath(userId);
   logDiagnostic('info', 'auth.avatar_upload.start', {
     userId,
     bucket: AVATAR_BUCKET,
@@ -69,9 +73,9 @@ export async function uploadAvatarToStorage(userId: string, avatarDataUrl: strin
     const { error } = await supabase.storage
       .from(AVATAR_BUCKET)
       .upload(path, uploadBlob, {
-        upsert: true,
+        upsert: false,
         contentType: 'image/jpeg',
-        cacheControl: '60',
+        cacheControl: '31536000',
       });
 
     if (error) throw error;

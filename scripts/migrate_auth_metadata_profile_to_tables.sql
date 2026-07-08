@@ -41,10 +41,13 @@ create policy "user_login_days_delete_own"
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   profile jsonb,
+  avatar_url text,
   long_term_profile_enabled boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_profiles add column if not exists avatar_url text;
 
 alter table public.user_profiles enable row level security;
 
@@ -108,6 +111,7 @@ on conflict (user_id, login_date) do nothing;
 insert into public.user_profiles (
   user_id,
   profile,
+  avatar_url,
   long_term_profile_enabled,
   created_at,
   updated_at
@@ -115,6 +119,11 @@ insert into public.user_profiles (
 select
   u.id,
   u.raw_user_meta_data -> 'user_profile_v2' as profile,
+  case
+    when coalesce(u.raw_user_meta_data ->> 'avatar_url', '') = '' then null
+    when coalesce(u.raw_user_meta_data ->> 'avatar_url', '') like 'data:%' then null
+    else u.raw_user_meta_data ->> 'avatar_url'
+  end as avatar_url,
   case
     when lower(u.raw_user_meta_data ->> 'long_term_profile_enabled') = 'true' then true
     else false
@@ -124,9 +133,15 @@ select
 from auth.users u
 where u.raw_user_meta_data ? 'user_profile_v2'
    or u.raw_user_meta_data ? 'long_term_profile_enabled'
+   or (
+     u.raw_user_meta_data ? 'avatar_url'
+     and coalesce(u.raw_user_meta_data ->> 'avatar_url', '') <> ''
+     and coalesce(u.raw_user_meta_data ->> 'avatar_url', '') not like 'data:%'
+   )
 on conflict (user_id) do update
 set
   profile = coalesce(excluded.profile, public.user_profiles.profile),
+  avatar_url = coalesce(excluded.avatar_url, public.user_profiles.avatar_url),
   long_term_profile_enabled = excluded.long_term_profile_enabled,
   updated_at = now();
 
@@ -148,6 +163,7 @@ commit;
 -- update auth.users
 -- set raw_user_meta_data =
 --   raw_user_meta_data
+--   - 'avatar_url'
 --   - 'login_days'
 --   - 'user_profile_v2'
 --   - 'long_term_profile_enabled';

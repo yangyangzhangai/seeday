@@ -256,22 +256,20 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         const cloudAvatarUrl = isDataUrl(avatarDataUrl)
           ? await uploadAvatarToStorage(currentUser.id, avatarDataUrl)
           : avatarDataUrl;
-        const { user, error } = await patchUserMetadata({ avatar_url: cloudAvatarUrl });
-        if (error) throw error;
-        if (user) {
-          set({
-            user: {
-              ...user,
-              user_metadata: {
-                ...(user.user_metadata || {}),
-                avatar_url: cloudAvatarUrl,
-              },
+        await upsertCloudUserProfile(currentUser.id, { avatarUrl: cloudAvatarUrl });
+        set({
+          user: {
+            ...currentUser,
+            user_metadata: {
+              ...(currentUser.user_metadata || {}),
+              avatar_url: cloudAvatarUrl,
             },
-          });
-        }
+          },
+        });
         logDiagnostic('info', 'auth.avatar_update.cloud_synced', {
           userId: currentUser.id,
           avatarUrlChars: cloudAvatarUrl.length,
+          target: 'user_profiles.avatar_url',
         });
         return { error: null };
       } catch (error) {

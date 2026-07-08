@@ -128,6 +128,7 @@ with expected(table_name, column_name) as (
 
     ('user_profiles', 'user_id'),
     ('user_profiles', 'profile'),
+    ('user_profiles', 'avatar_url'),
     ('user_profiles', 'long_term_profile_enabled'),
     ('user_profiles', 'created_at'),
     ('user_profiles', 'updated_at'),

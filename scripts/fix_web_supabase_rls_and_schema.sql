@@ -292,6 +292,7 @@ create unique index if not exists user_login_days_user_date_uidx on public.user_
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   profile jsonb,
+  avatar_url text,
   long_term_profile_enabled boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -299,6 +300,7 @@ create table if not exists public.user_profiles (
 
 alter table public.user_profiles add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.user_profiles add column if not exists profile jsonb;
+alter table public.user_profiles add column if not exists avatar_url text;
 alter table public.user_profiles add column if not exists long_term_profile_enabled boolean default false;
 alter table public.user_profiles add column if not exists created_at timestamptz default now();
 alter table public.user_profiles add column if not exists updated_at timestamptz default now();
