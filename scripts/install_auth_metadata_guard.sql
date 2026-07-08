@@ -58,11 +58,11 @@ where coalesce(raw_user_meta_data, '{}'::jsonb) ?| array[
   'lateral_association_state_v1'
 ];
 
-create or replace function auth.strip_jwt_heavy_user_metadata()
+create or replace function public.strip_jwt_heavy_user_metadata()
 returns trigger
 language plpgsql
 security definer
-set search_path = auth, public
+set search_path = public
 as $$
 declare
   metadata_key text;
@@ -98,7 +98,7 @@ create trigger strip_jwt_heavy_user_metadata_before_write
 before insert or update of raw_user_meta_data
 on auth.users
 for each row
-execute function auth.strip_jwt_heavy_user_metadata();
+execute function public.strip_jwt_heavy_user_metadata();
 
 notify pgrst, 'reload schema';
 notify pgrst, 'reload config';
