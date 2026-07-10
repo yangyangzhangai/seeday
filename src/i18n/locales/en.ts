@@ -39,7 +39,7 @@ const enCore = {
     chat_date_section_hint: 'Time seen today',
     chat_placeholder_mood: 'Log your mood (e.g., excited)… Tap ❤️ to switch to activities',
     chat_placeholder_activity: 'Log your activity (e.g., lunch)… Tap ❤️ to switch to mood',
-    chat_placeholder_neutral: 'Write this moment, the tree will remember it',
+    chat_placeholder_neutral: 'Capture this moment, the tree will remember it',
     chat_historical_read_only: 'Past dates are read-only',
     chat_switch_to_activity: 'Track activities',
     chat_switch_to_mood: 'Log mood',

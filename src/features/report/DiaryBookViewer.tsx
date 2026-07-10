@@ -1,49 +1,33 @@
+// DOC-DEPS: src/features/report/README.md, docs/PROJECT_MAP.md, docs/CURRENT_TASK.md
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { format, getDaysInMonth, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
+import { format, getDaysInMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
-import { useMoodStore } from '../../store/useMoodStore';
-import { useAuthStore } from '../../store/useAuthStore';
-import { normalizeMoodKey } from '../../lib/moodOptions';
-import { computeActivityDistribution } from './reportPageHelpers';
 import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
 import { usePlantStore } from '../../store/usePlantStore';
-import { PlantImage } from './plant/PlantImage';
 import { DiaryPlantFlipModal } from './plant/DiaryPlantFlipModal';
 import { DiaryBookViewerExpandedView, type ExpandTarget } from './DiaryBookViewerExpandedView';
-import { buildPages, DIARY_COPY, type DiaryLang, type PageData } from './diaryBookViewerData';
-
-const ACTIVITY_UI_COLORS = ['#D5E8CE', '#AACBA4', '#85AD80', '#6A9464', '#4E7549'];
-const MOOD_UI_COLORS = ['#F8D0DC', '#F0AABE', '#DE8BA2', '#C46E86'];
-const DIARY_LINE_SOLID = '1px solid rgba(156, 148, 176, 0.24)';
-const DIARY_LINE_DASHED = '1px dashed rgba(156, 148, 176, 0.34)';
-const CUSTOM_MOOD_LABELS = new Set(['自定义', 'Custom', 'Personalizzato']);
-
-/* ────────────────────────── tuning constants ────────────────────────── */
-const BASE_PAGE_W = 180;
-const BASE_PAGE_H = 255; // A5 ratio: 180 × (210/148) ≈ 255
-const FLIP_MS = 550;
-const BASE_SIDE_GAP = 6;
-const MAX_VIS = 4;
-const BASE_HEIGHT_SHRINK = 20;
-const PAPER_COLOR = '#ffffff';
-const SHELF_BG = '#f4f7f4';
-const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
-const PARCHMENT_TEXTURE = 'https://images.unsplash.com/photo-1719563015025-83946fb49e49?q=80&w=1080';
-const COVER_COLORS = ['#7c4a5a', '#4d7a9e', '#8aac8d', '#3d5244', '#b56740', '#9a7a3a', '#5c5e8a', '#3d6b6d'];
-function coverColor(month: Date): string {
-  const idx = (month.getFullYear() * 12 + month.getMonth()) % COVER_COLORS.length;
-  return COVER_COLORS[idx];
-}
-const SPINE_STRIP_W = 14;
-const BASE_SHEET_SPINE_OVERLAP = 2;
-const TRAPEZOID_ANGLE_DEG = Math.atan((BASE_HEIGHT_SHRINK / 2) / BASE_PAGE_W) * (180 / Math.PI);
+import { buildPages } from './diaryBookViewerData';
+import { DiaryBookViewerPageContent } from './DiaryBookViewerPageContent';
+import {
+  BASE_PAGE_W,
+  BASE_PAGE_H,
+  FLIP_MS,
+  BASE_SIDE_GAP,
+  MAX_VIS,
+  BASE_HEIGHT_SHRINK,
+  PAPER_COLOR,
+  SHELF_BG,
+  coverColor,
+  SPINE_STRIP_W,
+  BASE_SHEET_SPINE_OVERLAP,
+  TRAPEZOID_ANGLE_DEG,
+} from './diaryBookViewerTheme';
 
 /* ──────────────────────────────── types ──────────────────────────────── */
 interface Props {
@@ -53,371 +37,6 @@ interface Props {
   initialMonth?: Date;
   initialFlippedCount?: number;
   onOpenDiaryPage?: (date: Date, subPage: 0 | 1, flippedCount: number) => void;
-}
-
-/* ──────────────────────────── page content ───────────────────────────── */
-function PageContent({ page, scale, allMessages, plantRecords, coverBg, onOpenFlipCard }: { page: PageData; scale: number; allMessages: Message[]; plantRecords: DailyPlantRecord[]; coverBg: string; onOpenFlipCard?: (plant: DailyPlantRecord, msgs: Message[]) => void }) {
-  const px = (n: number) => n * scale;
-  const { i18n, t: tr } = useTranslation();
-  const navigate = useNavigate();
-  const isPlus = useAuthStore((state) => state.isPlus);
-  const activityMood = useMoodStore(state => state.activityMood);
-  const customMoodLabel = useMoodStore(state => state.customMoodLabel);
-  const customMoodApplied = useMoodStore(state => state.customMoodApplied);
-  const trapInset = px(BASE_HEIGHT_SHRINK / 2);
-  const langRaw = i18n.language?.split('-')[0] ?? 'en';
-  const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
-  const copy = DIARY_COPY[lang];
-
-  const W = BASE_PAGE_W * scale;
-  const H_p = BASE_PAGE_H * scale;
-  const t = trapInset;
-  const lk = H_p / (H_p - 2 * t);
-  const leftPageTransform  = `matrix3d(${lk},${(t*lk)/W},0,${(2*t*lk)/(H_p*W)},0,1,0,0,0,0,1,0,0,0,0,1)`;
-  const rk = (H_p - 2 * t) / H_p;
-  const rightPageTransform = `matrix3d(${rk},${-t/W},0,${-2*t/(H_p*W)},0,${rk},0,0,0,0,1,0,0,${t},0,1)`;
-
-  /* ── cover ── */
-  if (page.type === 'cover') {
-    return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-        {/* Spine */}
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to right, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
-        {/* Texture overlays */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
-        {/* Sheen */}
-        <div style={{ position: 'absolute', left: px(20), right: 0, top: 0, bottom: 0, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent)', transform: 'skewX(-15deg)', pointerEvents: 'none' }} />
-        {/* Text */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: px(6) }}>
-          <div style={{ fontSize: px(14), fontWeight: 900, letterSpacing: 2, color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{tr('report_view_diary_book')}</div>
-          <div style={{ fontSize: px(8), fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>{tr('diary_cover_subtitle')}</div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── back cover ── */
-  if (page.type === 'back') {
-    return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: coverBg, overflow: 'hidden' }}>
-        {/* Spine on right for back */}
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: px(22), background: 'linear-gradient(to left, rgba(0,0,0,0.45), rgba(0,0,0,0.15), transparent)', opacity: 0.8, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' }} />
-        {/* Texture overlays */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${LEATHER_TEXTURE})`, backgroundSize: 'cover', opacity: 0.12, mixBlendMode: 'overlay', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${PARCHMENT_TEXTURE})`, backgroundSize: 'cover', opacity: 0.35, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
-      </div>
-    );
-  }
-
-  /* ── blank ── */
-  if (page.type === 'blank') {
-    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
-  }
-
-  const dayDate = page.date;
-  const dayPlant = dayDate ? plantRecords.find(p => p.date === format(dayDate, 'yyyy-MM-dd')) : null;
-  const todayStart = startOfDay(new Date()).getTime();
-  const isFutureDay = dayDate ? dayDate.getTime() > todayStart : false;
-  if (isFutureDay) {
-    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
-  }
-  const isTodayPage = dayDate ? isSameDay(dayDate, new Date()) : false;
-  if (isTodayPage && !dayPlant) {
-    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
-  }
-
-  const report = page.report;
-  if (!report) {
-    return <div style={{ width: '100%', height: '100%', background: PAPER_COLOR }} />;
-  }
-  const dayStart = dayDate ? startOfDay(dayDate).getTime() : 0;
-  const dayEnd = dayDate ? endOfDay(dayDate).getTime() : 0;
-  const dayMsgs = allMessages
-    .filter(m => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
-    .sort((a, b) => a.timestamp - b.timestamp);
-  const actDist = computeActivityDistribution(dayMsgs);
-
-  const actionAnalysis = (report?.stats?.actionAnalysis ?? [])
-    .filter((item) => item.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes);
-
-  const moodMinutes: Record<string, number> = {};
-  dayMsgs.forEach(msg => {
-    if (msg.isActive) return;
-    const baseMood = activityMood[msg.id] ?? (msg.moodDescriptions?.[0]?.content);
-    const customLabel = customMoodLabel[msg.id];
-    const useCustom = customMoodApplied[msg.id] === true;
-    const normalizedCustomLabel = customLabel?.trim() ?? '';
-    const mood = useCustom && normalizedCustomLabel && !CUSTOM_MOOD_LABELS.has(normalizedCustomLabel)
-      ? normalizedCustomLabel
-      : baseMood;
-    if (mood && msg.duration && msg.duration > 0) {
-      const key = normalizeMoodKey(mood) || mood;
-      moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
-    }
-  });
-  const moodDist = Object.entries(moodMinutes)
-    .map(([mood, minutes]) => ({ mood, minutes }))
-    .filter(d => d.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes);
-
-  const moodDistribution = (report?.stats?.moodDistribution ?? [])
-    .filter((item) => item.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes);
-
-  const activitySlices = actionAnalysis.length > 0
-    ? actionAnalysis.slice(0, 5).map((d, index) => ({
-      color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
-      value: d.minutes,
-    }))
-    : actDist.length > 0
-      ? actDist.slice(0, 5).map((d, index) => ({
-      color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
-      value: d.minutes,
-      }))
-    : [{ color: '#E5E7EB', value: 1 }];
-  const moodSlices = moodDistribution.length > 0
-    ? moodDistribution.slice(0, 4).map((d, index) => ({
-      color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
-      value: d.minutes,
-    }))
-    : moodDist.length > 0
-      ? moodDist.slice(0, 4).map((d, index) => ({
-      color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
-      value: d.minutes,
-      }))
-    : [{ color: '#E5E7EB', value: 1 }];
-  const buildConic = (slices: Array<{ color: string; value: number }>) => {
-    const total = slices.reduce((sum, item) => sum + item.value, 0) || 1;
-    let acc = 0;
-    const stops = slices.map((item) => {
-      const start = (acc / total) * 100;
-      acc += item.value;
-      const end = (acc / total) * 100;
-      return `${item.color} ${start}% ${end}%`;
-    });
-    return `conic-gradient(${stops.join(', ')})`;
-  };
-
-  const todoCompleted = report?.stats?.completedTodos ?? 0;
-  const todoTotal = report?.stats?.totalTodos ?? 0;
-  const todoRate = todoTotal > 0 ? (todoCompleted / todoTotal) : 0;
-  const todoSegments = 12;
-  const todoLitCount = todoTotal > 0 ? Math.max(1, Math.round(todoRate * todoSegments)) : 0;
-
-  const habitDone = report?.stats?.habitCheckin?.filter(item => item.done).length ?? 0;
-  const goalDone = report?.stats?.goalProgress?.filter(item => item.doneToday).length ?? 0;
-  const starsToday = habitDone + goalDone;
-  const starSlots = Math.max(8, starsToday);
-
-  const dateLocale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
-  const datePattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
-  const headerDate = dayDate ? format(dayDate, datePattern, { locale: dateLocale }) : '';
-  // Free: show loading state (not fallback) until teaser is generated, to avoid text flicker
-  const isFreeWaitingForTeaser = !isPlus && !report?.teaserText?.trim() && report?.analysisStatus !== 'error' && report?.analysisStatus !== 'generating';
-  const observationText = isPlus
-    ? (report?.aiAnalysis?.trim() || copy.observationFallback)
-    : isFreeWaitingForTeaser
-      ? tr('report_generating_variant_1', { companion: 'Van' })
-      : (report?.teaserText?.trim() || copy.observationFallback);
-  const myDiary = report?.userNote?.trim() || copy.diaryPlaceholder;
-
-  const sectionTitleStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: px(5.8),
-    lineHeight: 1.2,
-    fontWeight: 700,
-    color: '#232323',
-    fontFamily: 'Georgia, "Times New Roman", serif',
-  };
-  const bodyStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: px(5.2),
-    lineHeight: 1.45,
-    color: '#2f2f2f',
-    fontFamily: 'Georgia, "Times New Roman", serif',
-    overflow: 'hidden',
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical',
-  };
-  const donutSize = px(26);
-
-  /* ── day-left: same structure as diary page first screen ── */
-  if (page.type === 'day-left') {
-    const activitySummary = report?.stats?.actionSummary?.trim() || copy.activityFallback;
-    const moodSummary = report?.stats?.moodSummary?.trim() || copy.moodFallback;
-    const todoSummary = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : copy.todoFallback;
-    const habitSummary = starsToday > 0 ? tr('diary_star_count', { count: starsToday }) : copy.habitsFallback;
-
-    return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          boxSizing: 'border-box',
-          padding: `${px(8)}px ${px(8)}px ${px(14)}px ${px(8)}px`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: px(3),
-          transform: leftPageTransform,
-          transformOrigin: '0 0',
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>{copy.pageTitle}</div>
-            <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
-          </div>
-          <div style={{ borderTop: DIARY_LINE_SOLID }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionActivity}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
-            <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(activitySlices), margin: '0 auto', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
-            </div>
-            <p style={bodyStyle}>{activitySummary}</p>
-          </div>
-
-          <div style={{ borderTop: DIARY_LINE_DASHED }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionMood}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(32) }}>
-            <div style={{ width: donutSize, height: donutSize, borderRadius: '50%', background: buildConic(moodSlices), margin: '0 auto', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: '30%', borderRadius: '50%', background: PAPER_COLOR }} />
-            </div>
-            <p style={bodyStyle}>{moodSummary}</p>
-          </div>
-
-          <div style={{ borderTop: DIARY_LINE_DASHED }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionTodo}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(18) }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${todoSegments}, minmax(0, 1fr))`, gap: px(0.8) }}>
-              {Array.from({ length: todoSegments }).map((_, idx) => (
-                <span key={idx} style={{ display: 'block', height: px(1.8), borderRadius: 999, background: idx < todoLitCount ? '#F5C842' : '#EDE0B0' }} />
-              ))}
-            </div>
-            <p style={bodyStyle}>{todoSummary}</p>
-          </div>
-
-          <div style={{ borderTop: DIARY_LINE_DASHED }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionHabits}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', alignItems: 'center', gap: px(3), minHeight: px(20) }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: px(0.8) }}>
-              {Array.from({ length: starSlots }).map((_, idx) => (
-                <span key={idx} style={{ fontSize: px(5.4), textAlign: 'center', color: idx < starsToday ? '#D1AB3F' : 'rgba(139,139,139,0.45)' }}>★</span>
-              ))}
-            </div>
-            <p style={bodyStyle}>{habitSummary}</p>
-          </div>
-
-          <div style={{ position: 'absolute', bottom: px(5), left: 0, right: 0, textAlign: 'center', fontSize: px(5.2), color: 'rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
-            {page.dayNum != null ? 2 * page.dayNum - 1 : ''}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── day-right: same structure as diary page second screen ── */
-  if (page.type === 'day-right') {
-    return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          boxSizing: 'border-box',
-          padding: `${px(8)}px ${px(8)}px ${px(14)}px ${px(8)}px`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: px(3),
-          transform: rightPageTransform,
-          transformOrigin: '0 0',
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: px(8.2), fontWeight: 700, color: '#202020', fontFamily: 'Georgia, "Times New Roman", serif' }}>{copy.pageTitle}</div>
-            <div style={{ marginTop: px(1), fontSize: px(5), color: '#555', fontFamily: 'Georgia, "Times New Roman", serif' }}>{headerDate}</div>
-          </div>
-          <div style={{ borderTop: DIARY_LINE_SOLID }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionObservation}</h3>
-          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
-            <div
-              style={{
-                float: 'left',
-                width: px(64),
-                height: px(64),
-                margin: `0 ${px(3)}px ${px(2)}px 0`,
-                opacity: 0.92,
-                cursor: dayPlant ? 'pointer' : 'default',
-              }}
-              onClick={() => dayPlant && onOpenFlipCard?.(dayPlant, dayMsgs)}
-            >
-              {dayPlant ? (
-                <PlantImage
-                  plantId={dayPlant.plantId}
-                  rootType={dayPlant.rootType}
-                  plantStage={dayPlant.plantStage}
-                  imgClassName="h-full w-full object-contain"
-                />
-              ) : (
-                <div style={{ width: '100%', height: '100%' }} />
-              )}
-            </div>
-            {observationText}
-            <div style={{ clear: 'both' }} />
-            {isFreeWaitingForTeaser ? null : (
-              !isPlus ? (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0) 36%, rgba(255,255,255,0.9) 68%, rgba(255,255,255,1) 100%)',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'center',
-                    paddingBottom: px(3),
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => navigate('/upgrade')}
-                    style={{
-                      border: 'none',
-                      borderRadius: 999,
-                      background: '#4f46e5',
-                      color: '#fff',
-                      fontSize: px(4.4),
-                      fontWeight: 700,
-                      padding: `${px(1.5)}px ${px(3)}px`,
-                    }}
-                  >
-                    {tr('report_teaser_unlock')}
-                  </button>
-                </div>
-              ) : null
-            )}
-          </div>
-
-          <div style={{ borderTop: DIARY_LINE_DASHED }} />
-
-          <h3 style={sectionTitleStyle}>{copy.sectionMyDiary}</h3>
-          <div style={{ fontSize: px(5.2), lineHeight: 1.45, color: report?.userNote?.trim() ? '#2f2f2f' : 'rgba(95,95,95,0.56)', fontFamily: 'Georgia, "Times New Roman", serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-            {myDiary}
-          </div>
-
-          <div style={{ position: 'absolute', bottom: px(5), left: 0, right: 0, textAlign: 'center', fontSize: px(5.2), color: 'rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
-            {page.dayNum != null ? 2 * page.dayNum : ''}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
 }
 
 /* ──────────────────────────── main viewer ────────────────────────────── */
@@ -892,10 +511,10 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
             return (
               <div key={i} style={{ position: 'absolute', left: spineX + bookShiftX, top: topOffset, width: pageW, height: sheetH, transformOrigin: 'left center', transform: `translateZ(${stackZ}px) translateX(${shiftX}px) rotateY(${effectiveRotY}deg)`, transition: isLive ? 'none' : `transform ${effectiveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`, transformStyle: 'preserve-3d', pointerEvents: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', borderRadius: `0 ${Math.round(12*scale)}px ${Math.round(12*scale)}px 0`, overflow: 'hidden', clipPath: frontClip, filter: frontClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} onOpenFlipCard={(plant, msgs) => setFlipModal({ plant, dayMessages: msgs })} />
+                  <DiaryBookViewerPageContent page={pages[2 * i]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} onOpenFlipCard={(plant, msgs) => setFlipModal({ plant, dayMessages: msgs })} />
                 </div>
                 <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: `${Math.round(12*scale)}px 0 0 ${Math.round(12*scale)}px`, overflow: 'hidden', clipPath: backClip, filter: backClip ? undefined : 'drop-shadow(0 3px 5px rgba(0,0,0,0.10))' }}>
-                  <PageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
+                  <DiaryBookViewerPageContent page={pages[2 * i + 1]} scale={scale} allMessages={allMessages} plantRecords={plantRecords} coverBg={coverColor(currentMonth)} />
                 </div>
               </div>
             );

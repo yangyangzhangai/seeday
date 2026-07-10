@@ -4,6 +4,69 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-10
+
+### Refactor: Split oversized diary viewer
+
+- `src/features/report/DiaryBookViewer.tsx`: extracted the page rendering block and shared viewer constants so the main viewer file drops below the 1000-line pre-commit error threshold while keeping flip/drag behavior unchanged.
+- `src/features/report/DiaryBookViewerPageContent.tsx`: new report-local page content component for cover/day/back page rendering, localized summaries, and teaser/plant card presentation.
+- `src/features/report/diaryBookViewerTheme.ts`: new shared constants/helper module for viewer sizing, textures, cover colors, and localized-summary guards.
+- `docs/CURRENT_TASK.md`: synced the session anchor for the file split.
+
+Validation:
+
+- `npm.cmd run lint:max-lines`
+- `npx.cmd tsc --noEmit`
+
+### Fix: Plant card diary CTA now opens today's diary
+
+- `src/features/report/ReportPage.tsx`: passes the existing today-diary open/generate handler down into the plant section so the report modal opens on the diary page after the plant-card CTA is tapped.
+- `src/features/report/plant/PlantRootSection.tsx`: routes the post-plant "Generate Diary" action through the report-page handler instead of only generating in place, preserving the existing fallback when the section is used standalone.
+- `src/features/report/README.md` and `docs/CURRENT_TASK.md`: synced the report user-flow documentation for the new plant-to-diary transition.
+
+Validation:
+
+- `npx.cmd tsc --noEmit`
+
+### Fix: Recurring todo delete-all-future from completed item
+
+- `src/features/growth/GrowthTodoSection.tsx`: when deleting all future occurrences from a completed recurring todo instance, the app now deletes both the recurrence template and the selected completed instance so the card disappears immediately.
+- Existing historical completed instances remain preserved because template cascade deletion in the store still only removes unfinished generated instances.
+
+Validation:
+
+- `npx.cmd tsc --noEmit`
+
+### Fix: Chat activity card second image visibility
+
+- `src/features/chat/components/EventCard.tsx`: keeps the second image slot visible after the first image is removed, while preserving the empty-card upload trigger.
+- `src/features/chat/components/eventCardImages.ts`: adds a small image-slot helper with a regression test for the second-image-only state.
+
+Validation:
+
+- `npm.cmd run test:unit -- src/features/chat/components/eventCardImages.test.ts`
+- `npx.cmd tsc --noEmit`
+
+### Fix: English diary activity/mood fallback copy
+
+- `src/features/report/DiaryBookViewer.tsx`: recomputes localized activity and mood summaries when saved report summaries are from another language, preventing English diary pages from showing Chinese fallback text.
+- `src/features/report/ReportDetailModal.tsx`: applies the same language-aware stored-summary check in the diary detail view.
+- `api/diary.ts`: localizes the raw input, date, and history prompt labels passed to diary generation for EN/IT.
+
+Validation:
+
+- `.\node_modules\.bin\tsc.cmd --noEmit`
+- `git diff --check`
+
+### Copy: Chat placeholder English polish
+
+- `src/i18n/locales/en.ts`: updated `chat_placeholder_neutral` from "Write this moment..." to "Capture this moment..." for more natural English.
+- ZH/IT translations were left unchanged.
+
+Validation:
+
+- Not run (copy-only i18n update)
+
 ## 2026-07-07
 
 ### Fix: Store avatars outside Auth metadata

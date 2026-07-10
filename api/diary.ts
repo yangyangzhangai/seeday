@@ -59,6 +59,28 @@ const DIARY_ERROR_MESSAGE: Record<'zh' | 'en' | 'it', string> = {
   it: 'Errore nella generazione del diario AI. Riprova piu tardi.',
 };
 
+const DIARY_INPUT_LABELS: Record<'zh' | 'en' | 'it', {
+  rawInputTitle: string;
+  datePrefix: string;
+  historyTitle: string;
+}> = {
+  zh: {
+    rawInputTitle: '用户原始记录片段',
+    datePrefix: '日期',
+    historyTitle: '历史观察背景',
+  },
+  en: {
+    rawInputTitle: 'User Raw Record Excerpt',
+    datePrefix: 'Date',
+    historyTitle: 'Observation History',
+  },
+  it: {
+    rawInputTitle: 'Estratto dei registri originali',
+    datePrefix: 'Data',
+    historyTitle: 'Contesto storico osservato',
+  },
+};
+
 function resolveDiaryAddressee(lang: 'zh' | 'en' | 'it', userName: unknown): string {
   if (typeof userName !== 'string') return FALLBACK_ADDRESSEE[lang];
   const cleaned = userName.replace(/[\r\n]+/g, ' ').replace(/["“”'`]/g, '').trim();
@@ -271,17 +293,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 构建用户输入
   let userContent = structuredData;
+  const inputLabels = DIARY_INPUT_LABELS[normalizedLang];
 
   if (rawInput) {
-    userContent += '\n\n【用户原始记录片段】\n' + rawInput.slice(0, 800); // 包含活动心情标签
+    userContent += `\n\n【${inputLabels.rawInputTitle}】\n${rawInput.slice(0, 800)}`;
   }
 
   if (date) {
-    userContent = `日期：${date}\n\n` + userContent;
+    userContent = `${inputLabels.datePrefix}: ${date}\n\n${userContent}`;
   }
 
   if (historyContext) {
-    userContent += '\n\n【历史观测背景】\n' + historyContext;
+    userContent += `\n\n【${inputLabels.historyTitle}】\n${historyContext}`;
   }
 
   const addressee = resolveDiaryAddressee(normalizedLang, userName);

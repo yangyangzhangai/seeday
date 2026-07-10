@@ -8,6 +8,7 @@ import { formatDuration } from '../../../lib/time';
 import { cn } from '../../../lib/utils';
 import { playSound } from '../../../services/sound/soundService';
 import { ImageUploader, type ImageUploaderHandle } from './ImageUploader';
+import { getVisibleEventCardImageSlots } from './eventCardImages';
 import type { Message, MoodDescription } from '../../../store/useChatStore';
 import { useMoodStore } from '../../../store/useMoodStore';
 import { useChatStore } from '../../../store/useChatStore';
@@ -167,6 +168,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   const hasImage1 = !!message.imageUrl;
   const hasImage2 = !!message.imageUrl2;
   const canUploadImage = !hasImage1 || !hasImage2;
+  const visibleImageSlots = getVisibleEventCardImageSlots(message);
   const image1UploaderRef = useRef<ImageUploaderHandle | null>(null);
   const image2UploaderRef = useRef<ImageUploaderHandle | null>(null);
 
@@ -313,7 +315,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       </div>
 
       {/* ── Images ── */}
-      {(hasImage1 || hasImage2 || (!readonly && canUploadImage)) && (
+      {(visibleImageSlots.length > 0 || (!readonly && canUploadImage)) && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 6, position: 'relative', zIndex: 1 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <ImageUploader ref={readonly ? undefined : image1UploaderRef} messageId={message.id}
@@ -322,7 +324,7 @@ export const EventCard: React.FC<EventCardProps> = ({
               onRemoved={() => handleImageRemoved('imageUrl')}
               compact hideUploadButton={!readonly} hideUploadWhen={readonly && !hasImage1} readonly={readonly} />
           </div>
-          {hasImage1 && (
+          {(hasImage1 || hasImage2) && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <ImageUploader ref={readonly ? undefined : image2UploaderRef} messageId={`${message.id}_2`}
                 imageUrl={message.imageUrl2}

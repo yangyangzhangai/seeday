@@ -174,6 +174,18 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     }
   };
 
+  const handleDeleteAllFuture = (todo: GrowthTodo) => {
+    const templateId = todo.templateId ?? todo.recurrenceId;
+    const hasTemplate = Boolean(templateId && todos.some((t) => t.id === templateId));
+    if (templateId && hasTemplate) {
+      deleteTodo(templateId);
+    }
+    if (!hasTemplate || todo.completed) {
+      deleteTodo(todo.id);
+    }
+    setPendingDelete(null);
+  };
+
   const handleStart = async (todo: GrowthTodo) => {
     startTodo(todo.id);
     const now = Date.now();
@@ -509,13 +521,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
             <button
               className="w-full py-3 rounded-xl bg-red-50/80 text-red-600 font-medium text-sm border border-red-100"
               onClick={() => {
-                const templateId = pendingDelete.templateId ?? pendingDelete.recurrenceId;
-                if (templateId) {
-                  deleteTodo(templateId);
-                } else {
-                  deleteTodo(pendingDelete.id);
-                }
-                setPendingDelete(null);
+                handleDeleteAllFuture(pendingDelete);
               }}
             >
               {t('todo_delete_all_future')}

@@ -5,6 +5,12 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-10: Split `DiaryBookViewer` page-content/render constants into `DiaryBookViewerPageContent.tsx` and `diaryBookViewerTheme.ts`, bringing `src/features/report/DiaryBookViewer.tsx` back under the max-lines pre-commit hard limit without changing viewer behavior.
+- 2026-07-10: Updated report plant->diary flow: after today's plant card appears, tapping the card CTA now reuses `ReportPage`'s existing today-diary open path so the app opens the diary detail page/modal directly instead of generating in place without navigation.
+- 2026-07-10: Fixed recurring todo "Delete all future" from a completed instance: the action now removes the recurrence template and the currently selected completed instance, while preserving older completed history.
+- 2026-07-10: Fixed chat activity card image-slot rendering: removing image 1 no longer hides image 2; added `eventCardImages` regression coverage for the second-image-only state.
+- 2026-07-10: Fixed English diary activity/mood copy fallback: diary book/detail views now recompute localized activity and mood summaries when stored summaries are from another language, and `/api/diary` now localizes raw-input/date/history prompt labels for EN/IT.
+- 2026-07-10: Chat neutral placeholder English copy polish: `chat_placeholder_neutral` now uses "Capture this moment, the tree will remember it" in `src/i18n/locales/en.ts`; ZH/IT were left unchanged.
 - 2026-07-07: Supabase/iOS startup diagnostics round 1: app initialization now opens after session restore + storage scope + local cache rehydrate, while cloud refresh, local-to-cloud sync, outbox flush, streak, and deletion checks run in background with per-stage diagnostics. Added request timing/requestId logging for Supabase and `/api/*`, detailed auth/outbox/payment/chat diagnostics, and user-visible failure messages for startup/error-boundary/retry surfaces. Next step: extend the same requestId + structured logs to remaining Vercel endpoints and add business-level logs to Todo/Growth/Report/Mood stores plus native iOS WebView startup logs.
 - 2026-07-07: Auth metadata shrink follow-up: added SQL and frontend support to move growing `login_days`, `user_profile_v2`, and `long_term_profile_enabled` out of JWT-backed Auth metadata into `user_login_days` and `user_profiles`. Frontend now writes these tables first, uses metadata only as migration fallback, and keeps local-first profile UX.
 

@@ -316,6 +316,7 @@ export const ReportPage = () => {
         <PlantRootSection
           autoGeneratePlantToken={autoGeneratePlantToken}
           onDiaryDraftChange={setTodayDiaryDraft}
+          onOpenTodayDiary={handleGenerateDiary}
         />
       </div>
 

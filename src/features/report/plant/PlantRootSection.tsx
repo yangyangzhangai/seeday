@@ -33,11 +33,13 @@ function getCategoryKey(category: PlantCategoryKey): string {
 interface PlantRootSectionProps {
   autoGeneratePlantToken?: number;
   onDiaryDraftChange?: (text: string) => void;
+  onOpenTodayDiary?: () => Promise<void> | void;
 }
 
 export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   autoGeneratePlantToken,
   onDiaryDraftChange,
+  onOpenTodayDiary,
 }) => {
   const { t } = useTranslation();
   const reports = useReportStore(state => state.reports);
@@ -328,6 +330,14 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     }
   }, [diaryAlreadyGenerated, generateAIDiary, generateReport, t, todayDailyReport?.id]);
 
+  const handleOpenDiaryFromPlant = useCallback(() => {
+    if (onOpenTodayDiary) {
+      void Promise.resolve(onOpenTodayDiary());
+      return;
+    }
+    void handleGenerateDiary();
+  }, [handleGenerateDiary, onOpenTodayDiary]);
+
   useEffect(() => {
     if (!autoGeneratePlantToken) return;
     void handleGeneratePlant();
@@ -352,7 +362,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           plant={todayPlant}
           segments={flipCardSegments}
           directionOrder={directionOrder}
-          onGenerateDiary={() => { void handleGenerateDiary(); }}
+          onGenerateDiary={handleOpenDiaryFromPlant}
           isGeneratingDiary={isDiaryGenerating}
           isDiaryButtonDisabled={!canGenerateDiary}
           diaryButtonHint={diaryStatusHint}

@@ -12,6 +12,7 @@
   - Plant generation time-window gate (available after 20:00 local time) with irreversible confirmation
   - Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
   - Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
+  - After the plant card appears, its diary CTA opens today's report detail directly on the diary page and reuses the same generate/view path as the report page
   - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_0001` -> `sha_early_0001`
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
   - No-record fallback hint for empty-day generate attempts

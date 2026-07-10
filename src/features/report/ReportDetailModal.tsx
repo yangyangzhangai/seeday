@@ -145,6 +145,19 @@ function isLikelyLegacyClampedSummary(text: string): boolean {
   return !/[。！？.!?…]$/.test(tail);
 }
 
+function containsHanText(text: string): boolean {
+  return /[\u4E00-\u9FFF]/.test(text);
+}
+
+function shouldUseStoredLocalizedSummary(text: string, lang: Lang): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (isLikelyLegacyClampedSummary(trimmed)) return false;
+  if (lang !== 'zh' && containsHanText(trimmed)) return false;
+  if (lang === 'zh' && !containsHanText(trimmed)) return false;
+  return true;
+}
+
 function toPercent(rate: number): number {
   if (!Number.isFinite(rate)) return 0;
   return Math.max(0, Math.min(100, Math.round(rate * 100)));
@@ -646,10 +659,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     const stored = typeof selectedReport?.stats?.actionSummary === 'string'
       ? selectedReport.stats.actionSummary.trim()
       : '';
-    if (stored && !isLikelyLegacyClampedSummary(stored)) return stored;
+    if (shouldUseStoredLocalizedSummary(stored, lang)) return stored;
 
     const source = selectedReport?.stats?.actionAnalysis;
-    if (!source || source.length === 0) return stored;
+    if (!source || source.length === 0) return '';
     return generateActionSummary(source, lang);
   }, [selectedReport?.stats?.actionSummary, selectedReport?.stats?.actionAnalysis, lang]);
 
@@ -657,10 +670,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     const stored = typeof selectedReport?.stats?.moodSummary === 'string'
       ? selectedReport.stats.moodSummary.trim()
       : '';
-    if (stored && !isLikelyLegacyClampedSummary(stored)) return stored;
+    if (shouldUseStoredLocalizedSummary(stored, lang)) return stored;
 
     const source = selectedReport?.stats?.moodDistribution;
-    if (!source || source.length === 0) return stored;
+    if (!source || source.length === 0) return '';
     return generateMoodSummary(source, lang);
   }, [selectedReport?.stats?.moodSummary, selectedReport?.stats?.moodDistribution, lang]);
 
