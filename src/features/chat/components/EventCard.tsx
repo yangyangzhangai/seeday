@@ -88,17 +88,22 @@ export interface EventCardProps {
   message: Message;
   moodDescriptions: MoodDescription[];
   onEndActivity: (id: string) => void;
+  onRequestEndActivity?: (id: string) => void;
+  onCancelEndActivity?: (id: string) => void;
   onConvertMood: (moodId: string) => void;
   onMoodClick: (messageId: string) => void;
   onDelete: (id: string) => void;
   allowConvertToMood: boolean;
+  pendingManualEnd?: boolean;
   readonly?: boolean;
   alwaysShowActions?: boolean;
   onStardustSelect?: (data: StardustCardData, position: { x: number; y: number }) => void;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
-  message, moodDescriptions, onEndActivity, onConvertMood, onMoodClick, onDelete, allowConvertToMood, readonly, alwaysShowActions, onStardustSelect,
+  message, moodDescriptions, onEndActivity, onRequestEndActivity, onCancelEndActivity,
+  onConvertMood, onMoodClick, onDelete, allowConvertToMood, pendingManualEnd,
+  readonly, alwaysShowActions, onStardustSelect,
 }) => {
   const { t } = useTranslation();
   const getMood           = useMoodStore(s => s.getMood);
@@ -210,6 +215,19 @@ export const EventCard: React.FC<EventCardProps> = ({
   const moodTagColor = getStrongerMoodTagColor(moodColor);
   const moodTagBg = withHexAlpha(moodTagColor, 0.1);
   const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
+  const handleEndButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    playSound('ding');
+    if (pendingManualEnd) {
+      onCancelEndActivity?.(message.id);
+      return;
+    }
+    if (onRequestEndActivity) {
+      onRequestEndActivity(message.id);
+      return;
+    }
+    onEndActivity(message.id);
+  };
 
   return (
     <div
@@ -391,12 +409,14 @@ export const EventCard: React.FC<EventCardProps> = ({
             )}
           </div>
           {isOngoing && !readonly && (
-            <button onClick={e => { e.stopPropagation(); playSound('ding'); onEndActivity(message.id); }}
+            <button onClick={handleEndButtonClick}
               title={t('end_event_btn')}
               className="text-xs"
               style={{ fontWeight: 800, padding: '3px 9px', borderRadius: 9999,
-                border: '1px solid rgba(244,192,194,0.3)', background: 'rgba(244,192,194,0.10)',
-                color: '#F4C0C2', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                border: pendingManualEnd ? '1px solid rgba(148,163,184,0.38)' : '1px solid rgba(244,192,194,0.3)',
+                background: pendingManualEnd ? 'rgba(148,163,184,0.12)' : 'rgba(244,192,194,0.10)',
+                color: pendingManualEnd ? '#94A3B8' : '#F4C0C2', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 3 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>stop_circle</span>
             </button>
           )}

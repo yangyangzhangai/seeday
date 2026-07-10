@@ -223,6 +223,21 @@ export function DiaryBookViewerPageContent({
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
   };
+  const observationTextStyle: React.CSSProperties = {
+    minHeight: '64%',
+    fontSize: px(5.2),
+    lineHeight: 1.45,
+    color: '#2f2f2f',
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    textAlign: lang === 'zh' ? 'justify' : 'left',
+    textJustify: lang === 'zh' ? 'inter-word' : 'auto',
+    wordBreak: 'normal',
+    overflowWrap: 'break-word',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch',
+    position: 'relative',
+  };
   const donutSize = px(26);
 
   if (page.type === 'day-left') {
@@ -313,7 +328,7 @@ export function DiaryBookViewerPageContent({
           <div style={{ borderTop: DIARY_LINE_SOLID }} />
 
           <h3 style={sectionTitleStyle}>{copy.sectionObservation}</h3>
-          <div style={{ minHeight: '64%', fontSize: px(5.2), lineHeight: 1.45, color: '#2f2f2f', fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'justify', textJustify: 'inter-word', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
+          <div style={observationTextStyle}>
             <div style={{ float: 'left', width: px(64), height: px(64), margin: `0 ${px(3)}px ${px(2)}px 0`, opacity: 0.92, cursor: dayPlant ? 'pointer' : 'default' }} onClick={() => dayPlant && onOpenFlipCard?.(dayPlant, dayMsgs)}>
               {dayPlant ? (
                 <PlantImage plantId={dayPlant.plantId} rootType={dayPlant.rootType} plantStage={dayPlant.plantStage} imgClassName="h-full w-full object-contain" />

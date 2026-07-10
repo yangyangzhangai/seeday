@@ -1,10 +1,12 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-07
+Last Updated: 2026-07-10
 Owner: current working session
 
 Session Notes:
 
+- 2026-07-10: Chat 首页活动卡手动结束按钮新增 3 秒误触撤销窗口：首次点击仅进入 `pendingManualEnds` 灰态缓冲，3 秒内再次点击可取消并继续沿用原计时；超时后才真正调用 `endActivity()`，避免 todo 完成/星星发放/annotation 等副作用过早落地。
+- 2026-07-10: Fixed AI diary English word splitting in report diary surfaces: `ReportDetailModal` observation text no longer uses `wordBreak: break-all`, and `DiaryBookViewerPageContent` now keeps Chinese justified while EN/IT use left-aligned wrapping to avoid narrow-column word fragmentation.
 - 2026-07-10: Split `DiaryBookViewer` page-content/render constants into `DiaryBookViewerPageContent.tsx` and `diaryBookViewerTheme.ts`, bringing `src/features/report/DiaryBookViewer.tsx` back under the max-lines pre-commit hard limit without changing viewer behavior.
 - 2026-07-10: Updated report plant->diary flow: after today's plant card appears, tapping the card CTA now reuses `ReportPage`'s existing today-diary open path so the app opens the diary detail page/modal directly instead of generating in place without navigation.
 - 2026-07-10: Fixed recurring todo "Delete all future" from a completed instance: the action now removes the recurrence template and the currently selected completed instance, while preserving older completed history.

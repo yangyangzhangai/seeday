@@ -43,10 +43,22 @@ import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 
 const filterLegacyChatRows = <T extends { activity_type?: string | null }>(rows: T[]): T[] => rows.filter((row) => !isLegacyChatActivityType(row.activity_type));
+const MANUAL_END_UNDO_MS = 3_000;
+const pendingManualEndTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearPendingManualEndTimer(id: string): void {
+  const timerId = pendingManualEndTimers.get(id);
+  if (timerId !== undefined) {
+    globalThis.clearTimeout(timerId);
+    pendingManualEndTimers.delete(id);
+  }
+}
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       messages: [],
+      pendingManualEnds: {},
       lastActivityTime: null,
       lastFetchedAt: null,
       isMoodMode: false,
@@ -393,6 +405,8 @@ export const useChatStore = create<ChatState>()(
       ) => {
         const now = customTimestamp ?? Date.now();
         const todayDateStr = getLocalDateString(new Date(now));
+        const pendingManualEndIds = Object.keys(get().pendingManualEnds);
+        pendingManualEndIds.forEach(clearPendingManualEndTimer);
         let updatedMessages = [...get().messages];
         const { messages: afterClose, closedMessage } = closePreviousActivityLocal(updatedMessages, now);
         if (closedMessage && updatedMessages.find(m => m.id === closedMessage.id)?.isActive) void runAutoCloseBottleMatch(closedMessage); updatedMessages = afterClose;
@@ -413,6 +427,7 @@ export const useChatStore = create<ChatState>()(
         updatedMessages.push(newMessage);
         set((state) => ({
           messages: updatedMessages,
+          pendingManualEnds: {},
           lastActivityTime: now,
           dateCache: pruneDateCache({
             ...(state as ChatState).dateCache,
@@ -577,7 +592,37 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
+      requestManualEndActivity: (id) => {
+        const target = get().messages.find((message) => message.id === id);
+        if (!target || target.duration !== undefined) return;
+
+        clearPendingManualEndTimer(id);
+        const expiresAt = Date.now() + MANUAL_END_UNDO_MS;
+        const timerId = globalThis.setTimeout(() => {
+          pendingManualEndTimers.delete(id);
+          void get().endActivity(id);
+        }, MANUAL_END_UNDO_MS);
+        pendingManualEndTimers.set(id, timerId);
+
+        set((state) => ({
+          pendingManualEnds: {
+            ...state.pendingManualEnds,
+            [id]: expiresAt,
+          },
+        }));
+      },
+
+      cancelManualEndActivity: (id) => {
+        clearPendingManualEndTimer(id);
+        set((state) => ({
+          pendingManualEnds: Object.fromEntries(
+            Object.entries(state.pendingManualEnds).filter(([messageId]) => messageId !== id)
+          ),
+        }));
+      },
+
       endActivity: async (id, opts) => {
+        clearPendingManualEndTimer(id);
         const state = get();
         const target = state.messages.find(m => m.id === id);
         if (!target || target.duration !== undefined) return;
@@ -589,6 +634,9 @@ export const useChatStore = create<ChatState>()(
           );
           return {
             messages: nextMessages,
+            pendingManualEnds: Object.fromEntries(
+              Object.entries(state.pendingManualEnds).filter(([messageId]) => messageId !== id)
+            ),
             dateCache: pruneDateCache({
               ...state.dateCache,
               [dateStr]: projectMessagesForDate(nextMessages, dateStr),
@@ -860,7 +908,8 @@ export const useChatStore = create<ChatState>()(
       setHasInitialized: (value) => set({ hasInitialized: value }),
       clearHistory: async () => {
         clearMessageClassificationTasks();
-        set({ messages: [], lastActivityTime: null });
+        Array.from(pendingManualEndTimers.keys()).forEach(clearPendingManualEndTimer);
+        set({ messages: [], pendingManualEnds: {}, lastActivityTime: null });
       },
       attachStardustToMessage: (messageId, stardustId, stardustEmoji) => {
         set((state) => ({

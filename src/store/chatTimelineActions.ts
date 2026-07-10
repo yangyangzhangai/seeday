@@ -2,8 +2,7 @@ import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { autoDetectMood } from '../lib/mood';
 import { classifyRecordActivityType } from '../lib/activityType';
-import type { Message } from './useChatStore.types';
-import type { MoodDescription } from './useChatStore.types';
+import type { Message, MoodDescription } from './useChatStore.types';
 import { useMoodStore } from './useMoodStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useTodoStore } from './useTodoStore';
@@ -36,8 +35,9 @@ function resolveLangForText(content: string): SupportedLang {
   return resolveCurrentLang();
 }
 
-type Setter = <U>(fn: (state: { messages: Message[] }) => U) => void;
-type Getter = () => { messages: Message[] };
+type TimelineState = { messages: Message[]; pendingManualEnds?: Record<string, number> };
+type Setter = (partial: Partial<TimelineState> | ((state: TimelineState) => Partial<TimelineState>)) => void;
+type Getter = () => TimelineState;
 
 export interface ChatTimelineActions {
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
@@ -252,7 +252,10 @@ export function createChatTimelineActions(
       useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
     }
     set(state => ({
-      messages: state.messages.filter(m => m.id !== id)
+      messages: state.messages.filter(m => m.id !== id),
+      pendingManualEnds: Object.fromEntries(
+        Object.entries(state.pendingManualEnds || {}).filter(([messageId]) => messageId !== id)
+      ),
     }));
     useAnnotationStore.getState().removeEventsByMessageId(id);
 

@@ -34,7 +34,7 @@ function resetMoodStore() {
 function resetChatStore(messages: Message[] = []) {
   useChatStore.setState({
     messages,
-    mode: 'record',
+    pendingManualEnds: {},
     lastActivityTime: null,
     isMoodMode: false,
     isLoading: false,
@@ -51,6 +51,7 @@ function resetChatStore(messages: Message[] = []) {
 
 describe('useChatStore integration: auto recognition and correction flow', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     resetMoodStore();
     resetChatStore();
     useOutboxStore.setState({ entries: [] });
@@ -162,7 +163,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(cached[1].isActive).toBe(true);
   });
 
-  it('keeps date cache in sync when manually ending an activity', async () => {
+  it('keeps activity active during the 3-second manual-end undo window', async () => {
     const startedAt = 1_700_000_000_000;
     const endedAt = startedAt + 12 * 60 * 1000;
     const dateKey = getLocalDateString(new Date(startedAt));
@@ -172,22 +173,62 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
       timestamp: startedAt,
       type: 'text',
       mode: 'record',
-      activityType: 'work_study',
+      activityType: 'work',
       isActive: true,
       duration: undefined,
     };
     resetChatStore([activity]);
     useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+    vi.useFakeTimers();
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(endedAt);
 
-    await useChatStore.getState().endActivity(activity.id);
+    useChatStore.getState().requestManualEndActivity(activity.id);
+
+    let state = useChatStore.getState();
+    expect(state.pendingManualEnds[activity.id]).toBe(endedAt + 3_000);
+    expect(state.messages[0].duration).toBeUndefined();
+    expect(state.messages[0].isActive).toBe(true);
+    expect(state.dateCache[dateKey][0].duration).toBeUndefined();
+    expect(state.dateCache[dateKey][0].isActive).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(3_000);
 
     nowSpy.mockRestore();
-    const state = useChatStore.getState();
+    state = useChatStore.getState();
     expect(state.messages[0].duration).toBe(12);
     expect(state.messages[0].isActive).toBe(false);
+    expect(state.pendingManualEnds[activity.id]).toBeUndefined();
     expect(state.dateCache[dateKey][0].duration).toBe(12);
     expect(state.dateCache[dateKey][0].isActive).toBe(false);
+  });
+
+  it('restores the activity when manual end is cancelled within 3 seconds', async () => {
+    const startedAt = 1_700_000_000_000;
+    const dateKey = getLocalDateString(new Date(startedAt));
+    const activity: Message = {
+      id: 'activity-manual-end-cancel',
+      content: '写方案',
+      timestamp: startedAt,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work',
+      isActive: true,
+      duration: undefined,
+    };
+    resetChatStore([activity]);
+    useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+    vi.useFakeTimers();
+
+    useChatStore.getState().requestManualEndActivity(activity.id);
+    useChatStore.getState().cancelManualEndActivity(activity.id);
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    const state = useChatStore.getState();
+    expect(state.pendingManualEnds[activity.id]).toBeUndefined();
+    expect(state.messages[0].duration).toBeUndefined();
+    expect(state.messages[0].isActive).toBe(true);
+    expect(state.dateCache[dateKey][0].duration).toBeUndefined();
+    expect(state.dateCache[dateKey][0].isActive).toBe(true);
   });
 
   it('keeps offline chat message as pending and enqueues outbox replay', async () => {
@@ -432,7 +473,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         timestamp: base + 1_000,
         type: 'text',
         mode: 'record',
-        activityType: 'chat',
+        activityType: 'chat' as never,
       },
       {
         id: 'event-today',

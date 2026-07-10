@@ -35,7 +35,15 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   messages, selectedDate, isLoading, onMoodClick, onStardustSelect, onTimeClick,
 }) => {
   const { t } = useTranslation();
-  const { endActivity, reattachMoodToEvent, convertMoodToEvent, deleteActivity } = useChatStore();
+  const {
+    pendingManualEnds,
+    requestManualEndActivity,
+    cancelManualEndActivity,
+    endActivity,
+    reattachMoodToEvent,
+    convertMoodToEvent,
+    deleteActivity,
+  } = useChatStore();
   const getMood = useMoodStore(s => s.getMood);
   const setMood = useMoodStore(s => s.setMood);
 
@@ -165,6 +173,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     message={msg}
                     moodDescriptions={moodDescMap.get(msg.id) || []}
                     onEndActivity={id => void endActivity(id)}
+                    onRequestEndActivity={requestManualEndActivity}
+                    onCancelEndActivity={cancelManualEndActivity}
+                    pendingManualEnd={Boolean(pendingManualEnds[msg.id])}
                     onConvertMood={() => {/* handled inside EventCard */}}
                     onMoodClick={onMoodClick}
                     onStardustSelect={onStardustSelect}

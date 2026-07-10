@@ -70,6 +70,7 @@
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
 - `useChatStore.sendMessage()/sendMood()` 现保证 `messages` 与 `dateCache` 同步更新（包括“自动结束上一条活动”后的 `duration/isActive` 变化），避免提醒弹窗确认后因缓存口径不一致出现“新活动闪现后消失/上一条未自动结束”的竞态。
+- `useChatStore` 新增首页活动“手滑误触结束”缓冲层：`pendingManualEnds` 为非持久化的 3 秒待确认结束态，仅聊天首页时间线消费；倒计时内再次点击可取消，超时后才真正调用 `endActivity()` 并触发 todo/星星/annotation 等副作用。
 - 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`）；Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），`mood_type` 在无手动覆盖时回写 mood store。
 - 星星判定策略已收敛：`todo_link` 优先；Free 仅关键词兜底；Plus 优先 `matched_bottle` 后再关键词兜底。
 - 会员分类最小埋点已接入 live-input telemetry reasons：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`（含 `membership_classification` 标记）。

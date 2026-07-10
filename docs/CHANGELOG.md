@@ -6,6 +6,27 @@ All notable effective changes are documented here.
 
 ## 2026-07-10
 
+### Fix: Chat manual-end mis-tap undo window
+
+- `src/features/chat/components/TimelineView.tsx` and `src/features/chat/components/EventCard.tsx`: the home-page activity stop button now enters a 3-second gray pending state on first tap; tapping again during that window cancels the stop and keeps the original timer running.
+- `src/store/useChatStore.ts` and `src/store/useChatStore.types.ts`: added transient `pendingManualEnds` plus request/cancel actions so manual stop side effects only finalize after the 3-second window expires.
+- `src/store/useChatStore.integration.test.ts` and `src/store/README.md`: added regression coverage and synced the store-layer note for the delayed-finalize behavior.
+
+Validation:
+
+- `npm.cmd run test:unit -- src/store/useChatStore.integration.test.ts`
+- `npx.cmd tsc --noEmit`
+
+### Fix: AI diary English word wrapping in report views
+
+- `src/features/report/ReportDetailModal.tsx`: changed AI diary observation paragraphs from `wordBreak: 'break-all'` to `wordBreak: 'normal'` while keeping `pre-wrap`, so English words no longer split mid-word in the main diary detail modal.
+- `src/features/report/DiaryBookViewerPageContent.tsx`: made diary-book observation text layout language-aware, keeping justified text for Chinese but using left-aligned wrapping plus normal word breaks for EN/IT narrow-column pages.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this diary typography fix.
+
+Validation:
+
+- Not run (targeted UI text-layout change)
+
 ### Refactor: Split oversized diary viewer
 
 - `src/features/report/DiaryBookViewer.tsx`: extracted the page rendering block and shared viewer constants so the main viewer file drops below the 1000-line pre-commit error threshold while keeping flip/drag behavior unchanged.

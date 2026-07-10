@@ -815,12 +815,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         )}
                       </div>
                       {!shouldShowUpgradeMask ? (
-                        <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'normal', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                           {observationText}
                         </p>
                       ) : (
                         <div style={{ position: 'relative', minHeight: 180 }}>
-                          <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'break-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          <p className="text-xs leading-relaxed" style={{ margin: 0, padding: 0, color: '#1A1A1A', wordBreak: 'normal', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                             {observationText}
                           </p>
                           <div

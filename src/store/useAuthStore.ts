@@ -94,7 +94,7 @@ async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?:
 function applyUserSnapshot(
   set: AuthSet,
   user: any | null,
-  options: { loading?: boolean; initializationStage?: string | null } = {},
+  options: { loading?: boolean; initializationStage?: string | null; preservedAvatarUrl?: string | null } = {},
 ): {
   meta: Record<string, any>;
   rawPreferences: UserPreferences;
@@ -103,7 +103,7 @@ function applyUserSnapshot(
   nextPreferences: UserPreferences;
   pendingProfile: ReturnType<typeof getPendingProfileWrite>;
 } {
-  const safeUser = applyCloudAvatarToUser(user, null);
+  const safeUser = applyCloudAvatarToUser(user, options.preservedAvatarUrl ?? null);
   const meta = safeUser?.user_metadata || {};
   const rawPreferences = safeUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
   const profileState = profileStateFromMeta(meta);
@@ -185,7 +185,9 @@ function runSignedInBackgroundTasks(params: {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     if (!data?.user) return;
-    const freshSnapshot = applyUserSnapshot(set, data.user);
+    const freshSnapshot = applyUserSnapshot(set, data.user, {
+      preservedAvatarUrl: get().user?.user_metadata?.avatar_url ?? null,
+    });
     const cloudProfileState = await fetchCloudUserProfileState(data.user);
     const userWithCloudAvatar = applyCloudAvatarToUser(data.user, cloudProfileState.avatarUrl);
     set({
@@ -207,7 +209,7 @@ function runSignedInBackgroundTasks(params: {
     const updatedLoginUser = await ensureTodayLoginDay(currentUser);
     const updatedLanguageUser = await ensureCloudLanguageMetadata(updatedLoginUser);
     if (updatedLanguageUser !== currentUser) {
-      set({ user: updatedLanguageUser });
+      set({ user: applyCloudAvatarToUser(updatedLanguageUser, currentUser?.user_metadata?.avatar_url ?? null) });
     }
 
     const activeUser = get().user ?? updatedLanguageUser;
@@ -242,7 +244,7 @@ function runSignedInBackgroundTasks(params: {
     if (migrationDecision?.action === 'sync_local_to_cloud') {
       await syncLocalDataToSupabase(userId, {
         currentUser: get().user ?? user,
-        onUserUpdated: (updatedUser) => set({ user: updatedUser }),
+        onUserUpdated: (updatedUser) => set({ user: applyCloudAvatarToUser(updatedUser, get().user?.user_metadata?.avatar_url ?? null) }),
       });
     }
 
@@ -274,6 +276,7 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
     const snapshot = applyUserSnapshot(set, currentUser, {
       loading: false,
       initializationStage: null,
+      preservedAvatarUrl: previousUser?.user_metadata?.avatar_url ?? null,
     });
     if (currentUser) {
       queuePreferenceSnapshotIfNeeded(snapshot);

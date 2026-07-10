@@ -3,7 +3,7 @@ import i18n from '../i18n';
 import { supabase } from '../api/supabase';
 import { isDataUrl, uploadAvatarToStorage } from '../lib/avatarStorage';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
-import { upsertCloudUserProfile } from './authProfileCloudStore';
+import { applyCloudAvatarToUser, upsertCloudUserProfile } from './authProfileCloudStore';
 import { persistLanguageToLocalStorage, normalizeUiLanguage } from './authLanguageHelpers';
 import { markLocalDataOwnerAnonymous } from './authLocalOwnerHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
@@ -306,7 +306,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       void patchUserMetadata({ display_name: displayName })
         .then(({ user, error }) => {
           if (!error && user) {
-            set({ user });
+            set({ user: applyCloudAvatarToUser(user, get().user?.user_metadata?.avatar_url ?? null) });
             return;
           }
           if (import.meta.env.DEV && error) {
@@ -359,7 +359,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       void patchUserMetadata(patch)
         .then(({ user, error }) => {
           if (!error && user) {
-            set({ user });
+            set({ user: applyCloudAvatarToUser(user, get().user?.user_metadata?.avatar_url ?? null) });
             return;
           }
           if (import.meta.env.DEV && error) {
@@ -463,7 +463,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
       void patchUserMetadata({ i18nextLng: normalized })
         .then(({ user, error }) => {
           if (!error && user) {
-            set({ user });
+            set({ user: applyCloudAvatarToUser(user, get().user?.user_metadata?.avatar_url ?? null) });
             return;
           }
           if (import.meta.env.DEV && error) {

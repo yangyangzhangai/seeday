@@ -42,6 +42,7 @@ export interface YesterdaySummary {
 
 export interface ChatState {
   messages: Message[];
+  pendingManualEnds: Record<string, number>;
   lastActivityTime: number | null;
   lastFetchedAt?: number | null;
   isMoodMode: boolean;
@@ -76,6 +77,8 @@ export interface ChatState {
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
+  requestManualEndActivity: (id: string) => void;
+  cancelManualEndActivity: (id: string) => void;
   endActivity: (id: string, opts?: { skipBottleStar?: boolean; todoId?: string }) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
