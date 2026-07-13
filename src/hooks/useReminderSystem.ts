@@ -7,10 +7,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import i18next from 'i18next';
 import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
-import { useChatStore } from '../store/useChatStore';
 import { usePlantStore } from '../store/usePlantStore';
 import { useReportStore } from '../store/useReportStore';
 import { isSameDay } from 'date-fns';
@@ -24,9 +22,8 @@ import { scheduleRemindersForToday } from '../services/reminder/reminderSchedule
 import { getReminderCopy } from '../services/reminder/reminderCopy';
 import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
-import { useTimingStore } from '../store/useTimingStore';
-import type { TimingType } from '../services/timing/timingSessionService';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../store/storageScope';
+import { confirmReminderActivity } from '../services/reminder/reminderActivityActions';
 
 // ─────────────────────────────────────────────
 // 工具：判断植物/日记今日是否已生成
@@ -46,47 +43,6 @@ function isDiaryDoneToday(
   return reports.some(
     (r) => r.type === 'daily' && isSameDay(new Date(r.date), now) && !!r.aiAnalysis,
   );
-}
-
-// ─────────────────────────────────────────────
-// 提醒类型 → 计时动作映射
-// ─────────────────────────────────────────────
-
-type TimingAction =
-  | { kind: 'start'; type: TimingType }
-  | { kind: 'end' }
-  | null;
-
-function getTimingAction(reminderType: ReminderType): TimingAction {
-  switch (reminderType) {
-    case 'work_start':
-    case 'class_morning_start':
-    case 'class_afternoon_start':
-    case 'class_evening_start':
-      return { kind: 'start', type: 'work' };
-    case 'lunch_start':
-    case 'meal_lunch':
-      return { kind: 'start', type: 'lunch' };
-    case 'lunch_end':
-      return { kind: 'start', type: 'work' };
-    case 'work_end':
-    case 'class_morning_end':
-    case 'class_afternoon_end':
-    case 'class_evening_end':
-      return { kind: 'end' };
-    case 'meal_dinner':
-      return { kind: 'start', type: 'dinner' };
-    case 'sleep':
-      return { kind: 'end' };
-    default:
-      return null;
-  }
-}
-
-function getActivityTextForType(type: ReminderType): string | null {
-  const key = `reminder_activity_${type}`;
-  const translated = i18next.t(key, { defaultValue: '' });
-  return translated || null;
 }
 
 const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
@@ -221,14 +177,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     if (!user?.id) return;
     const pendingType = consumePendingNotificationConfirm(pendingConfirmStorageKey);
     if (!pendingType) return;
-    const action = getTimingAction(pendingType);
-    if (!action) return;
-    const timing = useTimingStore.getState();
-    if (action.kind === 'start') {
-      void timing.start(user.id, action.type, 'reminder_confirm');
-    } else {
-      void timing.endActive(user.id);
-    }
+    void confirmReminderActivity(pendingType, user.id);
   }, [user?.id, pendingConfirmStorageKey]);
 
   // ── 注册通知点击回调（一次） ──
@@ -247,27 +196,14 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         }
       },
       onConfirm: (type) => {
-        useReminderStore.getState().markConfirmed(type);
-        const action = getTimingAction(type);
-        if (action) {
-          const userId = useAuthStore.getState().user?.id;
-          if (!userId) {
-            queuePendingNotificationConfirm(type, pendingConfirmStorageKey);
-            return;
-          }
-          const timing = useTimingStore.getState();
-          if (action.kind === 'start') {
-            void timing.start(userId, action.type, 'reminder_confirm');
-          } else {
-            void timing.endActive(userId);
-          }
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+          queuePendingNotificationConfirm(type, pendingConfirmStorageKey);
+          return;
         }
-        const activityText = getActivityTextForType(type);
-        if (activityText) {
-          void useChatStore.getState().sendAutoRecognizedInput(activityText);
-        }
+        void confirmReminderActivity(type, userId);
       },
-      onDeny: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+      onDeny: (type, activityType) => useReminderStore.getState().showPickerForDeny(activityType, type),
       onViewReport: () => {
         useReminderStore.getState().markConfirmed('evening_check');
         navigateRef.current('/report?action=generate-diary');
@@ -278,7 +214,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
       },
       onOpenChat: () => navigateRef.current('/chat'),
       onStillYes: () => { /* session_check 重调度（Phase 2）*/ },
-      onStillNo: (_type, activityType) => useReminderStore.getState().showPickerForDeny(activityType),
+      onStillNo: (type, activityType) => useReminderStore.getState().showPickerForDeny(activityType, type),
     });
 
     // 前台收到原生通知时，补一次 App 内弹窗兜底（避免仅依赖定时器）
@@ -406,20 +342,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
 
   // ── 前台弹窗 ✓ 确认：标记已响应 + 记录活动 + 计时 ──
   const confirmReminderFromPopup = useCallback((type: ReminderType) => {
-    useReminderStore.getState().markConfirmed(type);
-    const action = getTimingAction(type);
-    if (action && user?.id) {
-      const timing = useTimingStore.getState();
-      if (action.kind === 'start') {
-        void timing.start(user.id, action.type, 'reminder_confirm');
-      } else {
-        void timing.endActive(user.id);
-      }
-    }
-    const activityText = getActivityTextForType(type);
-    if (activityText) {
-      void useChatStore.getState().sendAutoRecognizedInput(activityText);
-    }
+    void confirmReminderActivity(type, user?.id);
   }, [user?.id]);
 
   return { confirmReminderFromPopup };

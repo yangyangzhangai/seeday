@@ -17,6 +17,7 @@ import { useTodoStore } from '../../store/useTodoStore';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
 import { useStardustStore } from '../../store/useStardustStore';
 import { useMoodStore } from '../../store/useMoodStore';
+import { OngoingActivityOverlapError } from '../../store/chatTimelineActions';
 import { useShallow } from 'zustand/react/shallow';
 
 import { StardustCard } from '../../components/feedback/StardustCard';
@@ -305,6 +306,12 @@ export const ChatPage = () => {
         await insertActivity(insertingAfterId, nextMsg?.id || null, editContent, startMs, endMs);
         shouldCloseModal = true;
       }
+    } catch (error) {
+      if (error instanceof OngoingActivityOverlapError) {
+        window.alert(t('chat_magic_pen_overlap_hint', { activity: error.activityContent }));
+        return;
+      }
+      throw error;
     } finally {
       if (shouldCloseModal) {
         setEditingId(null);

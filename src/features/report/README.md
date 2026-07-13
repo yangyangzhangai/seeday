@@ -9,11 +9,13 @@
 - Route: `/report`
 - Main user flows:
   - Embedded daytime plant root interaction section (always visible below report-range buttons)
-  - Plant generation time-window gate (available after 20:00 local time) with irreversible confirmation
-  - Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
-  - Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
-  - After the plant card appears, its diary CTA opens today's report detail directly on the diary page and reuses the same generate/view path as the report page
-  - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_0001` -> `sha_early_0001`
+- Plant generation time-window gate (available after 20:00 local time) with irreversible confirmation
+- Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
+- Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
+- After the plant card appears, its diary CTA opens today's report detail directly on the diary page and reuses the same generate/view path as the report page
+- After AI diary text finishes generating from that CTA, the detail view waits 2 seconds on the diary page and then auto-slides back to page 1 (activity/mood/todo/habit overview)
+- Bottom-nav report entry now deep-links to today's diary detail page 1 once today's AI diary already exists; otherwise it still lands on the plant/root surface
+- Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_0001` -> `sha_early_0001`
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
   - No-record fallback hint for empty-day generate attempts
   - Daily/weekly/monthly report generation

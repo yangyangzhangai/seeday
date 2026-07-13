@@ -70,6 +70,7 @@
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
 - `useChatStore.sendMessage()/sendMood()` 现保证 `messages` 与 `dateCache` 同步更新（包括“自动结束上一条活动”后的 `duration/isActive` 变化），避免提醒弹窗确认后因缓存口径不一致出现“新活动闪现后消失/上一条未自动结束”的竞态。
+- `useChatStore.sendMessage()` 现会在新活动创建前统一收口所有 ongoing 活动（不再只关闭最后一条 record），并且 `insertActivity()/updateActivity()` 会拦截与 ongoing 活动冲突的手动时间编辑，避免时间线被污染后出现双活动同时计时。
 - `useChatStore` 新增首页活动“手滑误触结束”缓冲层：`pendingManualEnds` 为非持久化的 3 秒待确认结束态，仅聊天首页时间线消费；倒计时内再次点击可取消，超时后才真正调用 `endActivity()` 并触发 todo/星星/annotation 等副作用。
 - 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`）；Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），`mood_type` 在无手动覆盖时回写 mood store。
 - 星星判定策略已收敛：`todo_link` 优先；Free 仅关键词兜底；Plus 优先 `matched_bottle` 后再关键词兜底。
@@ -88,6 +89,7 @@
 - `storageScope.ts` 新增 `getScopedClientStorageKey()` 供非 domain key 使用；首批用户行为 key（聊天草稿、昨日日志弹窗去重、提醒确认 pending、night reminder dismiss、提醒调度计数）已改为 scope-aware 命名。
 - 非 domain key 第二批已接入：植物图片 URL 缓存（`PlantImage`）与 idle nudge 调度时间戳（`localNotificationService`）现按 user scope 分桶，避免切号后读取到其他账号本地痕迹。
 - `reminderScheduler` 的 `freeDay_<date>` 缓存已定稿为 user-scoped，并与 `localNotificationService` 一起统一复用 `storageScope.getScopedClientStorageKey()`，避免分散实现导致的命名漂移。
+- 提醒确认链路现统一复用 `src/services/reminder/reminderActivityActions.ts`：系统通知确认、前台弹窗确认、弹窗内手动输入、QuickActivityPicker 补录都会同步执行 timing + chat 记录，冷启动补确认也会回放活动卡写入，不再只切 reminder timing session。
 - `reminderScheduler` 额外补齐 legacy 迁移：v2 开启时若命中旧 `freeDay_<date>` 全局 key，会自动迁移到 scoped key 并清理旧 key；`todoStoreHelpers` 也已将 `todo-storage` 明确标注为 legacy 迁移键常量。
 - `DATA_STORAGE_P2` Phase 5 启动：新增 `authLocalMigrationPolicy` 统一 owner 判定策略；v2 下仅 owner 可信（`anonymous` / `user(current)`）时自动执行 legacy `seeday:v1:*` 迁移，`unknown-owner` 进入安全模式并阻断自动上云。
 

@@ -34,6 +34,8 @@ interface ReportDetailModalProps {
   onShowTaskList: (type: 'completed' | 'total') => void;
   generateAIDiary: (reportId: string) => Promise<void>;
   initialPage?: 0 | 1;
+  autoReturnToFirstPageAfterDiaryReady?: boolean;
+  onAutoReturnToFirstPageHandled?: () => void;
   readOnly?: boolean;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
@@ -299,6 +301,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   onShowTaskList: _onShowTaskList,
   generateAIDiary: _generateAIDiary,
   initialPage,
+  autoReturnToFirstPageAfterDiaryReady = false,
+  onAutoReturnToFirstPageHandled,
   readOnly: _readOnly,
   onNavigatePrev,
   onNavigateNext,
@@ -323,6 +327,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [reportGeneratingVariantKey, setReportGeneratingVariantKey] =
     useState<ReportGeneratingVariantKey>(REPORT_GENERATING_VARIANTS[0]);
   const plantAutoAttemptedRef = useRef<Set<string>>(new Set());
+  const autoReturnTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const page = initialPage ?? 0;
@@ -332,6 +337,14 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       pagesRef.current.scrollLeft = page === 1 ? pagesRef.current.clientWidth : 0;
     });
   }, [selectedReport?.id, initialPage]);
+
+  useEffect(() => {
+    return () => {
+      if (autoReturnTimeoutRef.current !== null) {
+        window.clearTimeout(autoReturnTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedReport?.analysisStatus !== 'generating') return;
@@ -562,6 +575,29 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     el.scrollTo({ left: page === 1 ? el.clientWidth : 0, behavior: 'smooth' });
     setActivePage(page);
   }, []);
+
+  useEffect(() => {
+    if (!autoReturnToFirstPageAfterDiaryReady) return;
+    if (!diaryAlreadyGenerated) return;
+    if (activePage !== 1) {
+      onAutoReturnToFirstPageHandled?.();
+      return;
+    }
+    if (autoReturnTimeoutRef.current !== null) {
+      window.clearTimeout(autoReturnTimeoutRef.current);
+    }
+    autoReturnTimeoutRef.current = window.setTimeout(() => {
+      scrollToPage(0);
+      onAutoReturnToFirstPageHandled?.();
+      autoReturnTimeoutRef.current = null;
+    }, 2000);
+    return () => {
+      if (autoReturnTimeoutRef.current !== null) {
+        window.clearTimeout(autoReturnTimeoutRef.current);
+        autoReturnTimeoutRef.current = null;
+      }
+    };
+  }, [activePage, autoReturnToFirstPageAfterDiaryReady, diaryAlreadyGenerated, onAutoReturnToFirstPageHandled, scrollToPage]);
 
   const onScroll = useCallback(() => {
     const el = pagesRef.current;

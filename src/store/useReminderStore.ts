@@ -24,7 +24,7 @@ interface ReminderState {
   } | null;
   /** 是否显示 QuickActivityPicker */
   showQuickPicker: boolean;
-  pickerContext: { activityType?: string } | null;
+  pickerContext: { activityType?: string; reminderType?: ReminderType } | null;
 
   // Actions
   markConfirmed: (type: ReminderType) => void;
@@ -32,7 +32,7 @@ interface ReminderState {
   hidePopup: () => void;
   shouldSkipReminder: (type: ReminderType) => boolean;
   setLastSessionActivity: (act: { activityType?: string; content?: string; timestamp?: number }) => void;
-  showPickerForDeny: (activityType?: string) => void;
+  showPickerForDeny: (activityType?: string, reminderType?: ReminderType) => void;
   hidePicker: () => void;
   resetForNewDay: () => void;
 }
@@ -133,8 +133,8 @@ export const useReminderStore = create<ReminderState>()(
         set({ lastSessionActivity: act });
       },
 
-      showPickerForDeny: (activityType) => {
-        set({ showQuickPicker: true, pickerContext: { activityType }, activePopupType: null });
+      showPickerForDeny: (activityType, reminderType) => {
+        set({ showQuickPicker: true, pickerContext: { activityType, reminderType }, activePopupType: null });
       },
 
       hidePicker: () => {

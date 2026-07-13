@@ -57,6 +57,7 @@ export const ReportPage = () => {
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
   const [savedDiaryBookFlippedCount, setSavedDiaryBookFlippedCount] = useState<number | undefined>(undefined);
   const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
+  const [autoReturnToFirstPageAfterDiaryReady, setAutoReturnToFirstPageAfterDiaryReady] = useState(false);
   const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
   const [openedPlantCard, setOpenedPlantCard] = useState<DailyPlantRecord | null>(null);
   const [autoGeneratePlantToken, setAutoGeneratePlantToken] = useState(0);
@@ -136,6 +137,9 @@ export const ReportPage = () => {
     }
 
     setSelectedReportId(reportId);
+    setOpenedFromDiaryBook(false);
+    setDiaryNavDate(null);
+    setAutoReturnToFirstPageAfterDiaryReady(true);
 
     // Auto-trigger diary generation (full AI for plus, teaser for free)
     const report = useReportStore.getState().reports.find(r => r.id === reportId);
@@ -145,6 +149,23 @@ export const ReportPage = () => {
     );
     if (needsGeneration) generateAIDiary(reportId);
   }, [generateAIDiary, generateReport, reports, todayDiaryDraft, updateReport]);
+
+  const openTodayDiaryDetail = useCallback(async (options?: { initialPage?: 0 | 1; autoReturnToFirstPageAfterDiaryReady?: boolean }) => {
+    const now = new Date();
+    let reportId = reports.find(
+      (report) => report.type === 'daily' && isSameDay(new Date(report.date), now)
+    )?.id;
+
+    if (!reportId) {
+      reportId = await generateReport('daily', now.getTime());
+    }
+
+    setSelectedReportId(reportId);
+    setDiaryInitialPage(options?.initialPage);
+    setOpenedFromDiaryBook(false);
+    setDiaryNavDate(null);
+    setAutoReturnToFirstPageAfterDiaryReady(Boolean(options?.autoReturnToFirstPageAfterDiaryReady));
+  }, [generateReport, reports]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -160,8 +181,12 @@ export const ReportPage = () => {
     }
     if (action === 'generate-diary') {
       void handleGenerateDiary();
+      return;
     }
-  }, [handleGenerateDiary, searchParams, setSearchParams]);
+    if (action === 'open-today-diary') {
+      void openTodayDiaryDetail({ initialPage: 0, autoReturnToFirstPageAfterDiaryReady: false });
+    }
+  }, [handleGenerateDiary, openTodayDiaryDetail, searchParams, setSearchParams]);
 
   const handleOpenDiaryPage = useCallback(async (date: Date, subPage: 0 | 1, flippedCount: number) => {
     // Keep book open during async loading — close it only after modal is ready
@@ -442,18 +467,21 @@ export const ReportPage = () => {
         isPlus={isPlus}
         onUpgradeClick={() => navigate('/upgrade')}
         dailyMoodDistribution={dailyMoodDistribution}
-        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); setDiaryNavDate(null); }}
+        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); setDiaryNavDate(null); setAutoReturnToFirstPageAfterDiaryReady(false); }}
         onBack={openedFromDiaryBook ? () => {
           setSelectedReportId(null);
           setOpenedFromDiaryBook(false);
           setDiaryInitialPage(undefined);
           setDiaryNavDate(null);
+          setAutoReturnToFirstPageAfterDiaryReady(false);
           setShowDiaryBook(true); // reopen diary book
         } : undefined}
         onOpenPlantCard={(plant) => setOpenedPlantCard(plant)}
         onShowTaskList={setShowTaskList}
         generateAIDiary={generateAIDiary}
         initialPage={diaryInitialPage}
+        autoReturnToFirstPageAfterDiaryReady={autoReturnToFirstPageAfterDiaryReady}
+        onAutoReturnToFirstPageHandled={() => setAutoReturnToFirstPageAfterDiaryReady(false)}
         readOnly={(() => {
           if (!selectedReport) return false;
           const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());

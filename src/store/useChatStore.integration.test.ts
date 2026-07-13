@@ -163,6 +163,102 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(cached[1].isActive).toBe(true);
   });
 
+  it('closes every ongoing activity before creating the next one', async () => {
+    const base = 1_700_000_000_000;
+    const olderOngoing: Message = {
+      id: 'activity-ongoing-1',
+      content: '写方案',
+      timestamp: base,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work',
+      duration: undefined,
+      isActive: true,
+    };
+    const laterEnded: Message = {
+      id: 'activity-ended-later',
+      content: '吃饭',
+      timestamp: base + 20 * 60 * 1000,
+      type: 'text',
+      mode: 'record',
+      activityType: 'life',
+      duration: 15,
+      isActive: false,
+    };
+    const newerOngoing: Message = {
+      id: 'activity-ongoing-2',
+      content: '写代码',
+      timestamp: base + 10 * 60 * 1000,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work',
+      duration: undefined,
+      isActive: true,
+    };
+    resetChatStore([olderOngoing, newerOngoing, laterEnded]);
+
+    await useChatStore.getState().sendMessage('散步', base + 40 * 60 * 1000);
+
+    const records = useChatStore.getState().messages.filter((message) => !message.isMood);
+    const ongoing = records.filter((message) => message.duration === undefined);
+    expect(ongoing).toHaveLength(1);
+    expect(ongoing[0].content).toBe('散步');
+    expect(records.find((message) => message.id === olderOngoing.id)?.isActive).toBe(false);
+    expect(records.find((message) => message.id === newerOngoing.id)?.isActive).toBe(false);
+    expect(records.find((message) => message.id === laterEnded.id)?.duration).toBe(15);
+  });
+
+  it('blocks inserted activities that overlap an ongoing activity', async () => {
+    const base = 1_700_000_000_000;
+    resetChatStore([
+      {
+        id: 'activity-ongoing',
+        content: '写周报',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+        duration: undefined,
+        isActive: true,
+      },
+    ]);
+
+    await expect(
+      useChatStore.getState().insertActivity(null, null, '喝咖啡', base + 5 * 60 * 1000, base + 15 * 60 * 1000),
+    ).rejects.toMatchObject({ message: 'overlap_with_ongoing_activity', activityContent: '写周报' });
+    expect(useChatStore.getState().messages).toHaveLength(1);
+  });
+
+  it('blocks activity edits that would overlap an ongoing activity', async () => {
+    const base = 1_700_000_000_000;
+    resetChatStore([
+      {
+        id: 'activity-ongoing',
+        content: '写周报',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+        duration: undefined,
+        isActive: true,
+      },
+      {
+        id: 'activity-ended',
+        content: '吃饭',
+        timestamp: base - 60 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: 'life',
+        duration: 20,
+      },
+    ]);
+
+    await expect(
+      useChatStore.getState().updateActivity('activity-ended', '吃饭', base - 10 * 60 * 1000, base + 5 * 60 * 1000),
+    ).rejects.toMatchObject({ message: 'overlap_with_ongoing_activity', activityContent: '写周报' });
+    expect(useChatStore.getState().messages.find((message) => message.id === 'activity-ended')?.duration).toBe(20);
+  });
+
   it('keeps activity active during the 3-second manual-end undo window', async () => {
     const startedAt = 1_700_000_000_000;
     const endedAt = startedAt + 12 * 60 * 1000;

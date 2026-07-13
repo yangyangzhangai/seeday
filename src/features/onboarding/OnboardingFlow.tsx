@@ -63,7 +63,7 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
 const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const authMascotSrc = '/assets/auth-login-mascot.png';
   const { t } = useTranslation();
-  const { signIn, signUp, verifySignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
+  const { signIn, signUp, verifySignUpCode, resendSignUpCode, signInWithApple, signInWithGoogle } = useAuthStore();
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [nickname, setNickname] = React.useState('');
@@ -75,6 +75,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const [appleLoading, setAppleLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
+  const [resendLoading, setResendLoading] = React.useState(false);
   const [showPrivacy, setShowPrivacy] = React.useState(false);
   const [showTerms, setShowTerms] = React.useState(false);
 
@@ -94,6 +95,20 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const resetSignUpCodeState = () => {
     setVerificationCode('');
     setPendingSignUpEmail(null);
+  };
+
+  const handleResend = async () => {
+    if (!pendingSignUpEmail) return;
+    setResendLoading(true);
+    setError(null);
+    try {
+      const { error: resendError } = await resendSignUpCode(pendingSignUpEmail);
+      if (resendError) throw resendError;
+    } catch (err: any) {
+      setError(getErrorMessage(err.message || t('auth_error_generic')));
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -118,7 +133,6 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           const { error: err } = await signUp(emailToUse, password, nickname || undefined);
           if (err) throw err;
           setPendingSignUpEmail(emailToUse);
-          setMessage(t('auth_register_success'));
         }
       }
     } catch (err: any) {
@@ -153,7 +167,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const canSubmit = isLogin
     ? Boolean(identifier.trim() && password.length >= 6 && !loading)
     : pendingSignUpEmail
-      ? Boolean(verificationCode.trim().length >= 4 && !loading)
+      ? Boolean(verificationCode.trim().length === 6 && !loading)
       : Boolean(identifier.trim() && password.length >= 6 && !loading);
 
   if (showTerms) {
@@ -223,6 +237,13 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         )}
 
         {pendingSignUpEmail ? (
+          <div className="rounded-[24px] border border-[#8fae91]/40 bg-[#eef6ef] px-4 py-4 text-[#4a5d4c] shadow-sm">
+            <p className="text-xs font-bold leading-relaxed">{t('auth_register_success')}</p>
+            <p className="mt-2 break-all text-sm font-black tracking-[0.01em]">{pendingSignUpEmail}</p>
+          </div>
+        ) : null}
+
+        {pendingSignUpEmail ? (
           <div className="bg-white/60 backdrop-blur-xl border border-white p-5 rounded-[24px] shadow-sm flex items-center gap-3 group focus-within:border-[#8fae91] focus-within:bg-white transition-all">
             <div className="text-[#4a5d4c]/30 group-focus-within:text-[#4a5d4c] transition-colors">
               <Lock size={20} />
@@ -231,8 +252,9 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
               type="text"
               inputMode="numeric"
               value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value.trim())}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               onKeyDown={(e) => e.key === 'Enter' && canSubmit && handleSubmit()}
+              placeholder={t('auth_otp_placeholder')}
               className="flex-1 bg-transparent border-none outline-none text-[#4a5d4c] font-bold placeholder:text-[#4a5d4c]/20 text-sm"
             />
           </div>
@@ -252,9 +274,23 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           </div>
         )}
 
+        {pendingSignUpEmail ? (
+          <div className="flex justify-end px-1">
+            <button
+              type="button"
+              onClick={() => { void handleResend(); }}
+              disabled={resendLoading}
+              className="text-xs font-bold text-[#4a5d4c]/50 underline decoration-[#4a5d4c]/20 disabled:opacity-40"
+            >
+              {resendLoading ? <Loader2 size={12} className="mr-1 inline animate-spin" /> : null}
+              {t('auth_resend_code')}
+            </button>
+          </div>
+        ) : null}
+
         {/* 错误 / 成功提示 */}
         {error && <p className="text-red-500 text-xs px-2">{error}</p>}
-        {message && <p className="text-[#4a5d4c] text-xs px-2">{message}</p>}
+        {message && !pendingSignUpEmail && <p className="text-[#4a5d4c] text-xs px-2">{message}</p>}
         {/* 切换登录/注册 */}
         <p className="text-center text-xs text-[#4a5d4c]/40 pt-1">
           <button
@@ -307,7 +343,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           }`}>
           {loading
             ? <Loader2 size={20} className="animate-spin" />
-            : <>{isLogin ? t('auth_login_button') : t('auth_register_button')} <ChevronRight size={20} /></>
+            : <>{isLogin ? t('auth_login_button') : pendingSignUpEmail ? t('auth_verify_button') : t('auth_register_button')} <ChevronRight size={20} /></>
           }
         </motion.button>
 

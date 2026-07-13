@@ -16,14 +16,15 @@ export interface ImageUploaderProps {
   hideUploadButton?: boolean;
   openSignal?: number;
   readonly?: boolean;
+  hidden?: boolean;
 }
 
 export interface ImageUploaderHandle {
   openFilePicker: () => void;
 }
 
-export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploaderProps>(({
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly,
+export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploaderProps>(({ 
+  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly, hidden,
 }, ref) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -102,6 +103,19 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
       className="hidden"
       onChange={handleFileChange}
     />
+  );
+
+  if (hidden) return (
+    <>
+      {fileInput}
+      {cropFile && inBodyPortal(
+        <ImageCropModal
+          file={cropFile}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropFile(null)}
+        />,
+      )}
+    </>
   );
 
   // ── Image uploaded: thumbnail + overlay ──────────────────────

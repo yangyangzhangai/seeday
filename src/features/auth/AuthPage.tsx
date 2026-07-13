@@ -56,7 +56,6 @@ export const AuthPage: React.FC = () => {
     try {
       const { error } = await resendSignUpCode(pendingSignUpEmail);
       if (error) throw error;
-      setMessage(t('auth_register_success'));
     } catch (err: any) {
       setError(getErrorMessage(err.message || t('auth_error_generic')));
     } finally {
@@ -88,7 +87,6 @@ export const AuthPage: React.FC = () => {
           const { error: signUpError } = await signUp(emailToUse, password, nickname || undefined);
           if (signUpError) throw signUpError;
           setPendingSignUpEmail(emailToUse);
-          setMessage(t('auth_register_success'));
         }
       }
     } catch (err: any) {
@@ -123,7 +121,7 @@ export const AuthPage: React.FC = () => {
   const canSubmit = isLogin
     ? Boolean(identifier.trim() && password.length >= 6 && !loading)
     : pendingSignUpEmail
-      ? Boolean(verificationCode.trim().length >= 4 && !loading)
+      ? Boolean(verificationCode.trim().length === 6 && !loading)
       : Boolean(identifier.trim() && password.length >= 6 && !loading);
 
   if (authLoading) {
@@ -199,6 +197,13 @@ export const AuthPage: React.FC = () => {
           ) : null}
 
           {pendingSignUpEmail ? (
+            <div className="rounded-[24px] border border-[#8fae91]/40 bg-[#eef6ef] px-4 py-4 text-[#4a5d4c] shadow-sm">
+              <p className="text-xs font-bold leading-relaxed">{t('auth_register_success')}</p>
+              <p className="mt-2 break-all text-sm font-black tracking-[0.01em]">{pendingSignUpEmail}</p>
+            </div>
+          ) : null}
+
+          {pendingSignUpEmail ? (
             <div className="group flex items-center gap-3 rounded-[24px] border border-white bg-white/60 p-5 shadow-sm backdrop-blur-xl transition-all focus-within:border-[#8fae91] focus-within:bg-white">
               <div className="text-[#4a5d4c]/30 transition-colors group-focus-within:text-[#4a5d4c]">
                 <Lock size={20} />
@@ -207,7 +212,7 @@ export const AuthPage: React.FC = () => {
                 type="text"
                 inputMode="numeric"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.trim())}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && canSubmit) {
                     void handleSubmit();
@@ -251,7 +256,7 @@ export const AuthPage: React.FC = () => {
             </div>
           ) : null}
           {error ? <p className="px-2 text-xs text-red-500">{error}</p> : null}
-          {message ? <p className="px-2 text-xs text-[#4a5d4c]">{message}</p> : null}
+          {message && !pendingSignUpEmail ? <p className="px-2 text-xs text-[#4a5d4c]">{message}</p> : null}
           <p className="pt-1 text-center text-xs text-[#4a5d4c]/40">
             <button
               type="button"

@@ -1,15 +1,19 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-10
+Last Updated: 2026-07-13
 Owner: current working session
 
 Session Notes:
 
+- 2026-07-13: Auth signup OTP feedback strengthened: email-code signup now keeps a stable sent-code card tied to `pendingSignUpEmail`, shows the concrete target email in both `AuthPage` and onboarding `StepAuth`, preserves the reminder across verify failures, and aligns OTP UI details (6-digit input clamp, verify CTA, resend entry, placeholder) to reduce the “code sent but no reminder” confusion.
 - 2026-07-10: Chat 首页活动卡手动结束按钮新增 3 秒误触撤销窗口：首次点击仅进入 `pendingManualEnds` 灰态缓冲，3 秒内再次点击可取消并继续沿用原计时；超时后才真正调用 `endActivity()`，避免 todo 完成/星星发放/annotation 等副作用过早落地。
+- 2026-07-13: Fixed overlapping active activity cards across chat/todo/focus/reminder entry points: `sendMessage()` now closes all ongoing activities before opening a new one, timeline manual insert/edit blocks ranges that conflict with an ongoing activity, and reminder confirm/manual-input flows now share one timing+chat helper so cold-start notification confirms and deny->custom-input both keep timing sessions and chat cards in sync.
 - 2026-07-10: Fixed AI diary English word splitting in report diary surfaces: `ReportDetailModal` observation text no longer uses `wordBreak: break-all`, and `DiaryBookViewerPageContent` now keeps Chinese justified while EN/IT use left-aligned wrapping to avoid narrow-column word fragmentation.
 - 2026-07-10: Split `DiaryBookViewer` page-content/render constants into `DiaryBookViewerPageContent.tsx` and `diaryBookViewerTheme.ts`, bringing `src/features/report/DiaryBookViewer.tsx` back under the max-lines pre-commit hard limit without changing viewer behavior.
 - 2026-07-10: Updated report plant->diary flow: after today's plant card appears, tapping the card CTA now reuses `ReportPage`'s existing today-diary open path so the app opens the diary detail page/modal directly instead of generating in place without navigation.
+- 2026-07-13: Updated report diary-return flow: once today's AI diary finishes generating from the plant CTA, the modal pauses on page 2 for 2 seconds and auto-slides back to page 1; after a diary exists, the bottom-nav report button now deep-links straight into today's page-1 diary detail instead of reopening the plant root surface.
 - 2026-07-10: Fixed recurring todo "Delete all future" from a completed instance: the action now removes the recurrence template and the currently selected completed instance, while preserving older completed history.
+- 2026-07-10: Fixed chat activity card image reflow: when image 1 is deleted, any remaining image 2 now shifts into the first visible position instead of staying stranded on the right.
 - 2026-07-10: Fixed chat activity card image-slot rendering: removing image 1 no longer hides image 2; added `eventCardImages` regression coverage for the second-image-only state.
 - 2026-07-10: Fixed English diary activity/mood copy fallback: diary book/detail views now recompute localized activity and mood summaries when stored summaries are from another language, and `/api/diary` now localizes raw-input/date/history prompt labels for EN/IT.
 - 2026-07-10: Chat neutral placeholder English copy polish: `chat_placeholder_neutral` now uses "Capture this moment, the tree will remember it" in `src/i18n/locales/en.ts`; ZH/IT were left unchanged.

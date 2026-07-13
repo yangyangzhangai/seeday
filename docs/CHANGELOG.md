@@ -4,7 +4,42 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-13
+
+### Fix: Overlapping active activity timers across reminder and manual entry flows
+
+- `src/store/chatActions.ts`, `src/store/useChatStore.ts`, and `src/store/chatTimelineActions.ts`: new activity creation now closes every ongoing activity instead of only the latest record, and manual timeline insert/edit now rejects ranges that overlap an ongoing activity to stop the timeline from entering a double-active state.
+- `src/services/reminder/reminderActivityActions.ts`, `src/hooks/useReminderSystem.ts`, `src/components/ReminderPopup.tsx`, `src/components/QuickActivityPicker.tsx`, and `src/store/useReminderStore.ts`: reminder confirm, cold-start replay, popup custom input, and deny-to-picker recovery now share one timing+chat action flow so reminder timing sessions and chat activity cards stay aligned.
+- `src/store/useChatStore.integration.test.ts`, `src/services/reminder/reminderActivityActions.test.ts`, and `src/store/README.md`: added regression coverage for multi-ongoing closure, timeline overlap guards, reminder manual-input timing sync, and updated store-layer notes.
+
+Validation:
+
+- `npm.cmd run test:unit -- src/store/useChatStore.integration.test.ts src/services/reminder/reminderActivityActions.test.ts`
+- `npx.cmd tsc --noEmit`
+
+### Fix: Report bottom-nav diary re-entry and post-generate auto-return
+
+- `src/components/layout/BottomNav.tsx`: the report tab now checks whether today's AI diary already exists and deep-links to `/report?action=open-today-diary` when it does, while keeping the old `/report` root/plant landing path for pre-diary states.
+- `src/features/report/ReportPage.tsx`: added a dedicated today-diary open path so report entry can open today's detail modal on page 1, while the plant CTA still opens page 2 and marks the session for one-shot post-generation auto-return behavior.
+- `src/features/report/ReportDetailModal.tsx`: after a plant-CTA diary generation completes and the modal is still on page 2, the view now waits 2 seconds and auto-slides back to page 1; manual page changes during that window cancel the auto-slide.
+- `src/features/report/README.md` and `docs/CURRENT_TASK.md`: synced the report-flow documentation for the new diary re-entry and auto-slide behavior.
+
+Validation:
+
+- Not run (UI flow change)
+
 ## 2026-07-10
+
+### Fix: Auth signup code-sent feedback visibility
+
+- `src/features/auth/AuthPage.tsx`: replaced the fragile small success text with a stable OTP-stage card that stays visible while `pendingSignUpEmail` exists, shows the target email explicitly, keeps the reminder visible after verify failures, and constrains verification input to 6 digits.
+- `src/features/onboarding/OnboardingFlow.tsx`: aligned the duplicated onboarding auth step with the main auth flow by adding the same sent-email card, OTP placeholder, verify CTA, resend action, and 6-digit code gating.
+- `docs/CURRENT_TASK.md`: synced the session anchor for the auth OTP reminder fix.
+
+Validation:
+
+- `npx.cmd tsc --noEmit`
+- `git diff --check` (blocked by pre-existing trailing whitespace in `src/features/chat/components/ImageUploader.tsx:26`)
 
 ### Fix: Chat manual-end mis-tap undo window
 
@@ -62,6 +97,16 @@ Validation:
 
 - `src/features/chat/components/EventCard.tsx`: keeps the second image slot visible after the first image is removed, while preserving the empty-card upload trigger.
 - `src/features/chat/components/eventCardImages.ts`: adds a small image-slot helper with a regression test for the second-image-only state.
+
+Validation:
+
+- `npm.cmd run test:unit -- src/features/chat/components/eventCardImages.test.ts`
+- `npx.cmd tsc --noEmit`
+
+### Fix: Chat activity card image reflow after delete
+
+- `src/features/chat/components/EventCard.tsx`: visible activity-card thumbnails now render from the actual filled slots, so when the first image is deleted the remaining second image shifts into the first visual position.
+- `src/features/chat/components/ImageUploader.tsx`: adds a hidden input-only mode so slot-specific upload controls stay mounted for the top-right camera action without leaving an empty thumbnail column in the card.
 
 Validation:
 

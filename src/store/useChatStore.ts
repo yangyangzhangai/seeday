@@ -408,8 +408,13 @@ export const useChatStore = create<ChatState>()(
         const pendingManualEndIds = Object.keys(get().pendingManualEnds);
         pendingManualEndIds.forEach(clearPendingManualEndTimer);
         let updatedMessages = [...get().messages];
-        const { messages: afterClose, closedMessage } = closePreviousActivityLocal(updatedMessages, now);
-        if (closedMessage && updatedMessages.find(m => m.id === closedMessage.id)?.isActive) void runAutoCloseBottleMatch(closedMessage); updatedMessages = afterClose;
+        const { messages: afterClose, closedMessages } = closePreviousActivityLocal(updatedMessages, now);
+        closedMessages.forEach((closedMessage) => {
+          if (updatedMessages.find((message) => message.id === closedMessage.id)?.isActive) {
+            void runAutoCloseBottleMatch(closedMessage);
+          }
+        });
+        updatedMessages = afterClose;
         const classifiedByRule = !options?.activityTypeOverride
           ? classifyRecordActivityType(content, resolveLangForText(content))
           : null;

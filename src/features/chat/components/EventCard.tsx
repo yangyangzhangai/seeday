@@ -333,24 +333,31 @@ export const EventCard: React.FC<EventCardProps> = ({
       </div>
 
       {/* ── Images ── */}
-      {(visibleImageSlots.length > 0 || (!readonly && canUploadImage)) && (
+      {!readonly && (
+        <>
+          <ImageUploader ref={image1UploaderRef} messageId={message.id}
+            imageUrl={message.imageUrl}
+            onUploaded={url => handleImageUploaded('imageUrl', url)}
+            onRemoved={() => handleImageRemoved('imageUrl')}
+            compact hidden readonly={readonly} />
+          <ImageUploader ref={image2UploaderRef} messageId={`${message.id}_2`}
+            imageUrl={message.imageUrl2}
+            onUploaded={url => handleImageUploaded('imageUrl2', url)}
+            onRemoved={() => handleImageRemoved('imageUrl2')}
+            compact hidden readonly={readonly} />
+        </>
+      )}
+      {visibleImageSlots.length > 0 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 6, position: 'relative', zIndex: 1 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ImageUploader ref={readonly ? undefined : image1UploaderRef} messageId={message.id}
-              imageUrl={message.imageUrl}
-              onUploaded={url => handleImageUploaded('imageUrl', url)}
-              onRemoved={() => handleImageRemoved('imageUrl')}
-              compact hideUploadButton={!readonly} hideUploadWhen={readonly && !hasImage1} readonly={readonly} />
-          </div>
-          {(hasImage1 || hasImage2) && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <ImageUploader ref={readonly ? undefined : image2UploaderRef} messageId={`${message.id}_2`}
-                imageUrl={message.imageUrl2}
-                onUploaded={url => handleImageUploaded('imageUrl2', url)}
-                onRemoved={() => handleImageRemoved('imageUrl2')}
-                compact hideUploadButton={!readonly} hideUploadWhen={readonly ? !hasImage2 : hasImage2} readonly={readonly} />
+          {visibleImageSlots.map(slot => (
+            <div key={slot} style={{ flex: 1, minWidth: 0 }}>
+              <ImageUploader messageId={slot === 'imageUrl' ? message.id : `${message.id}_2`}
+                imageUrl={slot === 'imageUrl' ? message.imageUrl : message.imageUrl2}
+                onUploaded={url => handleImageUploaded(slot, url)}
+                onRemoved={() => handleImageRemoved(slot)}
+                compact hideUploadButton={!readonly} readonly={readonly} />
             </div>
-          )}
+          ))}
         </div>
       )}
 

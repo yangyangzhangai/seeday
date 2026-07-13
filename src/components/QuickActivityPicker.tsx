@@ -3,8 +3,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
 import { triggerLightHaptic } from '../lib/haptics';
+import { submitReminderManualActivity } from '../services/reminder/reminderActivityActions';
 
 const QUICK_OPTIONS = [
   { emoji: '🍽', key: 'quick_activity_meal' },
@@ -19,6 +21,7 @@ export const QuickActivityPicker: React.FC = () => {
   const { t } = useTranslation();
   const { showQuickPicker, pickerContext, hidePicker } = useReminderStore();
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const userId = useAuthStore((s) => s.user?.id);
   const [customInput, setCustomInput] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -31,7 +34,11 @@ export const QuickActivityPicker: React.FC = () => {
   const handleSend = (text: string) => {
     if (!text.trim()) return;
     triggerLightHaptic();
-    void sendMessage(text.trim());
+    if (pickerContext?.reminderType) {
+      void submitReminderManualActivity(text, { reminderType: pickerContext.reminderType, userId });
+    } else {
+      void sendMessage(text.trim());
+    }
     hidePicker();
   };
 

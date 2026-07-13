@@ -364,7 +364,7 @@ const MainLayout = () => {
           type={activePopupType}
           copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
           onConfirm={() => { void confirmReminderFromPopup(activePopupType); }}
-          onDeny={() => showPickerForDeny()}
+          onDeny={() => showPickerForDeny(undefined, activePopupType)}
         />
       )}
       {(activePopupType === 'evening_check' || activePopupType === 'weekend_evening_check') && (

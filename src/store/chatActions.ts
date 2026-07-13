@@ -373,47 +373,54 @@ export async function sendAutoRecognizedInputFlow(
 
 export function closePreviousActivityLocal(messages: Message[], now: number): {
   messages: Message[];
-  closedMessage: Message | null;
-  duration: number;
+  closedMessages: Message[];
 } {
   const updatedMessages = [...messages];
 
-  let lastRecordIndex = -1;
-  for (let i = updatedMessages.length - 1; i >= 0; i--) {
-    if (!updatedMessages[i].isMood) {
-      lastRecordIndex = i;
-      break;
+  const ongoingMessages = updatedMessages
+    .map((message, index) => ({ message, index }))
+    .filter(({ message }) => !message.isMood && message.mode === 'record' && message.duration === undefined);
+
+  if (ongoingMessages.length === 0) {
+    return { messages: updatedMessages, closedMessages: [] };
+  }
+
+  const closedMessages = ongoingMessages.map(({ message }) => ({
+    ...message,
+    duration: resolveAutoActivityDurationMinutes(message.timestamp, now),
+    isActive: false,
+  }));
+
+  closedMessages.forEach((closedMessage) => {
+    const targetIndex = updatedMessages.findIndex((message) => message.id === closedMessage.id);
+    if (targetIndex !== -1) {
+      updatedMessages[targetIndex] = closedMessage;
     }
-  }
-
-  if (lastRecordIndex === -1) {
-    return { messages: updatedMessages, closedMessage: null, duration: 0 };
-  }
-
-  const lastMessage = updatedMessages[lastRecordIndex];
-  const duration = resolveAutoActivityDurationMinutes(lastMessage.timestamp, now);
-  const closedMessage = { ...lastMessage, duration, isActive: false };
-  updatedMessages[lastRecordIndex] = closedMessage;
+  });
 
   void (async () => {
     const session = await getSupabaseSession();
     if (!session) return;
-    await supabase
-      .from('messages')
-      .update({ duration, is_active: false })
-      .eq('id', closedMessage.id)
-      .eq('user_id', session.user.id);
+    await Promise.all(closedMessages.map(async (closedMessage) => {
+      await supabase
+        .from('messages')
+        .update({ duration: closedMessage.duration, is_active: false })
+        .eq('id', closedMessage.id)
+        .eq('user_id', session.user.id);
+    }));
   })();
 
   const moodStore = useMoodStore.getState();
-  if (!moodStore.getMood(closedMessage.id)) {
-    moodStore.setMood(
-      closedMessage.id,
-      autoDetectMood(closedMessage.content, duration, resolveLangForText(closedMessage.content)),
-    );
-  }
+  closedMessages.forEach((closedMessage) => {
+    if (!moodStore.getMood(closedMessage.id)) {
+      moodStore.setMood(
+        closedMessage.id,
+        autoDetectMood(closedMessage.content, closedMessage.duration ?? 0, resolveLangForText(closedMessage.content)),
+      );
+    }
+  });
 
-  return { messages: updatedMessages, closedMessage, duration };
+  return { messages: updatedMessages, closedMessages };
 }
 
 export async function syncClosedActivityToCloud(message: Message, duration: number): Promise<void> {
@@ -428,9 +435,9 @@ export async function syncClosedActivityToCloud(message: Message, duration: numb
 
 /** @deprecated use closePreviousActivityLocal + syncClosedActivityToCloud instead */
 export async function closePreviousActivity(messages: Message[], now: number): Promise<Message[]> {
-  const { messages: updated, closedMessage, duration } = closePreviousActivityLocal(messages, now);
-  if (closedMessage) {
-    await syncClosedActivityToCloud(closedMessage, duration);
+  const { messages: updated, closedMessages } = closePreviousActivityLocal(messages, now);
+  for (const closedMessage of closedMessages) {
+    await syncClosedActivityToCloud(closedMessage, closedMessage.duration ?? 0);
   }
   return updated;
 }

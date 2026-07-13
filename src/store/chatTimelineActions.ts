@@ -17,6 +17,7 @@ import {
 import { getLocalDateString } from './chatHelpers';
 import i18n from '../i18n';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+import { resolveAutoActivityEndMs } from './chatDayBoundary';
 
 function resolveCurrentLang(): SupportedLang {
   const lang = i18n.language?.toLowerCase() ?? 'zh';
@@ -49,6 +50,36 @@ export interface ChatTimelineActions {
   reattachMoodToEvent: (moodMsgId: string) => Promise<void>;
   convertMoodToEvent: (moodMsgId: string) => Promise<void>;
   detachMoodMessage: (moodId: string) => Promise<void>;
+}
+
+export class OngoingActivityOverlapError extends Error {
+  activityContent: string;
+
+  constructor(activityContent: string) {
+    super('overlap_with_ongoing_activity');
+    this.name = 'OngoingActivityOverlapError';
+    this.activityContent = activityContent;
+  }
+}
+
+function assertNoOngoingActivityOverlap(
+  messages: Message[],
+  startTime: number,
+  endTime: number,
+  ignoreId?: string,
+): void {
+  const now = Date.now();
+  const conflict = messages.find((message) => {
+    if (message.id === ignoreId || message.isMood || message.mode !== 'record' || message.duration !== undefined) {
+      return false;
+    }
+    const ongoingEnd = resolveAutoActivityEndMs(message.timestamp, now);
+    return startTime < ongoingEnd && endTime > message.timestamp;
+  });
+
+  if (conflict) {
+    throw new OngoingActivityOverlapError(conflict.content);
+  }
 }
 
 export function createChatTimelineActions(
@@ -184,6 +215,7 @@ export function createChatTimelineActions(
   };
 
   const insertActivity = async (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => {
+    assertNoOngoingActivityOverlap(get().messages, startTime, endTime);
     const { finalMessages, messagesToInsert, messagesToUpdate } = buildInsertedActivityResult(
       get().messages,
       content,
@@ -210,6 +242,7 @@ export function createChatTimelineActions(
   };
 
   const updateActivity = async (id: string, content: string, startTime: number, endTime: number) => {
+    assertNoOngoingActivityOverlap(get().messages, startTime, endTime, id);
     const duration = Math.round((endTime - startTime) / (1000 * 60));
 
     set(state => ({

@@ -5,10 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { APP_MODAL_OVERLAY_CLASS } from '../lib/modalTheme';
 import { AI_COMPANION_VISUALS } from '../constants/aiCompanionVisuals';
 import { useAuthStore } from '../store/useAuthStore';
-import { useReminderStore } from '../store/useReminderStore';
-import { useChatStore } from '../store/useChatStore';
 import { triggerLightHaptic } from '../lib/haptics';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import { submitReminderManualActivity } from '../services/reminder/reminderActivityActions';
 
 interface Props {
   type: ReminderType;
@@ -20,10 +19,9 @@ interface Props {
 export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDeny }) => {
   const { t } = useTranslation();
   const aiMode = useAuthStore((s) => s.preferences.aiMode);
+  const userId = useAuthStore((s) => s.user?.id);
   const [inputValue, setInputValue] = React.useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const sendMessage = useChatStore((s) => s.sendMessage);
-  const markConfirmed = useReminderStore((s) => s.markConfirmed);
 
   const visual = AI_COMPANION_VISUALS[aiMode];
 
@@ -40,8 +38,7 @@ export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDe
   const handleSend = () => {
     if (!inputValue.trim()) return;
     triggerLightHaptic();
-    void sendMessage(inputValue.trim());
-    markConfirmed(type);
+    void submitReminderManualActivity(inputValue, { reminderType: type, userId });
     setInputValue('');
   };
 
