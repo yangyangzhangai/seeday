@@ -31,10 +31,10 @@ interface Props {
   onEditingChange?: (todoId: string | null) => void;
 }
 
-const priorityConfig: Record<GrowthPriority, { color: string; bg: string; border: string }> = {
-  high: { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-500' },
-  medium: { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-500' },
-  low: { color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-500' },
+const priorityConfig: Record<GrowthPriority, { color: string; bg: string; border: string; dot: string }> = {
+  high: { color: 'text-rose-500', bg: 'bg-[#F8DADF]', border: 'border-rose-200', dot: 'bg-[#F9E0E4]' },
+  medium: { color: 'text-amber-500', bg: 'bg-[#F9E8C8]', border: 'border-amber-200', dot: 'bg-[#FFFBC7]' },
+  low: { color: 'text-emerald-500', bg: 'bg-[#DDF1E5]', border: 'border-emerald-200', dot: 'bg-[#E4FFC4]' },
 };
 
 function normalizePriority(p: string): GrowthPriority {
@@ -209,24 +209,24 @@ export const GrowthTodoCard = ({
     if (priority === 'high') {
       return {
         background:
-          'linear-gradient(135deg, rgba(254,226,226,0.96) 0%, rgba(254,202,202,0.92) 50%, rgba(252,165,165,0.72) 100%) padding-box, linear-gradient(140deg, rgba(252,165,165,0.55) 0%, rgba(254,242,242,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+          'linear-gradient(135deg, rgba(254,247,249,0.98) 0%, rgba(250,231,236,0.95) 12%, rgba(249,224,228,0.93) 58%, rgba(244,210,218,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(249,224,228,0.98) 48%, rgba(244,210,218,0.98) 100%) border-box',
         border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(239,68,68,0.12)',
+        boxShadow: '0 6px 14px rgba(249,224,228,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
       } as const;
     }
     if (priority === 'medium') {
       return {
         background:
-          'linear-gradient(135deg, rgba(255,237,213,0.96) 0%, rgba(254,215,170,0.92) 50%, rgba(251,191,36,0.66) 100%) padding-box, linear-gradient(140deg, rgba(251,191,36,0.50) 0%, rgba(255,247,237,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+          'linear-gradient(135deg, rgba(255,255,246,0.98) 0%, rgba(255,255,203,0.95) 12%, rgba(254,255,175,0.93) 58%, rgba(247,248,154,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(254,255,175,0.98) 48%, rgba(247,248,154,0.98) 100%) border-box',
         border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(245,158,11,0.12)',
+        boxShadow: '0 6px 14px rgba(254,255,175,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
       } as const;
     }
     return {
       background:
-        'linear-gradient(135deg, rgba(220,252,231,0.96) 0%, rgba(187,247,208,0.92) 50%, rgba(134,239,172,0.68) 100%) padding-box, linear-gradient(140deg, rgba(134,239,172,0.50) 0%, rgba(240,253,244,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+        'linear-gradient(135deg, rgba(248,255,240,0.98) 0%, rgba(236,255,212,0.95) 12%, rgba(228,255,196,0.93) 58%, rgba(210,244,176,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(228,255,196,0.98) 48%, rgba(210,244,176,0.98) 100%) border-box',
       border: '0.5px solid transparent',
-      boxShadow: '0 6px 14px rgba(34,197,94,0.12)',
+      boxShadow: '0 6px 14px rgba(228,255,196,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
     } as const;
   };
 
@@ -253,7 +253,7 @@ export const GrowthTodoCard = ({
     <div
       ref={cardRef}
       className={cn(
-        "relative bg-white rounded-xl border border-gray-100 shadow-sm transition-all duration-300",
+        "relative w-full bg-white rounded-[50px] border border-white/80 shadow-[0_16px_32px_-22px_rgba(15,23,42,0.28),0_10px_18px_-18px_rgba(15,23,42,0.18)] transition-all duration-300",
         todo.completed && "opacity-50",
         isHighlighted && "ring-2 ring-green-400 animate-[highlightPulse_0.6s_ease-in-out_3]"
       )}
@@ -278,7 +278,7 @@ export const GrowthTodoCard = ({
 
       {/* Main row — tap to expand */}
       <div
-        className="flex items-center gap-2 p-3 cursor-pointer"
+        className="flex min-h-[50px] items-center gap-2.5 px-5 py-4 cursor-pointer"
         onPointerUp={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest('button, input, textarea, select, [data-no-expand="true"]')) return;
@@ -298,7 +298,7 @@ export const GrowthTodoCard = ({
             e.stopPropagation();
           }}
           className={cn(
-            "w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors touch-manipulation",
+            "h-6 w-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-colors touch-manipulation",
             todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
           )}
           aria-label={t('growth_todo_complete')}
@@ -354,31 +354,37 @@ export const GrowthTodoCard = ({
           ) : null}
         </div>
 
-        {/* Priority badge */}
-        <span
-          className={cn("text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0", cfg.color, cfg.bg)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {t(`growth_todo_priority_${normalizedPriority}`)}
-        </span>
+        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-1.5">
+          <div className="flex h-7 w-7 items-center justify-center">
+            <span
+              className={cn(
+                "h-3 w-3 flex-shrink-0 rounded-full",
+                cfg.dot
+              )}
+              onClick={(e) => e.stopPropagation()}
+              title={t(`growth_todo_priority_${normalizedPriority}`)}
+              aria-label={t(`growth_todo_priority_${normalizedPriority}`)}
+            />
+          </div>
 
-        {/* Action buttons */}
-        {!todo.completed && (
-          <>
-            {onStart && (
-              <button
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  triggerLightHaptic();
-                  onStart(todo);
-                }}
-                onClick={consumeGhostClick}
-                className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                title={t('growth_todo_start')}
-              >
-                <Play size={16} strokeWidth={1.5} />
-              </button>
-            )}
+          {!todo.completed && onStart ? (
+            <button
+              onPointerUp={(e) => {
+                e.stopPropagation();
+                triggerLightHaptic();
+                onStart(todo);
+              }}
+              onClick={consumeGhostClick}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-green-600 transition-colors hover:bg-green-50"
+              title={t('growth_todo_start')}
+            >
+              <Play size={16} strokeWidth={1.5} />
+            </button>
+          ) : (
+            <div className="h-7 w-7" aria-hidden="true" />
+          )}
+
+          {!todo.completed ? (
             <button
               onPointerUp={(e) => {
                 e.stopPropagation();
@@ -386,12 +392,14 @@ export const GrowthTodoCard = ({
                 onFocus(todo);
               }}
               onClick={consumeGhostClick}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100"
             >
               <AlarmClock size={16} strokeWidth={1.5} />
             </button>
-          </>
-        )}
+          ) : (
+            <div className="h-7 w-7" aria-hidden="true" />
+          )}
+        </div>
       </div>
 
       {/* Expanded edit panel */}

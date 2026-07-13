@@ -14,6 +14,12 @@ import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantFlipCard } from './PlantFlipCard';
 import { SoilCanvas } from './SoilCanvas';
 import { DayEcoSphere } from './DayEcoSphere';
+import {
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_TEXT,
+} from '../../../lib/modalTheme';
 
 function getCategoryKey(category: PlantCategoryKey): string {
   switch (category) {
@@ -417,7 +423,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           onClick={handleGeneratePlant}
           disabled={plantGenerateUi.disabled}
           className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
-          style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
+          style={{ background: APP_GREEN_GLASS_BG, color: APP_GREEN_GLASS_TEXT, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
         >
           {t(plantGenerateUi.buttonKey)}
         </button>
@@ -449,7 +455,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
               <button
                 onClick={() => setShowEarlyCard(false)}
                 className="mt-3 rounded-full px-5 py-1 text-xs font-semibold transition active:opacity-70"
-                style={{ background: 'rgba(95,122,99,0.12)', color: '#5F7A63' }}
+                style={{ background: APP_GREEN_GLASS_BG, color: APP_GREEN_GLASS_TEXT, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
               >
                 {t('report_early_tip_ok')}
               </button>
@@ -498,7 +504,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
                 onClick={() => { void handleDiarySave(); }}
                 disabled={isDiarySaving}
                 className="rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-70"
-                style={{ color: '#5F7A63', background: 'rgba(144, 212, 122, 0.24)' }}
+                style={{ color: APP_GREEN_GLASS_TEXT, background: APP_GREEN_GLASS_BG, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
               >
                 {isDiarySaving ? `${t('report_save')}...` : t('report_save')}
               </button>

@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Activity } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { triggerLightHaptic } from '../../lib/haptics';
+import {
+  APP_GLASS_BUTTON_BASE_STYLE,
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_TEXT,
+} from '../../lib/modalTheme';
 
 const SAGE_GREEN_DEEP = '#5F7A63';
 const SAGE_GREEN = '#8FAF92';
@@ -134,20 +141,21 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               }}
               disabled={!hasInput || disabled}
               style={{
+                ...APP_GLASS_BUTTON_BASE_STYLE,
                 width: 34, height: 34, borderRadius: 17,
-                background: 'rgba(144.67, 212.06, 122.21, 0.20)',
-                boxShadow: '0px 2px 2px #C8C8C8',
-                color: SAGE_GREEN_DEEP,
+                background: APP_GREEN_GLASS_BG,
+                boxShadow: APP_GREEN_GLASS_SHADOW,
+                color: APP_GREEN_GLASS_TEXT,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: (!hasInput || disabled) ? 'not-allowed' : 'pointer',
-                flexShrink: 0, border: 'none',
+                flexShrink: 0, border: APP_GREEN_GLASS_BORDER,
                 opacity: (!hasInput || disabled) ? 0.5 : 1,
                 transition: 'opacity 0.2s',
               }}
             >
               {isLoading
                 ? <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                : <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5F7A63' }}>arrow_upward</span>
+                : <span className="material-symbols-outlined" style={{ fontSize: 18, color: APP_GREEN_GLASS_TEXT }}>arrow_upward</span>
               }
             </button>
           </div>

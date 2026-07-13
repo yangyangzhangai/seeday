@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import type { DailyPlantRecord } from '../../types/plant';
 import { cn } from '../../lib/utils';
 import {
+  APP_GLASS_BUTTON_BASE_STYLE,
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
   APP_MODAL_OVERLAY_CLASS,
@@ -316,11 +317,17 @@ export const ReportPage = () => {
               }}
               aria-label={t('report_calendar_view')}
               title={t('report_calendar_view')}
-              className="w-11 h-11 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-2xl border border-[#8fae9130] shadow-[0_8px_20px_rgba(143,174,145,0.12)] cursor-pointer transition-all hover:scale-105 active:scale-95 group"
+              className="w-11 h-11 flex items-center justify-center rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95 group"
+              style={{
+                ...APP_GLASS_BUTTON_BASE_STYLE,
+                background:
+                  'linear-gradient(135deg, rgba(236,244,218,0.8) 0%, rgba(226,239,189,0.9) 44%, rgba(208,230,161,0.88) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.34) 0%, rgba(236,244,218,0.86) 54%, rgba(255,255,255,0.94) 100%) border-box',
+                border: '0.5px solid transparent',
+              }}
             >
               <span
-                className="material-symbols-outlined text-[#5F7A63] group-hover:text-[#5F7A63] transition-colors"
-                style={{ fontSize: 24 }}
+                className="material-symbols-outlined group-hover:text-[#426D56] transition-colors"
+                style={{ fontSize: 24, color: '#4F7452' }}
               >
                 calendar_month
               </span>
@@ -328,7 +335,13 @@ export const ReportPage = () => {
             <button
               onClick={handleOpenDiaryBook}
               className="h-11 flex items-center gap-2 px-5 rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95"
-              style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', boxShadow: '0px 2px 2px #C8C8C8', border: 'none' }}
+              style={{
+                ...APP_GLASS_BUTTON_BASE_STYLE,
+                background:
+                  'linear-gradient(135deg, rgba(236,244,218,0.8) 0%, rgba(226,239,189,0.9) 44%, rgba(208,230,161,0.88) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.34) 0%, rgba(236,244,218,0.86) 54%, rgba(255,255,255,0.94) 100%) border-box',
+                border: '0.5px solid transparent',
+                color: '#4F7452',
+              }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>book_5</span>
               <span className="text-[13px] font-bold">{t('report_view_diary_book')}</span>

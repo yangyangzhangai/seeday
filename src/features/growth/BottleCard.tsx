@@ -10,6 +10,12 @@ interface Props {
   onSelect: (bottle: Bottle) => void;
 }
 
+const BOTTLE_VISUAL_SCALE = 0.5;
+const BOTTLE_BASE_WIDTH = 10;
+const BOTTLE_BASE_HEIGHT = 14;
+const STAR_BASE_SIZE = 2;
+const STATUS_DOT_BASE_SIZE = 2.5;
+
 export const BottleCard = ({ bottle, onSelect }: Props) => {
   const { t } = useTranslation();
 
@@ -74,7 +80,8 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
   return (
     <button
       type="button"
-      className="group relative w-20 flex-shrink-0"
+      className="group relative flex-shrink-0"
+      style={{ width: `${BOTTLE_BASE_WIDTH * BOTTLE_VISUAL_SCALE}rem` }}
       onClick={() => onSelect(bottle)}
       aria-label={t('growth_bottle_open_detail', { name: bottle.name })}
     >
@@ -85,7 +92,13 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
         )}
       >
         {/* Bottle visual */}
-        <div className="relative mb-1.5 h-14 w-10">
+        <div
+          className="relative mb-3"
+          style={{
+            width: `${BOTTLE_BASE_WIDTH * BOTTLE_VISUAL_SCALE}rem`,
+            height: `${BOTTLE_BASE_HEIGHT * BOTTLE_VISUAL_SCALE}rem`,
+          }}
+        >
           {/* Stars scattered inside jar (no liquid layer) */}
           <div className="absolute left-[20%] right-[20%] top-[35%] bottom-[12%] z-[1] overflow-hidden">
             {starLayout.map((star, i) => (
@@ -93,12 +106,14 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
                 key={i}
                 src={growthStarImage}
                 alt=""
-                className="pointer-events-none absolute h-2 w-2 select-none object-contain transition-transform duration-300"
+                className="pointer-events-none absolute select-none object-contain transition-transform duration-300"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
                   transform: `translate(-50%, -50%) rotate(${star.rotate}deg) scale(${star.scale})`,
                   zIndex: star.z,
+                  width: `${STAR_BASE_SIZE * BOTTLE_VISUAL_SCALE}rem`,
+                  height: `${STAR_BASE_SIZE * BOTTLE_VISUAL_SCALE}rem`,
                 }}
                 draggable={false}
               />
@@ -108,9 +123,13 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
           {syncState !== 'synced' && (
             <div
               className={cn(
-                'absolute -right-0.5 top-0 z-[4] h-2.5 w-2.5 rounded-full border border-white/90',
+                'absolute -right-2 top-0 z-[4] rounded-full border border-white/90',
                 syncState === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-red-500'
               )}
+              style={{
+                width: `${STATUS_DOT_BASE_SIZE * BOTTLE_VISUAL_SCALE}rem`,
+                height: `${STATUS_DOT_BASE_SIZE * BOTTLE_VISUAL_SCALE}rem`,
+              }}
               title={syncState === 'pending' ? t('growth_bottle_sync_pending') : t('growth_bottle_sync_failed')}
             />
           )}
@@ -123,23 +142,23 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
           />
 
           {isAchieved && (
-            <div className="absolute inset-0 z-[3] rounded-xl bg-yellow-300/20 animate-pulse" />
+            <div className="absolute inset-0 z-[3] rounded-[3rem] bg-yellow-300/20 animate-pulse" />
           )}
         </div>
 
-        <p className="w-full truncate text-center text-xs font-medium text-gray-700">
+        <p className="w-full truncate text-center text-[11px] font-medium text-gray-700">
           {bottle.name}
         </p>
-        <p className="mt-0.5 text-xs text-gray-400">
+        <p className="mt-1 text-sm text-gray-400">
           {t('growth_bottle_stars', { stars: bottle.stars })}
         </p>
         {bottle.type === 'goal' && bottle.round > 1 && (
-          <span className="mt-0.5 text-xs text-blue-500">
+          <span className="mt-1 text-sm text-blue-500">
             {t('growth_bottle_round', { round: bottle.round })}
           </span>
         )}
         {isAchieved && (
-          <span className="mt-1 rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-medium text-white">
+          <span className="mt-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-medium text-white">
             {t('growth_bottle_achieved')}
           </span>
         )}

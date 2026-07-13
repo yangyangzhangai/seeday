@@ -32,9 +32,9 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false, e
   const aiModeEnabled = preferences.aiModeEnabled;
   const selectedRateStyle: React.CSSProperties = {
     background:
-      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+      'linear-gradient(135deg, rgba(236,248,229,0.96) 0%, rgba(220,238,190,0.92) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.55) 0%, rgba(238,246,221,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
     border: '0.5px solid transparent',
-    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+    boxShadow: '0 6px 14px rgba(183,207,124,0.12)',
     color: '#426D56',
   };
 

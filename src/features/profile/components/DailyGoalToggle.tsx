@@ -32,7 +32,7 @@ export const DailyGoalToggle: React.FC<Props> = ({ plain = false }) => {
             updatePreferences({ dailyGoalEnabled: !enabled });
           }}
           className="relative w-9 h-5 rounded-full border border-transparent transition-colors"
-          style={enabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}
+          style={enabled ? { background: 'linear-gradient(135deg, #DCECB8 0%, #D0E6A1 100%)' } : { background: '#cbd5e1' }}
         >
           <motion.div
             animate={{ x: enabled ? 16 : 2 }}

@@ -6,6 +6,30 @@ Owner: current working session
 Session Notes:
 
 - 2026-07-13: Auth signup OTP feedback strengthened: email-code signup now keeps a stable sent-code card tied to `pendingSignUpEmail`, shows the concrete target email in both `AuthPage` and onboarding `StepAuth`, preserves the reminder across verify failures, and aligns OTP UI details (6-digit input clamp, verify CTA, resend entry, placeholder) to reduce the “code sent but no reminder” confusion.
+- 2026-07-13: Profile 页 AI 角色选择按钮选中态外壳已进一步对齐 `Companion frequency` 的 `High` 按钮：保留头像/名称内容不变，仅将选中态渐变、边框与阴影切换到同一套按钮参数，缩小两组控件的视觉差异。
+- 2026-07-13: Profile 页 AI 角色选择按钮外层结构已按用户给定按钮模板替换：统一为 `rounded-lg border py-1.5 text-xs font-medium transition-all` 这一组壳子，同时保留头像/名称/锁图标内容。
+- 2026-07-13: 按用户收窄范围，仅调整 Profile 页两个开关与 `High` 按钮颜色到 `#D0E6A1` 参考绿色；其余样式结构保持不变。
+- 2026-07-13: 继续按设计统一绿色按钮到 `#D0E6A1` 系列：补齐 Profile AI 角色选择按钮选中态，以及 Report/Diary 页下方绿色按钮（`Generate Plan` / 早提示确认 / 日记保存）到同一组绿色玻璃参数。
+- 2026-07-13: 按用户要求回引入按钮公共“底层壳子” base：将 `border / boxShadow / backdropFilter / WebkitBackdropFilter` 抽到 `src/lib/modalTheme.ts` 的 `APP_GLASS_BUTTON_BASE_STYLE`，并接入现有主按钮、关闭按钮、次按钮及已落地的顶部玻璃按钮；外形和颜色保持各自原样。
+- 2026-07-13: Profile 页 AI 角色选择按钮已回调为“只换色、不加亮”版本：保留原选中态高光结构与阴影强度，仅将绿色替换到 `#D0E6A1` 参考色系。
+- 2026-07-13: Profile 页 AI 角色选择按钮选中态已切换到参考绿 `#D0E6A1` 系列，玻璃渐变与阴影同步换成该色阶。
+- 2026-07-13: Growth 展开半卡片中的重要程度 `medium` 选中态黄色已切换到参考色 `#FEFFAF` 系列，对应玻璃渐变与阴影同步改为该色阶。
+- 2026-07-13: Diary 页右上角两颗按钮左侧主高光透明度已从 `0.92` 下调到 `0.80`，仅收弱表层左端亮度，其余渐变/磨砂参数保持不变。
+- 2026-07-13: Diary 页左侧日历按钮现已追平右侧 `Diary Book` 按钮：绿色、渐变停靠点、边框高光、阴影与轻磨砂参数统一，右上角两颗按钮当前为同款样式。
+- 2026-07-13: Diary 页 `Diary Book` 顶部按钮参数再次收口：保留当前 `#D0E6A1` 绿色与轻磨砂 `blur/saturate` 设置，仅将渐变停靠点、边框高光和主体阴影回调到用户确认版 `greenGlassStyle` 数据。
+- 2026-07-13: Diary 页 `Diary Book` 顶部按钮继续微调：减弱左侧高光（左端浅色与边框亮层透明度下调），同时提升轻磨砂质感（blur 提高、saturate 收低，并加入更淡的内侧高光）。
+- 2026-07-13: Diary 页 `Diary Book` 顶部按钮颜色单独回切到设计指定绿 `#D0E6A1`，保持与左侧日历按钮同类玻璃外壳，但右侧按钮绿色层次恢复为参考图色阶。
+- 2026-07-13: Diary 页 `Diary Book` 顶部按钮已与左侧日历按钮统一外观样式：当前两者共用同一套 header button 玻璃外壳，仅保留图标/文案差异。
+- 2026-07-13: `Diary Book` 顶部按钮视觉再次细调：绿色基准改为 `#D0E6A1`，并加入轻微磨砂质感（更柔的 blur/saturate + 更淡的内侧高光），保留原有绿色玻璃按钮方向但雾感更轻。
+- 2026-07-13: Diary 页右上角日历/日记本按钮颜色进一步校准到统计环绿色系，当前改为和 activity donut 主绿 `#D5E8CE` 同档的浅绿玻璃渐变，而不是沿用 growth CTA 的偏黄绿。
+- 2026-07-13: Chat 活动卡片心情标签也已补齐玻璃化：标签本体从半透明纯底改为带边缘高光、色调渐变与轻阴影的玻璃胶囊样式，和右上角功能按钮质感统一。
+- 2026-07-13: Chat/Diary 按钮玻璃质感补齐：`EventCard` 右上角照片上传与转心情按钮改为带浅色边缘高光的彩色玻璃圆按钮；`ReportPage` 顶部日历/日记本按钮统一到共享绿色玻璃 CTA 风格。
+- 2026-07-13: Growth 页面绿色玻璃 CTA 统一继续扩展到 `AddGrowthTodoModal` 与 `DailyGoalPopup` 的主确认按钮；当前 growth 内常用确认动作基本都已对齐到同一套 `#D0E6A1` 玻璃参数。
+- 2026-07-13: Growth 新建 habit 后的自动建待办确认弹窗主按钮也已并入确认版绿色玻璃 CTA，和瓶子详情、新建瓶弹窗、发送按钮保持一致。
+- 2026-07-13: Growth/Chat 绿色玻璃 CTA 样式继续统一：将确认版 `#D0E6A1` 按钮参数抽到 `src/lib/modalTheme.ts` 公共常量，并同步应用到瓶子详情弹层主按钮与首页输入框发送按钮，保证瓶子/发送主动作视觉语言一致。
+- 2026-07-13: Growth 习惯目标瓶右侧增加按钮已对齐新建养液瓶弹窗确认版绿色玻璃参数：沿用 `#D0E6A1` 主色与同一套双层渐变/边框高光/阴影数据，统一页面内瓶子相关 CTA 视觉语言。
+- 2026-07-13: Growth 新建养液瓶弹窗按钮样式继续对齐：`AddBottleModal` 中 `Type` 选中态与 `Save` 主按钮统一改为 `#D0E6A1` 档绿色玻璃质感，保留原有轻透渐变层次，仅调整色阶与按钮一致性。
+- 2026-07-13: Growth 顶部“习惯目标”副标题改为按需提示：默认不再常驻显示 `growth_bottle_section_hint`，改为点击标题后在标题右侧弹出小浮层，3 秒未操作自动消失，点击空白区域也会关闭。
 - 2026-07-10: Chat 首页活动卡手动结束按钮新增 3 秒误触撤销窗口：首次点击仅进入 `pendingManualEnds` 灰态缓冲，3 秒内再次点击可取消并继续沿用原计时；超时后才真正调用 `endActivity()`，避免 todo 完成/星星发放/annotation 等副作用过早落地。
 - 2026-07-13: Fixed overlapping active activity cards across chat/todo/focus/reminder entry points: `sendMessage()` now closes all ongoing activities before opening a new one, timeline manual insert/edit blocks ranges that conflict with an ongoing activity, and reminder confirm/manual-input flows now share one timing+chat helper so cold-start notification confirms and deny->custom-input both keep timing sessions and chat cards in sync.
 - 2026-07-10: Fixed AI diary English word splitting in report diary surfaces: `ReportDetailModal` observation text no longer uses `wordBreak: break-all`, and `DiaryBookViewerPageContent` now keeps Chinese justified while EN/IT use left-aligned wrapping to avoid narrow-column word fragmentation.

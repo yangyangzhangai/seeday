@@ -398,7 +398,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
           className={cn(
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all',
             smartSort
-              ? 'bg-[#8FAF92] text-white'
+              ? 'bg-[#D0E6A1] text-[#6E7F3F]'
               : 'bg-gray-100 text-gray-400'
           )}
         >
@@ -409,7 +409,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
 
       {/* Inline quick-add input */}
       <div
-        className="mb-2 flex items-center gap-2.5 rounded-xl px-3 py-3"
+        className="mb-2 flex min-h-[50px] w-full items-center gap-2.5 rounded-[50px] px-5 py-4"
         style={{
           background: '#F7F9F8',
           backdropFilter: 'blur(20px) saturate(140%)',

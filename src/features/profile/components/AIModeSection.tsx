@@ -14,6 +14,9 @@ import profileMomoAvatar from '../../../assets/profile-ai-companions/momo.png';
 import profileVanAvatar from '../../../assets/profile-ai-companions/van.png';
 import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import {
+  APP_GREEN_GLASS_TEXT,
+} from '../../../lib/modalTheme';
 
 interface Props {
   isPlus: boolean;
@@ -42,9 +45,9 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
   const enabled = preferences.aiModeEnabled;
   const selectedModeStyle: React.CSSProperties = {
     background:
-      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+      'linear-gradient(135deg, rgba(236,248,229,0.96) 0%, rgba(220,238,190,0.92) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.55) 0%, rgba(238,246,221,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
     border: '0.5px solid transparent',
-    boxShadow: '0 3px 8px rgba(103,154,121,0.10)',
+    boxShadow: '0 6px 14px rgba(183,207,124,0.12)',
   };
 
   const handleModeClick = (key: AiCompanionMode, free: boolean) => {
@@ -78,7 +81,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
         <button
           onClick={() => { void handleToggleEnabled(); }}
           className="relative mt-0.5 h-5 w-9 flex-shrink-0 rounded-full border border-transparent transition-colors"
-          style={enabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}
+          style={enabled ? { background: 'linear-gradient(135deg, #DCECB8 0%, #D0E6A1 100%)' } : { background: '#cbd5e1' }}
           aria-pressed={enabled}
           aria-label={t('profile_ai_mode')}
         >
@@ -109,12 +112,12 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
                   <button
                     key={modeKey}
                     onClick={() => { void handleModeClick(modeKey, mode.free); }}
-                    className={`relative flex flex-col items-center rounded-xl border px-1 py-2 transition-all ${
+                    className={`relative flex flex-1 flex-col items-center rounded-lg border px-1 py-1.5 text-xs font-medium transition-all ${
                       selected
-                        ? ''
+                        ? 'font-bold'
                         : locked
-                        ? 'border-slate-200 bg-slate-100 opacity-60'
-                        : 'border-transparent bg-white/60 hover:border-[#CBE7D7]'
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
+                        : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'
                      }`}
                     style={selected ? selectedModeStyle : undefined}
                    >
@@ -125,7 +128,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
                     />
                     <span
                       className="text-[14px] font-semibold leading-tight"
-                      style={{ color: selected ? '#426D56' : '#1e293b' }}
+                      style={{ color: selected ? APP_GREEN_GLASS_TEXT : '#1e293b' }}
                     >
                       {mode.name}
                     </span>

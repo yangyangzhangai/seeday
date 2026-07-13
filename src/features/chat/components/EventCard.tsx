@@ -15,6 +15,7 @@ import { useChatStore } from '../../../store/useChatStore';
 import { useStardustStore } from '../../../store/useStardustStore';
 import { autoDetectMood } from '../../../lib/mood';
 import type { StardustCardData } from '../../../types/stardust';
+import { APP_GLASS_BUTTON_BASE_STYLE } from '../../../lib/modalTheme';
 
 const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
 const MOOD_TAG_FALLBACK_COLOR = '#0F766E';
@@ -215,6 +216,16 @@ export const EventCard: React.FC<EventCardProps> = ({
   const moodTagColor = getStrongerMoodTagColor(moodColor);
   const moodTagBg = withHexAlpha(moodTagColor, 0.1);
   const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
+  const glassActionButtonBase: React.CSSProperties = {
+    ...APP_GLASS_BUTTON_BASE_STYLE,
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
   const handleEndButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     playSound('ding');
@@ -280,15 +291,25 @@ export const EventCard: React.FC<EventCardProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           {showActionButtons && canUploadImage && (
             <button onClick={e => { e.stopPropagation(); handleOpenImageUpload(); }} title={t('image_upload')}
-              style={{ width: 24, height: 24, background: '#0EA5E9', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              style={{
+                ...glassActionButtonBase,
+                background:
+                  'linear-gradient(135deg, rgba(229,245,255,0.94) 0%, rgba(189,230,255,0.9) 46%, rgba(111,196,255,0.86) 100%) padding-box, linear-gradient(140deg, rgba(111,196,255,0.34) 0%, rgba(229,245,255,0.86) 54%, rgba(255,255,255,0.94) 100%) border-box',
+                boxShadow: '0 6px 14px rgba(92,179,238,0.18)',
+                color: '#2C86B7',
+              }}>
               <Camera size={10} />
             </button>
           )}
           {showActionButtons && allowConvertToMood && (
             <button onClick={e => { e.stopPropagation(); void reclassifyRecentInput(message.id, 'mood'); }} title={t('event_to_mood')}
-              style={{ width: 24, height: 24, background: '#8B5CF6', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              style={{
+                ...glassActionButtonBase,
+                background:
+                  'linear-gradient(135deg, rgba(243,234,255,0.94) 0%, rgba(222,202,255,0.9) 46%, rgba(177,143,255,0.86) 100%) padding-box, linear-gradient(140deg, rgba(177,143,255,0.34) 0%, rgba(243,234,255,0.86) 54%, rgba(255,255,255,0.94) 100%) border-box',
+                boxShadow: '0 6px 14px rgba(160,123,243,0.18)',
+                color: '#7A55D0',
+              }}>
               <ArrowRightLeft size={10} />
             </button>
           )}
@@ -298,12 +319,13 @@ export const EventCard: React.FC<EventCardProps> = ({
               onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
               className="inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs transition-colors"
               style={{ fontWeight: 400,
-                background: moodTagBg, color: moodTagColor, border: '0.5px solid rgba(255,255,255,0.72)',
+                background: `linear-gradient(135deg, ${withHexAlpha('#FFFFFF', 0.62)} 0%, ${withHexAlpha(moodTagColor, 0.16)} 24%, ${withHexAlpha(moodTagColor, 0.22)} 100%) padding-box, linear-gradient(140deg, ${withHexAlpha('#FFFFFF', 0.78)} 0%, ${withHexAlpha(moodTagColor, 0.12)} 56%, ${withHexAlpha('#FFFFFF', 0.64)} 100%) border-box`,
+                color: moodTagColor, border: '0.5px solid transparent',
                 cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
-                backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                backdropFilter: 'blur(14px) saturate(140%)', WebkitBackdropFilter: 'blur(14px) saturate(140%)',
                 fontFamily: 'Songti SC, SimSun, STSong, serif',
                 letterSpacing: 0, transition: 'all 0.15s',
-                boxShadow: 'none' }}
+                boxShadow: `0 6px 14px ${withHexAlpha(moodTagColor, 0.14)}` }}
             >
               {getTranslatedMood(displayLabel)}
             </button>

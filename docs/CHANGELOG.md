@@ -40,6 +40,232 @@ Validation:
 
 - `npx.cmd tsc --noEmit`
 - `git diff --check` (blocked by pre-existing trailing whitespace in `src/features/chat/components/ImageUploader.tsx:26`)
+### UX: Profile AI companion selected shell now matches frequency High button
+
+- `src/features/profile/components/AIModeSection.tsx`: updated the selected AI companion button shell to reuse the same selected-state gradient, border, and shadow values as the `Companion frequency` `High` button while keeping the avatar/name/lock content unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile companion-button shell alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile AI companion buttons adopt provided outer button template
+
+- `src/features/profile/components/AIModeSection.tsx`: changed the AI companion selection buttons to use the provided outer button structure (`rounded-lg`, `border`, `py-1.5`, `text-xs`, `font-medium`, transition classes) while keeping avatar/name/lock content intact.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this AI companion button-shell update.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile toggles and High button recolored to `#D0E6A1`
+
+- `src/features/profile/components/AIModeSection.tsx`: changed the AI mode toggle enabled-state green to the `#D0E6A1` reference family.
+- `src/features/profile/components/DailyGoalToggle.tsx`: changed the daily-goal toggle enabled-state green to the same reference family.
+- `src/features/profile/components/AIAnnotationDropRate.tsx`: changed the selected drop-rate button color treatment (including `High`) to the same `#D0E6A1` glass green family while leaving structure unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this narrowed profile color pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: More green buttons unified to `#D0E6A1` glass palette
+
+- `src/features/profile/components/AIModeSection.tsx`: aligned the selected AI companion button to the shared `#D0E6A1` glass green palette.
+- `src/features/report/plant/PlantRootSection.tsx`: aligned the green action buttons in the diary/report lower section (`Generate Plan`, early-tip confirm, diary save) to the same shared green glass palette.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this additional green-button unification pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### Refactor: Extract shared glass button shell base
+
+- `src/lib/modalTheme.ts`: added `APP_GLASS_BUTTON_BASE_STYLE` to hold the shared button shell parameters (`border`, `boxShadow`, `backdropFilter`, `WebkitBackdropFilter`) requested for reuse.
+- `src/lib/modalTheme.ts`: updated modal primary/secondary/close button classes to use the same shell treatment while preserving their original color roles.
+- `src/features/chat/ChatInputBar.tsx`, `src/features/chat/components/EventCard.tsx`, and `src/features/report/ReportPage.tsx`: connected existing top-level glass buttons to the shared shell base while keeping their current colors and shapes unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this button-shell refactor.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile AI companion button now changes color only
+
+- `src/features/profile/components/AIModeSection.tsx`: adjusted the selected AI companion button to keep its original highlight structure and shadow strength while only swapping the green family to the `#D0E6A1` reference palette.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile color-only refinement.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile AI companion selection uses reference green `#D0E6A1`
+
+- `src/features/profile/components/AIModeSection.tsx`: updated the selected AI companion button style to the provided green reference family centered on `#D0E6A1`, including the glass gradient and matching shadow tint.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile AI-mode color update.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth expanded medium priority uses reference yellow `#FEFFAF`
+
+- `src/features/growth/GrowthTodoCard.tsx`: updated the expanded-card `medium` priority selected style to the provided yellow reference family centered on `#FEFFAF`, including its glass gradient and matching shadow tint.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this growth priority-color adjustment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary header buttons left highlight reduced to `0.80`
+
+- `src/features/report/ReportPage.tsx`: lowered the left-side main surface highlight on both diary header buttons from `rgba(236,244,218,0.92)` to `rgba(236,244,218,0.80)` while leaving the rest of the glass/frosted parameters unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this highlight-opacity tweak.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary calendar button now matches Diary Book button style
+
+- `src/features/report/ReportPage.tsx`: updated the left calendar header button to use the same green glass gradient, highlight, shadow, and light frosted treatment as the `Diary Book` button, so the two top-right controls are now visually identical.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this report-header button unification.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary Book button reuses confirmed glass values while keeping frosted finish
+
+- `src/features/report/ReportPage.tsx`: kept the `Diary Book` header button's current `#D0E6A1` green direction and frosted `blur/saturate` treatment, while restoring the main gradient stops, border highlight, and base shadow closer to the user-confirmed `greenGlassStyle` values.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this diary-book parameter reconciliation.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary Book button highlight softened and frosted slightly more
+
+- `src/features/report/ReportPage.tsx`: reduced the left-side highlight strength on the `Diary Book` header button and increased its light frosted feel with slightly stronger blur, lower saturation, and a subtler inset highlight.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this diary-book surface refinement.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary Book button green returns to `#D0E6A1`
+
+- `src/features/report/ReportPage.tsx`: adjusted only the `Diary Book` header button back to the requested `#D0E6A1` green family while keeping the same glass-shell structure and sizing as the calendar button.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this diary-book color-only adjustment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary Book header button now matches calendar button shell
+
+- `src/features/report/ReportPage.tsx`: aligned the `Diary Book` header button surface treatment with the left calendar button so both top-right controls now share the same glass shell style and differ only by content.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this report-header button-shell alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary Book button switches to `#D0E6A1` with slight frosted finish
+
+- `src/features/report/ReportPage.tsx`: updated the `Diary Book` header button to use `#D0E6A1` as the green base and softened it with a slight frosted treatment through gentler blur, lower saturation, and a lighter inset highlight.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this diary-book button frosted-green update.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Diary header buttons now match donut-chart green
+
+- `src/features/report/ReportPage.tsx`: adjusted the right-side calendar and diary-book buttons to a lighter green glass tint derived from the activity donut chart green (`#D5E8CE` family), so the diary page header matches the report visualization palette more closely.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this report-header color calibration.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Chat mood tag now uses glass pill treatment
+
+- `src/features/chat/components/EventCard.tsx`: updated the mood tag pill itself from a flat translucent fill to a glass-style capsule with subtle highlight, tinted gradient, and soft shadow so it matches the surrounding action controls.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this mood-tag finish pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Add glass treatment to chat event actions and diary header buttons
+
+- `src/features/chat/components/EventCard.tsx`: changed the top-right photo-upload and event-to-mood buttons from flat solid circles to tinted glass circular buttons, keeping the blue/purple functional distinction while aligning their surface treatment with the rest of the UI.
+- `src/features/report/ReportPage.tsx`: updated the diary/report header calendar button and diary-book button to the shared green glass CTA style so the top action row matches the unified button system.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this chat/report glass-button pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth confirm buttons converge on shared green glass CTA
+
+- `src/features/growth/AddGrowthTodoModal.tsx`: updated the main confirm button to the shared `#D0E6A1` green glass CTA style.
+- `src/features/growth/DailyGoalPopup.tsx`: updated the daily-goal confirm button to the same shared green glass gradient, border highlight, shadow, and text color.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this final growth CTA alignment pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth auto-create prompt save button matches shared green glass CTA
+
+- `src/features/growth/BottleList.tsx`: updated the `Save` action in the post-create habit auto-create-daily-todo prompt to the same confirmed green glass CTA style already used by bottle modal actions and the chat send button.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this prompt-button alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Reuse confirmed green glass CTA across growth and chat actions
+
+- `src/lib/modalTheme.ts`: extracted the confirmed `#D0E6A1` green glass gradient, border, shadow, and text color into shared constants so bottle-related CTAs and chat send actions can stay on the same visual spec.
+- `src/features/growth/BottleDetailSheet.tsx`: updated bottle-detail primary actions (`create todo`, `irrigate`, `goal yes`) to the shared green glass CTA style while keeping secondary actions unchanged.
+- `src/features/chat/ChatInputBar.tsx`: changed the home-page send button on the right side of the input to the same green glass color and surface treatment.
+- `src/features/growth/AddBottleModal.tsx` and `src/features/growth/BottleList.tsx`: switched existing inline values to the new shared constants without changing the confirmed look.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this shared CTA style rollout.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth bottle add button now matches confirmed green glass CTA
+
+- `src/features/growth/BottleList.tsx`: updated the bottle-section add button on the right side of the habit/goal row to reuse the same confirmed `#D0E6A1` green glass gradient, border highlight, and shadow values as the add-bottle modal CTA buttons.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this button-style alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth add-bottle modal buttons unify to green glass style
+
+- `src/features/growth/AddBottleModal.tsx`: adjusted the selected `Type` button to the `#D0E6A1` green family while keeping the existing soft glass treatment.
+- `src/features/growth/AddBottleModal.tsx`: restyled the `Save` button to use the same green glass gradient, border treatment, and shadow language as the `Type` button for a more consistent modal CTA surface.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this modal button visual alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Growth bottle section hint becomes transient title popover
+
+- `src/features/growth/BottleList.tsx`: removed the always-visible bottle-section subtitle and changed it to a small popover anchored beside the section title when the user taps the title.
+- The hint now auto-dismisses after 3 seconds of inactivity and also closes when the user taps elsewhere on the page.
+
+Validation:
+
+- `npx tsc --noEmit`
 
 ### Fix: Chat manual-end mis-tap undo window
 

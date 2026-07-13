@@ -8,9 +8,12 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_TEXT,
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
-  APP_MODAL_PRIMARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
 
 interface Props {
@@ -95,7 +98,13 @@ export const DailyGoalPopup = ({ onClose }: Props) => {
         <button
           onClick={() => { void handleConfirm(); }}
           disabled={isSaving}
-          className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'mt-4 w-full py-2.5 disabled:opacity-60')}
+          className="mt-4 w-full rounded-2xl py-2.5 font-medium transition-opacity disabled:opacity-60"
+          style={{
+            background: APP_GREEN_GLASS_BG,
+            border: APP_GREEN_GLASS_BORDER,
+            boxShadow: APP_GREEN_GLASS_SHADOW,
+            color: APP_GREEN_GLASS_TEXT,
+          }}
         >
           {isSaving ? t('loading') : t('growth_daily_goal_confirm')}
         </button>

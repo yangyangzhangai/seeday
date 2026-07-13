@@ -6,8 +6,11 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_TEXT,
   APP_MODAL_OVERLAY_CLASS,
-  APP_MODAL_PRIMARY_BUTTON_CLASS,
   APP_MODAL_SECONDARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
 import type { BottleCheckinStats } from '../../lib/bottleStats';
@@ -42,6 +45,12 @@ export const BottleDetailSheet = ({
   const handleDelete = () => {
     if (!window.confirm(t('growth_bottle_delete_confirm', { name: bottle.name }))) return;
     onDelete(bottle.id);
+  };
+
+  const greenGlassButtonStyle = {
+    background: APP_GREEN_GLASS_BG,
+    border: APP_GREEN_GLASS_BORDER,
+    boxShadow: APP_GREEN_GLASS_SHADOW,
   };
 
   return (
@@ -84,14 +93,22 @@ export const BottleDetailSheet = ({
 
         <div className="mt-4 space-y-2">
           {bottle.status === 'active' ? (
-            <button onClick={handleCreateTodo} className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}>
+            <button
+              onClick={handleCreateTodo}
+              className="w-full rounded-2xl py-2.5 font-medium transition-opacity"
+              style={{ ...greenGlassButtonStyle, color: APP_GREEN_GLASS_TEXT }}
+            >
               <span className="inline-flex items-center gap-1">
                 <Sprout size={16} strokeWidth={1.5} />
                 {t('growth_bottle_create_todo')}
               </span>
             </button>
           ) : bottle.type === 'habit' ? (
-            <button onClick={() => onIrrigate(bottle.id)} className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}>
+            <button
+              onClick={() => onIrrigate(bottle.id)}
+              className="w-full rounded-2xl py-2.5 font-medium transition-opacity"
+              style={{ ...greenGlassButtonStyle, color: APP_GREEN_GLASS_TEXT }}
+            >
               {t('growth_bottle_irrigate')}
             </button>
           ) : (
@@ -99,7 +116,11 @@ export const BottleDetailSheet = ({
               <button onClick={() => onContinue(bottle.id)} className={cn(APP_MODAL_SECONDARY_BUTTON_CLASS, 'flex-1 py-2.5')}>
                 {t('growth_bottle_goal_no')}
               </button>
-              <button onClick={() => onIrrigate(bottle.id)} className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'flex-1 py-2.5')}>
+              <button
+                onClick={() => onIrrigate(bottle.id)}
+                className="flex-1 rounded-2xl py-2.5 font-medium transition-opacity"
+                style={{ ...greenGlassButtonStyle, color: APP_GREEN_GLASS_TEXT }}
+              >
                 {t('growth_bottle_goal_yes')}
               </button>
             </div>

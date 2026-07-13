@@ -6,9 +6,11 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
-  APP_MODAL_PRIMARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
 import { triggerLightHaptic } from '../../lib/haptics';
 
@@ -23,11 +25,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState<BottleType>('habit');
-  const selectedGlowStyle = {
-    background:
-      'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-    border: '0.5px solid transparent',
-    boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
+  const greenGlassStyle = {
+    background: APP_GREEN_GLASS_BG,
+    border: APP_GREEN_GLASS_BORDER,
+    boxShadow: APP_GREEN_GLASS_SHADOW,
   };
 
   if (!isOpen) return null;
@@ -78,9 +79,9 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
                 'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
                 type === bt
                   ? 'text-[#426D56]'
-                  : 'border-transparent bg-white/70 text-[#2F3E33]'
+                  : 'border-transparent bg-[rgba(248,251,241,0.82)] text-[#506547]'
               )}
-              style={type === bt ? selectedGlowStyle : undefined}
+              style={type === bt ? greenGlassStyle : undefined}
             >
               {bt === 'habit' ? t('growth_bottle_type_habit') : t('growth_bottle_type_goal')}
             </button>
@@ -94,7 +95,10 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
             handleSubmit();
           }}
           disabled={!name.trim()}
-          className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5 disabled:cursor-not-allowed disabled:opacity-40')}
+          className={cn(
+            'w-full rounded-2xl border py-2.5 font-medium text-[#426D56] transition-opacity disabled:cursor-not-allowed disabled:opacity-40'
+          )}
+          style={greenGlassStyle}
         >
           {t('confirm')}
         </button>

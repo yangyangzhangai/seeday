@@ -7,9 +7,12 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
+  APP_GREEN_GLASS_BG,
+  APP_GREEN_GLASS_BORDER,
+  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_TEXT,
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
-  APP_MODAL_PRIMARY_BUTTON_CLASS,
   APP_SELECTED_GLOW_BG,
   APP_SELECTED_GLOW_BORDER,
   APP_SELECTED_GLOW_SHADOW,
@@ -250,7 +253,13 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
                 triggerLightHaptic();
                 handleSubmit();
               }}
-              className={cn(APP_MODAL_PRIMARY_BUTTON_CLASS, 'w-full py-2.5')}
+              className="w-full rounded-2xl py-2.5 font-medium transition-opacity"
+              style={{
+                background: APP_GREEN_GLASS_BG,
+                border: APP_GREEN_GLASS_BORDER,
+                boxShadow: APP_GREEN_GLASS_SHADOW,
+                color: APP_GREEN_GLASS_TEXT,
+              }}
             >
               {t('confirm')}
             </button>
