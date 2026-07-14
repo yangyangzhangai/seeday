@@ -5,6 +5,7 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-14: 修复线上 Growth 页面渲染失败：`useReminderSystem` 在保留今日计时加载逻辑时漏掉了 `useTimingStore` import，Safari 运行到该 effect 时抛出 `Can't find variable: useTimingStore`；现已补回导入，不改提醒逻辑或页面样式。
 - 2026-07-13: Auth signup OTP feedback strengthened: email-code signup now keeps a stable sent-code card tied to `pendingSignUpEmail`, shows the concrete target email in both `AuthPage` and onboarding `StepAuth`, preserves the reminder across verify failures, and aligns OTP UI details (6-digit input clamp, verify CTA, resend entry, placeholder) to reduce the “code sent but no reminder” confusion.
 - 2026-07-14: Growth `Add Task` 弹窗的重要程度选项已与待办卡片展开态共用同一份选中颜色映射：High 粉色、Medium 黄色、Low 绿色；新增 `growthTodoPriorityStyles.ts` 作为两处唯一样式来源，Repeat 频率按钮继续保持蓝色。
 - 2026-07-14: Chat 活动卡片内心情备注右侧的转换按钮已改为复用拍照按钮的 `showActionButtons` 显示条件：点击卡片后出现，点击卡片外空白处消失；转换逻辑、按钮样式及只读状态保持不变。

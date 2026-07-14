@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useReminderStore } from '../store/useReminderStore';
 import { usePlantStore } from '../store/usePlantStore';
 import { useReportStore } from '../store/useReportStore';
+import { useTimingStore } from '../store/useTimingStore';
 import { isSameDay } from 'date-fns';
 import {
   scheduleIdleNudge,

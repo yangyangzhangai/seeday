@@ -4,6 +4,18 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-14
+
+### Fix: Growth page runtime error from missing timing-store import
+
+- `src/hooks/useReminderSystem.ts`: restored the missing `useTimingStore` import used by the existing today-session loading effect, preventing Safari from throwing `Can't find variable: useTimingStore` during app render.
+- No reminder behavior or UI styling changed.
+
+Validation:
+
+- `npx tsc --noEmit`
+- `npm run build`
+
 ## 2026-07-13
 
 ### Fix: Overlapping active activity timers across reminder and manual entry flows
