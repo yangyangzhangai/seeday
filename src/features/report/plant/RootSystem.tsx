@@ -1,6 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
 import React, { memo, useId, useMemo } from 'react';
-import type { RootPathRenderItem } from '../../../lib/rootRenderer';
+import {
+  ROOT_CANVAS_HEIGHT,
+  ROOT_CANVAS_WIDTH,
+  type RootPathRenderItem,
+} from '../../../lib/rootRenderer';
 import { RootSegmentPath } from './RootSegmentPath';
 
 interface RootSystemProps {
@@ -22,7 +26,7 @@ const RootSystemImpl: React.FC<RootSystemProps> = ({ items, selectedRootId, onSe
   }, [items, selectedRootId]);
 
   return (
-    <svg viewBox="0 0 360 520" className="w-full h-full">
+    <svg viewBox={`0 0 ${ROOT_CANVAS_WIDTH} ${ROOT_CANVAS_HEIGHT}`} className="w-full h-full">
       <defs>
         <filter id={noiseId} x="-10%" y="-10%" width="120%" height="120%">
           <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="7" result="noise" />
@@ -35,7 +39,7 @@ const RootSystemImpl: React.FC<RootSystemProps> = ({ items, selectedRootId, onSe
             <stop offset="22%" stopColor="white" stopOpacity="1" />
             <stop offset="100%" stopColor="white" stopOpacity="1" />
           </linearGradient>
-          <rect x="0" y="0" width="360" height="520" fill={`url(#${soilMaskId}_fade)`} />
+          <rect x="0" y="0" width={ROOT_CANVAS_WIDTH} height={ROOT_CANVAS_HEIGHT} fill={`url(#${soilMaskId}_fade)`} />
         </mask>
       </defs>
 

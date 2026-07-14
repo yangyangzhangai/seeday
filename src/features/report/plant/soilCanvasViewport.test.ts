@@ -5,6 +5,7 @@ import {
   clampScale,
   clampViewportOffset,
   computeFocusOffset,
+  computeRootCanvasLayout,
   getNextScale,
   getViewportBounds,
   MAX_SCALE,
@@ -48,5 +49,21 @@ describe('soilCanvasViewport', () => {
     const size = { width: 360, height: 320 };
     const clamped = clampViewportOffset({ x: 80, y: -60 }, size, 1);
     expect(clamped).toEqual({ x: 0, y: 0 });
+  });
+
+  it('keeps the root canvas proportional and centered on wide screens', () => {
+    const layout = computeRootCanvasLayout({ width: 1268, height: 670 });
+
+    expect(layout.width / layout.height).toBeCloseTo(360 / 520);
+    expect(layout.left).toBeCloseTo((1268 - layout.width) / 2);
+    expect(layout.top + 108 * layout.scale).toBeCloseTo(160 * (670 / 770));
+  });
+
+  it('anchors the root origin to the soil surface on mobile screens', () => {
+    const layout = computeRootCanvasLayout({ width: 455, height: 376 });
+    const soilScale = 376 / 770;
+
+    expect(layout.top + 108 * layout.scale).toBeCloseTo(160 * soilScale);
+    expect(layout.top + layout.height).toBeCloseTo(376);
   });
 });

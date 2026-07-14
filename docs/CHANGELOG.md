@@ -6,6 +6,19 @@ All notable effective changes are documented here.
 
 ## 2026-07-14
 
+### Fix: Responsive soil and root alignment
+
+- `PlantRootSection.tsx`: aligned the soil canvas to the report title's 16px horizontal gutter.
+- `SoilCanvas.tsx`, `soilCanvasViewport.ts`, and `RootSystem.tsx`: preserve the root system's original `360 x 520` aspect ratio and responsively anchor its origin to the soil surface instead of stretching it across wide screens.
+- `rootRenderer.ts`: exposed the existing root-canvas dimensions and soil anchor as shared constants; root generation angles, lengths, and activity data are unchanged.
+- Added viewport regression coverage for mobile and wide-screen root anchoring.
+
+Validation:
+
+- `npm run test:unit -- src/features/report/plant/soilCanvasViewport.test.ts`
+- `npm run lint:all`
+- `npm run build`
+
 ### Fix: Growth page runtime error from missing timing-store import
 
 - `src/hooks/useReminderSystem.ts`: restored the missing `useTimingStore` import used by the existing today-session loading effect, preventing Safari from throwing `Can't find variable: useTimingStore` during app render.

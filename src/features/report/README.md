@@ -27,6 +27,7 @@
   - Free-tier diary teaser blur-lock + upgrade CTA (`/upgrade`) in observation area
   - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
   - Root-section "My Diary" textarea edits directly on focus and persists on blur/autosave (iOS WebView keyboard-safe path)
+  - Root canvas keeps its original `360 x 520` proportions across screen widths, anchors the root origin to the soil surface, and uses the same 16px horizontal gutter as the page title.
 
 ## Upstream Dependencies
 

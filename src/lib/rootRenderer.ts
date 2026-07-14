@@ -54,10 +54,14 @@ const DIRECTION_BRANCH_ANGLE_RANGES: Record<DirectionIndex, { min: number; max: 
 
 const SOIL_ANCHOR_X_RATIO = 0.5;
 
+export const ROOT_CANVAS_WIDTH = 360;
+export const ROOT_CANVAS_HEIGHT = 520;
+export const ROOT_SOIL_Y = 108;
+
 const defaultOptions: Required<RootRendererOptions> = {
-  canvasWidth: 360,
-  canvasHeight: 520,
-  soilY: 108,
+  canvasWidth: ROOT_CANVAS_WIDTH,
+  canvasHeight: ROOT_CANVAS_HEIGHT,
+  soilY: ROOT_SOIL_Y,
   maxLengthRatio: 0.6,
   lengthScale: 68,
   jitterPx: 7,

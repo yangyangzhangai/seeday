@@ -382,7 +382,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
       {/* ── Large canvas area; diary sits right below with a small gap ── */}
       <div className="relative h-[max(460px,62vh)] overflow-hidden">
         {/* Soil + roots: pushed down so eco-sphere bubbles (130px) are fully above soil */}
-        <div className="absolute inset-0" style={{ top: 130 }}>
+        <div className="absolute inset-x-4 bottom-0 top-[130px]">
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}

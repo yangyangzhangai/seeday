@@ -7,6 +7,7 @@ import { buildSoilLegendItems } from './soilLegend';
 import {
   clampViewportOffset,
   computeFocusOffset,
+  computeRootCanvasLayout,
 } from './soilCanvasViewport';
 import { RootDetailBubble } from './RootDetailBubble';
 import { RootSystem } from './RootSystem';
@@ -42,8 +43,6 @@ function toCategoryKey(category: PlantCategoryKey): string {
   }
 }
 
-const BASE_WIDTH = 360;
-const BASE_HEIGHT = 520;
 const TOOLTIP_WIDTH = 264;
 const TOOLTIP_MIN_MARGIN = 10;
 
@@ -91,6 +90,12 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
     () => items.find(item => item.segment.id === selectedRootId) ?? null,
     [items, selectedRootId],
   );
+  const rootLayout = useMemo(() => computeRootCanvasLayout(canvasSize), [canvasSize]);
+
+  const mapRootPointToCanvas = (point: { x: number; y: number }) => ({
+    x: rootLayout.left + point.x * rootLayout.scale,
+    y: rootLayout.top + point.y * rootLayout.scale,
+  });
 
   useEffect(() => {
     setViewportOffset(prev => {
@@ -106,10 +111,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
     if (!selectedItem || canvasSize.width === 0 || canvasSize.height === 0) {
       return;
     }
-    const focusPoint = {
-      x: (selectedItem.tip.x / BASE_WIDTH) * canvasSize.width,
-      y: (selectedItem.tip.y / BASE_HEIGHT) * canvasSize.height,
-    };
+    const focusPoint = mapRootPointToCanvas(selectedItem.tip);
     setViewportOffset(prev => {
       const next = computeFocusOffset(focusPoint, canvasSize, scale);
       if (Math.abs(prev.x - next.x) < 0.5 && Math.abs(prev.y - next.y) < 0.5) {
@@ -117,14 +119,15 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
       }
       return next;
     });
-  }, [canvasSize, scale, selectedItem]);
+  }, [canvasSize, rootLayout, scale, selectedItem]);
 
   const tooltipStyle = useMemo(() => {
     if (!selectedItem || !detailBubble || canvasSize.width === 0 || canvasSize.height === 0) {
       return null;
     }
-    const baseX = (selectedItem.tip.x / BASE_WIDTH) * canvasSize.width;
-    const baseY = (selectedItem.tip.y / BASE_HEIGHT) * canvasSize.height;
+    const mappedPoint = mapRootPointToCanvas(selectedItem.tip);
+    const baseX = mappedPoint.x;
+    const baseY = mappedPoint.y;
     const scaledX = canvasSize.width / 2 + (baseX - canvasSize.width / 2) * scale + viewportOffset.x;
     const scaledY = canvasSize.height / 2 + (baseY - canvasSize.height / 2) * scale + viewportOffset.y;
     const minLeft = TOOLTIP_MIN_MARGIN;
@@ -137,7 +140,7 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
       top,
       showAbove,
     };
-  }, [canvasSize.height, canvasSize.width, detailBubble, scale, selectedItem, viewportOffset.x, viewportOffset.y]);
+  }, [canvasSize.height, canvasSize.width, detailBubble, rootLayout, scale, selectedItem, viewportOffset.x, viewportOffset.y]);
 
   const legendItems = useMemo(() => buildSoilLegendItems(directionOrder), [directionOrder]);
 
@@ -147,17 +150,27 @@ const SoilCanvasImpl: React.FC<SoilCanvasProps> = ({
       className="relative overflow-hidden w-full h-full select-none"
       style={{
         backgroundImage: 'url(/assets/soil.png)',
-        backgroundSize: 'cover',
+        backgroundSize: '100% 100%',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center top',
       }}
       onClick={() => setIsActive(true)}
     >
       <div
-        className="w-full h-full origin-center will-change-transform"
+        className="absolute inset-0 origin-center will-change-transform"
         style={{ transform: `translate3d(${viewportOffset.x}px, ${viewportOffset.y}px, 0) scale(${scale})` }}
       >
-        <RootSystem items={items} selectedRootId={selectedRootId} onSelectRoot={onSelectRoot} />
+        <div
+          className="absolute"
+          style={{
+            height: rootLayout.height,
+            left: rootLayout.left,
+            top: rootLayout.top,
+            width: rootLayout.width,
+          }}
+        >
+          <RootSystem items={items} selectedRootId={selectedRootId} onSelectRoot={onSelectRoot} />
+        </div>
       </div>
 
       {detailBubble && tooltipStyle ? (

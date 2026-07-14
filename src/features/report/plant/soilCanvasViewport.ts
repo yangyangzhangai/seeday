@@ -1,4 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> src/features/report/README.md
+import {
+  ROOT_CANVAS_HEIGHT,
+  ROOT_CANVAS_WIDTH,
+  ROOT_SOIL_Y,
+} from '../../../lib/rootRenderer';
+
 export interface CanvasSize {
   width: number;
   height: number;
@@ -14,11 +20,21 @@ export interface ViewportOffset {
   y: number;
 }
 
+export interface RootCanvasLayout {
+  height: number;
+  left: number;
+  scale: number;
+  top: number;
+  width: number;
+}
+
 export const MIN_SCALE = 0.75;
 export const MAX_SCALE = 1.8;
 export const SCALE_STEP = 0.1;
 
 const SCALE_EPSILON = 0.001;
+const SOIL_IMAGE_HEIGHT = 770;
+const SOIL_SURFACE_Y = 160;
 
 const normalizeZero = (value: number): number => (Math.abs(value) < 0.000001 ? 0 : value);
 
@@ -77,4 +93,25 @@ export function computeFocusOffset(point: CanvasPoint, size: CanvasSize, scale: 
     y: -((point.y - centerY) * scale),
   };
   return clampViewportOffset(targetOffset, size, scale);
+}
+
+export function computeRootCanvasLayout(size: CanvasSize): RootCanvasLayout {
+  if (size.width <= 0 || size.height <= 0) {
+    return { height: 0, left: 0, scale: 0, top: 0, width: 0 };
+  }
+
+  const soilSurfaceY = SOIL_SURFACE_Y * (size.height / SOIL_IMAGE_HEIGHT);
+  const availableBelowSoil = Math.max(0, size.height - soilSurfaceY);
+  const rootDepth = ROOT_CANVAS_HEIGHT - ROOT_SOIL_Y;
+  const rootScale = Math.min(size.width / ROOT_CANVAS_WIDTH, availableBelowSoil / rootDepth);
+  const width = ROOT_CANVAS_WIDTH * rootScale;
+  const height = ROOT_CANVAS_HEIGHT * rootScale;
+
+  return {
+    height,
+    left: (size.width - width) / 2,
+    scale: rootScale,
+    top: soilSurfaceY - ROOT_SOIL_Y * rootScale,
+    width,
+  };
 }
