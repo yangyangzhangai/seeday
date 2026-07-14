@@ -174,7 +174,7 @@ export const MembershipCard: React.FC<Props> = ({ isPlus }) => {
           <button
             onClick={() => { void handleDirectUpgrade(); }}
             disabled={isSubmitting}
-            className="relative w-full overflow-hidden rounded-xl min-h-[44px] py-[11px] text-sm font-extrabold transition-all active:scale-[0.97]"
+            className="relative w-full overflow-hidden rounded-[50px] min-h-[44px] py-[11px] text-sm font-extrabold transition-all active:scale-[0.97]"
             style={{
               background: 'linear-gradient(130deg, rgba(147,51,234,0.56) 0%, rgba(168,85,247,0.5) 58%, rgba(236,72,153,0.48) 100%)',
               boxShadow: '0 4px 12px rgba(168,85,247,0.14)',

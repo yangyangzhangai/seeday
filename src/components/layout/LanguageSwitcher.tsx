@@ -3,6 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { triggerLightHaptic } from '../../lib/haptics';
 import { useAuthStore } from '../../store/useAuthStore';
+import {
+    APP_GREEN_GLASS_BG,
+    APP_GREEN_GLASS_BORDER,
+    APP_GREEN_GLASS_SHADOW,
+    APP_GREEN_GLASS_TEXT,
+} from '../../lib/modalTheme';
 
 const LANGUAGES = [
     { code: 'en', label: 'English' },
@@ -23,18 +29,16 @@ export const LanguageSwitcher: React.FC<Props> = ({ variant = 'pill' }) => {
     const current = i18n.language?.split('-')[0] ?? 'en';
     const currentLang = LANGUAGES.find(l => l.code === current) || LANGUAGES[0];
     const selectedModeStyle: React.CSSProperties = {
-        background:
-            'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-        border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
-        color: '#426D56',
+        background: APP_GREEN_GLASS_BG,
+        border: APP_GREEN_GLASS_BORDER,
+        boxShadow: APP_GREEN_GLASS_SHADOW,
+        color: APP_GREEN_GLASS_TEXT,
     };
     const triggerStyle: React.CSSProperties = {
-        background:
-            'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-        border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
-        color: '#426D56',
+        background: APP_GREEN_GLASS_BG,
+        border: APP_GREEN_GLASS_BORDER,
+        boxShadow: APP_GREEN_GLASS_SHADOW,
+        color: APP_GREEN_GLASS_TEXT,
     };
 
     // Close on outside click

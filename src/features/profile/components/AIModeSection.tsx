@@ -16,6 +16,7 @@ import profileZepAvatar from '../../../assets/profile-ai-companions/zep.png';
 import { triggerLightHaptic } from '../../../lib/haptics';
 import {
   APP_GREEN_GLASS_TEXT,
+  APP_PROFILE_JELLY_TOGGLE_ON_STYLE,
 } from '../../../lib/modalTheme';
 
 interface Props {
@@ -28,6 +29,16 @@ const PROFILE_AI_AVATARS: Record<AiCompanionMode, string> = {
   agnes: profileAgnesAvatar,
   zep: profileZepAvatar,
   momo: profileMomoAvatar,
+};
+
+const PROFILE_AI_SELECTED_PREVIEW_STYLE: React.CSSProperties = {
+  background:
+    'linear-gradient(135deg, rgba(236,248,229,0.95) 0%, rgba(220,238,190,0.90) 45%, rgba(208,230,161,0.72) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.52) 0%, rgba(238,246,221,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
+  border: '0.5px solid transparent',
+  borderRadius: 12,
+  boxShadow: '0 6px 14px rgba(183,207,124,0.14)',
+  color: APP_GREEN_GLASS_TEXT,
+  transition: 'all 0.15s',
 };
 
 function showToast(msg: string) {
@@ -43,12 +54,6 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
   const { t } = useTranslation();
   const { preferences, updatePreferences } = useAuthStore();
   const enabled = preferences.aiModeEnabled;
-  const selectedModeStyle: React.CSSProperties = {
-    background:
-      'linear-gradient(135deg, rgba(236,248,229,0.96) 0%, rgba(220,238,190,0.92) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.55) 0%, rgba(238,246,221,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-    border: '0.5px solid transparent',
-    boxShadow: '0 6px 14px rgba(183,207,124,0.12)',
-  };
 
   const handleModeClick = (key: AiCompanionMode, free: boolean) => {
     triggerLightHaptic();
@@ -81,7 +86,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
         <button
           onClick={() => { void handleToggleEnabled(); }}
           className="relative mt-0.5 h-5 w-9 flex-shrink-0 rounded-full border border-transparent transition-colors"
-          style={enabled ? { background: 'linear-gradient(135deg, #DCECB8 0%, #D0E6A1 100%)' } : { background: '#cbd5e1' }}
+          style={enabled ? APP_PROFILE_JELLY_TOGGLE_ON_STYLE : { background: '#cbd5e1' }}
           aria-pressed={enabled}
           aria-label={t('profile_ai_mode')}
         >
@@ -119,7 +124,7 @@ export const AIModeSection: React.FC<Props> = ({ isPlus, plain = false }) => {
                         ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-50'
                         : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'
                      }`}
-                    style={selected ? selectedModeStyle : undefined}
+                    style={selected ? PROFILE_AI_SELECTED_PREVIEW_STYLE : undefined}
                    >
                     <img
                       src={PROFILE_AI_AVATARS[modeKey] ?? mode.avatar}

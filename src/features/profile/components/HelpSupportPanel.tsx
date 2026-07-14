@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { InfoSheetPanel } from './InfoSheetPanel';
 import { FeedbackPanel } from './FeedbackPanel';
+import { APP_PROFILE_JELLY_BUTTON_STYLE } from '../../../lib/modalTheme';
 
 const SUPPORT_EMAIL = 'hello@seedayapp.com';
 
@@ -94,12 +95,8 @@ export const HelpSupportPanel: React.FC<Props> = ({ onClose }) => {
       <button
         type="button"
         onClick={() => setShowFeedback(true)}
-        className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90"
-        style={{
-          background: 'rgba(144,212,122,0.22)',
-          border: '1px solid rgba(143,175,146,0.45)',
-          boxShadow: '0px 2px 2px #C8C8C8',
-        }}
+        className="mt-4 w-full rounded-[50px] py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90"
+        style={APP_PROFILE_JELLY_BUTTON_STYLE}
       >
         {t('feedback_sheet_title')}
       </button>

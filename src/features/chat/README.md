@@ -54,12 +54,18 @@
 - Magic Pen parser regression: `src/services/input/magicPenParser.test.ts`
 - Magic Pen commit orchestration regression: `src/store/magicPenActions.test.ts`
 
+## Shared Button Surface
+
+- Rounded or circular button shells in the chat page, sheets, and modals opt into `.app-glass-button` or the shared inline base.
+- Unframed date labels, clickable images, text actions, and bare icon triggers are intentionally excluded; feature styles remain authoritative for color, radius, dimensions, and states.
+
 ## Latest Timeline Interaction Updates (2026-03-19)
 
 - EventCard top-right action area is unified under card-active state:
   - camera upload trigger moved from in-card slot icon to action area
   - event-to-mood conversion button added next to delete
   - delete remains in the same action cluster
+- Attached mood-row conversion buttons follow the same card-active visibility rule as the camera action: tap the event card to show them and tap outside to dismiss them.
 - ImageUploader now supports external trigger mode:
   - `hideUploadButton` to hide in-slot camera icon
   - `openSignal` to programmatically open file picker from card action area

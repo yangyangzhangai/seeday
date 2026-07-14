@@ -7,9 +7,7 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
-  APP_GREEN_GLASS_BG,
-  APP_GREEN_GLASS_BORDER,
-  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_BUTTON_STYLE,
   APP_GREEN_GLASS_TEXT,
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
@@ -18,6 +16,10 @@ import {
   APP_SELECTED_GLOW_SHADOW,
 } from '../../lib/modalTheme';
 import { triggerLightHaptic } from '../../lib/haptics';
+import {
+  getGrowthPrioritySelectedStyle,
+  GROWTH_PRIORITY_TEXT_CLASS,
+} from './growthTodoPriorityStyles';
 
 interface DefaultValues {
   title?: string;
@@ -149,9 +151,11 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
                   }}
                   className={cn(
                     'flex-1 rounded-xl border py-2 text-sm font-medium transition-all',
-                    priority === p ? 'text-[#1D4ED8]' : 'border-white/80 bg-white/70 text-[#2F3E33]'
+                    priority === p
+                      ? GROWTH_PRIORITY_TEXT_CLASS[p]
+                      : 'border-white/80 bg-white/70 text-[#2F3E33]'
                   )}
-                  style={priority === p ? selectedGlowStyle : undefined}
+                  style={priority === p ? getGrowthPrioritySelectedStyle(p) : undefined}
                 >
                   {t(`growth_todo_priority_${p}`)}
                 </button>
@@ -255,9 +259,7 @@ export const AddGrowthTodoModal = ({ isOpen, onClose, onAdd, defaultValues }: Pr
               }}
               className="w-full rounded-2xl py-2.5 font-medium transition-opacity"
               style={{
-                background: APP_GREEN_GLASS_BG,
-                border: APP_GREEN_GLASS_BORDER,
-                boxShadow: APP_GREEN_GLASS_SHADOW,
+                ...APP_GREEN_GLASS_BUTTON_STYLE,
                 color: APP_GREEN_GLASS_TEXT,
               }}
             >

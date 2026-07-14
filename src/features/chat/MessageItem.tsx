@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
-import { getMoodColor } from '../../lib/moodColor';
+import { getMoodColor, getMoodGlassStyle, MOOD_GLASS_BUTTON_CLASS } from '../../lib/moodColor';
 import { getMoodI18nKey, normalizeMoodKey } from '../../lib/moodOptions';
 import { ArrowRightLeft, Edit2, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -162,25 +162,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                             type="button"
                             onClick={() => onMoodPickerOpen(msg.id)}
                             className={cn(
-                                'inline-flex items-center justify-center px-2.5 py-[3px] text-xs rounded-full whitespace-nowrap shadow-sm transition-colors',
+                                MOOD_GLASS_BUTTON_CLASS,
                                 customMoodLabel[msg.id] || activityMood[msg.id]
-                                    ? 'text-slate-700'
+                                    ? ''
                                     : 'bg-gray-50 text-gray-400 border border-gray-200'
                             )}
                             style={
                                 (() => {
-                                    if (moodKey === 'anxious') {
-                                        return { background: 'repeating-linear-gradient(45deg,#E5E7EB 0,#E5E7EB 1px,#9CA3AF 1px,#9CA3AF 2px,#6B7280 2px,#6B7280 3px)', border: 'none' } as React.CSSProperties;
-                                    }
-                                    const bg = label ? getMoodColor(label) : undefined;
-                                    return bg ? { backgroundColor: bg, border: 'none' } as React.CSSProperties : {} as React.CSSProperties;
+                                    const moodStyle = label ? getMoodGlassStyle(label) : undefined;
+                                    return {
+                                        fontFamily: 'Songti SC, SimSun, STSong, serif',
+                                        ...(moodStyle ? moodStyle as React.CSSProperties : {}),
+                                    } as React.CSSProperties;
                                 })()
                             }
                             title={t('chat_adjust_mood_label')}
                         >
-                            <span style={{ fontFamily: 'Songti SC, SimSun, STSong, serif' }}>
-                                {getTranslatedMoodLabel(label)}
-                            </span>
+                            {getTranslatedMoodLabel(label)}
                         </button>
                     </div>
                     {renderStardust()}

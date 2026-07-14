@@ -65,3 +65,9 @@ GrowthPage
 - `LLM.md`
 - `docs/PROJECT_MAP.md`
 - `docs/CURRENT_TASK.md`
+
+## Shared Button Surface
+
+- Growth controls with a visible rounded or circular shell opt into `.app-glass-button` or the shared inline base.
+- Unframed text, image, and bare icon triggers are excluded; existing colors, radii, dimensions, priority states, and destructive variants remain authoritative.
+- `growthTodoPriorityStyles.ts` is the shared selected-state palette for todo priority controls in both `AddGrowthTodoModal` and expanded `GrowthTodoCard` views.

@@ -5,6 +5,7 @@ import { ChevronDown, CheckCircle2 } from 'lucide-react';
 import { InfoSheetPanel } from './InfoSheetPanel';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { submitFeedback } from '../../../services/feedback/submitFeedback';
+import { APP_PROFILE_JELLY_BUTTON_STYLE } from '../../../lib/modalTheme';
 
 const ISSUE_TYPES = [
   'feedback_type_bug',
@@ -65,12 +66,8 @@ export const FeedbackPanel: React.FC<Props> = ({ onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-8 py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90"
-            style={{
-              background: 'rgba(144,212,122,0.22)',
-              border: '1px solid rgba(143,175,146,0.45)',
-              boxShadow: '0px 2px 2px #C8C8C8',
-            }}
+            className="rounded-[50px] px-8 py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90"
+            style={APP_PROFILE_JELLY_BUTTON_STYLE}
           >
             {t('feedback_success_close')}
           </button>
@@ -112,7 +109,7 @@ export const FeedbackPanel: React.FC<Props> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => setTypeOpen(v => !v)}
-              className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-sm transition ${
+              className={`flex w-full items-center justify-between rounded-[50px] border px-3.5 py-2.5 text-sm transition ${
                 error && !issueType
                   ? 'border-red-300 bg-red-50/60'
                   : 'border-[#8FAF92]/40 bg-white/85'
@@ -167,12 +164,8 @@ export const FeedbackPanel: React.FC<Props> = ({ onClose }) => {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90 disabled:opacity-50"
-          style={{
-            background: 'rgba(144,212,122,0.22)',
-            border: '1px solid rgba(143,175,146,0.45)',
-            boxShadow: '0px 2px 2px #C8C8C8',
-          }}
+          className="w-full rounded-[50px] py-3 text-sm font-semibold text-[#5F7A63] transition hover:opacity-90 disabled:opacity-50"
+          style={APP_PROFILE_JELLY_BUTTON_STYLE}
         >
           {loading ? '...' : t('feedback_submit')}
         </button>

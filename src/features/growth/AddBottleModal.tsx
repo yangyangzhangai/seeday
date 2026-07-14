@@ -6,9 +6,7 @@ import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
   APP_MODAL_CLOSE_CLASS,
-  APP_GREEN_GLASS_BG,
-  APP_GREEN_GLASS_BORDER,
-  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_BUTTON_STYLE,
   APP_MODAL_INPUT_CLASS,
   APP_MODAL_OVERLAY_CLASS,
 } from '../../lib/modalTheme';
@@ -25,12 +23,6 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState<BottleType>('habit');
-  const greenGlassStyle = {
-    background: APP_GREEN_GLASS_BG,
-    border: APP_GREEN_GLASS_BORDER,
-    boxShadow: APP_GREEN_GLASS_SHADOW,
-  };
-
   if (!isOpen) return null;
 
   const handleSubmit = () => {
@@ -81,7 +73,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
                   ? 'text-[#426D56]'
                   : 'border-transparent bg-[rgba(248,251,241,0.82)] text-[#506547]'
               )}
-              style={type === bt ? greenGlassStyle : undefined}
+              style={type === bt ? APP_GREEN_GLASS_BUTTON_STYLE : undefined}
             >
               {bt === 'habit' ? t('growth_bottle_type_habit') : t('growth_bottle_type_goal')}
             </button>
@@ -98,7 +90,7 @@ export const AddBottleModal = ({ isOpen, onClose, onAdd, error }: Props) => {
           className={cn(
             'w-full rounded-2xl border py-2.5 font-medium text-[#426D56] transition-opacity disabled:cursor-not-allowed disabled:opacity-40'
           )}
-          style={greenGlassStyle}
+          style={APP_GREEN_GLASS_BUTTON_STYLE}
         >
           {t('confirm')}
         </button>

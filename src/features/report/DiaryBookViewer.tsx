@@ -14,6 +14,7 @@ import { DiaryPlantFlipModal } from './plant/DiaryPlantFlipModal';
 import { DiaryBookViewerExpandedView, type ExpandTarget } from './DiaryBookViewerExpandedView';
 import { buildPages } from './diaryBookViewerData';
 import { DiaryBookViewerPageContent } from './DiaryBookViewerPageContent';
+import { APP_GLASS_BUTTON_BASE_STYLE } from '../../lib/modalTheme';
 import {
   BASE_PAGE_W,
   BASE_PAGE_H,
@@ -350,7 +351,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
           {onBackToShelf ? (
             <button
               onClick={onBackToShelf}
-              style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+              style={{ ...APP_GLASS_BUTTON_BASE_STYLE, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
             >
               <ChevronLeft size={20} strokeWidth={2.2} />
             </button>
@@ -369,7 +370,7 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
         <div style={{ width: 72, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+            style={{ ...APP_GLASS_BUTTON_BASE_STYLE, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a5d4c', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 22, boxShadow: '0 8px 20px rgba(0,0,0,0.04)', cursor: 'pointer' }}
           >
             <X size={20} strokeWidth={2.2} />
           </button>

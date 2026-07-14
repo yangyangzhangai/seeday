@@ -11,9 +11,7 @@ import { BottleDetailSheet } from './BottleDetailSheet';
 import { cn } from '../../lib/utils';
 import {
   APP_MODAL_CARD_CLASS,
-  APP_GREEN_GLASS_BG,
-  APP_GREEN_GLASS_BORDER,
-  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_BUTTON_STYLE,
   APP_MODAL_OVERLAY_CLASS,
   APP_MODAL_PRIMARY_BUTTON_CLASS,
   APP_MODAL_SECONDARY_BUTTON_CLASS,
@@ -181,11 +179,9 @@ export const BottleList = () => {
           <button
             onClick={() => !isMaxReached && setShowAdd(true)}
             disabled={isMaxReached}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#D0E6A1]/55 p-0 text-[#8FAA42] shadow-[0_8px_20px_rgba(208,230,161,0.22)] backdrop-blur-xl transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 w-9 items-center justify-center rounded-full p-0 text-[#8FAA42] transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             style={{
-              background: APP_GREEN_GLASS_BG,
-              border: APP_GREEN_GLASS_BORDER,
-              boxShadow: APP_GREEN_GLASS_SHADOW,
+              ...APP_GREEN_GLASS_BUTTON_STYLE,
             }}
             title={isMaxReached ? t('growth_bottle_max_reached') : t('growth_add_bottle')}
           >
@@ -250,9 +246,7 @@ export const BottleList = () => {
                 onClick={handleHabitConfirm}
                 className="flex-1 rounded-2xl py-2 font-medium transition-opacity"
                 style={{
-                  background: APP_GREEN_GLASS_BG,
-                  border: APP_GREEN_GLASS_BORDER,
-                  boxShadow: APP_GREEN_GLASS_SHADOW,
+                  ...APP_GREEN_GLASS_BUTTON_STYLE,
                   color: '#426D56',
                 }}
               >

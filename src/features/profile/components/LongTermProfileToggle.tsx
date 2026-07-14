@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Brain } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import { APP_PROFILE_JELLY_TOGGLE_ON_STYLE } from '../../../lib/modalTheme';
 
 interface Props {
   plain?: boolean;
@@ -16,12 +17,6 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
   React.useEffect(() => {
     setStatusText('');
   }, [longTermProfileEnabled]);
-
-  const enabledSwitchStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
-    boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
-    border: 'none',
-  };
 
   return (
     <div className={plain ? 'px-4 py-2.5' : 'rounded-2xl border border-white/65 bg-[#F7F9F8] px-4 py-2.5 [box-shadow:inset_0_1px_1px_rgba(255,255,255,0.75),0_8px_24px_rgba(148,163,184,0.12)]'}>
@@ -54,7 +49,7 @@ export const LongTermProfileToggle: React.FC<Props> = ({ plain = false }) => {
           className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full border transition-colors ${
             longTermProfileEnabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}
-          style={longTermProfileEnabled ? enabledSwitchStyle : undefined}
+          style={longTermProfileEnabled ? APP_PROFILE_JELLY_TOGGLE_ON_STYLE : undefined}
         >
           <span
             className={`inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${

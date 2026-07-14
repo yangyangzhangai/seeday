@@ -19,6 +19,11 @@ import {
 } from './userProfilePanelHelpers';
 import type { UserProfileManualV2, ClassSchedule } from '../../../types/userProfile';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../../store/storageScope';
+import {
+  APP_GREEN_GLASS_TEXT,
+  APP_PROFILE_JELLY_BUTTON_STYLE,
+  APP_PROFILE_JELLY_TOGGLE_ON_STYLE,
+} from '../../../lib/modalTheme';
 
 interface Props {
   plain?: boolean;
@@ -172,7 +177,7 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
   return (
     <div className={`relative transition-all duration-300 ${isOpen ? 'z-[60]' : 'z-0'}`}>
       <button onClick={() => { if (isOpen) setIsOpen(false); else openPicker(); }}
-        className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 border-2 ${isOpen ? 'bg-white border-black shadow-xl shadow-black/5' : 'bg-zinc-50 border-transparent hover:border-black/10'} text-sm font-bold text-black group relative z-[2]`}>
+        className={`w-full flex items-center justify-between p-3 rounded-[50px] transition-all duration-300 border-2 ${isOpen ? 'bg-white border-black shadow-xl shadow-black/5' : 'bg-zinc-50 border-transparent hover:border-black/10'} text-sm font-bold text-black group relative z-[2]`}>
         <span>{value}</span>
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-black/20 group-hover:text-black transition-colors">
           <ChevronDown size={14} />
@@ -191,8 +196,8 @@ const TimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = (
                 <DrumColumn items={MINUTES} selected={tempMinute} onSelect={setTempMinute} />
               </div>
               <div className="p-2 flex gap-2 bg-zinc-50/20">
-                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.16em]">{t('onboarding_timepicker_cancel')}</button>
-                <button onClick={save} className="flex-1 py-2 rounded-xl bg-black text-white text-[11px] font-bold shadow-sm uppercase tracking-[0.16em]">{t('onboarding_timepicker_confirm')}</button>
+                <button onClick={() => setIsOpen(false)} className="flex-1 py-2 rounded-[50px] text-[11px] font-bold text-black/40 hover:text-black transition-colors uppercase tracking-[0.16em]">{t('onboarding_timepicker_cancel')}</button>
+                <button onClick={save} className="flex-1 py-2 rounded-[50px] bg-black text-white text-[11px] font-bold shadow-sm uppercase tracking-[0.16em]">{t('onboarding_timepicker_confirm')}</button>
               </div>
             </motion.div>
           </>
@@ -456,12 +461,10 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
                   if (item.id === identity) return;
                   setPendingIdentity(item.id);
                 }}
-                className={`relative flex flex-col items-center justify-center rounded-lg border py-2 text-[12px] font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
+                className={`relative flex flex-col items-center justify-center rounded-[50px] border py-2 text-[12px] font-medium transition-all ${isSelected ? 'font-bold' : 'border-transparent bg-white/60 text-[#426D56] hover:border-[#CBE7D7]'}`}
                 style={isSelected ? {
-                  background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%) padding-box, linear-gradient(140deg, rgba(164,205,183,0.55) 0%, rgba(239,248,243,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-                  border: '0.5px solid transparent',
-                  boxShadow: '0 6px 14px rgba(103,154,121,0.12)',
-                  color: '#426D56',
+                  ...APP_PROFILE_JELLY_BUTTON_STYLE,
+                  color: APP_GREEN_GLASS_TEXT,
                 } : undefined}>
                 {isCurrent && (
                   <span className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-[#8fae91]">
@@ -508,13 +511,13 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
                 <div className="flex gap-3">
                   <button
                     onClick={() => setPendingIdentity(null)}
-                    className="flex-1 rounded-2xl border border-[#CBE7D7] bg-white py-2.5 text-sm font-semibold text-[#4A7560] transition active:scale-95">
+                    className="flex-1 rounded-[50px] border border-[#CBE7D7] bg-white py-2.5 text-sm font-semibold text-[#4A7560] transition active:scale-95">
                     {t('cancel')}
                   </button>
                   <button
                     onClick={() => { setIdentity(pendingIdentity); setPendingIdentity(null); }}
-                    className="flex-1 rounded-2xl py-2.5 text-sm font-semibold text-white transition active:scale-95"
-                    style={{ background: 'linear-gradient(135deg, #6D9B74 0%, #4E7A57 100%)' }}>
+                    className="flex-1 rounded-[50px] py-2.5 text-sm font-semibold transition active:scale-95"
+                    style={{ ...APP_PROFILE_JELLY_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}>
                     {t('confirm')}
                   </button>
                 </div>
@@ -580,7 +583,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
           </div>
           <button onClick={() => setReminderEnabled(!reminderEnabled)}
             className="relative h-5 w-9 rounded-full border border-transparent transition-colors"
-            style={reminderEnabled ? { background: 'linear-gradient(135deg, #C8EDD8 0%, #A5D4B8 100%)' } : { background: '#cbd5e1' }}>
+            style={reminderEnabled ? APP_PROFILE_JELLY_TOGGLE_ON_STYLE : { background: '#cbd5e1' }}>
             <motion.div animate={{ x: reminderEnabled ? 16 : 2 }}
               className="absolute left-0 h-4 w-4 rounded-full bg-white shadow-sm"
               style={{ top: '50%', marginTop: '-8px' }} />
@@ -603,8 +606,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
     >
       {saveText && <p className="mb-2 text-center text-[11px] text-slate-500">{saveText}</p>}
       <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void performSave(); }} disabled={saving}
-        className="w-full rounded-2xl py-3 text-sm font-semibold disabled:opacity-60"
-        style={{ background: 'rgba(144, 212, 122, 0.20)', boxShadow: '0px 2px 2px #C8C8C8', color: '#5F7A63' }}>
+        className="w-full rounded-[50px] py-3 text-sm font-semibold disabled:opacity-60"
+        style={{ ...APP_PROFILE_JELLY_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}>
         {saving ? t('profile_routine_saving') : t('profile_routine_save')}
       </motion.button>
     </div>

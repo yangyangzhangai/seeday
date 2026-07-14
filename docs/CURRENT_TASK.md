@@ -6,6 +6,33 @@ Owner: current working session
 Session Notes:
 
 - 2026-07-13: Auth signup OTP feedback strengthened: email-code signup now keeps a stable sent-code card tied to `pendingSignUpEmail`, shows the concrete target email in both `AuthPage` and onboarding `StepAuth`, preserves the reminder across verify failures, and aligns OTP UI details (6-digit input clamp, verify CTA, resend entry, placeholder) to reduce the “code sent but no reminder” confusion.
+- 2026-07-14: Growth `Add Task` 弹窗的重要程度选项已与待办卡片展开态共用同一份选中颜色映射：High 粉色、Medium 黄色、Low 绿色；新增 `growthTodoPriorityStyles.ts` 作为两处唯一样式来源，Repeat 频率按钮继续保持蓝色。
+- 2026-07-14: Chat 活动卡片内心情备注右侧的转换按钮已改为复用拍照按钮的 `showActionButtons` 显示条件：点击卡片后出现，点击卡片外空白处消失；转换逻辑、按钮样式及只读状态保持不变。
+- 2026-07-13: 全应用公共玻璃 base 已改为显式视觉外壳接入：`src/index.css` 仅对 `.app-glass-button` 提供双层渐变、透明细边框、外阴影和无磨砂默认值，弹窗公共按钮与心情标签等有圆形/圆角矩形外壳的按钮接入该类；月份标题、无框图片、纯文字与纯图标触发器不再因原生 `<button>` 标签被误套外壳。
+- 2026-07-13: 公共玻璃按钮 base 已按确认版更新：移除白色 `inset` 内高光与 `blur/saturate` 磨砂滤镜，新增可由 `--app-glass-*` CSS 变量换色的双层渐变背景结构；现有按钮可保留各自背景覆盖，不固定为单一颜色。同步清理两个 Profile 派生玻璃样式中重新写入的内高光。
+- 2026-07-13: Profile 页 AI 角色选择按钮新增局部视觉预览：只调整 `AIModeSection` 选中态，改为日历选中态结构的绿色双层渐变，去掉内高光与磨砂滤镜；公共玻璃 base、其他 Profile 按钮、按钮颜色和圆角均未改动。
+- 2026-07-13: Chat 心情标签再次统一：`MoodPickerModal`、`EventCard` 与旧列表 `MessageItem` 现在共用同一个按钮 class 与 `getMoodGlassStyle()`；移除活动卡片残留的旧手写渐变。`calm/down` 与 `bored/tired` 色组进一步拉开，并参考首页日历选中态，将左上纯白高光改为浅化后的心情色，保留公共玻璃 base 的边框、阴影与磨砂参数。
+- 2026-07-13: 心情标签玻璃样式继续微调：`src/lib/moodColor.ts` 中左上主高光白色透明度已下调，减弱 mood pill 左上发亮感；同时 mood 色板重新拉开到更明显的马卡龙区分，避免 `calm/down` 与 `bored/tired` 等档位过于接近。
+- 2026-07-13: 继续修正首页心情弹窗“选中态始终同一色”问题：确认 `MoodPickerModal` 已切到 `getMoodGlassStyle()` 后，又补齐 `src/lib/moodColor.ts` 中缺失的 `getMoodGlassStyle()` / `getMoodTextColor()` / `anxious` 固定色，避免弹窗拿到旧版单色逻辑。
+- 2026-07-13: 修正首页心情弹窗残留旧版统一蓝色选中态：`src/features/chat/MoodPickerModal.tsx` 已移除 `APP_SELECTED_GLOW_*`，改为按 `getMoodGlassStyle()` 为不同 mood 分配颜色，并与外层活动卡片 mood 标签共用同一套颜色来源。
+- 2026-07-13: 首页活动流右侧心情标签按钮壳子继续对齐到心情弹窗选中按钮：`src/features/chat/MessageItem.tsx` 已直接改用与 `MoodPickerModal` 同级的 `rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors` 结构，并把字体族放到按钮本体上，减少肉眼观感差异。
+- 2026-07-13: 首页活动流右侧心情标签继续收口：`src/features/chat/MessageItem.tsx` 中列表态 mood 按钮已改为直接复用 `getMoodGlassStyle()`，与心情弹窗选中按钮保持同一套质感、边框和阴影，不再使用简化纯底色版本。
+- 2026-07-13: 公共玻璃按钮壳子继续扩展到四个导航页与次级页面：将 `APP_GLASS_BUTTON_BASE_STYLE` 真正接入 Growth 新建瓶/瓶子详情/待办弹窗/每日目标弹窗/专注结束按钮、Report 植物生成与日记相关按钮、Diary shelf/viewer 顶部按钮、Profile 信息页关闭按钮与删除账号弹窗，并让 `APP_GREEN_GLASS_BUTTON_STYLE`、`APP_PROFILE_JELLY_BUTTON_STYLE`、`APP_PROFILE_JELLY_TOGGLE_ON_STYLE` 统一直接继承同一套 base 参数，保持原颜色与圆角不变。
+- 2026-07-13: 根系方向设置弹窗右侧选择框语言宽度微调：中文从 `100px` 调整为 `110px`，意大利语从 `160px` 调整为 `155px`，其他语言仍为 `140px`。
+- 2026-07-13: 根系方向设置弹窗右侧选择框改为按语言适配固定宽度：中文 `100px`、意大利语 `160px`、其余语言保留 `140px`。
+- 2026-07-13: 按用户明确指定，根系方向设置弹窗右侧选择框固定宽度已改为 `140px`。
+- 2026-07-13: 根系方向设置弹窗右侧选择框继续缩短：在上一轮基础上再次下调固定宽度，进一步压缩 `Entertainment` 后的空余留白。
+- 2026-07-13: 根系方向设置弹窗右侧选择框宽度再次明显收短：固定宽度进一步下调到接近 `Entertainment` 文案占用长度，避免用户侧“看不出变化”。
+- 2026-07-13: 根系方向设置弹窗右侧选择框宽度已从偏长版本继续收短，固定宽度下调到更接近最长选项文案的适配长度，避免英文/意大利语版本视觉过长。
+- 2026-07-13: 根系方向设置弹窗中，英文/意大利语版本右侧选择框宽度已固定为统一长度，避免因 `Entertainment` / `Work & Study` / 意大利语长词导致不同项宽度忽长忽短。
+- 2026-07-13: 根系方向设置弹层中，右侧下拉选择胶囊的文字样式已对齐外侧方向标签：从 `text-xs font-semibold` 调整为 `text-[13px] font-medium`，与“左 / 中偏右 / 右”等文案保持一致。
+- 2026-07-13: 按用户要求单独回调 Profile 页“选择陪伴伙伴”按钮圆弧：该组按钮恢复原来的较小圆角（约 `rounded-lg`），不再跟随 Profile 其余按钮的 `50px` 圆弧；其他按钮保持现状。
+- 2026-07-13: Profile 页按钮圆弧按用户要求统一收口到 `50px`：已覆盖 AI 角色按钮、陪伴频率按钮、Routine 页按钮、保存/反馈/地区/会员/密码/删除账号等主要按钮；卡片与输入框圆角暂未跟随此轮调整。
+- 2026-07-13: 修正 Profile 果冻按钮“颜色被洗浅”问题：保留 `APP_PROFILE_JELLY_BUTTON_STYLE` / `APP_PROFILE_JELLY_TOGGLE_ON_STYLE` 的果冻壳子结构，但将底色恢复到 Profile 原先绿色体系（按钮底色回用 `APP_GREEN_GLASS_BG`，开关开启态回用 `APP_GREEN_TOGGLE_ON_STYLE` 的绿色）。
+- 2026-07-13: 按用户确认，将 Chat 心情按钮那套“果冻质感”壳子移植到 Profile 页现有绿色按钮：新增 `APP_PROFILE_JELLY_BUTTON_STYLE` / `APP_PROFILE_JELLY_TOGGLE_ON_STYLE`，并接入 AI 角色、陪伴频率、Profile 内保存按钮、反馈/帮助/地区按钮及相关绿色开关；除颜色外沿用同一套边框、blur/saturate、阴影与渐变结构。
+- 2026-07-13: Chat 首页活动卡片右上角相机按钮与心情标签按钮已按用户要求改为“除颜色外，直接套用公共玻璃按钮壳子代码”：边框、阴影、blur/saturate 参数不再做近似微调，仅保留各自蓝色/心情色彩。
+- 2026-07-13: Chat 首页活动卡片右上角相机按钮与心情标签按钮已继续向公共玻璃按钮壳子收口：统一更强的边框高光、20px 级 blur/saturate 与内侧高光阴影，保留各自原有蓝色/心情色彩区分，不改右侧关闭按钮。
+- 2026-07-13: 按用户确认扩展到全应用范围：现有绿色主按钮、绿色选中态按钮与 Profile 内绿色开关已统一收口到同一套共享参数，核心公共源集中到 `src/lib/modalTheme.ts`（绿色玻璃背景/边框/阴影/文字/开关开启态）。
 - 2026-07-13: Profile 页 AI 角色选择按钮选中态外壳已进一步对齐 `Companion frequency` 的 `High` 按钮：保留头像/名称内容不变，仅将选中态渐变、边框与阴影切换到同一套按钮参数，缩小两组控件的视觉差异。
 - 2026-07-13: Profile 页 AI 角色选择按钮外层结构已按用户给定按钮模板替换：统一为 `rounded-lg border py-1.5 text-xs font-medium transition-all` 这一组壳子，同时保留头像/名称/锁图标内容。
 - 2026-07-13: 按用户收窄范围，仅调整 Profile 页两个开关与 `High` 按钮颜色到 `#D0E6A1` 参考绿色；其余样式结构保持不变。

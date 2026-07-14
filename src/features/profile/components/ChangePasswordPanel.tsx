@@ -78,7 +78,7 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
         type="button"
         onClick={() => { void handleSave(); }}
         disabled={status === 'loading' || status === 'success' || !newPassword || !confirmPassword}
-        className="mt-5 w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-5 w-full rounded-[50px] py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
         style={{ background: '#5F7A63' }}
       >
         {status === 'loading' ? '…' : t('change_password_save')}

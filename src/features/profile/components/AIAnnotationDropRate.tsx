@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Bell, Lock } from 'lucide-react';
 import { useAuthStore, type AnnotationDropRate } from '../../../store/useAuthStore';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import {
+  APP_GREEN_GLASS_TEXT,
+  APP_PROFILE_JELLY_BUTTON_STYLE,
+} from '../../../lib/modalTheme';
 
 const DROP_RATES: { key: AnnotationDropRate; labelKey: string }[] = [
   { key: 'low', labelKey: 'profile_drop_low' },
@@ -31,11 +35,8 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false, e
   const current = preferences.annotationDropRate;
   const aiModeEnabled = preferences.aiModeEnabled;
   const selectedRateStyle: React.CSSProperties = {
-    background:
-      'linear-gradient(135deg, rgba(236,248,229,0.96) 0%, rgba(220,238,190,0.92) 100%) padding-box, linear-gradient(140deg, rgba(208,230,161,0.55) 0%, rgba(238,246,221,0.95) 55%, rgba(255,255,255,0.98) 100%) border-box',
-    border: '0.5px solid transparent',
-    boxShadow: '0 6px 14px rgba(183,207,124,0.12)',
-    color: '#426D56',
+    ...APP_PROFILE_JELLY_BUTTON_STYLE,
+    color: APP_GREEN_GLASS_TEXT,
   };
 
   const handleClick = (key: AnnotationDropRate) => {
@@ -64,7 +65,7 @@ export const AIAnnotationDropRate: React.FC<Props> = ({ isPlus, plain = false, e
             <button
               key={key}
               onClick={() => { void handleClick(key); }}
-              className={`relative flex-1 rounded-lg border py-1.5 text-xs font-medium transition-all ${
+              className={`relative flex-1 rounded-[50px] border py-1.5 text-xs font-medium transition-all ${
                 selected
                   ? 'font-bold'
                   : locked

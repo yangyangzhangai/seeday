@@ -6,6 +6,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { buildAIMemoryManualPayload } from './userProfilePanelHelpers';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import {
+  APP_GREEN_GLASS_TEXT,
+  APP_PROFILE_JELLY_BUTTON_STYLE,
+  APP_PROFILE_JELLY_TOGGLE_ON_STYLE,
+} from '../../../lib/modalTheme';
 
 interface Props {
   plain?: boolean;
@@ -71,12 +76,6 @@ export const UserProfilePanel: React.FC<Props> = ({
       });
   };
 
-  const enabledSwitchStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, #D8EEDE 0%, #B8DEC7 100%)',
-    boxShadow: '0 5px 12px rgba(103,154,121,0.22), inset 0 1px 0 rgba(255,255,255,0.68)',
-    border: 'none',
-  };
-
   const memoryToggle = (
     <div className="rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-[0_6px_20px_rgba(148,163,184,0.08)]">
       <div className="flex items-center justify-between gap-3">
@@ -95,7 +94,7 @@ export const UserProfilePanel: React.FC<Props> = ({
           className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors ${
             longTermProfileEnabled ? 'border-transparent' : 'border-transparent bg-slate-300'
           }`}
-          style={longTermProfileEnabled ? enabledSwitchStyle : undefined}
+          style={longTermProfileEnabled ? APP_PROFILE_JELLY_TOGGLE_ON_STYLE : undefined}
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
@@ -129,10 +128,10 @@ export const UserProfilePanel: React.FC<Props> = ({
         type="button"
         onClick={() => { void handleSave(); }}
         disabled={!hasUnsavedChanges}
-        className="min-h-11 w-full rounded-2xl border border-transparent px-4 text-sm font-semibold text-[#355643] disabled:opacity-60"
+        className="min-h-11 w-full rounded-[50px] border border-transparent px-4 text-sm font-semibold text-[#355643] disabled:opacity-60"
         style={{
-          background: 'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
-          boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
+          ...APP_PROFILE_JELLY_BUTTON_STYLE,
+          color: APP_GREEN_GLASS_TEXT,
         }}
       >
         {t('profile_user_profile_save')}

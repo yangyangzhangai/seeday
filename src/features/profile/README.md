@@ -75,3 +75,8 @@ UpgradePage
 - `LLM.md`
 - `docs/PROJECT_MAP.md`
 - `docs/CURRENT_TASK.md`
+
+## Shared Button Surface
+
+- Profile controls with a visible rounded or circular shell opt into `.app-glass-button` or the shared inline base across main, secondary, membership, and dialog surfaces.
+- Unframed rows, avatar/image triggers, text actions, and bare icons are excluded; Profile colors, radii, dimensions, toggles, and semantic states remain authoritative.

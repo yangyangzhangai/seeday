@@ -3,14 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { X, Umbrella } from 'lucide-react';
 import { allMoodOptions } from '../../lib/mood';
+import { getMoodGlassStyle, MOOD_GLASS_BUTTON_CLASS } from '../../lib/moodColor';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
 import {
     APP_MODAL_CARD_CLASS,
     APP_MODAL_CLOSE_CLASS,
     APP_MODAL_OVERLAY_CLASS,
-    APP_SELECTED_GLOW_BG,
-    APP_SELECTED_GLOW_BORDER,
-    APP_SELECTED_GLOW_SHADOW,
 } from '../../lib/modalTheme';
 import type { MoodOption } from '../../store/useMoodStore';
 
@@ -45,11 +43,6 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const customLabelDefault = t('chat_custom_label_default');
-    const selectedGlowStyle = {
-        background: APP_SELECTED_GLOW_BG,
-        border: APP_SELECTED_GLOW_BORDER,
-        boxShadow: APP_SELECTED_GLOW_SHADOW,
-    };
 
     return (
         <div
@@ -86,15 +79,15 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                 onSelectMood(moodPickerFor, opt);
                             }}
                             className={cn(
-                                'inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors',
-                                 selectedMoodOpt === opt
-                                     ? 'text-[#1D4ED8]'
-                                     : 'border-white/80 bg-white/85 text-[#2F3E33]',
+                                MOOD_GLASS_BUTTON_CLASS,
+                                selectedMoodOpt === opt
+                                    ? ''
+                                    : 'border-white/80 bg-white/85 text-[#2F3E33]',
                                 moodPickerReadonly && 'cursor-not-allowed opacity-60 hover:bg-white'
                             )}
                             style={{
                                 fontFamily: 'Songti SC, SimSun, STSong, serif',
-                                ...(selectedMoodOpt === opt ? selectedGlowStyle : {}),
+                                ...(selectedMoodOpt === opt ? getMoodGlassStyle(opt) : {}),
                             }}
                             disabled={moodPickerReadonly}
                         >
@@ -109,15 +102,17 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                             onCustomLabelClick();
                         }}
                         className={cn(
-                            'inline-flex items-center justify-center rounded-full border px-2.5 py-[3px] text-xs shadow-sm transition-colors',
-                             (showCustomLabelInput || customMoodApplied[moodPickerFor])
-                                 ? 'text-[#1D4ED8]'
-                                 : 'border-white/80 bg-white/85 text-[#2F3E33]',
+                            MOOD_GLASS_BUTTON_CLASS,
+                            (showCustomLabelInput || customMoodApplied[moodPickerFor])
+                                ? ''
+                                : 'border-white/80 bg-white/85 text-[#2F3E33]',
                             moodPickerReadonly && 'cursor-not-allowed opacity-60'
                         )}
                         style={{
                             fontFamily: 'Songti SC, SimSun, STSong, serif',
-                            ...((showCustomLabelInput || customMoodApplied[moodPickerFor]) ? selectedGlowStyle : {}),
+                            ...((showCustomLabelInput || customMoodApplied[moodPickerFor])
+                                ? getMoodGlassStyle(customMoodLabel[moodPickerFor] || customLabelInput || undefined)
+                                : {}),
                         }}
                         disabled={moodPickerReadonly}
                     >
@@ -133,7 +128,8 @@ export const MoodPickerModal: React.FC<MoodPickerModalProps> = ({
                                     }
                                 }}
                                 onBlur={() => onCustomLabelSave(customLabelInput)}
-                                className="w-16 bg-transparent text-xs text-[#1D4ED8] focus:outline-none"
+                                className="w-16 bg-transparent text-xs focus:outline-none"
+                                style={{ color: getMoodGlassStyle(customLabelInput)?.color ?? '#1D4ED8' }}
                                 autoFocus
                             />
                         ) : (

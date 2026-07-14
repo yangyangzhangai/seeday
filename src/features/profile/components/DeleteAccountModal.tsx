@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { callDeleteAccountAPI } from '../../../api/client';
+import { APP_GLASS_BUTTON_BASE_STYLE } from '../../../lib/modalTheme';
 
 interface Props {
   onClose: () => void;
@@ -98,15 +99,19 @@ export const DeleteAccountModal: React.FC<Props> = ({ onClose }) => {
         <button
           onClick={handleDelete}
           disabled={!confirmed || loading}
-          className="mb-2.5 w-full rounded-xl py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: confirmed ? '#ef4444' : '#fca5a5' }}
+          className="mb-2.5 w-full rounded-[50px] py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+          style={{
+            ...APP_GLASS_BUTTON_BASE_STYLE,
+            background: confirmed ? '#ef4444' : '#fca5a5',
+          }}
         >
           {loading ? t('delete_account_loading') : t('delete_account_button')}
         </button>
         <button
           onClick={onClose}
           disabled={loading}
-          className="w-full rounded-xl border border-slate-200/60 bg-white/80 py-3 text-sm font-medium text-slate-600 transition hover:bg-white disabled:opacity-40"
+          className="w-full rounded-[50px] border border-slate-200/60 bg-white/80 py-3 text-sm font-medium text-slate-600 transition hover:bg-white disabled:opacity-40"
+          style={APP_GLASS_BUTTON_BASE_STYLE}
         >
           {t('delete_account_cancel')}
         </button>

@@ -92,3 +92,8 @@ Summary helpers `generateActionSummary` and `generateMoodSummary` in `reportHelp
 - `docs/ARCHITECTURE.md`
 - `FEATURE_STATUS.md`
 - `docs/CURRENT_TASK.md`
+
+## Shared Button Surface
+
+- Report, plant, diary viewer, calendar, and modal controls with a visible shell opt into `.app-glass-button` or the shared inline base.
+- Unframed calendar headings, image/text triggers, and bare icons are excluded; report colors, radii, dimensions, and semantic states remain authoritative.

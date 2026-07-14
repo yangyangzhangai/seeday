@@ -8,6 +8,7 @@ import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useChatStore } from '../../store/useChatStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
+import { APP_GLASS_BUTTON_BASE_STYLE } from '../../lib/modalTheme';
 
 /* ──────────────────────────── constants ──────────────────────────── */
 const LEATHER_TEXTURE = 'https://images.unsplash.com/photo-1729823546609-2b113553cdcd?q=80&w=1080';
@@ -496,6 +497,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           whileTap={{ scale: 0.95 }}
           onClick={onClose}
           className="flex-shrink-0 p-3.5 bg-white/90 backdrop-blur-xl rounded-[22px] text-[#4a5d4c] shadow-[0_8px_20px_rgba(0,0,0,0.04)] border border-white/80"
+          style={APP_GLASS_BUTTON_BASE_STYLE}
         >
           <ChevronLeft size={20} />
         </motion.button>
@@ -509,6 +511,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
           onClick={() => setSearchOpen(true)}
           aria-label={t('diary_shelf_open_calendar')}
           className="flex-shrink-0 h-14 w-14 bg-white/90 backdrop-blur-xl rounded-full text-[#4a5d4c] shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-white/80 flex items-center justify-center"
+          style={APP_GLASS_BUTTON_BASE_STYLE}
         >
           <Search size={24} strokeWidth={2.2} />
         </motion.button>

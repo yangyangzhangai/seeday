@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRightLeft, Camera, StopCircle, X } from 'lucide-react';
-import { getMoodColor } from '../../../lib/moodColor';
-import { getMoodI18nKey, normalizeMoodKey } from '../../../lib/moodOptions';
+import { getMoodGlassStyle, MOOD_GLASS_BUTTON_CLASS } from '../../../lib/moodColor';
+import { getMoodI18nKey } from '../../../lib/moodOptions';
 import { formatDuration } from '../../../lib/time';
 import { cn } from '../../../lib/utils';
 import { playSound } from '../../../services/sound/soundService';
@@ -18,73 +18,6 @@ import type { StardustCardData } from '../../../types/stardust';
 import { APP_GLASS_BUTTON_BASE_STYLE } from '../../../lib/modalTheme';
 
 const CHAT_CARD_ACTIVE_EVENT = 'chat-card-active';
-const MOOD_TAG_FALLBACK_COLOR = '#0F766E';
-
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  const safeS = clamp01(s);
-  const safeL = clamp01(l);
-  const a = safeS * Math.min(safeL, 1 - safeL);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = safeL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color)
-      .toString(16)
-      .padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
-  const cleaned = hex.replace('#', '');
-  const normalized = cleaned.length === 3
-    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
-    : cleaned;
-  if (normalized.length !== 6) return null;
-
-  const r = parseInt(normalized.slice(0, 2), 16) / 255;
-  const g = parseInt(normalized.slice(2, 4), 16) / 255;
-  const b = parseInt(normalized.slice(4, 6), 16) / 255;
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  if (d === 0) return { h: 0, s: 0, l };
-
-  const s = d / (1 - Math.abs(2 * l - 1));
-  let h = 0;
-  if (max === r) h = ((g - b) / d) % 6;
-  else if (max === g) h = (b - r) / d + 2;
-  else h = (r - g) / d + 4;
-
-  h *= 60;
-  if (h < 0) h += 360;
-  return { h, s, l };
-}
-
-function withHexAlpha(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '');
-  const normalized = cleaned.length === 3
-    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
-    : cleaned;
-  if (normalized.length !== 6) return hex;
-  const alphaHex = Math.round(clamp01(alpha) * 255).toString(16).padStart(2, '0');
-  return `#${normalized}${alphaHex}`;
-}
-
-function getStrongerMoodTagColor(hex: string | undefined): string {
-  const parsed = hex ? hexToHsl(hex) : null;
-  if (!parsed) return MOOD_TAG_FALLBACK_COLOR;
-  const strongerS = Math.max(0.6, Math.min(1, parsed.s * 1.45));
-  const strongerL = Math.max(0.25, Math.min(0.42, parsed.l - 0.24));
-  return hslToHex(parsed.h, strongerS, strongerL);
-}
-
 export interface EventCardProps {
   message: Message;
   moodDescriptions: MoodDescription[];
@@ -159,8 +92,6 @@ export const EventCard: React.FC<EventCardProps> = ({
       ? autoDetectMood(message.content, 0)
       : undefined;
   const displayLabel = rawLabel || fallbackLabel;
-  const moodKey   = normalizeMoodKey(displayLabel);
-  const moodColor = getMoodColor(displayLabel) || '#10B981';
 
   const getTranslatedMood = (label?: string) => {
     if (!label) return t('chat_unknown_mood_label');
@@ -213,8 +144,6 @@ export const EventCard: React.FC<EventCardProps> = ({
     }
   };
 
-  const moodTagColor = getStrongerMoodTagColor(moodColor);
-  const moodTagBg = withHexAlpha(moodTagColor, 0.1);
   const showActionButtons = !readonly && (cardActive || !!alwaysShowActions);
   const glassActionButtonBase: React.CSSProperties = {
     ...APP_GLASS_BUTTON_BASE_STYLE,
@@ -295,7 +224,8 @@ export const EventCard: React.FC<EventCardProps> = ({
                 ...glassActionButtonBase,
                 background:
                   'linear-gradient(135deg, rgba(229,245,255,0.94) 0%, rgba(189,230,255,0.9) 46%, rgba(111,196,255,0.86) 100%) padding-box, linear-gradient(140deg, rgba(111,196,255,0.34) 0%, rgba(229,245,255,0.86) 54%, rgba(255,255,255,0.94) 100%) border-box',
-                boxShadow: '0 6px 14px rgba(92,179,238,0.18)',
+                border: '0.5px solid transparent',
+                boxShadow: '0 6px 14px rgba(165,190,103,0.14)',
                 color: '#2C86B7',
               }}>
               <Camera size={10} />
@@ -317,15 +247,12 @@ export const EventCard: React.FC<EventCardProps> = ({
           {hasMoodChip ? (
             <button
               onClick={readonly ? undefined : e => { e.stopPropagation(); onMoodClick(message.id); }}
-              className="inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs transition-colors"
+              className={MOOD_GLASS_BUTTON_CLASS}
               style={{ fontWeight: 400,
-                background: `linear-gradient(135deg, ${withHexAlpha('#FFFFFF', 0.62)} 0%, ${withHexAlpha(moodTagColor, 0.16)} 24%, ${withHexAlpha(moodTagColor, 0.22)} 100%) padding-box, linear-gradient(140deg, ${withHexAlpha('#FFFFFF', 0.78)} 0%, ${withHexAlpha(moodTagColor, 0.12)} 56%, ${withHexAlpha('#FFFFFF', 0.64)} 100%) border-box`,
-                color: moodTagColor, border: '0.5px solid transparent',
+                ...getMoodGlassStyle(displayLabel),
                 cursor: readonly ? 'default' : 'pointer', whiteSpace: 'nowrap',
-                backdropFilter: 'blur(14px) saturate(140%)', WebkitBackdropFilter: 'blur(14px) saturate(140%)',
                 fontFamily: 'Songti SC, SimSun, STSong, serif',
-                letterSpacing: 0, transition: 'all 0.15s',
-                boxShadow: `0 6px 14px ${withHexAlpha(moodTagColor, 0.14)}` }}
+                letterSpacing: 0, transition: 'all 0.15s' }}
             >
               {getTranslatedMood(displayLabel)}
             </button>
@@ -406,7 +333,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                     {moodStardust.emojiChar}
                   </button>
                 )}
-                {!readonly && (
+                {showActionButtons && (
                   <button onClick={e => { e.stopPropagation(); detachMoodFromEvent(message.id, desc.id); onConvertMood(desc.id); }}
                     title={t('mood_convert_btn')}
                     style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#38BDF8', padding: 2 }}>

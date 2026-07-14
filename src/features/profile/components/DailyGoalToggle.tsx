@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Flag } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { triggerLightHaptic } from '../../../lib/haptics';
+import { APP_PROFILE_JELLY_TOGGLE_ON_STYLE } from '../../../lib/modalTheme';
 
 interface Props {
   plain?: boolean;
@@ -32,7 +33,7 @@ export const DailyGoalToggle: React.FC<Props> = ({ plain = false }) => {
             updatePreferences({ dailyGoalEnabled: !enabled });
           }}
           className="relative w-9 h-5 rounded-full border border-transparent transition-colors"
-          style={enabled ? { background: 'linear-gradient(135deg, #DCECB8 0%, #D0E6A1 100%)' } : { background: '#cbd5e1' }}
+          style={enabled ? APP_PROFILE_JELLY_TOGGLE_ON_STYLE : { background: '#cbd5e1' }}
         >
           <motion.div
             animate={{ x: enabled ? 16 : 2 }}

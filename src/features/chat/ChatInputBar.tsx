@@ -5,9 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { triggerLightHaptic } from '../../lib/haptics';
 import {
   APP_GLASS_BUTTON_BASE_STYLE,
-  APP_GREEN_GLASS_BG,
-  APP_GREEN_GLASS_BORDER,
-  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_BUTTON_STYLE,
   APP_GREEN_GLASS_TEXT,
 } from '../../lib/modalTheme';
 
@@ -141,14 +139,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               }}
               disabled={!hasInput || disabled}
               style={{
-                ...APP_GLASS_BUTTON_BASE_STYLE,
+                ...APP_GREEN_GLASS_BUTTON_STYLE,
                 width: 34, height: 34, borderRadius: 17,
-                background: APP_GREEN_GLASS_BG,
-                boxShadow: APP_GREEN_GLASS_SHADOW,
                 color: APP_GREEN_GLASS_TEXT,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: (!hasInput || disabled) ? 'not-allowed' : 'pointer',
-                flexShrink: 0, border: APP_GREEN_GLASS_BORDER,
+                flexShrink: 0,
                 opacity: (!hasInput || disabled) ? 0.5 : 1,
                 transition: 'opacity 0.2s',
               }}

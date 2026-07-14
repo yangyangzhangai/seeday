@@ -5,7 +5,12 @@ import { cn } from '../../lib/utils';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { type GrowthTodo, type GrowthPriority, type Recurrence } from '../../store/useTodoStore';
 import { triggerLightHaptic } from '../../lib/haptics';
+import { APP_GREEN_GLASS_BUTTON_STYLE, APP_GREEN_GLASS_TEXT } from '../../lib/modalTheme';
 import { SubTodoList } from './SubTodoList';
+import {
+  getGrowthPrioritySelectedStyle,
+  GROWTH_PRIORITY_TEXT_CLASS,
+} from './growthTodoPriorityStyles';
 
 // Re-export for consumers
 export type { GrowthTodo, GrowthPriority };
@@ -205,31 +210,6 @@ export const GrowthTodoCard = ({
   };
 
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
-  const getPrioritySelectedStyle = (priority: GrowthPriority) => {
-    if (priority === 'high') {
-      return {
-        background:
-          'linear-gradient(135deg, rgba(254,247,249,0.98) 0%, rgba(250,231,236,0.95) 12%, rgba(249,224,228,0.93) 58%, rgba(244,210,218,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(249,224,228,0.98) 48%, rgba(244,210,218,0.98) 100%) border-box',
-        border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(249,224,228,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
-      } as const;
-    }
-    if (priority === 'medium') {
-      return {
-        background:
-          'linear-gradient(135deg, rgba(255,255,246,0.98) 0%, rgba(255,255,203,0.95) 12%, rgba(254,255,175,0.93) 58%, rgba(247,248,154,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(254,255,175,0.98) 48%, rgba(247,248,154,0.98) 100%) border-box',
-        border: '0.5px solid transparent',
-        boxShadow: '0 6px 14px rgba(254,255,175,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
-      } as const;
-    }
-    return {
-      background:
-        'linear-gradient(135deg, rgba(248,255,240,0.98) 0%, rgba(236,255,212,0.95) 12%, rgba(228,255,196,0.93) 58%, rgba(210,244,176,0.95) 100%) padding-box, linear-gradient(140deg, rgba(255,255,255,0.94) 0%, rgba(228,255,196,0.98) 48%, rgba(210,244,176,0.98) 100%) border-box',
-      border: '0.5px solid transparent',
-      boxShadow: '0 6px 14px rgba(228,255,196,0.42), inset 0.5px 0 0 rgba(255,255,255,0.48)',
-    } as const;
-  };
-
   const handleTogglePress = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -416,10 +396,10 @@ export const GrowthTodoCard = ({
                   className={cn(
                     "flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all",
                     normalizedPriority === p
-                      ? `${priorityConfig[p].color}`
+                      ? GROWTH_PRIORITY_TEXT_CLASS[p]
                       : "border-gray-200 bg-white text-gray-400"
                   )}
-                  style={normalizedPriority === p ? getPrioritySelectedStyle(p) : undefined}
+                  style={normalizedPriority === p ? getGrowthPrioritySelectedStyle(p) : undefined}
                 >
                   {t(`growth_todo_priority_${p}`)}
                 </button>
@@ -505,7 +485,7 @@ export const GrowthTodoCard = ({
             onSequentialFocus={onSequentialFocus ?? (() => {})}
           />
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-2">
             <button
               type="button"
               data-no-drag="true"
@@ -538,10 +518,8 @@ export const GrowthTodoCard = ({
                 width: 34,
                 height: 34,
                 borderRadius: 17,
-                background: 'rgba(144.67, 212.06, 122.21, 0.20)',
-                boxShadow: '0px 2px 2px #C8C8C8',
-                color: '#5F7A63',
-                border: 'none',
+                ...APP_GREEN_GLASS_BUTTON_STYLE,
+                color: APP_GREEN_GLASS_TEXT,
               }}
             >
               <Check size={18} strokeWidth={2.2} />

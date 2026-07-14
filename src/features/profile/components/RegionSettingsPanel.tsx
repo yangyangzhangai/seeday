@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { geocodeLocationName, geocodeCountryName, type GeocodeResult } from '../../../services/location/geocode';
+import { APP_PROFILE_JELLY_BUTTON_STYLE } from '../../../lib/modalTheme';
 
 interface RegionSettingsPanelProps {
   onClose: () => void;
@@ -114,11 +115,8 @@ export const RegionSettingsPanel: React.FC<RegionSettingsPanelProps> = ({ onClos
           type="button"
           onClick={handleSaveByQuery}
           disabled={isSaving || !query.trim()}
-          className="min-h-9 rounded-xl border border-transparent px-4 text-xs font-semibold text-[#5F7A63] disabled:opacity-60"
-          style={{
-            background: 'rgba(144, 212, 122, 0.20)',
-            boxShadow: '0px 2px 2px #C8C8C8',
-          }}
+          className="min-h-9 rounded-[50px] border border-transparent px-4 text-xs font-semibold text-[#5F7A63] disabled:opacity-60"
+          style={APP_PROFILE_JELLY_BUTTON_STYLE}
         >
           {isSaving ? t('profile_region_saving') : t('profile_region_save')}
         </button>
@@ -135,10 +133,8 @@ export const RegionSettingsPanel: React.FC<RegionSettingsPanelProps> = ({ onClos
             type="button"
             onClick={handleSaveCountryFallback}
             disabled={isSaving}
-            className="mt-2 min-h-8 rounded-lg border border-transparent px-3 text-xs font-semibold text-[#5F7A63] disabled:opacity-60"
-            style={{
-              background: 'rgba(144, 212, 122, 0.20)',
-            }}
+            className="mt-2 min-h-8 rounded-[50px] border border-transparent px-3 text-xs font-semibold text-[#5F7A63] disabled:opacity-60"
+            style={APP_PROFILE_JELLY_BUTTON_STYLE}
           >
             {isSaving ? t('profile_region_saving') : t('profile_region_save_country')}
           </button>

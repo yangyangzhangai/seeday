@@ -15,9 +15,7 @@ import { PlantFlipCard } from './PlantFlipCard';
 import { SoilCanvas } from './SoilCanvas';
 import { DayEcoSphere } from './DayEcoSphere';
 import {
-  APP_GREEN_GLASS_BG,
-  APP_GREEN_GLASS_BORDER,
-  APP_GREEN_GLASS_SHADOW,
+  APP_GREEN_GLASS_BUTTON_STYLE,
   APP_GREEN_GLASS_TEXT,
 } from '../../../lib/modalTheme';
 
@@ -423,7 +421,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           onClick={handleGeneratePlant}
           disabled={plantGenerateUi.disabled}
           className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
-          style={{ background: APP_GREEN_GLASS_BG, color: APP_GREEN_GLASS_TEXT, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
+          style={{ ...APP_GREEN_GLASS_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}
         >
           {t(plantGenerateUi.buttonKey)}
         </button>
@@ -455,7 +453,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
               <button
                 onClick={() => setShowEarlyCard(false)}
                 className="mt-3 rounded-full px-5 py-1 text-xs font-semibold transition active:opacity-70"
-                style={{ background: APP_GREEN_GLASS_BG, color: APP_GREEN_GLASS_TEXT, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
+                style={{ ...APP_GREEN_GLASS_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}
               >
                 {t('report_early_tip_ok')}
               </button>
@@ -504,7 +502,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
                 onClick={() => { void handleDiarySave(); }}
                 disabled={isDiarySaving}
                 className="rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-70"
-                style={{ color: APP_GREEN_GLASS_TEXT, background: APP_GREEN_GLASS_BG, border: APP_GREEN_GLASS_BORDER, boxShadow: APP_GREEN_GLASS_SHADOW }}
+                style={{ ...APP_GREEN_GLASS_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}
               >
                 {isDiarySaving ? `${t('report_save')}...` : t('report_save')}
               </button>

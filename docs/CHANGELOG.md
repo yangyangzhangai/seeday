@@ -40,6 +40,293 @@ Validation:
 
 - `npx.cmd tsc --noEmit`
 - `git diff --check` (blocked by pre-existing trailing whitespace in `src/features/chat/components/ImageUploader.tsx:26`)
+## 2026-07-14
+
+### UX: Add Task priority colors match expanded todo cards
+
+- `src/features/growth/growthTodoPriorityStyles.ts`: added the shared selected-state mapping for High pink, Medium yellow, and Low green priority controls.
+- `src/features/growth/AddGrowthTodoModal.tsx`, `src/features/growth/GrowthTodoCard.tsx`: switched both priority selectors to the same background, border, shadow, and text-color source; recurrence controls keep their existing blue selected state.
+- `src/features/growth/README.md`, `docs/CURRENT_TASK.md`: documented the shared mapping and current state.
+
+Validation:
+
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Browser interaction check: High rendered pink, Medium yellow, and Low green in the Add Task modal with matching text colors and shadows.
+
+### UX: Event-card mood conversion follows card activation
+
+- `src/features/chat/components/EventCard.tsx`: changed attached mood-row conversion buttons to use the same `showActionButtons` visibility condition as the camera action, so they appear after the event card is tapped and disappear after an outside tap.
+- The conversion handler, button styling, readonly behavior, and latest-record reclassification rules are unchanged.
+- `src/features/chat/README.md`, `docs/CURRENT_TASK.md`: documented the interaction rule and session state.
+
+Validation:
+
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Browser interaction check: conversion action hidden initially, visible with the camera action after card tap, and hidden again after tapping outside.
+
+## 2026-07-13
+
+### UX: Visual button shells opt into the shared glass base
+
+- `src/index.css`: scoped the shared dual-gradient background, transparent hairline border, outer shadow, and non-frosted default to the explicit `.app-glass-button` class instead of every native button.
+- `src/index.css`, `src/lib/modalTheme.ts`: moved the shared background/border/shadow values into `:root` variables so global CSS and React inline consumers use the same source; per-button `--app-glass-*` variables can change hue without changing the shell.
+- `src/lib/modalTheme.ts`, `src/lib/moodColor.ts`: connected shared modal actions and mood pills to the explicit visual-shell class while leaving text, image, and unframed triggers untouched.
+- `src/features/{chat,growth,report,profile}/README.md`: documented the opt-in visual-shell contract and the exclusion of unframed clickable controls.
+- `docs/CURRENT_TASK.md`: synced the session anchor for the app-wide rollout.
+
+Validation:
+
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npx vitest run src/store/useMoodStore.test.ts` (10 tests passed across discovered worktrees)
+- `npm run build`
+- Browser audit of `#/chat`, `#/growth`, `#/report`, and `#/profile`; unframed date labels, date cells, and clickable images remained outside the public shell.
+
+### UX: Shared glass button base now uses dynamic dual gradients without frosting
+
+- `src/lib/modalTheme.ts`: removed the white inset highlight and `backdrop-filter` / `-webkit-backdrop-filter` frosting from `APP_GLASS_BUTTON_BASE_STYLE`.
+- `src/lib/modalTheme.ts`: added a two-layer gradient background driven by `--app-glass-surface-*` and `--app-glass-border-*` CSS variable slots, with neutral fallbacks so consumers can preserve or supply their own colors instead of inheriting one fixed hue.
+- `src/lib/modalTheme.ts`: removed the explicit inset highlight overrides from the Profile jelly button and toggle derivatives so they now honor the updated base surface.
+- `docs/CURRENT_TASK.md`: synced the session anchor for the shared base update.
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+- `git diff --check` ✅
+- Browser computed-style check ✅ (Profile selected companion and frequency button both report `backdrop-filter: none` and outer shadow only)
+
+### UX: Profile AI companion selected-state preview uses calendar-style glass
+
+- `src/features/profile/components/AIModeSection.tsx`: changed only the selected AI companion card to a local green dual-gradient preview modeled on the home calendar selected state; removed the inset highlight and backdrop blur/saturation while preserving the existing green color and 12px radius.
+- `src/lib/modalTheme.ts`: unchanged; the shared glass base and all other consumers remain untouched.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this isolated visual preview.
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npm run lint:docs-sync` ✅
+- `git diff --check` ✅
+- Browser computed-style check ✅ (selected companion: dual gradient, no inset shadow, `backdrop-filter: none`, 12px radius)
+
+### UX: Chat mood pills now share one exact shell and clearer macaroon colors
+
+- `src/lib/moodColor.ts`: added one shared mood-pill class, separated `calm/down` and `bored/tired` into cyan/blue and warm-neutral/lavender pairs, and replaced the top-left pure-white gradient stop with a softened mood-color stop inspired by the quieter calendar selected state.
+- `src/features/chat/MoodPickerModal.tsx`, `src/features/chat/components/EventCard.tsx`, `src/features/chat/MessageItem.tsx`: now consume the same class and `getMoodGlassStyle()` source; removed the activity card's remaining hand-written mood gradient so popup and card labels render the same shell.
+- `docs/CURRENT_TASK.md`: synced the session anchor for the mood color and shell alignment.
+
+Validation:
+
+- `npx tsc --noEmit` ✅
+- `npx vitest run src/store/useMoodStore.test.ts` ✅ (10 tests across workspace copies)
+- `npm run test:unit` ⚠️ (repository-wide pre-existing failures remain in Magic Pen time-zone assertions, magic-pen parse expectations, annotation suggestion flow, and DB timestamp mapping; no mood-style failure)
+- Browser computed-style check ✅ (`Bored` card pill and selected picker pill match in background, border, shadow, blur, padding, and font size)
+
+### UX: Mood glass highlight softened and mood palette separated further
+
+- `src/lib/moodColor.ts`: reduced the top-left white highlight intensity inside `getMoodGlassStyle()` by lowering the white-alpha stops, while keeping the same shared blur/shadow shell structure.
+- `src/lib/moodColor.ts`: widened the mood palette into clearer macaroon-style separation, especially between `calm/down`, `bored/tired`, and `anxious/satisfied`, so selected mood pills are easier to distinguish at a glance.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this mood-style refinement.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Mood color helper completed for picker-selected mood styling
+
+- `src/lib/moodColor.ts`: restored the missing `anxious` palette entry and re-added the shared `getMoodTextColor()` / `getMoodGlassStyle()` helpers so the picker can actually render per-mood selected styles instead of falling back toward a single-color path.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this helper-level mood-style fix.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Mood picker selection source switched back from legacy blue glow to mood colors
+
+- `src/features/chat/MoodPickerModal.tsx`: removed the leftover `APP_SELECTED_GLOW_*` selected state and switched selected predefined/custom mood buttons back to `getMoodGlassStyle()`, restoring per-mood colors and keeping them aligned with the outer activity-card mood tags.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this picker color-source correction.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Chat list mood pill shell matched more literally to the picker button
+
+- `src/features/chat/MessageItem.tsx`: changed the activity-list mood pill to use the same button shell structure as the picker example (`rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors`) and moved the serif font family onto the button itself, reducing remaining visual differences.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this tighter picker/list mood-pill alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Chat list mood tags now use the picker-selected glass texture
+
+- `src/features/chat/MessageItem.tsx`: switched the right-side mood pills in the chat activity list from the simplified flat color version to the same `getMoodGlassStyle()` texture used by selected mood buttons in the picker, so the card-surface tag now matches the popup button look.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this chat-list mood-tag texture alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Shared glass button shell expanded across nav pages and secondary panels
+
+- `src/lib/modalTheme.ts`: kept the saved shared shell in `APP_GLASS_BUTTON_BASE_STYLE` as the single source of truth, and rebased `APP_GREEN_GLASS_BUTTON_STYLE`, `APP_PROFILE_JELLY_BUTTON_STYLE`, and `APP_PROFILE_JELLY_TOGGLE_ON_STYLE` directly on top of it so they now inherit the exact same border, shadow, and blur/saturate shell parameters.
+- `src/features/growth/AddBottleModal.tsx`, `src/features/growth/BottleDetailSheet.tsx`, `src/features/growth/BottleList.tsx`, `src/features/growth/AddGrowthTodoModal.tsx`, `src/features/growth/DailyGoalPopup.tsx`, `src/features/growth/FocusTimer.tsx`: replaced remaining ad hoc button shells with the shared glass shell while preserving each button's original green or rose color and its existing radius.
+- `src/features/report/plant/PlantRootSection.tsx`, `src/features/report/ReportDetailModal.tsx`, `src/features/report/DiaryBookShelf.tsx`, `src/features/report/DiaryBookViewer.tsx`: aligned report/diary action buttons and top controls to the same saved shell without changing their existing colors or shapes.
+- `src/features/profile/components/InfoSheetPanel.tsx`, `src/features/profile/components/DeleteAccountModal.tsx`: updated shared close / destructive / cancel buttons to use the same glass shell so Profile secondary panels no longer keep their own separate button surface.
+- `docs/CURRENT_TASK.md`: synced the current-session anchor for this shared-button-shell rollout.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+## 2026-07-10
+
+### UX: Root-direction language widths adjusted again
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: updated the language-specific selection-pill widths to `110px` for Chinese and `155px` for Italian, while leaving the `140px` width for the remaining languages unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this width adjustment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pill width now varies by language
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: changed the right-side selection pill width to language-specific fixed sizes: `100px` for Chinese, `160px` for Italian, and `140px` for the remaining languages.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this language-specific width rule.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pill width set to 140px
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: set the fixed width of the right-side selection pill to the user-specified `140px`.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this explicit width update.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pill width reduced once more
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: tightened the fixed width of the right-side selection pill again so the `Entertainment` option leaves less trailing empty space.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this additional width reduction.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pill width reduced again to a visibly shorter size
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: reduced the fixed width of the right-side selection pill again to a clearly shorter size, targeting a visual length closer to the `Entertainment` label.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this second width reduction.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pill width tightened
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: reduced the fixed width of the right-side selection pill from the earlier longer value to a tighter length that better fits the longest option text while still keeping EN/IT widths consistent.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this root-direction width refinement.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction selection pills now keep a fixed width in EN/IT
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: fixed the width of the right-side selection pill in the root-direction modal so English and Italian labels keep a consistent box length instead of resizing per option.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this root-direction width normalization.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Root-direction picker text now matches the outer direction label style
+
+- `src/features/profile/components/DirectionSettingsPanel.tsx`: adjusted the right-side selection pill text from `text-xs font-semibold` to `text-[13px] font-medium` so it matches the outer position labels such as “左” and “中偏右”.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this root-direction text-style alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Restore original companion-button corner radius on profile page
+
+- `src/features/profile/components/AIModeSection.tsx`: reverted only the `Choose companion` button group from the temporary `50px` pill radius back to its original smaller corner radius while leaving the rest of the profile page buttons unchanged.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this companion-button radius rollback.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile buttons now use 50px corner radius
+
+- `src/lib/modalTheme.ts`: set the shared profile jelly-button shell to `borderRadius: '50px'`.
+- `src/features/profile/components/AIModeSection.tsx`, `AIAnnotationDropRate.tsx`, `HelpSupportPanel.tsx`, `FeedbackPanel.tsx`, `RegionSettingsPanel.tsx`, `UserProfilePanel.tsx`, `DirectionSettingsPanel.tsx`, `RoutineSettingsPanel.tsx`, `MembershipCard.tsx`, `ChangePasswordPanel.tsx`, and `DeleteAccountModal.tsx`: updated the main button surfaces on the profile side to `50px` corner radius.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile button-radius pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Restore profile jelly buttons to the original green color
+
+- `src/lib/modalTheme.ts`: corrected the profile jelly-shell rollout so the profile page keeps its original green color family (`APP_GREEN_GLASS_BG` for buttons and `APP_GREEN_TOGGLE_ON_STYLE` for enabled toggles) while retaining the jelly-shell border/shadow/blur treatment.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile color-restoration fix.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Profile green buttons now reuse the chat mood-tag jelly shell
+
+- `src/lib/modalTheme.ts`: added `APP_PROFILE_JELLY_BUTTON_STYLE` and `APP_PROFILE_JELLY_TOGGLE_ON_STYLE` using the exact jelly-shell treatment from the chat mood button, while keeping the profile page's existing green color direction.
+- `src/features/profile/components/AIModeSection.tsx`, `AIAnnotationDropRate.tsx`, `DailyGoalToggle.tsx`, `LongTermProfileToggle.tsx`, `UserProfilePanel.tsx`, `RoutineSettingsPanel.tsx`, `HelpSupportPanel.tsx`, `FeedbackPanel.tsx`, `RegionSettingsPanel.tsx`, and `DirectionSettingsPanel.tsx`: switched the current green buttons and enabled green toggles to that shared jelly shell.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this profile jelly-shell rollout.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Chat event-card action buttons now reuse the shared glass shell exactly
+
+- `src/features/chat/components/EventCard.tsx`: changed the top-right camera button and mood tag button to use the shared glass-button shell values directly for border, shadow, and blur treatment, while keeping only their color layers distinct.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this exact shared-shell replacement.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Chat event-card camera and mood buttons align to shared glass shell
+
+- `src/features/chat/components/EventCard.tsx`: refined the top-right camera button and mood tag button so both use the same stronger border highlight, `blur(20px) saturate(128%)`, and subtle inner sheen language as the shared glass-button shell, while preserving their existing blue and mood-tinted color roles.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this chat event-card button-shell alignment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UX: Green buttons unified to one shared app-wide shell
+
+- `src/lib/modalTheme.ts`: updated the shared green glass token set to the confirmed companion-frequency button values and added reusable green button/toggle helpers.
+- `src/features/profile/components/AIModeSection.tsx`, `AIAnnotationDropRate.tsx`, `DailyGoalToggle.tsx`, `LongTermProfileToggle.tsx`, `UserProfilePanel.tsx`, `RoutineSettingsPanel.tsx`, `HelpSupportPanel.tsx`, `FeedbackPanel.tsx`, `RegionSettingsPanel.tsx`, and `DirectionSettingsPanel.tsx`: aligned the profile page's green selected buttons, save buttons, and green toggles to the same shared green shell.
+- `src/components/layout/LanguageSwitcher.tsx`: aligned the green trigger/current-language button style to the same shared green shell.
+- `src/features/report/ReportPage.tsx` and `ReportDetailModal.tsx`: aligned the green report header and diary-generate buttons to the same shared green shell.
+- Shared modal primary buttons now inherit the same green shell through `APP_MODAL_PRIMARY_BUTTON_CLASS`, which also brings existing green primary CTAs in chat/growth modals onto the same visual spec.
+- `docs/CURRENT_TASK.md`: synced the session anchor for this app-wide green-button unification pass.
+
+Validation:
+
+- `npx tsc --noEmit`
+
 ### UX: Profile AI companion selected shell now matches frequency High button
 
 - `src/features/profile/components/AIModeSection.tsx`: updated the selected AI companion button shell to reuse the same selected-state gradient, border, and shadow values as the `Companion frequency` `High` button while keeping the avatar/name/lock content unchanged.

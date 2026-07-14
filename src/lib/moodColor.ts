@@ -1,14 +1,18 @@
 import { moodKeyToLegacyLabel, normalizeMoodKey } from './moodOptions';
 
 export const MOOD_COLORS: Record<string, string> = {
-  happy: '#F9A8D4',
-  calm: '#93C5FD',
-  focused: '#86EFAC',
-  satisfied: '#FDE68A',
-  tired: '#9CA3AF',
-  bored: '#C7D2FE',
-  down: '#60A5FA',
+  happy: '#FFB7D5',
+  calm: '#B8E8F2',
+  focused: '#B8E6AE',
+  satisfied: '#FFE7A3',
+  tired: '#C8C4E8',
+  anxious: '#FFCAA6',
+  bored: '#D8D0C4',
+  down: '#98B8F4',
 };
+
+export const MOOD_GLASS_BUTTON_CLASS =
+  'app-glass-button inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs shadow-sm transition-colors';
 
 function hashStringToInt(str: string): number {
   let hash = 0;
@@ -62,6 +66,51 @@ function softenHexColor(hex: string): string {
   } catch {
     return hex;
   }
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function withHexAlpha(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3
+    ? cleaned.split('').map((ch) => `${ch}${ch}`).join('')
+    : cleaned;
+  if (normalized.length !== 6) return hex;
+  const alphaHex = Math.round(clamp01(alpha) * 255).toString(16).padStart(2, '0');
+  return `#${normalized}${alphaHex}`;
+}
+
+export function getMoodTextColor(label: string | undefined): string | undefined {
+  const base = getMoodColor(label);
+  if (!base) return undefined;
+  try {
+    const { h, s, l } = hexToHsl(base);
+    const strongerS = Math.max(0.52, Math.min(1, s * 1.18));
+    const darkerL = Math.max(0.26, Math.min(0.42, l - 0.28));
+    return hslToHex(h, strongerS, darkerL);
+  } catch {
+    return base;
+  }
+}
+
+export function getMoodGlassStyle(label: string | undefined): {
+  background: string;
+  border: string;
+  boxShadow: string;
+  color: string;
+} | undefined {
+  const base = getMoodColor(label);
+  const text = getMoodTextColor(label);
+  if (!base || !text) return undefined;
+  const highlight = softenHexColor(base);
+  return {
+    background: `linear-gradient(135deg, ${withHexAlpha(highlight, 0.88)} 0%, ${withHexAlpha(base, 0.78)} 52%, ${withHexAlpha(base, 0.9)} 100%) padding-box, linear-gradient(140deg, ${withHexAlpha(base, 0.32)} 0%, ${withHexAlpha(highlight, 0.7)} 56%, ${withHexAlpha('#FFFFFF', 0.82)} 100%) border-box`,
+    border: '0.5px solid transparent',
+    boxShadow: '0 6px 14px rgba(165,190,103,0.14)',
+    color: text,
+  };
 }
 
 export function getMoodColor(label: string | undefined): string | undefined {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { APP_GLASS_BUTTON_BASE_STYLE } from '../../lib/modalTheme';
 
 interface Props {
   setDuration: number; // seconds, 0 = count-up
@@ -136,6 +137,7 @@ export const FocusTimer = ({ setDuration, startedAt, onEnd, onAutoComplete }: Pr
       <button
         onClick={onEnd}
         className="mt-7 rounded-full border border-rose-300/35 bg-rose-500/25 px-8 py-3 text-lg font-semibold text-rose-100 transition hover:bg-rose-500/35"
+        style={APP_GLASS_BUTTON_BASE_STYLE}
       >
         {t('growth_focus_end')}
       </button>

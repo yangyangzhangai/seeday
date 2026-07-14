@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> src/features/profile/README.md
 import React from 'react';
 import { X } from 'lucide-react';
+import { APP_MODAL_CLOSE_CLASS } from '../../../lib/modalTheme';
 
 interface Props {
   title: string;
@@ -17,7 +18,7 @@ export const InfoSheetPanel: React.FC<Props> = ({ title, onClose, children }) =>
       <h2 className="text-base font-semibold text-slate-800">{title}</h2>
       <button
         onClick={onClose}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition active:bg-slate-200"
+        className={`${APP_MODAL_CLOSE_CLASS} flex h-10 w-10 items-center justify-center text-slate-500 transition active:scale-95`}
       >
         <X size={16} strokeWidth={2.5} />
       </button>

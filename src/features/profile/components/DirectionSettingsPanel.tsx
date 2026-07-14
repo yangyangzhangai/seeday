@@ -7,6 +7,10 @@ import { reportTelemetryEvent } from '../../../services/input/reportTelemetryEve
 import { usePlantStore } from '../../../store/usePlantStore';
 import { DEFAULT_DIRECTION_ORDER } from '../../../types/plant';
 import type { PlantCategoryKey } from '../../../types/plant';
+import {
+  APP_GREEN_GLASS_TEXT,
+  APP_PROFILE_JELLY_BUTTON_STYLE,
+} from '../../../lib/modalTheme';
 
 interface DirectionSettingsPanelProps {
   onClose: () => void;
@@ -54,13 +58,19 @@ function buildDirectionTelemetryPayload(order: PlantCategoryKey[]) {
 }
 
 export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const directionOrder = usePlantStore(state => state.directionOrder);
   const setDirectionOrder = usePlantStore(state => state.setDirectionOrder);
   const [draft, setDraft] = useState<PlantCategoryKey[]>(() => [...directionOrder]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [focusedSlot, setFocusedSlot] = useState<number | null>(null);
+  const language = i18n.language?.toLowerCase() ?? 'en';
+  const selectionWidthClass = language.startsWith('zh')
+    ? 'w-[110px]'
+    : language.startsWith('it')
+      ? 'w-[155px]'
+      : 'w-[140px]';
 
   const stableDraft = useMemo(
     () => (draft.length === 5 ? draft : [...DEFAULT_DIRECTION_ORDER]),
@@ -188,7 +198,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
                   </span>
                   <span
                     aria-hidden="true"
-                    className={`inline-flex min-h-9 min-w-[112px] items-center justify-between gap-2 rounded-xl border bg-white px-3 text-xs font-semibold ${
+                    className={`inline-flex h-9 ${selectionWidthClass} shrink-0 items-center justify-between gap-2 rounded-[50px] border bg-white px-3 text-[13px] font-medium ${
                       isDuplicate
                         ? 'border-red-300 text-red-600'
                         : 'border-[#CBE7D7] text-[#355643]'
@@ -206,7 +216,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
                     onChange={event => updateSlot(slot.index, event.target.value as PlantCategoryKey)}
                     onFocus={() => setFocusedSlot(slot.index)}
                     onBlur={() => setFocusedSlot(null)}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    className="absolute inset-0 h-full w-full cursor-pointer text-[13px] font-medium opacity-0"
                   >
                     {CATEGORIES.map(category => (
                       <option key={category} value={category}>
@@ -238,7 +248,7 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
               setSaveError(null);
               void reportTelemetryEvent('root_direction_reset', buildDirectionTelemetryPayload(DEFAULT_DIRECTION_ORDER));
             }}
-            className="min-h-11 flex-1 rounded-2xl border border-[#CBE7D7] bg-white px-4 text-sm font-semibold text-[#355643] transition hover:bg-[#F7F9F8]"
+            className="min-h-11 flex-1 rounded-[50px] border border-[#CBE7D7] bg-white px-4 text-sm font-semibold text-[#355643] transition hover:bg-[#F7F9F8]"
           >
             {t('profile_root_direction_reset')}
           </button>
@@ -246,11 +256,10 @@ export const DirectionSettingsPanel: React.FC<DirectionSettingsPanelProps> = ({ 
             type="button"
             onClick={handleSave}
             disabled={isSaving || hasDuplicateSelection}
-            className="min-h-11 flex-1 rounded-2xl border border-transparent px-4 text-sm font-semibold text-[#355643] disabled:opacity-60"
+            className="min-h-11 flex-1 rounded-[50px] border border-transparent px-4 text-sm font-semibold text-[#355643] disabled:opacity-60"
             style={{
-              background:
-                'linear-gradient(135deg, rgba(236,248,241,0.96) 0%, rgba(213,236,222,0.92) 100%)',
-              boxShadow: '0 4px 12px rgba(103,154,121,0.15)',
+              ...APP_PROFILE_JELLY_BUTTON_STYLE,
+              color: APP_GREEN_GLASS_TEXT,
             }}
           >
             {isSaving ? t('profile_root_direction_saving') : t('profile_root_direction_save')}

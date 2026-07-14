@@ -414,10 +414,10 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
           <div className="flex gap-4">
             <button
               onClick={() => void handleStart(false)}
-              className="flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg min-h-[44px]"
+              className="app-glass-button flex items-center gap-2 rounded-full px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg min-h-[44px]"
               style={{
                 background: 'linear-gradient(135deg, rgba(125,211,252,0.95) 0%, rgba(56,189,248,0.88) 100%)',
-                boxShadow: '0 4px 22px rgba(125,211,252,0.36), inset 0 2px 7px rgba(255,255,255,0.28)',
+                boxShadow: '0 4px 22px rgba(125,211,252,0.36)',
               }}
             >
               <Play size={24} strokeWidth={1.5} />
@@ -426,7 +426,7 @@ export const FocusMode = ({ todo, queueTodos, onClose }: Props) => {
             {!isQueueMode && (
               <button
                 onClick={() => void handleStart(true)}
-                className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/20"
+                className="app-glass-button rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/20"
               >
                 {t('growth_focus_counting_up')}
               </button>

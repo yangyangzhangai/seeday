@@ -15,6 +15,7 @@ import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
+import { APP_GLASS_BUTTON_BASE_STYLE, APP_GREEN_GLASS_BUTTON_STYLE, APP_MODAL_CLOSE_CLASS } from '../../lib/modalTheme';
 import { computeDailyTodoStats, generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
@@ -235,16 +236,28 @@ function NavBar({
 }) {
   return (
     <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
-      <button className="p-1" onClick={onLeft}>
+      <button
+        className={`${APP_MODAL_CLOSE_CLASS} p-1`}
+        onClick={onLeft}
+        style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
+      >
         <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
       </button>
       <h2 className="text-2xl font-bold" style={{ color: '#1A1A1A' }}>{title}</h2>
       {rightDisabled ? (
-        <button className="p-1" onClick={onClose}>
+        <button
+          className={`${APP_MODAL_CLOSE_CLASS} p-1`}
+          onClick={onClose}
+          style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
+        >
           <X size={22} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
         </button>
       ) : (
-        <button className="p-1" onClick={onRight}>
+        <button
+          className={`${APP_MODAL_CLOSE_CLASS} p-1`}
+          onClick={onRight}
+          style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
+        >
           <ChevronRight size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
         </button>
       )}
@@ -933,7 +946,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         onClick={() => { void handleGenerateDiaryClick(); }}
                         disabled={!diaryCanGenerate}
                         className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
-                        style={{ background: 'rgba(144, 212, 122, 0.2)', color: '#5F7A63', border: 'none', boxShadow: '0px 2px 2px #C8C8C8' }}
+                        style={APP_GREEN_GLASS_BUTTON_STYLE}
                       >
                         {isDiaryGenerating ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('report_generate_button')}
                       </button>
