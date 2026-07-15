@@ -31,6 +31,41 @@ export function getReportRange(report: Report): { start: number; end: number } {
   };
 }
 
+function reportHasDiarySignals(report: Report): boolean {
+  const stats = report.stats;
+  const recurringTotal = stats?.independentRecurring?.total ?? 0;
+  const oneTimeTotal = stats?.oneTimeTasks
+    ? stats.oneTimeTasks.high.total + stats.oneTimeTasks.medium.total + stats.oneTimeTasks.low.total
+    : 0;
+  return Boolean(
+    report.userNote?.trim() ||
+    report.aiAnalysis?.trim() ||
+    report.teaserText?.trim() ||
+    (stats?.actionAnalysis?.length ?? 0) > 0 ||
+    (stats?.moodDistribution?.length ?? 0) > 0 ||
+    (stats?.habitCheckin?.length ?? 0) > 0 ||
+    (stats?.goalProgress?.length ?? 0) > 0 ||
+    recurringTotal > 0 ||
+    oneTimeTotal > 0
+  );
+}
+
+export function resolveDiaryBookInitialTarget(reports: Report[], now = new Date()): Date | null {
+  const todayStartMs = startOfDay(now).getTime();
+  const dailyReports = reports.filter(
+    (report) => report.type === 'daily' && startOfDay(new Date(report.date)).getTime() <= todayStartMs,
+  );
+  const meaningfulReports = dailyReports.filter(reportHasDiarySignals);
+  const candidates = meaningfulReports.length > 0 ? meaningfulReports : dailyReports;
+  if (candidates.length === 0) return null;
+  const latest = candidates.reduce((best, current) => (current.date > best.date ? current : best));
+  return startOfDay(new Date(latest.date));
+}
+
+export function isFutureDiaryDate(value: Date, now = new Date()): boolean {
+  return startOfDay(value).getTime() > startOfDay(now).getTime();
+}
+
 /** Return the best message source for a given report: cached date-specific messages if available, otherwise global messages. */
 export function getMessagesForReport(
   globalMessages: Message[],

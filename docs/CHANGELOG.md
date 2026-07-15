@@ -6,6 +6,17 @@ All notable effective changes are documented here.
 
 ## 2026-07-15
 
+### Fix: Diary Book no longer opens on accidental future blank pages
+
+- `src/features/report/ReportPage.tsx`: blocked today/future daily calendar cells from opening or generating reports, and disabled those cells in the calendar UI.
+- `src/features/report/reportPageHelpers.ts`: added shared helpers to ignore future daily reports and prefer the latest non-future report with real diary signals when choosing the Diary Book initial page.
+- Added regression coverage in `src/features/report/reportPageHelpers.test.ts` for future-date blocking and Diary Book initial-target selection.
+
+Validation:
+
+- `npm run test:unit -- src/features/report/reportPageHelpers.test.ts`
+- `npx tsc --noEmit`
+
 ### UI: Distinct goal bottle artwork
 
 - Added `bottle_goal.png` as the dedicated bottle shell for Growth bottles whose type is `goal`.
@@ -60,7 +71,7 @@ Validation:
 
 ### Fix: Chat manual time edit now distinguishes start-only vs manual end
 
-- `src/features/chat/ChatPage.tsx`: the edit modal now tracks whether an ongoing card's end time was actually touched; if the user only shifts the start time, the draft end time follows the start and save keeps the activity ongoing.
+- `src/features/chat/ChatPage.tsx`: the edit modal now tracks whether an ongoing card's end time was actually touched; ongoing cards open with end time defaulted to the current moment, and if the user only shifts the start time save still keeps the activity ongoing.
 - `src/store/chatTimelineActions.ts`, `src/store/useChatStore.types.ts`, and `src/store/README.md`: `updateActivity()` now supports keeping an edited activity ongoing, but if the user explicitly edits the end time it immediately persists `duration` plus `is_active=false`, and syncs `dateCache` so the next activity no longer re-closes that card.
 - `src/store/useChatStore.integration.test.ts` and `docs/CURRENT_TASK.md`: added regression coverage for start-only edits, manual end edits, and cloud closed-state persistence; synced the session anchor.
 

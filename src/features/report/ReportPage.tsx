@@ -27,7 +27,12 @@ import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
 import { UpgradeModal } from './UpgradeModal';
 import { PlantCardModal } from './PlantCardModal';
-import { getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
+import {
+  getDailyMoodDistribution,
+  getMessagesForReport,
+  isFutureDiaryDate,
+  resolveDiaryBookInitialTarget,
+} from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 
 type ValuePiece = Date | null;
@@ -92,8 +97,8 @@ export const ReportPage = () => {
       (report) => report.type === 'daily' && isSameDay(new Date(report.date), value)
     );
 
-    // Today: calendar cannot view or generate — use "生成日记" button instead
-    if (isSameDay(value, today)) return;
+    // Today and future days: calendar cannot view or generate.
+    if (isSameDay(value, today) || isFutureDiaryDate(value, today)) return;
 
     // Best-effort: load messages so ActivityRecordsView & mood chart work.
     // Network errors are swallowed — they must not block opening the diary.
@@ -248,9 +253,14 @@ export const ReportPage = () => {
       }
 
       if (dailyReports.length > 0) {
-        const latestDailyDate = new Date(Math.max(...dailyReports.map((report) => report.date)));
-        setSavedDiaryBookMonth(startOfMonth(latestDailyDate));
-        setSavedDiaryBookFlippedCount(latestDailyDate.getDate());
+        const initialDiaryDate = resolveDiaryBookInitialTarget(dailyReports, now);
+        if (initialDiaryDate) {
+          setSavedDiaryBookMonth(startOfMonth(initialDiaryDate));
+          setSavedDiaryBookFlippedCount(initialDiaryDate.getDate());
+        } else {
+          setSavedDiaryBookMonth(undefined);
+          setSavedDiaryBookFlippedCount(undefined);
+        }
       } else {
         setSavedDiaryBookMonth(undefined);
         setSavedDiaryBookFlippedCount(undefined);
@@ -394,6 +404,9 @@ export const ReportPage = () => {
                 onChange={setDate}
                 value={date}
                 onClickDay={(value) => { handleDateClick(value); setShowCalendarModal(false); }}
+                tileDisabled={({ date: calendarDate, view }) => (
+                  view === 'month' && (isSameDay(calendarDate, today) || isFutureDiaryDate(calendarDate, today))
+                )}
                 locale={i18n.language}
                 className="w-full border-none text-[13px] font-medium"
                 showNeighboringMonth={false}

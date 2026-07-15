@@ -280,17 +280,18 @@ export const ChatPage = () => {
     setInsertingAfterId(null);
     setEditContent(msg.content);
     setEditStartTime(format(msg.timestamp, "yyyy-MM-dd'T'HH:mm"));
-    setEditEndTime(format(msg.timestamp + (msg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm"));
+    setEditEndTime(
+      msg.duration == null
+        ? maxEditableDateTime
+        : format(msg.timestamp + msg.duration * 60000, "yyyy-MM-dd'T'HH:mm"),
+    );
     setEditWasOngoing(msg.duration == null);
     setEditEndTimeTouched(false);
-  }, [isSelectedDateToday]);
+  }, [isSelectedDateToday, maxEditableDateTime]);
 
   const handleEditStartTimeChange = useCallback((value: string) => {
     setEditStartTime(value);
-    if (editWasOngoing && !editEndTimeTouched) {
-      setEditEndTime(value);
-    }
-  }, [editEndTimeTouched, editWasOngoing]);
+  }, []);
 
   const handleEditEndTimeChange = useCallback((value: string) => {
     setEditEndTimeTouched(true);
