@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { type Bottle } from '../../store/useGrowthStore';
 import { cn } from '../../lib/utils';
 import glassBottleImage from '../../assets/growth/glass-bottle.png';
+import goalBottleImage from '../../assets/growth/bottle_goal.png';
 import growthStarImage from '../../assets/growth/growth-star.png';
 
 interface Props {
@@ -135,7 +136,7 @@ export const BottleCard = ({ bottle, onSelect }: Props) => {
           )}
 
           <img
-            src={glassBottleImage}
+            src={bottle.type === 'goal' ? goalBottleImage : glassBottleImage}
             alt="glass bottle"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[2]"
             draggable={false}

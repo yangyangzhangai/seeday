@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import { useGrowthStore, MAX_BOTTLES, type Bottle } from '../../store/useGrowthStore';
@@ -36,6 +36,9 @@ export const BottleList = () => {
   const [showSectionHint, setShowSectionHint] = useState(false);
   const hintTimerRef = useRef<number | null>(null);
   const hintAnchorRef = useRef<HTMLDivElement>(null);
+  const bottleScrollRef = useRef<HTMLDivElement>(null);
+  const scrollFadeTimerRef = useRef<number | null>(null);
+  const [scrollIndicator, setScrollIndicator] = useState({ visible: false, left: 0, width: 100 });
 
   // Prompt shown after creating a new habit bottle
   const [habitPromptBottle, setHabitPromptBottle] = useState<Bottle | null>(null);
@@ -99,6 +102,34 @@ export const BottleList = () => {
   };
 
   const selectedBottleStats = computeBottleCheckinStats(selectedBottle?.checkinDates);
+
+  const updateScrollIndicator = useCallback((visible: boolean) => {
+    const el = bottleScrollRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const width = Math.min(100, Math.max(32, (el.clientWidth / el.scrollWidth) * 100));
+    const left = maxScroll > 0 ? (el.scrollLeft / maxScroll) * (100 - width) : 0;
+    setScrollIndicator({ visible: visible && maxScroll > 0, left, width });
+  }, []);
+
+  const handleBottleScroll = () => {
+    updateScrollIndicator(true);
+    if (scrollFadeTimerRef.current !== null) window.clearTimeout(scrollFadeTimerRef.current);
+    scrollFadeTimerRef.current = window.setTimeout(() => {
+      setScrollIndicator((current) => ({ ...current, visible: false }));
+      scrollFadeTimerRef.current = null;
+    }, 650);
+  };
+
+  useEffect(() => {
+    const sync = () => updateScrollIndicator(false);
+    sync();
+    window.addEventListener('resize', sync);
+    return () => {
+      window.removeEventListener('resize', sync);
+      if (scrollFadeTimerRef.current !== null) window.clearTimeout(scrollFadeTimerRef.current);
+    };
+  }, [activeBottles.length, updateScrollIndicator]);
 
   useEffect(() => {
     if (!showSectionHint) return;
@@ -209,14 +240,35 @@ export const BottleList = () => {
       ) : activeBottles.length === 0 ? (
         <div className="text-center text-gray-400 py-6 text-sm">{t('no_data')}</div>
       ) : (
-        <div className="mt-2 flex gap-7 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {activeBottles.map((bottle) => (
-            <BottleCard
-              key={bottle.id}
-              bottle={bottle}
-              onSelect={setSelectedBottle}
+        <div className="relative mt-2">
+          <div
+            ref={bottleScrollRef}
+            onScroll={handleBottleScroll}
+            className="scrollbar-none flex gap-7 overflow-x-auto px-4 pb-3"
+          >
+            {activeBottles.map((bottle) => (
+              <BottleCard
+                key={bottle.id}
+                bottle={bottle}
+                onSelect={setSelectedBottle}
+              />
+            ))}
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-0 left-1/2 h-[3px] w-14 -translate-x-1/2 transition-opacity duration-300"
+            style={{ opacity: scrollIndicator.visible ? 1 : 0 }}
+          >
+            <span
+              className="absolute inset-y-0 rounded-full"
+              style={{
+                left: `${scrollIndicator.left}%`,
+                width: `${scrollIndicator.width}%`,
+                background: 'rgba(66, 109, 86, 0.28)',
+                boxShadow: '0 1px 4px rgba(66, 109, 86, 0.12)',
+              }}
             />
-          ))}
+          </div>
         </div>
       )}
 

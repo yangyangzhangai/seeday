@@ -238,11 +238,11 @@ function PageSwipeHint({ direction, onClick }: { direction: 'left' | 'right'; on
   return (
     <button
       type="button"
-      className={`absolute top-1/2 z-10 flex h-11 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1A1A1A] opacity-[0.35] ${direction === 'right' ? 'right-0' : 'left-0'}`}
+      className={`absolute top-1/2 z-10 flex h-12 w-10 items-center justify-center border-0 bg-transparent p-0 text-[#1A1A1A] opacity-[0.35] ${direction === 'right' ? 'right-0' : 'left-0'}`}
       onClick={onClick}
       style={{ transform: 'translateY(-50%)' }}
     >
-      <span aria-hidden="true" className="text-[22px] font-normal leading-none">
+      <span aria-hidden="true" className="text-[32px] font-normal leading-none">
         {direction === 'right' ? '›' : '‹'}
       </span>
     </button>

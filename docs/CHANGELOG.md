@@ -6,11 +6,22 @@ All notable effective changes are documented here.
 
 ## 2026-07-15
 
+### UI: Distinct goal bottle artwork
+
+- Added `bottle_goal.png` as the dedicated bottle shell for Growth bottles whose type is `goal`.
+- Kept habit bottle artwork and the existing star image, count, and scattered layout unchanged.
+
+### UI: Refined bottle carousel indicator
+
+- Replaced the browser's native horizontal scrollbar with a compact, translucent rounded progress indicator.
+- The indicator appears while scrolling, tracks carousel progress, and fades after 650ms without changing native touch scrolling.
+
 ### UX: Diary detail page indicator and page controls
 
 - Added a shared `ReportDetailPageHeader` for both diary detail pages.
 - Added a two-dot page indicator below the date divider, with the active page shown as a filled dot.
 - Replaced surfaced page controls with 35%-opacity `›` / `‹` edge hints, vertically centered on the right/left side of each page.
+- Enlarged both edge hints to `32px` while preserving their position, opacity, and transparent surface.
 - Added a one-time 6px leftward entry motion and rebound for the first page and its arrow while preserving horizontal swipe, back/close, and adjacent-date navigation behavior.
 
 Validation:

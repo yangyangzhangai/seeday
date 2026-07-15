@@ -46,6 +46,8 @@ GrowthPage
 ## Key Business Logic
 
 - **Bottle types**: habit (ongoing) / goal (completable with round tracking)
+- **Bottle artwork**: habit bottles use `glass-bottle.png`; goal bottles use the distinct `bottle_goal.png` shell while sharing the existing star artwork and layout.
+- **Bottle carousel**: the native horizontal scrollbar is hidden; a short translucent rounded indicator follows scroll progress and fades out after interaction.
 - **Star system**: incremented on todo completion + focus session completion; displayed as scattered visuals in bottle
 - **Bottle detail sheet**: tap bottle to open unified actions (create linked todo / irrigate / continue / delete)
 - **Check-in stats**: bottle stores `checkinDates` (`YYYY-MM-DD`) and exposes `last7Days/currentStreak/bestStreak`
