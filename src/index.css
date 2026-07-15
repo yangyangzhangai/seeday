@@ -107,6 +107,27 @@ html:not(.material-symbols-ready) .material-symbols-outlined {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
 
+@keyframes diary-page-entry-hint {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  48% {
+    transform: translateX(-6px);
+  }
+}
+
+.diary-page-entry-hint {
+  animation: diary-page-entry-hint 520ms ease-out 320ms 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diary-page-entry-hint {
+    animation: none;
+  }
+}
+
 /* iOS 安全区域支持 */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);

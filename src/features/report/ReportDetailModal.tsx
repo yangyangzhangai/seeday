@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { endOfDay, format, isSameDay, startOfDay } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useMoodStore } from '../../store/useMoodStore';
@@ -15,7 +14,7 @@ import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
-import { APP_GLASS_BUTTON_BASE_STYLE, APP_GREEN_GLASS_BUTTON_STYLE, APP_MODAL_CLOSE_CLASS } from '../../lib/modalTheme';
+import { APP_GREEN_GLASS_BUTTON_STYLE } from '../../lib/modalTheme';
 import { computeDailyTodoStats, generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
@@ -23,6 +22,7 @@ import {
   DonutChart, type DataItem,
   ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
 } from './DiaryDonutChart';
+import { ReportDetailPageHeader } from './ReportDetailPageHeader';
 
 interface ReportDetailModalProps {
   selectedReport: Report | null;
@@ -221,61 +221,6 @@ function buildHabitSummary(params: {
 }
 
 
-function NavBar({
-  title,
-  onLeft,
-  onRight,
-  rightDisabled,
-  onClose,
-}: {
-  title: string;
-  onLeft: () => void;
-  onRight: () => void;
-  rightDisabled: boolean;
-  onClose: () => void;
-}) {
-  return (
-    <div className="h-12 flex items-center justify-between flex-shrink-0" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
-      <button
-        className={`${APP_MODAL_CLOSE_CLASS} p-1`}
-        onClick={onLeft}
-        style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
-      >
-        <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
-      </button>
-      <h2 className="text-2xl font-bold" style={{ color: '#1A1A1A' }}>{title}</h2>
-      {rightDisabled ? (
-        <button
-          className={`${APP_MODAL_CLOSE_CLASS} p-1`}
-          onClick={onClose}
-          style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
-        >
-          <X size={22} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
-        </button>
-      ) : (
-        <button
-          className={`${APP_MODAL_CLOSE_CLASS} p-1`}
-          onClick={onRight}
-          style={{ ...APP_GLASS_BUTTON_BASE_STYLE, color: '#1A1A1A' }}
-        >
-          <ChevronRight size={24} strokeWidth={1.5} style={{ color: '#1A1A1A' }} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function DateHeader({ date }: { date: string }) {
-  return (
-    <div style={{ flexShrink: 0, marginBottom: '8px' }}>
-      <h1 className="text-center font-medium" style={{ fontSize: '14px', color: '#1A1A1A', marginBottom: '8px', fontFamily: 'Abhaya Libre, serif' }}>
-        {date}
-      </h1>
-      <div style={{ borderTop: '0.5px solid #AEAABF' }} />
-    </div>
-  );
-}
-
 function WaveDivider() {
   return (
     <div
@@ -286,6 +231,21 @@ function WaveDivider() {
         margin: '2px 0',
       }}
     />
+  );
+}
+
+function PageSwipeHint({ direction, onClick }: { direction: 'left' | 'right'; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`absolute top-1/2 z-10 flex h-11 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1A1A1A] opacity-[0.35] ${direction === 'right' ? 'right-0' : 'left-0'}`}
+      onClick={onClick}
+      style={{ transform: 'translateY(-50%)' }}
+    >
+      <span aria-hidden="true" className="text-[22px] font-normal leading-none">
+        {direction === 'right' ? '›' : '‹'}
+      </span>
+    </button>
   );
 }
 
@@ -619,30 +579,13 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     setActivePage(next);
   }, []);
 
-  const handlePrev = useCallback(() => {
+  const handleHeaderBack = useCallback(() => {
     if (onNavigatePrev) {
       onNavigatePrev();
       return;
     }
-    if (activePage === 1) {
-      scrollToPage(0);
-      return;
-    }
     (onBack ?? onClose)();
-  }, [onNavigatePrev, activePage, scrollToPage, onBack, onClose]);
-
-  const handleNext = useCallback(() => {
-    if (onNavigateNext) {
-      if (canNavigateNext !== false) onNavigateNext();
-      return;
-    }
-    if (activePage === 0) scrollToPage(1);
-  }, [onNavigateNext, canNavigateNext, activePage, scrollToPage]);
-
-  const nextDisabled = useMemo(() => {
-    if (onNavigateNext) return canNavigateNext === false;
-    return activePage === 1;
-  }, [onNavigateNext, canNavigateNext, activePage]);
+  }, [onNavigatePrev, onBack, onClose]);
 
   const observationText = useMemo(() => {
     const isGenerating = selectedReport?.analysisStatus === 'generating';
@@ -759,12 +702,21 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         className="flex h-full overflow-x-scroll [&::-webkit-scrollbar]:hidden"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-          <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} onClose={onClose} />
+          <div
+            className="diary-page-entry-hint relative w-full h-full shrink-0 flex flex-col overflow-hidden"
+            style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}
+          >
+            <ReportDetailPageHeader
+              activePage={activePage}
+              date={dateLabel}
+              title={copy.pageTitle}
+              onBack={handleHeaderBack}
+              onClose={onClose}
+              onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
+            />
+            <PageSwipeHint direction="right" onClick={() => scrollToPage(1)} />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
-              <DateHeader date={dateLabel} />
-
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionActivity}</div>
@@ -833,12 +785,18 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
-            <NavBar title={copy.pageTitle} onLeft={handlePrev} onRight={handleNext} rightDisabled={nextDisabled} onClose={onClose} />
+          <div className="diary-page-entry-hint relative w-full h-full shrink-0 flex flex-col overflow-hidden" style={{ background: '#FFFFFF', scrollSnapAlign: 'start' }}>
+            <ReportDetailPageHeader
+              activePage={activePage}
+              date={dateLabel}
+              title={copy.pageTitle}
+              onBack={handleHeaderBack}
+              onClose={onClose}
+              onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
+            />
+            <PageSwipeHint direction="left" onClick={() => scrollToPage(0)} />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingTop: '12px', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
-              <DateHeader date={dateLabel} />
-
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, padding: '1px 0' }}>{copy.sectionObservation}</div>

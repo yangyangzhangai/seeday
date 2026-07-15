@@ -5,6 +5,7 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-15: Diary 详情双页页头调整：日期横线下新增两点分页指示器，当前页显示实心；第一页右边缘显示低透明度 `›`，第二页左边缘显示低透明度 `‹`，无圆形背景并垂直居中；首次进入第一页时内容与箭头共同轻微左移回弹一次，顶部导航及横向滑动逻辑不变。
 - 2026-07-14: Report 根系画布修复宽屏错位：土壤左右改为与标题一致的 `16px` 留白；根系保持原始 `360 x 520` 比例，不再随宽屏横向拉伸，并通过响应式坐标计算将根系起点持续锚定在土壤表面中央。根系角度、长度与活动数据未改动。
 - 2026-07-14: 修复线上 Growth 页面渲染失败：`useReminderSystem` 在保留今日计时加载逻辑时漏掉了 `useTimingStore` import，Safari 运行到该 effect 时抛出 `Can't find variable: useTimingStore`；现已补回导入，不改提醒逻辑或页面样式。
 - 2026-07-13: Auth signup OTP feedback strengthened: email-code signup now keeps a stable sent-code card tied to `pendingSignUpEmail`, shows the concrete target email in both `AuthPage` and onboarding `StepAuth`, preserves the reminder across verify failures, and aligns OTP UI details (6-digit input clamp, verify CTA, resend entry, placeholder) to reduce the “code sent but no reminder” confusion.

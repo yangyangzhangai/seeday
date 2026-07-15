@@ -4,6 +4,22 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-15
+
+### UX: Diary detail page indicator and page controls
+
+- Added a shared `ReportDetailPageHeader` for both diary detail pages.
+- Added a two-dot page indicator below the date divider, with the active page shown as a filled dot.
+- Replaced surfaced page controls with 35%-opacity `›` / `‹` edge hints, vertically centered on the right/left side of each page.
+- Added a one-time 6px leftward entry motion and rebound for the first page and its arrow while preserving horizontal swipe, back/close, and adjacent-date navigation behavior.
+
+Validation:
+
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Browser interaction check at narrow and wide viewports.
+
 ## 2026-07-14
 
 ### Fix: Responsive soil and root alignment
