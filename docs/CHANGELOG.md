@@ -45,6 +45,11 @@ Validation:
 
 - `npx tsc --noEmit`
 
+### Fix: Report calendar disabled dates keep the original transparent surface
+
+- Scoped an override to `report-calendar-frost` so `react-calendar` no longer paints today/future disabled date buttons with its default gray-white background.
+- Kept the date restriction, selected-date styling, calendar markers, and shared glass button base unchanged.
+
 ### Fix: Diary Book no longer opens on accidental future blank pages
 
 - `src/features/report/ReportPage.tsx`: blocked today/future daily calendar cells from opening or generating reports, and disabled those cells in the calendar UI.

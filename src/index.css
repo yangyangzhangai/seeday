@@ -463,6 +463,11 @@ button:not(:disabled):active {
   color: #4a5d4c;
 }
 
+.calendar-wrapper.report-calendar-frost .react-calendar__tile:disabled {
+  background: transparent;
+  color: #4a5d4c;
+}
+
 .calendar-tag-hit {
   width: 16px;
   height: 16px;
