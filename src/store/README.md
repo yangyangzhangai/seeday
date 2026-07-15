@@ -71,6 +71,7 @@
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
 - `useChatStore.sendMessage()/sendMood()` 现保证 `messages` 与 `dateCache` 同步更新（包括“自动结束上一条活动”后的 `duration/isActive` 变化），避免提醒弹窗确认后因缓存口径不一致出现“新活动闪现后消失/上一条未自动结束”的竞态。
 - `useChatStore.sendMessage()` 现会在新活动创建前统一收口所有 ongoing 活动（不再只关闭最后一条 record），并且 `insertActivity()/updateActivity()` 会拦截与 ongoing 活动冲突的手动时间编辑，避免时间线被污染后出现双活动同时计时。
+- `useChatStore.updateActivity()` 现会区分 ongoing 活动的“只改开始时间”和“手动改结束时间”两种编辑：只改开始时间时保持 ongoing；一旦用户显式改了结束时间，则立即写成已结束并同步 `dateCache`/云端 `is_active=false`，避免下一条活动再次改写结束时间。
 - `useChatStore` 新增首页活动“手滑误触结束”缓冲层：`pendingManualEnds` 为非持久化的 3 秒待确认结束态，仅聊天首页时间线消费；倒计时内再次点击可取消，超时后才真正调用 `endActivity()` 并触发 todo/星星/annotation 等副作用。
 - 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`）；Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），`mood_type` 在无手动覆盖时回写 mood store。
 - 星星判定策略已收敛：`todo_link` 优先；Free 仅关键词兜底；Plus 优先 `matched_bottle` 后再关键词兜底。

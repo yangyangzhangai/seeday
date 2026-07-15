@@ -18,6 +18,8 @@ import { useOutboxStore } from './useOutboxStore';
 import type { Message } from './useChatStore.types';
 import { getLiveInputTelemetrySnapshot, resetLiveInputTelemetry } from '../services/input/liveInputTelemetry';
 import { getLocalDateString } from './chatHelpers';
+import { getSupabaseSession } from '../lib/supabase-utils';
+import { supabase } from '../api/supabase';
 
 function resetMoodStore() {
   useMoodStore.setState({
@@ -257,6 +259,121 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
       useChatStore.getState().updateActivity('activity-ended', '吃饭', base - 10 * 60 * 1000, base + 5 * 60 * 1000),
     ).rejects.toMatchObject({ message: 'overlap_with_ongoing_activity', activityContent: '写周报' });
     expect(useChatStore.getState().messages.find((message) => message.id === 'activity-ended')?.duration).toBe(20);
+  });
+
+  it('keeps an edited ongoing activity open when only the start time changes', async () => {
+    const base = 1_700_000_000_000;
+    const dateKey = getLocalDateString(new Date(base));
+    const activity: Message = {
+      id: 'activity-ongoing-edit-start',
+      content: '写方案',
+      timestamp: base,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work',
+      duration: undefined,
+      isActive: true,
+    };
+    resetChatStore([activity]);
+    useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+
+    await useChatStore.getState().updateActivity(
+      activity.id,
+      '写方案',
+      base - 5 * 60 * 1000,
+      base,
+      { keepOngoing: true },
+    );
+
+    let state = useChatStore.getState();
+    expect(state.messages[0].timestamp).toBe(base - 5 * 60 * 1000);
+    expect(state.messages[0].duration).toBeUndefined();
+    expect(state.messages[0].isActive).toBe(true);
+    expect(state.dateCache[dateKey][0].timestamp).toBe(base - 5 * 60 * 1000);
+    expect(state.dateCache[dateKey][0].duration).toBeUndefined();
+    expect(state.dateCache[dateKey][0].isActive).toBe(true);
+
+    await useChatStore.getState().sendMessage('散步', base + 30 * 60 * 1000);
+
+    state = useChatStore.getState();
+    const edited = state.messages.find((message) => message.id === activity.id);
+    expect(edited?.duration).toBe(35);
+    expect(edited?.isActive).toBe(false);
+  });
+
+  it('keeps a manually ended activity closed when the next activity is added', async () => {
+    const base = 1_700_000_000_000;
+    const dateKey = getLocalDateString(new Date(base));
+    const activity: Message = {
+      id: 'activity-manual-ended',
+      content: '写方案',
+      timestamp: base,
+      type: 'text',
+      mode: 'record',
+      activityType: 'work',
+      duration: undefined,
+      isActive: true,
+    };
+    resetChatStore([activity]);
+    useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+
+    await useChatStore.getState().updateActivity(
+      activity.id,
+      '写方案',
+      base - 5 * 60 * 1000,
+      base + 10 * 60 * 1000,
+    );
+
+    let state = useChatStore.getState();
+    expect(state.messages[0].duration).toBe(15);
+    expect(state.messages[0].isActive).toBe(false);
+    expect(state.dateCache[dateKey][0].duration).toBe(15);
+    expect(state.dateCache[dateKey][0].isActive).toBe(false);
+
+    await useChatStore.getState().sendMessage('散步', base + 30 * 60 * 1000);
+
+    state = useChatStore.getState();
+    const edited = state.messages.find((message) => message.id === activity.id);
+    expect(edited?.duration).toBe(15);
+    expect(edited?.isActive).toBe(false);
+  });
+
+  it('persists closed state when manually ending an ongoing activity via edit', async () => {
+    const base = 1_700_000_000_000;
+    const updateChain = { eq: vi.fn().mockReturnThis() };
+    const updateSpy = vi.fn().mockReturnValue(updateChain);
+    const fromSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      update: updateSpy,
+    } as never);
+    vi.mocked(getSupabaseSession).mockResolvedValue({ user: { id: 'user-1' } } as never);
+
+    resetChatStore([
+      {
+        id: 'activity-persist-end',
+        content: '写方案',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'work',
+        duration: undefined,
+        isActive: true,
+      },
+    ]);
+
+    await useChatStore.getState().updateActivity(
+      'activity-persist-end',
+      '写方案',
+      base,
+      base + 10 * 60 * 1000,
+    );
+
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+      duration: 10,
+      is_active: false,
+    }));
+
+    fromSpy.mockRestore();
+    vi.mocked(getSupabaseSession).mockResolvedValue(null as never);
   });
 
   it('keeps activity active during the 3-second manual-end undo window', async () => {

@@ -1,7 +1,7 @@
 # Seeday 全局地图（唯一版本）
 
-- 版本: v2.2
-- 更新: 2026-04-08
+- 版本: v2.3
+- 更新: 2026-07-13
 - 说明: 本文件是当前仓库目录与边界的唯一地图来源（as-is），不描述愿景结构。
 
 ## 1) 仓库顶层
@@ -112,3 +112,10 @@ src/
 - `src/api/`
 - `src/services/payment/`
 - `api/`
+
+## 7) 关键业务文档索引
+
+- `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md` -> 活动/心情分类当前代码流程、`get up` 误判根因与免费商用开源方案调研
+- `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` -> 活动/心情自动识别产品目标与开发规范
+- `docs/ACTIVITY_LEXICON.md` -> 中英意活动、心情与活动类别词库 SSOT
+- `docs/MAGIC_PEN_CAPTURE_SPEC.md` -> Magic Pen 提取、校验与写入规格

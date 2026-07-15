@@ -76,7 +76,13 @@ export interface ChatState {
   sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
-  updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
+  updateActivity: (
+    id: string,
+    content: string,
+    startTime: number,
+    endTime: number,
+    options?: { keepOngoing?: boolean }
+  ) => Promise<void>;
   requestManualEndActivity: (id: string) => void;
   cancelManualEndActivity: (id: string) => void;
   endActivity: (id: string, opts?: { skipBottleStar?: boolean; todoId?: string }) => Promise<void>;

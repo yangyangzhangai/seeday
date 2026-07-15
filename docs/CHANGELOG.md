@@ -58,6 +58,17 @@ Validation:
 
 ## 2026-07-13
 
+### Fix: Chat manual time edit now distinguishes start-only vs manual end
+
+- `src/features/chat/ChatPage.tsx`: the edit modal now tracks whether an ongoing card's end time was actually touched; if the user only shifts the start time, the draft end time follows the start and save keeps the activity ongoing.
+- `src/store/chatTimelineActions.ts`, `src/store/useChatStore.types.ts`, and `src/store/README.md`: `updateActivity()` now supports keeping an edited activity ongoing, but if the user explicitly edits the end time it immediately persists `duration` plus `is_active=false`, and syncs `dateCache` so the next activity no longer re-closes that card.
+- `src/store/useChatStore.integration.test.ts` and `docs/CURRENT_TASK.md`: added regression coverage for start-only edits, manual end edits, and cloud closed-state persistence; synced the session anchor.
+
+Validation:
+
+- `npm.cmd run test:unit -- src/store/useChatStore.integration.test.ts`
+- `npx.cmd tsc --noEmit`
+
 ### Fix: Overlapping active activity timers across reminder and manual entry flows
 
 - `src/store/chatActions.ts`, `src/store/useChatStore.ts`, and `src/store/chatTimelineActions.ts`: new activity creation now closes every ongoing activity instead of only the latest record, and manual timeline insert/edit now rejects ranges that overlap an ongoing activity to stop the timeline from entering a double-active state.

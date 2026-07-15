@@ -15,9 +15,11 @@ import {
   persistMessageToSupabase,
 } from './chatActions';
 import { getLocalDateString } from './chatHelpers';
+import { pruneDateCache } from './chatPersistenceHelpers';
+import { projectMessagesForDate } from './chatSyncHelpers';
 import i18n from '../i18n';
 import type { SupportedLang } from '../services/input/lexicon/getLexicon';
-import { resolveAutoActivityEndMs } from './chatDayBoundary';
+import { resolveAutoActivityEndMs, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 
 function resolveCurrentLang(): SupportedLang {
   const lang = i18n.language?.toLowerCase() ?? 'zh';
@@ -36,13 +38,17 @@ function resolveLangForText(content: string): SupportedLang {
   return resolveCurrentLang();
 }
 
-type TimelineState = { messages: Message[]; pendingManualEnds?: Record<string, number> };
+type TimelineState = {
+  messages: Message[];
+  pendingManualEnds?: Record<string, number>;
+  dateCache: Record<string, Message[]>;
+};
 type Setter = (partial: Partial<TimelineState> | ((state: TimelineState) => Partial<TimelineState>)) => void;
 type Getter = () => TimelineState;
 
 export interface ChatTimelineActions {
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
-  updateActivity: (id: string, content: string, startTime: number, endTime: number) => Promise<void>;
+  updateActivity: (id: string, content: string, startTime: number, endTime: number, options?: { keepOngoing?: boolean }) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
   updateMessageDuration: (content: string, timestamp: number, duration: number) => Promise<void>;
   updateMessageImage: (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => Promise<void>;
@@ -241,41 +247,71 @@ export function createChatTimelineActions(
     }
   };
 
-  const updateActivity = async (id: string, content: string, startTime: number, endTime: number) => {
-    assertNoOngoingActivityOverlap(get().messages, startTime, endTime, id);
-    const duration = Math.round((endTime - startTime) / (1000 * 60));
+  const updateActivity = async (
+    id: string,
+    content: string,
+    startTime: number,
+    endTime: number,
+    options?: { keepOngoing?: boolean },
+  ) => {
+    const existing = get().messages.find((message) => message.id === id);
+    if (!existing) return;
 
-    set(state => ({
-      messages: state.messages.map(m =>
-        m.id === id
+    const keepOngoing = options?.keepOngoing === true;
+    const overlapEndTime = keepOngoing ? resolveAutoActivityEndMs(startTime, Date.now()) : endTime;
+    assertNoOngoingActivityOverlap(get().messages, startTime, overlapEndTime, id);
+
+    const nextDuration = keepOngoing ? undefined : Math.round((endTime - startTime) / (1000 * 60));
+    const nextIsActive = keepOngoing && existing.mode === 'record' && !existing.isMood;
+    const nextActivityType = existing.mode === 'record' && !existing.isMood
+      ? classifyRecordActivityType(content, resolveLangForText(content)).activityType
+      : existing.activityType;
+    const oldDateStr = getLocalDateString(new Date(existing.timestamp));
+    const newDateStr = getLocalDateString(new Date(startTime));
+
+    set((state) => {
+      const nextMessages = state.messages.map((message) => (
+        message.id === id
           ? {
-            ...m,
+            ...message,
             content,
             timestamp: startTime,
-            duration,
-            activityType: m.mode === 'record' && !m.isMood
-              ? classifyRecordActivityType(content, resolveLangForText(content)).activityType
-              : m.activityType,
+            duration: nextDuration,
+            isActive: nextIsActive,
+            activityType: nextActivityType,
           }
-          : m
-      ).sort((a, b) => a.timestamp - b.timestamp)
-    }));
+          : message
+      )).sort((a, b) => a.timestamp - b.timestamp);
+
+      return {
+        messages: nextMessages,
+        dateCache: pruneDateCache({
+          ...state.dateCache,
+          [oldDateStr]: projectMessagesForDate(nextMessages, oldDateStr),
+          [newDateStr]: projectMessagesForDate(nextMessages, newDateStr),
+        }),
+      };
+    });
 
     const session = await getSupabaseSession();
     if (session) {
       await supabase.from('messages').update({
         content,
         timestamp: startTime,
-        duration,
-        activity_type: classifyRecordActivityType(content, resolveLangForText(content)).activityType,
+        duration: nextDuration ?? null,
+        is_active: nextIsActive,
+        activity_type: nextActivityType,
       }).eq('id', id).eq('user_id', session.user.id);
     }
 
     const moodStore = useMoodStore.getState();
     const moodMeta = moodStore.activityMoodMeta[id];
     const isCustomApplied = moodStore.customMoodApplied[id] === true;
-    if (moodMeta?.source === 'auto' && !isCustomApplied) {
-      moodStore.setMood(id, autoDetectMood(content, duration, resolveLangForText(content)), 'auto');
+    if (!keepOngoing && moodMeta?.source === 'auto' && !isCustomApplied) {
+      moodStore.setMood(id, autoDetectMood(content, nextDuration ?? 0, resolveLangForText(content)), 'auto');
+    }
+    if (keepOngoing && !moodStore.getMood(id)) {
+      moodStore.setMood(id, autoDetectMood(content, resolveAutoActivityDurationMinutes(startTime, Date.now()), resolveLangForText(content)), 'auto');
     }
   };
 

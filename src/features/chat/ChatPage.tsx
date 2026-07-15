@@ -76,6 +76,8 @@ export const ChatPage = () => {
   const [editContent, setEditContent] = useState('');
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
+  const [editWasOngoing, setEditWasOngoing] = useState(false);
+  const [editEndTimeTouched, setEditEndTimeTouched] = useState(false);
   const [moodPickerFor, setMoodPickerFor] = useState<string | null>(null);
   const [customLabelInput, setCustomLabelInput] = useState('');
   const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
@@ -279,7 +281,21 @@ export const ChatPage = () => {
     setEditContent(msg.content);
     setEditStartTime(format(msg.timestamp, "yyyy-MM-dd'T'HH:mm"));
     setEditEndTime(format(msg.timestamp + (msg.duration || 0) * 60000, "yyyy-MM-dd'T'HH:mm"));
+    setEditWasOngoing(msg.duration == null);
+    setEditEndTimeTouched(false);
   }, [isSelectedDateToday]);
+
+  const handleEditStartTimeChange = useCallback((value: string) => {
+    setEditStartTime(value);
+    if (editWasOngoing && !editEndTimeTouched) {
+      setEditEndTime(value);
+    }
+  }, [editEndTimeTouched, editWasOngoing]);
+
+  const handleEditEndTimeChange = useCallback((value: string) => {
+    setEditEndTimeTouched(true);
+    setEditEndTime(value);
+  }, []);
 
   const handleStardustSelect = useCallback((data: StardustCardData, position: { x: number; y: number }) => {
     setSelectedStardust({ data, position });
@@ -298,7 +314,9 @@ export const ChatPage = () => {
     let shouldCloseModal = false;
     try {
       if (editingId) {
-        await updateActivity(editingId, editContent, startMs, endMs);
+        await updateActivity(editingId, editContent, startMs, endMs, {
+          keepOngoing: editWasOngoing && !editEndTimeTouched,
+        });
         shouldCloseModal = true;
       } else if (insertingAfterId) {
         const idx = messages.findIndex(m => m.id === insertingAfterId);
@@ -316,6 +334,8 @@ export const ChatPage = () => {
       if (shouldCloseModal) {
         setEditingId(null);
         setInsertingAfterId(null);
+        setEditWasOngoing(false);
+        setEditEndTimeTouched(false);
       }
     }
   };
@@ -548,10 +568,15 @@ export const ChatPage = () => {
             editEndTime={editEndTime}
             maxDateTime={maxEditableDateTime}
             onContentChange={setEditContent}
-            onStartTimeChange={setEditStartTime}
-            onEndTimeChange={setEditEndTime}
+            onStartTimeChange={handleEditStartTimeChange}
+            onEndTimeChange={handleEditEndTimeChange}
             onSave={handleSave}
-            onClose={() => { setEditingId(null); setInsertingAfterId(null); }}
+            onClose={() => {
+              setEditingId(null);
+              setInsertingAfterId(null);
+              setEditWasOngoing(false);
+              setEditEndTimeTouched(false);
+            }}
           />
         )}
 
