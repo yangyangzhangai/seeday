@@ -10,6 +10,7 @@ import { callActivateTrialAPI } from '../../api/client';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { saveLocalOnboardingCompleted } from '../../store/authProfileHelpers';
 import { OnboardingStepRoutine, type RoutineState } from './OnboardingStepRoutine';
 import {
   DEFAULT_WAKE_TIME, DEFAULT_SLEEP_TIME,
@@ -33,8 +34,6 @@ import {
 import type { AiCompanionMode } from '../../lib/aiCompanion';
 
 const TOTAL_STEPS = 7;
-const ONBOARDED_KEY = 'seeday_onboarded';
-
 function toDueAtFromTime(time: string): number | undefined {
   const match = /^(\d{2}):(\d{2})$/.exec(time);
   if (!match) return undefined;
@@ -584,7 +583,9 @@ export const OnboardingFlow: React.FC = () => {
   };
 
   const handleComplete = () => {
-    localStorage.setItem(ONBOARDED_KEY, 'true');
+    if (user?.id) {
+      saveLocalOnboardingCompleted(user.id);
+    }
     void updateUserProfile({ onboardingCompleted: true });
     navigate('/chat', { replace: true });
   };

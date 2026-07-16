@@ -181,6 +181,7 @@ export function profileStateFromMeta(meta: Record<string, any>): {
 }
 
 const PENDING_PROFILE_PREFIX = 'seeday_pending_profile_v2_';
+const LOCAL_ONBOARDING_FLAG_PREFIX = 'seeday_onboarded_';
 
 export function savePendingProfileWrite(userId: string, profile: UserProfileV2): void {
   try {
@@ -201,6 +202,31 @@ export function clearPendingProfileWrite(userId: string): void {
   try {
     window.localStorage.removeItem(PENDING_PROFILE_PREFIX + userId);
   } catch { /* silent */ }
+}
+
+export function saveLocalOnboardingCompleted(userId: string): void {
+  try {
+    window.localStorage.setItem(LOCAL_ONBOARDING_FLAG_PREFIX + userId, '1');
+  } catch { /* silent */ }
+}
+
+export function readLocalOnboardingCompleted(userId: string): boolean {
+  try {
+    return window.localStorage.getItem(LOCAL_ONBOARDING_FLAG_PREFIX + userId) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function hasCompletedOnboardingEvidence(params: {
+  userId?: string | null;
+  userProfile: UserProfileV2 | null | undefined;
+  pendingProfile?: UserProfileV2 | null;
+}): boolean {
+  const { userId, userProfile, pendingProfile } = params;
+  if (userProfile?.onboardingCompleted === true) return true;
+  if (pendingProfile?.onboardingCompleted === true) return true;
+  return Boolean(userId && readLocalOnboardingCompleted(userId));
 }
 
 export function mergeUserProfile(

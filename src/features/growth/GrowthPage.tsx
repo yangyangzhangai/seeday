@@ -42,6 +42,8 @@ function normalizeDateKey(value: unknown): string {
 export const GrowthPage = () => {
   const { t } = useTranslation();
   const goalDate = useGrowthStore((s) => s.goalDate);
+  const dailyGoalEvaluatedDate = useGrowthStore((s) => s.dailyGoalEvaluatedDate);
+  const markDailyGoalEvaluated = useGrowthStore((s) => s.markDailyGoalEvaluated);
   const popupDisabled = useGrowthStore((s) => s.popupDisabled);
   const dailyGoalEnabled = useAuthStore((s) => s.preferences.dailyGoalEnabled);
   const authLoading = useAuthStore((s) => s.loading);
@@ -120,19 +122,11 @@ export const GrowthPage = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!userId) return;
-    if (typeof window === 'undefined' || !window.sessionStorage || !window.localStorage) return;
     let cancelled = false;
 
     const checkPopup = async () => {
       const today = localDateStr();
-      const firstLoginSessionKey = `growth:is-first-login:${userId}:${today}`;
-      const visitKey = `growth:daily-goal-evaluated:${userId}:${today}`;
-
-      // Popup may only be evaluated in today's first login session.
-      if (window.sessionStorage.getItem(firstLoginSessionKey) !== '1') return;
-
-      // Only evaluate popup rules on the first Growth-page visit of the day.
-      if (window.localStorage.getItem(visitKey) === '1') return;
+      if (dailyGoalEvaluatedDate === today) return;
 
       let freshestRemoteGoalDate = normalizeDateKey(remoteGoalDate);
       try {
@@ -151,7 +145,7 @@ export const GrowthPage = () => {
       }
 
       if (!cancelled) {
-        window.localStorage.setItem(visitKey, '1');
+        markDailyGoalEvaluated(today);
       }
     };
 
@@ -159,7 +153,16 @@ export const GrowthPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, dailyGoalEnabled, goalDate, popupDisabled, remoteGoalDate, userId]);
+  }, [
+    authLoading,
+    dailyGoalEnabled,
+    dailyGoalEvaluatedDate,
+    goalDate,
+    markDailyGoalEvaluated,
+    popupDisabled,
+    remoteGoalDate,
+    userId,
+  ]);
 
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">

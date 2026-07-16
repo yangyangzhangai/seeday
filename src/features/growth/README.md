@@ -53,7 +53,7 @@ GrowthPage
 - **Check-in stats**: bottle stores `checkinDates` (`YYYY-MM-DD`) and exposes `last7Days/currentStreak/bestStreak`
 - **Todo recurrence**: once / daily / weekly (with day-of-week selection); templates generate instances
 - **Focus timer**: circular SVG drag picker for duration; auto-completes countdown; awards star + creates activity card
-- **Daily goal**: synced to Supabase user_metadata (daily_goal, daily_goal_date); controlled via sessionStorage + localStorage
+- **Daily goal**: synced to Supabase user_metadata (`daily_goal`, `daily_goal_date`); popup evaluation is tracked in the persisted Growth store per user/day to avoid iOS foreground/session-storage re-prompts
 
 ## Downstream Impact
 

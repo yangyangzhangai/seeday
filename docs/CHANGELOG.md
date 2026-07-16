@@ -6,6 +6,16 @@ All notable effective changes are documented here.
 
 ## 2026-07-15
 
+### Fix: New-user Growth goal popup no longer bounces back into onboarding
+
+- `src/App.tsx` and `src/store/authProfileHelpers.ts`: onboarding route guards now use sticky completion evidence instead of treating a transient `userProfileV2 === null` as "unfinished onboarding"; completion can come from the cloud profile, pending local profile, or a user-scoped local completion marker written at onboarding finish.
+- `src/store/useAuthStore.ts`: `applyUserSnapshot()` now preserves an already-known profile while Auth metadata refreshes catch up, so metadata-only refreshes and foreground session refreshes no longer wipe `userProfileV2` and trigger `/onboarding` redirects.
+- `src/features/onboarding/OnboardingFlow.tsx`, `src/store/useGrowthStore.ts`, `src/features/growth/GrowthPage.tsx`, `src/store/authStoreRuntimeHelpers.ts`, `src/features/growth/README.md`, and `src/store/README.md`: onboarding completion now writes the user-scoped local fallback flag, and Growth's daily-goal popup now records "evaluated today" in persisted Growth state instead of volatile `sessionStorage`, preventing repeated popup evaluation and the follow-on routing flash after iOS foreground restores.
+
+Validation:
+
+- `npx tsc --noEmit`
+
 ### Fix: Diary Book no longer opens on accidental future blank pages
 
 - `src/features/report/ReportPage.tsx`: blocked today/future daily calendar cells from opening or generating reports, and disabled those cells in the calendar UI.

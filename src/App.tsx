@@ -9,6 +9,7 @@ import { GrowthPage } from './features/growth/GrowthPage';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AuthPage } from './features/auth/AuthPage';
 import { getPendingProfileWrite } from './store/authProfileHelpers';
+import { hasCompletedOnboardingEvidence } from './store/authProfileHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { RoutineSettingsPanel } from './features/profile/components/RoutineSettingsPanel';
 import { UserProfilePanel } from './features/profile/components/UserProfilePanel';
@@ -100,8 +101,13 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
     return <Navigate to="/auth" replace />;
   }
   // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
-  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
-  if (userProfileV2 === null && !hasPendingProfile && isNewUserAccount(user.created_at)) {
+  const pendingProfile = getPendingProfileWrite(user.id);
+  const hasCompletedOnboarding = hasCompletedOnboardingEvidence({
+    userId: user.id,
+    userProfile: userProfileV2,
+    pendingProfile,
+  });
+  if (!hasCompletedOnboarding && isNewUserAccount(user.created_at)) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -122,8 +128,13 @@ const OnboardingRoute: React.FC = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const hasPendingProfile = Boolean(getPendingProfileWrite(user.id));
-  if (userProfileV2 !== null || hasPendingProfile || !isNewUserAccount(user.created_at)) {
+  const pendingProfile = getPendingProfileWrite(user.id);
+  const hasCompletedOnboarding = hasCompletedOnboardingEvidence({
+    userId: user.id,
+    userProfile: userProfileV2,
+    pendingProfile,
+  });
+  if (hasCompletedOnboarding || !isNewUserAccount(user.created_at)) {
     return <Navigate to="/chat" replace />;
   }
 

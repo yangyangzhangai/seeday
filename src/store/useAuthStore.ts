@@ -41,6 +41,7 @@ import {
   getPendingProfileWrite,
   profileStateFromMeta,
 } from './authProfileHelpers';
+import type { UserProfileV2 } from '../types/userProfile';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import {
   applyCloudAvatarToUser,
@@ -62,7 +63,6 @@ import {
   hasAnyLocalDataToMigrate,
   hasAnyPersistedDomainData,
   hydrateGrowthDailyGoalFromMeta,
-  markGrowthDailyLoginSession,
   refreshDomainStoresForSession,
   rehydrateAllDomainPersistStores,
   resolveMembershipState,
@@ -94,7 +94,12 @@ async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?:
 function applyUserSnapshot(
   set: AuthSet,
   user: any | null,
-  options: { loading?: boolean; initializationStage?: string | null; preservedAvatarUrl?: string | null } = {},
+  options: {
+    loading?: boolean;
+    initializationStage?: string | null;
+    preservedAvatarUrl?: string | null;
+    preservedProfile?: UserProfileV2 | null;
+  } = {},
 ): {
   meta: Record<string, any>;
   rawPreferences: UserPreferences;
@@ -112,7 +117,9 @@ function applyUserSnapshot(
   syncI18nLanguageFromMeta(meta);
   syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
   const pendingProfile = safeUser ? getPendingProfileWrite(safeUser.id) : null;
-  const resolvedProfile = profileState.userProfileV2 ?? pendingProfile;
+  const resolvedProfile = safeUser
+    ? (profileState.userProfileV2 ?? pendingProfile ?? options.preservedProfile ?? null)
+    : null;
 
   set({
     user: safeUser,
@@ -187,6 +194,7 @@ function runSignedInBackgroundTasks(params: {
     if (!data?.user) return;
     const freshSnapshot = applyUserSnapshot(set, data.user, {
       preservedAvatarUrl: get().user?.user_metadata?.avatar_url ?? null,
+      preservedProfile: get().userProfileV2,
     });
     const cloudProfileState = await fetchCloudUserProfileState(data.user);
     const userWithCloudAvatar = applyCloudAvatarToUser(data.user, cloudProfileState.avatarUrl);
@@ -277,6 +285,7 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
       loading: false,
       initializationStage: null,
       preservedAvatarUrl: previousUser?.user_metadata?.avatar_url ?? null,
+      preservedProfile: get().userProfileV2,
     });
     if (currentUser) {
       queuePreferenceSnapshotIfNeeded(snapshot);
@@ -299,7 +308,6 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
         userId: currentUser.id,
       });
 
-      markGrowthDailyLoginSession(currentUser.id);
       const owner = readLocalDataOwner();
       const hasLocalData = hasAnyLocalDataToMigrate();
       const migrationDecision = resolveLocalDataMigrationDecision({
@@ -427,10 +435,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localSnapshot = applyUserSnapshot(set, session?.user ?? null, {
         loading: false,
         initializationStage: null,
+        preservedProfile: get().userProfileV2,
       });
 
       if (session?.user) {
-        markGrowthDailyLoginSession(session.user.id);
         hydrateGrowthDailyGoalFromMeta(localSnapshot.meta);
         markLocalDataOwnerUser(session.user.id);
       }

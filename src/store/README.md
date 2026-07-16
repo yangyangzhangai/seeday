@@ -81,6 +81,7 @@
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。
 - `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。
+- `useAuthStore` 的 onboarding 守卫现改为“完成证据优先”：优先保留 `userProfileV2.onboardingCompleted`、pending profile 与按 user scope 落地的本地完成标记，避免 token refresh / metadata patch / 前后台恢复时因瞬时 `null` 把新用户误送回 `/onboarding`。
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。
@@ -88,6 +89,7 @@
 - `useAuthStore.initialize()` / `SIGNED_IN` / `SIGNED_OUT` 已改为 scope-first 顺序：先切换 scope，再 `rehydrateAllDomainPersistStores()`，最后执行 sync/fetch；`clearLocalDomainStores` 改为 scope-aware 清理，避免全域盲清。
 - `useOutboxStore.flush()` 已增加 active scope 校验：在 v2 模式下仅当 `activeScope.userId === resolvedUserId` 时才执行 flush，避免切号后串账号补推。
 - `storageScope.ts` 新增 `getScopedClientStorageKey()` 供非 domain key 使用；首批用户行为 key（聊天草稿、昨日日志弹窗去重、提醒确认 pending、night reminder dismiss、提醒调度计数）已改为 scope-aware 命名。
+- `useGrowthStore` 新增 `dailyGoalEvaluatedDate` 持久字段：Growth 每日目标弹窗改为按 user-scoped persist 记录“当天已评估”，不再依赖易失 `sessionStorage` 首登标记，减少 iOS 前后台切换后的重复弹窗与连带路由抖动。
 - 非 domain key 第二批已接入：植物图片 URL 缓存（`PlantImage`）与 idle nudge 调度时间戳（`localNotificationService`）现按 user scope 分桶，避免切号后读取到其他账号本地痕迹。
 - `reminderScheduler` 的 `freeDay_<date>` 缓存已定稿为 user-scoped，并与 `localNotificationService` 一起统一复用 `storageScope.getScopedClientStorageKey()`，避免分散实现导致的命名漂移。
 - 提醒确认链路现统一复用 `src/services/reminder/reminderActivityActions.ts`：系统通知确认、前台弹窗确认、弹窗内手动输入、QuickActivityPicker 补录都会同步执行 timing + chat 记录，冷启动补确认也会回放活动卡写入，不再只切 reminder timing session。

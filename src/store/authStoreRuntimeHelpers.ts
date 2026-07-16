@@ -121,6 +121,7 @@ export function clearLocalDomainStores(scope?: StorageScope): void {
     bottles: [],
     dailyGoal: '',
     goalDate: '',
+    dailyGoalEvaluatedDate: '',
     popupDisabled: false,
     isLoading: false,
     hasHydrated: false,
@@ -407,20 +408,6 @@ export function hydrateGrowthDailyGoalFromMeta(meta: Record<string, any>): void 
     dailyGoal: remoteGoal || state.dailyGoal,
     goalDate: remoteGoalDate || state.goalDate,
   }));
-}
-
-export function markGrowthDailyLoginSession(userId: string): void {
-  if (typeof window === 'undefined' || !window.localStorage || !window.sessionStorage) return;
-  const today = toLocalDateStr(Date.now());
-  const firstLoginDateKey = `growth:first-login-date:${userId}`;
-  const sessionFlagKey = `growth:is-first-login:${userId}:${today}`;
-  const hasLoggedInToday = window.localStorage.getItem(firstLoginDateKey) === today;
-  if (hasLoggedInToday) {
-    window.sessionStorage.setItem(sessionFlagKey, '0');
-    return;
-  }
-  window.localStorage.setItem(firstLoginDateKey, today);
-  window.sessionStorage.setItem(sessionFlagKey, '1');
 }
 
 export function setScopeForAuthUser(userId?: string | null, source: string = 'unknown'): StorageScope {

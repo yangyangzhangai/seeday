@@ -56,6 +56,7 @@ interface GrowthState {
   bottles: Bottle[];
   dailyGoal: string;
   goalDate: string;            // ISO date string (YYYY-MM-DD) of last goal entry
+  dailyGoalEvaluatedDate: string;
   popupDisabled: boolean;      // user chose "don't show again"
   isLoading: boolean;
   hasHydrated: boolean;
@@ -70,6 +71,7 @@ interface GrowthState {
   markBottleIrrigated: (id: string) => void;
   continueBottle: (id: string) => void;
   setDailyGoal: (goal: string) => void;
+  markDailyGoalEvaluated: (date?: string) => void;
   shouldShowDailyGoal: () => boolean;
   disablePopup: () => void;
   enablePopup: () => void;
@@ -131,6 +133,7 @@ export const useGrowthStore = create<GrowthState>()(
       bottles: [],
       dailyGoal: '',
       goalDate: '',
+      dailyGoalEvaluatedDate: '',
       popupDisabled: false,
       isLoading: false,
       hasHydrated: false,
@@ -351,6 +354,8 @@ export const useGrowthStore = create<GrowthState>()(
 
       setDailyGoal: (goal) => set({ dailyGoal: goal, goalDate: todayDateStr() }),
 
+      markDailyGoalEvaluated: (date) => set({ dailyGoalEvaluatedDate: date || todayDateStr() }),
+
       shouldShowDailyGoal: () => {
         const { goalDate, popupDisabled } = get();
         if (popupDisabled) return false;
@@ -448,6 +453,7 @@ export const useGrowthStore = create<GrowthState>()(
         bottles: state.bottles,
         dailyGoal: state.dailyGoal,
         goalDate: state.goalDate,
+        dailyGoalEvaluatedDate: state.dailyGoalEvaluatedDate,
         popupDisabled: state.popupDisabled,
         lastFetchedAt: state.lastFetchedAt,
       }),

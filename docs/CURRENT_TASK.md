@@ -6,6 +6,7 @@ Owner: current working session
 Session Notes:
 
 - 2026-07-15: Fixed Diary Book occasional future-blank landing: report calendar now disables today/future daily cells instead of allowing accidental future `daily` report generation, and Diary Book initial open now resolves to the latest non-future daily report with real diary signals before falling back to the latest non-future placeholder; added `reportPageHelpers` regression coverage for future-date blocking and initial-target selection.
+- 2026-07-15: Fixed new-user onboarding bounce after Growth daily-goal popup: route guards now treat `onboardingCompleted` evidence as sticky across auth refreshes (cloud profile, pending local profile, and user-scoped local completion flag), `applyUserSnapshot()` no longer clears a known profile just because refreshed Auth metadata lacks `user_profile_v2`, and Growth daily-goal popup evaluation now persists by user/day in `useGrowthStore` instead of volatile `sessionStorage` so iOS foreground restores stop re-triggering the popup + onboarding flash loop.
 - 2026-07-15: Growth 瓶子横向列表隐藏系统粗滚动条，改为居中的短款半透明圆角滑动指示器；指示器跟随横向进度并在停止滑动 650ms 后淡出，不改变瓶子尺寸、间距和原生滚动行为。
 - 2026-07-15: Growth 目标瓶与习惯瓶视觉区分：新增 `src/assets/growth/bottle_goal.png`，仅 `type === 'goal'` 的瓶子使用新瓶身；习惯瓶及瓶内星星图片、散布逻辑保持不变。
 - 2026-07-15: Diary 详情双页页头调整：日期横线下新增两点分页指示器，当前页显示实心；第一页右边缘显示低透明度 `›`，第二页左边缘显示低透明度 `‹`，统一放大为 `32px`，无圆形背景并垂直居中；首次进入第一页时内容与箭头共同轻微左移回弹一次，顶部导航及横向滑动逻辑不变。
