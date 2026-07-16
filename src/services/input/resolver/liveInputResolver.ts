@@ -19,6 +19,7 @@ function scoreEvidence(evidence: LiveEvidence): LiveInputScore {
         ? { activity: 1, mood: 0 }
         : { activity: 3, mood: 0 };
     case 'lexicon':
+    case 'linguistic':
       return { activity: 3, mood: 0 };
     case 'mood':
       if (evidence.reasonCode === 'context_bias_to_last_activity') {
@@ -77,19 +78,6 @@ export function resolveFinalClassification(params: {
     extractedMood,
   } = params;
 
-  if (hasActivityEvidence && hasMood) {
-    return {
-      kind: 'activity',
-      internalKind: 'activity_with_mood',
-      confidence: 'high',
-      scores,
-      reasons: [...reasons, 'activity_with_mood_detected'],
-      evidence,
-      containsMoodSignal: true,
-      extractedMood,
-      moodNote: content,
-    };
-  }
 
   if (scores.activity > scores.mood) {
     return {
@@ -99,7 +87,9 @@ export function resolveFinalClassification(params: {
       scores,
       reasons,
       evidence,
-      containsMoodSignal: false,
+      containsMoodSignal: hasMood,
+      extractedMood,
+      moodNote: hasMood ? content : undefined,
     };
   }
 

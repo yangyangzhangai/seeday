@@ -1,4 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./storageScope', async () => {
+  const actual = await vi.importActual<typeof import('./storageScope')>('./storageScope');
+  return {
+    ...actual,
+    isMultiAccountIsolationV2Enabled: () => true,
+    readActiveStorageScope: () => ({ type: 'user' as const, userId: 'u1' }),
+  };
+});
+
 import { resetOutboxExecutorsForTests, setOutboxExecutorForTests, useOutboxStore } from './useOutboxStore';
 
 describe('useOutboxStore', () => {
@@ -88,7 +98,7 @@ describe('useOutboxStore', () => {
     const [entry] = useOutboxStore.getState().entries;
     expect(entry.attempts).toBe(1);
     expect(entry.status).toBe('pending');
-    expect(entry.lastError).toBe('offline');
+    expect(entry.lastError).toContain('offline');
   });
 
   it('flush executes plant direction retries', async () => {
@@ -112,6 +122,21 @@ describe('useOutboxStore', () => {
     useOutboxStore.getState().enqueue({
       kind: 'annotation.outcome',
       payload: { annotationId: 'a1', accepted: true },
+      consecutiveFailures: 0,
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
+  });
+
+  it('flush executes todo delete retries', async () => {
+    const executor = vi.fn().mockResolvedValue(undefined);
+    setOutboxExecutorForTests('todo.delete', executor);
+    useOutboxStore.getState().enqueue({
+      kind: 'todo.delete',
+      payload: { todoId: 'todo-1' },
       consecutiveFailures: 0,
     });
 

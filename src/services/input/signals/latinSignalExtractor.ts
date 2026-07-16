@@ -18,6 +18,7 @@ import {
   IT_PLACE_NOUNS,
   IT_STRONG_COMPLETION_PATTERNS,
 } from '../liveInputRules.it.js';
+import { extractEnglishLinguisticSignals } from './englishLinguisticAdapter.js';
 
 export type LatinLang = 'en' | 'it';
 
@@ -282,7 +283,10 @@ export function extractLatinSignals(text: string): {
   hasFuturePlan: boolean;
   hasNegatedOrNotOccurred: boolean;
   hasActivityLexicon: boolean;
+  hasGoToPlace: boolean;
   hasActivityPattern: boolean;
+  hasLinguisticActivity: boolean;
+  linguisticActivityTokens: string[];
   hasActivity: boolean;
   hasMoodLexicon: boolean;
   hasMoodPattern: boolean;
@@ -301,6 +305,9 @@ export function extractLatinSignals(text: string): {
   const hasActivityPattern = activityPatterns.some((pattern) => pattern.test(text));
   const hasGoToPlace = lang === 'it' ? hasItGoToPlace(text) : hasEnGoToPlace(text);
   const hasMoodLexicon = containsAnyLatinSignal(text, moodWords);
+  const linguistic = lang === 'en'
+    ? extractEnglishLinguisticSignals(text)
+    : { hasPhrasalVerb: false, phrasalVerbs: [] };
   const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(text));
 
   return {
@@ -309,7 +316,10 @@ export function extractLatinSignals(text: string): {
     hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)),
     hasActivityLexicon,
     hasActivityPattern,
-    hasActivity: hasActivityLexicon || hasActivityPattern || hasGoToPlace,
+    hasGoToPlace,
+    hasLinguisticActivity: linguistic.hasPhrasalVerb,
+    linguisticActivityTokens: linguistic.phrasalVerbs,
+    hasActivity: hasActivityLexicon || hasActivityPattern || hasGoToPlace || linguistic.hasPhrasalVerb,
     hasMoodLexicon,
     hasMoodPattern,
     hasMood: hasMoodLexicon || hasMoodPattern,

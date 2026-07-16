@@ -39,10 +39,10 @@ describe('classifyLiveInput zh seed and regression cases', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
-  it('classifies activity_with_mood case: 写周报写得很烦', () => {
+  it('keeps mixed evidence in the new_activity result: 写周报写得很烦', () => {
     const result = classify('写周报写得很烦');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
     expect(result.extractedMood).toBe('down');
     expect(result.moodNote).toBe('写周报写得很烦');
   });
@@ -53,17 +53,17 @@ describe('classifyLiveInput zh seed and regression cases', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 
-  it('maps happy mood keyword in activity_with_mood', () => {
+  it('keeps happy mood evidence on a new activity', () => {
     const result = classify('跑完步好开心');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
     expect(result.extractedMood).toBe('happy');
   });
 
-  it('maps anxious mood keyword in activity_with_mood', () => {
+  it('keeps anxious mood evidence on a new activity', () => {
     const result = classify('写方案很焦虑');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
     expect(result.extractedMood).toBe('anxious');
   });
 
@@ -459,14 +459,14 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 
-  it('captures activity_with_mood with bodily feeling: 写代码写到头疼', () => {
+  it('selects new_activity for activity plus bodily feeling: 写代码写到头疼', () => {
     const result = classify('写代码写到头疼');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('captures activity_with_mood with mixed clause: 上课上得有点烦', () => {
+  it('selects new_activity for a mixed clause: 上课上得有点烦', () => {
     const result = classify('上课上得有点烦');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
   it('does not classify negative intention as new activity: 不想开会', () => {
@@ -612,10 +612,10 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
-  it('classifies go+place with mood as activity_with_mood: 去公园好开心', () => {
+  it('classifies go+place with mood as new_activity: 去公园好开心', () => {
     const result = classify('去公园好开心');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
     expect(result.extractedMood).toBe('happy');
   });
 
@@ -642,33 +642,32 @@ describe('classifyLiveInput gold-driven zh regressions', () => {
         isOngoing: false,
       },
     });
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('captures activity_with_mood in social-work phrasing: 和客户会开得很顺利', () => {
+  it('selects new_activity in social-work phrasing: 和客户会开得很顺利', () => {
     const result = classify('和客户会开得很顺利');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('captures activity_with_mood in completion + joy phrasing: 刚打完球，好爽', () => {
+  it('selects new_activity in completion + joy phrasing: 刚打完球，好爽', () => {
     const result = classify('刚打完球，好爽');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('captures activity_with_mood in completion + weak mood phrasing: 写完报告了，终于松口气', () => {
+  it('selects standalone_mood when mood evidence wins: 写完报告了，终于松口气', () => {
     const result = classify('写完报告了，终于松口气');
-    expect(result.internalKind).toBe('activity_with_mood');
-    expect(result.extractedMood).toBe('satisfied');
+    expect(result.internalKind).toBe('standalone_mood');
   });
 
-  it('captures activity_with_mood in result-eval phrasing: 午休睡得很好', () => {
+  it('selects new_activity in result-eval phrasing: 午休睡得很好', () => {
     const result = classify('午休睡得很好');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('captures activity_with_mood in purchase + mood phrasing: 买到想要的东西，开心', () => {
+  it('selects new_activity in purchase + mood phrasing: 买到想要的东西，开心', () => {
     const result = classify('买到想要的东西，开心');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 });
 

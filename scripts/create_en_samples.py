@@ -87,7 +87,7 @@ def generate_samples():
         "working on assignment",
     ]
 
-    activity_with_mood = [
+    new_activity = [
         "working on the report, it's so stressful",
         "just had a great meeting",
         "went for a run, feeling exhausted",
@@ -229,16 +229,16 @@ def generate_samples():
             }
         )
 
-    # Generate 60 activity_with_mood
+    # Generate 60 new_activity
     for i in range(60):
         samples.append(
             {
                 "id": i + 151,
-                "input": random.choice(activity_with_mood),
+                "input": random.choice(new_activity),
                 "lang": "en",
                 "last_activity_context": None,
                 "expected_kind": "activity",
-                "expected_internal_kind": "activity_with_mood",
+                "expected_internal_kind": "new_activity",
                 "difficulty": "medium",
             }
         )

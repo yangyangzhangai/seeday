@@ -1,5 +1,16 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/SEEDAY_DEV_SPEC.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx -> src/features/report/README.md
 
+## 2026-07-16 Current Decision Override
+
+> 本节是当前代码与产品口径；与下方历史 session 段落冲突时，以本节为准。
+
+1. 普通记录输入的本地分类器严格只有三种 `internalKind`：`new_activity`、`standalone_mood`、`mood_about_last_activity`。
+2. 普通分类器不再存在专用“活动附带心情”类型；活动词和心情词可以同时成为证据，但整句仍三选一。
+3. 魔法笔保留本地快速通道，清楚的单一活动或单一心情可以直接写入。
+4. 混合证据检查位于短句快速判断之前；只要同时出现活动和心情证据，无论多短，都进入魔法笔 AI。
+5. 魔法笔 AI 的四类保持 `activity / mood / todo_add / activity_backfill`，这是复杂内容分段类型，不复用普通分类器的 `internalKind`。
+6. AI 拆出的活动和心情可由 draft builder 通过 `linkedMoodContent` 合并为“活动草稿 + 附加心情”，不需要第五类。
+
 ## Session-31 Discussion Override (2026-03-14)
 
 > If any older section conflicts with this override, this override wins for the next implementation slice.

@@ -5,7 +5,6 @@ export type LiveInputKind = 'activity' | 'mood';
 
 export type InternalLiveInputKind =
   | 'new_activity'
-  | 'activity_with_mood'
   | 'standalone_mood'
   | 'mood_about_last_activity';
 
@@ -18,7 +17,8 @@ export type LiveEvidenceSource =
   | 'completion'
   | 'goto_place'
   | 'lexicon'
-  | 'mood';
+  | 'mood'
+  | 'linguistic';
 
 export type LiveEvidenceStrength = 'weak' | 'medium' | 'strong';
 

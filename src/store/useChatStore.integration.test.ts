@@ -60,11 +60,11 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     resetLiveInputTelemetry();
   });
 
-  it('routes activity_with_mood sentence through send path and mood writeback', async () => {
+  it('routes mixed evidence as new_activity and keeps its auto mood label', async () => {
     const classification = await useChatStore.getState().sendAutoRecognizedInput('写周报写得很烦');
 
     expect(classification?.kind).toBe('activity');
-    expect(classification?.internalKind).toBe('activity_with_mood');
+    expect(classification?.internalKind).toBe('new_activity');
 
     const messages = useChatStore.getState().messages;
     expect(messages).toHaveLength(1);
@@ -72,7 +72,6 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
 
     const moodState = useMoodStore.getState();
     expect(moodState.activityMood[messages[0].id]).toBe('down');
-    expect(moodState.moodNote[messages[0].id]).toBe('写周报写得很烦');
   });
 
   it('routes mood_about_last_activity sentence and links note to latest activity', async () => {

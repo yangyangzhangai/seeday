@@ -71,6 +71,17 @@ Detection requires **both**:
 **`EN_PLACE_NOUNS`** only lists places NOT already covered as tokens in `EN_ACTIVITY_VERBS` (e.g. `gym` is already a token; `library`, `park`, `pool` are not). Avoid adding places that would cause false positives without the movement-verb prefix.
 
 ## Maintenance Rules
+## EN Linguistic Evidence
+
+The lexicon remains the source of truth for known activity and mood terms, but it is not the only evidence source.
+
+- `src/services/input/signals/englishLinguisticAdapter.ts` uses the MIT-licensed `compromise` package.
+- It currently extracts English `#Verb #Particle` phrasal verbs and emits `linguistic` activity evidence.
+- The evidence is scored by the same resolver as lexicon, place, completion, and mood evidence; the library never writes a classification directly.
+- Regression families include `get up / got up / getting up / gets up` and `wake up / woke up`.
+- Italian does not use this English adapter.
+- Add known product vocabulary to the lexicon first; use the adapter for grammatical variation and open-ended phrase structure.
+
 
 1. **Modify Lexicon First**: Always update the relevant file in `src/services/input/lexicon/` before modifying consumer logic.
 2. **Multi-language Parity**: When adding a term in one language, consider if its equivalent should be added to other languages.

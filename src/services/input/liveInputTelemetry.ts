@@ -21,7 +21,6 @@ const INITIAL_STATE: LiveInputTelemetryState = {
   autoRecognizedTotal: 0,
   classificationByInternalKind: {
     new_activity: 0,
-    activity_with_mood: 0,
     standalone_mood: 0,
     mood_about_last_activity: 0,
   },

@@ -14,6 +14,7 @@ import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useAuthStore } from './useAuthStore';
+import { useOutboxStore } from './useOutboxStore';
 import type { AnnotationEvent } from '../types/annotation';
 import type { Recurrence, Todo, TodoPriority, TodoScope, TodoState } from './todoStoreTypes';
 export type { GrowthPriority, GrowthTodo, Priority, Recurrence, Todo, TodoPriority, TodoScope } from './todoStoreTypes';
@@ -91,13 +92,20 @@ async function bgSyncDelete(id: string): Promise<boolean> {
   try {
     const session = await getSupabaseSession();
     if (!session) return false;
-    const { error } = await supabase
+    const deletedAt = new Date().toISOString();
+    const { data, error } = await supabase
       .from('todos')
-      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ deleted_at: deletedAt, updated_at: deletedAt })
       .eq('id', id)
-      .eq('user_id', session.user.id);
+      .eq('user_id', session.user.id)
+      .select('id')
+      .maybeSingle();
     if (error) {
       if (import.meta.env.DEV) console.error('Error syncing todo soft-delete:', error);
+      return false;
+    }
+    if (!data?.id) {
+      if (import.meta.env.DEV) console.error('Todo soft-delete matched 0 rows:', id);
       return false;
     }
     return true;
@@ -105,6 +113,19 @@ async function bgSyncDelete(id: string): Promise<boolean> {
     if (import.meta.env.DEV) console.error('bgSyncDelete failed:', e);
     return false;
   }
+}
+
+function ensureTodoDeleteQueued(todoId: string): void {
+  const outbox = useOutboxStore.getState();
+  const alreadyQueued = outbox.entries.some((entry) => (
+    entry.kind === 'todo.delete' && entry.payload.todoId === todoId
+  ));
+  if (alreadyQueued) return;
+  outbox.enqueue({
+    kind: 'todo.delete',
+    payload: { todoId },
+    consecutiveFailures: 0,
+  });
 }
 
 async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
@@ -165,6 +186,7 @@ export const useTodoStore = create<TodoState>()(
           if (pendingDeleteEntries.length !== Object.keys(get().pendingDeletedTodoIds).length) {
             set({ pendingDeletedTodoIds: Object.fromEntries(pendingDeleteEntries) });
           }
+          await useOutboxStore.getState().flush(session.user.id);
           if (pendingDeletedIds.size > 0) {
             await Promise.all(Array.from(pendingDeletedIds).map((todoId) => bgSyncDelete(todoId)));
           }
@@ -502,7 +524,11 @@ export const useTodoStore = create<TodoState>()(
           }));
           idsToDelete.forEach((todoId) => {
             void bgSyncDelete(todoId).then((ok) => {
-              if (ok) clearPendingDeletion(todoId);
+              if (ok) {
+                clearPendingDeletion(todoId);
+                return;
+              }
+              ensureTodoDeleteQueued(todoId);
             });
           });
         } else {
@@ -527,7 +553,11 @@ export const useTodoStore = create<TodoState>()(
             ),
           }));
           void bgSyncDelete(id).then((ok) => {
-            if (ok) clearPendingDeletion(id);
+            if (ok) {
+              clearPendingDeletion(id);
+              return;
+            }
+            ensureTodoDeleteQueued(id);
           });
         }
 

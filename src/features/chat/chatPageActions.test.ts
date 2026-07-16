@@ -6,7 +6,7 @@ import {
 
 function makeMagicSendParams(overrides: Partial<Parameters<typeof handleMagicPenModeSend>[0]> = {}) {
   return {
-    input: '吃饭好开心',
+    input: '吃饭',
     lang: 'zh',
     isMagicPenSending: false,
     messages: [],
@@ -91,10 +91,19 @@ describe('handleMagicPenModeSend', () => {
 
     await handleMagicPenModeSend(params);
 
-    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('吃饭好开心');
+    expect(params.sendAutoRecognizedInput).toHaveBeenCalledWith('吃饭');
     expect(params.parseMagicPenInput).not.toHaveBeenCalled();
     expect(params.setIsMagicPenOpen).not.toHaveBeenCalled();
     expect(params.setInput).toHaveBeenCalledWith('');
+  });
+
+  it('mode-on mixed evidence: uses Magic Pen parser even for short text', async () => {
+    const params = makeMagicSendParams({ input: '吃饭好开心' });
+
+    await handleMagicPenModeSend(params);
+
+    expect(params.sendAutoRecognizedInput).not.toHaveBeenCalled();
+    expect(params.parseMagicPenInput).toHaveBeenCalledWith('吃饭好开心', { lang: 'zh' });
   });
 
   it('mode-on parse with drafts: opens sheet', async () => {

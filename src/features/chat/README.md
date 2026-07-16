@@ -8,8 +8,8 @@
 
 - Route: `/chat`
 - Main user flows:
-  - Auto-recognized record input: single input routes through `sendAutoRecognizedInput()` and classifies `activity` vs `mood`
-  - Magic Pen side flow: wand button toggles Magic Pen mode. Current runtime is parser-first whole-sentence extraction (`parseMagicPenInput(...)`) with a strict single-item direct-write gate. The next target architecture keeps parser-first handling for mixed input, adds a local fast path for simple single-intent `activity` / `mood`, and moves toward hybrid commit where realtime `activity|mood` can auto-write while `todo_add` / `activity_backfill` stay in `MagicPenSheet` review.
+  - Auto-recognized record input: `sendAutoRecognizedInput()` must return exactly one of `new_activity / standalone_mood / mood_about_last_activity`
+  - Magic Pen side flow: simple single-intent input may use the local fast path; mixed activity+mood evidence is checked before short-text handling and routes the whole input to `parseMagicPenInput(...)`; AI keeps `activity / mood / todo_add / activity_backfill`
   - Latest-message correction: message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)
   - Mood quick record (`isMood` message path) remains as the message semantic output, not a separate chat-mode toggle
@@ -43,6 +43,9 @@
 ## Related Docs
 
 - `LLM.md`
+- `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`
+- `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md`
+- `docs/MAGIC_PEN_CAPTURE_SPEC.md`
 - `docs/PROJECT_MAP.md`
 - `FEATURE_STATUS.md`
 - `docs/ARCHITECTURE.md`

@@ -20,7 +20,7 @@
     "lang": "zh",
     "input": "写周报写得很烦",
     "expectedKind": "activity",
-    "expectedInternalKind": "activity_with_mood",
+    "expectedInternalKind": "new_activity",
     "subset": "core"
   },
   {
@@ -69,7 +69,7 @@
     "lang": "en",
     "input": "Just finished the report, relieved",
     "expectedKind": "activity",
-    "expectedInternalKind": "activity_with_mood",
+    "expectedInternalKind": "new_activity",
     "subset": "core"
   },
   {
@@ -118,7 +118,7 @@
     "lang": "it",
     "input": "Ho appena finito la riunione, sono sollevato",
     "expectedKind": "activity",
-    "expectedInternalKind": "activity_with_mood",
+    "expectedInternalKind": "new_activity",
     "subset": "core"
   },
   {

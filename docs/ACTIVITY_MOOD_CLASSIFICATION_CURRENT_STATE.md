@@ -1,316 +1,217 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/ACTIVITY_LEXICON.md
 # 活动 / 心情分类当前实现审计与开源方案调研
 
-- 文档性质：As-is 现状说明与技术选型调研，不是新的主计划
-- 审计日期：2026-07-13
-- 代码范围：聊天主输入、Magic Pen 快速路径、活动类别与心情标签后处理
-- 外部项目核验日期：2026-07-13
+> 审计日期：2026-07-16  
+> 本文描述当前代码真实行为。产品规范以 `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准。
 
-## 1. 结论摘要
+## 1. 小白版结论
 
-1. 聊天主输入的“活动还是心情”由前端本地规则完成，不由 AI 决定。
-2. 当前英语实现依赖静态词库和大量正则，没有通用词性标注、词形还原、依存分析或短语动词识别。
-3. 规则没有证据或活动分与心情分相等时，最终统一归为 `mood`。这是 `get up` 被判成心情的直接机制。
-4. `get up` 不在英语活动词库，不命中英语活动正则，也不命中仅有的短句活动壳；最后得到 `activity=0, mood=0`，以 `ambiguous_default_to_mood` 落为低置信心情。
-5. 后续 Plus AI 分类不会补救这次错误：它发生在活动已经写入以后，主要更新活动六分类、心情标签和瓶子匹配，不会把已写成 mood 的消息重新路由成 activity。
-6. 现有自动基准只有 18 条活动/心情样本，没有英语短语动词样本；即使 18/18 通过，也不能代表真实英语准确率。
-7. 最适合 Seeday 第一轮验证的是 `compromise` 或 `winkNLP` 二选一，为现有规则补充“确实存在英语动词/动词短语”的结构证据；不建议直接用大模型取代整个主链路。
-8. Open English WordNet 适合在构建期扩充和校验词库；积累用户纠错数据后，可再用 wink Naive Bayes、NLP.js 或 fastText 训练产品自己的二分类器。
+普通聊天输入现在只做三选一：
 
-## 2. 现有文档及其边界
+1. 这是一个新活动。
+2. 这是一个独立心情。
+3. 这是上一条活动过程中产生的心情。
 
-仓库已经有三份相关文档，但用途不同：
+系统没有“未识别”出口，也没有普通输入的“活动附带心情”第四类。一句话里即使同时有活动和心情，活动词与心情词只是分别加分，最后仍选三类中的一个。
 
-| 文档 | 实际用途 | 局限 |
-| --- | --- | --- |
-| `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` | 产品目标、交互规则、技术方案和部分实现说明 | 同时保留了“建议”“Phase”等设计内容，不完全等于当前代码 |
-| `docs/ACTIVITY_MOOD_AUTO_RECOGNITION_REFACTOR_PROPOSAL.md` | 2026-03 的问题分析和重构讨论稿 | 是历史讨论稿，部分建议已实现，部分没有 |
-| `docs/ACTIVITY_LEXICON.md` | 多语言活动、心情、类别词库的维护说明 | 重点是词库 SSOT，不描述完整写入链路 |
+魔法笔不同。它负责把复杂句拆开，所以 AI 仍保留 `activity / mood / todo_add / activity_backfill` 四类。魔法笔可以把拆出的心情段附到活动草稿，但这不需要普通分类器的第四种类型。
 
-本文只回答“当前生产代码实际上怎么做”，并在最后给出开源项目候选。产品目标仍以 `ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准。
+英语 `get up` 误判已在本次改动中修复：项目接入 MIT 许可证的 `compromise`，用英语短语动词结构作为活动证据，而不是只给词库补一个固定短语。
 
-## 3. 先区分产品里的三种分类
+## 2. 项目里其实有三种“分类”
 
-当前代码里“分类”至少有三层，不能混为一谈：
+| 层次 | 输入 | 输出 | 作用 |
+|---|---|---|---|
+| 实时输入意图 | 用户刚输入的一句话 | 普通输入三个 `internalKind` | 决定写活动还是心情 |
+| 活动六分类 | 已经确定是活动的文本 | study/work/social/life/entertainment/health | 卡片颜色、统计和报告 |
+| 心情标签 | 心情文字或活动文字 | happy/calm/down 等 `MoodKey` | 心情标签和报告 |
 
-| 层 | 输入 | 输出 | 决定什么 |
-| --- | --- | --- | --- |
-| A. 实时输入意图分类 | 用户原始一句话 | `activity` / `mood`，以及 4 个 `internalKind` | 走 `sendMessage()` 还是 `sendMood()`；`get up` 的问题在这里 |
-| B. 活动类别分类 | 已确定为活动的文本 | `study/work/social/life/entertainment/health` | 活动卡、统计和报告中的六分类 |
-| C. 心情标签提取 | 活动文本或 mood note | 8 个 `MoodKey` | 活动附带的心情标签，不负责活动/心情路由 |
+`get up` 的问题发生在第一层。后面的活动六分类或 AI 增强不会把一条已经错误写成心情的消息重新变成活动。
 
-其中 A 层必须先完成。A 层一旦把输入写成 mood，B/C 层不会自动把它改回活动。
-
-## 4. 主输入端到端流程
+## 3. 普通输入的端到端流程
 
 ```mermaid
 flowchart TD
-  A["ChatPage 用户发送"] --> B["useChatStore.sendAutoRecognizedInput"]
-  B --> C["getLiveInputContext: 最近一条活动"]
-  C --> D["classifyLiveInput: 本地规则分类"]
-  D --> E{"internalKind"}
-  E -->|standalone_mood| F["sendMood"]
-  E -->|mood_about_last_activity| F
-  E -->|new_activity| G["sendMessage"]
-  E -->|activity_with_mood| H["sendMessage + 本地写入 mood tag/note"]
-  G --> I["本地活动六分类"]
-  G --> J["本地心情标签推断"]
-  G --> K["Plus: /api/classify 后置增强"]
-  F --> L["必要时定向挂到 ongoing/related activity"]
+  A["ChatPage 发送"] --> B["useChatStore.sendAutoRecognizedInput"]
+  B --> C["chatActions 组装最近活动上下文"]
+  C --> D["classifyLiveInput"]
+  D --> E["中文或英/意信号提取"]
+  E --> F["未来/否定优先拦截"]
+  F --> G["上一活动关联判断"]
+  G --> H["resolver 累加活动分和心情分"]
+  H --> I["三种 internalKind 之一"]
+  I --> J["sendMessage 或 sendMood"]
+  J --> K["记录分类原因与纠错遥测"]
 ```
 
-关键调用链：
+主要代码：
 
-1. `src/features/chat/ChatPage.tsx` 调用 `sendAutoRecognizedInput(text)`。
-2. `src/store/useChatStore.ts` 转到 `sendAutoRecognizedInputFlow()`。
-3. `src/store/chatActions.ts` 读取最近活动上下文，并调用 `classifyLiveInput()`。
-4. `src/services/input/liveInputClassifier.ts` 执行语言路由、规则提取、证据计分和最终判定。
-5. `src/store/chatActions.ts` 按 `internalKind` 分发到 `sendMessage()` 或 `sendMood()`。
-6. 写入后记录分类原因、用户纠错和远程 telemetry。
+- `src/services/input/liveInputClassifier.ts`：总入口、语言路由、上下文优先规则。
+- `src/services/input/signals/zhSignalExtractor.ts`：中文证据。
+- `src/services/input/signals/latinSignalExtractor.ts`：英语和意大利语证据。
+- `src/services/input/signals/englishLinguisticAdapter.ts`：`compromise` 短语动词证据。
+- `src/services/input/resolver/liveInputResolver.ts`：统一计分和最终二选路由。
+- `src/store/chatActions.ts`：把分类结果写成活动或心情。
+- `src/features/chat/chatPageActions.ts`：魔法笔本地快速通道与 AI 分流。
 
-## 5. A 层：活动 / 心情二分类规则
+## 4. 当前三种结果
 
-### 5.1 输出结构
+### new_activity
 
-公开结果只有两类：
+条件：没有先被上下文规则截走，并且最终活动分严格大于心情分。
 
-- `kind: activity`
-- `kind: mood`
+写入：调用 `sendMessage(..., { skipMoodDetection: false })`。普通活动写入仍会运行已有的自动心情标签检测，因此“写周报写得很烦”可以是活动，同时活动卡片得到 `down` 标签，但它的分类仍只是 `new_activity`。
 
-内部再细分为：
+### standalone_mood
 
-- `new_activity`：新活动
-- `activity_with_mood`：活动文本里同时有明确心情
-- `standalone_mood`：独立心情
-- `mood_about_last_activity`：明确评价最近一条活动的心情
+条件：纯心情、计划或否定输入，或者最终心情分大于等于活动分。
 
-结果还保留 `confidence`、`scores`、`reasons`、`evidence`、`relatedActivityId` 等调试和写入信息。
+写入：调用 `sendMood()`。无证据或平分时也落到这里，因为产品要求每条输入必须有结果。
 
-### 5.2 标准化
+### mood_about_last_activity
 
-`normalizeLiveInput()` 当前会：
+条件：存在最近活动，输入明确指代或可靠重合该活动，同时包含评价/心情，而且没有足够强的新活动信号。
 
-1. 去首尾空格并合并连续空格。
-2. 过滤空文本和纯标点。
-3. 统一部分中英文标点。
-4. 移除部分中文句尾语气词。
-5. 保留原始文本用于展示和落库，标准化文本只用于分类。
+写入：调用 `sendMood()` 并传入 `relatedActivityId`，把关系定向写回上一条活动。
 
-### 5.3 语言路由
+## 5. 当前证据和分数
 
-1. 有拉丁字母且没有 CJK 字符时进入拉丁语言流程。
-2. 拉丁语言流程根据一份人工维护的意大利语特征词表判断 `it`。
-3. 没命中特征词就默认 `en`。
-4. A 层不直接使用当前 UI 语言参数，因此极短、混合语言或英语/意大利语同形词仍可能误判语言。
+| 证据 | 活动分 | 心情分 | 说明 |
+|---|---:|---:|---|
+| 词库或活动句式 | +3 | 0 | 中英意活动词和结构 |
+| 英语短语动词 | +3 | 0 | `compromise` 输出 |
+| 去地点 | +3 | 0 | at the park、去了公园 |
+| 正在进行 | +2 | 0 | 正在、在做 |
+| 强完成 | +2 | 0 | 做完、finished |
+| 普通心情 | 0 | +2 | 累、开心、relieved |
+| 弱完成/评价 | 0 | +2 | 更接近状态描述 |
+| 未来/计划 | 0 | +3 | 优先返回独立心情 |
+| 否定/未发生 | 0 | +3 | 优先返回独立心情 |
+| 上一活动偏置 | 0 | +3 | 用于关联上一活动 |
 
-### 5.4 英语信号提取
+置信度取两边分差：3 分以上为高，1 至 2 分为中，0 分为低。低置信度不创建第四个结果。
 
-英语当前抽取以下布尔信号：
+## 6. 语言识别过程
 
-- `hasFuturePlan`：未来、计划或意图，如 `tomorrow`、`going to`、`want to`。
-- `hasNegatedOrNotOccurred`：否定或未发生，如 `didn't work`、`nothing done`。
-- `hasActivityLexicon`：活动静态词库命中。
-- `hasActivityPattern`：活动正则命中。
-- `hasMoodLexicon`：明确心情词命中。
-- `hasMoodPattern`：心情句式正则命中。
-- `hasStrongCompletion`：明确完成态命中。
-- `hasGoToPlace`：有限的移动表达加地点词命中。
+### 中文
 
-词库单词按 token 精确匹配，多词短语按标准化后的连续子串匹配。它不是通用语法解析器，也不会自动把 `got/getting/gets` 还原为 `get`。
+1. 标准化输入。
+2. 检查未来、计划、否定和“事情没有发生”。
+3. 检查正在进行、完成、去地点、活动词和心情词。
+4. 检查是否在评价最近活动。
+5. 对很短且没有心情的动作外壳做活动回落。
+6. 进入统一 resolver 计分。
 
-### 5.5 早返回规则
+### 英语
 
-拉丁语言流程按以下顺序处理：
+1. 用词库和正则识别活动、心情、未来、否定、完成与地点。
+2. 用 `compromise` 识别 `#Verb #Particle` 短语动词。
+3. 将短语动词记录为独立的 `linguistic` 活动证据。
+4. 证据一起进入上下文规则和统一计分。
 
-1. 空文本或纯标点：低置信 `standalone_mood`。
-2. 未来/计划且没有允许覆盖的活动结构或强完成态：高置信 `standalone_mood`。
-3. 否定/未发生：高置信 `standalone_mood`。
-4. 提取活动、完成态和心情证据并计分。
-5. 有最近活动时，检查明确指代、强完成态或关键词重合；证据满足时改为 `mood_about_last_activity`。
-6. 无活动和心情证据的 1 至 2 token 短句，若命中人工编写的 `EN_SHORT_ACTIVITY_SHELL_PATTERNS`，回退为中置信活动。
-7. 其余交给统一 resolver；平分或零证据默认 mood。
+已固定回归：`get up / got up / getting up / gets up / wake up / woke up` 都是 `new_activity`。
 
-### 5.6 当前计分
+### 意大利语
 
-| 证据来源 | activity 加分 | mood 加分 |
-| --- | ---: | ---: |
-| future / negation | 0 | 3 |
-| activity lexicon | 3 | 0 |
-| ongoing / strong completion | 2 | 0 |
-| go-to-place | 3（强化壳另加 1） | 0 |
-| explicit mood / weak completion | 0 | 2 |
-| context bias to last activity | 0 | 3 |
+使用意大利语词库、动词变形生成器、正则句式、完成和地点结构。当前没有套用英语 NLP 模型。
 
-最终规则：
+## 7. 魔法笔现在怎么分流
 
-1. 同时存在活动证据和心情信号：`activity_with_mood`。
-2. `activity > mood`：`new_activity`。
-3. 其他情况，包括相等和 0:0：`standalone_mood`。
+魔法笔先调用普通分类器，但只把它当作“是否可以本地快速写入”的判断工具。
 
-### 5.7 `get up` 的完整误判路径
+以下情况不能走本地快速通道，必须调用魔法笔 AI：
 
-| 步骤 | 结果 |
-| --- | --- |
-| 标准化 | `get up` |
-| 语言 | 英语 |
-| 未来/否定 | 均未命中 |
-| 活动词库 | 未包含 `get up` |
-| 活动正则 | 有 `woke up`，没有 `get up` |
-| 心情词/句式 | 未命中 |
-| 最近活动纠偏 | 无法产生活动证据 |
-| 两词短句兜底 | 只支持少量 `verb + object` 模板，未覆盖 `verb + particle` |
-| 分数 | `activity=0, mood=0` |
-| 最终结果 | `mood / standalone_mood / low / ambiguous_default_to_mood` |
+- 同时有活动和心情证据。
+- 有多个动作。
+- 有待办清单信号。
+- 有明确日期、时段或时间范围。
+- 有列表分隔符或复杂标点。
+- 普通分类器置信度不足。
+- 命中提醒、计划、补录等魔法笔优先信号。
 
-同一原因还会影响 `got up`、`getting up`、`wake up` 等未列出的词形和短语动词。`woke up` 恰好有专门正则，因此能命中活动；这种不一致也说明当前方案依赖人工枚举，而不是英语语言结构。
+因此“吃饭”可以快速写入；“吃饭好开心”即使很短，也交给魔法笔拆分。
 
-## 6. 分类后的写入规则
+魔法笔 AI 四类不变：
 
-### 6.1 `standalone_mood`
+- `activity`
+- `mood`
+- `todo_add`
+- `activity_backfill`
 
-调用 `sendMood()`。如果分类器给出正在进行活动的 `relatedActivityId`，心情消息仍独立落库，同时把 mood note 和自动 mood tag 定向写回该活动。
+若 AI 返回相邻的活动和心情，前端 draft builder 可以通过 `linkedMoodContent` 把心情附到活动草稿。普通分类器已经完全删除旧的专用混合类型。
 
-### 6.2 `mood_about_last_activity`
+## 8. 原问题为什么会发生，现如何修复
 
-同样调用 `sendMood()`，但通过明确的 `relatedActivityId` 关联最近活动，避免仅凭“今天最后一条活动”猜测挂载。
+旧英语规则主要依赖人工词库、少量正则和短句模板。`get up`：
 
-### 6.3 `new_activity`
-
-调用 `sendMessage()`，并发生以下副作用：
-
-1. 关闭所有 ongoing 活动。
-2. 创建新的 active record message。
-3. 用本地关键词规则设置活动六分类，未命中默认 `life`。
-4. 本地推断活动心情标签。
-5. Plus 用户异步调用 `/api/classify`，更新活动类别、心情标签和瓶子匹配。
-6. 触发批注、持久化和同步逻辑。
-
-### 6.4 `activity_with_mood`
-
-调用 `sendMessage(skipMoodDetection: true)`，随后使用分类结果或本地 fallback 写入 mood tag 和原始 mood note，避免重复跑一次普通心情检测。
-
-### 6.5 Plus AI 的真实边界
-
-`/api/classify` 的 prompt 也会返回 `kind: activity | mood`，但 `ensureMessageClassification()` 的调用时机在活动消息创建之后。当前 `sendMessage()` 只消费它的 `activity_type`、`mood_type` 和瓶子匹配结果，没有按 AI 的 `kind` 回滚 A 层路由。
-
-因此它是“活动写入后的增强分类”，不是聊天主输入的活动/心情判定器。
-
-## 7. Magic Pen 模式的关系
-
-Magic Pen 不是完全独立的活动/心情分类器：
-
-1. 先用同一个 `classifyLiveInput()` 做本地判断。
-2. 简单输入且没有时间、提醒、未来或否定等解析优先信号时，直接走本地快速写入。
-3. 只有复杂输入才进入 `parseMagicPenInput()` 和 `/api/magic-pen-parse`。
-
-所以 `get up` 会先被本地判成 `standalone_mood`，又满足简单输入快速路径，通常不会获得 Magic Pen AI 解析的补救机会。
-
-## 8. 纠错、埋点和测试现状
-
-### 8.1 纠错
-
-`reclassifyRecentInput()` 支持最近消息在 activity/mood 之间转换，并处理时间线和自动 mood 附着清理。用户纠错会记录 `activity->mood` 或 `mood->activity`。
-
-### 8.2 Telemetry
-
-当前会记录：
-
-- 自动识别总数和 4 个 internal kind 的分布。
-- 分类 reason/evidence 的频次。
-- 用户纠错方向。
-- 远程 live-input telemetry 事件。
-
-这些数据已经具备训练轻量分类器的基础，但文档审计中没有看到“按语言、短语结构、线上纠错样本自动进入 gold set”的完整闭环。
-
-### 8.3 测试和基准缺口
-
-1. 单元测试数量不少，但英语样本主要来自现有词库和正则，容易验证已经知道的表达。
-2. `liveInput.intent.fixture.json` 的活动/心情基准只有 18 条，每种语言 6 条。
-3. 最新 `pr0-baseline.latest.json` 是 18/18；`PR0_BASELINE.md` 仍写 17/18，文档与产物已经漂移。
-4. 没有 `get up`、`got up`、`wake up`、`sit down`、`head out`、`check in`、`log in` 等英语短语动词测试族。
-5. 基准没有按“未知词、词形变化、短语动词、命令式、活动带心情、否定、未来、混合语言”分桶报告。
-
-## 9. 根因归纳
-
-英语误判不是只缺一个 `get up`，而是五个结构问题叠加：
-
-1. 活动识别以人工词表和正则为主，维护成本随表达数量线性增长。
-2. 没有词形还原，`get/got/getting`、`write/wrote/written` 要分别维护。
-3. 没有短语动词或依存关系识别，`verb + particle` 容易整体漏掉。
-4. 短句兜底只覆盖少量人工模板，不能泛化到开放英语。
-5. 零证据和分数相等默认 mood，使“未知活动”系统性地变成心情。
-
-## 10. 可免费商用的 GitHub 项目
-
-以下“可商用”指仓库许可证允许商业使用；仍需保留许可证/版权声明，并核对随库下载的数据和模型许可证。
-
-| 项目 | 许可证与成熟度 | 能力 | 在 Seeday 中的作用 | 建议 |
-| --- | --- | --- | --- | --- |
-| [compromise](https://github.com/spencermountain/compromise) | MIT；约 12k stars，长期维护；浏览器可运行 | 英语 POS、动词短语、词形变化、规则匹配、自定义词库 | 在 `latinSignalExtractor` 前增加通用动词结构证据，识别 `get up` 一类短句；约 250KB minified | **P0 首选 POC**，接入简单 |
-| [winkNLP](https://github.com/winkjs/wink-nlp) + [English web model](https://github.com/winkjs/wink-eng-lite-web-model) | MIT；活跃维护；浏览器/Node/TypeScript | tokenization、POS、lemma、negation、sentiment、词向量；压缩模型约 1MB 起 | 作为更完整的英语信号提取层，输出 verb/lemma/negation，再映射成现有 evidence | **P0 对照 POC**，与 compromise 二选一 |
-| [Open English WordNet](https://github.com/globalwordnet/english-wordnet) | CC-BY 4.0；2025 edition；允许商用但必须署名 | 英语名词、动词、形容词、副词、synset、上下位关系 | 构建期校验和扩充活动动词/短语、识别词性、生成候选同义表达；不建议整库进 iOS runtime | **P1 构建工具** |
-| [Natural](https://github.com/NaturalNode/natural) | 代码 MIT；内含 Princeton WordNet 数据需保留其单独声明；约 11k stars | tokenizer、stemmer、classifier、WordNet、字符串相似度 | Node 侧词库生成、离线分类实验和基准工具 | 可用，但前端主链路不如前两项贴合 |
-| [WordPOS](https://github.com/moos/wordpos) | MIT；基于 WordNet；发布较久 | 快速查询 noun/verb/adjective/adverb，v2 支持 browser | 构建期检查某词是否可能为动词/形容词；辅助发现词库漏项 | P1/P2；数据体积和维护活跃度不适合首选 runtime |
-| [wink Naive Bayes Text Classifier](https://github.com/winkjs/wink-naive-bayes-text-classifier) | MIT；支持交叉验证和混淆矩阵 | 用已标注短文本训练 activity/mood 二分类 | 使用用户纠错和 gold set 训练轻量 fallback；规则无证据时提供概率 | **P1，在有足够标注数据后** |
-| [NLP.js](https://github.com/axa-group/nlp.js) | MIT；支持 40 种原生语言 | intent classifier、sentiment、language ID、tokenizer/stemmer、实体提取 | 可把 activity/mood/internalKind 当 intent 训练，并扩展到中英意 | P2；能力全面但与现有模块重叠较多 |
-| [fastText](https://github.com/facebookresearch/fastText) | MIT；约 26k stars；成熟但最新正式版较老 | 有监督文本分类、字符 n-gram、OOV/词形泛化、量化 | 用真实纠错语料训练高召回 activity/mood 模型；特别适合短文本和未登录词 | P2；更适合离线训练 + 服务端/原生推理 |
-| [spaCy](https://github.com/explosion/spaCy) | MIT；约 33k stars；工业级 Python NLP | POS、lemma、dependency、textcat、规则 matcher | 离线分析误判、生成结构特征、构建 gold set；也能验证短语动词粒子关系 | P2 研究/离线工具；当前 TS/iOS 主链路接入成本高 |
-| [Transformers.js](https://github.com/huggingface/transformers.js) | Apache-2.0；模型许可证必须另查 | 浏览器/Node 的 text classification、zero-shot、embedding | 仅对低置信样本做本地或服务端二次判断，或训练后部署专用小模型 | P2/P3；模型体积、首载、内存和许可证风险较高 |
-| [wink-sentiment](https://github.com/winkjs/wink-sentiment) / [VADER](https://github.com/cjhutto/vaderSentiment) | 均为 MIT；前者 JS，后者 Python | 情感极性、强度、否定和部分表情符号 | 只增加“这句话确实有情绪”的证据，帮助避免把纯情绪判活动 | 仅作辅助；不能单独判断活动 |
-
-## 11. 明确排除或需要额外审批的资源
-
-1. [NRC Emotion Lexicon](https://www.saifmohammad.com/WebPages/AccessResource.htm) 研究用途免费，但商业产品需要商业许可证，因此不属于“免费可商用”候选。
-2. 没有 LICENSE 的 GitHub 短语动词列表，即使公开可下载，也不能直接纳入商业产品。
-3. `nlpcloud-js` 等客户端库即使是 MIT，其背后的云推理服务并不等于免费商用，不纳入本次首选。
-4. Transformers.js、spaCy 等框架许可证合规，不代表任意 Hugging Face/spaCy 模型或训练数据都自动合规；模型必须逐个核验。
-
-## 12. 推荐接入方案
-
-### 第一阶段：结构证据补强
-
-1. 在 `latinSignalExtractor.ts` 内增加一个可替换的英语 linguistic adapter。
-2. 用 `compromise` 与 `winkNLP` 做同一批样本 POC，只保留一个依赖。
-3. adapter 只输出结构化证据，例如 `hasVerbPhrase`、`verbLemma`、`hasParticle`、`isNegated`，不直接决定最终分类。
-4. 对 1 至 4 token 且存在明确动词/动词短语、没有明确 mood 的输入，加活动证据。
-5. 明确 mood 仍保留 mood 证据，例如 `get tired` 不能只因 `get` 是动词就强判活动。
-6. 现有未来、否定和最近活动关联规则继续位于最终 resolver 前。
-
-推荐新证据示例：
-
-```ts
-{
-  source: 'linguistic',
-  strength: 'strong',
-  tokens: ['get', 'up'],
-  reasonCode: 'matched_english_verb_phrase'
-}
-```
-
-### 第二阶段：词库和测试闭环
-
-1. 用 Open English WordNet 在构建期生成候选，不在运行时打包完整词库。
-2. 先建立至少 300 至 500 条英语短输入 gold set，再决定阈值。
-3. 必须分桶：短语动词、词形变化、命令式、单词活动、活动带心情、纯心情、否定、未来、上下文关联。
-4. 为每个 lemma 建变体族测试，例如 `get up/got up/getting up/gets up`。
-5. 基准同时报告 activity recall、mood precision、`mood->activity` 和 `activity->mood`，不能只看总准确率。
-
-### 第三阶段：用纠错数据训练轻量分类器
-
-1. 将用户明确纠错转成去标识化训练样本，建立语言和版本字段。
-2. 先用 wink Naive Bayes 或 NLP.js 做可解释基线。
-3. 数据量和质量足够后，再比较 fastText 或小型 Transformer。
-4. 学习模型只处理规则低置信样本；高置信未来、否定、明确 mood 和明确活动仍走确定性规则。
-
-## 13. 最终建议
-
-最小风险路线是：
-
-1. 不改变现有 store 写入契约和 `internalKind`。
-2. 不靠继续手工追加 `get up` 一个词来结束问题。
-3. 先在英语信号提取层引入 `compromise` 或 `winkNLP` 的动词结构证据。
-4. 用 Open English WordNet 做构建期扩词和审查。
-5. 先补真实英语 gold set，再根据用户纠错训练轻量 fallback。
-6. 保留规则解释和 telemetry，让每次误判能回答“为什么被判成这一类”。
-
-这条路线可以先解决 `get up` 所代表的整类英语结构缺失，同时不改变当前 iOS 优先、纯 TypeScript service、无主链路 AI 依赖的架构方向。
+1. 不在活动词库。
+2. 不命中原活动正则。
+3. 没有心情词。
+4. 没有可靠活动证据。
+5. 最终 0:0 平分，按规则回落心情。
+
+现在 `compromise` 会把它识别为“动词 + 小品词”的短语动词，产生 +3 活动证据，所以结果变为活动。这个修复同时覆盖词形变化，不需要分别硬编码六个短语。
+
+## 9. 仍然存在的风险
+
+1. `compromise` 只覆盖英语结构，不懂产品语义；“give up”在某些上下文可能是行为，也可能是状态表达。
+2. 规则和词库对网络新词、极短口语仍会漏。
+3. 平分归心情会继续让零证据的真实活动偏向心情。
+4. 中文短动作外壳和英语短语动词都可能带来活动误报，必须靠 gold set 控制。
+5. 用户纠错已经有遥测，但还没有稳定形成按语言分桶的训练闭环。
+6. 当前 80% 目标必须由固定评估集证明，不能靠少量示例判断。
+
+## 10. 已调研的免费可商用 GitHub 项目
+
+“可商用”指仓库许可证允许商业使用；接入时仍须保留许可证声明，并单独核对数据集和模型许可证。
+
+| 项目 | 许可证 | 能力 | 可放在产品哪个环节 | 结论 |
+|---|---|---|---|---|
+| [compromise](https://github.com/spencermountain/compromise) | MIT | 浏览器端英语词性、动词短语、词形和规则匹配 | 实时英语信号提取 | **已采用**，当前识别短语动词 |
+| [winkNLP](https://github.com/winkjs/wink-nlp) | MIT | token、POS、lemma、negation、sentiment | 替代或增强英语 linguistic adapter | 备选，不与 compromise 同时常驻 |
+| [Open English WordNet](https://github.com/globalwordnet/english-wordnet) | CC-BY 4.0 | 词性、同义词、上下位关系 | 构建期扩活动词候选和检查漏词 | 推荐离线使用，必须署名 |
+| [Natural](https://github.com/NaturalNode/natural) | 代码 MIT | tokenizer、stemmer、分类器、WordNet | Node 侧评估和词库生成 | 可用；内含数据需单独保留声明 |
+| [WordPOS](https://github.com/moos/wordpos) | MIT | 基于 WordNet 的词性查询 | 构建期判断候选词是否可能是动词 | 可用，但不作为首选 runtime |
+| [wink Naive Bayes Text Classifier](https://github.com/winkjs/wink-naive-bayes-text-classifier) | MIT | 轻量文本分类、交叉验证、混淆矩阵 | 有纠错样本后做三分类概率补充 | P1，先积累标注数据 |
+| [NLP.js](https://github.com/axa-group/nlp.js) | MIT | 多语言 intent、实体、情感和语言识别 | 中英意统一的学习型分类实验 | P2，能力与现有规则重叠较多 |
+| [fastText](https://github.com/facebookresearch/fastText) | MIT | 字符 n-gram、OOV 泛化、监督分类和量化 | 离线训练短文本三分类器 | P2，适合数据量更大后 |
+| [spaCy](https://github.com/explosion/spaCy) | MIT | POS、lemma、dependency、textcat | 离线误判分析和 gold set 生成 | P2，不适合当前前端主链路 |
+| [Transformers.js](https://github.com/huggingface/transformers.js) | Apache-2.0 | 浏览器/Node 模型推理 | 低置信样本二次判断 | P2/P3；模型许可证和体积需逐个审查 |
+| [wink-sentiment](https://github.com/winkjs/wink-sentiment) | MIT | 情绪极性、强度和否定 | 只增强“有无心情”证据 | 辅助工具，不能单独区分活动 |
+| [VADER](https://github.com/cjhutto/vaderSentiment) | MIT | 英语情绪强度 | 离线校验心情证据 | 辅助工具，Python 链路 |
+
+明确不直接使用：
+
+- NRC Emotion Lexicon 的免费条件不等于商业免费，商业产品需要另行确认授权。
+- 没有 LICENSE 的 GitHub 词表不能因为“公开可下载”就进入商业产品。
+- 开源推理框架的许可证不自动覆盖任意下载模型或训练数据。
+
+## 11. 推荐的后续优化顺序
+
+### P0：把 80% 变成可验证指标
+
+1. 建立中英意固定 gold set，先达到每种语言 300 至 500 条。
+2. 分桶统计纯活动、纯心情、混合证据、上一活动关联、未来、否定、极短输入和短语动词。
+3. 每次线上纠错先进入回归集，再改规则。
+4. 报告整体准确率、三类召回率和混淆矩阵。
+
+### P1：离线扩词与轻量学习
+
+1. 用 Open English WordNet 生成候选，不把整库打进 iOS。
+2. 人工审核候选后再进入 `ACTIVITY_LEXICON`。
+3. 用纠错样本训练 wink Naive Bayes 或 NLP.js 三分类基线。
+4. 学习模型只提供分数，不绕过未来、否定和上下文硬规则。
+
+### P2：数据足够后比较模型
+
+比较 fastText、小型 Transformer 与当前规则组合。模型必须输出三类概率，仍由统一 resolver 合并；不能重新创造第四个普通输入类型。
+
+## 12. 本次改动后的验证锚点
+
+- 分类器单元测试：`src/services/input/liveInputClassifier.test.ts`
+- 英语/意大利语回归：`src/services/input/liveInputClassifier.i18n.test.ts`
+- Store 路由：`src/store/chatActions.test.ts`
+- Store 集成：`src/store/useChatStore.integration.test.ts`
+- 魔法笔分流：`src/features/chat/chatPageActions.test.ts`
+- 固定意图集：`src/services/input/__fixtures__/liveInput.intent.fixture.json`
+- PR0 评估：`npm run eval:classification:pr0`

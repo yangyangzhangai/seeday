@@ -91,6 +91,20 @@ async function completeActiveTodoAfterRealtimeIfNeeded(
   await updateMessageDuration(todoLabel, todoToComplete.startedAt, duration);
 }
 
+function hasMixedActivityMoodEvidence(classification: LiveInputClassification): boolean {
+  const activitySources = new Set([
+    'ongoing',
+    'completion',
+    'goto_place',
+    'lexicon',
+    'linguistic',
+  ]);
+  const evidence = classification.evidence ?? [];
+  const hasActivity = evidence.some((item) => activitySources.has(item.source));
+  const hasMood = evidence.some((item) => item.source === 'mood');
+  return hasActivity && hasMood;
+}
+
 function shouldUseLocalFastPath(input: string, classification: LiveInputClassification): boolean {
   const normalizedInput = input.trim().replace(/\s+/g, ' ');
   const compactSemanticLength = normalizedInput
@@ -100,6 +114,10 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
 
   const hasTodoListSignals = /(?:^|\b)(todo|to\s*-?\s*do)(?:\b|$)|待办|待辦|待做|任务清单|事項清單|清单|以下是我的待办|我的待办|今日待办|今天待办/.test(normalizedInput);
   if (hasTodoListSignals) {
+    return false;
+  }
+
+  if (hasMixedActivityMoodEvidence(classification)) {
     return false;
   }
 
@@ -119,7 +137,7 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
 
   const isSimpleText = !/[\n，,。.!?！？；;、]/.test(normalizedInput);
   if (compactSemanticLength > 0 && compactSemanticLength <= 8 && isSimpleText) {
-    return true;
+    return classification.confidence !== 'low';
   }
 
   if (classification.confidence !== 'high') {
@@ -144,8 +162,7 @@ function shouldUseLocalFastPath(input: string, classification: LiveInputClassifi
 
   return classification.internalKind === 'new_activity'
     || classification.internalKind === 'standalone_mood'
-    || classification.internalKind === 'mood_about_last_activity'
-    || classification.internalKind === 'activity_with_mood';
+    || classification.internalKind === 'mood_about_last_activity';
 }
 
 export async function handleMagicPenModeSend(params: HandleMagicPenModeSendParams): Promise<void> {

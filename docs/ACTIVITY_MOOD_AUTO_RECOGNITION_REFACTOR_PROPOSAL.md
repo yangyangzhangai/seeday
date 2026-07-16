@@ -1,4 +1,10 @@
 # DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
+
+> **历史文档（2026-07-16 标记）**
+>
+> 本文只保留早期重构讨论，不再代表当前产品或代码口径。普通输入三分类、计分和写入以
+> `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准；当前代码审计以
+> `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md` 为准。
 # 活动 / 心情自动识别重构讨论稿
 
 - 文档版本: v0.4

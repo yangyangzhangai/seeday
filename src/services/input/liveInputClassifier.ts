@@ -193,8 +193,32 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
   const { hasActivity, hasActivityPattern, hasMood, hasStrongCompletion } = signals;
   const hasActivityEvidence = hasActivityPattern || (hasActivity && !signals.hasMoodPattern) || hasStrongCompletion;
 
-  if (hasActivityEvidence) {
-    evidence.push(makeEvidence('lexicon', 'matched_activity_signal', [text], 'strong', 'positive'));
+  if (hasActivityEvidence && (signals.hasActivityLexicon || signals.hasActivityPattern)) {
+    evidence.push(makeEvidence(
+      'lexicon',
+      'matched_activity_signal',
+      [text],
+      'strong',
+      'positive',
+    ));
+  }
+  if (hasActivityEvidence && signals.hasGoToPlace) {
+    evidence.push(makeEvidence(
+      'goto_place',
+      'matched_go_to_place_signal',
+      [text],
+      'strong',
+      'positive',
+    ));
+  }
+  if (hasActivityEvidence && signals.hasLinguisticActivity) {
+    evidence.push(makeEvidence(
+      'linguistic',
+      'matched_english_phrasal_verb',
+      signals.linguisticActivityTokens,
+      'strong',
+      'positive',
+    ));
   }
   if (hasStrongCompletion) {
     evidence.push(makeEvidence('completion', 'matched_strong_completion_signal', [text], 'medium', 'positive'));

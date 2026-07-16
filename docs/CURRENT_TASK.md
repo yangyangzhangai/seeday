@@ -1,10 +1,12 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 Owner: current working session
 
 Session Notes:
 
+- 2026-07-16: Ordinary record-input classification is now strict three-way (`new_activity / standalone_mood / mood_about_last_activity`): the legacy mixed local type and write branch were removed, Magic Pen keeps its four AI segment kinds but routes mixed activity+mood evidence to AI before the short-text fast path, and the MIT-licensed `compromise` adapter adds English phrasal-verb evidence so `get up` variants classify as activities. Product/current-state/lexicon/Magic Pen docs and the global document map were synchronized.
+- 2026-07-16: Fixed Growth todo delete resurrection for cloud-missed deletes: `useTodoStore.deleteTodo()` now treats 0-row soft-delete responses as failures, queues durable `todo.delete` outbox retries when immediate cloud delete cannot be confirmed, and `fetchTodos()` now flushes outbox before reading cloud todos so one-time tasks deleted offline or during auth/network races no longer reappear on the next login.
 - 2026-07-15: Fixed Diary Book occasional future-blank landing: report calendar now disables today/future daily cells instead of allowing accidental future `daily` report generation, and Diary Book initial open now resolves to the latest non-future daily report with real diary signals before falling back to the latest non-future placeholder; added `reportPageHelpers` regression coverage for future-date blocking and initial-target selection.
 - 2026-07-15: Fixed new-user onboarding bounce after Growth daily-goal popup: route guards now treat `onboardingCompleted` evidence as sticky across auth refreshes (cloud profile, pending local profile, and user-scoped local completion flag), `applyUserSnapshot()` no longer clears a known profile just because refreshed Auth metadata lacks `user_profile_v2`, and Growth daily-goal popup evaluation now persists by user/day in `useGrowthStore` instead of volatile `sessionStorage` so iOS foreground restores stop re-triggering the popup + onboarding flash loop.
 - 2026-07-15: Growth 瓶子横向列表隐藏系统粗滚动条，改为居中的短款半透明圆角滑动指示器；指示器跟随横向进度并在停止滑动 650ms 后淡出，不改变瓶子尺寸、间距和原生滚动行为。

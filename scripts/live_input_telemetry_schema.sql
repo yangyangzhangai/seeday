@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.live_input_events (
   raw_input text,
   input_length integer NOT NULL DEFAULT 0 CHECK (input_length >= 0),
   kind text CHECK (kind IN ('activity', 'mood')),
-  internal_kind text CHECK (internal_kind IN ('new_activity', 'activity_with_mood', 'standalone_mood', 'mood_about_last_activity')),
+  internal_kind text CHECK (internal_kind IN ('new_activity', 'standalone_mood', 'mood_about_last_activity')),
   confidence text CHECK (confidence IN ('high', 'medium', 'low')),
   reasons jsonb NOT NULL DEFAULT '[]'::jsonb,
   related_activity_id text,

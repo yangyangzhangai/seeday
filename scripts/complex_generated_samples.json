@@ -4,7 +4,7 @@
     "input": "我现在在吃饭，有点想哭，明天要考试了，晚上还要开会。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -12,7 +12,7 @@
     "input": "我早上8点起来洗漱，后来赶地铁，刚到公司就感觉特别焦虑。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -20,7 +20,7 @@
     "input": "刚开完复盘会，脑子很乱，但还得继续改方案。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -28,7 +28,7 @@
     "input": "今天一直在写文档，效率很低，越写越烦。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -36,7 +36,7 @@
     "input": "正在给客户回邮件，心里发慌，怕又被追问进度。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -44,7 +44,7 @@
     "input": "中午跑完步后去洗澡，现在整个人轻松了一点。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -52,7 +52,7 @@
     "input": "我在改 Bug，改到一半发现思路全乱了，特别崩溃。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -60,7 +60,7 @@
     "input": "下午连着开了三场会，嗓子都哑了，人也麻了。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -68,7 +68,7 @@
     "input": "刚把作业交了，终于松口气，但还是有点不安。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -76,7 +76,7 @@
     "input": "早上在图书馆复习到现在，头疼得想躺平。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -212,7 +212,7 @@
     "input": "我在吃饭，手机还在回消息，脑子里全是明天考试，越想越想哭。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -220,7 +220,7 @@
     "input": "早上刚起床就去洗漱赶公交，到学校后突然很想哭。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -228,7 +228,7 @@
     "input": "正在整理会议纪要，晚上还要再开一次会，心情糟透了。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -236,7 +236,7 @@
     "input": "中午吃完饭马上改作业，改到现在头都晕了。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {
@@ -244,7 +244,7 @@
     "input": "刚做完实验记录，虽然流程走完了，但我整个人都很空。",
     "last_activity_context": null,
     "expected_kind": "activity",
-    "expected_internal_kind": "activity_with_mood",
+    "expected_internal_kind": "new_activity",
     "difficulty": "complex_generated"
   },
   {

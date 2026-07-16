@@ -1,4 +1,6 @@
 # Seeday 埋点全量盘点与看板映射（2026-04-29）
+> 2026-07-16 更新：普通输入 internalKind 已收口为三类；下方字段清单已同步，其他审计结论仍按原审计日期理解。
+
 
 作者：AI 审计助手  
 范围：`src/**`、`api/**`、`src/server/**`、`src/features/telemetry/**`  
@@ -39,7 +41,7 @@
   - `src/store/useChatStore.ts` -> `emitMembershipClassificationTelemetry(...)`（会员路径复用 classification 事件）
 - 核心字段：
   - `kind`（activity/mood）
-  - `internalKind`（new_activity/activity_with_mood/standalone_mood/mood_about_last_activity）
+  - `internalKind`（new_activity/standalone_mood/mood_about_last_activity）
   - `confidence`（high/medium/low）
   - `reasons[]`（包含规则原因码，会员路径会写 `user_plan:*` 等标签）
   - `lang`、`input_length`、`message_id`

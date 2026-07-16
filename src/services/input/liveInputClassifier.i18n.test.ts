@@ -86,6 +86,16 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
   });
+  it.each(['get up', 'got up', 'getting up', 'gets up', 'wake up', 'woke up'])(
+    'classifies English phrasal verb as activity: %s',
+    (input) => {
+      const result = classify(input);
+      expect(result.kind).toBe('activity');
+      expect(result.internalKind).toBe('new_activity');
+      expect(result.evidence?.some((item) => item.source === 'linguistic')).toBe(true);
+    },
+  );
+
 
   it('classifies English natural activity: went for a run', () => {
     const result = classify('Went for a run');
@@ -182,16 +192,16 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.relatedActivityId).toBe('a-news-en');
   });
 
-  it('classifies English activity_with_mood: just finished report, relieved', () => {
+  it('selects new_activity for English activity plus mood evidence', () => {
     const result = classify('Just finished the report, relieved');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
-  it('classifies English activity_with_mood from natural mixed sentence: back-to-back meetings all morning, exhausted', () => {
+  it('selects new_activity for a natural English mixed sentence', () => {
     const result = classify('back-to-back meetings all morning, exhausted');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
   it('keeps English book phrases as activity instead of ok/good substring mood hits', () => {
@@ -235,7 +245,7 @@ describe('classifyLiveInput en/it baseline regressions', () => {
       },
     });
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
   it('classifies English last-activity evaluation: that presentation went really well', () => {
@@ -360,10 +370,10 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('new_activity');
   });
 
-  it('classifies Italian activity_with_mood: ho appena finito la riunione, sono sollevato', () => {
+  it('selects new_activity for Italian activity plus mood evidence', () => {
     const result = classify('Ho appena finito la riunione, sono sollevato');
     expect(result.kind).toBe('activity');
-    expect(result.internalKind).toBe('activity_with_mood');
+    expect(result.internalKind).toBe('new_activity');
   });
 
   it('classifies Italian mood_about_last_activity with causal mood phrasing', () => {

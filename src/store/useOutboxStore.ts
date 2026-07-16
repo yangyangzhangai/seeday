@@ -99,6 +99,17 @@ type ChatOutboxEntry = {
   lastError?: string;
 };
 
+type TodoDeleteOutboxEntry = {
+  id: string;
+  kind: 'todo.delete';
+  payload: { todoId: string };
+  attempts: number;
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
+  lastError?: string;
+};
+
 type PlantDirectionOutboxEntry = {
   id: string;
   kind: 'plant.directionOrder';
@@ -137,7 +148,7 @@ type PreferenceUpsertOutboxEntry = {
   lastError?: string;
 };
 
-export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | PlantDirectionOutboxEntry | ImageReuploadOutboxEntry | PreferenceUpsertOutboxEntry;
+export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | TodoDeleteOutboxEntry | PlantDirectionOutboxEntry | ImageReuploadOutboxEntry | PreferenceUpsertOutboxEntry;
 export type OutboxEntryInput = Omit<OutboxEntry, 'id' | 'attempts' | 'status' | 'lastError'>;
 
 type OutboxExecutor = (entry: OutboxEntry, userId: string) => Promise<void>;
@@ -192,6 +203,29 @@ async function executeChatEntry(entry: ChatOutboxEntry, userId: string): Promise
     .from('messages')
     .upsert([toDbMessage(entry.payload.message, userId)], { onConflict: 'id' });
   if (error) throw error;
+}
+
+async function executeTodoDeleteEntry(entry: TodoDeleteOutboxEntry, userId: string): Promise<void> {
+  const deletedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('todos')
+    .update({ deleted_at: deletedAt, updated_at: deletedAt })
+    .eq('id', entry.payload.todoId)
+    .eq('user_id', userId)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.id) {
+    throw new Error(`Todo delete matched 0 rows: ${entry.payload.todoId}`);
+  }
+
+  const { useTodoStore } = await import('./useTodoStore');
+  useTodoStore.setState((state) => {
+    if (!(entry.payload.todoId in state.pendingDeletedTodoIds)) return state;
+    const nextPending = { ...state.pendingDeletedTodoIds };
+    delete nextPending[entry.payload.todoId];
+    return { pendingDeletedTodoIds: nextPending };
+  });
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -264,6 +298,7 @@ const outboxExecutors: Record<OutboxEntry['kind'], OutboxExecutor> = {
   'annotation.insert': (entry, userId) => executeAnnotationEntry(entry as AnnotationOutboxEntry, userId),
   'annotation.outcome': (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId),
   'chat.upsert': (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId),
+  'todo.delete': (entry, userId) => executeTodoDeleteEntry(entry as TodoDeleteOutboxEntry, userId),
   'plant.directionOrder': (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId),
   'image.reupload': (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId),
   'preference.upsert': (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId),
@@ -299,6 +334,9 @@ function describeOutboxEntry(entry: OutboxEntry): Record<string, unknown> {
   }
   if (entry.kind === 'annotation.insert' || entry.kind === 'annotation.outcome') {
     return { ...base, table: 'annotations', operation: entry.kind === 'annotation.insert' ? 'insert' : 'update' };
+  }
+  if (entry.kind === 'todo.delete') {
+    return { ...base, table: 'todos', operation: 'soft_delete', todoId: entry.payload.todoId };
   }
   if (entry.kind === 'plant.directionOrder') {
     return { ...base, table: 'plant_direction_config', operation: 'replace' };
@@ -526,6 +564,7 @@ export function resetOutboxExecutorsForTests(): void {
   outboxExecutors['annotation.insert'] = (entry, userId) => executeAnnotationEntry(entry as AnnotationOutboxEntry, userId);
   outboxExecutors['annotation.outcome'] = (entry, userId) => executeAnnotationOutcomeEntry(entry as AnnotationOutcomeOutboxEntry, userId);
   outboxExecutors['chat.upsert'] = (entry, userId) => executeChatEntry(entry as ChatOutboxEntry, userId);
+  outboxExecutors['todo.delete'] = (entry, userId) => executeTodoDeleteEntry(entry as TodoDeleteOutboxEntry, userId);
   outboxExecutors['plant.directionOrder'] = (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId);
   outboxExecutors['image.reupload'] = (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId);
   outboxExecutors['preference.upsert'] = (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId);

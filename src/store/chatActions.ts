@@ -313,10 +313,6 @@ export async function dispatchAutoRecognizedInput(
       const relatedActivityId = classification.relatedActivityId;
       return sendMood(trimmed, relatedActivityId ? { relatedActivityId } : undefined);
     }
-    case 'activity_with_mood':
-      return sendMessage(trimmed, undefined, {
-        skipMoodDetection: true,
-      });
     case 'new_activity':
       return sendMessage(trimmed, undefined, {
         skipMoodDetection: false,
@@ -328,25 +324,6 @@ export async function dispatchAutoRecognizedInput(
   }
 }
 
-export function applyAutoRecognizedInputEffects(
-  messageId: string | null,
-  classification: LiveInputClassification,
-): void {
-  if (!messageId || classification.kind !== 'activity') {
-    return;
-  }
-
-  if (classification.internalKind !== 'activity_with_mood') {
-    return;
-  }
-
-  const moodStore = useMoodStore.getState();
-  const fallbackMood = autoDetectMood(classification.moodNote ?? '', 0, inferAutoMoodLang(classification.moodNote ?? ''));
-  moodStore.setMood(messageId, classification.extractedMood ?? fallbackMood, 'auto');
-  if (classification.moodNote) {
-    moodStore.setMoodNote(messageId, classification.moodNote, 'auto');
-  }
-}
 
 export async function sendAutoRecognizedInputFlow(
   content: string,
@@ -362,7 +339,6 @@ export async function sendAutoRecognizedInputFlow(
   recordLiveInputClassification(classification);
 
   const messageId = await dispatchAutoRecognizedInput(content, classification, sendMessage, sendMood);
-  applyAutoRecognizedInputEffects(messageId, classification);
   emitLiveInputClassificationTelemetry(content, classification, messageId);
 
   return {

@@ -36,6 +36,15 @@
 5. `useAuthStore` 邮箱注册采用“验证码确认”链路：`signUp(...)` 发起注册后，通过 `verifySignUpCode(email, code)` 完成 `verifyOtp(type='signup')` 校验（`resendSignUpCode(email)` 负责重发）。
 
 ## Annotation Store Notes
+## Chat Input Classification
+
+- `src/store/chatActions.ts` is the Store owner of ordinary record-input dispatch.
+- Ordinary classification accepts exactly three internal results: `new_activity`, `standalone_mood`, and `mood_about_last_activity`.
+- `new_activity` calls the normal `sendMessage(..., { skipMoodDetection: false })` path; mixed mood evidence does not create a separate Store branch.
+- `standalone_mood` calls `sendMood()`; `mood_about_last_activity` additionally passes the explicit related activity ID.
+- Magic Pen commit orchestration remains in `src/store/magicPenActions.ts` and uses the parser's four segment kinds, not the ordinary classifier's internal kinds.
+- Product/score rules are owned by `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md`; current code audit is in `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md`.
+
 
 - `useAnnotationStore.ts` 现包含 suggestion 专用频率门控（分时段配额 + 日上限 + 动态最小间隔），不会限制普通文字批注。
 - suggestion 反馈通过 `recordSuggestionOutcome(annotationId, accepted)` 记录，写回本地状态与 `annotations.suggestion_accepted`。
@@ -78,6 +87,7 @@
 - 会员分类最小埋点已接入 live-input telemetry reasons：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`（含 `membership_classification` 标记）。
 - `useTodoStore.refineTodoCategoryWithAI()` 已接入 Plus 路径统一 classify 结果消费（读取 `data.activity_type`），Free 用户不触发该 AI 分类调用。
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
+- `useTodoStore.deleteTodo()` 现对一次性/重复待办删除补上 durable fallback：本地仍先移除并记录 `pendingDeletedTodoIds`，但若云端软删除因无 session、网络抖动或 0-row 未命中而未真正落库，会自动写入 `todo.delete` outbox；`fetchTodos()` 在拉云前会先 flush 队列，避免已删待办在下次登录时被云端旧数据“复活”。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。
 - `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。

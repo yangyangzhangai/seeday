@@ -49,31 +49,26 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     expect(sendMood).not.toHaveBeenCalled();
   });
 
-  it('classifies activity_with_mood and writes back derived mood', async () => {
+  it('routes mixed evidence through the ordinary new_activity path', async () => {
     const sendMessage = vi.fn(async () => 'activity-1');
     const sendMood = vi.fn(async () => 'mood-1');
 
     const result = await sendAutoRecognizedInputFlow('写周报写得很烦', [], sendMessage, sendMood);
 
-    expect(result?.classification.internalKind).toBe('activity_with_mood');
-    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, { skipMoodDetection: true });
-    const moodState = useMoodStore.getState();
-    expect(moodState.activityMood['activity-1']).toBe('down');
-    expect(moodState.moodNote['activity-1']).toBe('写周报写得很烦');
+    expect(result?.classification.internalKind).toBe('new_activity');
+    expect(sendMessage).toHaveBeenCalledWith('写周报写得很烦', undefined, { skipMoodDetection: false });
     expect(sendMood).not.toHaveBeenCalled();
   });
 
-  it('falls back to auto mood when activity_with_mood has no extracted mood', async () => {
+  it('routes mixed text to standalone mood when mood score wins', async () => {
     const sendMessage = vi.fn(async () => 'activity-2');
     const sendMood = vi.fn(async () => 'mood-2');
 
     const result = await sendAutoRecognizedInputFlow('写完报告了，终于松口气', [], sendMessage, sendMood);
 
-    expect(result?.classification.internalKind).toBe('activity_with_mood');
-    const moodState = useMoodStore.getState();
-    expect(moodState.activityMood['activity-2']).toBeDefined();
-    expect(moodState.moodNote['activity-2']).toBe('写完报告了，终于松口气');
-    expect(sendMood).not.toHaveBeenCalled();
+    expect(result?.classification.internalKind).toBe('standalone_mood');
+    expect(sendMood).toHaveBeenCalledWith('写完报告了，终于松口气', undefined);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it('classifies mood_about_last_activity with recent context sentence', async () => {
@@ -157,8 +152,8 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
 
     const snapshot = getLiveInputTelemetrySnapshot();
     expect(snapshot.autoRecognizedTotal).toBe(1);
-    expect(snapshot.classificationByInternalKind.activity_with_mood).toBe(1);
-    expect(snapshot.topReasons.some((item) => item.reason === 'activity_with_mood_detected')).toBe(true);
+    expect(snapshot.classificationByInternalKind.new_activity).toBe(1);
+    expect(snapshot.topReasons.some((item) => item.reason === 'matched_activity_signal')).toBe(true);
   });
 });
 

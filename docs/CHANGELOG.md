@@ -4,6 +4,35 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-16
+
+### Change: Ordinary activity/mood input is now strict three-way
+
+- `src/services/input/*` and `src/store/chatActions.ts`: removed the legacy mixed local classification and its dedicated write branch; every ordinary input now resolves to `new_activity`, `standalone_mood`, or `mood_about_last_activity`.
+- `src/features/chat/chatPageActions.ts`: kept the Magic Pen local fast path for clear single-intent text, but moved mixed activity+mood evidence ahead of short-text handling so mixed content uses the AI parser; Magic Pen's four segment kinds remain unchanged.
+- Added the MIT-licensed `compromise` dependency and an English linguistic adapter for phrasal-verb evidence, including `get up / got up / getting up / gets up / wake up / woke up`; place evidence remains explicit for English and Italian.
+- Updated classifier/store/Magic Pen regressions, benchmark fixtures, telemetry schema, current-state and product specs, module READMEs, lexicon docs, telemetry audit, and the expanded `PROJECT_MAP` document map.
+
+Validation:
+
+- Targeted classifier/store/Magic Pen regression: 300/300 passed.
+- `npm run eval:classification:pr0`: all four sections 100%, no mismatches.
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Full `npm run test:unit` was also attempted; 15 unrelated existing/environment-sensitive assertions remain in Magic Pen time-zone tests, AI prompt snapshots, Todo ordering, persistence order, and suggestion flow.
+
+### Fix: One-time todo deletes no longer resurrect after missed cloud sync
+
+- `src/store/useTodoStore.ts`: tightened todo soft-delete confirmation so delete requests only count as successful when Supabase returns the affected row, and now queue a durable `todo.delete` outbox retry whenever the immediate cloud delete cannot be confirmed.
+- `src/store/useOutboxStore.ts`, `src/store/useOutboxStore.test.ts`, and `src/store/useTodoStore.test.ts`: added a dedicated todo-delete outbox executor plus regression coverage for offline/no-session delete fallback and retry flushing.
+- `src/store/README.md` and `docs/CURRENT_TASK.md`: synced the store-layer note and session anchor for the todo delete resurrection fix.
+
+Validation:
+
+- `npm run test:unit -- src/store/useOutboxStore.test.ts src/store/useTodoStore.test.ts`
+- `npx tsc --noEmit`
+
 ## 2026-07-15
 
 ### Fix: New-user Growth goal popup no longer bounces back into onboarding
