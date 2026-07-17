@@ -6,6 +6,40 @@ All notable effective changes are documented here.
 
 ## 2026-07-17
 
+### Fix: Apple IAP purchases activate after StoreKit success
+
+- `api/subscription.ts` now signs App Store Server API ES256 JWTs with IEEE-P1363 encoding instead of Node's default DER encoding, preventing Apple verification authorization from failing after StoreKit has already completed the purchase.
+- `api/subscription.test.ts` verifies the ES256 signature is the JWS-required 64 bytes and validates against the generated public key. Product IDs, native purchase flow, and membership UI are unchanged.
+
+### UI: Adapt Report root page height across iPhone screens
+
+- `src/features/report/plant/PlantRootSection.tsx` now sizes the root canvas from the Report content area's real available height using `clamp(300px, calc(100% - 136px), 520px)` instead of global `vh` plus a large fixed minimum.
+- The layout reserves enough first-view space for Generate Plant, the My Diary heading, and the complete first placeholder line across iPhone safe-area and bottom-navigation variants; soil/root rendering and action styling are unchanged.
+
+### UI: Enlarge Report eco-sphere donut charts
+
+- `src/features/report/plant/DayEcoSphere.tsx` enlarges the two floating activity/mood donut charts from `100px` to `150px`, scaling their ring geometry and labels by the same 1.5 ratio.
+- `src/features/report/plant/useBubbleMotionController.ts` uses the matching `150px` collision and edge bounds so the enlarged charts remain fully visible while floating.
+
+### UI: Remove Diary middle-edge arrows
+
+- `src/features/report/ReportDetailModal.tsx` no longer renders the first-page right-edge `›` or second-page left-edge `‹`. The two-dot page indicator and horizontal swipe behavior are unchanged.
+- `src/features/report/README.md` and `docs/CURRENT_TASK.md` now describe the current Diary navigation behavior.
+
+### Fix: Edited routine times re-arm foreground reminders
+
+- `src/hooks/useReminderSystem.ts` now detects actual routine trigger-time changes, re-arms only the changed reminder types, and includes each trigger timestamp in foreground popup dedupe keys. Keeping the app open while editing a schedule no longer leaves the replacement reminder suppressed by the old time.
+- `src/services/reminder/reminderActivityActions.ts` adds a 10-second process-level confirmation claim in front of the persisted reminder-store check. Duplicate native callbacks during cold-start hydration can no longer create two activity cards or timing starts.
+- `src/store/useReminderStore.ts` exposes targeted reminder re-arming without clearing unrelated confirmations; focused unit coverage verifies the hydration-reset duplicate-callback case.
+
+### UI: Growth todo cards use a denser compact row
+
+- `src/features/growth/GrowthTodoCard.tsx`: reduced the collapsed todo row from roughly 60px to roughly 40px; the checkbox and spacing stay compact while title/due text and right-side priority/start/focus visuals retain their standard sizes.
+- Replaced the previous downward-offset shadow with a tighter `6px/3px` ambient shadow around the card. Expanded cards now use a fixed `22px` radius to preserve the compact card's visible curvature instead of enlarging the arc with panel height, and the radius switches immediately without a transition animation; editor controls and the quick-add row are unchanged.
+- `src/features/growth/GrowthTodoSection.tsx`: changed the vertical gap between adjacent todo cards from `8px` to `10px`.
+- `src/features/growth/GrowthTodoSection.tsx`: added a `700ms` completion hold so the checked state is visible in place before the existing completed-card ordering moves the item.
+- `src/features/growth/README.md` and `docs/CURRENT_TASK.md`: synchronized the Growth module behavior and current task anchor.
+
 ### Fix: Routine confirmation no longer creates multiple active timers
 
 - `src/services/notifications/localNotificationService.ts` and `src/services/reminder/reminderActivityActions.ts`: native notification listeners are now singleton registrations with replaceable current handlers, and same-day reminder confirmation is marked synchronously before async timing/chat work so duplicate callbacks cannot create duplicate records.

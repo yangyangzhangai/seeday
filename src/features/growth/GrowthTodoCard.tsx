@@ -233,7 +233,8 @@ export const GrowthTodoCard = ({
     <div
       ref={cardRef}
       className={cn(
-        "relative w-full bg-white rounded-[50px] border border-white/80 shadow-[0_16px_32px_-22px_rgba(15,23,42,0.28),0_10px_18px_-18px_rgba(15,23,42,0.18)] transition-all duration-300",
+        "relative w-full border border-white/80 bg-white shadow-[0_0_6px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.04)] transition-shadow duration-300",
+        expanded ? "rounded-[22px]" : "rounded-[50px]",
         todo.completed && "opacity-50",
         isHighlighted && "ring-2 ring-green-400 animate-[highlightPulse_0.6s_ease-in-out_3]"
       )}
@@ -246,19 +247,19 @@ export const GrowthTodoCard = ({
           onPointerUp={handleDeletePress}
           onClick={consumeGhostClick}
           className={cn(
-            'absolute -top-2 -right-2 z-10 h-8 w-8 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 touch-manipulation',
+            'absolute -top-1.5 -right-1.5 z-10 h-[22px] w-[22px] items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-red-500 touch-manipulation',
             expanded ? 'flex' : 'hidden'
           )}
           title={t('delete')}
           aria-label={t('delete')}
         >
-          <X size={14} />
+          <X size={10} />
         </button>
       )}
 
       {/* Main row — tap to expand */}
       <div
-        className="flex min-h-[50px] items-center gap-2.5 px-5 py-4 cursor-pointer"
+        className="flex min-h-[34px] items-center gap-1.5 px-3.5 py-2.5 cursor-pointer"
         onPointerUp={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest('button, input, textarea, select, [data-no-expand="true"]')) return;
@@ -278,12 +279,12 @@ export const GrowthTodoCard = ({
             e.stopPropagation();
           }}
           className={cn(
-            "h-6 w-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-colors touch-manipulation",
+            "h-4 w-4 flex-shrink-0 rounded-full border-[1.5px] flex items-center justify-center transition-colors touch-manipulation",
             todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
           )}
           aria-label={t('growth_todo_complete')}
         >
-          {todo.completed && <Check size={12} className="text-white" />}
+          {todo.completed && <Check size={8} className="text-white" />}
         </button>
 
         {/* Title + due date */}
@@ -321,12 +322,12 @@ export const GrowthTodoCard = ({
               className="w-full bg-transparent text-sm text-[#334155] focus:outline-none"
             />
           ) : (
-            <span className={cn("text-sm block truncate", todo.completed && "line-through text-gray-400")}>
+            <span className={cn("block truncate text-sm", todo.completed && "line-through text-gray-400")}>
               {todo.title}
             </span>
           )}
           {dueBadge ? (
-            <span className={cn("inline-block text-xs px-1.5 py-0.5 rounded-full font-medium leading-none mt-0.5", dueBadge.className)}>
+            <span className={cn("mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs font-medium leading-none", dueBadge.className)}>
               {dueBadge.label}
             </span>
           ) : dueStr ? (
@@ -334,8 +335,8 @@ export const GrowthTodoCard = ({
           ) : null}
         </div>
 
-        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-1.5">
-          <div className="flex h-7 w-7 items-center justify-center">
+        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-1">
+          <div className="flex h-5 w-5 items-center justify-center">
             <span
               className={cn(
                 "h-3 w-3 flex-shrink-0 rounded-full",
@@ -355,13 +356,13 @@ export const GrowthTodoCard = ({
                 onStart(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-green-600 transition-colors hover:bg-green-50"
+              className="flex h-5 w-5 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50"
               title={t('growth_todo_start')}
             >
               <Play size={16} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-7 w-7" aria-hidden="true" />
+            <div className="h-5 w-5" aria-hidden="true" />
           )}
 
           {!todo.completed ? (
@@ -372,19 +373,19 @@ export const GrowthTodoCard = ({
                 onFocus(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100"
+              className="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100"
             >
               <AlarmClock size={16} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-7 w-7" aria-hidden="true" />
+            <div className="h-5 w-5" aria-hidden="true" />
           )}
         </div>
       </div>
 
       {/* Expanded edit panel */}
       {expanded && !todo.completed && (
-        <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-3">
+        <div className="border-t border-gray-100 px-3 pb-3 pt-2 space-y-3">
           {/* Priority */}
           <div>
             <p className="text-xs text-gray-400 mb-1.5">{t('growth_todo_priority')}</p>

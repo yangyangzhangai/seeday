@@ -7,7 +7,7 @@ import {
   type TiltVector,
 } from '../../../services/native/motionService';
 
-const BUBBLE_SIZE = 100;
+const BUBBLE_SIZE = 150;
 const EDGE_PADDING = 4;
 const MAX_SPEED = 65;
 const AIR_DRAG = 0.992;

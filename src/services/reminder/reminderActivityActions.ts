@@ -1,4 +1,5 @@
 import i18next from 'i18next';
+import { toLocalDateStr } from '../../lib/dateUtils';
 import { useChatStore } from '../../store/useChatStore';
 import { useReminderStore } from '../../store/useReminderStore';
 import { useTimingStore } from '../../store/useTimingStore';
@@ -9,6 +10,39 @@ export type ReminderTimingAction =
   | { kind: 'start'; type: TimingType }
   | { kind: 'end' }
   | null;
+
+const CONFIRM_DEDUPE_WINDOW_MS = 10_000;
+const recentConfirmationClaims = new Map<string, number>();
+
+function getConfirmationClaimKey(
+  reminderType: ReminderType,
+  userId?: string | null,
+): string {
+  return `${toLocalDateStr(new Date())}:${userId ?? 'guest'}:${reminderType}`;
+}
+
+function claimReminderConfirmation(
+  reminderType: ReminderType,
+  userId?: string | null,
+): boolean {
+  const now = Date.now();
+  const key = getConfirmationClaimKey(reminderType, userId);
+  const previousClaim = recentConfirmationClaims.get(key);
+  if (previousClaim !== undefined && now - previousClaim < CONFIRM_DEDUPE_WINDOW_MS) {
+    return false;
+  }
+  recentConfirmationClaims.set(key, now);
+  return true;
+}
+
+export function rearmReminderConfirmationGuards(
+  reminderTypes: ReminderType[],
+  userId?: string | null,
+): void {
+  reminderTypes.forEach((type) => {
+    recentConfirmationClaims.delete(getConfirmationClaimKey(type, userId));
+  });
+}
 
 export function getTimingAction(reminderType: ReminderType): ReminderTimingAction {
   switch (reminderType) {
@@ -64,6 +98,7 @@ export async function confirmReminderActivity(
   reminderType: ReminderType,
   userId?: string | null,
 ): Promise<void> {
+  if (!claimReminderConfirmation(reminderType, userId)) return;
   const reminderStore = useReminderStore.getState();
   if (reminderStore.shouldSkipReminder(reminderType)) return;
   reminderStore.markConfirmed(reminderType);

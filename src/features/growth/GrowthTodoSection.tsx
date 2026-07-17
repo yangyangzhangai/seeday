@@ -18,6 +18,7 @@ import { GrowthTodoCard } from './GrowthTodoCard';
 
 const LONG_PRESS_MS = 220;
 const PRE_ACTIVATION_MOVE_TOLERANCE_PX = 30;
+const COMPLETION_HOLD_MS = 700;
 
 interface Props {
   onFocus: (todo: GrowthTodo) => void;
@@ -65,7 +66,9 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [completionHoldOrder, setCompletionHoldOrder] = useState<string[] | null>(null);
   const dragOrderRef = useRef<string[] | null>(null);
+  const completionHoldTimerRef = useRef<number | null>(null);
   const justDraggedRef = useRef(false);
   const justDraggedTimerRef = useRef<number | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -123,6 +126,14 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
   const handleToggle = async (id: string) => {
     const todo = todos.find((t) => t.id === id);
     const wasCompleted = todo?.completed ?? true;
+    if (todo && !wasCompleted) {
+      setCompletionHoldOrder(orderedVisible.map((item) => item.id));
+      if (completionHoldTimerRef.current) window.clearTimeout(completionHoldTimerRef.current);
+      completionHoldTimerRef.current = window.setTimeout(() => {
+        setCompletionHoldOrder(null);
+        completionHoldTimerRef.current = null;
+      }, COMPLETION_HOLD_MS);
+    }
     toggleTodo(id);
     if (todo && wasCompleted) {
       const reward = consumeBottleStarRewardByTodo(todo.id);
@@ -248,7 +259,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
     });
 
   const visibleMap = new Map(visible.map((todo) => [todo.id, todo]));
-  const orderedVisible = (dragOrder ?? visible.map((todo) => todo.id))
+  const orderedVisible = (dragOrder ?? completionHoldOrder ?? visible.map((todo) => todo.id))
     .map((id) => visibleMap.get(id))
     .filter((todo): todo is GrowthTodo => Boolean(todo));
 
@@ -382,6 +393,10 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
 
   useEffect(() => () => {
     clearDragTimer();
+    if (completionHoldTimerRef.current) {
+      window.clearTimeout(completionHoldTimerRef.current);
+      completionHoldTimerRef.current = null;
+    }
     if (justDraggedTimerRef.current) {
       window.clearTimeout(justDraggedTimerRef.current);
       justDraggedTimerRef.current = null;
@@ -428,7 +443,7 @@ export const GrowthTodoSection = ({ onFocus, onSequentialFocus, highlightTodoId 
       </div>
 
       {visible.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-[10px]">
           {orderedVisible.map((todo) => (
             <div
               key={todo.id}

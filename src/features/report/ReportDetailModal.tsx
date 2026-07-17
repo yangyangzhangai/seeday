@@ -234,21 +234,6 @@ function WaveDivider() {
   );
 }
 
-function PageSwipeHint({ direction, onClick }: { direction: 'left' | 'right'; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`absolute top-1/2 z-10 flex h-12 w-10 items-center justify-center border-0 bg-transparent p-0 text-[#1A1A1A] opacity-[0.35] ${direction === 'right' ? 'right-0' : 'left-0'}`}
-      onClick={onClick}
-      style={{ transform: 'translateY(-50%)' }}
-    >
-      <span aria-hidden="true" className="text-[32px] font-normal leading-none">
-        {direction === 'right' ? '›' : '‹'}
-      </span>
-    </button>
-  );
-}
-
 function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 8px 1fr' }}>
@@ -714,8 +699,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               onClose={onClose}
               onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
             />
-            <PageSwipeHint direction="right" onClick={() => scrollToPage(1)} />
-
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -794,8 +777,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               onClose={onClose}
               onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
             />
-            <PageSwipeHint direction="left" onClick={() => scrollToPage(0)} />
-
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <div style={{ flex: 2, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

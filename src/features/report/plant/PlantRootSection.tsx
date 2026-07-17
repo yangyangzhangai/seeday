@@ -379,8 +379,11 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     /* Keep root visualization full-size; diary area is reachable by scrolling down. */
     <div ref={scrollContainerRef} className="app-scroll-container h-full relative">
 
-      {/* ── Large canvas area; diary sits right below with a small gap ── */}
-      <div className="relative h-[max(460px,62vh)] overflow-hidden">
+      {/* Reserve first-view space for the plant action and My Diary heading. */}
+      <div
+        className="relative overflow-hidden"
+        style={{ height: 'clamp(300px, calc(100% - 136px), 520px)' }}
+      >
         {/* Soil + roots: pushed down so eco-sphere bubbles (130px) are fully above soil */}
         <div className="absolute inset-x-4 bottom-0 top-[130px]">
           <SoilCanvas

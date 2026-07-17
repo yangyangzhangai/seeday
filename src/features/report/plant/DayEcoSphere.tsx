@@ -15,6 +15,8 @@ import {
 import { getMoodDisplayLabel } from '../../../lib/moodOptions';
 import { useBubbleMotionController } from './useBubbleMotionController';
 
+const ECO_CHART_SIZE = 150;
+
 // ── helpers ──
 function normalizeChartPercents(items: DataItem[]): DataItem[] {
   const sum = items.reduce((s, d) => s + d.value, 0);
@@ -59,10 +61,10 @@ function FloatingChart({ data, chartId, labelColor, isEmpty }: FloatingChartProp
           maxIndex={maxIndex}
           chartId={chartId}
           labelColor={labelColor}
-          size={100}
-          innerRadius={18}
-          outerRadius={38}
-          fontSize={7}
+          size={ECO_CHART_SIZE}
+          innerRadius={27}
+          outerRadius={57}
+          fontSize={10.5}
         />
       )}
     </div>

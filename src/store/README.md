@@ -103,7 +103,8 @@
 - 非 domain key 第二批已接入：植物图片 URL 缓存（`PlantImage`）与 idle nudge 调度时间戳（`localNotificationService`）现按 user scope 分桶，避免切号后读取到其他账号本地痕迹。
 - `reminderScheduler` 的 `freeDay_<date>` 缓存已定稿为 user-scoped，并与 `localNotificationService` 一起统一复用 `storageScope.getScopedClientStorageKey()`，避免分散实现导致的命名漂移。
 - 提醒确认链路现统一复用 `src/services/reminder/reminderActivityActions.ts`：系统通知确认、前台弹窗确认、弹窗内手动输入、QuickActivityPicker 补录都会同步执行 timing + chat 记录，冷启动补确认也会回放活动卡写入，不再只切 reminder timing session。
-- 作息通知确认现具备双层防重：原生通知 action/received listener 在 App 生命周期内只注册一次，同一用户当日同一提醒类型在异步 timing/chat 写入前同步标记确认；冷启动加载会把历史遗留的多条 active chat/timing 记录收敛为仅最新一条继续计时。
+- 作息通知确认现具备双层防重：原生通知 action/received listener 在 App 生命周期内只注册一次，同一用户当日同一提醒类型在异步 timing/chat 写入前同步标记确认，并通过进程内短时 claim 防止冷启动水合覆盖确认态后重复处理同一回调；冷启动加载会把历史遗留的多条 active chat/timing 记录收敛为仅最新一条继续计时。
+- `useReminderStore.rearmReminders(types)` 只会清除用户实际改动时间的作息类型当日确认态，未改时间的提醒继续保持已确认状态。
 - `reminderScheduler` 额外补齐 legacy 迁移：v2 开启时若命中旧 `freeDay_<date>` 全局 key，会自动迁移到 scoped key 并清理旧 key；`todoStoreHelpers` 也已将 `todo-storage` 明确标注为 legacy 迁移键常量。
 - `DATA_STORAGE_P2` Phase 5 启动：新增 `authLocalMigrationPolicy` 统一 owner 判定策略；v2 下仅 owner 可信（`anonymous` / `user(current)`）时自动执行 legacy `seeday:v1:*` 迁移，`unknown-owner` 进入安全模式并阻断自动上云。
 

@@ -15,7 +15,7 @@
 - After the plant card appears, its diary CTA opens today's report detail directly on the diary page and reuses the same generate/view path as the report page
 - After AI diary text finishes generating from that CTA, the detail view waits 2 seconds on the diary page and then auto-slides back to page 1 (activity/mood/todo/habit overview)
 - Bottom-nav report entry now deep-links to today's diary detail page 1 once today's AI diary already exists; otherwise it still lands on the plant/root surface
-- Diary detail pages show a two-dot page indicator below the date divider. The first page uses a right-edge `›` and the second a left-edge `‹`; both are 32px, 40%-opacity white, and have no visible button surface. The first page gives one short leftward motion hint on entry, while top navigation remains reserved for back/close and adjacent-date navigation.
+- Diary detail pages show a two-dot page indicator below the date divider and keep horizontal swipe navigation between the two pages. The former middle-edge `‹ / ›` controls are removed; the first page still gives one short leftward motion hint on entry, while top navigation remains reserved for back/close and adjacent-date navigation.
 - Report calendar today/future cells remain disabled but retain the calendar's transparent date-button surface instead of the library's default gray disabled background.
 - Plant artwork fallback order: `plantId` exact -> same `rootType+stage` default -> `rootType_early_0001` -> `sha_early_0001`
   - Special-scenario reveal copy for air-day (AND rule) and entertainment-dominant days
@@ -29,7 +29,9 @@
   - Free-tier diary teaser blur-lock + upgrade CTA (`/upgrade`) in observation area
   - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
   - Root-section "My Diary" textarea edits directly on focus and persists on blur/autosave (iOS WebView keyboard-safe path)
-  - Root canvas keeps its original `360 x 520` proportions across screen widths, anchors the root origin to the soil surface, and uses the same 16px horizontal gutter as the page title.
+- Root canvas keeps its original `360 x 520` proportions across screen widths, anchors the root origin to the soil surface, and uses the same 16px horizontal gutter as the page title.
+- The two floating activity and mood donut charts above the soil render at `150px`, preserving their existing colors, ring proportions, labels, and motion behavior.
+- The root-page canvas height follows the Report content area's available height with `300px`/`520px` bounds, reserving `136px` of first-view space for the Generate Plant action, My Diary heading, and the complete first placeholder line across iPhone safe-area variants.
 
 ## Upstream Dependencies
 

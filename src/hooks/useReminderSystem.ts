@@ -24,7 +24,10 @@ import { getReminderCopy } from '../services/reminder/reminderCopy';
 import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../store/storageScope';
-import { confirmReminderActivity } from '../services/reminder/reminderActivityActions';
+import {
+  confirmReminderActivity,
+  rearmReminderConfirmationGuards,
+} from '../services/reminder/reminderActivityActions';
 
 // ─────────────────────────────────────────────
 // 工具：判断植物/日记今日是否已生成
@@ -119,6 +122,22 @@ function buildFrontendCheckSchedule(manual: UserProfileManualV2): ScheduleEntry[
   return entries.sort((a, b) => a.triggerTime.getTime() - b.triggerTime.getTime());
 }
 
+function getChangedReminderTypes(
+  previous: ScheduleEntry[],
+  next: ScheduleEntry[],
+): ReminderType[] {
+  const previousTimes = new Map(
+    previous.map((entry) => [entry.type, entry.triggerTime.getTime()]),
+  );
+  return next
+    .filter((entry) => previousTimes.get(entry.type) !== entry.triggerTime.getTime())
+    .map((entry) => entry.type);
+}
+
+function getPopupDedupeKey(entry: ScheduleEntry): string {
+  return `${entry.type}:${entry.triggerTime.getTime()}`;
+}
+
 interface UseReminderSystemResult {
   confirmReminderFromPopup: (type: ReminderType) => void;
 }
@@ -137,9 +156,31 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   const todayPlant = usePlantStore((s) => s.todayPlant);
   const reports = useReportStore((s) => s.reports);
   const shownPopupKeysRef = useRef<Set<string>>(new Set());
+  const previousFrontendScheduleRef = useRef<{
+    userId: string;
+    entries: ScheduleEntry[];
+  } | null>(null);
 
   // Keep navigateRef current so the stable listener closure can always call latest navigate
   useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
+  useEffect(() => {
+    if (!user?.id || !userProfileV2) {
+      previousFrontendScheduleRef.current = null;
+      return;
+    }
+    const nextEntries = buildFrontendCheckSchedule(
+      (userProfileV2.manual ?? {}) as UserProfileManualV2,
+    );
+    const previous = previousFrontendScheduleRef.current;
+    previousFrontendScheduleRef.current = { userId: user.id, entries: nextEntries };
+    if (!previous || previous.userId !== user.id) return;
+
+    const changedTypes = getChangedReminderTypes(previous.entries, nextEntries);
+    if (changedTypes.length === 0) return;
+    useReminderStore.getState().rearmReminders(changedTypes);
+    rearmReminderConfirmationGuards(changedTypes, user.id);
+  }, [user?.id, userProfileV2]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const scheduleTodayNativeReminders = useCallback(() => {
@@ -254,7 +295,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         for (const entry of foregroundSchedule) {
           const diff = foregroundNow - entry.triggerTime.getTime();
           if (diff >= 0 && diff <= FOREGROUND_GRACE_MS) {
-            const dedupeKey = `${foregroundDateKey}:${entry.type}`;
+            const dedupeKey = `${foregroundDateKey}:${getPopupDedupeKey(entry)}`;
             if (!shownPopupKeysRef.current.has(dedupeKey) && !reminderState.shouldSkipReminder(entry.type)) {
               shownPopupKeysRef.current.add(dedupeKey);
               reminderState.showPopup(entry.type);
@@ -294,12 +335,12 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
     const POPUP_GRACE_MS = 90 * 1000;
     const todayDateKey = new Date().toISOString().slice(0, 10);
 
-    const triggerPopupOnce = (type: ReminderType) => {
-      const dedupeKey = `${todayDateKey}:${type}`;
+    const triggerPopupOnce = (entry: ScheduleEntry) => {
+      const dedupeKey = `${todayDateKey}:${getPopupDedupeKey(entry)}`;
       if (shownPopupKeysRef.current.has(dedupeKey)) return;
-      if (shouldSkipReminder(type)) return;
+      if (shouldSkipReminder(entry.type)) return;
       shownPopupKeysRef.current.add(dedupeKey);
-      showPopup(type);
+      showPopup(entry.type);
     };
 
     for (const entry of schedule) {
@@ -315,7 +356,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
           continue;
         }
         if (Math.abs(delay) <= POPUP_GRACE_MS) {
-          triggerPopupOnce(entry.type);
+          triggerPopupOnce(entry);
         }
         continue;
       }
@@ -329,7 +370,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         ) {
           return;
         }
-        triggerPopupOnce(entry.type);
+        triggerPopupOnce(entry);
       }, delay);
 
       timersRef.current.push(timer);

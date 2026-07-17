@@ -195,7 +195,7 @@ function decodeJwtPayload<T = Record<string, unknown>>(token: string): T | null 
   }
 }
 
-function buildAppleApiToken(bundleId: string): string {
+export function buildAppleApiToken(bundleId: string): string {
   const issuerId = getEnv('APPLE_IAP_ISSUER_ID');
   const keyId = getEnv('APPLE_IAP_KEY_ID');
   const privateKeyRaw = getEnv('APPLE_IAP_PRIVATE_KEY').replace(/\\n/g, '\n');
@@ -222,7 +222,7 @@ function buildAppleApiToken(bundleId: string): string {
   const signer = createSign('SHA256');
   signer.update(unsigned);
   signer.end();
-  const signature = signer.sign(key);
+  const signature = signer.sign({ key, dsaEncoding: 'ieee-p1363' });
   return `${unsigned}.${base64UrlEncode(signature)}`;
 }
 

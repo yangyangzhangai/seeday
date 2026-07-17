@@ -63,12 +63,17 @@ vi.mock('../../store/useTimingStore', () => ({
   },
 }));
 
-import { confirmReminderActivity, submitReminderManualActivity } from './reminderActivityActions';
+import {
+  confirmReminderActivity,
+  rearmReminderConfirmationGuards,
+  submitReminderManualActivity,
+} from './reminderActivityActions';
 
 describe('reminderActivityActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     reminderState.confirmed = false;
+    rearmReminderConfirmationGuards(['work_start', 'work_end'], 'user-1');
   });
 
   it('marks confirmed, starts timing, and writes the mapped activity for reminder confirmation', async () => {
@@ -89,6 +94,15 @@ describe('reminderActivityActions', () => {
     ]);
 
     expect(markConfirmedMock).toHaveBeenCalledTimes(1);
+    expect(timingStartMock).toHaveBeenCalledTimes(1);
+    expect(sendAutoRecognizedInputMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks a repeated callback when persisted reminder state resets mid-flight', async () => {
+    await confirmReminderActivity('work_start', 'user-1');
+    reminderState.confirmed = false;
+    await confirmReminderActivity('work_start', 'user-1');
+
     expect(timingStartMock).toHaveBeenCalledTimes(1);
     expect(sendAutoRecognizedInputMock).toHaveBeenCalledTimes(1);
   });

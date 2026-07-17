@@ -35,6 +35,7 @@ interface ReminderState {
   showPickerForDeny: (activityType?: string, reminderType?: ReminderType) => void;
   hidePicker: () => void;
   resetForNewDay: () => void;
+  rearmReminders: (types: ReminderType[]) => void;
 }
 
 interface ReminderPersistedState {
@@ -143,6 +144,22 @@ export const useReminderStore = create<ReminderState>()(
 
       resetForNewDay: () => {
         set(buildFreshDayState());
+      },
+
+      rearmReminders: (types) => {
+        const state = get();
+        const today = getTodayDateStr();
+        const nextConfirmed = state.confirmedDate === today
+          ? new Set(state.confirmedToday)
+          : new Set<ReminderType>();
+        types.forEach((type) => nextConfirmed.delete(type));
+        set({
+          confirmedToday: nextConfirmed,
+          confirmedDate: today,
+          activePopupType: state.activePopupType && types.includes(state.activePopupType)
+            ? null
+            : state.activePopupType,
+        });
       },
     }),
     {

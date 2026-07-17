@@ -1,7 +1,7 @@
 # Seeday 会员制度现行规格（As-Is）
 
 > DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/profile/README.md
-> 最后更新：2026-04-22
+> 最后更新：2026-07-17
 > 适用范围：当前主干（Web + Capacitor iOS）
 > 文档定位：本文件为会员制度单一事实源（SSOT），以当前代码实现为准，不描述未落地愿景。
 
@@ -106,6 +106,8 @@
 
 - `iap`: `activate/restore/cancel`
 - `stripe`: `stripe_checkout/stripe_finalize/cancel`
+
+Apple App Store Server API 校验使用 ES256 JWT，并按 JWS 规范输出 IEEE-P1363 编码的 64 字节签名；签名格式由 `api/subscription.test.ts` 覆盖。
 
 并统一写回 `auth.users.user_metadata`：
 
