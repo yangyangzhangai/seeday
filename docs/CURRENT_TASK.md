@@ -1,10 +1,11 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-16
+Last Updated: 2026-07-17
 Owner: current working session
 
 Session Notes:
 
+- 2026-07-17: Fixed duplicate activity timers after routine-notification confirmation: native notification listeners now register once and always use the latest handlers, same-day reminder confirmation is idempotent before timing/chat writes, reminder-generated activity records no longer immediately end their newly started timing session, and cold-start hydration reconciles legacy duplicate active chat cards/timing sessions by keeping only the newest active record.
 - 2026-07-16: Ordinary record-input classification is now strict three-way (`new_activity / standalone_mood / mood_about_last_activity`): the legacy mixed local type and write branch were removed, Magic Pen keeps its four AI segment kinds but routes mixed activity+mood evidence to AI before the short-text fast path, and the MIT-licensed `compromise` adapter adds English phrasal-verb evidence so `get up` variants classify as activities. Product/current-state/lexicon/Magic Pen docs and the global document map were synchronized.
 - 2026-07-16: Fixed Growth todo delete resurrection for cloud-missed deletes: `useTodoStore.deleteTodo()` now treats 0-row soft-delete responses as failures, queues durable `todo.delete` outbox retries when immediate cloud delete cannot be confirmed, and `fetchTodos()` now flushes outbox before reading cloud todos so one-time tasks deleted offline or during auth/network races no longer reappear on the next login.
 - 2026-07-15: 修复 Report 日历中今天/未来禁用日期连成白色块的问题：仅在 `report-calendar-frost` 内覆盖 `react-calendar` 的默认禁用底色，使日期按钮恢复透明外观；日期禁用逻辑、选中态和全局玻璃按钮 base 均保持不变。

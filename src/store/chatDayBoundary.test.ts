@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Message } from './useChatStore.types';
 import {
   finalizeCrossDayOngoingMessages,
+  reconcileConcurrentOngoingMessages,
   resolveAutoActivityDurationMinutes,
 } from './chatDayBoundary';
 
@@ -59,5 +60,29 @@ describe('chatDayBoundary', () => {
     expect(result.messages.find((m) => m.id === 'event-yesterday-ongoing')?.isActive).toBe(false);
     expect(result.messages.find((m) => m.id === 'event-today-ongoing')?.duration).toBeUndefined();
     expect(result.messages.find((m) => m.id === 'event-yesterday-ended')?.duration).toBe(5);
+  });
+
+  it('keeps only the newest card active after duplicated reminder callbacks', () => {
+    const base = new Date(2026, 3, 3, 8, 0, 0, 0).getTime();
+    const messages: Message[] = [0, 2, 4].map((offsetMinutes, index) => ({
+      id: `active-${index + 1}`,
+      content: `Activity ${index + 1}`,
+      timestamp: base + offsetMinutes * 60_000,
+      type: 'text',
+      mode: 'record',
+      isMood: false,
+      isActive: true,
+    }));
+
+    const result = reconcileConcurrentOngoingMessages(messages);
+
+    expect(result.finalized).toEqual([
+      { id: 'active-1', duration: 4 },
+      { id: 'active-2', duration: 2 },
+    ]);
+    const activeMessages = result.messages.filter((message) => message.isActive);
+    expect(activeMessages).toHaveLength(1);
+    expect(activeMessages[0].id).toBe('active-3');
+    expect(activeMessages[0].duration).toBeUndefined();
   });
 });

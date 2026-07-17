@@ -40,6 +40,15 @@ export interface YesterdaySummary {
   isYesterday: boolean;
 }
 
+export interface SendMessageOptions {
+  skipMoodDetection?: boolean;
+  skipAnnotation?: boolean;
+  skipTimingEnd?: boolean;
+  activityTypeOverride?: ActivityRecordType;
+  annotationEventType?: AnnotationEventType;
+  annotationEventData?: AnnotationEvent['data'];
+}
+
 export interface ChatState {
   messages: Message[];
   pendingManualEnds: Record<string, number>;
@@ -64,16 +73,13 @@ export interface ChatState {
   sendMessage: (
     content: string,
     customTimestamp?: number,
-    options?: {
-      skipMoodDetection?: boolean;
-      skipAnnotation?: boolean;
-      activityTypeOverride?: ActivityRecordType;
-      annotationEventType?: AnnotationEventType;
-      annotationEventData?: AnnotationEvent['data'];
-    }
+    options?: SendMessageOptions,
   ) => Promise<string | null>;
   sendMood: (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
-  sendAutoRecognizedInput: (content: string) => Promise<LiveInputClassification | null>;
+  sendAutoRecognizedInput: (
+    content: string,
+    options?: Pick<SendMessageOptions, 'skipTimingEnd'>,
+  ) => Promise<LiveInputClassification | null>;
   reclassifyRecentInput: (messageId: string, nextKind: 'activity' | 'mood') => Promise<void>;
   insertActivity: (prevId: string | null, nextId: string | null, content: string, startTime: number, endTime: number) => Promise<void>;
   updateActivity: (

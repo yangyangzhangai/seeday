@@ -46,3 +46,39 @@ export function finalizeCrossDayOngoingMessages(
 
   return { messages: nextMessages, finalized };
 }
+
+/** Keep only the newest active card when duplicated notification callbacks created several. */
+export function reconcileConcurrentOngoingMessages(
+  messages: Message[],
+): {
+  messages: Message[];
+  finalized: Array<{ id: string; duration: number }>;
+} {
+  const activeIndexes = messages
+    .map((message, index) => ({ message, index }))
+    .filter(({ message }) => (
+      !message.isMood
+      && message.mode === 'record'
+      && message.isActive === true
+      && message.duration == null
+    ))
+    .sort((left, right) => (
+      left.message.timestamp - right.message.timestamp || left.index - right.index
+    ));
+
+  if (activeIndexes.length <= 1) {
+    return { messages, finalized: [] };
+  }
+
+  const newest = activeIndexes[activeIndexes.length - 1];
+  const olderIds = new Set(activeIndexes.slice(0, -1).map(({ message }) => message.id));
+  const finalized: Array<{ id: string; duration: number }> = [];
+  const nextMessages = messages.map((message) => {
+    if (!olderIds.has(message.id)) return message;
+    const duration = resolveAutoActivityDurationMinutes(message.timestamp, newest.message.timestamp);
+    finalized.push({ id: message.id, duration });
+    return { ...message, duration, isActive: false };
+  });
+
+  return { messages: nextMessages, finalized };
+}

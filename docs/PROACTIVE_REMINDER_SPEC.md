@@ -703,12 +703,15 @@ interface TimingSession {
 
 - 存储：Supabase 新表 `timing_sessions` 或复用 `messages` 表 + 特殊 `activity_type='timing'`
 - 同一时刻最多 1 个 active session（开启新 session 时自动结束旧的）
+- 原生通知 action/received listener 在单次 App 生命周期内只注册一次；同一提醒类型的当日确认在异步写入前完成幂等标记，重复回调不得重复创建 activity/timing。
+- 冷启动若检测到历史遗留的多条 active session，以开始时间最新的一条为当前 session，并将更早记录结束在最新 session 的开始时间。
 
 #### 4.6.2 结束条件（优先级从高到低）
 
 1. **用户主动输入任何内容 → 立即结束当前 active session**
    - 入口 1：ChatPage 输入框发送
    - 入口 2：**提醒弹窗内的快捷输入框发送**（两者业务等价，见 § 4.5.2）
+   - 例外：点击作息提醒“确认”后由系统自动写入的映射活动文案不是用户主动输入，不得立刻结束该提醒刚创建的 session
 2. 下一个提醒类型的 ✓ 确认（如午休开始 → 工作结束）
 3. `sleepTime` 触发 → 强制结束所有 active session
 4. 次日 00:00 → 自动切分（跨日场景）

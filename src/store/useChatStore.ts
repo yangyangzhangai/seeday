@@ -23,12 +23,17 @@ import { queueBackfillLegacyActivityTypes } from './chatStoreLegacy';
 import { useTimingStore } from './useTimingStore';
 import type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
 export type { ChatState, Message, MoodDescription, YesterdaySummary } from './useChatStore.types';
-import { finalizeCrossDayOngoingMessages, resolveAutoActivityDurationMinutes } from './chatDayBoundary';
+import {
+  finalizeCrossDayOngoingMessages,
+  reconcileConcurrentOngoingMessages,
+  resolveAutoActivityDurationMinutes,
+} from './chatDayBoundary';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import {
   applyReclassifyMoodSideEffects, buildRecentReclassifyResult, closePreviousActivityLocal,
   persistMessageToSupabase, persistReclassifiedMessages,
   sendAutoRecognizedInputFlow, triggerMoodDetection,
+  syncClosedActivityToCloud,
 } from './chatActions';
 import { useOutboxStore } from './useOutboxStore';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
@@ -79,8 +84,9 @@ export const useChatStore = create<ChatState>()(
             get().messages.filter((m) => !isLegacyChatActivityType(m.activityType)),
             nowMs,
           );
+          const { messages: reconciledMessages } = reconcileConcurrentOngoingMessages(finalizedMessages);
           set({
-            messages: finalizedMessages,
+            messages: reconciledMessages,
             currentDateStr: getLocalDateString(new Date(nowMs)),
             hasInitialized: true,
           });
@@ -181,7 +187,13 @@ export const useChatStore = create<ChatState>()(
             };
           }
 
-          const { mergedMessages } = mergeCloudMessagesWithLocal(messages, get().messages);
+          const merged = mergeCloudMessagesWithLocal(messages, get().messages).mergedMessages;
+          const reconciliation = reconcileConcurrentOngoingMessages(merged);
+          const mergedMessages = reconciliation.messages;
+          reconciliation.finalized.forEach(({ id, duration }) => {
+            const message = mergedMessages.find((item) => item.id === id);
+            if (message) void syncClosedActivityToCloud(message, duration);
+          });
 
           const prunedCache = pruneDateCache({ ...get().dateCache, [todayStr]: mergedMessages });
           set({
@@ -450,8 +462,10 @@ export const useChatStore = create<ChatState>()(
             return;
           }
           await persistMessageToSupabase(newMessage, session.user.id);
-          // 用户主动输入 → 结束当前 active 计时 session（§4.6.2）
-          void useTimingStore.getState().endActive(session.user.id);
+          // 普通用户输入会结束 active 计时；作息确认已显式管理计时，不重复结束。
+          if (!options?.skipTimingEnd) {
+            void useTimingStore.getState().endActive(session.user.id);
+          }
         })().catch((error) => {
           const userFacingError = formatUserFacingDiagnostic('消息保存到 Supabase', error, {
             path: 'messages.upsert',
@@ -541,13 +555,14 @@ export const useChatStore = create<ChatState>()(
         return newMessage.id;
       },
 
-      sendAutoRecognizedInput: async (content: string) => {
+      sendAutoRecognizedInput: async (content, options) => {
         const state = get();
         const result = await sendAutoRecognizedInputFlow(
           content,
           state.messages,
           get().sendMessage,
           get().sendMood,
+          options,
         );
         return result?.classification ?? null;
       },

@@ -15,6 +15,26 @@ const MAX_ERROR_ENTRIES = 20;
 let actionTypesRegistered = false;
 let actionTypesRegisterPromise: Promise<void> | null = null;
 
+interface NotificationActionHandlers {
+  onTap?: (reminderType: ReminderType) => void;
+  onConfirm?: (reminderType: ReminderType) => void;
+  onDeny?: (reminderType: ReminderType, activityType?: string) => void;
+  onViewReport?: () => void;
+  onGrowPlant?: () => void;
+  onOpenChat?: () => void;
+  onStillYes?: (reminderType: ReminderType, activityType?: string) => void;
+  onStillNo?: (reminderType: ReminderType, activityType?: string) => void;
+}
+
+interface NotificationReceivedHandlers {
+  onReceived?: (reminderType: ReminderType) => void;
+}
+
+let currentActionHandlers: NotificationActionHandlers = {};
+let currentReceivedHandlers: NotificationReceivedHandlers = {};
+let actionListenerSetupPromise: Promise<void> | null = null;
+let receivedListenerSetupPromise: Promise<void> | null = null;
+
 function tAction(key: string): string {
   const translated = i18n.t(key);
   return translated === key ? '' : translated;
@@ -339,22 +359,16 @@ export async function cancelIdleNudge(userId?: string): Promise<void> {
 }
 
 /** 注册通知动作回调（App 启动时执行一次） */
-export async function setupNotificationActionListener(handlers: {
-  onTap?: (reminderType: ReminderType) => void;
-  onConfirm?: (reminderType: ReminderType) => void;
-  onDeny?: (reminderType: ReminderType, activityType?: string) => void;
-  onViewReport?: () => void;
-  onGrowPlant?: () => void;
-  onOpenChat?: () => void;
-  onStillYes?: (reminderType: ReminderType, activityType?: string) => void;
-  onStillNo?: (reminderType: ReminderType, activityType?: string) => void;
-}): Promise<void> {
-  const pluginRef = await getPlugin();
-  if (!pluginRef) return;
-  const { plugin } = pluginRef;
+export async function setupNotificationActionListener(
+  handlers: NotificationActionHandlers,
+): Promise<void> {
+  currentActionHandlers = handlers;
+  if (actionListenerSetupPromise) return actionListenerSetupPromise;
 
-  try {
-    plugin.addListener('localNotificationActionPerformed', (event) => {
+  actionListenerSetupPromise = (async () => {
+    const pluginRef = await getPlugin();
+    if (!pluginRef) return;
+    await pluginRef.plugin.addListener('localNotificationActionPerformed', (event) => {
       const actionId = event.actionId;
       const extra = (event.notification.extra ?? {}) as {
         reminderType?: ReminderType;
@@ -362,38 +376,44 @@ export async function setupNotificationActionListener(handlers: {
         content?: string;
       };
       const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
+      const activeHandlers = currentActionHandlers;
 
-      if (actionId === 'tap') handlers.onTap?.(reminderType);
-      if (actionId === 'confirm') handlers.onConfirm?.(reminderType);
-      if (actionId === 'deny') handlers.onDeny?.(reminderType, extra.activityType);
-      if (actionId === 'view_report') handlers.onViewReport?.();
-      if (actionId === 'grow_plant') handlers.onGrowPlant?.();
-      if (actionId === 'open_chat') handlers.onOpenChat?.();
-      if (actionId === 'still_yes') handlers.onStillYes?.(reminderType, extra.activityType);
-      if (actionId === 'still_no') handlers.onStillNo?.(reminderType, extra.activityType);
+      if (actionId === 'tap') activeHandlers.onTap?.(reminderType);
+      if (actionId === 'confirm') activeHandlers.onConfirm?.(reminderType);
+      if (actionId === 'deny') activeHandlers.onDeny?.(reminderType, extra.activityType);
+      if (actionId === 'view_report') activeHandlers.onViewReport?.();
+      if (actionId === 'grow_plant') activeHandlers.onGrowPlant?.();
+      if (actionId === 'open_chat') activeHandlers.onOpenChat?.();
+      if (actionId === 'still_yes') activeHandlers.onStillYes?.(reminderType, extra.activityType);
+      if (actionId === 'still_no') activeHandlers.onStillNo?.(reminderType, extra.activityType);
     });
-  } catch {
-    // 静默失败
-  }
+  })().catch(() => {
+    actionListenerSetupPromise = null;
+  });
+
+  return actionListenerSetupPromise;
 }
 
 /** 注册通知到达回调（前台收到通知时触发） */
-export async function setupNotificationReceivedListener(handlers: {
-  onReceived?: (reminderType: ReminderType) => void;
-}): Promise<void> {
-  const pluginRef = await getPlugin();
-  if (!pluginRef) return;
-  const { plugin } = pluginRef;
+export async function setupNotificationReceivedListener(
+  handlers: NotificationReceivedHandlers,
+): Promise<void> {
+  currentReceivedHandlers = handlers;
+  if (receivedListenerSetupPromise) return receivedListenerSetupPromise;
 
-  try {
-    plugin.addListener('localNotificationReceived', (event) => {
+  receivedListenerSetupPromise = (async () => {
+    const pluginRef = await getPlugin();
+    if (!pluginRef) return;
+    await pluginRef.plugin.addListener('localNotificationReceived', (event) => {
       const extra = (event.extra ?? {}) as {
         reminderType?: ReminderType;
       };
       const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
-      handlers.onReceived?.(reminderType);
+      currentReceivedHandlers.onReceived?.(reminderType);
     });
-  } catch {
-    // 静默失败
-  }
+  })().catch(() => {
+    receivedListenerSetupPromise = null;
+  });
+
+  return receivedListenerSetupPromise;
 }

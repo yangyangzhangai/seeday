@@ -4,6 +4,23 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-17
+
+### Fix: Routine confirmation no longer creates multiple active timers
+
+- `src/services/notifications/localNotificationService.ts` and `src/services/reminder/reminderActivityActions.ts`: native notification listeners are now singleton registrations with replaceable current handlers, and same-day reminder confirmation is marked synchronously before async timing/chat work so duplicate callbacks cannot create duplicate records.
+- `src/store/useChatStore.ts`, `src/store/chatActions.ts`, and `src/store/useChatStore.types.ts`: reminder-generated activity records can preserve the timing session explicitly started by the reminder instead of immediately ending it through the normal manual-input rule.
+- `src/store/chatDayBoundary.ts`, `src/store/chatPersistenceHelpers.ts`, `src/services/timing/timingSessionService.ts`, and `src/store/useTimingStore.ts`: cold-start hydration now self-heals existing duplicate active cards and timing sessions, closing all stale records at the newest record's start time and keeping only the newest active.
+- Added regression coverage for singleton notification listeners, three concurrent confirmation callbacks, duplicate activity-card reconciliation, and duplicate timing-session reconciliation.
+
+Validation:
+
+- `npm run test:unit -- src/services/reminder/reminderActivityActions.test.ts src/services/notifications/localNotificationService.test.ts src/services/timing/timingSessionService.test.ts src/store/chatDayBoundary.test.ts src/store/chatActions.test.ts`
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Full `npm run test:unit` was attempted; unrelated existing failures remain in Magic Pen timezone/prompt snapshots, outbox/suggestion-flow tests, persistence ordering, and duplicate test discovery under `.claude/worktrees`.
+
 ## 2026-07-16
 
 ### Change: Ordinary activity/mood input is now strict three-way

@@ -5,7 +5,7 @@ import { toDbMessage } from '../lib/dbMappers';
 import { classifyRecordActivityType } from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useMoodStore } from './useMoodStore';
-import type { Message } from './useChatStore.types';
+import type { Message, SendMessageOptions } from './useChatStore.types';
 import { classifyLiveInput } from '../services/input/liveInputClassifier';
 import { getLiveInputContext } from '../services/input/liveInputContext';
 import type { LiveInputClassification } from '../services/input/types';
@@ -18,7 +18,7 @@ import { resolveAutoActivityDurationMinutes } from './chatDayBoundary';
 type SendMessageFn = (
   content: string,
   customTimestamp?: number,
-  options?: { skipMoodDetection?: boolean; activityTypeOverride?: import('../lib/activityType').ActivityRecordType },
+  options?: SendMessageOptions,
 ) => Promise<string | null>;
 
 type SendMoodFn = (content: string, options?: { relatedActivityId?: string }) => Promise<string | null>;
@@ -301,6 +301,7 @@ export async function dispatchAutoRecognizedInput(
   classification: LiveInputClassification,
   sendMessage: SendMessageFn,
   sendMood: SendMoodFn,
+  options?: Pick<SendMessageOptions, 'skipTimingEnd'>,
 ): Promise<string | null> {
   const trimmed = content.trim();
 
@@ -316,11 +317,12 @@ export async function dispatchAutoRecognizedInput(
     case 'new_activity':
       return sendMessage(trimmed, undefined, {
         skipMoodDetection: false,
+        ...options,
       });
     default:
       return classification.kind === 'mood'
         ? sendMood(trimmed)
-        : sendMessage(trimmed);
+        : sendMessage(trimmed, undefined, options);
   }
 }
 
@@ -330,6 +332,7 @@ export async function sendAutoRecognizedInputFlow(
   messages: Message[],
   sendMessage: SendMessageFn,
   sendMood: SendMoodFn,
+  options?: Pick<SendMessageOptions, 'skipTimingEnd'>,
 ): Promise<AutoRecognizedInputResult | null> {
   const classification = classifyAutoRecognizedInput(content, messages);
   if (!classification) {
@@ -338,7 +341,13 @@ export async function sendAutoRecognizedInputFlow(
 
   recordLiveInputClassification(classification);
 
-  const messageId = await dispatchAutoRecognizedInput(content, classification, sendMessage, sendMood);
+  const messageId = await dispatchAutoRecognizedInput(
+    content,
+    classification,
+    sendMessage,
+    sendMood,
+    options,
+  );
   emitLiveInputClassificationTelemetry(content, classification, messageId);
 
   return {

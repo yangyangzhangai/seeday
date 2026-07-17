@@ -10,8 +10,7 @@ import {
   TimingSource,
   startSession,
   endActiveSession,
-  fetchTodaySessions,
-  fetchActiveSession,
+  fetchReconciledTodaySessions,
 } from '../services/timing/timingSessionService';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
@@ -45,10 +44,7 @@ export const useTimingStore = create<TimingState>()(
       lastFetchedAt: null,
 
       loadToday: async (userId) => {
-        const [sessions, active] = await Promise.all([
-          fetchTodaySessions(userId),
-          fetchActiveSession(userId),
-        ]);
+        const { sessions, active } = await fetchReconciledTodaySessions(userId);
         set({ todaySessions: sessions, activeSession: active, lastFetchedAt: Date.now() });
       },
 

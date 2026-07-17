@@ -115,6 +115,33 @@ export async function fetchTodaySessions(userId: string): Promise<TimingSession[
   return (data as DbRow[]).map(rowToSession);
 }
 
+/** Close all but the newest active session left by duplicated notification callbacks. */
+export async function fetchReconciledTodaySessions(userId: string): Promise<{
+  sessions: TimingSession[];
+  active: TimingSession | null;
+}> {
+  const sessions = await fetchTodaySessions(userId);
+  const activeSessions = sessions
+    .filter((session) => session.endedAt == null)
+    .sort((left, right) => left.startedAt - right.startedAt);
+  const active = activeSessions[activeSessions.length - 1] ?? null;
+  if (activeSessions.length <= 1 || !active) return { sessions, active };
+
+  const staleIds = new Set(activeSessions.slice(0, -1).map((session) => session.id));
+  const endedAt = active.startedAt;
+  await supabase
+    .from('timing_sessions')
+    .update({ ended_at: new Date(endedAt).toISOString() })
+    .eq('user_id', userId)
+    .in('id', Array.from(staleIds))
+    .is('ended_at', null);
+
+  const reconciled = sessions.map((session) => (
+    staleIds.has(session.id) ? { ...session, endedAt } : session
+  ));
+  return { sessions: reconciled, active };
+}
+
 /** 获取当前 active session（ended_at 为 null） */
 export async function fetchActiveSession(userId: string): Promise<TimingSession | null> {
   const { data, error } = await supabase

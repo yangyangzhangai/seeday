@@ -1,5 +1,8 @@
 import { getLocalDateString } from './chatHelpers';
-import { finalizeCrossDayOngoingMessages } from './chatDayBoundary';
+import {
+  finalizeCrossDayOngoingMessages,
+  reconcileConcurrentOngoingMessages,
+} from './chatDayBoundary';
 import type { ChatState, Message } from './useChatStore.types';
 
 /** Keep only recent MAX_PERSISTED_DAYS cached entries. */
@@ -30,6 +33,7 @@ export function mergePersistedChatState(
     ? persisted.messages
     : [];
   const { messages: finalizedMessages } = finalizeCrossDayOngoingMessages(incomingMessages, nowMs);
+  const { messages: reconciledMessages } = reconcileConcurrentOngoingMessages(finalizedMessages);
 
   if (!sameDay) {
     merged.messages = [];
@@ -39,7 +43,14 @@ export function mergePersistedChatState(
     return merged;
   }
 
-  merged.messages = finalizedMessages;
+  merged.messages = reconciledMessages;
+  const cachedToday = merged.dateCache[todayStr];
+  if (Array.isArray(cachedToday)) {
+    merged.dateCache = {
+      ...merged.dateCache,
+      [todayStr]: reconcileConcurrentOngoingMessages(cachedToday).messages,
+    };
+  }
   merged.currentDateStr = persisted.currentDateStr ?? todayStr;
   merged.activeViewDateStr = persisted.activeViewDateStr ?? merged.currentDateStr;
   merged.hasInitialized = Boolean(persisted.hasInitialized);

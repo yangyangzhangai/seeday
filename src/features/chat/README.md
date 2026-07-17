@@ -56,6 +56,13 @@
 - Chat row correction wiring regression: `src/features/chat/chatPageActions.test.ts`
 - Magic Pen parser regression: `src/services/input/magicPenParser.test.ts`
 - Magic Pen commit orchestration regression: `src/store/magicPenActions.test.ts`
+- Reminder timer regression: `src/services/reminder/reminderActivityActions.test.ts`, `src/services/notifications/localNotificationService.test.ts`, `src/services/timing/timingSessionService.test.ts`, and `src/store/chatDayBoundary.test.ts`
+
+## Reminder Activity Timing
+
+- Routine-notification confirmation is idempotent per reminder type and local calendar day before asynchronous work begins.
+- Reminder-created activity records preserve the timing session explicitly started by the reminder; ordinary Chat input still ends the current timing session.
+- Persisted or cloud-loaded duplicate active activity cards are reconciled on cold start by keeping the newest card active and closing older cards at the newest start time.
 
 ## Shared Button Surface
 

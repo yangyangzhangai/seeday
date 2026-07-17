@@ -49,6 +49,24 @@ describe('sendAutoRecognizedInputFlow sentence-level regression', () => {
     expect(sendMood).not.toHaveBeenCalled();
   });
 
+  it('preserves reminder timing when dispatching its generated activity record', async () => {
+    const sendMessage = vi.fn(async () => 'msg-1');
+    const sendMood = vi.fn(async () => 'mood-1');
+
+    await sendAutoRecognizedInputFlow(
+      '开会',
+      [],
+      sendMessage,
+      sendMood,
+      { skipTimingEnd: true },
+    );
+
+    expect(sendMessage).toHaveBeenCalledWith('开会', undefined, {
+      skipMoodDetection: false,
+      skipTimingEnd: true,
+    });
+  });
+
   it('routes mixed evidence through the ordinary new_activity path', async () => {
     const sendMessage = vi.fn(async () => 'activity-1');
     const sendMood = vi.fn(async () => 'mood-1');

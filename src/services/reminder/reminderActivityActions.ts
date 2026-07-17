@@ -64,12 +64,16 @@ export async function confirmReminderActivity(
   reminderType: ReminderType,
   userId?: string | null,
 ): Promise<void> {
-  useReminderStore.getState().markConfirmed(reminderType);
+  const reminderStore = useReminderStore.getState();
+  if (reminderStore.shouldSkipReminder(reminderType)) return;
+  reminderStore.markConfirmed(reminderType);
   await applyReminderTimingAction(reminderType, userId);
 
   const activityText = getActivityTextForType(reminderType);
   if (activityText) {
-    await useChatStore.getState().sendAutoRecognizedInput(activityText);
+    await useChatStore.getState().sendAutoRecognizedInput(activityText, {
+      skipTimingEnd: true,
+    });
   }
 }
 
