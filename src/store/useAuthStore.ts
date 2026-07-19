@@ -39,6 +39,7 @@ import {
 import { resolveLocalDataMigrationDecision } from './authLocalMigrationPolicy';
 import {
   getPendingProfileWrite,
+  preserveProfileForSameUser,
   profileStateFromMeta,
 } from './authProfileHelpers';
 import type { UserProfileV2 } from '../types/userProfile';
@@ -192,9 +193,14 @@ function runSignedInBackgroundTasks(params: {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     if (!data?.user) return;
+    const currentState = get();
     const freshSnapshot = applyUserSnapshot(set, data.user, {
-      preservedAvatarUrl: get().user?.user_metadata?.avatar_url ?? null,
-      preservedProfile: get().userProfileV2,
+      preservedAvatarUrl: currentState.user?.user_metadata?.avatar_url ?? null,
+      preservedProfile: preserveProfileForSameUser({
+        previousUserId: currentState.user?.id,
+        currentUserId: data.user.id,
+        profile: currentState.userProfileV2,
+      }),
     });
     const cloudProfileState = await fetchCloudUserProfileState(data.user);
     const userWithCloudAvatar = applyCloudAvatarToUser(data.user, cloudProfileState.avatarUrl);
@@ -279,13 +285,18 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
   authStateListenerRegistered = true;
 
   supabase.auth.onAuthStateChange(async (event, session) => {
-    const previousUser = get().user;
+    const previousState = get();
+    const previousUser = previousState.user;
     const currentUser = session?.user || null;
     const snapshot = applyUserSnapshot(set, currentUser, {
       loading: false,
       initializationStage: null,
       preservedAvatarUrl: previousUser?.user_metadata?.avatar_url ?? null,
-      preservedProfile: get().userProfileV2,
+      preservedProfile: preserveProfileForSameUser({
+        previousUserId: previousUser?.id,
+        currentUserId: currentUser?.id,
+        profile: previousState.userProfileV2,
+      }),
     });
     if (currentUser) {
       queuePreferenceSnapshotIfNeeded(snapshot);
@@ -432,10 +443,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       setStage('open_local_app');
+      const previousState = get();
       localSnapshot = applyUserSnapshot(set, session?.user ?? null, {
         loading: false,
         initializationStage: null,
-        preservedProfile: get().userProfileV2,
+        preservedProfile: preserveProfileForSameUser({
+          previousUserId: previousState.user?.id,
+          currentUserId: session?.user?.id,
+          profile: previousState.userProfileV2,
+        }),
       });
 
       if (session?.user) {

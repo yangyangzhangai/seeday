@@ -8,6 +8,7 @@ import { Mail, ChevronRight, Lock, Loader2, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { callActivateTrialAPI } from '../../api/client';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useResendCodeCooldown } from '../auth/useResendCodeCooldown';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
 import { saveLocalOnboardingCompleted } from '../../store/authProfileHelpers';
@@ -77,6 +78,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const [resendLoading, setResendLoading] = React.useState(false);
   const [showPrivacy, setShowPrivacy] = React.useState(false);
   const [showTerms, setShowTerms] = React.useState(false);
+  const resendCooldown = useResendCodeCooldown();
 
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -94,15 +96,17 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
   const resetSignUpCodeState = () => {
     setVerificationCode('');
     setPendingSignUpEmail(null);
+    resendCooldown.reset();
   };
 
   const handleResend = async () => {
-    if (!pendingSignUpEmail) return;
+    if (!pendingSignUpEmail || resendCooldown.isCoolingDown) return;
     setResendLoading(true);
     setError(null);
     try {
       const { error: resendError } = await resendSignUpCode(pendingSignUpEmail);
       if (resendError) throw resendError;
+      resendCooldown.start();
     } catch (err: any) {
       setError(getErrorMessage(err.message || t('auth_error_generic')));
     } finally {
@@ -132,6 +136,7 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           const { error: err } = await signUp(emailToUse, password, nickname || undefined);
           if (err) throw err;
           setPendingSignUpEmail(emailToUse);
+          resendCooldown.start();
         }
       }
     } catch (err: any) {
@@ -278,11 +283,12 @@ const StepAuth: React.FC<{ onNext: () => void }> = ({ onNext }) => {
             <button
               type="button"
               onClick={() => { void handleResend(); }}
-              disabled={resendLoading}
+              disabled={resendLoading || resendCooldown.isCoolingDown}
               className="text-xs font-bold text-[#4a5d4c]/50 underline decoration-[#4a5d4c]/20 disabled:opacity-40"
             >
               {resendLoading ? <Loader2 size={12} className="mr-1 inline animate-spin" /> : null}
               {t('auth_resend_code')}
+              {resendCooldown.isCoolingDown ? ` (${resendCooldown.remainingSeconds}s)` : null}
             </button>
           </div>
         ) : null}

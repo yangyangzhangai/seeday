@@ -180,6 +180,16 @@ export function profileStateFromMeta(meta: Record<string, any>): {
   };
 }
 
+export function preserveProfileForSameUser(params: {
+  previousUserId?: string | null;
+  currentUserId?: string | null;
+  profile: UserProfileV2 | null | undefined;
+}): UserProfileV2 | null {
+  const { previousUserId, currentUserId, profile } = params;
+  if (!previousUserId || previousUserId !== currentUserId) return null;
+  return profile ?? null;
+}
+
 const PENDING_PROFILE_PREFIX = 'seeday_pending_profile_v2_';
 const LOCAL_ONBOARDING_FLAG_PREFIX = 'seeday_onboarded_';
 

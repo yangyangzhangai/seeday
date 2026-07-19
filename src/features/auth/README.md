@@ -20,6 +20,8 @@
 - Onboarding route: `/onboarding`
 - Trigger rule (in `src/App.tsx`): user is signed in, account age < 72h, and profile metadata is still missing
 - Signed-out users always enter `/auth`; onboarding is reserved for newly registered users that still need first-time setup
+- Session/profile refreshes preserve the in-memory profile only when the authenticated user ID is unchanged; switching accounts never inherits the previous account's onboarding profile
+- Email-code registration starts a 60-second resend cooldown after the initial code and after each successful resend; the main auth page and onboarding auth step share the same countdown behavior
 
 ## Upstream Dependencies
 

@@ -4,6 +4,20 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-19
+
+### Fix: Email verification resend is rate-limited in the UI
+
+- `src/features/auth/AuthPage.tsx` and onboarding `StepAuth` now share a 60-second resend cooldown after the initial signup code request and after each successful resend.
+- The resend control stays disabled during the cooldown and shows the remaining seconds beside the existing translated resend label; verification and error handling are unchanged.
+- `src/features/auth/useResendCodeCooldown.ts` owns the shared timer, with regression coverage for countdown rounding and expiry.
+
+### Fix: Auth initialization no longer retains another account's profile
+
+- `src/store/useAuthStore.ts` now preserves the current in-memory `userProfileV2` only when the previous and incoming authenticated user IDs match across initialization, auth-state events, and background user refreshes.
+- `src/store/authProfileHelpers.ts` centralizes the same-user check, with regression coverage proving same-account refreshes keep their fallback while account switches and first sign-ins drop the previous profile.
+- OAuth routing, new-user detection, onboarding steps, membership, and user-visible copy are unchanged.
+
 ## 2026-07-17
 
 ### Fix: Apple IAP purchases activate after StoreKit success

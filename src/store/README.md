@@ -92,6 +92,7 @@
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。
 - `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。
 - `useAuthStore` 的 onboarding 守卫现改为“完成证据优先”：优先保留 `userProfileV2.onboardingCompleted`、pending profile 与按 user scope 落地的本地完成标记，避免 token refresh / metadata patch / 前后台恢复时因瞬时 `null` 把新用户误送回 `/onboarding`。
+- `useAuthStore` 的 profile 刷新兜底按用户 ID 隔离：仅同一账号的 metadata/session 刷新可暂时保留内存中的 `userProfileV2`；初始化或认证事件切换到其他账号时必须丢弃旧 profile，避免继承上一账号的 onboarding 完成状态。
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。

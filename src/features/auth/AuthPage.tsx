@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { PrivacyPolicyPanel } from '../profile/components/PrivacyPolicyPanel';
 import { TermsPanel } from '../profile/components/TermsPanel';
+import { useResendCodeCooldown } from './useResendCodeCooldown';
 
 export const AuthPage: React.FC = () => {
   const authMascotSrc = '/assets/auth-login-mascot.png';
@@ -29,6 +30,7 @@ export const AuthPage: React.FC = () => {
   const [resendLoading, setResendLoading] = React.useState(false);
   const [showPrivacy, setShowPrivacy] = React.useState(false);
   const [showTerms, setShowTerms] = React.useState(false);
+  const resendCooldown = useResendCodeCooldown();
 
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
@@ -47,15 +49,17 @@ export const AuthPage: React.FC = () => {
   const resetSignUpCodeState = () => {
     setVerificationCode('');
     setPendingSignUpEmail(null);
+    resendCooldown.reset();
   };
 
   const handleResend = async () => {
-    if (!pendingSignUpEmail) return;
+    if (!pendingSignUpEmail || resendCooldown.isCoolingDown) return;
     setResendLoading(true);
     setError(null);
     try {
       const { error } = await resendSignUpCode(pendingSignUpEmail);
       if (error) throw error;
+      resendCooldown.start();
     } catch (err: any) {
       setError(getErrorMessage(err.message || t('auth_error_generic')));
     } finally {
@@ -87,6 +91,7 @@ export const AuthPage: React.FC = () => {
           const { error: signUpError } = await signUp(emailToUse, password, nickname || undefined);
           if (signUpError) throw signUpError;
           setPendingSignUpEmail(emailToUse);
+          resendCooldown.start();
         }
       }
     } catch (err: any) {
@@ -247,11 +252,12 @@ export const AuthPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { void handleResend(); }}
-                disabled={resendLoading}
+                disabled={resendLoading || resendCooldown.isCoolingDown}
                 className="text-xs font-bold text-[#4a5d4c]/50 underline decoration-[#4a5d4c]/20 disabled:opacity-40"
               >
                 {resendLoading ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
                 {t('auth_resend_code')}
+                {resendCooldown.isCoolingDown ? ` (${resendCooldown.remainingSeconds}s)` : null}
               </button>
             </div>
           ) : null}
