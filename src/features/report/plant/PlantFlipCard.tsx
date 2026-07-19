@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { DailyPlantRecord, PlantCategoryKey, RootSegment } from '../../../types/plant';
 import { renderRootSegments } from '../../../lib/rootRenderer';
 import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
+import { getPlantDisplayName } from '../../../lib/plantDisplayName';
 import { useChatStore } from '../../../store/useChatStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PlantImage } from './PlantImage';
@@ -43,7 +44,7 @@ interface PlantFlipCardProps {
 export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   plant, segments, directionOrder, onClose, onGenerateDiary, isGeneratingDiary = false, isDiaryButtonDisabled = false, diaryButtonHint = null,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const [selectedRootId, setSelectedRootId] = useState<string | null>(null);
   const frontExportRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,10 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   const renderedSegments = useMemo(() => renderRootSegments(segments), [segments]);
   const messages = useChatStore(state => state.messages);
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
+  const plantName = useMemo(
+    () => getPlantDisplayName(plant.plantId, i18n.resolvedLanguage ?? i18n.language),
+    [i18n.language, i18n.resolvedLanguage, plant.plantId],
+  );
 
   const messageMap = useMemo(() => {
     const map = new Map<string, { content: string; activityType?: string | null; timestamp: number }>();
@@ -290,6 +295,20 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
         </div>
         </div>
       </div>
+
+      {plantName ? (
+        <p
+          style={{
+            margin: '-6px 0 0',
+            color: 'rgba(92,75,55,0.68)',
+            fontSize: 11,
+            lineHeight: 1.4,
+            textAlign: 'center',
+          }}
+        >
+          {plantName}
+        </p>
+      ) : null}
 
       {/* ── Action buttons ── */}
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>

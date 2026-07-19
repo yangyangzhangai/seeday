@@ -13,6 +13,7 @@
 - Next-day first-open plant auto-backfill attempt for missing previous-day records (store-triggered)
 - Plant reveal chain after successful generation (`PlantRevealAnimation` + `PlantImage`)
 - After the plant card appears, its diary CTA opens today's report detail directly on the diary page and reuses the same generate/view path as the report page
+- Generated plant cards and Diary detail plant photos show the current plant's localized registry name beneath the artwork.
 - After AI diary text finishes generating from that CTA, the detail view waits 2 seconds on the diary page and then auto-slides back to page 1 (activity/mood/todo/habit overview)
 - Bottom-nav report entry now deep-links to today's diary detail page 1 once today's AI diary already exists; otherwise it still lands on the plant/root surface
 - Diary detail pages show a two-dot page indicator below the date divider and keep horizontal swipe navigation between the two pages. The former middle-edge `‹ / ›` controls are removed; the first page still gives one short leftward motion hint on entry, while top navigation remains reserved for back/close and adjacent-date navigation.

@@ -5,6 +5,7 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-19: Added the current plant's localized registry name as small text beneath the generated plant card and beneath the plant photo in Diary detail. The name is resolved from the existing ZH/EN/IT plant registry by `plantId`; plant generation, artwork, card actions, and diary content are unchanged.
 - 2026-07-19: Added a shared 60-second resend cooldown to both email signup verification screens. The initial successful code request and every successful resend restart the timer; while active, the resend control is disabled and displays the remaining seconds using the existing translated resend label.
 - 2026-07-19: Fixed cross-account auth profile retention during initialization and session refresh. `useAuthStore` now preserves an in-memory `userProfileV2` only when the previous and current authenticated user IDs match, so a newly selected account cannot inherit another account's `onboardingCompleted` state; same-account refresh fallback remains unchanged.
 - 2026-07-17: Fixed post-purchase IAP activation returning HTTP 400 after a successful StoreKit transaction. `/api/subscription` now emits the Apple App Store Server API ES256 JWT signature in the JWS-required IEEE-P1363 format instead of Node's default DER encoding; a regression test verifies the 64-byte signature and public-key validation. Native StoreKit purchase, product IDs, and membership UI are unchanged.

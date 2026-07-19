@@ -6,6 +6,12 @@ All notable effective changes are documented here.
 
 ## 2026-07-19
 
+### UI: Show localized plant names beneath plant artwork
+
+- Generated plant flip cards now show the current plant's localized registry name as a small line beneath the card.
+- Diary detail plant photos show the same localized name beneath the image, using the existing ZH/EN/IT plant registry and `plantId` as the shared source.
+- Plant generation, artwork resolution, card actions, and diary content are unchanged; `src/lib/plantDisplayName.ts` adds focused name-resolution coverage.
+
 ### Fix: Email verification resend is rate-limited in the UI
 
 - `src/features/auth/AuthPage.tsx` and onboarding `StepAuth` now share a 60-second resend cooldown after the initial signup code request and after each successful resend.

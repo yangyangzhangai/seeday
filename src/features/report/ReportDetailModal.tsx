@@ -14,6 +14,7 @@ import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
 import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
+import { getPlantDisplayName } from '../../lib/plantDisplayName';
 import { APP_GREEN_GLASS_BUTTON_STYLE } from '../../lib/modalTheme';
 import { computeDailyTodoStats, generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
 import { PlantImage } from './plant/PlantImage';
@@ -317,6 +318,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [i18n.language]);
 
   const copy = COPY[lang];
+  const dayPlantName = dayPlant ? getPlantDisplayName(dayPlant.plantId, lang) : '';
 
   const reportMessages = useMemo(
     () => getMessagesForReport(chatMessages, dateCache, selectedReport),
@@ -797,6 +799,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                               plantStage={dayPlant.plantStage}
                               imgClassName="w-full h-auto"
                             />
+                            {dayPlantName ? (
+                              <span
+                                style={{
+                                  display: 'block',
+                                  marginTop: 3,
+                                  color: 'rgba(26,26,26,0.58)',
+                                  fontSize: 10,
+                                  lineHeight: 1.35,
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {dayPlantName}
+                              </span>
+                            ) : null}
                           </button>
                         ) : (
                           <div style={{ width: '100%', height: 150 }} />
