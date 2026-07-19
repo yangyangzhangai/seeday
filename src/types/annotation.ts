@@ -14,7 +14,6 @@ export type AnnotationEventType =
   | 'activity_completed'   // 活动完成时
   | 'activity_recorded'    // 记录新活动时
   | 'mood_recorded'        // 记录心情时
-  | 'task_deleted'         // 删除待办时
   | 'idle_detected'        // 闲置检测（3小时无操作）
   | 'overwork_detected'    // 超时工作（超过3小时）
   | 'annotation_generated'; // 批注已生成（内部使用）

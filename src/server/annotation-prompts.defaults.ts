@@ -40,11 +40,6 @@ const DEFAULT_ANNOTATIONS_ZH: AnnotationMap = {
     tone: 'curious',
     fallbackEmoji: '💭',
   },
-  task_deleted: {
-    content: '删掉一件事，空气都轻了一点 🧹',
-    tone: 'playful',
-    fallbackEmoji: '🧹',
-  },
   overwork_detected: {
     content: '已经太久没歇气了，先把自己捞回来一点 🫖',
     tone: 'concerned',
@@ -68,11 +63,6 @@ const DEFAULT_ANNOTATIONS_EN: AnnotationMap = {
     tone: 'curious',
     fallbackEmoji: '💭',
   },
-  task_deleted: {
-    content: 'One less thing in the air now 🧹',
-    tone: 'playful',
-    fallbackEmoji: '🧹',
-  },
   overwork_detected: {
     content: 'That has been a long stretch. Come back to yourself a little 🫖',
     tone: 'concerned',
@@ -95,11 +85,6 @@ const DEFAULT_ANNOTATIONS_IT: AnnotationMap = {
     content: "L'onda emotiva e stata raccolta 💭",
     tone: 'curious',
     fallbackEmoji: '💭',
-  },
-  task_deleted: {
-    content: "Una cosa in meno nell'aria adesso 🧹",
-    tone: 'playful',
-    fallbackEmoji: '🧹',
   },
   overwork_detected: {
     content: 'Tirare cosi a lungo pesa. Torna un poco verso di te 🫖',

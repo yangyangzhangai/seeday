@@ -77,6 +77,17 @@ Validation:
 
 ## 2026-07-16
 
+### Change: Todo deletes no longer trigger AI annotation bubbles
+
+- `src/store/useTodoStore.ts`: removed the delete-path annotation dispatch, so deleting one-time or recurring todos now only updates local state and durable cloud-delete fallback.
+- `src/types/annotation.ts`, `src/store/annotationHelpers.ts`, and `src/server/annotation-prompts.defaults.ts`: pruned the obsolete `task_deleted` event type, its probability weights, and its default fallback annotation copy to fully remove the trigger condition.
+- `src/store/useTodoStore.test.ts` and `src/store/README.md`: added regression coverage and synced the store documentation to assert todo deletes no longer call `triggerAnnotation()`.
+
+Validation:
+
+- `npm run test:unit -- src/store/useTodoStore.test.ts`
+- `npx tsc --noEmit`
+
 ### Change: Ordinary activity/mood input is now strict three-way
 
 - `src/services/input/*` and `src/store/chatActions.ts`: removed the legacy mixed local classification and its dedicated write branch; every ordinary input now resolves to `new_activity`, `standalone_mood`, or `mood_about_last_activity`.

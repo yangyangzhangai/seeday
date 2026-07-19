@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const triggerAnnotationMock = vi.fn(async () => undefined);
+
 vi.mock('../lib/supabase-utils', () => ({
   getSupabaseSession: vi.fn(async () => null),
 }));
@@ -7,7 +9,7 @@ vi.mock('../lib/supabase-utils', () => ({
 vi.mock('./useAnnotationStore', () => ({
   useAnnotationStore: {
     getState: () => ({
-      triggerAnnotation: vi.fn(async () => undefined),
+      triggerAnnotation: triggerAnnotationMock,
     }),
   },
 }));
@@ -18,6 +20,7 @@ import { useTodoStore } from './useTodoStore';
 
 describe('useTodoStore delete durability', () => {
   beforeEach(() => {
+    triggerAnnotationMock.mockClear();
     setActiveStorageScope({ type: 'user', userId: 'user-1' });
     useOutboxStore.setState({ entries: [] });
     useTodoStore.setState({
@@ -50,5 +53,6 @@ describe('useTodoStore delete durability', () => {
     expect(entry.kind).toBe('todo.delete');
     if (entry.kind !== 'todo.delete') return;
     expect(entry.payload.todoId).toBe('todo-1');
+    expect(triggerAnnotationMock).not.toHaveBeenCalled();
   });
 });

@@ -11,11 +11,9 @@ import {
 import type { ActivityRecordType } from '../lib/activityType';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbTodo, toDbTodo, toDbTodoUpdates } from '../lib/dbMappers';
-import { useAnnotationStore } from './useAnnotationStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useAuthStore } from './useAuthStore';
 import { useOutboxStore } from './useOutboxStore';
-import type { AnnotationEvent } from '../types/annotation';
 import type { Recurrence, Todo, TodoPriority, TodoScope, TodoState } from './todoStoreTypes';
 export type { GrowthPriority, GrowthTodo, Priority, Recurrence, Todo, TodoPriority, TodoScope } from './todoStoreTypes';
 import { resolveCurrentLang, resolveLangForText } from './storeLangHelpers';
@@ -561,13 +559,6 @@ export const useTodoStore = create<TodoState>()(
           });
         }
 
-        const annotationStore = useAnnotationStore.getState();
-        const event: AnnotationEvent = {
-          type: 'task_deleted',
-          timestamp: Date.now(),
-          data: { content: todo.title },
-        };
-        annotationStore.triggerAnnotation(event).catch((error) => import.meta.env.DEV && console.error('[todo] annotation trigger failed', error));
       },
 
       addCategory: (category) =>

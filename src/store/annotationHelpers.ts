@@ -91,24 +91,6 @@ const EVENT_WEIGHTS: Record<string, EventWeight> = {
     ],
   },
   
-  task_deleted: {
-    base: 30,
-    max: 100,
-    bonuses: [
-      {
-        check: (e, events) => {
-          const recentDeletes = events.filter(ev => 
-            ev.type === 'task_deleted' && 
-            e.timestamp - ev.timestamp < 5 * 60 * 1000 // 5分钟内
-          );
-          return recentDeletes.length >= 2;
-        },
-        bonus: 20,
-        description: '连续删除多个任务',
-      },
-    ],
-  },
-  
   idle_detected: {
     base: 30,
     max: 100,
