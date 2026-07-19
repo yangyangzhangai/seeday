@@ -354,11 +354,20 @@ export function createChatTimelineActions(
 
   const updateMessageImage = async (id: string, slot: 'imageUrl' | 'imageUrl2', url: string | null) => {
     const dbCol = slot === 'imageUrl' ? 'image_url' : 'image_url_2';
-    set(state => ({
-      messages: state.messages.map(m =>
-        m.id === id ? { ...m, [slot]: url } : m,
-      ),
-    }));
+    set(state => {
+      const updateMessage = (message: Message): Message => (
+        message.id === id ? { ...message, [slot]: url } : message
+      );
+
+      return {
+        messages: state.messages.map(updateMessage),
+        dateCache: pruneDateCache(
+          Object.fromEntries(
+            Object.entries(state.dateCache).map(([dateStr, messages]) => [dateStr, messages.map(updateMessage)]),
+          ),
+        ),
+      };
+    });
     const session = await getSupabaseSession();
     if (session) {
       await supabase

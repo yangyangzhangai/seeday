@@ -62,6 +62,7 @@ UpgradePage
 - **AI personal memory**: Plus-only; `isPlus && longTermProfileEnabled` controls whether profile snapshot is injected into annotation/suggestion prompt chain and whether weekly extraction runs
 - **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)
 - **Weekly streak**: calculated from `user_login_days` plus activity fallback for older accounts
+- **Account lifecycle state**: onboarding progress/completion, normalized FREE/PLUS snapshot, and future deletion intent are being centralized in `user_account_state`; profile surfaces should continue to treat `user_profiles` as memory/routine storage, not as the source of truth for onboarding status
 - **Direction settings**: maps 5 `PlantCategoryKey` values (work_study, exercise, social, entertainment, life) to plant root positions; saved via `usePlantStore.setDirectionOrder()` with local-first restore, and emits telemetry for open/change/reset/save outcomes
 
 ## Downstream Impact

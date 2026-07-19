@@ -18,9 +18,10 @@
 ## Onboarding Gate
 
 - Onboarding route: `/onboarding`
-- Trigger rule (in `src/App.tsx`): user is signed in, account age < 72h, and profile metadata is still missing
+- Trigger rule (in `src/App.tsx`): user is signed in and `useAuthStore.accountState.onboardingStatus` is `required` or `in_progress`
 - Signed-out users always enter `/auth`; onboarding is reserved for newly registered users that still need first-time setup
 - Session/profile refreshes preserve the in-memory profile only when the authenticated user ID is unchanged; switching accounts never inherits the previous account's onboarding profile
+- Auth bootstrap now also ensures a `user_account_state` row exists for signed-in users; OAuth users therefore get the same onboarding gate as email signup instead of relying on `created_at` + profile fallback alone
 - Email-code registration starts a 60-second resend cooldown after the initial code and after each successful resend; the main auth page and onboarding auth step share the same countdown behavior
 
 ## Upstream Dependencies

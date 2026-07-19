@@ -185,14 +185,14 @@ export const MoodCard: React.FC<MoodCardProps> = ({
         <div style={{ display: 'flex', gap: 6, position: 'relative', zIndex: 1 }}>
           {hasImage1 && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <ImageUploader messageId={message.id} imageUrl={message.imageUrl}
+              <ImageUploader messageId={message.id} slot="imageUrl" imageUrl={message.imageUrl}
                 onUploaded={() => {}} onRemoved={() => handleImageRemoved('imageUrl')}
                 compact hideUploadWhen readonly={readonly} />
             </div>
           )}
           {hasImage2 && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <ImageUploader messageId={`${message.id}_2`} imageUrl={message.imageUrl2}
+              <ImageUploader messageId={message.id} slot="imageUrl2" imageUrl={message.imageUrl2}
                 onUploaded={() => {}} onRemoved={() => handleImageRemoved('imageUrl2')}
                 compact hideUploadWhen readonly={readonly} />
             </div>

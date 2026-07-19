@@ -285,11 +285,13 @@ export const EventCard: React.FC<EventCardProps> = ({
       {!readonly && (
         <>
           <ImageUploader ref={image1UploaderRef} messageId={message.id}
+            slot="imageUrl"
             imageUrl={message.imageUrl}
             onUploaded={url => handleImageUploaded('imageUrl', url)}
             onRemoved={() => handleImageRemoved('imageUrl')}
             compact hidden readonly={readonly} />
-          <ImageUploader ref={image2UploaderRef} messageId={`${message.id}_2`}
+          <ImageUploader ref={image2UploaderRef} messageId={message.id}
+            slot="imageUrl2"
             imageUrl={message.imageUrl2}
             onUploaded={url => handleImageUploaded('imageUrl2', url)}
             onRemoved={() => handleImageRemoved('imageUrl2')}
@@ -300,7 +302,8 @@ export const EventCard: React.FC<EventCardProps> = ({
         <div style={{ display: 'flex', gap: 6, marginBottom: 6, position: 'relative', zIndex: 1 }}>
           {visibleImageSlots.map(slot => (
             <div key={slot} style={{ flex: 1, minWidth: 0 }}>
-              <ImageUploader messageId={slot === 'imageUrl' ? message.id : `${message.id}_2`}
+              <ImageUploader messageId={message.id}
+                slot={slot}
                 imageUrl={slot === 'imageUrl' ? message.imageUrl : message.imageUrl2}
                 onUploaded={url => handleImageUploaded(slot, url)}
                 onRemoved={() => handleImageRemoved(slot)}

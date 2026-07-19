@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/auth/README.md
 import type { AiCompanionMode } from '../lib/aiCompanion';
+import type { UserAccountState } from '../types/userAccountState';
 import type { UserProfileV2 } from '../types/userProfile';
 import type { SupportedUiLanguage } from './authLanguageHelpers';
 
@@ -36,6 +37,7 @@ export interface AuthState {
   preferences: UserPreferences;
   longTermProfileEnabled: boolean;
   userProfileV2: UserProfileV2 | null;
+  accountState: UserAccountState | null;
   membershipPlan: MembershipPlan;
   membershipSource: MembershipSource;
   isPlus: boolean;
@@ -54,6 +56,9 @@ export interface AuthState {
   updateLongTermProfileEnabled: (enabled: boolean) => Promise<{ error: any }>;
   updateUserProfile: (
     updater: Partial<UserProfileV2> | ((prev: UserProfileV2 | null) => UserProfileV2),
+  ) => Promise<{ error: any }>;
+  updateAccountState: (
+    updater: Partial<UserAccountState> | ((prev: UserAccountState | null) => UserAccountState),
   ) => Promise<{ error: any }>;
   updatePreferences: (partial: Partial<UserPreferences>) => Promise<void>;
   updateLanguagePreference: (language: string) => Promise<{ error: any }>;

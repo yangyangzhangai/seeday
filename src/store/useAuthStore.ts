@@ -38,10 +38,23 @@ import {
 } from './authLocalOwnerHelpers';
 import { resolveLocalDataMigrationDecision } from './authLocalMigrationPolicy';
 import {
+  clearPendingAccountStateWrite,
+  deriveLegacyAccountState,
+  getPendingAccountStateWrite,
+  preserveAccountStateForSameUser,
+  resolveEffectiveAccountState,
+} from './authAccountStateHelpers';
+import {
+  ensureCloudUserAccountState,
+  fetchCloudUserAccountState,
+  flushPendingAccountStateWriteToCloud,
+} from './authAccountStateCloudStore';
+import {
   getPendingProfileWrite,
   preserveProfileForSameUser,
   profileStateFromMeta,
 } from './authProfileHelpers';
+import type { UserAccountState } from '../types/userAccountState';
 import type { UserProfileV2 } from '../types/userProfile';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import {
@@ -92,6 +105,17 @@ async function checkAndHandlePendingDeletion(user: { id: string; user_metadata?:
   }
 }
 
+function membershipSourceToAccountPlanSource(source: ReturnType<typeof resolveMembershipState>['source']): UserAccountState['planSource'] {
+  switch (source) {
+    case 'metadata':
+      return 'legacy_metadata';
+    case 'trial':
+      return 'trial';
+    default:
+      return 'default_free';
+  }
+}
+
 function applyUserSnapshot(
   set: AuthSet,
   user: any | null,
@@ -100,6 +124,7 @@ function applyUserSnapshot(
     initializationStage?: string | null;
     preservedAvatarUrl?: string | null;
     preservedProfile?: UserProfileV2 | null;
+    preservedAccountState?: UserAccountState | null;
   } = {},
 ): {
   meta: Record<string, any>;
@@ -108,6 +133,8 @@ function applyUserSnapshot(
   membership: ReturnType<typeof resolveMembershipState>;
   nextPreferences: UserPreferences;
   pendingProfile: ReturnType<typeof getPendingProfileWrite>;
+  pendingAccountState: ReturnType<typeof getPendingAccountStateWrite>;
+  accountState: UserAccountState | null;
 } {
   const safeUser = applyCloudAvatarToUser(user, options.preservedAvatarUrl ?? null);
   const meta = safeUser?.user_metadata || {};
@@ -118,8 +145,24 @@ function applyUserSnapshot(
   syncI18nLanguageFromMeta(meta);
   syncAnnotationStateWithPreferences(nextPreferences, membership.isPlus);
   const pendingProfile = safeUser ? getPendingProfileWrite(safeUser.id) : null;
+  const pendingAccountState = safeUser ? getPendingAccountStateWrite(safeUser.id) : null;
   const resolvedProfile = safeUser
     ? (profileState.userProfileV2 ?? pendingProfile ?? options.preservedProfile ?? null)
+    : null;
+  const fallbackAccountState = safeUser
+    ? deriveLegacyAccountState({
+      user: safeUser,
+      userProfile: resolvedProfile,
+      pendingProfile,
+      membershipPlan: membership.plan,
+      membershipSource: membershipSourceToAccountPlanSource(membership.source),
+    })
+    : null;
+  const resolvedAccountState = safeUser
+    ? resolveEffectiveAccountState({
+      fallbackState: fallbackAccountState,
+      pendingState: pendingAccountState ?? options.preservedAccountState ?? null,
+    })
     : null;
 
   set({
@@ -129,6 +172,7 @@ function applyUserSnapshot(
     preferences: nextPreferences,
     longTermProfileEnabled: profileState.longTermProfileEnabled,
     userProfileV2: resolvedProfile,
+    accountState: resolvedAccountState,
     membershipPlan: membership.plan,
     membershipSource: membership.source,
     isPlus: membership.isPlus,
@@ -141,6 +185,8 @@ function applyUserSnapshot(
     membership,
     nextPreferences,
     pendingProfile,
+    pendingAccountState,
+    accountState: resolvedAccountState,
   };
 }
 
@@ -201,13 +247,24 @@ function runSignedInBackgroundTasks(params: {
         currentUserId: data.user.id,
         profile: currentState.userProfileV2,
       }),
+      preservedAccountState: preserveAccountStateForSameUser({
+        previousUserId: currentState.user?.id,
+        currentUserId: data.user.id,
+        accountState: currentState.accountState,
+      }),
     });
     const cloudProfileState = await fetchCloudUserProfileState(data.user);
+    const cloudAccountState = await fetchCloudUserAccountState(data.user.id);
     const userWithCloudAvatar = applyCloudAvatarToUser(data.user, cloudProfileState.avatarUrl);
     set({
       user: userWithCloudAvatar,
       longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
       userProfileV2: cloudProfileState.userProfileV2,
+      accountState: resolveEffectiveAccountState({
+        fallbackState: freshSnapshot.accountState,
+        pendingState: freshSnapshot.pendingAccountState,
+        cloudState: cloudAccountState,
+      }),
     });
     hydrateGrowthDailyGoalFromMeta(freshSnapshot.meta);
     queuePreferenceSnapshotIfNeeded(freshSnapshot);
@@ -228,6 +285,11 @@ function runSignedInBackgroundTasks(params: {
 
     const activeUser = get().user ?? updatedLanguageUser;
     const migratedProfileState = await migrateMetadataProfileToCloud(activeUser);
+    const localAccountState = get().accountState ?? localSnapshot?.accountState ?? null;
+    if (localAccountState) {
+      const ensuredAccountState = await ensureCloudUserAccountState(activeUser.id, localAccountState);
+      set({ accountState: resolveEffectiveAccountState({ fallbackState: localAccountState, cloudState: ensuredAccountState }) });
+    }
     set({
       user: applyCloudAvatarToUser(activeUser, migratedProfileState.avatarUrl),
       longTermProfileEnabled: migratedProfileState.longTermProfileEnabled,
@@ -238,6 +300,11 @@ function runSignedInBackgroundTasks(params: {
     if (flushedProfile) {
       set({ userProfileV2: flushedProfile });
     }
+    const flushedAccountState = await flushPendingAccountStateWriteToCloud(activeUser.id);
+    if (flushedAccountState) {
+      clearPendingAccountStateWrite(activeUser.id);
+      set({ accountState: flushedAccountState });
+    }
 
     if (localSnapshot) {
       queuePreferenceSnapshotIfNeeded(localSnapshot);
@@ -247,10 +314,18 @@ function runSignedInBackgroundTasks(params: {
   runAuthBackgroundTask(`${source}.cloud_profile_refresh`, async () => {
     const activeUser = get().user ?? user;
     const cloudProfileState = await fetchCloudUserProfileState(activeUser);
+    const cloudAccountState = await fetchCloudUserAccountState(activeUser.id);
+    const currentAccountState = get().accountState ?? localSnapshot?.accountState ?? null;
+    const pendingAccountState = getPendingAccountStateWrite(activeUser.id);
     set({
       user: applyCloudAvatarToUser(activeUser, cloudProfileState.avatarUrl),
       longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
       userProfileV2: cloudProfileState.userProfileV2,
+      accountState: resolveEffectiveAccountState({
+        fallbackState: currentAccountState,
+        pendingState: pendingAccountState,
+        cloudState: cloudAccountState,
+      }),
     });
   });
 
@@ -296,6 +371,11 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
         previousUserId: previousUser?.id,
         currentUserId: currentUser?.id,
         profile: previousState.userProfileV2,
+      }),
+      preservedAccountState: preserveAccountStateForSameUser({
+        previousUserId: previousUser?.id,
+        currentUserId: currentUser?.id,
+        accountState: previousState.accountState,
       }),
     });
     if (currentUser) {
@@ -356,6 +436,7 @@ function registerAuthStateListener(set: AuthSet, get: () => AuthState): void {
         preferences: DEFAULT_PREFERENCES,
         longTermProfileEnabled: false,
         userProfileV2: null,
+        accountState: null,
         membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
         membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
         isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
@@ -372,6 +453,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   preferences: DEFAULT_PREFERENCES,
   longTermProfileEnabled: false,
   userProfileV2: null,
+  accountState: null,
   membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
   membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
   isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
@@ -452,6 +534,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           currentUserId: session?.user?.id,
           profile: previousState.userProfileV2,
         }),
+        preservedAccountState: preserveAccountStateForSameUser({
+          previousUserId: previousState.user?.id,
+          currentUserId: session?.user?.id,
+          accountState: previousState.accountState,
+        }),
       });
 
       if (session?.user) {
@@ -480,6 +567,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         preferences: DEFAULT_PREFERENCES,
         longTermProfileEnabled: false,
         userProfileV2: null,
+        accountState: null,
         membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
         membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
         isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,

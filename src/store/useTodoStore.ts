@@ -147,6 +147,46 @@ async function refineTodoCategoryWithAI(id: string, title: string): Promise<void
   }
 }
 
+function collectTodoCascadeIds(todos: Todo[], rootIds: string[]): string[] {
+  const pending = [...rootIds];
+  const collected = new Set<string>();
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+    if (!currentId || collected.has(currentId)) continue;
+    collected.add(currentId);
+
+    todos.forEach((todo) => {
+      if (todo.parentId === currentId && !collected.has(todo.id)) {
+        pending.push(todo.id);
+      }
+    });
+  }
+
+  return Array.from(collected);
+}
+
+function stripDeletedTodoArtifacts(
+  state: TodoState,
+  deletedIds: Set<string>,
+): Partial<TodoState> {
+  return {
+    todos: state.todos.filter((todo) => !deletedIds.has(todo.id)),
+    todoCompletionMessageMap: Object.fromEntries(
+      Object.entries(state.todoCompletionMessageMap).filter(([todoId]) => !deletedIds.has(todoId))
+    ),
+    todoBottleStarRewardMap: Object.fromEntries(
+      Object.entries(state.todoBottleStarRewardMap).filter(([todoId]) => !deletedIds.has(todoId))
+    ),
+    messageBottleStarRewardMap: Object.fromEntries(
+      Object.entries(state.messageBottleStarRewardMap).filter(([, reward]) => !deletedIds.has(reward.todoId || ''))
+    ),
+    activeMessageMap: Object.fromEntries(
+      Object.entries(state.activeMessageMap).filter(([, todoId]) => !deletedIds.has(todoId))
+    ),
+  };
+}
+
 // ── Unified Store ───────────────────────────────────────────
 export const useTodoStore = create<TodoState>()(
   persist(
@@ -190,22 +230,8 @@ export const useTodoStore = create<TodoState>()(
           }
 
           // ① 找出本地所有未同步的条目（pending / failed / 无 syncState 的旧数据）
-          //    并先修复本地明显孤儿 parentId（本地父任务不存在）
           const localTodos = get().todos.filter((todo) => !pendingDeletedIds.has(todo.id));
-          const localTodoIdSet = new Set(localTodos.map((t) => t.id));
-          let hasLocalOrphanParent = false;
-          const normalizedLocalTodos = localTodos.map((todo) => {
-            if (todo.parentId && !localTodoIdSet.has(todo.parentId)) {
-              hasLocalOrphanParent = true;
-              return { ...todo, parentId: undefined, syncState: 'pending' as const };
-            }
-            return todo;
-          });
-          if (hasLocalOrphanParent) {
-            set({ todos: normalizedLocalTodos });
-          }
-
-          const needsPush = normalizedLocalTodos.filter(
+          const needsPush = localTodos.filter(
             (t) => !t.syncState || t.syncState === 'pending' || t.syncState === 'failed'
           );
           const pushTodoById = new Map(needsPush.map((todo) => [todo.id, todo]));
@@ -312,9 +338,38 @@ export const useTodoStore = create<TodoState>()(
             pendingDeleteEntries.filter(([id]) => cloudIdsRaw.has(id))
           );
 
+          const mergedTodos = [...cloudTodos, ...survivingFailed, ...migrated];
+          const mergedTodoIds = new Set(mergedTodos.map((todo) => todo.id));
+          const orphanRootIds = mergedTodos
+            .filter((todo) => todo.parentId && !mergedTodoIds.has(todo.parentId))
+            .map((todo) => todo.id);
+          const orphanCascadeIds = collectTodoCascadeIds(mergedTodos, orphanRootIds);
+          const orphanDeletedAt = Date.now();
+          const orphanDeletedIdSet = new Set(orphanCascadeIds);
+
+          if (orphanCascadeIds.length > 0) {
+            orphanCascadeIds.forEach((todoId) => {
+              void bgSyncDelete(todoId).then((ok) => {
+                if (ok) return;
+                ensureTodoDeleteQueued(todoId);
+              });
+            });
+          }
+
+          const nextPendingDeletedWithOrphans = {
+            ...nextPendingDeleted,
+            ...Object.fromEntries(orphanCascadeIds.map((todoId) => [todoId, orphanDeletedAt])),
+          };
+          const sanitizedMergedTodos = orphanDeletedIdSet.size > 0
+            ? mergedTodos.filter((todo) => !orphanDeletedIdSet.has(todo.id))
+            : mergedTodos;
+
           set({
-            todos: [...cloudTodos, ...survivingFailed, ...migrated],
-            pendingDeletedTodoIds: nextPendingDeleted,
+            ...stripDeletedTodoArtifacts({
+              ...get(),
+              todos: sanitizedMergedTodos,
+            }, orphanDeletedIdSet),
+            pendingDeletedTodoIds: nextPendingDeletedWithOrphans,
             isLoading: false,
             hasHydrated: true,
             lastFetchedAt: Date.now(),
@@ -474,6 +529,7 @@ export const useTodoStore = create<TodoState>()(
       deleteTodo: (id) => {
         const todo = get().todos.find((t) => t.id === id);
         if (!todo) return;
+        const allTodos = get().todos;
         const markPendingDeletion = (ids: string[]) => {
           const deletedAt = Date.now();
           set((state) => ({
@@ -492,32 +548,21 @@ export const useTodoStore = create<TodoState>()(
           });
         };
         if (todo.isTemplate) {
-          const instanceIds = get()
-            .todos.filter((t) => t.templateId === id && !t.completed)
+          const instanceIds = allTodos.filter((t) => t.templateId === id && !t.completed)
             .map((t) => t.id);
-          const idsToDelete = [id, ...instanceIds];
+          const idsToDelete = collectTodoCascadeIds(allTodos, [id, ...instanceIds]);
+          const deletedIdSet = new Set(idsToDelete);
           markPendingDeletion(idsToDelete);
-          [id, ...instanceIds].forEach((todoId) => {
+          idsToDelete.forEach((todoId) => {
             const reward = get().consumeBottleStarRewardByTodo(todoId);
             if (reward) {
               useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
             }
           });
           set((s) => ({
-            todos: s.todos.filter(
-              (t) => t.id !== id && !(t.templateId === id && !t.completed)
-            ),
+            ...stripDeletedTodoArtifacts(s, deletedIdSet),
             suppressedTemplateDateMap: Object.fromEntries(
               Object.entries(s.suppressedTemplateDateMap).filter(([templateId]) => templateId !== id)
-            ),
-            todoCompletionMessageMap: Object.fromEntries(
-              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
-            ),
-            todoBottleStarRewardMap: Object.fromEntries(
-              Object.entries(s.todoBottleStarRewardMap).filter(([todoId]) => todoId !== id && !instanceIds.includes(todoId))
-            ),
-            messageBottleStarRewardMap: Object.fromEntries(
-              Object.entries(s.messageBottleStarRewardMap).filter(([, reward]) => reward.todoId !== id && !instanceIds.includes(reward.todoId || ''))
             ),
           }));
           idsToDelete.forEach((todoId) => {
@@ -534,28 +579,23 @@ export const useTodoStore = create<TodoState>()(
           if (reward) {
             useGrowthStore.getState().decrementBottleStars(reward.bottleId, reward.stars);
           }
-          markPendingDeletion([id]);
+          const idsToDelete = collectTodoCascadeIds(allTodos, [id]);
+          const deletedIdSet = new Set(idsToDelete);
+          markPendingDeletion(idsToDelete);
           set((s) => ({
-            todos: s.todos.filter((t) => t.id !== id),
+            ...stripDeletedTodoArtifacts(s, deletedIdSet),
             suppressedTemplateDateMap: todo.templateId
               ? { ...s.suppressedTemplateDateMap, [todo.templateId]: todayDateStr() }
               : s.suppressedTemplateDateMap,
-            todoCompletionMessageMap: Object.fromEntries(
-              Object.entries(s.todoCompletionMessageMap).filter(([todoId]) => todoId !== id)
-            ),
-            todoBottleStarRewardMap: Object.fromEntries(
-              Object.entries(s.todoBottleStarRewardMap).filter(([todoId]) => todoId !== id)
-            ),
-            messageBottleStarRewardMap: Object.fromEntries(
-              Object.entries(s.messageBottleStarRewardMap).filter(([, reward]) => reward.todoId !== id)
-            ),
           }));
-          void bgSyncDelete(id).then((ok) => {
-            if (ok) {
-              clearPendingDeletion(id);
-              return;
-            }
-            ensureTodoDeleteQueued(id);
+          idsToDelete.forEach((todoId) => {
+            void bgSyncDelete(todoId).then((ok) => {
+              if (ok) {
+                clearPendingDeletion(todoId);
+                return;
+              }
+              ensureTodoDeleteQueued(todoId);
+            });
           });
         }
 

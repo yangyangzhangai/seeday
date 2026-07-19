@@ -20,6 +20,7 @@ Important notes:
 | Area | Store / Source | Remote target | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Auth preferences | `useAuthStore` | `auth.users.user_metadata` | Partial | Core preferences are synced |
+| Account lifecycle state | `useAuthStore.accountState` | `user_account_state` | Partial | Onboarding/plan snapshot now read/write here with local pending fallback |
 | Login streak | `useAuthStore` | `user_stats` | Synced | Also caches computed streak locally |
 | Messages / activities | `useChatStore` | `messages` | Synced | Some UI-only state stays local |
 | Message images | `useImageUpload` | Supabase Storage + `messages.image_url*` | Synced | Falls back to data URL locally |
@@ -61,6 +62,32 @@ Local-only or derived:
 - `membershipSource`
 - `isPlus`
 - `activityStreak` state value itself
+
+### 1.1 Account lifecycle state (`user_account_state`)
+
+Persisted to `user_account_state`:
+
+- `account_status`
+- `onboarding_status`
+- `onboarding_completed_at`
+- `onboarding_version`
+- `onboarding_last_step`
+- `onboarding_started_at`
+- `onboarding_updated_at`
+- `onboarding_reentry_allowed`
+- `plan_snapshot`
+- `plan_source`
+- `plan_expires_at`
+- `trial_started_at`
+- `trial_ends_at`
+- `deletion_status`
+- `deletion_requested_at`
+- `deletion_effective_at`
+- `last_active_at`
+
+Local-only pending fallback:
+
+- `seeday_pending_account_state_v1_<userId>` keeps the latest local-first onboarding progress/completion when cloud writes fail or the app is offline; cloud remains the long-term source of truth, but local `completed/skipped` is allowed to override older cloud `required/in_progress` until sync succeeds.
 
 Notes:
 

@@ -68,6 +68,7 @@
 - suggestion 反馈埋点扩展：当用户接受且该条批注 `narrativeEvent.isTriggeredReply=true` 时，会额外写入 `telemetry_events.event_condensed`（携带 `eventType/eventId`）供低叙事密度质量复盘。
 - `useReportStore.generateAIDiary()` now branches by membership: Plus -> full AI diary (`aiAnalysis`), Free -> teaser copy (`teaserText`) for blur-lock upgrade UI.
 - metadata 并发写已串行化：新增 `authMetadataQueue.ts`，`updateLanguagePreference/updateAvatar/updatePreferences` 及迁移写入统一走 `patchUserMetadata(...)`；画像与登录日期已拆到业务表，减少 `user_metadata` 覆盖竞争和 JWT 体积。
+- 账号生命周期状态已开始从零散 metadata/profile/local flag 收口到 `user_account_state`：`useAuthStore` 现在维护 `accountState`，路由守卫优先读取 `onboarding_status`，本地仅保留 user-scoped pending account-state 作为离线/写云失败兜底；冲突策略为“completed/skipped 不回退，未完成时取进度更靠后的 step”。
 - `useMoodStore.fetchMoods()` 改为 cloud + local merge（云端覆盖同 ID，本地独有保留），避免前后台拉取覆盖在途心情写入。
 - `useAnnotationStore.fetchAnnotations()` 改为 cloud + local pending 合并，且 `todayStats.events` 上限从 400 下调到 150。
 - `useAnnotationStore` 持久化新增双重裁剪：`annotations` 仅保留最近 30 天（本地未同步项例外），`characterStateTracker` 仅保留最近 7 天/未过期效果，hydration 时也会再次防御性裁剪。
@@ -88,12 +89,12 @@
 - 会员分类最小埋点已接入 live-input telemetry reasons：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`（含 `membership_classification` 标记）。
 - `useTodoStore.refineTodoCategoryWithAI()` 已接入 Plus 路径统一 classify 结果消费（读取 `data.activity_type`），Free 用户不触发该 AI 分类调用。
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
-- `useTodoStore.deleteTodo()` 现对一次性/重复待办删除补上 durable fallback：本地仍先移除并记录 `pendingDeletedTodoIds`，但若云端软删除因无 session、网络抖动或 0-row 未命中而未真正落库，会自动写入 `todo.delete` outbox；`fetchTodos()` 在拉云前会先 flush 队列，避免已删待办在下次登录时被云端旧数据“复活”。
+- `useTodoStore.deleteTodo()` 现对一次性/重复待办删除补上 durable fallback：本地仍先移除并记录 `pendingDeletedTodoIds`，但若云端软删除因无 session、网络抖动或 0-row 未命中而未真正落库，会自动写入 `todo.delete` outbox；`fetchTodos()` 在拉云前会先 flush 队列，避免已删待办在下次登录时被云端旧数据“复活”。删除父待办时会级联删除全部子待办，避免刷新后把孤儿子待办扶正成顶层任务；`fetchTodos()` 也会把历史遗留的 orphan subtrees 识别为删除对象并入队 durable cloud delete，而不是清空 `parentId`。
 - `useTodoStore.deleteTodo()` 不再触发 annotation 事件；AI 批注当前仅由记录/完成/心情/闲置/过劳等保留事件驱动，删除待办只执行本地移除与 durable cloud delete。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。
 - `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。
-- `useAuthStore` 的 onboarding 守卫现改为“完成证据优先”：优先保留 `userProfileV2.onboardingCompleted`、pending profile 与按 user scope 落地的本地完成标记，避免 token refresh / metadata patch / 前后台恢复时因瞬时 `null` 把新用户误送回 `/onboarding`。
+- `useAuthStore` 的 onboarding 守卫现改为 `user_account_state` 优先：主判断读取 `accountState.onboardingStatus`；`userProfileV2.onboardingCompleted` 与旧 `seeday_onboarded_*` 本地标记只作为迁移/冷启动 fallback，避免 Google/Apple OAuth 新账号绕过 onboarding 或云端写失败后反复被送回引导。
 - `useAuthStore` 的 profile 刷新兜底按用户 ID 隔离：仅同一账号的 metadata/session 刷新可暂时保留内存中的 `userProfileV2`；初始化或认证事件切换到其他账号时必须丢弃旧 profile，避免继承上一账号的 onboarding 完成状态。
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。

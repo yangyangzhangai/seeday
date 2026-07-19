@@ -452,6 +452,32 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(useOutboxStore.getState().entries[0].kind).toBe('chat.upsert');
   });
 
+  it('updates the second activity image without touching the first and keeps dateCache in sync', async () => {
+    const base = 1_700_000_000_000;
+    const dateKey = getLocalDateString(new Date(base));
+    const activity: Message = {
+      id: 'activity-images',
+      content: '散步',
+      timestamp: base,
+      type: 'text',
+      mode: 'record',
+      activityType: 'life',
+      duration: 20,
+      imageUrl: 'https://example.com/first.jpg',
+      imageUrl2: null,
+    };
+    resetChatStore([activity]);
+    useChatStore.setState({ dateCache: { [dateKey]: [activity] }, activeViewDateStr: dateKey });
+
+    await useChatStore.getState().updateMessageImage(activity.id, 'imageUrl2', 'https://example.com/second.jpg');
+
+    const state = useChatStore.getState();
+    expect(state.messages[0].imageUrl).toBe('https://example.com/first.jpg');
+    expect(state.messages[0].imageUrl2).toBe('https://example.com/second.jpg');
+    expect(state.dateCache[dateKey][0].imageUrl).toBe('https://example.com/first.jpg');
+    expect(state.dateCache[dateKey][0].imageUrl2).toBe('https://example.com/second.jpg');
+  });
+
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {
     const base = 1_700_000_000_000;
     resetChatStore([

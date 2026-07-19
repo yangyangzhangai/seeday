@@ -13,6 +13,7 @@ import type { Report } from './useReportStore';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import { isMultiAccountIsolationV2Enabled, readActiveStorageScope } from './storageScope';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
+import { resolveChatImageStoragePath } from '../lib/chatImageStorage';
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const OUTBOX_COOLDOWN_MS = 60 * 60 * 1000;
@@ -243,7 +244,7 @@ async function executeImageReuploadEntry(entry: ImageReuploadOutboxEntry, userId
   const dataUrl = entry.payload.slot === 'imageUrl' ? message?.imageUrl : message?.imageUrl2;
   if (!dataUrl?.startsWith('data:')) return; // already uploaded or evicted
   const blob = dataUrlToBlob(dataUrl);
-  const path = `${userId}/${entry.payload.messageId}.jpg`;
+  const path = `${userId}/${resolveChatImageStoragePath(entry.payload.messageId, entry.payload.slot)}`;
   const { error } = await supabase.storage
     .from('seeday-images')
     .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });

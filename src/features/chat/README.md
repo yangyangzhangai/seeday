@@ -12,7 +12,8 @@
   - Magic Pen side flow: simple single-intent input may use the local fast path; mixed activity+mood evidence is checked before short-text handling and routes the whole input to `parseMagicPenInput(...)`; AI keeps `activity / mood / todo_add / activity_backfill`
   - Latest-message correction: message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)
-  - Mood quick record (`isMood` message path) remains as the message semantic output, not a separate chat-mode toggle
+- Mood quick record (`isMood` message path) remains as the message semantic output, not a separate chat-mode toggle
+- Activity cards support two independent cloud image slots (`imageUrl` / `imageUrl2`); upload/retry paths must preserve the slot identity instead of synthesizing a fake second message id
 
 ## Upstream Dependencies
 

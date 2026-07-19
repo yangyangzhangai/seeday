@@ -523,7 +523,7 @@ const StepAI: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
 // ── Main OnboardingFlow ───────────────────────────────────────
 export const OnboardingFlow: React.FC = () => {
-  const { user, updateUserProfile, userProfileV2 } = useAuthStore();
+  const { user, updateUserProfile, updateAccountState, userProfileV2 } = useAuthStore();
   const addTodo = useTodoStore((state) => state.addTodo);
   const addBottle = useGrowthStore((state) => state.addBottle);
   const navigate = useNavigate();
@@ -534,6 +534,29 @@ export const OnboardingFlow: React.FC = () => {
   React.useEffect(() => {
     if (user && step === 1) setStep(2);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    if (!user?.id || step < 2) return;
+    const nowIso = new Date().toISOString();
+    void updateAccountState((prev) => ({
+      ...(prev || {
+        accountStatus: 'active',
+        onboardingStatus: 'required',
+        onboardingReentryAllowed: false,
+        planSnapshot: 'free',
+        planSource: 'default_free',
+        deletionStatus: 'none',
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      }),
+      onboardingStatus: prev?.onboardingStatus === 'completed' ? 'completed' : 'in_progress',
+      onboardingLastStep: step,
+      onboardingVersion: 'v2_route_flow',
+      onboardingStartedAt: prev?.onboardingStartedAt || nowIso,
+      onboardingUpdatedAt: nowIso,
+      updatedAt: nowIso,
+    }));
+  }, [step, updateAccountState, user?.id]);
 
   const [routine, setRoutine] = React.useState<RoutineState>({
     region: '',
@@ -589,9 +612,28 @@ export const OnboardingFlow: React.FC = () => {
   };
 
   const handleComplete = () => {
+    const nowIso = new Date().toISOString();
     if (user?.id) {
       saveLocalOnboardingCompleted(user.id);
     }
+    void updateAccountState((prev) => ({
+      ...(prev || {
+        accountStatus: 'active',
+        onboardingReentryAllowed: false,
+        planSnapshot: 'free',
+        planSource: 'default_free',
+        deletionStatus: 'none',
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      }),
+      onboardingStatus: 'completed',
+      onboardingCompletedAt: nowIso,
+      onboardingLastStep: TOTAL_STEPS,
+      onboardingVersion: 'v2_route_flow',
+      onboardingStartedAt: prev?.onboardingStartedAt || nowIso,
+      onboardingUpdatedAt: nowIso,
+      updatedAt: nowIso,
+    }));
     void updateUserProfile({ onboardingCompleted: true });
     navigate('/chat', { replace: true });
   };

@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Camera, X, Loader2, AlertCircle, ZoomIn } from 'lucide-react';
 import { useImageUpload } from '../../../hooks/useImageUpload';
+import type { ChatImageSlot } from '../../../lib/chatImageStorage';
 import { ImageCropModal } from './ImageCropModal';
 
 export interface ImageUploaderProps {
   messageId: string;
+  slot?: ChatImageSlot;
   imageUrl?: string | null;
   onUploaded: (url: string) => void;
   onRemoved:  () => void;
@@ -24,7 +26,7 @@ export interface ImageUploaderHandle {
 }
 
 export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploaderProps>(({ 
-  messageId, imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly, hidden,
+  messageId, slot = 'imageUrl', imageUrl, onUploaded, onRemoved, compact, hideUploadWhen, hideUploadButton, openSignal, readonly, hidden,
 }, ref) => {
   const { t } = useTranslation();
   const { upload, remove, uploading } = useImageUpload();
@@ -74,7 +76,7 @@ export const ImageUploader = React.forwardRef<ImageUploaderHandle, ImageUploader
     setCropFile(null);
     setError(false);
     try {
-      const url = await upload(blob, messageId);
+      const url = await upload(blob, messageId, slot);
       onUploaded(url);
     } catch {
       setError(true);

@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/chat/README.md
 import { useState } from 'react';
 import { supabase } from '../api/supabase';
+import { resolveChatImageStoragePath, type ChatImageSlot } from '../lib/chatImageStorage';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { useOutboxStore } from '../store/useOutboxStore';
 
@@ -66,7 +67,7 @@ export function useImageUpload() {
    *    an 'image.reupload' outbox entry is queued so the image is uploaded
    *    to Supabase (and the local data URL replaced) when connectivity returns.
    */
-  async function upload(file: File | Blob, messageId: string, slot: 'imageUrl' | 'imageUrl2' = 'imageUrl'): Promise<string> {
+  async function upload(file: File | Blob, messageId: string, slot: ChatImageSlot = 'imageUrl'): Promise<string> {
     setUploading(true);
     try {
       // Compress first (even for Supabase path — faster upload + cheaper storage)
@@ -81,7 +82,7 @@ export function useImageUpload() {
       try {
         const session = await getSupabaseSession();
         if (session) {
-          const path = `${session.user.id}/${messageId}.jpg`;
+          const path = `${session.user.id}/${resolveChatImageStoragePath(messageId, slot)}`;
           const { error } = await supabase.storage
             .from(BUCKET)
             .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
@@ -120,7 +121,8 @@ export function useImageUpload() {
     if (currentUrl?.startsWith('data:')) return; // local-only, nothing to remove
     const session = await getSupabaseSession();
     if (!session) return;
-    const path = `${session.user.id}/${messageId}.jpg`;
+    const slot: ChatImageSlot = currentUrl?.includes(`/${messageId}-2.jpg`) ? 'imageUrl2' : 'imageUrl';
+    const path = `${session.user.id}/${resolveChatImageStoragePath(messageId, slot)}`;
     await supabase.storage.from(BUCKET).remove([path]);
   }
 

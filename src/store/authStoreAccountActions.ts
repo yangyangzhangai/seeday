@@ -3,6 +3,13 @@ import i18n from '../i18n';
 import { supabase } from '../api/supabase';
 import { isDataUrl, uploadAvatarToStorage } from '../lib/avatarStorage';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
+import type { UserAccountState } from '../types/userAccountState';
+import { upsertCloudUserAccountState } from './authAccountStateCloudStore';
+import {
+  clearPendingAccountStateWrite,
+  mergeAccountState,
+  savePendingAccountStateWrite,
+} from './authAccountStateHelpers';
 import { applyCloudAvatarToUser, upsertCloudUserProfile } from './authProfileCloudStore';
 import { persistLanguageToLocalStorage, normalizeUiLanguage } from './authLanguageHelpers';
 import { markLocalDataOwnerAnonymous } from './authLocalOwnerHelpers';
@@ -104,6 +111,7 @@ type AccountActionKeys =
   | 'updateLocationMetadata'
   | 'updateLongTermProfileEnabled'
   | 'updateUserProfile'
+  | 'updateAccountState'
   | 'updatePreferences'
   | 'updateLanguagePreference'
   | 'refreshActivityStreak';
@@ -219,6 +227,7 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         preferences: DEFAULT_PREFERENCES,
         longTermProfileEnabled: false,
         userProfileV2: null,
+        accountState: null,
         membershipPlan: DEFAULT_MEMBERSHIP_STATE.plan,
         membershipSource: DEFAULT_MEMBERSHIP_STATE.source,
         isPlus: DEFAULT_MEMBERSHIP_STATE.isPlus,
@@ -432,6 +441,41 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
           error,
         });
       });
+      return { error: null };
+    },
+
+    updateAccountState: async (updater) => {
+      const currentUser = get().user;
+      if (!currentUser) {
+        return { error: new Error('Not signed in') };
+      }
+
+      const prev = get().accountState;
+      const nextState = typeof updater === 'function'
+        ? updater(prev)
+        : mergeAccountState(prev, updater);
+
+      set({ accountState: nextState });
+      savePendingAccountStateWrite(currentUser.id, nextState);
+
+      const stateToSave: UserAccountState = {
+        ...nextState,
+        updatedAt: new Date().toISOString(),
+        createdAt: nextState.createdAt || new Date().toISOString(),
+      };
+
+      upsertCloudUserAccountState(currentUser.id, stateToSave)
+        .then(() => {
+          set({ accountState: stateToSave });
+          clearPendingAccountStateWrite(currentUser.id);
+        })
+        .catch((error) => {
+          logDiagnostic('error', 'auth.account_state_cloud.update.failed', {
+            userId: currentUser.id,
+            error,
+          });
+        });
+
       return { error: null };
     },
 

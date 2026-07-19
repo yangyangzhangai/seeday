@@ -399,6 +399,31 @@ async function persistMembershipMetadata(params: {
   };
 }
 
+async function persistAccountStateSnapshot(params: {
+  userId: string;
+  adminClient: RequestAdminClient;
+  plan: MembershipPlan;
+  planSource: 'trial' | 'stripe' | 'iap' | 'legacy_metadata' | 'default_free';
+  planExpiresAt?: string | null;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const row: Record<string, unknown> = {
+    user_id: params.userId,
+    plan_snapshot: params.plan,
+    plan_source: params.planSource,
+    plan_expires_at: params.planExpiresAt ?? null,
+    updated_at: nowIso,
+  };
+  if ('trialStartedAt' in params) row.trial_started_at = params.trialStartedAt ?? null;
+  if ('trialEndsAt' in params) row.trial_ends_at = params.trialEndsAt ?? null;
+  const { error } = await params.adminClient.from('user_account_state').upsert(row, { onConflict: 'user_id' });
+  if (error) {
+    throw new Error(`Failed to write user_account_state snapshot: ${error.message}`);
+  }
+}
+
 function resolveCancelMembership(): VerifiedMembership {
   return {
     plan: 'free',
@@ -473,13 +498,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(200).json({ success: false, alreadyUsed: true });
       return;
     }
+    const trialStartedAt = new Date().toISOString();
     const updated = await auth.adminClient.auth.admin.updateUserById(auth.user.id, {
-      app_metadata: { ...appMeta, trial_started_at: new Date().toISOString() },
+      app_metadata: { ...appMeta, trial_started_at: trialStartedAt },
     });
     if (updated.error) {
       jsonError(res, 500, 'Failed to activate trial');
       return;
     }
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await persistAccountStateSnapshot({
+      userId: auth.user.id,
+      adminClient: auth.adminClient,
+      plan: 'plus',
+      planSource: 'trial',
+      planExpiresAt: trialEndsAt,
+      trialStartedAt,
+      trialEndsAt,
+    });
     res.status(200).json({ success: true, alreadyUsed: false });
     console.info('[subscription] trial.success', {
       requestId,
@@ -552,6 +588,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         membership,
         adminClient: auth.adminClient,
       });
+      await persistAccountStateSnapshot({
+        userId: auth.user.id,
+        adminClient: auth.adminClient,
+        plan: persisted.plan,
+        planSource: source,
+        planExpiresAt: persisted.expiresAt,
+      });
 
       res.status(200).json({
         success: true,
@@ -601,6 +644,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       source,
       membership,
       adminClient: auth.adminClient,
+    });
+    await persistAccountStateSnapshot({
+      userId: auth.user.id,
+      adminClient: auth.adminClient,
+      plan: persisted.plan,
+      planSource: membership.plan === 'free' ? 'default_free' : source,
+      planExpiresAt: persisted.expiresAt,
     });
 
     res.status(200).json({

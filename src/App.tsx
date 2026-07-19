@@ -8,8 +8,7 @@ import { ReportPage } from './features/report/ReportPage';
 import { GrowthPage } from './features/growth/GrowthPage';
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow';
 import { AuthPage } from './features/auth/AuthPage';
-import { getPendingProfileWrite } from './store/authProfileHelpers';
-import { hasCompletedOnboardingEvidence } from './store/authProfileHelpers';
+import { shouldRequireOnboarding } from './store/authAccountStateHelpers';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { RoutineSettingsPanel } from './features/profile/components/RoutineSettingsPanel';
 import { UserProfilePanel } from './features/profile/components/UserProfilePanel';
@@ -78,18 +77,11 @@ const BlankScreen: React.FC<{ stage?: string }> = ({ stage = 'auth.initialize' }
   );
 };
 
-/** 账号创建不足 72 小时且尚无 profile → 视为新用户需要 onboarding */
-function isNewUserAccount(createdAt?: string | null): boolean {
-  if (!createdAt) return false;
-  const ageMs = Date.now() - new Date(createdAt).getTime();
-  return ageMs < 72 * 60 * 60 * 1000;
-}
-
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
   const initializationStage = useAuthStore(state => state.initializationStage);
-  const userProfileV2 = useAuthStore(state => state.userProfileV2);
+  const accountState = useAuthStore(state => state.accountState);
 
   // DEV preview bypass: localStorage.setItem('dev_preview','1') 跳过登录校验
   if (import.meta.env.DEV && localStorage.getItem('dev_preview') === '1') {
@@ -100,14 +92,7 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-  // 仅在账号 < 72h 且无 profile（含本地兜底）时才强制走 onboarding
-  const pendingProfile = getPendingProfileWrite(user.id);
-  const hasCompletedOnboarding = hasCompletedOnboardingEvidence({
-    userId: user.id,
-    userProfile: userProfileV2,
-    pendingProfile,
-  });
-  if (!hasCompletedOnboarding && isNewUserAccount(user.created_at)) {
+  if (shouldRequireOnboarding(accountState)) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -119,22 +104,15 @@ const OnboardingRoute: React.FC = () => {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
   const initializationStage = useAuthStore(state => state.initializationStage);
-  const userProfileV2 = useAuthStore(state => state.userProfileV2);
+  const accountState = useAuthStore(state => state.accountState);
 
   if (loading) return <BlankScreen stage={initializationStage ?? 'OnboardingRoute:auth.loading'} />;
 
-  // 已登录且已完成 onboarding（有 profile 或老账号）→ 进首页
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  const pendingProfile = getPendingProfileWrite(user.id);
-  const hasCompletedOnboarding = hasCompletedOnboardingEvidence({
-    userId: user.id,
-    userProfile: userProfileV2,
-    pendingProfile,
-  });
-  if (hasCompletedOnboarding || !isNewUserAccount(user.created_at)) {
+  if (!shouldRequireOnboarding(accountState)) {
     return <Navigate to="/chat" replace />;
   }
 

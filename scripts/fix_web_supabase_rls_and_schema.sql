@@ -306,6 +306,51 @@ alter table public.user_profiles add column if not exists created_at timestamptz
 alter table public.user_profiles add column if not exists updated_at timestamptz default now();
 create unique index if not exists user_profiles_user_id_uidx on public.user_profiles(user_id);
 
+create table if not exists public.user_account_state (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  account_status text not null default 'active',
+  onboarding_status text not null default 'required',
+  onboarding_completed_at timestamptz,
+  onboarding_version text,
+  onboarding_last_step integer,
+  onboarding_started_at timestamptz,
+  onboarding_updated_at timestamptz,
+  onboarding_reentry_allowed boolean not null default false,
+  plan_snapshot text not null default 'free',
+  plan_source text,
+  plan_expires_at timestamptz,
+  trial_started_at timestamptz,
+  trial_ends_at timestamptz,
+  deletion_status text not null default 'none',
+  deletion_requested_at timestamptz,
+  deletion_effective_at timestamptz,
+  last_active_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_account_state add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.user_account_state add column if not exists account_status text default 'active';
+alter table public.user_account_state add column if not exists onboarding_status text default 'required';
+alter table public.user_account_state add column if not exists onboarding_completed_at timestamptz;
+alter table public.user_account_state add column if not exists onboarding_version text;
+alter table public.user_account_state add column if not exists onboarding_last_step integer;
+alter table public.user_account_state add column if not exists onboarding_started_at timestamptz;
+alter table public.user_account_state add column if not exists onboarding_updated_at timestamptz;
+alter table public.user_account_state add column if not exists onboarding_reentry_allowed boolean default false;
+alter table public.user_account_state add column if not exists plan_snapshot text default 'free';
+alter table public.user_account_state add column if not exists plan_source text;
+alter table public.user_account_state add column if not exists plan_expires_at timestamptz;
+alter table public.user_account_state add column if not exists trial_started_at timestamptz;
+alter table public.user_account_state add column if not exists trial_ends_at timestamptz;
+alter table public.user_account_state add column if not exists deletion_status text default 'none';
+alter table public.user_account_state add column if not exists deletion_requested_at timestamptz;
+alter table public.user_account_state add column if not exists deletion_effective_at timestamptz;
+alter table public.user_account_state add column if not exists last_active_at timestamptz;
+alter table public.user_account_state add column if not exists created_at timestamptz default now();
+alter table public.user_account_state add column if not exists updated_at timestamptz default now();
+create unique index if not exists user_account_state_user_id_uidx on public.user_account_state(user_id);
+
 -- ---------------------------------------------------------------------------
 -- Grants and RLS policies.
 -- PostgREST needs grants; RLS still limits every row to auth.uid() = user_id.
@@ -326,6 +371,7 @@ grant select, insert, update, delete on public.annotations to authenticated;
 grant select, insert, update, delete on public.timing_sessions to authenticated;
 grant select, insert, update, delete on public.user_login_days to authenticated;
 grant select, insert, update, delete on public.user_profiles to authenticated;
+grant select, insert, update, delete on public.user_account_state to authenticated;
 
 alter table public.messages enable row level security;
 alter table public.moods enable row level security;
@@ -339,6 +385,7 @@ alter table public.annotations enable row level security;
 alter table public.timing_sessions enable row level security;
 alter table public.user_login_days enable row level security;
 alter table public.user_profiles enable row level security;
+alter table public.user_account_state enable row level security;
 
 -- Remove older broad/public policies that can leave data more open than intended.
 drop policy if exists "Enable read access for all users" on public.bottles;
@@ -459,6 +506,15 @@ drop policy if exists "user_profiles_update_own" on public.user_profiles;
 create policy "user_profiles_update_own" on public.user_profiles for update to authenticated using (auth.uid()::text = user_id::text) with check (auth.uid()::text = user_id::text);
 drop policy if exists "user_profiles_delete_own" on public.user_profiles;
 create policy "user_profiles_delete_own" on public.user_profiles for delete to authenticated using (auth.uid()::text = user_id::text);
+
+drop policy if exists "user_account_state_select_own" on public.user_account_state;
+create policy "user_account_state_select_own" on public.user_account_state for select to authenticated using (auth.uid()::text = user_id::text);
+drop policy if exists "user_account_state_insert_own" on public.user_account_state;
+create policy "user_account_state_insert_own" on public.user_account_state for insert to authenticated with check (auth.uid()::text = user_id::text);
+drop policy if exists "user_account_state_update_own" on public.user_account_state;
+create policy "user_account_state_update_own" on public.user_account_state for update to authenticated using (auth.uid()::text = user_id::text) with check (auth.uid()::text = user_id::text);
+drop policy if exists "user_account_state_delete_own" on public.user_account_state;
+create policy "user_account_state_delete_own" on public.user_account_state for delete to authenticated using (auth.uid()::text = user_id::text);
 
 commit;
 

@@ -48,6 +48,24 @@ Validation:
 
 ## 2026-07-19
 
+### Fix: Growth parent todo deletes now cascade through subtasks
+
+- `src/store/useTodoStore.ts` now deletes parent todos together with every descendant subtask, reuses the durable `todo.delete` fallback for the full cascade, and removes related completion/reward/message artifacts in one pass so deleting a parent task cannot leave hidden child rows behind.
+- `src/store/useTodoStore.ts` `fetchTodos()` no longer clears orphaned `parentId` values and accidentally promotes old subtasks into top-level tasks after refresh; it now detects orphan subtrees, removes them locally, and queues soft-delete retries for cloud cleanup.
+- `src/store/useTodoStore.test.ts` and `src/store/README.md` now cover/document both the parent-delete cascade and the orphan-subtask fetch cleanup path.
+
+### Change: Unified account-state table now drives onboarding gating
+
+- Added `src/types/userAccountState.ts`, `src/store/authAccountStateHelpers.ts`, and `src/store/authAccountStateCloudStore.ts` plus the `public.user_account_state` SQL scripts so account lifecycle state has a dedicated cloud model instead of spreading onboarding and plan snapshots across profile JSON, metadata aliases, and local flags.
+- `src/store/useAuthStore.ts`, `src/store/authStoreAccountActions.ts`, and `src/App.tsx` now hydrate/maintain `accountState`, ensure a cloud row exists for signed-in users, and route `/onboarding` from `accountState.onboardingStatus` with local-first pending fallback; local completed/skipped onboarding can temporarily outrank older cloud required/in-progress state until sync succeeds.
+- `src/features/onboarding/OnboardingFlow.tsx` now writes onboarding progress/completion into the unified account-state path, and `api/subscription.ts` mirrors trial/plan updates into `user_account_state.plan_*` so OAuth signup, onboarding, and membership snapshots read from one normalized source.
+
+### Fix: Chat activity cards keep distinct first and second images
+
+- `src/features/chat/components/EventCard.tsx`, `src/features/chat/components/MoodCard.tsx`, and `src/features/chat/components/ImageUploader.tsx` now pass an explicit image slot through the upload flow instead of pretending slot 2 is a separate message with a fake `${message.id}_2` identifier.
+- `src/hooks/useImageUpload.ts`, `src/store/useOutboxStore.ts`, and new helper `src/lib/chatImageStorage.ts` now generate different storage object paths for `imageUrl` and `imageUrl2`, so a second photo cannot overwrite or reupload through the first slot's path.
+- `src/store/chatTimelineActions.ts` now updates both `messages` and `dateCache` when an activity image changes, and regression coverage verifies the second image can be written without disturbing the first.
+
 ### UI: Show localized plant names beneath plant artwork
 
 - Generated plant flip cards now show the current plant's localized registry name as a small line beneath the card.
