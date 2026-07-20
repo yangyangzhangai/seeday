@@ -25,6 +25,12 @@ import {
 } from './DiaryDonutChart';
 import { ReportDetailPageHeader } from './ReportDetailPageHeader';
 
+const DIARY_DONUT_SCALE = 0.9;
+const DIARY_DONUT_SIZE = 110 * DIARY_DONUT_SCALE;
+const DIARY_DONUT_INNER_RADIUS = 20 * DIARY_DONUT_SCALE;
+const DIARY_DONUT_OUTER_RADIUS = 44 * DIARY_DONUT_SCALE;
+const DIARY_DONUT_FONT_SIZE = 8 * DIARY_DONUT_SCALE;
+
 interface ReportDetailModalProps {
   selectedReport: Report | null;
   isPlus: boolean;
@@ -706,7 +712,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionActivity}</div>
                   <SectionRow
-                    left={<DonutChart data={activityChartData} maxIndex={maxAct} chartId="diary-activity" labelColor="#2D5A30" />}
+                    left={<DonutChart
+                      data={activityChartData}
+                      maxIndex={maxAct}
+                      chartId="diary-activity"
+                      labelColor="#2D5A30"
+                      size={DIARY_DONUT_SIZE}
+                      innerRadius={DIARY_DONUT_INNER_RADIUS}
+                      outerRadius={DIARY_DONUT_OUTER_RADIUS}
+                      fontSize={DIARY_DONUT_FONT_SIZE}
+                    />}
                     lines={[activityAnalysisLine1]}
                   />
                 </div>
@@ -716,7 +731,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionMood}</div>
                   <SectionRow
-                    left={<DonutChart data={moodChartData} maxIndex={maxMood} chartId="diary-mood" labelColor="#A0304A" />}
+                    left={<DonutChart
+                      data={moodChartData}
+                      maxIndex={maxMood}
+                      chartId="diary-mood"
+                      labelColor="#A0304A"
+                      size={DIARY_DONUT_SIZE}
+                      innerRadius={DIARY_DONUT_INNER_RADIUS}
+                      outerRadius={DIARY_DONUT_OUTER_RADIUS}
+                      fontSize={DIARY_DONUT_FONT_SIZE}
+                    />}
                     lines={[moodAnalysisLine1]}
                   />
                 </div>

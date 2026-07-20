@@ -31,8 +31,10 @@
   - Diary detail modal and viewer path continue to be report-domain scoped (`ReportDetailModal` + `DiaryBookViewer`)
   - Root-section "My Diary" textarea edits directly on focus and persists on blur/autosave (iOS WebView keyboard-safe path)
 - Root canvas keeps its original `360 x 520` proportions across screen widths, anchors the root origin to the soil surface, and uses the same 16px horizontal gutter as the page title.
+- Root-page soil image starts at `106px` below the eco-sphere area, making the visible soil taller while preserving the root origin anchoring logic.
 - The two floating activity and mood donut charts above the soil render at `150px`, preserving their existing colors, ring proportions, labels, and motion behavior.
-- The root-page canvas height follows the Report content area's available height with `300px`/`520px` bounds, reserving `136px` of first-view space for the Generate Plant action, My Diary heading, and the complete first placeholder line across iPhone safe-area variants.
+- Diary detail page activity and mood donut charts render at 0.9x of the shared default chart size; the root-page eco-sphere charts are unchanged.
+- The root-page canvas height follows the Report content area's available height with `320px`/`540px` bounds, reserving `120px` of first-view space for the Generate Plant action and My Diary entry while giving the soil/root area slightly more height.
 
 ## Upstream Dependencies
 

@@ -22,6 +22,8 @@ const BLUE_SELECTED_STYLE = {
   boxShadow: '0 6px 14px rgba(59,130,246,0.14)',
 } as const;
 
+const TODO_CARD_SHADOW = '0 0 5px rgba(82,105,91,0.05), 0 2px 6px rgba(146,166,142,0.095)';
+
 interface Props {
   todo: GrowthTodo;
   subTodos?: GrowthTodo[];
@@ -233,11 +235,12 @@ export const GrowthTodoCard = ({
     <div
       ref={cardRef}
       className={cn(
-        "relative w-full border border-white/80 bg-white shadow-[0_0_6px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.04)] transition-shadow duration-300",
+        "relative w-full border border-white/80 bg-white transition-shadow duration-300",
         expanded ? "rounded-[22px]" : "rounded-[50px]",
         todo.completed && "opacity-50",
         isHighlighted && "ring-2 ring-green-400 animate-[highlightPulse_0.6s_ease-in-out_3]"
       )}
+      style={{ boxShadow: TODO_CARD_SHADOW }}
     >
       {/* Delete button — appears after card is selected */}
       {onDelete && (
@@ -279,12 +282,12 @@ export const GrowthTodoCard = ({
             e.stopPropagation();
           }}
           className={cn(
-            "h-4 w-4 flex-shrink-0 rounded-full border-[1.5px] flex items-center justify-center transition-colors touch-manipulation",
+            "h-5 w-5 flex-shrink-0 rounded-full border-[1.5px] flex items-center justify-center transition-colors touch-manipulation",
             todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
           )}
           aria-label={t('growth_todo_complete')}
         >
-          {todo.completed && <Check size={8} className="text-white" />}
+          {todo.completed && <Check size={10} className="text-white" />}
         </button>
 
         {/* Title + due date */}
@@ -335,11 +338,11 @@ export const GrowthTodoCard = ({
           ) : null}
         </div>
 
-        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-1">
-          <div className="flex h-5 w-5 items-center justify-center">
+        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-2">
+          <div className="flex h-6 w-6 items-center justify-center">
             <span
               className={cn(
-                "h-3 w-3 flex-shrink-0 rounded-full",
+                "h-3.5 w-3.5 flex-shrink-0 rounded-full",
                 cfg.dot
               )}
               onClick={(e) => e.stopPropagation()}
@@ -356,13 +359,13 @@ export const GrowthTodoCard = ({
                 onStart(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-5 w-5 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50"
               title={t('growth_todo_start')}
             >
-              <Play size={16} strokeWidth={1.5} />
+              <Play size={19} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-5 w-5" aria-hidden="true" />
+            <div className="h-6 w-6" aria-hidden="true" />
           )}
 
           {!todo.completed ? (
@@ -373,12 +376,12 @@ export const GrowthTodoCard = ({
                 onFocus(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100"
             >
-              <AlarmClock size={16} strokeWidth={1.5} />
+              <AlarmClock size={19} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-5 w-5" aria-hidden="true" />
+            <div className="h-6 w-6" aria-hidden="true" />
           )}
         </div>
       </div>

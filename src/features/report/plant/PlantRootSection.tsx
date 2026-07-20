@@ -19,6 +19,8 @@ import {
   APP_GREEN_GLASS_TEXT,
 } from '../../../lib/modalTheme';
 
+const SOIL_CANVAS_TOP_OFFSET_PX = 106;
+
 function getCategoryKey(category: PlantCategoryKey): string {
   switch (category) {
     case 'work_study':
@@ -382,10 +384,13 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
       {/* Reserve first-view space for the plant action and My Diary heading. */}
       <div
         className="relative overflow-hidden"
-        style={{ height: 'clamp(300px, calc(100% - 136px), 520px)' }}
+        style={{ height: 'clamp(320px, calc(100% - 120px), 540px)' }}
       >
-        {/* Soil + roots: pushed down so eco-sphere bubbles (130px) are fully above soil */}
-        <div className="absolute inset-x-4 bottom-0 top-[130px]">
+        {/* Soil + roots: slightly taller soil image while keeping eco-sphere bubbles above it. */}
+        <div
+          className="absolute inset-x-4 bottom-0"
+          style={{ top: SOIL_CANVAS_TOP_OFFSET_PX }}
+        >
           <SoilCanvas
             items={renderedSegments}
             selectedRootId={selectedRootId}

@@ -6,6 +6,36 @@ All notable effective changes are documented here.
 
 ## 2026-07-20
 
+### Fix: Password changes verify the old password first
+
+- `src/features/profile/components/ChangePasswordPanel.tsx`: email-password users must enter their existing password before `supabase.auth.updateUser({ password })` runs; the check reuses Supabase `signInWithPassword` against the current account email and existing i18n password/error keys.
+- `src/features/profile/README.md` documents the current password-change behavior. Password setup for non-email identity accounts is unchanged.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UI: Soften Growth todo card shadow
+
+- `src/features/growth/GrowthTodoCard.tsx`: lightens the todo-card ambient shadow and shifts it slightly toward green, reducing the gray bottom shadow while preserving card shape, spacing, and interactions.
+- `src/features/growth/GrowthTodoCard.tsx`: enlarges the left completion checkbox from 16px to 20px with a finer 1.5px stroke, and increases the right-side priority/start/focus visuals with slightly wider spacing.
+- `src/features/growth/README.md` documents the current shadow treatment.
+
+Validation:
+
+- `npx tsc --noEmit`
+
+### UI: Tune Report soil and diary donut sizes
+
+- `src/features/report/plant/PlantRootSection.tsx`: extends the root-page soil image vertically by moving the soil canvas top offset from 130px to 106px while keeping the eco-sphere layer separate.
+- `src/features/report/plant/PlantRootSection.tsx`: increases the root-page canvas clamp from `300px/calc(100% - 136px)/520px` to `320px/calc(100% - 120px)/540px`, giving the soil/root area more vertical room while slightly reducing first-view space below it.
+- `src/features/report/ReportDetailModal.tsx`: renders the diary activity and mood donut charts at 0.9x of their previous size. Root-page eco-sphere charts stay unchanged.
+- `src/features/report/README.md` documents the updated Report visual sizing.
+
+Validation:
+
+- `npx tsc --noEmit`
+
 ### Fix: Annotation outbox retries are idempotent
 
 - `src/store/useOutboxStore.ts`: changed `annotation.insert` retry writes from `insert` to `upsert(onConflict: id)`, so an annotation already present in Supabase is treated as successfully synced instead of surfacing a persistent `annotations_pkey` 409 conflict.

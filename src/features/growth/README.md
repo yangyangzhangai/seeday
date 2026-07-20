@@ -52,7 +52,7 @@ GrowthPage
 - **Bottle detail sheet**: tap bottle to open unified actions (create linked todo / irrigate / continue / delete)
 - **Check-in stats**: bottle stores `checkinDates` (`YYYY-MM-DD`) and exposes `last7Days/currentStreak/bestStreak`
 - **Todo recurrence**: once / daily / weekly (with day-of-week selection); templates generate instances
-- **Todo card density**: collapsed cards keep an approximately 40px row while retaining the standard title, priority, and action-icon sizing; the ambient shadow stays tight to all sides, and expanded cards switch immediately to a fixed 22px radius so their visible corner curvature matches the compact card without a radius animation.
+- **Todo card density**: collapsed cards keep an approximately 40px row while retaining the standard title, enlarged completion checkbox, priority, and action-icon sizing; the ambient shadow stays tight to all sides with a light gray-green tint, and expanded cards switch immediately to a fixed 22px radius so their visible corner curvature matches the compact card without a radius animation.
 - **Todo card spacing**: adjacent todo cards use a fixed `10px` vertical gap.
 - **Completion feedback**: completing a todo updates its checked state immediately but holds the current card order for `700ms` before completed-item sorting moves it, so the completion action remains visible.
 - **Focus timer**: circular SVG drag picker for duration; auto-completes countdown; awards star + creates activity card

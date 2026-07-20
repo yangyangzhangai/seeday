@@ -11,6 +11,7 @@ interface Props {
 
 export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose }) => {
   const { t } = useTranslation();
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -19,6 +20,19 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
   const title = hasEmailIdentity
     ? t('change_password_title_change')
     : t('change_password_title_set');
+
+  const verifyCurrentPassword = async (): Promise<boolean> => {
+    if (!hasEmailIdentity) return true;
+    const { data, error: userError } = await supabase.auth.getUser();
+    const email = data.user?.email;
+    if (userError || !email || !currentPassword) return false;
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+    return !error;
+  };
 
   const handleSave = async () => {
     setErrorMsg('');
@@ -31,6 +45,13 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
       return;
     }
     setStatus('loading');
+    const isCurrentPasswordValid = await verifyCurrentPassword();
+    if (!isCurrentPasswordValid) {
+      setErrorMsg(t('auth_error_invalid_credentials'));
+      setStatus('error');
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
       setErrorMsg(t('change_password_error'));
@@ -49,11 +70,23 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
       )}
 
       <div className="space-y-3">
+        {hasEmailIdentity && (
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={e => setCurrentPassword(e.target.value)}
+            placeholder={t('auth_password_placeholder')}
+            autoComplete="current-password"
+            disabled={status === 'loading' || status === 'success'}
+            className="w-full rounded-xl border border-white/65 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#8FAF92]/60 focus:ring-0 disabled:opacity-50"
+          />
+        )}
         <input
           type="password"
           value={newPassword}
           onChange={e => setNewPassword(e.target.value)}
           placeholder={t('change_password_new_placeholder')}
+          autoComplete="new-password"
           disabled={status === 'loading' || status === 'success'}
           className="w-full rounded-xl border border-white/65 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#8FAF92]/60 focus:ring-0 disabled:opacity-50"
         />
@@ -62,6 +95,7 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
           value={confirmPassword}
           onChange={e => setConfirmPassword(e.target.value)}
           placeholder={t('change_password_confirm_placeholder')}
+          autoComplete="new-password"
           disabled={status === 'loading' || status === 'success'}
           className="w-full rounded-xl border border-white/65 bg-white/80 px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#8FAF92]/60 focus:ring-0 disabled:opacity-50"
         />
@@ -77,7 +111,7 @@ export const ChangePasswordPanel: React.FC<Props> = ({ hasEmailIdentity, onClose
       <button
         type="button"
         onClick={() => { void handleSave(); }}
-        disabled={status === 'loading' || status === 'success' || !newPassword || !confirmPassword}
+        disabled={status === 'loading' || status === 'success' || (hasEmailIdentity && !currentPassword) || !newPassword || !confirmPassword}
         className="mt-5 w-full rounded-[50px] py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
         style={{ background: '#5F7A63' }}
       >

@@ -18,6 +18,7 @@
   - Plant direction customization: 5-slot mapping of activity categories to plant root positions
   - Membership display: FREE/PLUS tier feature matrix with upgrade CTA
   - Account controls: help, privacy, about, logout, admin-only telemetry link
+  - Password change verifies the existing email-password credential before updating to the new password; password setup for accounts without an email identity keeps the existing set-password flow.
 
 ## Component Hierarchy
 
