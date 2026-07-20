@@ -9,6 +9,7 @@ import {
   parseUserProfileV2,
   USER_PROFILE_METADATA_KEY,
 } from './authProfileHelpers';
+import { getScopedClientStorageKey, resolveStorageScopeForUser } from './storageScope';
 
 export interface CloudUserProfileState {
   longTermProfileEnabled: boolean;
@@ -18,6 +19,7 @@ export interface CloudUserProfileState {
 }
 
 const LOGIN_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const AVATAR_CACHE_KEY = 'auth_avatar_url';
 
 export function normalizeLoginDays(rawDays: unknown): string[] {
   if (!Array.isArray(rawDays)) return [];
@@ -32,6 +34,34 @@ function normalizeCloudAvatarUrl(rawValue: unknown): string | null {
   const value = rawValue.trim();
   if (!value || value.toLowerCase().startsWith('data:') || value.length > 2048) return null;
   return value;
+}
+
+function getAvatarCacheStorageKey(userId: string): string {
+  return getScopedClientStorageKey(AVATAR_CACHE_KEY, resolveStorageScopeForUser(userId));
+}
+
+export function readCachedAvatarUrl(userId: string | null | undefined): string | null {
+  if (!userId || typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    return normalizeCloudAvatarUrl(window.localStorage.getItem(getAvatarCacheStorageKey(userId)));
+  } catch {
+    return null;
+  }
+}
+
+export function cacheAvatarUrl(userId: string | null | undefined, avatarUrl: string | null | undefined): void {
+  if (!userId || typeof window === 'undefined' || !window.localStorage) return;
+  const storageKey = getAvatarCacheStorageKey(userId);
+  const normalizedAvatarUrl = normalizeCloudAvatarUrl(avatarUrl);
+  try {
+    if (normalizedAvatarUrl) {
+      window.localStorage.setItem(storageKey, normalizedAvatarUrl);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // ignore storage write errors
+  }
 }
 
 function profileStateFromMetadata(user: any): CloudUserProfileState {
@@ -77,7 +107,10 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return fallback;
+    if (!data) {
+      cacheAvatarUrl(user.id, fallback.avatarUrl);
+      return fallback;
+    }
 
     const state: CloudUserProfileState = {
       longTermProfileEnabled: data.long_term_profile_enabled === true,
@@ -85,6 +118,7 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
       avatarUrl: normalizeCloudAvatarUrl(data.avatar_url) ?? fallback.avatarUrl,
       source: 'cloud',
     };
+    cacheAvatarUrl(user.id, state.avatarUrl);
     logDiagnostic('info', 'auth.profile_cloud.fetch.success', {
       userId: user.id,
       elapsedMs: Date.now() - startedAt,
@@ -94,6 +128,7 @@ export async function fetchCloudUserProfileState(user: any): Promise<CloudUserPr
     });
     return state;
   } catch (error) {
+    cacheAvatarUrl(user.id, fallback.avatarUrl);
     logDiagnostic('warn', 'auth.profile_cloud.fetch.failed_using_metadata', {
       userId: user.id,
       elapsedMs: Date.now() - startedAt,
@@ -118,7 +153,10 @@ export async function upsertCloudUserProfile(
   };
   if ('profile' in patch) row.profile = patch.profile;
   if ('longTermProfileEnabled' in patch) row.long_term_profile_enabled = patch.longTermProfileEnabled;
-  if ('avatarUrl' in patch) row.avatar_url = normalizeCloudAvatarUrl(patch.avatarUrl);
+  if ('avatarUrl' in patch) {
+    row.avatar_url = normalizeCloudAvatarUrl(patch.avatarUrl);
+    cacheAvatarUrl(userId, patch.avatarUrl);
+  }
 
   const { error } = await supabase
     .from('user_profiles')

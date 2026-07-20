@@ -251,31 +251,28 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         return { error: new Error('Not signed in') };
       }
 
-      if (!isDataUrl(avatarDataUrl)) {
-        set({
-          user: {
-            ...currentUser,
-            user_metadata: {
-              ...(currentUser.user_metadata || {}),
-              avatar_url: avatarDataUrl,
-            },
+      set({
+        user: {
+          ...currentUser,
+          user_metadata: {
+            ...(currentUser.user_metadata || {}),
+            avatar_url: avatarDataUrl,
           },
-        });
-      }
+        },
+      });
 
       try {
         const cloudAvatarUrl = isDataUrl(avatarDataUrl)
           ? await uploadAvatarToStorage(currentUser.id, avatarDataUrl)
           : avatarDataUrl;
         await upsertCloudUserProfile(currentUser.id, { avatarUrl: cloudAvatarUrl });
+        const { user: metadataUser, error: metadataError } = await patchUserMetadata({ avatar_url: cloudAvatarUrl });
+        if (metadataError && import.meta.env.DEV) {
+          console.warn('[auth] updateAvatar metadata sync failed (cloud saved):', metadataError);
+        }
+        const latestUser = metadataUser ?? get().user ?? currentUser;
         set({
-          user: {
-            ...currentUser,
-            user_metadata: {
-              ...(currentUser.user_metadata || {}),
-              avatar_url: cloudAvatarUrl,
-            },
-          },
+          user: applyCloudAvatarToUser(latestUser, cloudAvatarUrl),
         });
         logDiagnostic('info', 'auth.avatar_update.cloud_synced', {
           userId: currentUser.id,

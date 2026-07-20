@@ -46,6 +46,12 @@ Validation:
 - `npx vitest run --dir src src/store/useOutboxStore.test.ts`
 - `npx tsc --noEmit`
 
+### Fix: Auth avatar state now hydrates more consistently across login and refresh
+
+- `src/store/authStoreAccountActions.ts` now applies avatar changes optimistically before upload completes, persists the final storage URL to both `user_profiles.avatar_url` and Auth metadata `avatar_url`, and merges the latest returned user snapshot instead of rewriting a stale captured `currentUser` object.
+- `src/store/useAuthStore.ts` and `src/store/authProfileCloudStore.ts` now keep a user-scoped local avatar URL cache and use it during auth bootstrap / `SIGNED_IN` snapshots so the UI can render the latest known avatar before the background `user_profiles` fetch finishes.
+- `src/lib/authMetadataSanitizer.ts`, `src/lib/authMetadataSanitizer.test.ts`, and `src/store/authProfileCloudStore.test.ts` now allow normal avatar URLs to stay in JWT-safe metadata while still stripping data URLs, and add focused regression coverage for cached-avatar reuse.
+
 ## 2026-07-19
 
 ### Fix: Growth parent todo deletes now cascade through subtasks

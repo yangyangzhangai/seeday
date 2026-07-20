@@ -96,6 +96,7 @@
 - `useAuthStore` 的长期画像开关与语言切换也改成 local-first：先更新本地 UI，再后台写云端；画像开关写 `user_profiles`，语言仍写 Auth metadata。Profile 面板不再因为后台同步而闪出“Saving...”。
 - `useAuthStore` 的 onboarding 守卫现改为 `user_account_state` 优先：主判断读取 `accountState.onboardingStatus`；`userProfileV2.onboardingCompleted` 与旧 `seeday_onboarded_*` 本地标记只作为迁移/冷启动 fallback，避免 Google/Apple OAuth 新账号绕过 onboarding 或云端写失败后反复被送回引导。
 - `useAuthStore` 的 profile 刷新兜底按用户 ID 隔离：仅同一账号的 metadata/session 刷新可暂时保留内存中的 `userProfileV2`；初始化或认证事件切换到其他账号时必须丢弃旧 profile，避免继承上一账号的 onboarding 完成状态。
+- 头像链路现收口为“cloud profile + Auth metadata + user-scoped local cache”三层协同：`updateAvatar()` 先本地乐观显示裁剪结果，再写 `user_profiles.avatar_url`，并把最终 public URL 回写到 Auth metadata；`useAuthStore.initialize()` / `SIGNED_IN` 首屏快照会优先套用最近一次 user-scoped 本地头像缓存，减少旧头像闪回和默认头像空闪，后台 `user_profiles` 拉取成功后再用云端值校正。
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。

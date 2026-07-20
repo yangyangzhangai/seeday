@@ -1,5 +1,4 @@
 const LARGE_METADATA_KEYS = new Set([
-  'avatar_url',
   'today_narrative_cache_v1',
   'lateral_association_state_v1',
   'user_profile_v2',

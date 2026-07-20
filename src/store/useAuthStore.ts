@@ -59,6 +59,7 @@ import type { UserProfileV2 } from '../types/userProfile';
 import { fetchActivityStreak, updateLoginStreak } from './authStreakHelpers';
 import {
   applyCloudAvatarToUser,
+  readCachedAvatarUrl,
   fetchCloudUserProfileState,
   flushPendingProfileWriteToCloud,
   migrateMetadataProfileToCloud,
@@ -136,7 +137,8 @@ function applyUserSnapshot(
   pendingAccountState: ReturnType<typeof getPendingAccountStateWrite>;
   accountState: UserAccountState | null;
 } {
-  const safeUser = applyCloudAvatarToUser(user, options.preservedAvatarUrl ?? null);
+  const cachedAvatarUrl = user?.id ? readCachedAvatarUrl(user.id) : null;
+  const safeUser = applyCloudAvatarToUser(user, options.preservedAvatarUrl ?? cachedAvatarUrl ?? null);
   const meta = safeUser?.user_metadata || {};
   const rawPreferences = safeUser ? preferencesFromMeta(meta) : DEFAULT_PREFERENCES;
   const profileState = profileStateFromMeta(meta);
