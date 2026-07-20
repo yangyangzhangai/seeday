@@ -286,7 +286,10 @@ export function extractLatinSignals(text: string): {
   hasGoToPlace: boolean;
   hasActivityPattern: boolean;
   hasLinguisticActivity: boolean;
+  linguisticActivityKind?: import('./englishLinguisticAdapter.js').EnglishActivityGrammarKind;
   linguisticActivityTokens: string[];
+  hasLinguisticMood: boolean;
+  linguisticMoodTokens: string[];
   hasActivity: boolean;
   hasMoodLexicon: boolean;
   hasMoodPattern: boolean;
@@ -307,22 +310,33 @@ export function extractLatinSignals(text: string): {
   const hasMoodLexicon = containsAnyLatinSignal(text, moodWords);
   const linguistic = lang === 'en'
     ? extractEnglishLinguisticSignals(text)
-    : { hasPhrasalVerb: false, phrasalVerbs: [] };
+    : {
+      hasActivityGrammar: false,
+      activityGrammarKind: undefined,
+      activityTokens: [],
+      hasMentalState: false,
+      mentalStateTokens: [],
+      hasNegation: false,
+      hasFutureConstruction: false,
+    };
   const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(text));
 
   return {
     lang,
-    hasFuturePlan: futurePatterns.some((pattern) => pattern.test(text)),
-    hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)),
+    hasFuturePlan: futurePatterns.some((pattern) => pattern.test(text)) || linguistic.hasFutureConstruction,
+    hasNegatedOrNotOccurred: negationPatterns.some((pattern) => pattern.test(text)) || linguistic.hasNegation,
     hasActivityLexicon,
     hasActivityPattern,
     hasGoToPlace,
-    hasLinguisticActivity: linguistic.hasPhrasalVerb,
-    linguisticActivityTokens: linguistic.phrasalVerbs,
-    hasActivity: hasActivityLexicon || hasActivityPattern || hasGoToPlace || linguistic.hasPhrasalVerb,
+    hasLinguisticActivity: linguistic.hasActivityGrammar,
+    linguisticActivityKind: linguistic.activityGrammarKind,
+    linguisticActivityTokens: linguistic.activityTokens,
+    hasLinguisticMood: linguistic.hasMentalState,
+    linguisticMoodTokens: linguistic.mentalStateTokens,
+    hasActivity: hasActivityLexicon || hasActivityPattern || hasGoToPlace || linguistic.hasActivityGrammar,
     hasMoodLexicon,
     hasMoodPattern,
-    hasMood: hasMoodLexicon || hasMoodPattern,
+    hasMood: hasMoodLexicon || hasMoodPattern || linguistic.hasMentalState,
     hasStrongCompletion: completionPatterns.some((pattern) => pattern.test(text)),
   };
 }

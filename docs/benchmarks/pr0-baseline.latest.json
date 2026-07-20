@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-03-21T21:57:33.106Z",
+  "generatedAt": "2026-07-20T11:49:18.202Z",
   "liveInput": {
     "kind": {
-      "hit": 18,
-      "total": 18
+      "hit": 26,
+      "total": 26
     },
     "internal": {
-      "hit": 18,
-      "total": 18
+      "hit": 26,
+      "total": 26
     },
     "byLang": {
       "zh": {
@@ -15,8 +15,8 @@
         "total": 6
       },
       "en": {
-        "hit": 6,
-        "total": 6
+        "hit": 14,
+        "total": 14
       },
       "it": {
         "hit": 6,
@@ -29,16 +29,28 @@
         "total": 9
       },
       "future_plan": {
-        "hit": 3,
-        "total": 3
+        "hit": 4,
+        "total": 4
       },
       "negation": {
-        "hit": 3,
-        "total": 3
+        "hit": 4,
+        "total": 4
       },
       "mood_about_last_activity": {
         "hit": 3,
         "total": 3
+      },
+      "grammar_activity": {
+        "hit": 3,
+        "total": 3
+      },
+      "bare_noun": {
+        "hit": 2,
+        "total": 2
+      },
+      "mental_state": {
+        "hit": 1,
+        "total": 1
       }
     },
     "mismatches": []

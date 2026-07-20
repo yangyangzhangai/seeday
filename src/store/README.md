@@ -40,6 +40,7 @@
 
 - `src/store/chatActions.ts` is the Store owner of ordinary record-input dispatch.
 - Ordinary classification accepts exactly three internal results: `new_activity`, `standalone_mood`, and `mood_about_last_activity`.
+- `getLiveInputContext()` supplies the latest related activity and up to 50 exact normalized activity phrases; history can add activity evidence but cannot override an input that already has mood evidence.
 - `new_activity` calls the normal `sendMessage(..., { skipMoodDetection: false })` path; mixed mood evidence does not create a separate Store branch.
 - `standalone_mood` calls `sendMood()`; `mood_about_last_activity` additionally passes the explicit related activity ID.
 - Magic Pen commit orchestration remains in `src/store/magicPenActions.ts` and uses the parser's four segment kinds, not the ordinary classifier's internal kinds.

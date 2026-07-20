@@ -137,7 +137,7 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     const result = classify('buy veggies');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
-    expect(result.reasons).toContain('short_non_mood_default_to_activity_latin');
+    expect(result.reasons).toContain('matched_english_action_object');
   });
 
   it('keeps English emo slang as mood, not short activity fallback', () => {
@@ -623,5 +623,87 @@ describe('classifyLiveInput operational lexicon additions (en/it)', () => {
     const result = classify('reimpostare password');
     expect(result.kind).toBe('activity');
     expect(result.internalKind).toBe('new_activity');
+  });
+});
+
+describe('classifyLiveInput EN compromise grammar evidence', () => {
+  it.each([
+    ['go to school', 'matched_english_motion_destination'],
+    ['went to school', 'matched_english_motion_destination'],
+    ["I'm going to school", 'matched_english_motion_destination'],
+    ['visited Disneyland', 'matched_english_action_object'],
+    ['at Disneyland', 'matched_english_location_phrase'],
+    ['Disneyland', 'matched_english_bare_noun_phrase'],
+    ['Inception', 'matched_english_bare_noun_phrase'],
+    ['The Shawshank Redemption', 'matched_english_bare_noun_phrase'],
+  ])('classifies grammar-backed activity: %s', (input, reason) => {
+    const result = classify(input);
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.reasons).toContain(reason);
+  });
+
+  it.each([
+    'thinking about Disneyland',
+    'I remembered Inception',
+    'Disneyland reminds me of childhood',
+  ])('keeps a mental relationship as mood: %s', (input) => {
+    const result = classify(input);
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).toContain('matched_english_mental_state');
+  });
+
+  it.each([
+    "I'll go to school",
+    "I'm gonna visit Disneyland",
+  ])('keeps an English contracted future plan as mood: %s', (input) => {
+    const result = classify(input);
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).toContain('matched_non_activity_signal');
+  });
+
+  it.each([
+    "I didn't visit Disneyland",
+    "I haven't watched Inception",
+  ])('keeps a broad English negation as mood: %s', (input) => {
+    const result = classify(input);
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+    expect(result.reasons).toContain('matched_negated_or_not_occurred_signal');
+  });
+
+  it.each(['in love', 'bad day', 'okay'])(
+    'does not let noun or location grammar override mood/reply evidence: %s',
+    (input) => {
+      const result = classify(input);
+      expect(result.kind).toBe('mood');
+      expect(result.internalKind).toBe('standalone_mood');
+    },
+  );
+});
+
+describe('classifyLiveInput EN learned activity history', () => {
+  it('uses an exact previous activity as strong local evidence', () => {
+    const result = classify('Disneyland', {
+      now: Date.now(),
+      knownActivityPhrases: ['disneyland'],
+    });
+
+    expect(result.kind).toBe('activity');
+    expect(result.internalKind).toBe('new_activity');
+    expect(result.reasons).toContain('matched_user_activity_history');
+    expect(result.scores.activity).toBe(3);
+  });
+
+  it('does not let activity history override a mental-state sentence', () => {
+    const result = classify('thinking about Disneyland', {
+      now: Date.now(),
+      knownActivityPhrases: ['disneyland'],
+    });
+
+    expect(result.kind).toBe('mood');
+    expect(result.reasons).toContain('matched_english_mental_state');
   });
 });

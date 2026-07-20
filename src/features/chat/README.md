@@ -9,6 +9,7 @@
 - Route: `/chat`
 - Main user flows:
   - Auto-recognized record input: `sendAutoRecognizedInput()` must return exactly one of `new_activity / standalone_mood / mood_about_last_activity`
+  - English local evidence uses `compromise/two` grammar plus exact matches from the latest 50 activity messages; this history is local context, not a new persisted profile or classification kind
   - Magic Pen side flow: simple single-intent input may use the local fast path; mixed activity+mood evidence is checked before short-text handling and routes the whole input to `parseMagicPenInput(...)`; AI keeps `activity / mood / todo_add / activity_backfill`
   - Latest-message correction: message row supports quick reclassify between `activity` and `mood` through `reclassifyRecentInput(messageId, nextKind)`
   - Primary record input path uses local rule classification by default (no unconditional classifier API call)

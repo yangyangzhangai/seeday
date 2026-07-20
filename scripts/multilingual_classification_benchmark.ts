@@ -15,7 +15,14 @@ type LiveFixture = {
   contextRecentActivity?: string;
   expectedKind: 'activity' | 'mood';
   expectedInternalKind: InternalLiveInputKind;
-  subset?: 'core' | 'future_plan' | 'negation' | 'mood_about_last_activity';
+  subset?:
+    | 'core'
+    | 'future_plan'
+    | 'negation'
+    | 'mood_about_last_activity'
+    | 'grammar_activity'
+    | 'bare_noun'
+    | 'mental_state';
 };
 
 type CategoryFixture = {

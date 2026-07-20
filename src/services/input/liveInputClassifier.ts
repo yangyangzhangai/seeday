@@ -155,8 +155,9 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
     };
   }
 
-  const text = normalized.normalizedContent.toLowerCase();
-  const signals = extractLatinSignals(text);
+  const rawText = normalized.normalizedContent;
+  const text = rawText.toLowerCase();
+  const signals = extractLatinSignals(rawText);
   const { lang } = signals;
   const references = lang === 'it' ? IT_LAST_ACTIVITY_REFERENCES : EN_LAST_ACTIVITY_REFERENCES;
 
@@ -191,7 +192,15 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
   }
 
   const { hasActivity, hasActivityPattern, hasMood, hasStrongCompletion } = signals;
-  const hasActivityEvidence = hasActivityPattern || (hasActivity && !signals.hasMoodPattern) || hasStrongCompletion;
+  const hasHistoricalActivity = !hasMood && Boolean(context.knownActivityPhrases?.includes(text));
+  const hasActivityEvidence = hasActivityPattern
+    || (hasActivity && !signals.hasMoodPattern && !signals.hasLinguisticMood)
+    || hasHistoricalActivity
+    || hasStrongCompletion;
+
+  if (hasHistoricalActivity) {
+    evidence.push(makeEvidence('history', 'matched_user_activity_history', [text], 'strong', 'positive'));
+  }
 
   if (hasActivityEvidence && (signals.hasActivityLexicon || signals.hasActivityPattern)) {
     evidence.push(makeEvidence(
@@ -211,20 +220,38 @@ function classifyLatinInput(content: string, context: LiveInputContext): LiveInp
       'positive',
     ));
   }
-  if (hasActivityEvidence && signals.hasLinguisticActivity) {
+  const needsLinguisticActivityEvidence = signals.hasLinguisticActivity
+    && (
+      signals.linguisticActivityKind === 'phrasal_verb'
+      || (!signals.hasActivityLexicon && !signals.hasActivityPattern && !signals.hasGoToPlace)
+    )
+    && !hasHistoricalActivity;
+  if (hasActivityEvidence && needsLinguisticActivityEvidence) {
+    const linguisticReason = signals.linguisticActivityKind === 'bare_noun_phrase'
+      ? 'matched_english_bare_noun_phrase'
+      : `matched_english_${signals.linguisticActivityKind ?? 'grammar'}`;
     evidence.push(makeEvidence(
       'linguistic',
-      'matched_english_phrasal_verb',
+      linguisticReason,
       signals.linguisticActivityTokens,
-      'strong',
+      signals.linguisticActivityKind === 'bare_noun_phrase' ? 'weak' : 'strong',
       'positive',
     ));
   }
   if (hasStrongCompletion) {
     evidence.push(makeEvidence('completion', 'matched_strong_completion_signal', [text], 'medium', 'positive'));
   }
-  if (hasMood) {
+  if (hasMood && !signals.hasLinguisticMood) {
     evidence.push(makeEvidence('mood', 'matched_mood_signal', [text], 'medium', 'positive'));
+  }
+  if (signals.hasLinguisticMood) {
+    evidence.push(makeEvidence(
+      'mood',
+      'matched_english_mental_state',
+      signals.linguisticMoodTokens,
+      'strong',
+      'positive',
+    ));
   }
 
   const scores = buildScoresFromEvidence(evidence);

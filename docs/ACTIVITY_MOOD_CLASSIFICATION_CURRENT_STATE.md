@@ -16,7 +16,7 @@
 
 魔法笔不同。它负责把复杂句拆开，所以 AI 仍保留 `activity / mood / todo_add / activity_backfill` 四类。魔法笔可以把拆出的心情段附到活动草稿，但这不需要普通分类器的第四种类型。
 
-英语 `get up` 误判已在本次改动中修复：项目接入 MIT 许可证的 `compromise`，用英语短语动词结构作为活动证据，而不是只给词库补一个固定短语。
+英语实时分类已接入 MIT 许可证的 `compromise/two`：除修复 `get up` 外，现在还使用词根、词性、缩写和语法模板识别目的地、动作对象、短名词及心理关系。
 
 ## 2. 项目里其实有三种“分类”
 
@@ -79,7 +79,10 @@ flowchart TD
 | 证据 | 活动分 | 心情分 | 说明 |
 |---|---:|---:|---|
 | 词库或活动句式 | +3 | 0 | 中英意活动词和结构 |
-| 英语短语动词 | +3 | 0 | `compromise` 输出 |
+| 英语强语法结构 | +3 | 0 | 短语动词、目的地、动作对象、位置短语 |
+| 英语短名词短语 | +1 | 0 | 1 至 4 词，弱活动倾向 |
+| 用户活动历史完全匹配 | +3 | 0 | 最近 50 个非心情活动，本地精确匹配 |
+| 英语心理关系 | 0 | +3 | 主心理动词词根，如 think/remember/remind |
 | 去地点 | +3 | 0 | at the park、去了公园 |
 | 正在进行 | +2 | 0 | 正在、在做 |
 | 强完成 | +2 | 0 | 做完、finished |
@@ -105,11 +108,15 @@ flowchart TD
 ### 英语
 
 1. 用词库和正则识别活动、心情、未来、否定、完成与地点。
-2. 用 `compromise` 识别 `#Verb #Particle` 短语动词。
-3. 将短语动词记录为独立的 `linguistic` 活动证据。
-4. 证据一起进入上下文规则和统一计分。
+2. 用 `compromise/two` 计算 POS 与 verb root，并读取缩写隐含的 `will / going to / #Negative`。
+3. 匹配短语动词、移动目的地、动作对象和位置短语，记录为 `linguistic` 活动证据。
+4. 对 1 至 4 词纯名词短语给 +1 弱活动倾向，使电影名、地点名不再直接 0:0 回落心情。
+5. 主动词若是 think/remember/remind/imagine/miss 等心理关系词，改给 +3 心情证据并停止名词活动推断。
+6. 最近 50 个已记录活动提供精确历史匹配；不做模糊匹配，也不覆盖心情证据。
+7. 同一活动已有词库、句式或地点证据时，不重复叠加普通语法活动分。
+8. 所有证据进入原有上下文规则和统一三选一计分。
 
-已固定回归：`get up / got up / getting up / gets up / wake up / woke up` 都是 `new_activity`。
+已固定回归：`get up` 词形族、`go to school`、`visited Disneyland`、`Disneyland`、`Inception` 为 `new_activity`；将来、否定和 `thinking about Disneyland` 为 `standalone_mood`。
 
 ### 意大利语
 
@@ -154,9 +161,9 @@ flowchart TD
 
 ## 9. 仍然存在的风险
 
-1. `compromise` 只覆盖英语结构，不懂产品语义；“give up”在某些上下文可能是行为，也可能是状态表达。
+1. `compromise` 只理解轻量英语语法，不理解产品意图；心理词根表、证据优先级和 gold set 仍由项目维护。
 2. 规则和词库对网络新词、极短口语仍会漏。
-3. 平分归心情会继续让零证据的真实活动偏向心情。
+3. 短名词活动倾向会改善电影名和地点名召回，但也可能把其他名词误判为活动；当前只给 +1，并由心情证据优先压制。
 4. 中文短动作外壳和英语短语动词都可能带来活动误报，必须靠 gold set 控制。
 5. 用户纠错已经有遥测，但还没有稳定形成按语言分桶的训练闭环。
 6. 当前 80% 目标必须由固定评估集证明，不能靠少量示例判断。
@@ -167,7 +174,7 @@ flowchart TD
 
 | 项目 | 许可证 | 能力 | 可放在产品哪个环节 | 结论 |
 |---|---|---|---|---|
-| [compromise](https://github.com/spencermountain/compromise) | MIT | 浏览器端英语词性、动词短语、词形和规则匹配 | 实时英语信号提取 | **已采用**，当前识别短语动词 |
+| [compromise](https://github.com/spencermountain/compromise) | MIT | 浏览器端 POS、verb root、缩写、动词短语和规则匹配 | 实时英语信号提取 | **已采用 `/two`**，覆盖短语动词、动作/目的地、短名词、心理关系、将来与否定 |
 | [winkNLP](https://github.com/winkjs/wink-nlp) | MIT | token、POS、lemma、negation、sentiment | 替代或增强英语 linguistic adapter | 备选，不与 compromise 同时常驻 |
 | [Open English WordNet](https://github.com/globalwordnet/english-wordnet) | CC-BY 4.0 | 词性、同义词、上下位关系 | 构建期扩活动词候选和检查漏词 | 推荐离线使用，必须署名 |
 | [Natural](https://github.com/NaturalNode/natural) | 代码 MIT | tokenizer、stemmer、分类器、WordNet | Node 侧评估和词库生成 | 可用；内含数据需单独保留声明 |

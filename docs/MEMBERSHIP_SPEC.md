@@ -107,7 +107,7 @@
 - `iap`: `activate/restore/cancel`
 - `stripe`: `stripe_checkout/stripe_finalize/cancel`
 
-Apple App Store Server API 校验使用 ES256 JWT，并按 JWS 规范输出 IEEE-P1363 编码的 64 字节签名；签名格式由 `api/subscription.test.ts` 覆盖。
+Apple App Store Server API 校验使用 ES256 JWT，并按 JWS 规范输出 IEEE-P1363 编码的 64 字节签名；交易查询使用 Apple 当前推荐域名，Production 返回 `401` 或 `404` 时会继续查询 Sandbox，以兼容 TestFlight/Sandbox 交易；两项行为均由 `api/subscription.test.ts` 覆盖。
 
 并统一写回 `auth.users.user_metadata`：
 

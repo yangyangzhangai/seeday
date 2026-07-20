@@ -76,11 +76,16 @@ Detection requires **both**:
 The lexicon remains the source of truth for known activity and mood terms, but it is not the only evidence source.
 
 - `src/services/input/signals/englishLinguisticAdapter.ts` uses the MIT-licensed `compromise` package.
-- It currently extracts English `#Verb #Particle` phrasal verbs and emits `linguistic` activity evidence.
+- Runtime imports `compromise/two`, the POS and grammar tier; the full phrase/entity tier is not bundled intentionally.
+- Strong activity grammar covers `#Verb #Particle`, movement-root + destination, verb + object, and short location phrases.
+- A 1-4 token noun phrase can emit weak activity evidence for terse place/title input.
+- Primary mental-state verb roots emit mood evidence and suppress noun/activity inference for association or recollection text.
+- `will`, future `going to #Verb`, and `#Negative` include contracted English forms that regex alone misses.
 - The evidence is scored by the same resolver as lexicon, place, completion, and mood evidence; the library never writes a classification directly.
-- Regression families include `get up / got up / getting up / gets up` and `wake up / woke up`.
+- Existing lexicon/place evidence and ordinary grammar evidence do not stack for the same activity; phrasal verbs remain independently observable.
+- Exact matches from the latest 50 recorded activities are separate `history` evidence, not part of the lexicon.
 - Italian does not use this English adapter.
-- Add known product vocabulary to the lexicon first; use the adapter for grammatical variation and open-ended phrase structure.
+- Add known product vocabulary to the lexicon first; use the adapter for grammatical variation and open-ended structures, not world-entity lookup.
 
 
 1. **Modify Lexicon First**: Always update the relevant file in `src/services/input/lexicon/` before modifying consumer logic.

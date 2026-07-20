@@ -60,3 +60,17 @@ describe('getLiveInputContext', () => {
     expect(context.recentActivity?.id).toBe('activity');
   });
 });
+
+describe('getLiveInputContext activity history', () => {
+  it('keeps recent activity phrases and excludes mood messages', () => {
+    const messages: LiveInputContextMessage[] = [
+      recordMessage({ id: 'activity', content: 'Disneyland', duration: 20 }),
+      recordMessage({ id: 'mood', content: 'Thinking about Disneyland', isMood: true }),
+    ];
+
+    const context = getLiveInputContext(messages, NOW);
+
+    expect(context.knownActivityPhrases).toContain('disneyland');
+    expect(context.knownActivityPhrases).not.toContain('thinking about disneyland');
+  });
+});

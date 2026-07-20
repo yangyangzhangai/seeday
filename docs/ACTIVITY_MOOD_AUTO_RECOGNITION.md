@@ -79,7 +79,10 @@ flowchart TD
 | 来源 | 例子 | 当前计分 |
 |---|---|---:|
 | `lexicon` | 跑步、开会、working、studying | 活动 +3 |
-| `linguistic` | `get up`、`got up` 等英语短语动词 | 活动 +3 |
+| `linguistic` 强结构 | `get up`、`go to school`、`visited Disneyland` | 活动 +3 |
+| `linguistic` 短名词 | `Disneyland`、`Inception` | 活动 +1 |
+| `linguistic` 心理关系 | `thinking about Disneyland` | 心情 +3 |
+| `history` | 与最近 50 个已记录活动之一完全相同 | 活动 +3 |
 | `goto_place` | at the library、去了公园 | 活动 +3；中文已发生外壳的额外证据 +1 |
 | `ongoing` | 正在写、在吃饭 | 活动 +2 |
 | `completion` | 写完、finished | 活动 +2 |
@@ -105,6 +108,9 @@ moodScore = 所有心情、计划、否定和上下文证据分之和
 
 ## 6. 上下文规则
 
+除“关联上一条活动”外，上下文还会保留最近 50 个非心情活动的标准化文本。新输入只有与历史活动完全相同且自身没有心情证据时，才产生 `history` 活动证据；不做子串或模糊匹配，心理关系句不会被历史覆盖。
+
+
 分类器最多读取最近一条活动，重点判断：
 
 - 输入是否直接指代“刚才、那个、这次、it、that”等上一件事。
@@ -129,16 +135,19 @@ moodScore = 所有心情、计划、否定和上下文证据分之和
 - 活动与心情词库。
 - 正则句式和时态外壳。
 - 去地点结构。
-- `compromise` 的词性与短语动词识别。
+- `compromise/two` 的词性、词根、缩写展开和语法模板匹配。
 
-`compromise` 当前只提供结构证据，不直接决定最终结果。它解决词库难以穷举的英语动词变形和短语结构，已覆盖以下回归族：
+`compromise` 只提供结构证据，不直接决定最终结果。当前接入范围：
 
-- `get up`
-- `got up`
-- `getting up`
-- `gets up`
-- `wake up`
-- `woke up`
+- `#Verb #Particle`：`get up / got up / wake up / woke up`。
+- 移动词根 + 目的地：`go to school / went to school / I'm going to school`。
+- 动作 + 对象：`visited Disneyland / buy veggies`。
+- 位置短语：`at Disneyland`。
+- 1 至 4 词的纯名词短语：`Disneyland / Inception / The Shawshank Redemption`，只给弱活动证据。
+- 心理动词词根：`think / remember / remind / imagine / miss` 等，给心情证据并压住名词推断。
+- 英语缩写中的将来和否定：`I'll... / I'm gonna... / didn't / haven't`。
+
+同一个活动若已被词库、活动句式或地点规则覆盖，不再重复叠加普通语法活动分；短语动词保留独立回归证据。
 
 ### 意大利语
 

@@ -145,5 +145,69 @@
     "expectedKind": "mood",
     "expectedInternalKind": "mood_about_last_activity",
     "subset": "mood_about_last_activity"
+  },
+  {
+    "id": "en-grammar-motion-1",
+    "lang": "en",
+    "input": "go to school",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "grammar_activity"
+  },
+  {
+    "id": "en-grammar-motion-2",
+    "lang": "en",
+    "input": "I'm going to school",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "grammar_activity"
+  },
+  {
+    "id": "en-grammar-action-1",
+    "lang": "en",
+    "input": "visited Disneyland",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "grammar_activity"
+  },
+  {
+    "id": "en-bare-place-1",
+    "lang": "en",
+    "input": "Disneyland",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "bare_noun"
+  },
+  {
+    "id": "en-bare-title-1",
+    "lang": "en",
+    "input": "Inception",
+    "expectedKind": "activity",
+    "expectedInternalKind": "new_activity",
+    "subset": "bare_noun"
+  },
+  {
+    "id": "en-mental-state-1",
+    "lang": "en",
+    "input": "thinking about Disneyland",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "mental_state"
+  },
+  {
+    "id": "en-future-contraction-1",
+    "lang": "en",
+    "input": "I'll go to school",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "future_plan"
+  },
+  {
+    "id": "en-negation-contraction-1",
+    "lang": "en",
+    "input": "I didn't visit Disneyland",
+    "expectedKind": "mood",
+    "expectedInternalKind": "standalone_mood",
+    "subset": "negation"
   }
 ]

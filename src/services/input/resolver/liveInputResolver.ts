@@ -19,14 +19,21 @@ function scoreEvidence(evidence: LiveEvidence): LiveInputScore {
         ? { activity: 1, mood: 0 }
         : { activity: 3, mood: 0 };
     case 'lexicon':
-    case 'linguistic':
+    case 'history':
       return { activity: 3, mood: 0 };
+    case 'linguistic':
+      return evidence.reasonCode === 'matched_english_bare_noun_phrase'
+        ? { activity: 1, mood: 0 }
+        : { activity: 3, mood: 0 };
     case 'mood':
       if (evidence.reasonCode === 'context_bias_to_last_activity') {
         return { activity: 0, mood: 3 };
       }
       if (evidence.reasonCode === 'matched_weak_completion_signal') {
         return { activity: 0, mood: 2 };
+      }
+      if (evidence.reasonCode === 'matched_english_mental_state') {
+        return { activity: 0, mood: 3 };
       }
       return { activity: 0, mood: 2 };
     default:

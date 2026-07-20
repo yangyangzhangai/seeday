@@ -6,6 +6,27 @@ All notable effective changes are documented here.
 
 ## 2026-07-20
 
+### Improve: English activity and mood grammar evidence
+
+- Expanded the existing MIT `compromise` integration and narrowed runtime import to `compromise/two`. English classification now uses POS/root grammar for phrasal verbs, movement destinations, action objects, short location phrases, 1-4 token noun/title input, mental-state relationships, contracted future, and broad negation.
+- Added exact local history evidence from the latest 50 non-mood activity messages. Matching is normalized and exact only; it does not add persistence, fuzzy entity lookup, or a fourth classification result.
+- Added dedicated regressions for `go to school`, `Disneyland`, movie titles, mental association, contractions, history precedence, and mood phrase guards. The PR0 live-intent fixture grew from 18 to 26 cases and currently reports 26/26 with no mismatches.
+
+Validation:
+
+- `npm run eval:classification:pr0`
+- `npx vitest run src/services/input/liveInputClassifier.i18n.test.ts src/services/input/liveInputContext.test.ts`
+
+### Fix: TestFlight IAP activation falls through to Apple Sandbox
+
+- `api/subscription.ts` now queries Apple's current StoreKit API domains and generates a fresh ES256 JWT for each upstream request. A Production `401` or `404` now continues to the Sandbox lookup, covering TestFlight/Sandbox transaction IDs that Apple may reject with `401` on the Production endpoint.
+- `api/subscription.test.ts` adds a regression case for Production `401` followed by a successful Sandbox transaction response. The StoreKit purchase bridge, product IDs, and frontend activation payload are unchanged.
+
+Validation:
+
+- `npx vitest run api/subscription.test.ts`
+- `npm run lint:all`
+
 ### Fix: Password changes verify the old password first
 
 - `src/features/profile/components/ChangePasswordPanel.tsx`: email-password users must enter their existing password before `supabase.auth.updateUser({ password })` runs; the check reuses Supabase `signInWithPassword` against the current account email and existing i18n password/error keys.

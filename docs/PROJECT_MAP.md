@@ -116,7 +116,7 @@ src/
 | 文档 | 状态 | 负责什么 |
 |---|---|---|
 | `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` | 当前规范 | 普通输入三分类、证据计分、上下文、写入和 80% 验收 |
-| `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md` | 现状审计 | 当前代码流程、`get up` 修复、剩余风险、免费可商用开源项目 |
+| `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md` | 现状审计 | 当前代码流程、英语 grammar/history 证据、剩余风险、免费可商用开源项目 |
 | `docs/ACTIVITY_LEXICON.md` | 当前规范 | 中英意活动/心情/六分类词库 SSOT，以及英语 linguistic evidence |
 | `docs/LEXICON_ARCHITECTURE.md` | 架构补充 | 词库目录和消费者关系 |
 | `docs/MAGIC_PEN_CAPTURE_SPEC.md` | 当前规范，顶部 override 优先 | 魔法笔本地快速通道、AI 四类、draft review 和写入 |

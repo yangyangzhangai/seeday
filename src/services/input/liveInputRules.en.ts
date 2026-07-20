@@ -33,7 +33,7 @@ export const EN_STRONG_COMPLETION_PATTERNS = [
 
 export const EN_FUTURE_OR_PLAN_PATTERNS = [
   /\b(tomorrow|later|soon|tonight|later\s+today|next\s+(hour|meeting|class|week))\b/i,
-  /\b(gonna|going\s+to|plan\s+to|want\s+to|about\s+to|will|need\s+to|have\s+to)\b/i,
+  /\b(plan\s+to|want\s+to|about\s+to|will|need\s+to|have\s+to)\b/i,
 ];
 
 export const EN_NEGATED_OR_NOT_OCCURRED_PATTERNS = [

@@ -1,6 +1,6 @@
 # PR0 Baseline (Multilingual Classification)
 
-Last updated: 2026-03-21
+Last updated: 2026-07-20
 
 ## Commands
 
@@ -13,17 +13,17 @@ Artifact output path:
 
 ## Baseline Snapshot
 
-- live-input kind accuracy: `17/18 = 94.44%`
-- live-input internal accuracy: `17/18 = 94.44%`
-- activity-category accuracy: `17/18 = 94.44%`
-- todo-category accuracy: `13/18 = 72.22%`
+- live-input kind accuracy: `26/26 = 100.00%`
+- live-input internal accuracy: `26/26 = 100.00%`
+- activity-category accuracy: `18/18 = 100.00%`
+- todo-category accuracy: `18/18 = 100.00%`
 - magic-pen local fallback accuracy: `6/6 = 100.00%`
 
 ## Highlighted Gaps
 
-- EN negation sample (`I am not working now`) is still classified as `new_activity`.
-- EN activity category sample (`reviewing probability statistics`) still falls into `work` instead of `study`.
-- Todo category still has multilingual misses, especially IT text defaulting to `life` in multiple cases.
+- The 26-case live-input fixture now includes grammar activity, bare noun, mental-state, contracted future, and contracted negation buckets with no mismatches.
+- This is a small deterministic regression fixture, not proof that production accuracy has reached the 80% target.
+- Production validation still requires 300-500 reviewed samples per language and confusion-matrix reporting.
 
 ## Purpose
 

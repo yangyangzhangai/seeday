@@ -97,6 +97,8 @@ export const enMoodLexicon: MoodLexicon = {
 
   // ── Mood sentence patterns ────────────────────────────────────────────────
   moodSentencePatterns: [
+    /^\s*in\s+love\s*$/i,
+    /^\s*(a\s+)?bad\s+(day|week|morning|night)\s*$/i,
     /\b(feel|feeling)\s+(very\s+|so\s+|really\s+)?(tired|exhausted|stressed|stressful|anxious|sad|down|happy|calm|angry|overwhelmed|drained|relieved|frustrated|annoyed|good|better|optimistic)\b/i,
     /\b(so|very|really|quite)\s+(tired|exhausted|stressed|anxious|sad|happy|calm|angry|frustrated|drained|relieved|good|positive)\b/i,
     /\b(was|is|felt|feels)\s+(stressful|annoying|great|awful|rough|smooth|pointless|tedious)\b/i,

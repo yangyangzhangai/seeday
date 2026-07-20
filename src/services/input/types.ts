@@ -18,7 +18,8 @@ export type LiveEvidenceSource =
   | 'goto_place'
   | 'lexicon'
   | 'mood'
-  | 'linguistic';
+  | 'linguistic'
+  | 'history';
 
 export type LiveEvidenceStrength = 'weak' | 'medium' | 'strong';
 
@@ -62,6 +63,7 @@ export interface RecentActivityContext {
 export interface LiveInputContext {
   now: number;
   recentActivity?: RecentActivityContext;
+  knownActivityPhrases?: string[];
 }
 
 export interface LiveInputClassification {
