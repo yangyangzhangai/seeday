@@ -5,6 +5,10 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-20: Split `useTodoStore` sync/cascade helper logic into new `src/store/todoStoreSync.ts`, bringing `src/store/useTodoStore.ts` back under the hard max-lines pre-commit limit without changing todo behavior or contracts.
+
+- 2026-07-20: Fixed the remaining Growth todo delete resurrection races beyond the earlier durable cloud-delete patch. `fetchTodos()` now re-applies the latest local delete tombstones when an in-flight refresh finishes, retains aged tombstones while a matching `todo.delete` outbox entry still exists, and `useRealtimeSync` now ignores late todo `INSERT/UPDATE` events for tombstoned IDs so deleted tasks do not pop back immediately or after foreground refresh; focused regressions cover stale-fetch and late-realtime cases.
+
 - 2026-07-20: Expanded English activity/mood evidence with the existing MIT `compromise` dependency, narrowed to `compromise/two`: POS/root grammar now covers phrasal verbs, movement destinations, action objects, location phrases, short noun/title input, mental-state overrides, contracted future and broad negation. Exact matches from the latest 50 local activity messages add non-persisted history evidence. Ordinary output remains strict three-way and Magic Pen remains four segment kinds.
 
 - 2026-07-20: Fixed successful TestFlight/Sandbox IAP purchases failing membership activation after Apple Production lookup returned HTTP 401. `/api/subscription` now uses Apple's current StoreKit API domains, creates a fresh JWT per upstream request, and tries Sandbox after either Production 401 or 404; focused coverage locks the 401-to-Sandbox fallback while the native purchase/request contract remains unchanged.

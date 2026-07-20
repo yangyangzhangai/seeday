@@ -90,7 +90,7 @@
 - 会员分类最小埋点已接入 live-input telemetry reasons：`user_plan/classification_path/ai_called/ai_result_kind/bottle_match_source`（含 `membership_classification` 标记）。
 - `useTodoStore.refineTodoCategoryWithAI()` 已接入 Plus 路径统一 classify 结果消费（读取 `data.activity_type`），Free 用户不触发该 AI 分类调用。
 - `usePlantStore.setDirectionOrder()` 现改为真正 local-first durable：方向配置先本地生效并刷新根系预览，云端写失败时自动进入 `plant.directionOrder` outbox，待联网/前台恢复/重新初始化时补推，不再因为首次写失败而回退本地选择。
-- `useTodoStore.deleteTodo()` 现对一次性/重复待办删除补上 durable fallback：本地仍先移除并记录 `pendingDeletedTodoIds`，但若云端软删除因无 session、网络抖动或 0-row 未命中而未真正落库，会自动写入 `todo.delete` outbox；`fetchTodos()` 在拉云前会先 flush 队列，避免已删待办在下次登录时被云端旧数据“复活”。删除父待办时会级联删除全部子待办，避免刷新后把孤儿子待办扶正成顶层任务；`fetchTodos()` 也会把历史遗留的 orphan subtrees 识别为删除对象并入队 durable cloud delete，而不是清空 `parentId`。
+- `useTodoStore.deleteTodo()` 现对一次性/重复待办删除补上 durable fallback：本地仍先移除并记录 `pendingDeletedTodoIds`，但若云端软删除因无 session、网络抖动或 0-row 未命中而未真正落库，会自动写入 `todo.delete` outbox；`fetchTodos()` 在拉云前会先 flush 队列，并在最终合并云端结果时再次读取最新 tombstone，避免 in-flight refresh 把刚删掉的待办写回本地。删除父待办时会级联删除全部子待办，避免刷新后把孤儿子待办扶正成顶层任务；`fetchTodos()` 也会把历史遗留的 orphan subtrees 识别为删除对象并入队 durable cloud delete，而不是清空 `parentId`。`useRealtimeSync` 对 tombstoned todo 的晚到 `INSERT/UPDATE` 也会直接忽略，避免删除后立即/切后台刷新后被 realtime 重新显示。
 - `useTodoStore.deleteTodo()` 不再触发 annotation 事件；AI 批注当前仅由记录/完成/心情/闲置/过劳等保留事件驱动，删除待办只执行本地移除与 durable cloud delete。
 - `useReportStore.updateReport()` 现也接入 durable fallback：本地仍先乐观更新；若当前无 session 或 `reports.update(...)` 失败，则将完整 report 作为 `report.upsert` 入队，确保 title/content/stats/userNote/AI 结果类二次编辑不会因为瞬时网络问题丢失。
 - `useAnnotationStore.recordSuggestionOutcome()` 现也接入 durable fallback：用户点“接受/拒绝建议”时本地状态先更新；若当前无 session 或 `suggestion_accepted` 更新失败，则把结果写入 `annotation.outcome` outbox，避免建议反馈丢失。

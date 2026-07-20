@@ -6,6 +6,27 @@ All notable effective changes are documented here.
 
 ## 2026-07-20
 
+### Refactor: Split Todo store sync helpers out of the main store file
+
+- Added `src/store/todoStoreSync.ts` for background todo sync, pending-delete retention, cascade-delete cleanup, and Plus todo-category refinement helpers.
+- `src/store/useTodoStore.ts` now imports those helpers and stays under the hard max-lines pre-commit limit without changing persisted state, public store actions, or todo behavior.
+
+Validation:
+
+- `npm run lint:max-lines`
+- `npx tsc --noEmit`
+
+### Fix: Growth todo delete no longer resurrects during refresh or late realtime sync
+
+- `src/store/useTodoStore.ts` now preserves `pendingDeletedTodoIds` that are still backed by a queued `todo.delete` outbox entry, and `fetchTodos()` re-reads the latest tombstones before committing merged cloud state so a delete that happens during an in-flight fetch cannot be overwritten by a stale refresh result.
+- `src/hooks/useRealtimeSync.ts` now ignores late todo `INSERT` events and strips late non-delete `UPDATE` events for tombstoned todo IDs, preventing deleted tasks from reappearing immediately or after foreground refresh/reconnect.
+- `src/store/useTodoStore.test.ts` and `src/hooks/useRealtimeSync.test.ts` add focused regressions for stale-fetch resurrection, retained queued tombstones, and late realtime todo events.
+
+Validation:
+
+- `npx vitest run src/store/useTodoStore.test.ts src/hooks/useRealtimeSync.test.ts`
+- `npx tsc --noEmit`
+
 ### Improve: English activity and mood grammar evidence
 
 - Expanded the existing MIT `compromise` integration and narrowed runtime import to `compromise/two`. English classification now uses POS/root grammar for phrasal verbs, movement destinations, action objects, short location phrases, 1-4 token noun/title input, mental-state relationships, contracted future, and broad negation.

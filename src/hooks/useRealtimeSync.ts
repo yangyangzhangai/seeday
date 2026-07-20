@@ -29,6 +29,7 @@ import { useGrowthStore, type Bottle, type BottleType, type BottleStatus } from 
 import { fromDbAnnotation, fromDbMessage, fromDbReport, fromDbStardust, fromDbTodo } from '../lib/dbMappers';
 import { autoDetectMood } from '../lib/mood';
 import i18n from '../i18n';
+import type { Todo, TodoState } from '../store/todoStoreTypes';
 
 type SupportedLang = 'zh' | 'en' | 'it';
 
@@ -37,6 +38,38 @@ function resolveLangForContent(content: string): SupportedLang {
   if (/[A-Za-z\u00C0-\u017F]/.test(content)) return 'en';
   const lang = i18n.language?.split('-')[0] ?? 'zh';
   return (lang === 'zh' || lang === 'en' || lang === 'it') ? lang as SupportedLang : 'zh';
+}
+
+export function shouldIgnoreTodoRealtimeUpsert(
+  pendingDeletedTodoIds: TodoState['pendingDeletedTodoIds'],
+  todoId: string,
+): boolean {
+  return todoId in pendingDeletedTodoIds;
+}
+
+export function mergeRealtimeTodoInsert(
+  state: Pick<TodoState, 'todos' | 'pendingDeletedTodoIds'>,
+  todo: Todo,
+): Pick<TodoState, 'todos'> {
+  if (shouldIgnoreTodoRealtimeUpsert(state.pendingDeletedTodoIds, todo.id)) {
+    return { todos: state.todos };
+  }
+  if (state.todos.some((item) => item.id === todo.id)) {
+    return { todos: state.todos };
+  }
+  return { todos: [...state.todos, todo] };
+}
+
+export function mergeRealtimeTodoUpdate(
+  state: Pick<TodoState, 'todos' | 'pendingDeletedTodoIds'>,
+  todo: Todo,
+): Pick<TodoState, 'todos'> {
+  if (shouldIgnoreTodoRealtimeUpsert(state.pendingDeletedTodoIds, todo.id)) {
+    return { todos: state.todos.filter((item) => item.id !== todo.id) };
+  }
+  return {
+    todos: state.todos.map((item) => (item.id === todo.id ? { ...item, ...todo } : item)),
+  };
 }
 
 export function useRealtimeSync() {
@@ -180,8 +213,8 @@ export function useRealtimeSync() {
         ({ new: row }) => {
           const todo = fromDbTodo(row);
           useTodoStore.setState(state => {
-            if (state.todos.some(t => t.id === todo.id)) return state;
-            return { todos: [...state.todos, todo] };
+            const nextState = mergeRealtimeTodoInsert(state, todo);
+            return nextState.todos === state.todos ? state : nextState;
           });
         },
       )
@@ -203,9 +236,7 @@ export function useRealtimeSync() {
           }
 
           const todo = fromDbTodo(row);
-          useTodoStore.setState(state => ({
-            todos: state.todos.map(t => t.id === todo.id ? { ...t, ...todo } : t),
-          }));
+          useTodoStore.setState(state => mergeRealtimeTodoUpdate(state, todo));
         },
       )
       .on(

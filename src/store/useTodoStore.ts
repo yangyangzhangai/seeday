@@ -4,7 +4,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../api/supabase';
-import { callClassifierAPI } from '../api/client';
 import {
   normalizeTodoCategory,
 } from '../lib/activityType';
@@ -30,167 +29,29 @@ import {
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { createScopedJSONStorage } from './scopedPersistStorage';
-/** Check if a recurrence value means "non-recurring" */
-export function isNonRecurring(r?: Recurrence): boolean {
-  return !r || r === 'none' || r === 'once';
-}
-
-// ── Background Supabase sync (fire-and-forget) ──────────────
-async function bgSyncUpdate(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<void> {
-  try {
-    const session = await getSupabaseSession();
-    if (!session) return;
-    const dbUpdates = toDbTodoUpdates(updates);
-    if (Object.keys(dbUpdates).length === 0) return;
-    const { error } = await supabase
-      .from('todos')
-      .update({ ...dbUpdates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('user_id', session.user.id);
-    if (error && import.meta.env.DEV) console.error('Error syncing todo update:', error);
-  } catch (e) {
-    if (import.meta.env.DEV) console.error('bgSyncUpdate failed:', e);
-  }
-}
-
-// bgSyncInsert：插入成功后回写 syncState:'synced'，失败后回写 'failed'
-async function bgSyncInsert(todo: Todo): Promise<void> {
-  try {
-    const session = await getSupabaseSession();
-    if (!session) return;
-    const { error } = await supabase
-      .from('todos')
-      .upsert([toDbTodo(todo, session.user.id)], { onConflict: 'id' });
-    if (error) {
-      if (import.meta.env.DEV) console.error('Error syncing todo insert:', error);
-      useTodoStore.setState((s) => ({
-        todos: s.todos.map((t) =>
-          t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
-        ),
-      }));
-      return;
-    }
-    useTodoStore.setState((s) => ({
-      todos: s.todos.map((t) =>
-        t.id === todo.id ? { ...t, syncState: 'synced' as const } : t
-      ),
-    }));
-  } catch (e) {
-    if (import.meta.env.DEV) console.error('bgSyncInsert failed:', e);
-    useTodoStore.setState((s) => ({
-      todos: s.todos.map((t) =>
-        t.id === todo.id ? { ...t, syncState: 'failed' as const } : t
-      ),
-    }));
-  }
-}
-
-// bgSyncDelete：软删除（UPDATE deleted_at），不再硬删除
-async function bgSyncDelete(id: string): Promise<boolean> {
-  try {
-    const session = await getSupabaseSession();
-    if (!session) return false;
-    const deletedAt = new Date().toISOString();
-    const { data, error } = await supabase
-      .from('todos')
-      .update({ deleted_at: deletedAt, updated_at: deletedAt })
-      .eq('id', id)
-      .eq('user_id', session.user.id)
-      .select('id')
-      .maybeSingle();
-    if (error) {
-      if (import.meta.env.DEV) console.error('Error syncing todo soft-delete:', error);
-      return false;
-    }
-    if (!data?.id) {
-      if (import.meta.env.DEV) console.error('Todo soft-delete matched 0 rows:', id);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    if (import.meta.env.DEV) console.error('bgSyncDelete failed:', e);
-    return false;
-  }
-}
-
-function ensureTodoDeleteQueued(todoId: string): void {
-  const outbox = useOutboxStore.getState();
-  const alreadyQueued = outbox.entries.some((entry) => (
-    entry.kind === 'todo.delete' && entry.payload.todoId === todoId
-  ));
-  if (alreadyQueued) return;
-  outbox.enqueue({
-    kind: 'todo.delete',
-    payload: { todoId },
-    consecutiveFailures: 0,
-  });
-}
-
-async function refineTodoCategoryWithAI(id: string, title: string): Promise<void> {
-  if (!useAuthStore.getState().isPlus) {
-    return;
-  }
-  try {
-    const lang = resolveLangForText(title);
-    const result = await callClassifierAPI({
-      rawInput: title,
-      lang,
-    });
-    const nextCategory = result.data?.activity_type;
-    if (!nextCategory) return;
-    useTodoStore.setState((state) => ({
-      todos: state.todos.map((todo) => (todo.id === id ? { ...todo, category: nextCategory } : todo)),
-    }));
-    await bgSyncUpdate(id, { category: nextCategory });
-  } catch {
-    return;
-  }
-}
-
-function collectTodoCascadeIds(todos: Todo[], rootIds: string[]): string[] {
-  const pending = [...rootIds];
-  const collected = new Set<string>();
-
-  while (pending.length > 0) {
-    const currentId = pending.pop();
-    if (!currentId || collected.has(currentId)) continue;
-    collected.add(currentId);
-
-    todos.forEach((todo) => {
-      if (todo.parentId === currentId && !collected.has(todo.id)) {
-        pending.push(todo.id);
-      }
-    });
-  }
-
-  return Array.from(collected);
-}
-
-function stripDeletedTodoArtifacts(
-  state: TodoState,
-  deletedIds: Set<string>,
-): Partial<TodoState> {
-  return {
-    todos: state.todos.filter((todo) => !deletedIds.has(todo.id)),
-    todoCompletionMessageMap: Object.fromEntries(
-      Object.entries(state.todoCompletionMessageMap).filter(([todoId]) => !deletedIds.has(todoId))
-    ),
-    todoBottleStarRewardMap: Object.fromEntries(
-      Object.entries(state.todoBottleStarRewardMap).filter(([todoId]) => !deletedIds.has(todoId))
-    ),
-    messageBottleStarRewardMap: Object.fromEntries(
-      Object.entries(state.messageBottleStarRewardMap).filter(([, reward]) => !deletedIds.has(reward.todoId || ''))
-    ),
-    activeMessageMap: Object.fromEntries(
-      Object.entries(state.activeMessageMap).filter(([, todoId]) => !deletedIds.has(todoId))
-    ),
-  };
-}
+import {
+  bgSyncDelete,
+  bgSyncInsert,
+  bgSyncUpdate,
+  collectTodoCascadeIds,
+  ensureTodoDeleteQueued,
+  isNonRecurring,
+  mapCloudTodos,
+  normalizeCloudTodoCategory,
+  refineTodoCategoryWithAI,
+  shouldRetainPendingDelete,
+  stripDeletedTodoArtifacts,
+} from './todoStoreSync';
 
 // ── Unified Store ───────────────────────────────────────────
 export const useTodoStore = create<TodoState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const updateTodos = (updater: (todos: Todo[]) => Todo[]) => {
+        set((state) => ({ todos: updater(state.todos) }));
+      };
+
+      return ({
       todos: [],
       categories: ['study', 'work', 'social', 'life', 'entertainment', 'health'],
       isLoading: false,
@@ -218,8 +79,15 @@ export const useTodoStore = create<TodoState>()(
             return;
           }
           const now = Date.now();
+          const queuedDeleteIds = new Set(
+            useOutboxStore
+              .getState()
+              .entries
+              .filter((entry) => entry.kind === 'todo.delete')
+              .map((entry) => entry.payload.todoId)
+          );
           const pendingDeleteEntries = Object.entries(get().pendingDeletedTodoIds)
-            .filter(([, at]) => Number.isFinite(at) && now - at < 3 * 24 * 60 * 60 * 1000);
+            .filter(([todoId, at]) => shouldRetainPendingDelete(todoId, at, now, queuedDeleteIds));
           const pendingDeletedIds = new Set(pendingDeleteEntries.map(([id]) => id));
           if (pendingDeleteEntries.length !== Object.keys(get().pendingDeletedTodoIds).length) {
             set({ pendingDeletedTodoIds: Object.fromEntries(pendingDeleteEntries) });
@@ -309,16 +177,13 @@ export const useTodoStore = create<TodoState>()(
             return;
           }
 
-          const cloudTodosRaw = data.map(fromDbTodo); // syncState: 'synced'
+          const cloudTodosRaw = mapCloudTodos(data); // syncState: 'synced'
           const cloudIdsRaw = new Set(cloudTodosRaw.map((t) => t.id));
           const cloudTodos = cloudTodosRaw.filter((todo) => !pendingDeletedIds.has(todo.id));
 
           // 顺手修正 category（历史数据标准化）
           data.forEach((row) => {
-            const normalizedCategory = normalizeTodoCategory(row.category, row.content, resolveLangForText(row.content ?? ''));
-            if (row.category !== normalizedCategory) {
-              void bgSyncUpdate(row.id, { category: normalizedCategory });
-            }
+            normalizeCloudTodoCategory(row);
           });
 
           // ④ 合并：云端数据 + 仍然失败的本地条目（云端没有的才保留）
@@ -332,7 +197,7 @@ export const useTodoStore = create<TodoState>()(
             normalizeTodoCategory,
             resolveLangForText,
           }) as Todo[];
-          migrated.forEach((t) => bgSyncInsert(t).catch((error) => import.meta.env.DEV && console.error('[todo] migrate bgSyncInsert failed', error)));
+          migrated.forEach((t) => bgSyncInsert(t, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] migrate bgSyncInsert failed', error)));
 
           const nextPendingDeleted = Object.fromEntries(
             pendingDeleteEntries.filter(([id]) => cloudIdsRaw.has(id))
@@ -364,18 +229,28 @@ export const useTodoStore = create<TodoState>()(
             ? mergedTodos.filter((todo) => !orphanDeletedIdSet.has(todo.id))
             : mergedTodos;
 
-          set({
-            ...stripDeletedTodoArtifacts({
-              ...get(),
-              todos: sanitizedMergedTodos,
-            }, orphanDeletedIdSet),
-            pendingDeletedTodoIds: nextPendingDeletedWithOrphans,
-            isLoading: false,
-            hasHydrated: true,
-            lastFetchedAt: Date.now(),
-            lastSyncError: stillFailed.length > 0
-              ? `${stillFailed.length} 条待办同步失败，将在下次重试`
-              : null,
+          set((state) => {
+            const latestPendingDeleted = Object.fromEntries(
+              Object.entries(state.pendingDeletedTodoIds).filter(([todoId, at]) => shouldRetainPendingDelete(todoId, at, now, queuedDeleteIds))
+            );
+            const mergedPendingDeleted = {
+              ...nextPendingDeletedWithOrphans,
+              ...latestPendingDeleted,
+            };
+            const mergedPendingDeletedIds = new Set(Object.keys(mergedPendingDeleted));
+            return {
+              ...stripDeletedTodoArtifacts({
+                ...state,
+                todos: sanitizedMergedTodos.filter((todo) => !mergedPendingDeletedIds.has(todo.id)),
+              }, mergedPendingDeletedIds),
+              pendingDeletedTodoIds: mergedPendingDeleted,
+              isLoading: false,
+              hasHydrated: true,
+              lastFetchedAt: Date.now(),
+              lastSyncError: stillFailed.length > 0
+                ? `${stillFailed.length} 条待办同步失败，将在下次重试`
+                : null,
+            };
           });
         } catch (err) {
           set({
@@ -443,15 +318,15 @@ export const useTodoStore = create<TodoState>()(
               syncState: 'pending',
             };
             newTodos.push(instance);
-            bgSyncInsert(instance).catch((error) => import.meta.env.DEV && console.error('[todo] recurrence bgSyncInsert failed', error));
+            bgSyncInsert(instance, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] recurrence bgSyncInsert failed', error));
             if (shouldRefineByAI) {
-              void refineTodoCategoryWithAI(instance.id, instance.title);
+              void refineTodoCategoryWithAI(instance.id, instance.title, updateTodos);
             }
           }
           set((s) => ({ todos: [...s.todos, ...newTodos] }));
-          bgSyncInsert(template).catch((error) => import.meta.env.DEV && console.error('[todo] add template bgSyncInsert failed', error));
+          bgSyncInsert(template, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] add template bgSyncInsert failed', error));
           if (shouldRefineByAI) {
-            void refineTodoCategoryWithAI(template.id, template.title);
+            void refineTodoCategoryWithAI(template.id, template.title, updateTodos);
           }
         } else {
           const todo: Todo = {
@@ -470,9 +345,9 @@ export const useTodoStore = create<TodoState>()(
             syncState: 'pending',
           };
           set((s) => ({ todos: [...s.todos, todo] }));
-          bgSyncInsert(todo).catch((error) => import.meta.env.DEV && console.error('[todo] add todo bgSyncInsert failed', error));
+          bgSyncInsert(todo, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] add todo bgSyncInsert failed', error));
           if (shouldRefineByAI) {
-            void refineTodoCategoryWithAI(todo.id, todo.title);
+            void refineTodoCategoryWithAI(todo.id, todo.title, updateTodos);
           }
         }
       },
@@ -691,7 +566,7 @@ export const useTodoStore = create<TodoState>()(
           ],
         }));
         existingSubTodos.forEach((t) => bgSyncDelete(t.id).catch((error) => import.meta.env.DEV && console.error('[todo] sync subtodo bgSyncDelete failed', error)));
-        subTodos.forEach((t) => bgSyncInsert(t).catch((error) => import.meta.env.DEV && console.error('[todo] sync subtodo bgSyncInsert failed', error)));
+        subTodos.forEach((t) => bgSyncInsert(t, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] sync subtodo bgSyncInsert failed', error)));
       },
 
       // ── Reorder todos ──
@@ -808,7 +683,7 @@ export const useTodoStore = create<TodoState>()(
             scope: tpl.scope,
           };
           newInstances.push(instance);
-          bgSyncInsert(instance).catch((error) => import.meta.env.DEV && console.error('[todo] rollover bgSyncInsert failed', error));
+          bgSyncInsert(instance, updateTodos).catch((error) => import.meta.env.DEV && console.error('[todo] rollover bgSyncInsert failed', error));
         }
 
         set((s) => ({
@@ -942,7 +817,8 @@ export const useTodoStore = create<TodoState>()(
         }));
         return { bottleId: reward.bottleId, stars: reward.stars };
       },
-    }),
+      });
+    },
     {
       name: PERSIST_KEYS.todo,
       storage: createScopedJSONStorage<Partial<TodoState>>('todo'),

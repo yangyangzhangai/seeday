@@ -210,4 +210,92 @@ describe('useTodoStore delete durability', () => {
     if (entry.kind !== 'todo.delete') return;
     expect(entry.payload.todoId).toBe('orphan-sub-1');
   });
+
+  it('keeps a todo deleted when fetch resolves with a stale cloud row', async () => {
+    getSupabaseSessionMock.mockResolvedValue({ user: { id: 'user-1' } });
+    let resolveSelect: ((value: {
+      data: Array<Record<string, unknown>>;
+      error: null;
+    }) => void) | null = null;
+    selectMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSelect = resolve;
+    }));
+    useTodoStore.setState({
+      todos: [{
+        id: 'todo-race-1',
+        title: 'Race task',
+        completed: false,
+        createdAt: 1,
+        priority: 'medium',
+        recurrence: 'once',
+        isTemplate: false,
+        sortOrder: 1,
+      }],
+    });
+
+    const fetchPromise = useTodoStore.getState().fetchTodos();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    useTodoStore.getState().deleteTodo('todo-race-1');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    resolveSelect?.({
+      data: [{
+        id: 'todo-race-1',
+        content: 'Race task',
+        completed: false,
+        priority: 'medium',
+        category: 'life',
+        due_date: null,
+        scope: null,
+        created_at: 1,
+        recurrence: 'once',
+        recurrence_days: null,
+        recurrence_id: null,
+        completed_at: null,
+        is_pinned: false,
+        started_at: null,
+        duration: null,
+        bottle_id: null,
+        sort_order: 1,
+        is_template: false,
+        template_id: null,
+        parent_id: null,
+        suggested_duration: null,
+      }],
+      error: null,
+    });
+    await fetchPromise;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useTodoStore.getState().todos).toEqual([]);
+    expect(useTodoStore.getState().pendingDeletedTodoIds['todo-race-1']).toBeTypeOf('number');
+  });
+
+  it('retains aged pending deletes while a matching outbox delete still exists', async () => {
+    const fourDaysAgo = Date.now() - (4 * 24 * 60 * 60 * 1000);
+    getSupabaseSessionMock.mockResolvedValue({ user: { id: 'user-1' } });
+    selectMock.mockResolvedValue({ data: [], error: null });
+    useOutboxStore.setState({
+      entries: [{
+        id: 'outbox-delete-1',
+        kind: 'todo.delete',
+        payload: { todoId: 'old-todo-1' },
+        attempts: 1,
+        consecutiveFailures: 0,
+        status: 'cooldown',
+        nextRetryAt: Date.now() + 60_000,
+      }],
+    });
+    useTodoStore.setState({
+      todos: [],
+      pendingDeletedTodoIds: {
+        'old-todo-1': fourDaysAgo,
+      },
+    });
+
+    await useTodoStore.getState().fetchTodos();
+
+    expect(useTodoStore.getState().pendingDeletedTodoIds['old-todo-1']).toBe(fourDaysAgo);
+  });
 });
