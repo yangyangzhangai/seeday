@@ -44,8 +44,8 @@ interface VerifiedMembership {
   environment: 'production' | 'sandbox' | 'unknown';
 }
 
-const APPLE_PROD_API_BASE = 'https://api.storekit.itunes.apple.com';
-const APPLE_SANDBOX_API_BASE = 'https://api.storekit-sandbox.itunes.apple.com';
+const APPLE_PROD_API_BASE = 'https://api.storekit.apple.com';
+const APPLE_SANDBOX_API_BASE = 'https://api.storekit-sandbox.apple.com';
 const ENABLE_VERBOSE_SUBSCRIPTION_LOGS = process.env.SUBSCRIPTION_VERBOSE_LOGS === 'true';
 
 function logSubscriptionDebug(message: string, ...args: unknown[]): void {
@@ -196,9 +196,9 @@ function decodeJwtPayload<T = Record<string, unknown>>(token: string): T | null 
 }
 
 export function buildAppleApiToken(bundleId: string): string {
-  const issuerId = getEnv('APPLE_IAP_ISSUER_ID');
-  const keyId = getEnv('APPLE_IAP_KEY_ID');
-  const privateKeyRaw = getEnv('APPLE_IAP_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const issuerId = getEnv('APPLE_IAP_ISSUER_ID').trim();
+  const keyId = getEnv('APPLE_IAP_KEY_ID').trim();
+  const privateKeyRaw = getEnv('APPLE_IAP_PRIVATE_KEY').trim().replace(/\\n/g, '\n');
 
   const nowSec = Math.floor(Date.now() / 1000);
   const header = {
@@ -230,7 +230,7 @@ async function fetchAppleTransaction(
   apiBase: string,
   bearerToken: string,
   transactionId: string,
-): Promise<{ payload: AppleTransactionPayload | null; notFound: boolean }> {
+): Promise<{ payload: AppleTransactionPayload | null; status: number }> {
   const response = await fetch(`${apiBase}/inApps/v1/transactions/${encodeURIComponent(transactionId)}`, {
     method: 'GET',
     headers: {
@@ -239,8 +239,8 @@ async function fetchAppleTransaction(
     },
   });
 
-  if (response.status === 404) {
-    return { payload: null, notFound: true };
+  if (response.status === 401 || response.status === 404) {
+    return { payload: null, status: response.status };
   }
 
   if (!response.ok) {
@@ -255,8 +255,33 @@ async function fetchAppleTransaction(
 
   return {
     payload: decodeJwtPayload<AppleTransactionPayload>(data.signedTransactionInfo),
-    notFound: false,
+    status: response.status,
   };
+}
+
+export async function fetchAppleTransactionAcrossEnvironments(
+  bundleId: string,
+  transactionId: string,
+): Promise<{ payload: AppleTransactionPayload; environment: 'production' | 'sandbox' } | null> {
+  const endpoints = [
+    { apiBase: APPLE_PROD_API_BASE, environment: 'production' as const },
+    { apiBase: APPLE_SANDBOX_API_BASE, environment: 'sandbox' as const },
+  ];
+  const statuses: number[] = [];
+
+  for (const endpoint of endpoints) {
+    const token = buildAppleApiToken(bundleId);
+    const result = await fetchAppleTransaction(endpoint.apiBase, token, transactionId);
+    statuses.push(result.status);
+    if (result.payload) {
+      return { payload: result.payload, environment: endpoint.environment };
+    }
+  }
+
+  if (statuses.every((status) => status === 401)) {
+    throw new Error('Apple verify failed: HTTP 401 in production and sandbox');
+  }
+  return null;
 }
 
 async function verifyIapMembership(params: {
@@ -308,25 +333,18 @@ async function verifyIapMembership(params: {
   for (const bundleId of allowedBundleIds) {
     try {
       logSubscriptionDebug('[IAP] building token for bundleId:', bundleId);
-      const token = buildAppleApiToken(bundleId);
-      logSubscriptionDebug('[IAP] token built OK, querying prod API...');
-      const prod = await fetchAppleTransaction(APPLE_PROD_API_BASE, token, params.transactionId);
-      const nextEnv: 'production' | 'sandbox' = prod.notFound ? 'sandbox' : 'production';
-      logSubscriptionDebug('[IAP] prod lookup notFound:', prod.notFound, '-> env:', nextEnv);
-      const source = prod.notFound
-        ? await fetchAppleTransaction(APPLE_SANDBOX_API_BASE, token, params.transactionId)
-        : prod;
-      const candidate = source.payload;
-      if (!candidate) {
+      const source = await fetchAppleTransactionAcrossEnvironments(bundleId, params.transactionId);
+      if (!source) {
         logSubscriptionDebug('[IAP] no payload from Apple for bundleId:', bundleId);
         continue;
       }
+      const candidate = source.payload;
       logSubscriptionDebug('[IAP] Apple payload bundleId:', candidate.bundleId, 'productId:', candidate.productId);
       if (candidate.bundleId && !allowedBundleIds.includes(candidate.bundleId)) {
         throw new Error(`Bundle ID mismatch: ${candidate.bundleId}`);
       }
       payload = candidate;
-      env = nextEnv;
+      env = source.environment;
       break;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
