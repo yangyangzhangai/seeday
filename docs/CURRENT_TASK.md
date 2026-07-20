@@ -1,10 +1,11 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-19
+Last Updated: 2026-07-20
 Owner: current working session
 
 Session Notes:
 
+- 2026-07-20: Fixed persistent "同步失败 1" caused by annotation outbox retries colliding with an already-written Supabase row. `annotation.insert` retry now uses `upsert(onConflict: id)`, so duplicate `annotations_pkey` conflicts are treated idempotently while preserving the same annotation ID/content.
 - 2026-07-19: Added the current plant's localized registry name as small text beneath the generated plant card and beneath the plant photo in Diary detail. The name is resolved from the existing ZH/EN/IT plant registry by `plantId`; plant generation, artwork, card actions, and diary content are unchanged.
 - 2026-07-19: Added a shared 60-second resend cooldown to both email signup verification screens. The initial successful code request and every successful resend restart the timer; while active, the resend control is disabled and displays the remaining seconds using the existing translated resend label.
 - 2026-07-19: Fixed cross-account auth profile retention during initialization and session refresh. `useAuthStore` now preserves an in-memory `userProfileV2` only when the previous and current authenticated user IDs match, so a newly selected account cannot inherit another account's `onboardingCompleted` state; same-account refresh fallback remains unchanged.

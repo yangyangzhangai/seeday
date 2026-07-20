@@ -77,6 +77,7 @@
 - 全域 persist key 已统一收口到 `src/store/persistKeys.ts` 的 `seeday:v1:<domain>`，各 store 在 hydration 时会一次性迁移旧 key，并在 `clearLocalDomainStores()` 中统一清理，降低跨账号残留风险。
 - `useAuthStore.initialize()` 现按各 domain store 的 `lastFetchedAt` 做 60 秒新鲜度门控；本地缓存足够新时跳过重复拉云，仅保留本地恢复、pending push 与 realtime 增量更新。
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
+- `annotation.insert` outbox 重试使用 `upsert(onConflict: id)`，因此同一批注若已在云端存在会被视为同步成功，不再因 `annotations_pkey` 重复主键进入长期失败。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
 - `useChatStore.sendMessage()/sendMood()` 现保证 `messages` 与 `dateCache` 同步更新（包括“自动结束上一条活动”后的 `duration/isActive` 变化），避免提醒弹窗确认后因缓存口径不一致出现“新活动闪现后消失/上一条未自动结束”的竞态。
 - `useChatStore.sendMessage()` 现会在新活动创建前统一收口所有 ongoing 活动（不再只关闭最后一条 record），并且 `insertActivity()/updateActivity()` 会拦截与 ongoing 活动冲突的手动时间编辑，避免时间线被污染后出现双活动同时计时。

@@ -184,7 +184,7 @@ async function executeReportEntry(entry: ReportOutboxEntry, userId: string): Pro
 async function executeAnnotationEntry(entry: AnnotationOutboxEntry, userId: string): Promise<void> {
   const { error } = await supabase
     .from('annotations')
-    .insert([toDbAnnotation(entry.payload.annotation, userId)]);
+    .upsert([toDbAnnotation(entry.payload.annotation, userId)], { onConflict: 'id' });
   if (error) throw error;
 }
 
@@ -333,7 +333,7 @@ function describeOutboxEntry(entry: OutboxEntry): Record<string, unknown> {
     return { ...base, table: 'reports', operation: 'upsert', reportId: entry.payload.report.id };
   }
   if (entry.kind === 'annotation.insert' || entry.kind === 'annotation.outcome') {
-    return { ...base, table: 'annotations', operation: entry.kind === 'annotation.insert' ? 'insert' : 'update' };
+    return { ...base, table: 'annotations', operation: entry.kind === 'annotation.insert' ? 'upsert' : 'update' };
   }
   if (entry.kind === 'todo.delete') {
     return { ...base, table: 'todos', operation: 'soft_delete', todoId: entry.payload.todoId };

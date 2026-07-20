@@ -4,6 +4,18 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-20
+
+### Fix: Annotation outbox retries are idempotent
+
+- `src/store/useOutboxStore.ts`: changed `annotation.insert` retry writes from `insert` to `upsert(onConflict: id)`, so an annotation already present in Supabase is treated as successfully synced instead of surfacing a persistent `annotations_pkey` 409 conflict.
+- `src/store/useOutboxStore.test.ts` covers the retry contract, and `src/store/README.md` documents the idempotent annotation outbox behavior.
+
+Validation:
+
+- `npx vitest run --dir src src/store/useOutboxStore.test.ts`
+- `npx tsc --noEmit`
+
 ## 2026-07-19
 
 ### UI: Show localized plant names beneath plant artwork

@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const supabaseMocks = vi.hoisted(() => ({
+  from: vi.fn(),
+  upsert: vi.fn(),
+}));
+
+vi.mock('../api/supabase', () => ({
+  supabase: {
+    from: supabaseMocks.from,
+  },
+}));
+
 vi.mock('./storageScope', async () => {
   const actual = await vi.importActual<typeof import('./storageScope')>('./storageScope');
   return {
@@ -20,6 +31,8 @@ describe('useOutboxStore', () => {
   afterEach(() => {
     useOutboxStore.setState({ entries: [] });
     resetOutboxExecutorsForTests();
+    supabaseMocks.from.mockReset();
+    supabaseMocks.upsert.mockReset();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -128,6 +141,35 @@ describe('useOutboxStore', () => {
     await useOutboxStore.getState().flush('u1');
 
     expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
+  });
+
+  it('retries annotation inserts idempotently with upsert', async () => {
+    supabaseMocks.upsert.mockResolvedValue({ error: null });
+    supabaseMocks.from.mockReturnValue({ upsert: supabaseMocks.upsert });
+    useOutboxStore.getState().enqueue({
+      kind: 'annotation.insert',
+      payload: {
+        annotation: {
+          id: 'a1',
+          content: 'x',
+          tone: 'gentle',
+          timestamp: 1,
+          relatedEvent: { type: 'activity_recorded', timestamp: 1 },
+          displayDuration: 1000,
+          syncedToCloud: false,
+        },
+      },
+      consecutiveFailures: 0,
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(supabaseMocks.from).toHaveBeenCalledWith('annotations');
+    expect(supabaseMocks.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: 'a1', user_id: 'u1' })],
+      { onConflict: 'id' },
+    );
     expect(useOutboxStore.getState().entries).toEqual([]);
   });
 
