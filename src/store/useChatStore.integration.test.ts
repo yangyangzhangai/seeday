@@ -8,6 +8,7 @@ vi.mock('./useAnnotationStore', () => ({
   useAnnotationStore: {
     getState: () => ({
       triggerAnnotation: vi.fn(async () => undefined),
+      removeEventsByMessageId: vi.fn(),
     }),
   },
 }));
@@ -476,6 +477,57 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
     expect(state.messages[0].imageUrl2).toBe('https://example.com/second.jpg');
     expect(state.dateCache[dateKey][0].imageUrl).toBe('https://example.com/first.jpg');
     expect(state.dateCache[dateKey][0].imageUrl2).toBe('https://example.com/second.jpg');
+  });
+
+  it('removes a deleted activity from messages and every date cache bucket', async () => {
+    const base = 1_700_000_000_000;
+    const firstDateKey = getLocalDateString(new Date(base));
+    const secondDateKey = getLocalDateString(new Date(base + 24 * 60 * 60 * 1000));
+    const deletedActivity: Message = {
+      id: 'todo-completion-activity',
+      content: '剪指甲',
+      timestamp: base,
+      type: 'text',
+      mode: 'record',
+      activityType: 'life',
+      duration: 5,
+    };
+    const retainedActivity: Message = {
+      ...deletedActivity,
+      id: 'retained-activity',
+      content: '散步',
+      timestamp: base + 24 * 60 * 60 * 1000,
+    };
+    resetChatStore([deletedActivity, retainedActivity]);
+    useChatStore.setState({
+      pendingManualEnds: { [deletedActivity.id]: Date.now() + 3_000 },
+      dateCache: {
+        [firstDateKey]: [deletedActivity],
+        [secondDateKey]: [deletedActivity, retainedActivity],
+      },
+    });
+    useMoodStore.setState({
+      activityMood: { [deletedActivity.id]: 'down', [retainedActivity.id]: 'happy' },
+      moodNote: { [deletedActivity.id]: '需要休息' },
+    });
+    useOutboxStore.getState().enqueue({
+      kind: 'mood.upsert',
+      payload: { messageId: deletedActivity.id, patch: { mood_label: 'down' } },
+      consecutiveFailures: 0,
+    });
+
+    await useChatStore.getState().deleteActivity(deletedActivity.id);
+
+    const state = useChatStore.getState();
+    const moodState = useMoodStore.getState();
+    expect(state.messages.map(message => message.id)).toEqual([retainedActivity.id]);
+    expect(state.dateCache[firstDateKey]).toEqual([]);
+    expect(state.dateCache[secondDateKey].map(message => message.id)).toEqual([retainedActivity.id]);
+    expect(state.pendingManualEnds[deletedActivity.id]).toBeUndefined();
+    expect(moodState.activityMood[deletedActivity.id]).toBeUndefined();
+    expect(moodState.moodNote[deletedActivity.id]).toBeUndefined();
+    expect(moodState.activityMood[retainedActivity.id]).toBe('happy');
+    expect(useOutboxStore.getState().entries).toEqual([]);
   });
 
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {

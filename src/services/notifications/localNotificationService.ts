@@ -7,6 +7,7 @@
  */
 
 import type { ReminderType } from '../reminder/reminderTypes';
+import type { ReminderOccurrence } from '../reminder/reminderResponse';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../store/storageScope';
 import i18n from '../../i18n';
 
@@ -16,18 +17,22 @@ let actionTypesRegistered = false;
 let actionTypesRegisterPromise: Promise<void> | null = null;
 
 interface NotificationActionHandlers {
-  onTap?: (reminderType: ReminderType) => void;
-  onConfirm?: (reminderType: ReminderType) => void;
-  onDeny?: (reminderType: ReminderType, activityType?: string) => void;
-  onViewReport?: () => void;
-  onGrowPlant?: () => void;
+  onTap?: (reminderType: ReminderType, occurrence?: ReminderOccurrence) => void;
+  onConfirm?: (reminderType: ReminderType, occurrence?: ReminderOccurrence) => void;
+  onDeny?: (
+    reminderType: ReminderType,
+    activityType?: string,
+    occurrence?: ReminderOccurrence,
+  ) => void;
+  onViewReport?: (reminderType: ReminderType, occurrence?: ReminderOccurrence) => void;
+  onGrowPlant?: (reminderType: ReminderType, occurrence?: ReminderOccurrence) => void;
   onOpenChat?: () => void;
   onStillYes?: (reminderType: ReminderType, activityType?: string) => void;
   onStillNo?: (reminderType: ReminderType, activityType?: string) => void;
 }
 
 interface NotificationReceivedHandlers {
-  onReceived?: (reminderType: ReminderType) => void;
+  onReceived?: (reminderType: ReminderType, occurrence?: ReminderOccurrence) => void;
 }
 
 let currentActionHandlers: NotificationActionHandlers = {};
@@ -194,6 +199,26 @@ export interface LocalNotificationPayload {
     reminderType: ReminderType;
     activityType?: string;
     content?: string;
+    occurrenceKey?: string;
+    occurrenceDate?: string;
+    scheduledFor?: string;
+  };
+}
+
+function parseNotificationOccurrence(
+  extra: Record<string, unknown>,
+): ReminderOccurrence | undefined {
+  if (
+    typeof extra.occurrenceKey !== 'string'
+    || typeof extra.occurrenceDate !== 'string'
+    || typeof extra.scheduledFor !== 'string'
+  ) {
+    return undefined;
+  }
+  return {
+    occurrenceKey: extra.occurrenceKey,
+    occurrenceDate: extra.occurrenceDate,
+    scheduledFor: extra.scheduledFor,
   };
 }
 
@@ -315,6 +340,37 @@ export async function getPendingNotificationIds(): Promise<number[]> {
   }
 }
 
+/** 取消指定提醒 occurrence 的待发送通知，并移除通知中心内已送达的同一条通知。 */
+export async function cancelReminderOccurrence(occurrenceKey: string): Promise<void> {
+  const pluginRef = await getPlugin();
+  if (!pluginRef) return;
+  const { plugin } = pluginRef;
+
+  try {
+    const pending = await plugin.getPending();
+    const pendingMatches = pending.notifications.filter((notification) => {
+      const extra = (notification.extra ?? {}) as Record<string, unknown>;
+      return extra.occurrenceKey === occurrenceKey;
+    });
+    if (pendingMatches.length > 0) {
+      await plugin.cancel({
+        notifications: pendingMatches.map((notification) => ({ id: notification.id })),
+      });
+    }
+
+    const delivered = await plugin.getDeliveredNotifications();
+    const deliveredMatches = delivered.notifications.filter((notification) => {
+      const payload = (notification.extra ?? notification.data ?? {}) as Record<string, unknown>;
+      return payload.occurrenceKey === occurrenceKey;
+    });
+    if (deliveredMatches.length > 0) {
+      await plugin.removeDeliveredNotifications({ notifications: deliveredMatches });
+    }
+  } catch {
+    // 系统版本或平台不支持移除已送达通知时静默降级
+  }
+}
+
 const IDLE_NUDGE_ID = 999001;
 const IDLE_NUDGE_KEY = 'idle_nudge_scheduled_at';
 
@@ -374,15 +430,19 @@ export async function setupNotificationActionListener(
         reminderType?: ReminderType;
         activityType?: string;
         content?: string;
+        occurrenceKey?: string;
+        occurrenceDate?: string;
+        scheduledFor?: string;
       };
       const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
+      const occurrence = parseNotificationOccurrence(extra);
       const activeHandlers = currentActionHandlers;
 
-      if (actionId === 'tap') activeHandlers.onTap?.(reminderType);
-      if (actionId === 'confirm') activeHandlers.onConfirm?.(reminderType);
-      if (actionId === 'deny') activeHandlers.onDeny?.(reminderType, extra.activityType);
-      if (actionId === 'view_report') activeHandlers.onViewReport?.();
-      if (actionId === 'grow_plant') activeHandlers.onGrowPlant?.();
+      if (actionId === 'tap') activeHandlers.onTap?.(reminderType, occurrence);
+      if (actionId === 'confirm') activeHandlers.onConfirm?.(reminderType, occurrence);
+      if (actionId === 'deny') activeHandlers.onDeny?.(reminderType, extra.activityType, occurrence);
+      if (actionId === 'view_report') activeHandlers.onViewReport?.(reminderType, occurrence);
+      if (actionId === 'grow_plant') activeHandlers.onGrowPlant?.(reminderType, occurrence);
       if (actionId === 'open_chat') activeHandlers.onOpenChat?.();
       if (actionId === 'still_yes') activeHandlers.onStillYes?.(reminderType, extra.activityType);
       if (actionId === 'still_no') activeHandlers.onStillNo?.(reminderType, extra.activityType);
@@ -407,9 +467,12 @@ export async function setupNotificationReceivedListener(
     await pluginRef.plugin.addListener('localNotificationReceived', (event) => {
       const extra = (event.extra ?? {}) as {
         reminderType?: ReminderType;
+        occurrenceKey?: string;
+        occurrenceDate?: string;
+        scheduledFor?: string;
       };
       const reminderType: ReminderType = extra.reminderType ?? 'evening_check';
-      currentReceivedHandlers.onReceived?.(reminderType);
+      currentReceivedHandlers.onReceived?.(reminderType, parseNotificationOccurrence(extra));
     });
   })().catch(() => {
     receivedListenerSetupPromise = null;

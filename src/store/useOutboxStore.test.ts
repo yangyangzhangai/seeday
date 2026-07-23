@@ -51,6 +51,54 @@ describe('useOutboxStore', () => {
     expect(entry.consecutiveFailures).toBe(0);
   });
 
+  it('discards only mood retries for deleted messages', () => {
+    useOutboxStore.getState().enqueue({
+      kind: 'mood.upsert',
+      payload: { messageId: 'deleted-message', patch: { mood_label: 'down' } },
+      consecutiveFailures: 0,
+    });
+    useOutboxStore.getState().enqueue({
+      kind: 'mood.upsert',
+      payload: { messageId: 'retained-message', patch: { mood_label: 'happy' } },
+      consecutiveFailures: 0,
+    });
+
+    useOutboxStore.getState().discardMoodEntries(['deleted-message']);
+
+    const entries = useOutboxStore.getState().entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('mood.upsert');
+    if (entries[0].kind !== 'mood.upsert') return;
+    expect(entries[0].payload.messageId).toBe('retained-message');
+  });
+
+  it('removes a verified orphan mood before retrying its cloud write', async () => {
+    const moodExecutor = vi.fn().mockResolvedValue(undefined);
+    const { useChatStore } = await import('./useChatStore');
+    const { useMoodStore } = await import('./useMoodStore');
+    useChatStore.setState({ messages: [], dateCache: {} });
+    useMoodStore.setState({ activityMood: { 'orphan-message': 'down' } });
+    supabaseMocks.from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          in: async () => ({ data: [], error: null }),
+        }),
+      }),
+    });
+    setOutboxExecutorForTests('mood.upsert', moodExecutor);
+    useOutboxStore.getState().enqueue({
+      kind: 'mood.upsert',
+      payload: { messageId: 'orphan-message', patch: { mood_label: 'down' } },
+      consecutiveFailures: 0,
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(moodExecutor).not.toHaveBeenCalled();
+    expect(useOutboxStore.getState().entries).toEqual([]);
+    expect(useMoodStore.getState().activityMood['orphan-message']).toBeUndefined();
+  });
+
   it('keeps only latest preference upsert entry', () => {
     useOutboxStore.getState().enqueue({
       kind: 'preference.upsert',
@@ -80,6 +128,56 @@ describe('useOutboxStore', () => {
     if (entries[0].kind !== 'preference.upsert') return;
     expect(entries[0].payload.ai_mode).toBe('agnes');
     expect(entries[0].payload.annotation_drop_rate).toBe('high');
+  });
+
+  it('keeps only the latest response for one reminder occurrence', () => {
+    const response = {
+      reminderType: 'work_start' as const,
+      occurrenceKey: '2026-04-22:work_start:0900',
+      occurrenceDate: '2026-04-22',
+      scheduledFor: '2026-04-22T09:00:00.000Z',
+      respondedAt: '2026-04-22T09:00:01.000Z',
+    };
+    useOutboxStore.getState().enqueue({
+      kind: 'reminder.response',
+      payload: { response: { ...response, responseKind: 'confirm' } },
+      consecutiveFailures: 0,
+    });
+    useOutboxStore.getState().enqueue({
+      kind: 'reminder.response',
+      payload: { response: { ...response, responseKind: 'manual' } },
+      consecutiveFailures: 0,
+    });
+
+    const entries = useOutboxStore.getState().entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].kind).toBe('reminder.response');
+    if (entries[0].kind !== 'reminder.response') return;
+    expect(entries[0].payload.response.responseKind).toBe('manual');
+  });
+
+  it('flushes reminder response retries through the registered executor', async () => {
+    const executor = vi.fn().mockResolvedValue(undefined);
+    setOutboxExecutorForTests('reminder.response', executor);
+    useOutboxStore.getState().enqueue({
+      kind: 'reminder.response',
+      payload: {
+        response: {
+          reminderType: 'work_start',
+          occurrenceKey: '2026-04-22:work_start:0900',
+          occurrenceDate: '2026-04-22',
+          scheduledFor: '2026-04-22T09:00:00.000Z',
+          responseKind: 'confirm',
+          respondedAt: '2026-04-22T09:00:01.000Z',
+        },
+      },
+      consecutiveFailures: 0,
+    });
+
+    await useOutboxStore.getState().flush('u1');
+
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(useOutboxStore.getState().entries).toEqual([]);
   });
 
   it('flush removes succeeded entries', async () => {

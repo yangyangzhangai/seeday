@@ -1,9 +1,17 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-20
+Last Updated: 2026-07-23
 Owner: current working session
 
 Session Notes:
+
+- 2026-07-23: Fixed recurring `moods` 409/23503 sync failures caused by local mood metadata outliving its parent message. Activity deletion now clears matching local/cloud mood rows and mood outbox entries; auth upload and outbox replay verify parent messages across local messages, date cache, pending chat writes, and cloud before pruning only confirmed orphans. Standalone `is_mood` messages and unresolved offline parents are retained.
+
+- 2026-07-23: Added App-to-App routine reminder response synchronization. Concrete reminder occurrences now use a local-date/type/scheduled-time key, responses persist idempotently in `reminder_responses` with offline outbox retry, and login/foreground/network/Realtime merges suppress matching popups and cancel matching local notifications where the OS permits.
+
+- 2026-07-23: Fixed generated activity cards remaining after a completed Growth todo is unchecked. `deleteActivity()` now removes the message from the active timeline and every persisted date-cache bucket atomically, preventing date switches or reloads from restoring the withdrawn activity.
+
+- 2026-07-23: Improved compact Growth todo-card touch accuracy without removing whole-card detail expansion. Completion/start/focus keep their visual sizes but now use 44px touch targets; the right action cluster absorbs near misses, and pointer-origin tracking prevents a press that starts on an action then drifts outside from expanding the card.
 
 - 2026-07-20: Split `useTodoStore` sync/cascade helper logic into new `src/store/todoStoreSync.ts`, bringing `src/store/useTodoStore.ts` back under the hard max-lines pre-commit limit without changing todo behavior or contracts.
 

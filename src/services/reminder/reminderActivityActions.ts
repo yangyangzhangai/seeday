@@ -4,6 +4,7 @@ import { useChatStore } from '../../store/useChatStore';
 import { useReminderStore } from '../../store/useReminderStore';
 import { useTimingStore } from '../../store/useTimingStore';
 import type { ReminderType } from './reminderTypes';
+import type { ReminderOccurrence } from './reminderResponse';
 import type { TimingType } from '../timing/timingSessionService';
 
 export type ReminderTimingAction =
@@ -17,16 +18,20 @@ const recentConfirmationClaims = new Map<string, number>();
 function getConfirmationClaimKey(
   reminderType: ReminderType,
   userId?: string | null,
+  occurrenceKey?: string,
 ): string {
-  return `${toLocalDateStr(new Date())}:${userId ?? 'guest'}:${reminderType}`;
+  return occurrenceKey
+    ? `${userId ?? 'guest'}:${occurrenceKey}`
+    : `${toLocalDateStr(new Date())}:${userId ?? 'guest'}:${reminderType}`;
 }
 
 function claimReminderConfirmation(
   reminderType: ReminderType,
   userId?: string | null,
+  occurrenceKey?: string,
 ): boolean {
   const now = Date.now();
-  const key = getConfirmationClaimKey(reminderType, userId);
+  const key = getConfirmationClaimKey(reminderType, userId, occurrenceKey);
   const previousClaim = recentConfirmationClaims.get(key);
   if (previousClaim !== undefined && now - previousClaim < CONFIRM_DEDUPE_WINDOW_MS) {
     return false;
@@ -97,11 +102,16 @@ export async function applyReminderTimingAction(
 export async function confirmReminderActivity(
   reminderType: ReminderType,
   userId?: string | null,
+  occurrence?: ReminderOccurrence,
 ): Promise<void> {
-  if (!claimReminderConfirmation(reminderType, userId)) return;
+  if (!claimReminderConfirmation(reminderType, userId, occurrence?.occurrenceKey)) return;
   const reminderStore = useReminderStore.getState();
-  if (reminderStore.shouldSkipReminder(reminderType)) return;
-  reminderStore.markConfirmed(reminderType);
+  if (reminderStore.shouldSkipReminder(reminderType, occurrence?.occurrenceKey)) return;
+  void reminderStore.recordResponse(reminderType, {
+    userId,
+    responseKind: 'confirm',
+    occurrence,
+  });
   await applyReminderTimingAction(reminderType, userId);
 
   const activityText = getActivityTextForType(reminderType);
@@ -114,7 +124,11 @@ export async function confirmReminderActivity(
 
 export async function submitReminderManualActivity(
   content: string,
-  options?: { reminderType?: ReminderType; userId?: string | null },
+  options?: {
+    reminderType?: ReminderType;
+    userId?: string | null;
+    occurrence?: ReminderOccurrence;
+  },
 ): Promise<boolean> {
   const trimmed = content.trim();
   if (!trimmed) {
@@ -123,7 +137,11 @@ export async function submitReminderManualActivity(
 
   if (options?.reminderType) {
     await applyReminderTimingAction(options.reminderType, options.userId);
-    useReminderStore.getState().markConfirmed(options.reminderType);
+    void useReminderStore.getState().recordResponse(options.reminderType, {
+      userId: options.userId,
+      responseKind: 'manual',
+      occurrence: options.occurrence,
+    });
   }
 
   await useChatStore.getState().sendMessage(trimmed);

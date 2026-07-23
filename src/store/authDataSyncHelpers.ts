@@ -7,8 +7,14 @@ import { useReportStore } from './useReportStore';
 import { useMoodStore } from './useMoodStore';
 import { useGrowthStore } from './useGrowthStore';
 import { useFocusStore } from './useFocusStore';
+import { useOutboxStore } from './useOutboxStore';
 import { patchUserMetadata } from './authMetadataQueue';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
+import {
+  collectUniqueMessages,
+  fetchExistingCloudMessageIds,
+  partitionMoodParentIds,
+} from './moodRelationshipHelpers';
 
 type AuthUserLike = { user_metadata?: Record<string, any> } | null | undefined;
 
@@ -92,7 +98,9 @@ export async function syncLocalDataToSupabase(
 ): Promise<void> {
   const startedAt = Date.now();
   const failures: string[] = [];
-  const messages = useChatStore.getState().messages
+  const chatState = useChatStore.getState();
+  const localMessages = collectUniqueMessages(chatState.messages, chatState.dateCache);
+  const messages = chatState.messages
     .filter((message) => !isLegacyChatActivityType(message.activityType));
   const moodState = useMoodStore.getState();
   const bottles = useGrowthStore.getState().bottles;
@@ -129,8 +137,30 @@ export async function syncLocalDataToSupabase(
       ...Object.keys(moodState.moodNote),
     ]),
   );
+  const localMessageIds = new Set(localMessages.map((message) => message.id));
+  const cloudMessageResult = await fetchExistingCloudMessageIds(userId, moodIds);
+  const moodParents = partitionMoodParentIds(moodIds, localMessageIds, cloudMessageResult);
+  const orphanMoodIds = Array.from(moodParents.orphanIds);
+
+  if (orphanMoodIds.length > 0) {
+    useMoodStore.getState().removeMoodRecords(orphanMoodIds);
+    useOutboxStore.getState().discardMoodEntries(orphanMoodIds);
+    logDiagnostic('warn', 'auth.local_to_cloud.mood_orphans.discarded', {
+      userId,
+      messageIds: orphanMoodIds,
+    });
+  }
+  if (!cloudMessageResult.complete || moodParents.unresolvedIds.size > 0) {
+    logDiagnostic('warn', 'auth.local_to_cloud.mood_parents.unresolved', {
+      userId,
+      cloudVerificationComplete: cloudMessageResult.complete,
+      unresolvedMessageIds: Array.from(moodParents.unresolvedIds),
+      error: cloudMessageResult.error,
+    });
+  }
 
   const moodsToUpload = moodIds
+    .filter((messageId) => moodParents.validIds.has(messageId))
     .map((messageId) => ({
       user_id: userId,
       message_id: messageId,

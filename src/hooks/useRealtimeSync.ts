@@ -2,7 +2,8 @@
  * useRealtimeSync — Supabase Realtime subscriptions for multi-device sync.
  *
  * Subscribes to INSERT / UPDATE / DELETE events on:
- *   messages, todos, moods, bottles, reports, annotations, focus_sessions, stardust_memories
+ *   messages, todos, moods, bottles, reports, annotations, focus_sessions,
+ *   stardust_memories, reminder_responses
  *
  * Call this hook once at the top of the app (after auth is initialised).
  * The hook is a no-op when the user is not signed in.
@@ -30,6 +31,9 @@ import { fromDbAnnotation, fromDbMessage, fromDbReport, fromDbStardust, fromDbTo
 import { autoDetectMood } from '../lib/mood';
 import i18n from '../i18n';
 import type { Todo, TodoState } from '../store/todoStoreTypes';
+import { useReminderStore } from '../store/useReminderStore';
+import { parseReminderResponseRow } from '../api/reminderResponses';
+import { cancelReminderOccurrence } from '../services/notifications/localNotificationService';
 
 type SupportedLang = 'zh' | 'en' | 'it';
 
@@ -205,6 +209,24 @@ export function useRealtimeSync() {
 
     const lowFrequencyChannel = supabase
       .channel(`user-sync-lf-${userId}`)
+
+      // ── reminder responses ───────────────────────────────────────────────
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reminder_responses',
+          filter: `user_id=eq.${userId}`,
+        },
+        ({ new: row, eventType }) => {
+          if (eventType === 'DELETE' || !row) return;
+          const response = parseReminderResponseRow(row);
+          if (!response) return;
+          useReminderStore.getState().mergeCloudResponse(response);
+          void cancelReminderOccurrence(response.occurrenceKey);
+        },
+      )
 
       // ── todos ────────────────────────────────────────────────────────────
       .on(

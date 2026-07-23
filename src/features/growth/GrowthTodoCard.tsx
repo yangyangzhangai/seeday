@@ -23,6 +23,7 @@ const BLUE_SELECTED_STYLE = {
 } as const;
 
 const TODO_CARD_SHADOW = '0 0 5px rgba(82,105,91,0.05), 0 2px 6px rgba(146,166,142,0.095)';
+const TODO_ACTION_SELECTOR = 'button, input, textarea, select, [data-no-expand="true"]';
 
 interface Props {
   todo: GrowthTodo;
@@ -79,6 +80,7 @@ export const GrowthTodoCard = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleEditingTargetIdRef = useRef<string | null>(null);
+  const actionPointerIdRef = useRef<number | null>(null);
 
   // AI 建议高亮：滚动到视图中心并闪烁
   useEffect(() => {
@@ -212,7 +214,7 @@ export const GrowthTodoCard = ({
   };
 
   const recurrences: Recurrence[] = ['once', 'daily', 'weekly'];
-  const handleTogglePress = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const handleTogglePress = (e: ReactPointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     triggerLightHaptic();
@@ -224,11 +226,25 @@ export const GrowthTodoCard = ({
     e.stopPropagation();
   };
 
-  const handleDeletePress = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const handleDeletePress = (e: ReactPointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     triggerLightHaptic();
     onDelete?.(todo.id);
+  };
+
+  const handleMainRowPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    actionPointerIdRef.current = target.closest(TODO_ACTION_SELECTOR) ? e.pointerId : null;
+  };
+
+  const handleMainRowPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const startedInActionZone = actionPointerIdRef.current === e.pointerId;
+    actionPointerIdRef.current = null;
+    if (startedInActionZone || target.closest(TODO_ACTION_SELECTOR) || isEditingTitle) return;
+    triggerLightHaptic();
+    setExpanded((value) => !value);
   };
 
   return (
@@ -262,18 +278,17 @@ export const GrowthTodoCard = ({
 
       {/* Main row — tap to expand */}
       <div
-        className="flex min-h-[34px] items-center gap-1.5 px-3.5 py-2.5 cursor-pointer"
-        onPointerUp={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest('button, input, textarea, select, [data-no-expand="true"]')) return;
-          if (isEditingTitle) return;
-          triggerLightHaptic();
-          setExpanded((v) => !v);
+        className="flex min-h-11 items-center gap-1.5 px-3.5 cursor-pointer"
+        onPointerDown={handleMainRowPointerDown}
+        onPointerUp={handleMainRowPointerUp}
+        onPointerCancel={() => {
+          actionPointerIdRef.current = null;
         }}
         onClick={consumeGhostClick}
       >
         {/* Checkbox */}
         <button
+          type="button"
           onPointerUp={handleTogglePress}
           onClick={(e) => {
             // iOS WebView may dispatch a delayed synthetic click after pointer events.
@@ -282,12 +297,18 @@ export const GrowthTodoCard = ({
             e.stopPropagation();
           }}
           className={cn(
-            "h-5 w-5 flex-shrink-0 rounded-full border-[1.5px] flex items-center justify-center transition-colors touch-manipulation",
-            todo.completed ? "bg-blue-500 border-blue-500" : "border-gray-300"
+            "flex h-11 w-11 -ml-3 -mr-3 flex-shrink-0 items-center justify-center rounded-full transition-colors touch-manipulation active:bg-blue-50"
           )}
           aria-label={t('growth_todo_complete')}
         >
-          {todo.completed && <Check size={10} className="text-white" />}
+          <span
+            className={cn(
+              "flex h-5 w-5 items-center justify-center rounded-full border-[1.5px] transition-colors",
+              todo.completed ? "border-blue-500 bg-blue-500" : "border-gray-300"
+            )}
+          >
+            {todo.completed && <Check size={10} className="text-white" />}
+          </span>
         </button>
 
         {/* Title + due date */}
@@ -338,7 +359,11 @@ export const GrowthTodoCard = ({
           ) : null}
         </div>
 
-        <div className="grid flex-shrink-0 grid-cols-3 place-items-center gap-x-2">
+        <div
+          className="grid flex-shrink-0 grid-cols-[24px_44px_44px] place-items-center"
+          data-no-drag="true"
+          data-no-expand="true"
+        >
           <div className="flex h-6 w-6 items-center justify-center">
             <span
               className={cn(
@@ -353,35 +378,40 @@ export const GrowthTodoCard = ({
 
           {!todo.completed && onStart ? (
             <button
+              type="button"
               onPointerUp={(e) => {
                 e.stopPropagation();
                 triggerLightHaptic();
                 onStart(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50"
+              className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-green-600 transition-colors hover:bg-green-50 active:bg-green-100"
               title={t('growth_todo_start')}
+              aria-label={t('growth_todo_start')}
             >
               <Play size={19} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-6 w-6" aria-hidden="true" />
+            <div className="h-11 w-11" aria-hidden="true" />
           )}
 
           {!todo.completed ? (
             <button
+              type="button"
               onPointerUp={(e) => {
                 e.stopPropagation();
                 triggerLightHaptic();
                 onFocus(todo);
               }}
               onClick={consumeGhostClick}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100"
+              className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 active:bg-gray-200"
+              title={t('growth_focus_title')}
+              aria-label={t('growth_focus_title')}
             >
               <AlarmClock size={19} strokeWidth={1.5} />
             </button>
           ) : (
-            <div className="h-6 w-6" aria-hidden="true" />
+            <div className="h-11 w-11" aria-hidden="true" />
           )}
         </div>
       </div>

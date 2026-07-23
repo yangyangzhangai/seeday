@@ -2,6 +2,7 @@
 import type { ScheduledReminder, ReminderType } from './reminderTypes';
 import type { UserProfileManualV2 } from '../../types/userProfile';
 import { toLocalDateStr } from '../../lib/dateUtils';
+import { buildReminderOccurrence } from './reminderResponse';
 import {
   getScopedClientStorageKey,
   isMultiAccountIsolationV2Enabled,
@@ -175,6 +176,7 @@ export interface ScheduleOptions {
   /** (type, vars) → notification body text */
   getCopyFn: (type: ReminderType, vars?: { name?: string; activity?: string }) => string;
   reminderEnabled?: boolean;
+  shouldSkipOccurrence?: (type: ReminderType, occurrenceKey: string) => boolean;
 }
 
 const SCHEDULE_DONE_KEY = 'reminder_scheduled_date';
@@ -186,14 +188,19 @@ function buildPayloads(
   baseDate: Date,
   opts: ScheduleOptions,
 ): LocalNotificationPayload[] {
-  return queue.map(({ type, time }) => ({
-    id: makeNotificationId(type, baseDate),
-    title: opts.notificationTitle ?? 'Seeday',
-    body: opts.getCopyFn(type, { name: opts.userName }),
-    at: timeStringToDate(time, baseDate),
-    actionTypeId: resolveActionTypeId(type),
-    extra: { reminderType: type },
-  }));
+  return queue.flatMap(({ type, time }) => {
+    const at = timeStringToDate(time, baseDate);
+    const occurrence = buildReminderOccurrence(type, at);
+    if (opts.shouldSkipOccurrence?.(type, occurrence.occurrenceKey)) return [];
+    return [{
+      id: makeNotificationId(type, baseDate),
+      title: opts.notificationTitle ?? 'Seeday',
+      body: opts.getCopyFn(type, { name: opts.userName }),
+      at,
+      actionTypeId: resolveActionTypeId(type),
+      extra: { reminderType: type, ...occurrence },
+    }];
+  });
 }
 
 export async function scheduleRemindersForToday(opts: ScheduleOptions): Promise<void> {

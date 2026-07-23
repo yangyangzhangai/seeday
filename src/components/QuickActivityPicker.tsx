@@ -35,7 +35,11 @@ export const QuickActivityPicker: React.FC = () => {
     if (!text.trim()) return;
     triggerLightHaptic();
     if (pickerContext?.reminderType) {
-      void submitReminderManualActivity(text, { reminderType: pickerContext.reminderType, userId });
+      void submitReminderManualActivity(text, {
+        reminderType: pickerContext.reminderType,
+        userId,
+        occurrence: pickerContext.occurrence,
+      });
     } else {
       void sendMessage(text.trim());
     }

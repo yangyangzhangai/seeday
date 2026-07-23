@@ -1,8 +1,69 @@
 # Changelog
 
+## 2026-07-23 - Cross-device routine reminder response receipts
+
+- Added `reminder_responses` schema, authenticated RLS policies, Realtime publication setup, and minimum-schema verification.
+- Added occurrence-level reminder identity (`local date + type + scheduled time`) so same-day schedule edits create a distinct reminder instead of inheriting an old confirmation.
+- Reminder confirmations, manual replacements, and evening actions now write an idempotent cloud receipt; failed writes enter the existing scoped outbox.
+- App startup/scheduling, foreground recovery, network recovery, and Supabase Realtime now merge current-day receipts before showing grace-window popups or rebuilding local notification queues.
+- Matching cloud receipts close the active in-app popup/quick picker and cancel pending or delivered local notifications where Capacitor and the OS permit.
+- No user-visible copy or translation source changed.
+
 All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
+
+## 2026-07-23
+
+### Fix: Mood foreign-key retries stop after verified parent cleanup
+
+- `src/store/chatTimelineActions.ts` now removes matching local mood maps, mood outbox entries, and cloud mood rows when an activity/message is deleted.
+- `src/store/moodRelationshipHelpers.ts` separates cloud-backed mood parents, unresolved local/offline parents, and verified orphans. Standalone `messages.is_mood` records and historical cloud messages remain valid parents.
+- `src/store/authDataSyncHelpers.ts` uploads only moods whose parent is confirmed in cloud; a mood is pruned only after a complete cloud check also confirms the parent is absent locally and remotely.
+- `src/store/useOutboxStore.ts` performs the same conservative parent check before mood retries, removing only verified orphan retries instead of repeatedly sending a permanent `23503` foreign-key conflict.
+- Focused tests cover deleted-message cleanup, standalone moods, historical cloud parents, offline unresolved parents, complete/incomplete verification, and targeted outbox cleanup.
+- No database schema or user-visible copy changed.
+
+Validation:
+
+- `npx vitest run --exclude '.claude/**' src/store/moodRelationshipHelpers.test.ts src/store/useMoodStore.test.ts src/store/useOutboxStore.test.ts` (21 passed)
+- `npx vitest run --exclude '.claude/**' src/store/useChatStore.integration.test.ts -t "removes a deleted activity from messages and every date cache bucket"` (1 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- Full unit run excluding `.claude/**`: 728 passed, 15 unrelated existing failures; focused tests for this fix pass.
+
+### Fix: Undoing a completed todo removes its generated activity cache
+
+- `src/store/chatTimelineActions.ts`: `deleteActivity()` now removes the message from both the active timeline and every persisted `dateCache` bucket in the same state update, while continuing to clear pending manual-end state, bottle rewards, annotations, and the cloud row.
+- `src/store/useChatStore.integration.test.ts`: adds a regression covering deletion from the active message list, multiple date-cache buckets, and pending manual-end state.
+- No store contract or user-visible copy changed.
+
+Validation:
+
+- `npx vitest run --dir src src/store/useChatStore.integration.test.ts -t "removes a deleted activity from messages and every date cache bucket"`
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- Full `useChatStore.integration.test.ts` run still has an unrelated existing mood assertion mismatch (`down` expected, `calm` received); the new deletion regression passes independently.
+
+### Fix: Growth todo compact-card touch accuracy
+
+- `src/features/growth/GrowthTodoCard.tsx`: keeps the compact card and whole-card detail expansion while separating visual icon size from touch size. Completion, start, and focus now use 44px touch targets; the right action cluster absorbs near-miss taps instead of expanding details; pointer-origin tracking prevents a press that begins on an action and drifts outside from toggling the card.
+- No user-visible copy, store contract, or todo action behavior changed.
+
+Validation:
+
+- `npm run lint:secrets`
+- `npm run lint:max-lines`
+- `npm run lint:docs-sync`
+- `npm run lint:state-consistency`
+- `npx tsc --noEmit`
+- `npm run build`
+- `git diff --check`
+- Browser smoke check reached the local app successfully; authenticated Growth-page interaction remains for iOS/device verification.
 
 ## 2026-07-20
 

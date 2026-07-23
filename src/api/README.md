@@ -4,6 +4,7 @@
 
 - `src/api/client.ts`: frontend API request facade
 - `src/api/supabase.ts`: Supabase browser client
+- `src/api/reminderResponses.ts`: authenticated Supabase CRUD mapper for reminder receipts
 
 ## Public Interface
 
@@ -21,8 +22,10 @@
 - `callSubscriptionAPI()` (membership activate/restore/cancel bridge for payment adapters)
 - `callStripeCheckoutAPI()` (web stripe adapter: create checkout session URL via `/api/subscription`)
 - `callStripeFinalizeAPI()` (web stripe adapter: finalize returned checkout session and persist plus metadata)
+- `upsertReminderResponse()` / `fetchReminderResponses()` (idempotent current-day cross-device reminder receipts)
 
 All AI-facing requests must route through `/api/*` serverless handlers.
+Reminder receipts use the authenticated Supabase client directly; RLS restricts rows to `auth.uid() = user_id`.
 
 ## Upstream Dependencies
 

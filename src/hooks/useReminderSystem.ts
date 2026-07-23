@@ -23,6 +23,13 @@ import { scheduleRemindersForToday } from '../services/reminder/reminderSchedule
 import { getReminderCopy } from '../services/reminder/reminderCopy';
 import type { UserProfileManualV2 } from '../types/userProfile';
 import type { ReminderType } from '../services/reminder/reminderTypes';
+import {
+  buildReminderOccurrence,
+} from '../services/reminder/reminderResponse';
+import {
+  consumePendingNotificationConfirm,
+  queuePendingNotificationConfirm,
+} from '../services/reminder/reminderPendingConfirmation';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../store/storageScope';
 import {
   confirmReminderActivity,
@@ -50,33 +57,6 @@ function isDiaryDoneToday(
 }
 
 const PENDING_NOTIFICATION_CONFIRM_KEY = 'pending_notification_confirm_action';
-const PENDING_NOTIFICATION_CONFIRM_MAX_AGE = 10 * 60 * 1000;
-
-function queuePendingNotificationConfirm(type: ReminderType, storageKey: string): void {
-  try {
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({ type, createdAt: Date.now() }),
-    );
-  } catch {
-    // ignore localStorage failures
-  }
-}
-
-function consumePendingNotificationConfirm(storageKey: string): ReminderType | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    localStorage.removeItem(storageKey);
-    const parsed = JSON.parse(raw) as { type?: ReminderType; createdAt?: number };
-    if (!parsed?.type || typeof parsed.createdAt !== 'number') return null;
-    if (Date.now() - parsed.createdAt > PENDING_NOTIFICATION_CONFIRM_MAX_AGE) return null;
-    return parsed.type;
-  } catch {
-    return null;
-  }
-}
-
 // ─────────────────────────────────────────────
 // 前台定时检查（用于在 App 内直接弹窗）
 // ─────────────────────────────────────────────
@@ -183,7 +163,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   }, [user?.id, userProfileV2]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const scheduleTodayNativeReminders = useCallback(() => {
+  const scheduleTodayNativeReminders = useCallback(async () => {
     if (!user?.id || !userProfileV2) return;
     const manual = (userProfileV2.manual ?? {}) as UserProfileManualV2;
     const reminderEnabled = manual.reminderEnabled !== false;
@@ -192,20 +172,26 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
         ? metadataCountryCode.trim().toUpperCase()
         : 'CN';
 
-    void (async () => {
-      try {
-        await scheduleRemindersForToday({
-          manual,
-          aiMode: preferences.aiMode,
-          storageUserId: user.id,
-          countryCode,
-          reminderEnabled,
-          getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
-        });
-      } catch {
-        // 调度失败不阻断其余提醒链路（前台弹窗仍可作为兜底）
-      }
-    })();
+    try {
+      await useReminderStore.getState().syncCloudResponses(user.id);
+    } catch {
+      // 云端回执暂时不可用时继续使用本地确认状态
+    }
+    try {
+      await scheduleRemindersForToday({
+        manual,
+        aiMode: preferences.aiMode,
+        storageUserId: user.id,
+        countryCode,
+        reminderEnabled,
+        getCopyFn: (type, vars) => getReminderCopy(preferences.aiMode, type, vars),
+        shouldSkipOccurrence: (type, occurrenceKey) => (
+          useReminderStore.getState().shouldSkipReminder(type, occurrenceKey)
+        ),
+      });
+    } catch {
+      // 调度失败不阻断其余提醒链路（前台弹窗仍可作为兜底）
+    }
   }, [user?.id, userProfileV2, preferences.aiMode, metadataCountryCode]);
 
   // ── 加载今日计时 sessions ──
@@ -217,15 +203,15 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
   // ── 兜底：若通知动作触发时用户态尚未恢复，恢复后补执行一次计时动作 ──
   useEffect(() => {
     if (!user?.id) return;
-    const pendingType = consumePendingNotificationConfirm(pendingConfirmStorageKey);
-    if (!pendingType) return;
-    void confirmReminderActivity(pendingType, user.id);
+    const pending = consumePendingNotificationConfirm(pendingConfirmStorageKey);
+    if (!pending) return;
+    void confirmReminderActivity(pending.type, user.id, pending.occurrence);
   }, [user?.id, pendingConfirmStorageKey]);
 
   // ── 注册通知点击回调（一次） ──
   useEffect(() => {
     void setupNotificationActionListener({
-      onTap: (type) => {
+      onTap: (type, occurrence) => {
         // 点击通知进入 App：直接弹出与前台一致的操作面板
         // （长按通知仍可直接一键开始/结束计时）
         if (type === 'idle_nudge') {
@@ -233,25 +219,35 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
           return;
         }
         const reminder = useReminderStore.getState();
-        if (!reminder.shouldSkipReminder(type)) {
-          reminder.showPopup(type);
+        if (!reminder.shouldSkipReminder(type, occurrence?.occurrenceKey)) {
+          reminder.showPopup(type, occurrence);
         }
       },
-      onConfirm: (type) => {
+      onConfirm: (type, occurrence) => {
         const userId = useAuthStore.getState().user?.id;
         if (!userId) {
-          queuePendingNotificationConfirm(type, pendingConfirmStorageKey);
+          queuePendingNotificationConfirm({ type, occurrence }, pendingConfirmStorageKey);
           return;
         }
-        void confirmReminderActivity(type, userId);
+        void confirmReminderActivity(type, userId, occurrence);
       },
-      onDeny: (type, activityType) => useReminderStore.getState().showPickerForDeny(activityType, type),
-      onViewReport: () => {
-        useReminderStore.getState().markConfirmed('evening_check');
+      onDeny: (type, activityType, occurrence) => (
+        useReminderStore.getState().showPickerForDeny(activityType, type, occurrence)
+      ),
+      onViewReport: (type, occurrence) => {
+        void useReminderStore.getState().recordResponse(type, {
+          userId: useAuthStore.getState().user?.id,
+          responseKind: 'view_report',
+          occurrence,
+        });
         navigateRef.current('/report?action=generate-diary');
       },
-      onGrowPlant: () => {
-        useReminderStore.getState().markConfirmed('evening_check');
+      onGrowPlant: (type, occurrence) => {
+        void useReminderStore.getState().recordResponse(type, {
+          userId: useAuthStore.getState().user?.id,
+          responseKind: 'grow_plant',
+          occurrence,
+        });
         navigateRef.current('/report?action=generate-plant');
       },
       onOpenChat: () => navigateRef.current('/chat'),
@@ -261,12 +257,12 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
 
     // 前台收到原生通知时，补一次 App 内弹窗兜底（避免仅依赖定时器）
     void setupNotificationReceivedListener({
-      onReceived: (type) => {
+      onReceived: (type, occurrence) => {
         if (type === 'idle_nudge') return;
         const reminder = useReminderStore.getState();
-        if (reminder.shouldSkipReminder(type)) return;
+        if (reminder.shouldSkipReminder(type, occurrence?.occurrenceKey)) return;
         if (reminder.activePopupType === type) return;
-        reminder.showPopup(type);
+        reminder.showPopup(type, occurrence);
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -282,27 +278,32 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
       const userName = user?.user_metadata?.display_name as string | undefined;
 
       if (isActive) {
-        void cancelIdleNudge(user?.id);
-        // Re-check daily schedule on foreground (cross-day / cold wake safety net)
-        scheduleTodayNativeReminders();
-        // Show in-app popup if a reminder fired in the last 5 minutes while app was in background
-        const foregroundManual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
-        const foregroundSchedule = buildFrontendCheckSchedule(foregroundManual);
-        const foregroundNow = Date.now();
-        const FOREGROUND_GRACE_MS = 5 * 60 * 1000;
-        const foregroundDateKey = new Date().toISOString().slice(0, 10);
-        const reminderState = useReminderStore.getState();
-        for (const entry of foregroundSchedule) {
-          const diff = foregroundNow - entry.triggerTime.getTime();
-          if (diff >= 0 && diff <= FOREGROUND_GRACE_MS) {
-            const dedupeKey = `${foregroundDateKey}:${getPopupDedupeKey(entry)}`;
-            if (!shownPopupKeysRef.current.has(dedupeKey) && !reminderState.shouldSkipReminder(entry.type)) {
-              shownPopupKeysRef.current.add(dedupeKey);
-              reminderState.showPopup(entry.type);
-              break;
+        void (async () => {
+          await cancelIdleNudge(user?.id);
+          // Re-check cloud receipts before schedule rebuild and grace-window popup.
+          await scheduleTodayNativeReminders();
+          const foregroundManual = (userProfileV2?.manual ?? {}) as UserProfileManualV2;
+          const foregroundSchedule = buildFrontendCheckSchedule(foregroundManual);
+          const foregroundNow = Date.now();
+          const FOREGROUND_GRACE_MS = 5 * 60 * 1000;
+          const foregroundDateKey = new Date().toISOString().slice(0, 10);
+          const reminderState = useReminderStore.getState();
+          for (const entry of foregroundSchedule) {
+            const diff = foregroundNow - entry.triggerTime.getTime();
+            if (diff >= 0 && diff <= FOREGROUND_GRACE_MS) {
+              const occurrence = buildReminderOccurrence(entry.type, entry.triggerTime);
+              const dedupeKey = `${foregroundDateKey}:${getPopupDedupeKey(entry)}`;
+              if (
+                !shownPopupKeysRef.current.has(dedupeKey)
+                && !reminderState.shouldSkipReminder(entry.type, occurrence.occurrenceKey)
+              ) {
+                shownPopupKeysRef.current.add(dedupeKey);
+                reminderState.showPopup(entry.type, occurrence);
+                break;
+              }
             }
           }
-        }
+        })();
       } else {
         const body = getReminderCopy(aiMode, 'idle_nudge', { name: userName });
         void scheduleIdleNudge(body, user?.id);
@@ -316,7 +317,7 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
 
   // ── 注册通知类别 + 调度原生通知（串行，类别必须先注册完才能调度）──
   useEffect(() => {
-    scheduleTodayNativeReminders();
+    void scheduleTodayNativeReminders();
   }, [scheduleTodayNativeReminders]);
 
   // ── 前台定时弹窗（用户 App 打开时的兜底） ──
@@ -337,10 +338,11 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
 
     const triggerPopupOnce = (entry: ScheduleEntry) => {
       const dedupeKey = `${todayDateKey}:${getPopupDedupeKey(entry)}`;
+      const occurrence = buildReminderOccurrence(entry.type, entry.triggerTime);
       if (shownPopupKeysRef.current.has(dedupeKey)) return;
-      if (shouldSkipReminder(entry.type)) return;
+      if (shouldSkipReminder(entry.type, occurrence.occurrenceKey)) return;
       shownPopupKeysRef.current.add(dedupeKey);
-      showPopup(entry.type);
+      showPopup(entry.type, occurrence);
     };
 
     for (const entry of schedule) {
@@ -384,7 +386,8 @@ export function useReminderSystem(navigate: (path: string) => void): UseReminder
 
   // ── 前台弹窗 ✓ 确认：标记已响应 + 记录活动 + 计时 ──
   const confirmReminderFromPopup = useCallback((type: ReminderType) => {
-    void confirmReminderActivity(type, user?.id);
+    const occurrence = useReminderStore.getState().activePopupOccurrence ?? undefined;
+    void confirmReminderActivity(type, user?.id, occurrence);
   }, [user?.id]);
 
   return { confirmReminderFromPopup };

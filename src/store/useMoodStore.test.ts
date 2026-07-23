@@ -3,6 +3,7 @@ import {
   applyMoodRowToMaps,
   buildMoodRecordMapsFromRows,
   removeMoodRecordFromMaps,
+  removeMoodRecordsFromMaps,
 } from './useMoodStore';
 
 describe('useMoodStore cloud row helpers', () => {
@@ -54,5 +55,19 @@ describe('useMoodStore cloud row helpers', () => {
     expect(next.activityMood['activity-1']).toBeUndefined();
     expect(next.moodNote['activity-1']).toBeUndefined();
     expect(next.activityMood['activity-2']).toBe('happy');
+  });
+
+  it('removes multiple verified orphan records while retaining valid moods', () => {
+    const maps = buildMoodRecordMapsFromRows([
+      { message_id: 'orphan-1', mood_label: 'down', source: 'auto' },
+      { message_id: 'valid-1', mood_label: 'happy', source: 'manual' },
+      { message_id: 'orphan-2', note: 'Old note', source: 'auto' },
+    ]);
+
+    const next = removeMoodRecordsFromMaps(maps, ['orphan-1', 'orphan-2']);
+
+    expect(next.activityMood['orphan-1']).toBeUndefined();
+    expect(next.moodNote['orphan-2']).toBeUndefined();
+    expect(next.activityMood['valid-1']).toBe('happy');
   });
 });

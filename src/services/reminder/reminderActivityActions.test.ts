@@ -4,7 +4,7 @@ const {
   tMock,
   sendAutoRecognizedInputMock,
   sendMessageMock,
-  markConfirmedMock,
+  recordResponseMock,
   shouldSkipReminderMock,
   reminderState,
   timingStartMock,
@@ -18,7 +18,7 @@ const {
   sendAutoRecognizedInputMock: vi.fn(async () => undefined),
   sendMessageMock: vi.fn(async () => 'msg-1'),
   reminderState: { confirmed: false },
-  markConfirmedMock: vi.fn(),
+  recordResponseMock: vi.fn(async () => undefined),
   shouldSkipReminderMock: vi.fn(),
   timingStartMock: vi.fn(async () => undefined),
   timingEndActiveMock: vi.fn(async () => undefined),
@@ -42,9 +42,9 @@ vi.mock('../../store/useChatStore', () => ({
 vi.mock('../../store/useReminderStore', () => ({
   useReminderStore: {
     getState: () => ({
-      markConfirmed: (type: string) => {
+      recordResponse: async (type: string, options: unknown) => {
         reminderState.confirmed = true;
-        markConfirmedMock(type);
+        await recordResponseMock(type, options);
       },
       shouldSkipReminder: (type: string) => {
         shouldSkipReminderMock(type);
@@ -79,7 +79,11 @@ describe('reminderActivityActions', () => {
   it('marks confirmed, starts timing, and writes the mapped activity for reminder confirmation', async () => {
     await confirmReminderActivity('work_start', 'user-1');
 
-    expect(markConfirmedMock).toHaveBeenCalledWith('work_start');
+    expect(recordResponseMock).toHaveBeenCalledWith('work_start', {
+      userId: 'user-1',
+      responseKind: 'confirm',
+      occurrence: undefined,
+    });
     expect(timingStartMock).toHaveBeenCalledWith('user-1', 'work', 'reminder_confirm');
     expect(sendAutoRecognizedInputMock).toHaveBeenCalledWith('Started work', {
       skipTimingEnd: true,
@@ -93,7 +97,7 @@ describe('reminderActivityActions', () => {
       confirmReminderActivity('work_start', 'user-1'),
     ]);
 
-    expect(markConfirmedMock).toHaveBeenCalledTimes(1);
+    expect(recordResponseMock).toHaveBeenCalledTimes(1);
     expect(timingStartMock).toHaveBeenCalledTimes(1);
     expect(sendAutoRecognizedInputMock).toHaveBeenCalledTimes(1);
   });
@@ -115,7 +119,11 @@ describe('reminderActivityActions', () => {
 
     expect(result).toBe(true);
     expect(timingEndActiveMock).toHaveBeenCalledWith('user-1');
-    expect(markConfirmedMock).toHaveBeenCalledWith('work_end');
+    expect(recordResponseMock).toHaveBeenCalledWith('work_end', {
+      userId: 'user-1',
+      responseKind: 'manual',
+      occurrence: undefined,
+    });
     expect(sendMessageMock).toHaveBeenCalledWith('Wrap up docs');
   });
 });

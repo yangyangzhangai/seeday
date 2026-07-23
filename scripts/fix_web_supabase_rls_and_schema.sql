@@ -351,6 +351,33 @@ alter table public.user_account_state add column if not exists created_at timest
 alter table public.user_account_state add column if not exists updated_at timestamptz default now();
 create unique index if not exists user_account_state_user_id_uidx on public.user_account_state(user_id);
 
+create table if not exists public.reminder_responses (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  occurrence_key text not null,
+  occurrence_date date not null,
+  reminder_type text not null,
+  scheduled_for timestamptz not null,
+  response_kind text not null,
+  responded_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, occurrence_key)
+);
+
+alter table public.reminder_responses add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.reminder_responses add column if not exists occurrence_key text;
+alter table public.reminder_responses add column if not exists occurrence_date date;
+alter table public.reminder_responses add column if not exists reminder_type text;
+alter table public.reminder_responses add column if not exists scheduled_for timestamptz;
+alter table public.reminder_responses add column if not exists response_kind text;
+alter table public.reminder_responses add column if not exists responded_at timestamptz;
+alter table public.reminder_responses add column if not exists created_at timestamptz default now();
+alter table public.reminder_responses add column if not exists updated_at timestamptz default now();
+create unique index if not exists reminder_responses_user_occurrence_uidx
+  on public.reminder_responses(user_id, occurrence_key);
+create index if not exists reminder_responses_user_date_idx
+  on public.reminder_responses(user_id, occurrence_date);
+
 -- ---------------------------------------------------------------------------
 -- Grants and RLS policies.
 -- PostgREST needs grants; RLS still limits every row to auth.uid() = user_id.
@@ -372,6 +399,7 @@ grant select, insert, update, delete on public.timing_sessions to authenticated;
 grant select, insert, update, delete on public.user_login_days to authenticated;
 grant select, insert, update, delete on public.user_profiles to authenticated;
 grant select, insert, update, delete on public.user_account_state to authenticated;
+grant select, insert, update, delete on public.reminder_responses to authenticated;
 
 alter table public.messages enable row level security;
 alter table public.moods enable row level security;
@@ -386,6 +414,7 @@ alter table public.timing_sessions enable row level security;
 alter table public.user_login_days enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.user_account_state enable row level security;
+alter table public.reminder_responses enable row level security;
 
 -- Remove older broad/public policies that can leave data more open than intended.
 drop policy if exists "Enable read access for all users" on public.bottles;
@@ -516,6 +545,28 @@ create policy "user_account_state_update_own" on public.user_account_state for u
 drop policy if exists "user_account_state_delete_own" on public.user_account_state;
 create policy "user_account_state_delete_own" on public.user_account_state for delete to authenticated using (auth.uid()::text = user_id::text);
 
+drop policy if exists "reminder_responses_select_own" on public.reminder_responses;
+create policy "reminder_responses_select_own" on public.reminder_responses for select to authenticated using (auth.uid()::text = user_id::text);
+drop policy if exists "reminder_responses_insert_own" on public.reminder_responses;
+create policy "reminder_responses_insert_own" on public.reminder_responses for insert to authenticated with check (auth.uid()::text = user_id::text);
+drop policy if exists "reminder_responses_update_own" on public.reminder_responses;
+create policy "reminder_responses_update_own" on public.reminder_responses for update to authenticated using (auth.uid()::text = user_id::text) with check (auth.uid()::text = user_id::text);
+drop policy if exists "reminder_responses_delete_own" on public.reminder_responses;
+create policy "reminder_responses_delete_own" on public.reminder_responses for delete to authenticated using (auth.uid()::text = user_id::text);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'reminder_responses'
+  ) then
+    alter publication supabase_realtime add table public.reminder_responses;
+  end if;
+end;
+$$;
+
 commit;
 
 -- Optional verification after commit:
@@ -534,7 +585,8 @@ where table_schema = 'public'
     'annotations',
     'timing_sessions',
     'user_login_days',
-    'user_profiles'
+    'user_profiles',
+    'reminder_responses'
   )
 order by table_name, ordinal_position;
 
@@ -553,6 +605,7 @@ where schemaname = 'public'
     'annotations',
     'timing_sessions',
     'user_login_days',
-    'user_profiles'
+    'user_profiles',
+    'reminder_responses'
   )
 order by tablename, policyname;

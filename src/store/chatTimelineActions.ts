@@ -7,6 +7,7 @@ import { useMoodStore } from './useMoodStore';
 import { useAnnotationStore } from './useAnnotationStore';
 import { useTodoStore } from './useTodoStore';
 import { useGrowthStore } from './useGrowthStore';
+import { useOutboxStore } from './useOutboxStore';
 import {
   buildInsertedActivityResult,
   buildMessageDurationUpdate,
@@ -322,14 +323,25 @@ export function createChatTimelineActions(
     }
     set(state => ({
       messages: state.messages.filter(m => m.id !== id),
+      dateCache: pruneDateCache(
+        Object.fromEntries(
+          Object.entries(state.dateCache).map(([dateStr, messages]) => [
+            dateStr,
+            messages.filter(message => message.id !== id),
+          ]),
+        ),
+      ),
       pendingManualEnds: Object.fromEntries(
         Object.entries(state.pendingManualEnds || {}).filter(([messageId]) => messageId !== id)
       ),
     }));
     useAnnotationStore.getState().removeEventsByMessageId(id);
+    useMoodStore.getState().removeMoodRecords([id]);
+    useOutboxStore.getState().discardMoodEntries([id]);
 
     const session = await getSupabaseSession();
     if (session) {
+      await supabase.from('moods').delete().eq('message_id', id).eq('user_id', session.user.id);
       await supabase.from('messages').delete().eq('id', id).eq('user_id', session.user.id);
     }
   };

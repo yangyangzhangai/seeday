@@ -19,6 +19,7 @@ with expected(table_name) as (
     ('user_login_days'),
     ('user_profiles'),
     ('user_account_state'),
+    ('reminder_responses'),
     ('daily_plant_records'),
     ('plant_direction_config'),
     ('user_stats')
@@ -155,6 +156,16 @@ with expected(table_name, column_name) as (
     ('user_account_state', 'created_at'),
     ('user_account_state', 'updated_at'),
 
+    ('reminder_responses', 'user_id'),
+    ('reminder_responses', 'occurrence_key'),
+    ('reminder_responses', 'occurrence_date'),
+    ('reminder_responses', 'reminder_type'),
+    ('reminder_responses', 'scheduled_for'),
+    ('reminder_responses', 'response_kind'),
+    ('reminder_responses', 'responded_at'),
+    ('reminder_responses', 'created_at'),
+    ('reminder_responses', 'updated_at'),
+
     ('reports', 'id'),
     ('reports', 'user_id'),
     ('reports', 'title'),
@@ -248,6 +259,7 @@ with expected(table_name, normalized_cols, note) as (
     ('user_login_days', 'user_id,login_date', 'required by upsert(onConflict user_id,login_date)'),
     ('user_profiles', 'user_id', 'required by upsert(onConflict user_id)'),
     ('user_account_state', 'user_id', 'required by upsert(onConflict user_id)'),
+    ('reminder_responses', 'user_id,occurrence_key', 'required by upsert(onConflict user_id,occurrence_key)'),
     ('daily_plant_records', 'user_id,date', 'recommended: one daily plant row per user/date'),
     ('plant_direction_config', 'user_id,direction_index', 'recommended: one category per direction slot'),
     ('plant_direction_config', 'user_id,category_key', 'recommended: one slot per category'),
@@ -304,6 +316,7 @@ with expected(table_name) as (
     ('user_login_days'),
     ('user_profiles'),
     ('user_account_state'),
+    ('reminder_responses'),
     ('daily_plant_records'),
     ('plant_direction_config'),
     ('user_stats')

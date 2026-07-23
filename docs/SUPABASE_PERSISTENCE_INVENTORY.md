@@ -21,6 +21,7 @@ Important notes:
 | --- | --- | --- | --- | --- |
 | Auth preferences | `useAuthStore` | `auth.users.user_metadata` | Partial | Core preferences are synced |
 | Account lifecycle state | `useAuthStore.accountState` | `user_account_state` | Partial | Onboarding/plan snapshot now read/write here with local pending fallback |
+| Reminder response receipt | `useReminderStore.confirmedOccurrenceKeys` | `reminder_responses` | Yes | Account-level handled state; local OS notification queues remain device-local |
 | Login streak | `useAuthStore` | `user_stats` | Synced | Also caches computed streak locally |
 | Messages / activities | `useChatStore` | `messages` | Synced | Some UI-only state stays local |
 | Message images | `useImageUpload` | Supabase Storage + `messages.image_url*` | Synced | Falls back to data URL locally |
@@ -151,6 +152,7 @@ Still local-only:
 Notes:
 
 - The code can restore `source`, but cannot fully restore linked mood-message relationships across devices because `linkedMoodMessageId` is not stored remotely.
+- Mood upload/retry now verifies the referenced parent message before writing. Local/offline and standalone `is_mood` parents are retained; only a complete cloud check plus no local parent can classify a mood row as orphaned and remove its stale retry.
 
 ### 4. Todos
 

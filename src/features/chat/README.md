@@ -103,6 +103,11 @@
 - `src/store/useChatStore.ts`: State entry + persist config + orchestration layer. Uses `...createChatTimelineActions(set, get)` to compose timeline actions. Does not contain business logic directly.
 - `src/store/chatHelpers.ts`: Date helpers and DB row mappers (`getLocalDateString`, `mapDbRowToMessage`).
 
+Deletion consistency:
+
+- `deleteActivity()` removes the message from the active timeline and all date-cache buckets, clears its mood metadata and queued `mood.upsert` writes, then deletes the cloud mood row before the cloud message row.
+- Standalone mood cards remain normal `messages` rows with `is_mood=true`; parent verification never treats them as parentless solely because they are moods.
+
 `src/store/useChatStore.ts` line count: 830 → 721 (as of 2026-03-24).
 
 ## Local-First Update (2026-04-21)

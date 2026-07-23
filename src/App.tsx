@@ -165,7 +165,8 @@ const MainLayout = () => {
   useMidnightAutoGenerate();
   useNetworkSync();
   const activePopupType = useReminderStore((s) => s.activePopupType);
-  const markConfirmed = useReminderStore((s) => s.markConfirmed);
+  const activePopupOccurrence = useReminderStore((s) => s.activePopupOccurrence);
+  const recordReminderResponse = useReminderStore((s) => s.recordResponse);
   const showPickerForDeny = useReminderStore((s) => s.showPickerForDeny);
   const aiMode = useAuthStore((s) => s.preferences.aiMode);
   const userName = (useAuthStore((s) => s.user?.user_metadata?.display_name) as string | undefined) ?? undefined;
@@ -360,10 +361,36 @@ const MainLayout = () => {
         <EveningCheckPopup
           copyText={getReminderCopy(aiMode, activePopupType, { name: userName })}
           todayEventCount={messages.filter((m) => m.mode === 'record').length}
-          onViewReport={() => { markConfirmed(activePopupType); navigate('/report?action=generate-diary'); }}
-          onGrowPlant={() => { markConfirmed(activePopupType); navigate('/report?action=generate-plant'); }}
-          onSnooze={() => { markConfirmed(activePopupType); }}
-          onClose={() => { markConfirmed(activePopupType); }}
+          onViewReport={() => {
+            void recordReminderResponse(activePopupType, {
+              userId: user?.id,
+              responseKind: 'view_report',
+              occurrence: activePopupOccurrence,
+            });
+            navigate('/report?action=generate-diary');
+          }}
+          onGrowPlant={() => {
+            void recordReminderResponse(activePopupType, {
+              userId: user?.id,
+              responseKind: 'grow_plant',
+              occurrence: activePopupOccurrence,
+            });
+            navigate('/report?action=generate-plant');
+          }}
+          onSnooze={() => {
+            void recordReminderResponse(activePopupType, {
+              userId: user?.id,
+              responseKind: 'snooze',
+              occurrence: activePopupOccurrence,
+            });
+          }}
+          onClose={() => {
+            void recordReminderResponse(activePopupType, {
+              userId: user?.id,
+              responseKind: 'close',
+              occurrence: activePopupOccurrence,
+            });
+          }}
         />
       )}
       <QuickActivityPicker />

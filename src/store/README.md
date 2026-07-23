@@ -75,15 +75,19 @@
 - `useAnnotationStore` 持久化新增双重裁剪：`annotations` 仅保留最近 30 天（本地未同步项例外），`characterStateTracker` 仅保留最近 7 天/未过期效果，hydration 时也会再次防御性裁剪。
 - `useFocusStore` 现持久化 `currentSession/queue`，并在 hydration 后自动回收超时会话；`useTimingStore` 已接入 persist，冷启动可直接恢复当日计时状态。
 - `useReminderStore` 已从裸 localStorage 迁移为 Zustand persist（`seeday:v1:reminder`），并在 merge 中保留跨日自动重置 confirmed 状态。
+- `useReminderStore` 现同时持久化具体 reminder occurrence key（本地日期 + 类型 + 计划时间），并通过 `recordResponse()` / `syncCloudResponses()` 与 `reminder_responses` 合并；同类型作息在当天改时间后会生成新 occurrence，不会被旧回执误跳过。
 - `useRealtimeSync` 已按高频/低频拆为双通道：`messages+moods` 走 `user-sync-hf-*`，其余 domain 走 `user-sync-lf-*`，降低单通道故障对聊天实时感的影响。
 - 全域 persist key 已统一收口到 `src/store/persistKeys.ts` 的 `seeday:v1:<domain>`，各 store 在 hydration 时会一次性迁移旧 key，并在 `clearLocalDomainStores()` 中统一清理，降低跨账号残留风险。
 - `useAuthStore.initialize()` 现按各 domain store 的 `lastFetchedAt` 做 60 秒新鲜度门控；本地缓存足够新时跳过重复拉云，仅保留本地恢复、pending push 与 realtime 增量更新。
 - `useOutboxStore` 已作为全局 write-behind 队列落地：持久化 key 为 `seeday:v1:outbox`，当前承接 `chat.upsert` / `mood.upsert` / `focus.insert` / `report.upsert` / `annotation.insert` / `annotation.outcome` / `plant.directionOrder` 七类写失败补推；自动重试改为“连续失败 3 次进入 1 小时 cooldown”，避免前台反复出现保存闪烁。
+- 提醒回执写云失败会进入 `reminder.response` outbox；相同 occurrence 只保留最新一条，联网、前台恢复或手动重试时以 `(user_id, occurrence_key)` 幂等 upsert。
 - `annotation.insert` outbox 重试使用 `upsert(onConflict: id)`，因此同一批注若已在云端存在会被视为同步成功，不再因 `annotations_pkey` 重复主键进入长期失败。
+- `mood.upsert` 重试与登录上云会先核验父 `messages`：本地消息、日期缓存、待补传 `chat.upsert` 或云端消息任一存在时均不会被误删；仅在云端检查完整且本地/云端均无父消息时，才清理确认孤立的 mood map 与 outbox。独立心情的 `messages.is_mood=true` 仍属于合法父消息。
 - `useChatStore` 现为新发消息接入显式 `syncState`：本地新消息先标记 `pending` 并立即展示，首次写库失败时进入 `chat.upsert` outbox；云端回拉/flush 成功后回写为 `synced`，本地仅在 `pending/failed` 时保留“云端不存在”的条目，避免把已被删除的消息误当成离线数据复活。
 - `useChatStore.sendMessage()/sendMood()` 现保证 `messages` 与 `dateCache` 同步更新（包括“自动结束上一条活动”后的 `duration/isActive` 变化），避免提醒弹窗确认后因缓存口径不一致出现“新活动闪现后消失/上一条未自动结束”的竞态。
 - `useChatStore.sendMessage()` 现会在新活动创建前统一收口所有 ongoing 活动（不再只关闭最后一条 record），并且 `insertActivity()/updateActivity()` 会拦截与 ongoing 活动冲突的手动时间编辑，避免时间线被污染后出现双活动同时计时。
 - `useChatStore.updateActivity()` 现会区分 ongoing 活动的“只改开始时间”和“手动改结束时间”两种编辑：只改开始时间时保持 ongoing；一旦用户显式改了结束时间，则立即写成已结束并同步 `dateCache`/云端 `is_active=false`，避免下一条活动再次改写结束时间。
+- `useChatStore.deleteActivity()` 会原子清理当前 `messages`、所有持久化 `dateCache` 日期分组、对应的 pending manual-end 状态、附属 mood maps 与 `mood.upsert` outbox，并在删云端 message 前先删对应 mood row，避免撤回活动后缓存复活或遗留 `23503` 外键重试。
 - `useChatStore` 新增首页活动“手滑误触结束”缓冲层：`pendingManualEnds` 为非持久化的 3 秒待确认结束态，仅聊天首页时间线消费；倒计时内再次点击可取消，超时后才真正调用 `endActivity()` 并触发 todo/星星/annotation 等副作用。
 - 会员 AI 分类分层（2026-04）已接入 `useChatStore`：Free 路径仅本地规则（不触发 `/api/classify`）；Plus 路径按 messageId 复用单次 classify 结果（`kind/activity_type/mood_type/matched_bottle/confidence`），`mood_type` 在无手动覆盖时回写 mood store。
 - 星星判定策略已收敛：`todo_link` 优先；Free 仅关键词兜底；Plus 优先 `matched_bottle` 后再关键词兜底。

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { APP_MODAL_OVERLAY_CLASS } from '../lib/modalTheme';
 import { AI_COMPANION_VISUALS } from '../constants/aiCompanionVisuals';
 import { useAuthStore } from '../store/useAuthStore';
+import { useReminderStore } from '../store/useReminderStore';
 import { triggerLightHaptic } from '../lib/haptics';
 import type { ReminderType } from '../services/reminder/reminderTypes';
 import { submitReminderManualActivity } from '../services/reminder/reminderActivityActions';
@@ -20,6 +21,7 @@ export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDe
   const { t } = useTranslation();
   const aiMode = useAuthStore((s) => s.preferences.aiMode);
   const userId = useAuthStore((s) => s.user?.id);
+  const activePopupOccurrence = useReminderStore((s) => s.activePopupOccurrence);
   const [inputValue, setInputValue] = React.useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +40,11 @@ export const ReminderPopup: React.FC<Props> = ({ type, copyText, onConfirm, onDe
   const handleSend = () => {
     if (!inputValue.trim()) return;
     triggerLightHaptic();
-    void submitReminderManualActivity(inputValue, { reminderType: type, userId });
+    void submitReminderManualActivity(inputValue, {
+      reminderType: type,
+      userId,
+      occurrence: activePopupOccurrence ?? undefined,
+    });
     setInputValue('');
   };
 

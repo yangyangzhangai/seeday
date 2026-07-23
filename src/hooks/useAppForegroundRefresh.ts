@@ -7,6 +7,7 @@ import { useChatStore } from '../store/useChatStore';
 import { useMoodStore } from '../store/useMoodStore';
 import { useReportStore } from '../store/useReportStore';
 import { useOutboxStore } from '../store/useOutboxStore';
+import { useReminderStore } from '../store/useReminderStore';
 import { logSupabaseAuthDebug, refreshSupabaseSession } from '../lib/supabase-utils';
 
 /**
@@ -31,7 +32,9 @@ export function useAppForegroundRefresh() {
         } catch (error) {
           logSupabaseAuthDebug('useAppForegroundRefresh:appStateChange:refresh:unexpected', error);
         }
-        void useOutboxStore.getState().flush(userId).catch(() => {});
+        void useOutboxStore.getState().flush(userId)
+          .then(() => useReminderStore.getState().syncCloudResponses(userId))
+          .catch(() => {});
         void useChatStore.getState().fetchMessages();
         void useMoodStore.getState().fetchMoods();
         void useReportStore.getState().fetchReports();

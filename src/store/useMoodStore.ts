@@ -54,6 +54,7 @@ interface MoodState {
   addCustomMoodOption: (label: string) => void;
   setMoodNote: (activityId: string, note: string, source?: MoodAttachmentInput) => void;
   clearAutoMoodAttachmentsByMessage: (activityId: string, moodMessageId: string) => void;
+  removeMoodRecords: (activityIds: string[]) => void;
   getMood: (activityId: string) => MoodOption | undefined;
   clear: () => void;
   /** Fetch all mood rows from Supabase and hydrate local state */
@@ -144,6 +145,13 @@ export function removeMoodRecordFromMaps(maps: MoodRecordMaps, activityId: strin
     moodNote,
     moodNoteMeta,
   };
+}
+
+export function removeMoodRecordsFromMaps(
+  maps: MoodRecordMaps,
+  activityIds: string[],
+): MoodRecordMaps {
+  return activityIds.reduce(removeMoodRecordFromMaps, maps);
 }
 
 export function applyMoodRowToMaps(maps: MoodRecordMaps, row: MoodRowData): MoodRecordMaps {
@@ -330,6 +338,9 @@ export const useMoodStore = create<MoodState>()(
               : state.moodNoteMeta,
           });
         }),
+
+      removeMoodRecords: (activityIds) =>
+        set((state) => removeMoodRecordsFromMaps(state, activityIds)),
 
       getMood: (activityId) => get().activityMood[activityId],
 

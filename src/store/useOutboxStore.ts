@@ -10,10 +10,17 @@ import type { AIAnnotation } from '../types/annotation';
 import type { PlantCategoryKey } from '../types/plant';
 import type { Message } from './useChatStore.types';
 import type { Report } from './useReportStore';
+import type { ReminderResponseDraft } from '../services/reminder/reminderResponse';
+import { upsertReminderResponse } from '../api/reminderResponses';
 import { createScopedJSONStorage } from './scopedPersistStorage';
 import { isMultiAccountIsolationV2Enabled, readActiveStorageScope } from './storageScope';
 import { formatUserFacingDiagnostic, logDiagnostic } from '../lib/diagnostics';
 import { resolveChatImageStoragePath } from '../lib/chatImageStorage';
+import {
+  collectUniqueMessages,
+  fetchExistingCloudMessageIds,
+  partitionMoodParentIds,
+} from './moodRelationshipHelpers';
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const OUTBOX_COOLDOWN_MS = 60 * 60 * 1000;
@@ -149,7 +156,18 @@ type PreferenceUpsertOutboxEntry = {
   lastError?: string;
 };
 
-export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | TodoDeleteOutboxEntry | PlantDirectionOutboxEntry | ImageReuploadOutboxEntry | PreferenceUpsertOutboxEntry;
+type ReminderResponseOutboxEntry = {
+  id: string;
+  kind: 'reminder.response';
+  payload: { response: ReminderResponseDraft };
+  attempts: number;
+  consecutiveFailures: number;
+  status: 'pending' | 'cooldown' | 'failed';
+  nextRetryAt?: number;
+  lastError?: string;
+};
+
+export type OutboxEntry = MoodOutboxEntry | FocusOutboxEntry | ReportOutboxEntry | AnnotationOutboxEntry | AnnotationOutcomeOutboxEntry | ChatOutboxEntry | TodoDeleteOutboxEntry | PlantDirectionOutboxEntry | ImageReuploadOutboxEntry | PreferenceUpsertOutboxEntry | ReminderResponseOutboxEntry;
 export type OutboxEntryInput = Omit<OutboxEntry, 'id' | 'attempts' | 'status' | 'lastError'>;
 
 type OutboxExecutor = (entry: OutboxEntry, userId: string) => Promise<void>;
@@ -279,6 +297,13 @@ async function executePlantDirectionEntry(entry: PlantDirectionOutboxEntry, user
   if (insertError) throw insertError;
 }
 
+async function executeReminderResponseEntry(
+  entry: ReminderResponseOutboxEntry,
+  userId: string,
+): Promise<void> {
+  await upsertReminderResponse(userId, entry.payload.response);
+}
+
 async function updateChatMessageSyncStatus(entry: ChatOutboxEntry, status: 'pending' | 'failed' | 'synced', error?: string): Promise<void> {
   const [{ useChatStore }, { applyChatMessageSyncState }] = await Promise.all([
     import('./useChatStore'),
@@ -303,6 +328,7 @@ const outboxExecutors: Record<OutboxEntry['kind'], OutboxExecutor> = {
   'plant.directionOrder': (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId),
   'image.reupload': (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId),
   'preference.upsert': (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId),
+  'reminder.response': (entry, userId) => executeReminderResponseEntry(entry as ReminderResponseOutboxEntry, userId),
 };
 
 function normalizeErrorMessage(error: unknown): string {
@@ -345,16 +371,50 @@ function describeOutboxEntry(entry: OutboxEntry): Record<string, unknown> {
   if (entry.kind === 'image.reupload') {
     return { ...base, bucket: 'seeday-images', operation: 'upload', messageId: entry.payload.messageId, slot: entry.payload.slot };
   }
+  if (entry.kind === 'reminder.response') {
+    return {
+      ...base,
+      table: 'reminder_responses',
+      operation: 'upsert',
+      occurrenceKey: entry.payload.response.occurrenceKey,
+    };
+  }
   return { ...base, operation: 'metadata.update' };
 }
 
 interface OutboxState {
   entries: OutboxEntry[];
   enqueue: (entry: OutboxEntryInput) => string;
+  discardMoodEntries: (messageIds: string[]) => void;
   flush: (userId?: string) => Promise<void>;
   retryNow: (userId?: string) => Promise<void>;
   markFailed: (id: string, error: string, attempts?: number) => void;
   clearSucceeded: () => void;
+}
+
+async function discardVerifiedOrphanMoodEntries(userId: string): Promise<void> {
+  const entries = useOutboxStore.getState().entries;
+  const moodIds = entries
+    .filter((entry): entry is MoodOutboxEntry => entry.kind === 'mood.upsert')
+    .map((entry) => entry.payload.messageId);
+  if (moodIds.length === 0) return;
+
+  const { useChatStore } = await import('./useChatStore');
+  const chatState = useChatStore.getState();
+  const localIds = new Set(collectUniqueMessages(chatState.messages, chatState.dateCache).map((message) => message.id));
+  entries
+    .filter((entry): entry is ChatOutboxEntry => entry.kind === 'chat.upsert')
+    .forEach((entry) => localIds.add(entry.payload.message.id));
+
+  const cloudResult = await fetchExistingCloudMessageIds(userId, moodIds);
+  const { orphanIds } = partitionMoodParentIds(moodIds, localIds, cloudResult);
+  if (orphanIds.size === 0) return;
+
+  const orphanMessageIds = Array.from(orphanIds);
+  const { useMoodStore } = await import('./useMoodStore');
+  useMoodStore.getState().removeMoodRecords(orphanMessageIds);
+  useOutboxStore.getState().discardMoodEntries(orphanMessageIds);
+  logDiagnostic('warn', 'outbox.mood_orphans.discarded', { userId, messageIds: orphanMessageIds });
 }
 
 export const useOutboxStore = create<OutboxState>()(
@@ -368,6 +428,11 @@ export const useOutboxStore = create<OutboxState>()(
             ...(
               entry.kind === 'preference.upsert'
                 ? state.entries.filter((item) => item.kind !== 'preference.upsert')
+                : entry.kind === 'reminder.response'
+                  ? state.entries.filter((item) => (
+                    item.kind !== 'reminder.response'
+                    || item.payload.response.occurrenceKey !== entry.payload.response.occurrenceKey
+                  ))
                 : state.entries
             ),
             {
@@ -390,6 +455,14 @@ export const useOutboxStore = create<OutboxState>()(
           } as OutboxEntry),
         });
         return id;
+      },
+      discardMoodEntries: (messageIds) => {
+        const ids = new Set(messageIds);
+        set((state) => ({
+          entries: state.entries.filter((entry) => (
+            entry.kind !== 'mood.upsert' || !ids.has(entry.payload.messageId)
+          )),
+        }));
       },
       markFailed: (id, error, attempts) => {
         set((state) => ({
@@ -427,6 +500,7 @@ export const useOutboxStore = create<OutboxState>()(
           }
         }
 
+        await discardVerifiedOrphanMoodEntries(resolvedUserId);
         const now = Date.now();
         const snapshot = get().entries.filter((entry) => (
           entry.status === 'pending'
@@ -569,4 +643,5 @@ export function resetOutboxExecutorsForTests(): void {
   outboxExecutors['plant.directionOrder'] = (entry, userId) => executePlantDirectionEntry(entry as PlantDirectionOutboxEntry, userId);
   outboxExecutors['image.reupload'] = (entry, userId) => executeImageReuploadEntry(entry as ImageReuploadOutboxEntry, userId);
   outboxExecutors['preference.upsert'] = (entry, userId) => executePreferenceUpsertEntry(entry as PreferenceUpsertOutboxEntry, userId);
+  outboxExecutors['reminder.response'] = (entry, userId) => executeReminderResponseEntry(entry as ReminderResponseOutboxEntry, userId);
 }

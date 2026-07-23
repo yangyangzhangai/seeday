@@ -139,8 +139,10 @@ export function clearLocalDomainStores(scope?: StorageScope): void {
   useStardustStore.getState().clear();
   useReminderStore.setState({
     confirmedToday: new Set<ReminderType>(),
+    confirmedOccurrenceKeys: new Set<string>(),
     confirmedDate: toLocalDateStr(Date.now()),
     activePopupType: null,
+    activePopupOccurrence: null,
     lastSessionActivity: null,
     showQuickPicker: false,
     pickerContext: null,
