@@ -158,6 +158,7 @@ export async function callAnnotationLLM(
       ],
       temperature: params.temperature,
       max_tokens: params.maxOutputTokens,
+      ...(params.expectJson ? { response_format: { type: 'json_object' } } : {}),
     });
 
     return {

@@ -17,7 +17,7 @@
 - Plant observation copy is server-limited to the card budget; historical oversized text is compacted at a natural sentence boundary for display/export without rewriting the stored source text
 - Before today's diary exists, the report route shows the root/plant surface; starting diary generation switches directly to detail page 2 and keeps the two-page detail as the report route's primary surface
 - Once today's full diary or free teaser exists, revisiting `/report` selects that report during the first render, so the plant card cannot flash before the detail page appears
-- The persistent today detail is rendered inside the report page frame so the bottom navigation remains available; its header retains the original `44px` Calendar button and `44px`-high text Diary Book button instead of exposing a close path back to the plant surface
+- The persistent today detail is rendered inside the report page frame so the bottom navigation remains available; its header retains the original `44px` Calendar button and a matching `44x44` icon-only Diary Book button instead of exposing a close path back to the plant surface
 - Generated plant cards center the localized registry name and date together in a compact bottom metadata row with the same subdued treatment; Diary detail plant photos keep the name beneath the image.
 - Detail pages remain under direct user-controlled horizontal swipe; generation completion no longer starts an automatic page change
 - Bottom-nav report entry always targets `/report`; the report page synchronously resolves whether its primary surface is today's detail or the pre-diary plant/root view

@@ -476,3 +476,51 @@ export function buildAiCompanionModePrompt(
     languageRule,
   ].join('\n');
 }
+
+const SUGGESTION_SYSTEM_TITLES: Record<AiCompanionLang, string> = {
+  zh: '建议模式',
+  en: 'Suggestion mode',
+  it: 'Modalita suggerimento',
+};
+
+const SUGGESTION_SYSTEM_RULES: Record<AiCompanionLang, string[]> = {
+  zh: [
+    '此轮任务是生成可点击执行的建议，不是普通批注。',
+    '只能输出一个有效 JSON 对象；不要输出解释、前缀、代码块或额外文本。',
+    '保持角色语气温暖、自然、具体，但 actionLabel、content、todoId/todoTitle 必须围绕同一个目标。',
+    '如果建议的是 todo，只能使用输入中提供的 todoId 和对应 todoTitle，不能自造或改写成别的目标。',
+  ],
+  en: [
+    'This turn is for an actionable suggestion, not a plain annotation.',
+    'Output exactly one valid JSON object with no explanation, prefix, markdown, or extra text.',
+    'Keep the character voice warm, natural, and specific, but actionLabel, content, and todoId/todoTitle must point to the same target.',
+    'If suggesting a todo, use only the provided todoId and matching todoTitle from the input. Never invent or switch targets.',
+  ],
+  it: [
+    'Questo turno richiede un suggerimento operativo, non una normale annotazione.',
+    'Restituisci esattamente un solo oggetto JSON valido, senza spiegazioni, prefissi, markdown o testo extra.',
+    'Mantieni la voce del personaggio calda, naturale e concreta, ma actionLabel, content e todoId/todoTitle devono riferirsi allo stesso target.',
+    'Se suggerisci un todo, usa solo il todoId fornito e il todoTitle corrispondente dall\'input. Non inventare o cambiare target.',
+  ],
+};
+
+export function buildAiCompanionSuggestionPrompt(
+  lang: unknown,
+  mode: unknown,
+): string {
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  const normalizedMode = normalizeAiCompanionMode(mode);
+  const copy = MODE_COPY[normalizedLang][normalizedMode];
+  const languageRule = OUTPUT_LANGUAGE_RULE[normalizedLang];
+
+  return [
+    PROMPT_INTROS[normalizedLang],
+    `${copy.name} - ${copy.subtitle}`,
+    copy.identity,
+    RULE_TITLES[normalizedLang],
+    ...copy.rules.map((rule) => `- ${rule}`),
+    SUGGESTION_SYSTEM_TITLES[normalizedLang],
+    ...SUGGESTION_SYSTEM_RULES[normalizedLang].map((rule) => `- ${rule}`),
+    languageRule,
+  ].join('\n');
+}

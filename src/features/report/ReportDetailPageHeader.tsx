@@ -68,7 +68,7 @@ export function ReportDetailPageHeader({
               </span>
             </button>
             <button
-              className="flex h-11 items-center gap-2 rounded-2xl px-5 transition-all hover:scale-105 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl p-0 transition-all hover:scale-105 active:scale-95"
               onClick={onOpenDiaryBook}
               style={{ ...APP_GREEN_GLASS_BUTTON_STYLE, color: APP_GREEN_GLASS_TEXT }}
               aria-label={diaryBookLabel}
@@ -80,7 +80,6 @@ export function ReportDetailPageHeader({
               >
                 book_5
               </span>
-              <span className="text-[13px] font-bold">{diaryBookLabel}</span>
             </button>
           </div>
         ) : (

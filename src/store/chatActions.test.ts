@@ -207,7 +207,10 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     const latest = result!.updatedMessages.find((m) => m.id === 'mood-1');
     const previous = result!.updatedMessages.find((m) => m.id === 'activity-1');
     expect(latest?.isMood).toBe(false);
+    expect(latest?.isActive).toBe(true);
+    expect(latest?.detached).toBe(false);
     expect(previous?.duration).toBe(10);
+    expect(previous?.isActive).toBe(false);
     expect(result?.previousActivityMoodAttachmentToClear).toBe('activity-1');
   });
 
@@ -241,8 +244,10 @@ describe('buildRecentReclassifyResult timeline repair regression', () => {
     const previous = result!.updatedMessages.find((m) => m.id === 'activity-1');
     expect(latest?.isMood).toBe(true);
     expect(latest?.activityType).toBe('mood');
+    expect(latest?.isActive).toBe(false);
     expect(latest?.detached).toBe(true);
     expect(previous?.duration).toBeUndefined();
+    expect(previous?.isActive).toBe(true);
   });
 
   it('returns null when target is not latest message', () => {

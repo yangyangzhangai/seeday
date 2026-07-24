@@ -249,6 +249,83 @@ describe('annotation-handler', () => {
     expect(res.statusCode).toBe(200);
     expect((res.payload as { suggestion?: { type?: string } }).suggestion?.type).toBeTruthy();
     expect((res.payload as { displayDuration?: number }).displayDuration).toBe(15000);
+    expect((res.payload as { content?: string }).content).toContain('drink water');
+    expect((res.payload as { source?: string }).source).toBe('default');
+
+    const request = responsesCreateMock.mock.calls[0][0];
+    expect(request.instructions).toContain('Suggestion mode');
+    expect(request.instructions).toContain('Output exactly one valid JSON object');
+  });
+
+  it('accepts todo suggestion when todoId resolves even if model todoTitle differs', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_conflict',
+      output_text: '{"mode":"suggestion","content":"Start washing clothes now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-book","todoTitle":"wash clothes"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'working nonstop' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-book', title: 'read book' }],
+          allowSuggestion: false,
+          forceSuggestion: true,
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { content?: string }).content).toContain('Start washing clothes now');
+    expect((res.payload as { suggestion?: { todoId?: string; todoTitle?: string } }).suggestion?.todoId).toBe('todo-book');
+    expect((res.payload as { suggestion?: { todoTitle?: string } }).suggestion?.todoTitle).toBe('read book');
+    expect((res.payload as { source?: string }).source).toBe('ai');
+  });
+
+  it('does not fallback to another todo in allowSuggestion mode when todo target is invalid', async () => {
+    responsesCreateMock.mockResolvedValueOnce({
+      id: 'resp_suggestion_allow_invalid',
+      output_text: '{"mode":"suggestion","content":"Try washing clothes now 🌿","suggestion":{"type":"todo","actionLabel":"Go now","todoId":"todo-missing","todoTitle":"wash clothes"}}',
+      usage: {
+        prompt_cache_hits: 0,
+        prompt_cache_misses: 1,
+      },
+    });
+
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+
+    await handler({
+      method: 'POST',
+      body: {
+        eventType: 'activity_recorded',
+        eventData: { content: 'working nonstop' },
+        userContext: {
+          todayActivitiesList: [],
+          pendingTodos: [{ id: 'todo-book', title: 'read book' }],
+          allowSuggestion: true,
+          forceSuggestion: false,
+        },
+        lang: 'en',
+        aiMode: 'van',
+      },
+    } as any, res as any);
+
+    expect(res.statusCode).toBe(200);
+    expect((res.payload as { content?: string }).content).toContain('Try washing clothes now');
+    expect((res.payload as { suggestion?: unknown }).suggestion).toBeUndefined();
+    expect((res.payload as { source?: string }).source).toBe('ai');
   });
 
   it('pre-decomposes stale todo before returning suggestion', async () => {

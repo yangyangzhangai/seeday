@@ -586,7 +586,22 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        set({ messages: result.updatedMessages });
+        const touchedDateStrs = Array.from(new Set(
+          result.patches
+            .map((patch) => result.updatedMessages.find((message) => message.id === patch.id))
+            .filter((message): message is Message => Boolean(message))
+            .map((message) => getLocalDateString(new Date(message.timestamp)))
+        ));
+
+        set((currentState) => ({
+          messages: result.updatedMessages,
+          dateCache: pruneDateCache(
+            touchedDateStrs.reduce<Record<string, Message[]>>((nextCache, dateStr) => {
+              nextCache[dateStr] = projectMessagesForDate(result.updatedMessages, dateStr);
+              return nextCache;
+            }, { ...currentState.dateCache })
+          ),
+        }));
 
         if (originalMessage) {
           recordLiveInputCorrection(originalMessage.isMood ? 'mood' : 'activity', nextKind);

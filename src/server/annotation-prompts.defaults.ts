@@ -1,5 +1,10 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
-import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../lib/aiCompanion.js';
+import {
+  buildAiCompanionModePrompt,
+  buildAiCompanionSuggestionPrompt,
+  normalizeAiCompanionLang,
+  normalizeAiCompanionMode,
+} from '../lib/aiCompanion.js';
 import {
   getVanDailyAnnotationPromptEN,
   getVanDailyAnnotationPromptIT,
@@ -151,6 +156,14 @@ export function getSystemPrompt(lang: string, aiMode?: string): string {
     return getMomoDailyAnnotationPromptZH();
   }
   return buildAiCompanionModePrompt(normalizedLang, resolvedMode, 'annotation');
+}
+
+export function getSuggestionSystemPrompt(lang: string, aiMode?: string): string {
+  const normalizedLang = normalizeAiCompanionLang(lang);
+  const resolvedMode = aiMode ?? getRandomMode();
+  const normalizedMode = normalizeAiCompanionMode(resolvedMode);
+
+  return buildAiCompanionSuggestionPrompt(normalizedLang, normalizedMode);
 }
 
 export function getDefaultAnnotations(lang: string): AnnotationMap {

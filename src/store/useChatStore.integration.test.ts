@@ -532,6 +532,7 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
 
   it('reclassifies latest mood <-> activity with minimal timeline repair', async () => {
     const base = 1_700_000_000_000;
+    const dateKey = getLocalDateString(new Date(base));
     resetChatStore([
       {
         id: 'activity-1',
@@ -552,6 +553,12 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
         isMood: true,
       },
     ]);
+    useChatStore.setState({
+      dateCache: {
+        [dateKey]: [...useChatStore.getState().messages],
+      },
+      activeViewDateStr: dateKey,
+    });
 
     useMoodStore.setState({
       ...useMoodStore.getState(),
@@ -565,20 +572,81 @@ describe('useChatStore integration: auto recognition and correction flow', () =>
 
     let messages = useChatStore.getState().messages;
     expect(messages.find((m) => m.id === 'mood-1')?.isMood).toBe(false);
+    expect(messages.find((m) => m.id === 'mood-1')?.isActive).toBe(true);
     expect(messages.find((m) => m.id === 'activity-1')?.duration).toBe(10);
+    expect(messages.find((m) => m.id === 'activity-1')?.isActive).toBe(false);
     expect(useMoodStore.getState().moodNote['activity-1']).toBeUndefined();
     expect(useMoodStore.getState().moodNoteMeta['activity-1']).toBeUndefined();
+    expect(useChatStore.getState().dateCache[dateKey].find((m) => m.id === 'mood-1')?.isActive).toBe(true);
 
     await useChatStore.getState().reclassifyRecentInput('mood-1', 'mood');
 
     messages = useChatStore.getState().messages;
     expect(messages.find((m) => m.id === 'mood-1')?.isMood).toBe(true);
+    expect(messages.find((m) => m.id === 'mood-1')?.isActive).toBe(false);
     expect(messages.find((m) => m.id === 'activity-1')?.duration).toBeUndefined();
+    expect(messages.find((m) => m.id === 'activity-1')?.isActive).toBe(true);
     expect(useMoodStore.getState().moodNote['activity-1']).toBe('好烦');
+    expect(useChatStore.getState().dateCache[dateKey].find((m) => m.id === 'activity-1')?.isActive).toBe(true);
 
     const telemetry = getLiveInputTelemetrySnapshot();
     expect(telemetry.correctionByPath['mood->activity']).toBe(1);
     expect(telemetry.correctionByPath['activity->mood']).toBe(1);
+  });
+
+  it('persists reclassify active and detached flags', async () => {
+    const base = 1_700_000_000_000;
+    const updateChain = { eq: vi.fn().mockReturnThis() };
+    const updateSpy = vi.fn().mockReturnValue(updateChain);
+    const upsertSpy = vi.fn(async () => ({ error: null }));
+    const fromSpy = vi.spyOn(supabase, 'from').mockReturnValue({
+      update: updateSpy,
+      upsert: upsertSpy,
+    } as never);
+    vi.mocked(getSupabaseSession).mockResolvedValue({ user: { id: 'user-1' } } as never);
+
+    resetChatStore([
+      {
+        id: 'activity-1',
+        content: '写周报',
+        timestamp: base,
+        type: 'text',
+        mode: 'record',
+        activityType: 'life',
+        duration: 10,
+        isActive: false,
+      },
+      {
+        id: 'activity-2',
+        content: '好烦',
+        timestamp: base + 10 * 60 * 1000,
+        type: 'text',
+        mode: 'record',
+        activityType: 'life',
+        duration: undefined,
+        isActive: true,
+      },
+    ]);
+
+    await useChatStore.getState().reclassifyRecentInput('activity-2', 'mood');
+
+    expect(updateSpy).toHaveBeenCalledTimes(2);
+    expect(updateSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      is_mood: true,
+      activity_type: 'mood',
+      duration: null,
+      is_active: false,
+      detached: true,
+    }));
+    expect(updateSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      is_mood: false,
+      duration: null,
+      is_active: true,
+      detached: false,
+    }));
+
+    fromSpy.mockRestore();
+    vi.mocked(getSupabaseSession).mockResolvedValue(null as never);
   });
 
   it('allows converting detached mood card even when it is not the latest record message', async () => {

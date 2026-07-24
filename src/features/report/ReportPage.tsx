@@ -401,14 +401,15 @@ export const ReportPage = () => {
             </button>
             <button
               onClick={handleOpenDiaryBook}
-              className="h-11 flex items-center gap-2 px-5 rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95"
+              aria-label={t('report_view_diary_book')}
+              title={t('report_view_diary_book')}
+              className="w-11 h-11 flex items-center justify-center rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95"
               style={{
                 ...APP_GREEN_GLASS_BUTTON_STYLE,
                 color: APP_GREEN_GLASS_TEXT,
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20 }}>book_5</span>
-              <span className="text-[13px] font-bold">{t('report_view_diary_book')}</span>
             </button>
           </div>
         </div>

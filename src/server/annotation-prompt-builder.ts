@@ -3,6 +3,7 @@ import {
   buildSuggestionAwareUserPrompt,
   buildUserPrompt,
   getModel,
+  getSuggestionSystemPrompt,
   getSystemPrompt,
 } from './annotation-prompts.js';
 import type {
@@ -115,10 +116,14 @@ function buildPromptInput(payload: BuildAnnotationPromptInput): string {
 }
 
 export function buildAnnotationPromptPackage(payload: BuildAnnotationPromptInput): AnnotationPromptPackage {
+  const instructions = payload.mode === 'suggestion'
+    ? getSuggestionSystemPrompt(payload.lang, payload.aiMode)
+    : getSystemPrompt(payload.lang, payload.aiMode);
+
   return {
     mode: payload.mode,
     model: getModel(payload.lang),
-    instructions: getSystemPrompt(payload.lang, payload.aiMode),
+    instructions,
     input: buildPromptInput(payload),
   };
 }

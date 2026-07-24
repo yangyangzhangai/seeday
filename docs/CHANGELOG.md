@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-24 - Report diary-book header button simplification
+
+- Changed the Report root header and persistent diary detail header Diary Book control from an icon-and-text pill to an icon-only `44x44` book button.
+- Preserved the existing localized `report_view_diary_book` label as the button `aria-label` / `title`, so discoverability stays intact while avoiding multilingual width pressure in the top bar.
+
+## 2026-07-24 - Chat reclassify ongoing-state repair
+
+- Fixed the latest activity-card -> mood-card correction path so the adjacent previous activity is fully restored to ongoing (`duration=null` + `isActive=true`) instead of keeping a half-closed state that hid the timer and end button.
+- The converted mood card now explicitly drops active state, and reclassify persistence now writes `messages.is_active` plus `messages.detached` together with the existing `is_mood/activity_type/duration` fields.
+- `useChatStore.reclassifyRecentInput()` now refreshes the affected `dateCache` buckets at the same time as in-memory `messages`, preventing date switches, hydration, or reloads from reviving the broken intermediate state.
+- Regression coverage now checks ongoing-state repair, cache repair, and cloud persistence fields for latest activity/mood conversion.
+
 ## 2026-07-23 - Cross-device routine reminder response receipts
 
 - Added `reminder_responses` schema, authenticated RLS policies, Realtime publication setup, and minimum-schema verification.
@@ -14,6 +26,20 @@ All notable effective changes are documented here.
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
 ## 2026-07-24
+
+### Fix: AI todo suggestions now keep copy and target on the same todo
+
+- Suggestion-mode annotation requests no longer reuse the plain annotation companion system prompt. They now use a dedicated suggestion system prompt that keeps the same companion voice while requiring one JSON-only actionable payload.
+- Forced suggestion fallback no longer keeps model freeform copy while swapping in a different fallback todo target. When fallback is needed, the server now returns one whole payload (`content`, `actionLabel`, and target fields) from the same source.
+- Todo suggestions now use `todoId` as the only hard target locator, then rewrite `todoTitle` from the canonical pending-todo row before returning the payload.
+- Allow-suggestion mode no longer swaps in a different fallback todo when a suggested todo target is invalid; it now degrades to plain annotation output instead of manufacturing a new button target.
+- DeepSeek suggestion calls now also request JSON-object output at the transport layer in addition to prompt-level guidance; OpenAI/Gemini paths keep the existing prompt/schema validation and whole-payload fallback behavior.
+- Growth-page jump/highlight behavior is unchanged on the client side; the fix removes the server-side mixed-source payloads that previously caused the wrong todo to be highlighted.
+
+Validation:
+
+- `npx vitest run src/server/annotation-handler.test.ts src/server/annotation-prompts.user.test.ts`
+- `npx tsc --noEmit`
 
 ### Fix: Magic Pen keeps multilingual complex input intact
 

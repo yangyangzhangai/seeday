@@ -29,6 +29,8 @@ interface MessagePatch {
   isMood: boolean;
   activityType: string;
   duration?: number;
+  isActive?: boolean;
+  detached?: boolean;
 }
 
 interface ReclassifyResult {
@@ -111,12 +113,16 @@ function buildMoodToActivityReclassify(
     isMood: false,
     activityType: classifyRecordActivityType(target.content, resolveLangForText(target.content)).activityType,
     duration: undefined,
+    isActive: true,
+    detached: false,
   };
   patches.push({
     id: target.id,
     isMood: false,
     activityType: classifyRecordActivityType(target.content, resolveLangForText(target.content)).activityType,
     duration: undefined,
+    isActive: true,
+    detached: false,
   });
 
   const previousActivityIndex = findPreviousActivityIndex(updatedMessages, targetIndex);
@@ -124,12 +130,13 @@ function buildMoodToActivityReclassify(
     const previous = updatedMessages[previousActivityIndex];
     if (previous.duration === undefined) {
       const duration = toRoundedMinutes(previous.timestamp, target.timestamp);
-      updatedMessages[previousActivityIndex] = { ...previous, duration };
+      updatedMessages[previousActivityIndex] = { ...previous, duration, isActive: false };
       patches.push({
         id: previous.id,
         isMood: false,
         activityType: previous.activityType || classifyRecordActivityType(previous.content, resolveLangForText(previous.content)).activityType,
         duration,
+        isActive: false,
       });
     }
 
@@ -161,6 +168,7 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
     isMood: true,
     activityType: 'mood',
     duration: undefined,
+    isActive: false,
     detached: true,
   };
   patches.push({
@@ -168,6 +176,8 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
     isMood: true,
     activityType: 'mood',
     duration: undefined,
+    isActive: false,
+    detached: true,
   });
 
   const previousActivityIndex = findPreviousActivityIndex(messages, targetIndex);
@@ -179,12 +189,14 @@ function buildActivityToMoodReclassify(messages: Message[], targetIndex: number)
       updatedMessages[previousActivityIndex] = {
         ...previous,
         duration: undefined,
+        isActive: true,
       };
       patches.push({
         id: previous.id,
         isMood: false,
         activityType: previous.activityType || classifyRecordActivityType(previous.content, resolveLangForText(previous.content)).activityType,
         duration: undefined,
+        isActive: true,
       });
     }
 
@@ -243,6 +255,8 @@ export async function persistReclassifiedMessages(userId: string, patches: Messa
         is_mood: patch.isMood,
         activity_type: patch.activityType,
         duration: patch.duration ?? null,
+        is_active: patch.isActive ?? false,
+        detached: patch.detached ?? false,
       })
       .eq('id', patch.id)
       .eq('user_id', userId);

@@ -2,6 +2,7 @@
 export {
   getDefaultAnnotations,
   getModel,
+  getSuggestionSystemPrompt,
   getSystemPrompt,
 } from './annotation-prompts.defaults.js';
 

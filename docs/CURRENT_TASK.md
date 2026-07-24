@@ -5,6 +5,12 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-24: Reworked annotation suggestion routing to stop mixed-source todo jumps. Suggestion mode now uses its own companion system prompt instead of the plain-annotation prompt, forced suggestion fallback returns one whole payload (`content + actionLabel + target`) from a single source, todo targeting now trusts `todoId` as the sole locator and rewrites `todoTitle` from the canonical pending-todo row, and allow-suggestion mode no longer swaps in a different fallback todo when a suggested target is invalid.
+
+- 2026-07-24: Fixed latest activity->mood reclassify state repair. When a misclassified activity card is converted back into a mood card, the adjacent previous activity now restores both `duration=undefined` and `isActive=true`, while the converted mood card explicitly drops active state. Reclassify also updates `dateCache` and persists `is_active` / `detached`, preventing the previous activity timer/end button from disappearing again after date switches or reloads.
+
+- 2026-07-24: Simplified the Report / Diary header's Diary Book entry to an icon-only `44x44` book button on both the root report page and persistent diary detail header. The localized label remains in `aria-label` / `title`, removing language-length pressure from the top bar without changing the open-Diary-Book behavior.
+
 - 2026-07-24: Replaced Magic Pen's keyword-only remote-failure fallback with one conservative ZH/EN/IT semantic classifier. It segments multilingual clauses, reuses shared activity/mood lexicons, distinguishes realtime/past/future/action/mood/intent/wish/negation/cross-day evidence, requires action context before creating a todo, and preserves ambiguous text for review. Chinese `得` no longer acts as a standalone duty signal; English/Italian complex notes can recover current activity/mood, future todos, and past backfills locally.
 
 - 2026-07-24: Hardened Magic Pen multilingual and complex-sentence parsing. AI-routed inputs now default to Qwen `qwen-plus`, reject semantically empty/low-coverage/missing-time/under-split JSON before trying Zhipu, preserve the complete original input after provider exhaustion, and no longer silently truncate requests at 500 characters. The existing high-confidence realtime auto-write gate remains unchanged.

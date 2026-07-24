@@ -10,12 +10,7 @@ import {
   getMaxSimilarityAgainstRecent,
 } from './annotation-similarity.js';
 import {
-  buildForcedFallbackSuggestion,
-  buildRecoveryFallbackSuggestion,
   extractSuggestionPayload,
-  isRecoveryContentCompliant,
-  normalizeRecoverySuggestion,
-  normalizeSuggestion,
 } from './annotation-suggestion.js';
 import {
   buildTodayActivitiesText,
@@ -58,6 +53,10 @@ import {
   type PendingTodoLite,
   shouldPreDecomposeTodo,
 } from './annotation-handler-utils.js';
+import {
+  resolveForcedSuggestionFallback,
+  resolveSuggestionResult,
+} from './annotation-suggestion-result.js';
 
 type AnnotationLang = 'zh' | 'en' | 'it';
 
@@ -541,21 +540,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parsedPayload = extractSuggestionPayload(raw);
 
       if (parsedPayload) {
-        const recoveryFallback = recoveryNudge
-          ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
-          : undefined;
-
-        let finalContent = ensureEmoji(parsedPayload.content, recoveryNudge ? '⭐' : '🌿');
-        const normalizedSuggestion = recoveryNudge
-          ? normalizeRecoverySuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
-          : (normalizeSuggestion(resolvedLang, parsedPayload.suggestion, recoveryNudge)
-            ?? (forceSuggestion
-              ? buildForcedFallbackSuggestion(resolvedLang, pendingTodos).suggestion
-              : undefined));
-
-        if (recoveryFallback && !isRecoveryContentCompliant(resolvedLang, finalContent)) {
-          finalContent = recoveryFallback.content;
-        }
+        const resolvedSuggestion = resolveSuggestionResult({
+          lang: resolvedLang,
+          parsedPayload: {
+            ...parsedPayload,
+            content: ensureEmoji(parsedPayload.content, recoveryNudge ? '⭐' : '🌿'),
+          },
+          pendingTodos,
+          forceSuggestion,
+          recoveryNudge,
+        });
+        let finalContent = resolvedSuggestion.content;
+        const normalizedSuggestion = resolvedSuggestion.suggestion;
 
         if (normalizedSuggestion?.type === 'todo' && typeof normalizedSuggestion.todoId === 'string') {
           const targetTodo = pendingTodos.find((todo) => todo.id === normalizedSuggestion.todoId) as PendingTodoLite | undefined;
@@ -586,7 +582,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         logAnnotationDebug('response.suggestion.ai', {
           content: finalContent,
           suggestion: normalizedSuggestion,
-          source: 'ai',
+          source: resolvedSuggestion.usedFallback ? 'default' : 'ai',
           displayDuration: normalizedSuggestion ? 15000 : 8000,
         });
 
@@ -594,7 +590,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           content: finalContent,
           tone: 'concerned',
           displayDuration: normalizedSuggestion ? 15000 : 8000,
-          source: 'ai',
+          source: resolvedSuggestion.usedFallback ? 'default' : 'ai',
           narrativeEvent: narrativeContext.narrativeEvent ? {
             ...narrativeContext.narrativeEvent,
             isTriggeredReply: true,
@@ -611,20 +607,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (extractedText) {
         const finalContent = ensureEmoji(extractedText, '🌿');
         if (forceSuggestion) {
-          const fallback = recoveryNudge
-            ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
-            : buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+          const fallback = resolveForcedSuggestionFallback({
+            lang: resolvedLang,
+            pendingTodos,
+            recoveryNudge,
+          });
           logAnnotationDebug('response.suggestion.force_fallback', {
-            content: finalContent,
+            content: fallback.content,
             source: 'ai',
             fallbackSuggestion: fallback.suggestion,
             displayDuration: 15000,
           });
           res.status(200).json({
-            content: finalContent,
+            content: fallback.content,
             tone: 'concerned',
             displayDuration: 15000,
-            source: 'ai',
+            source: 'default',
             narrativeEvent: narrativeContext.narrativeEvent ? {
               ...narrativeContext.narrativeEvent,
               isTriggeredReply: true,
@@ -667,9 +665,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (forceSuggestion) {
         const pendingTodos = (userContext?.pendingTodos || []).slice(0, 10);
         const recoveryNudge = userContext?.recoveryNudge as RecoveryNudgeContext | undefined;
-        const fallback = recoveryNudge
-          ? buildRecoveryFallbackSuggestion(resolvedLang, recoveryNudge)
-          : buildForcedFallbackSuggestion(resolvedLang, pendingTodos);
+        const fallback = resolveForcedSuggestionFallback({
+          lang: resolvedLang,
+          pendingTodos,
+          recoveryNudge,
+        });
         res.status(200).json({
           content: fallback.content,
           tone: 'concerned',
