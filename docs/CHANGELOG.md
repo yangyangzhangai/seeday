@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-24 - Cross-device routine profile sync reconciliation
+
+- Fixed routine/manual cross-device drift by timestamping the local routine snapshot and comparing it against `user_profiles.profile.updatedAt` instead of always preferring local cache.
+- `RoutineSettingsPanel` now keeps offline edits renderable immediately, marks them as pending locally, and rewrites the local routine snapshot back to a synced cloud copy once the cloud profile becomes the freshest source.
+- Added `user_profiles` refresh hooks on Supabase Realtime, native foreground restore, and network/visibility recovery so web-side routine edits converge on iOS/web without requiring a full sign-out/sign-in cycle.
+
+## 2026-07-24 - English stretched mood words stay mood
+
+- Fixed the ordinary English activity/mood classifier so elongated mood phrasing like `sooo good`, `reeeally tired`, `I feel goooood`, and `happppy today` no longer miss the mood regex path and fall through to activity.
+- The English signal extractor now normalizes a small whitelist of stretched intensifiers (`sooo`, `reeeally`, `veeery`, `quiiite`) and mood adjectives (`goooood`, `greeeat`, `happppy`, `tiiiired`, `saaad`) before mood sentence-pattern matching only; activity/history parsing and stored user text remain unchanged.
+- Added focused regression coverage in `src/services/input/liveInputClassifier.i18n.test.ts` for stretched-intensifier and stretched-adjective mood input.
+
+## 2026-07-24 - Report My Diary save now dismisses iOS keyboard
+
+- Fixed the Report root `My Diary` editor on Capacitor iOS so tapping `Save` now closes the editor and dismisses the native keyboard in the same action instead of requiring a second blank-area tap.
+- Added a shared native keyboard dismiss helper and used it from the report diary save path while preserving the existing guarded save-button focus behavior.
+- The textarea blur autosave path now skips its duplicate save during the explicit close sequence, avoiding double-persist races when the keyboard is dismissed programmatically.
+
 ## 2026-07-24 - Report diary-book header button simplification
 
 - Changed the Report root header and persistent diary detail header Diary Book control from an icon-and-text pill to an icon-only `44x44` book button.

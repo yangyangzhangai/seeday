@@ -190,6 +190,28 @@ export function preserveProfileForSameUser(params: {
   return profile ?? null;
 }
 
+export function getUserProfileUpdatedAtMs(profile: UserProfileV2 | null | undefined): number {
+  if (!profile?.updatedAt) return 0;
+  const parsed = Date.parse(profile.updatedAt);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function pickFreshestUserProfile(
+  ...profiles: Array<UserProfileV2 | null | undefined>
+): UserProfileV2 | null {
+  let freshest: UserProfileV2 | null = null;
+  let freshestTs = 0;
+  profiles.forEach((profile) => {
+    if (!profile) return;
+    const ts = getUserProfileUpdatedAtMs(profile);
+    if (!freshest || ts > freshestTs) {
+      freshest = profile;
+      freshestTs = ts;
+    }
+  });
+  return freshest;
+}
+
 const PENDING_PROFILE_PREFIX = 'seeday_pending_profile_v2_';
 const LOCAL_ONBOARDING_FLAG_PREFIX = 'seeday_onboarded_';
 

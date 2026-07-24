@@ -5,6 +5,12 @@ Owner: current working session
 
 Session Notes:
 
+- 2026-07-24: Fixed cross-device routine/profile manual sync drift. Routine Settings now stamps a local routine snapshot timestamp, compares it against `user_profiles.profile.updatedAt`, prefers whichever copy is fresher instead of blindly preferring stale local cache, and refreshes `user_profiles` on Realtime / foreground / online recovery. When cloud wins, the routine page rewrites the local snapshot back to a synced non-pending copy; when local is newer, offline edits still render immediately and survive until the next cloud flush.
+
+- 2026-07-24: Expanded the English stretched-word mood fallback for ordinary record input. The EN mood-pattern path now normalizes a small whitelist of elongated intensifiers (`sooo/reeeally/veeery/quiiite`) and high-value mood adjectives (`goooood/greeeat/happppy/tiiiired/saaad`) before sentence-level mood matching only, so those forms stay `standalone_mood` without changing activity/history parsing or stored user text. Regression coverage was added in `src/services/input/liveInputClassifier.i18n.test.ts`.
+
+- 2026-07-24: Fixed iOS Capacitor My Diary save keyboard dismissal on the Report root plant surface. Tapping Save now completes the existing note persist path, exits edit mode, and explicitly dismisses the focused textarea / native iPhone keyboard together, while guarding the blur-triggered autosave path from double-saving during the close sequence.
+
 - 2026-07-24: Reworked annotation suggestion routing to stop mixed-source todo jumps. Suggestion mode now uses its own companion system prompt instead of the plain-annotation prompt, forced suggestion fallback returns one whole payload (`content + actionLabel + target`) from a single source, todo targeting now trusts `todoId` as the sole locator and rewrites `todoTitle` from the canonical pending-todo row, and allow-suggestion mode no longer swaps in a different fallback todo when a suggested target is invalid.
 
 - 2026-07-24: Fixed latest activity->mood reclassify state repair. When a misclassified activity card is converted back into a mood card, the adjacent previous activity now restores both `duration=undefined` and `isActive=true`, while the converted mood card explicitly drops active state. Reclassify also updates `dateCache` and persists `is_active` / `detached`, preventing the previous activity timer/end button from disappearing again after date switches or reloads.

@@ -10,6 +10,7 @@ import { useReportStore } from '../../../store/useReportStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../../store/usePlantStore';
 import { buildPlantGenerateUiState } from './plantGenerateUi';
 import { playLoopSound, stopSound } from '../../../services/sound/soundService';
+import { dismissKeyboard } from '../../../services/native/keyboardService';
 import type { PlantCategoryKey } from '../../../types/plant';
 import { PlantFlipCard } from './PlantFlipCard';
 import { SoilCanvas } from './SoilCanvas';
@@ -81,6 +82,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
+  const isClosingDiaryEditorRef = useRef(false);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const diaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -177,8 +179,13 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     try {
       await persistDiaryNote();
     } finally {
+      isClosingDiaryEditorRef.current = true;
       setIsDiarySaving(false);
       setIsDiaryEditing(false);
+      window.setTimeout(() => {
+        void dismissKeyboard(diaryTextareaRef.current);
+        isClosingDiaryEditorRef.current = false;
+      }, 0);
     }
   }, [persistDiaryNote]);
 
@@ -543,6 +550,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
               window.setTimeout(() => ensureDiaryEditorAboveKeyboard(), 140);
             }}
             onBlur={() => {
+              if (isClosingDiaryEditorRef.current) return;
               if (!isDiaryEditing) return;
               void persistDiaryNote();
               setIsDiaryEditing(false);

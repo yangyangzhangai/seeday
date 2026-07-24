@@ -1,9 +1,9 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/SEEDAY_DEV_SPEC.md -> src/features/chat/README.md
 # 活动 / 心情自动识别规范
 
-> 状态：当前有效（2026-07-16）  
+> 状态：当前有效（2026-07-24）  
 > 适用范围：普通聊天记录输入，不包含魔法笔的复杂内容拆分。  
-> 实现审计与开源方案见 `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md`。
+> 本文是产品/规则主文档：定义应该怎么判、怎么记分、怎么写入。实现审计与工程现状见 `docs/ACTIVITY_MOOD_CLASSIFICATION_CURRENT_STATE.md`。
 
 ## 1. 产品口径
 
@@ -68,7 +68,8 @@ flowchart TD
 2. 合并重复空格。
 3. 统一部分标点和大小写。
 4. 判断是否只有标点或没有有效内容。
-5. 保留用户原始文本用于展示和落库，标准化文本只用于判断。
+5. 英语心情句式匹配前，会额外对白名单口语拉长词做保守归一化，例如 `sooo -> so`、`reeeally -> really`、`goooood -> good`；该归一化只用于心情证据召回，不影响活动语法、历史匹配或原文落库。
+6. 保留用户原始文本用于展示和落库，标准化文本只用于判断。
 
 只有标点或空内容仍必须分类，目前回落为低置信度 `standalone_mood`。
 
@@ -136,6 +137,7 @@ moodScore = 所有心情、计划、否定和上下文证据分之和
 - 正则句式和时态外壳。
 - 去地点结构。
 - `compromise/two` 的词性、词根、缩写展开和语法模板匹配。
+- 英语心情句式前的白名单拉长词归一化，用于兼容 `sooo good`、`reeeally tired`、`I feel goooood` 这类口语强调写法。
 
 `compromise` 只提供结构证据，不直接决定最终结果。当前接入范围：
 
@@ -146,6 +148,8 @@ moodScore = 所有心情、计划、否定和上下文证据分之和
 - 1 至 4 词的纯名词短语：`Disneyland / Inception / The Shawshank Redemption`，只给弱活动证据。
 - 心理动词词根：`think / remember / remind / imagine / miss` 等，给心情证据并压住名词推断。
 - 英语缩写中的将来和否定：`I'll... / I'm gonna... / didn't / haven't`。
+
+当前白名单归一化只覆盖高价值的英语心情强调词：`sooo / reeeally / veeery / quiiite / goooood / greeeat / happppy / tiiiired / saaad` 及其相近重复形式。它只提高心情证据召回，不创造新的证据来源，也不对任意英文单词做全局压缩。
 
 同一个活动若已被词库、活动句式或地点规则覆盖，不再重复叠加普通语法活动分；短语动词保留独立回归证据。
 

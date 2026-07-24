@@ -23,6 +23,18 @@ import { extractEnglishLinguisticSignals } from './englishLinguisticAdapter.js';
 export type LatinLang = 'en' | 'it';
 
 const LATIN_TOKEN_PATTERN = /[a-z\u00c0-\u017f]+(?:['\u2019][a-z\u00c0-\u017f]+)*/gi;
+const EN_STRETCHED_MOOD_NORMALIZERS: Array<[RegExp, string]> = [
+  [/\bso{2,}\b/gi, 'so'],
+  [/\bre+a+l+y+\b/gi, 'really'],
+  [/\bve+r+y+\b/gi, 'very'],
+  [/\bqu+i+t+e+\b/gi, 'quite'],
+  [/\bgo+d+\b/gi, 'good'],
+  [/\bgre+a+t+\b/gi, 'great'],
+  [/\bha+p+y+\b/gi, 'happy'],
+  [/\bti+r+e+d+\b/gi, 'tired'],
+  [/\bsa+d+\b/gi, 'sad'],
+];
+const EN_STANDALONE_NORMALIZED_MOOD_WORDS = new Set(['good', 'great', 'happy', 'tired', 'sad']);
 const LATIN_CONTEXT_ALIASES: Record<string, string[]> = {
   film: ['movie'],
   gym: ['workout', 'training', 'exercise'],
@@ -37,6 +49,18 @@ function tokenizeLatin(input: string): string[] {
 
 function normalizeLatinSignal(signal: string): string {
   return (signal.toLowerCase().match(LATIN_TOKEN_PATTERN) ?? []).join(' ');
+}
+
+function normalizeEnglishMoodPatternText(input: string): string {
+  return EN_STRETCHED_MOOD_NORMALIZERS.reduce(
+    (normalized, [pattern, replacement]) => normalized.replace(pattern, replacement),
+    input,
+  );
+}
+
+function isStandaloneNormalizedEnglishMoodWord(input: string): boolean {
+  const normalized = input.trim().toLowerCase();
+  return EN_STANDALONE_NORMALIZED_MOOD_WORDS.has(normalized);
 }
 
 function buildLatinTextIndex(input: string): {
@@ -297,6 +321,7 @@ export function extractLatinSignals(text: string): {
   hasStrongCompletion: boolean;
 } {
   const lang = detectLatinLanguage(text);
+  const moodPatternText = lang === 'en' ? normalizeEnglishMoodPatternText(text) : text;
   const activityVerbs = lang === 'it' ? IT_ACTIVITY_VERBS : EN_ACTIVITY_VERBS;
   const moodWords = lang === 'it' ? IT_MOOD_WORDS : EN_MOOD_WORDS;
   const moodPatterns = lang === 'it' ? IT_MOOD_PATTERNS : EN_MOOD_PATTERNS;
@@ -319,7 +344,10 @@ export function extractLatinSignals(text: string): {
       hasNegation: false,
       hasFutureConstruction: false,
     };
-  const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(text));
+  const hasMoodPattern = moodPatterns.some((pattern) => pattern.test(moodPatternText))
+    || (lang === 'en'
+      && moodPatternText !== text
+      && isStandaloneNormalizedEnglishMoodWord(moodPatternText));
 
   return {
     lang,

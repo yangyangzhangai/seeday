@@ -8,9 +8,15 @@ import { upsertCloudUserAccountState } from './authAccountStateCloudStore';
 import {
   clearPendingAccountStateWrite,
   mergeAccountState,
+  resolveEffectiveAccountState,
   savePendingAccountStateWrite,
 } from './authAccountStateHelpers';
-import { applyCloudAvatarToUser, upsertCloudUserProfile } from './authProfileCloudStore';
+import {
+  applyCloudAvatarToUser,
+  fetchCloudUserProfileState,
+  flushPendingProfileWriteToCloud,
+  upsertCloudUserProfile,
+} from './authProfileCloudStore';
 import { persistLanguageToLocalStorage, normalizeUiLanguage } from './authLanguageHelpers';
 import { markLocalDataOwnerAnonymous } from './authLocalOwnerHelpers';
 import { patchUserMetadata } from './authMetadataQueue';
@@ -21,9 +27,11 @@ import {
 } from './authPreferenceHelpers';
 import {
   clearPendingProfileWrite,
+  getPendingProfileWrite,
   LONG_TERM_PROFILE_ENABLED_KEY,
   mergeUserProfile,
   parseUserProfileV2,
+  pickFreshestUserProfile,
   savePendingProfileWrite,
 } from './authProfileHelpers';
 import { fetchActivityStreak } from './authStreakHelpers';
@@ -35,6 +43,7 @@ import {
   setScopeForAuthUser,
   syncAnnotationStateWithPreferences,
 } from './authStoreRuntimeHelpers';
+import { fetchCloudUserAccountState } from './authAccountStateCloudStore';
 import type { AuthState } from './authStoreTypes';
 import { resolveStorageScopeForUser } from './storageScope';
 
@@ -111,6 +120,7 @@ type AccountActionKeys =
   | 'updateLocationMetadata'
   | 'updateLongTermProfileEnabled'
   | 'updateUserProfile'
+  | 'refreshUserProfile'
   | 'updateAccountState'
   | 'updatePreferences'
   | 'updateLanguagePreference'
@@ -420,14 +430,13 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         ? updater(prev)
         : mergeUserProfile(prev, updater);
 
-      set({ userProfileV2: nextProfile });
-      savePendingProfileWrite(currentUser.id, nextProfile);
-
       const profileToSave = {
         ...nextProfile,
         updatedAt: new Date().toISOString(),
         createdAt: nextProfile.createdAt || new Date().toISOString(),
       };
+      set({ userProfileV2: profileToSave });
+      savePendingProfileWrite(currentUser.id, profileToSave);
       const userId = currentUser.id;
       upsertCloudUserProfile(userId, { profile: profileToSave }).then(() => {
         set({ userProfileV2: profileToSave });
@@ -439,6 +448,50 @@ export function createAuthAccountActions(set: AuthSet, get: AuthGet): Pick<AuthS
         });
       });
       return { error: null };
+    },
+
+    refreshUserProfile: async () => {
+      const currentUser = get().user;
+      if (!currentUser?.id) return;
+
+      try {
+        const flushedProfile = await flushPendingProfileWriteToCloud(currentUser.id);
+        if (flushedProfile) {
+          set({ userProfileV2: flushedProfile });
+        }
+      } catch (error) {
+        logDiagnostic('warn', 'auth.profile_cloud.pending_flush.failed', {
+          userId: currentUser.id,
+          error,
+        });
+      }
+
+      const activeUser = get().user ?? currentUser;
+      try {
+        const cloudProfileState = await fetchCloudUserProfileState(activeUser);
+        const cloudAccountState = await fetchCloudUserAccountState(activeUser.id);
+        const pendingProfile = getPendingProfileWrite(activeUser.id);
+        const freshestProfile = pickFreshestUserProfile(
+          pendingProfile,
+          get().userProfileV2,
+          cloudProfileState.userProfileV2,
+        );
+
+        set({
+          user: applyCloudAvatarToUser(activeUser, cloudProfileState.avatarUrl),
+          longTermProfileEnabled: cloudProfileState.longTermProfileEnabled,
+          userProfileV2: freshestProfile,
+          accountState: resolveEffectiveAccountState({
+            fallbackState: get().accountState,
+            cloudState: cloudAccountState,
+          }),
+        });
+      } catch (error) {
+        logDiagnostic('warn', 'auth.profile_cloud.refresh.failed', {
+          userId: activeUser.id,
+          error,
+        });
+      }
     },
 
     updateAccountState: async (updater) => {

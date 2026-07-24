@@ -1,8 +1,8 @@
 # DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> docs/ACTIVITY_LEXICON.md
 # 活动 / 心情分类当前实现审计与开源方案调研
 
-> 审计日期：2026-07-16  
-> 本文描述当前代码真实行为。产品规范以 `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准。
+> 审计日期：2026-07-24  
+> 本文是工程现状/实现审计文档：描述当前代码真实行为、接线方式、风险和验证锚点。产品规范以 `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准。
 
 ## 1. 小白版结论
 
@@ -16,7 +16,7 @@
 
 魔法笔不同。它负责把复杂句拆开，所以 AI 仍保留 `activity / mood / todo_add / activity_backfill` 四类。魔法笔可以把拆出的心情段附到活动草稿，但这不需要普通分类器的第四种类型。
 
-英语实时分类已接入 MIT 许可证的 `compromise/two`：除修复 `get up` 外，现在还使用词根、词性、缩写和语法模板识别目的地、动作对象、短名词及心理关系。
+英语实时分类已接入 MIT 许可证的 `compromise/two`：除修复 `get up` 外，现在还使用词根、词性、缩写和语法模板识别目的地、动作对象、短名词及心理关系；英语 mood 句式前还接入了白名单拉长词归一化，用于兼容 `sooo good / reeeally tired / I feel goooood`。
 
 ## 2. 项目里其实有三种“分类”
 
@@ -56,43 +56,21 @@ flowchart TD
 
 ## 4. 当前三种结果
 
-### new_activity
+结果定义、产品含义和正式写入口径以 `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准，这里只补当前代码里最容易误解的实现细节：
 
-条件：没有先被上下文规则截走，并且最终活动分严格大于心情分。
-
-写入：调用 `sendMessage(..., { skipMoodDetection: false })`。普通活动写入仍会运行已有的自动心情标签检测，因此“写周报写得很烦”可以是活动，同时活动卡片得到 `down` 标签，但它的分类仍只是 `new_activity`。
-
-### standalone_mood
-
-条件：纯心情、计划或否定输入，或者最终心情分大于等于活动分。
-
-写入：调用 `sendMood()`。无证据或平分时也落到这里，因为产品要求每条输入必须有结果。
-
-### mood_about_last_activity
-
-条件：存在最近活动，输入明确指代或可靠重合该活动，同时包含评价/心情，而且没有足够强的新活动信号。
-
-写入：调用 `sendMood()` 并传入 `relatedActivityId`，把关系定向写回上一条活动。
+- `new_activity`：仍走 `sendMessage(..., { skipMoodDetection: false })`，所以混合句如“写周报写得很烦”虽然分类是活动，但活动卡片后续仍可能得到自动 mood tag。
+- `standalone_mood`：无证据或平分也会落到这里；若最近活动仍在进行中，Store 可以额外带上 `relatedActivityId` 做定向备注，但分类结果不变。
+- `mood_about_last_activity`：除了发送一条心情消息，还会把这条消息通过 `relatedActivityId` 写回上一条活动的 mood note / moodDescriptions。
 
 ## 5. 当前证据和分数
 
-| 证据 | 活动分 | 心情分 | 说明 |
-|---|---:|---:|---|
-| 词库或活动句式 | +3 | 0 | 中英意活动词和结构 |
-| 英语强语法结构 | +3 | 0 | 短语动词、目的地、动作对象、位置短语 |
-| 英语短名词短语 | +1 | 0 | 1 至 4 词，弱活动倾向 |
-| 用户活动历史完全匹配 | +3 | 0 | 最近 50 个非心情活动，本地精确匹配 |
-| 英语心理关系 | 0 | +3 | 主心理动词词根，如 think/remember/remind |
-| 去地点 | +3 | 0 | at the park、去了公园 |
-| 正在进行 | +2 | 0 | 正在、在做 |
-| 强完成 | +2 | 0 | 做完、finished |
-| 普通心情 | 0 | +2 | 累、开心、relieved |
-| 弱完成/评价 | 0 | +2 | 更接近状态描述 |
-| 未来/计划 | 0 | +3 | 优先返回独立心情 |
-| 否定/未发生 | 0 | +3 | 优先返回独立心情 |
-| 上一活动偏置 | 0 | +3 | 用于关联上一活动 |
+完整分值表以 `docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md` 为准。当前实现层面新增或特别需要关注的证据有：
 
-置信度取两边分差：3 分以上为高，1 至 2 分为中，0 分为低。低置信度不创建第四个结果。
+- 英语 grammar evidence：`phrasal_verb / motion_destination / action_object / location_phrase / bare_noun_phrase`，由 `compromise/two` 驱动。
+- `history` evidence：最近 50 条非心情活动的精确标准化匹配，只加活动证据，不做模糊匹配。
+- 英语 stretched-word mood evidence：`sooo / reeeally / goooood` 等白名单拉长词会先归一化，再进入既有的 mood sentence patterns。
+
+置信度算法没有偏离规范：两边分差 `>= 3` 为 high，`1-2` 为 medium，`0` 为 low；低置信度仍只会落到现有三类之一。
 
 ## 6. 语言识别过程
 
@@ -112,11 +90,12 @@ flowchart TD
 3. 匹配短语动词、移动目的地、动作对象和位置短语，记录为 `linguistic` 活动证据。
 4. 对 1 至 4 词纯名词短语给 +1 弱活动倾向，使电影名、地点名不再直接 0:0 回落心情。
 5. 主动词若是 think/remember/remind/imagine/miss 等心理关系词，改给 +3 心情证据并停止名词活动推断。
-6. 最近 50 个已记录活动提供精确历史匹配；不做模糊匹配，也不覆盖心情证据。
-7. 同一活动已有词库、句式或地点证据时，不重复叠加普通语法活动分。
-8. 所有证据进入原有上下文规则和统一三选一计分。
+6. 心情句式匹配前，会对白名单口语拉长词做保守归一化：当前覆盖 `sooo / reeeally / veeery / quiiite / goooood / greeeat / happppy / tiiiired / saaad` 及相近重复形式；这一步只作用于 mood 匹配，不改活动语法、历史匹配和原始文本。
+7. 最近 50 个已记录活动提供精确历史匹配；不做模糊匹配，也不覆盖心情证据。
+8. 同一活动已有词库、句式或地点证据时，不重复叠加普通语法活动分。
+9. 所有证据进入原有上下文规则和统一三选一计分。
 
-已固定回归：`get up` 词形族、`go to school`、`visited Disneyland`、`Disneyland`、`Inception` 为 `new_activity`；将来、否定和 `thinking about Disneyland` 为 `standalone_mood`。
+已固定回归：`get up` 词形族、`go to school`、`visited Disneyland`、`Disneyland`、`Inception` 为 `new_activity`；将来、否定、`thinking about Disneyland`、`sooo good`、`reeeally tired`、`I feel goooood` 为 `standalone_mood`。
 
 ### 意大利语
 
@@ -162,7 +141,7 @@ flowchart TD
 ## 9. 仍然存在的风险
 
 1. `compromise` 只理解轻量英语语法，不理解产品意图；心理词根表、证据优先级和 gold set 仍由项目维护。
-2. 规则和词库对网络新词、极短口语仍会漏。
+2. 规则和词库对网络新词、极短口语仍会漏；当前只对白名单中的英语拉长 mood 词做保守兼容，不对任意单词做全局压缩。
 3. 短名词活动倾向会改善电影名和地点名召回，但也可能把其他名词误判为活动；当前只给 +1，并由心情证据优先压制。
 4. 中文短动作外壳和英语短语动词都可能带来活动误报，必须靠 gold set 控制。
 5. 用户纠错已经有遥测，但还没有稳定形成按语言分桶的训练闭环。

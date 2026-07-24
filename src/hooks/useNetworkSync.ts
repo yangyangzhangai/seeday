@@ -22,6 +22,7 @@ export function useNetworkSync(): void {
       void useOutboxStore.getState().flush(user.id)
         .then(() => useReminderStore.getState().syncCloudResponses(user.id))
         .catch(() => {});
+      void useAuthStore.getState().refreshUserProfile().catch(() => {});
 
       // Push pending todos and re-pull cloud state
       void useTodoStore.getState().fetchTodos().catch(() => {});
@@ -45,6 +46,7 @@ export function useNetworkSync(): void {
       } catch (error) {
         logSupabaseAuthDebug('useNetworkSync:foreground:refresh:unexpected', error);
       }
+      void useAuthStore.getState().refreshUserProfile().catch(() => {});
     }
 
     window.addEventListener('online', handleOnline);

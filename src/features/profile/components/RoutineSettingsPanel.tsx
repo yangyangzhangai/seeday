@@ -17,6 +17,15 @@ import {
   toHour,
   toHourText,
 } from './userProfilePanelHelpers';
+import {
+  buildCloudRoutineSnapshot,
+  getRoutineStorageKey,
+  readRoutineSnapshot,
+  resolveRoutineSnapshot,
+  withRoutineSnapshotMeta,
+  writeRoutineSnapshot,
+  type RoutineSnapshot,
+} from './routineSnapshot';
 import type { UserProfileManualV2, ClassSchedule } from '../../../types/userProfile';
 import { getScopedClientStorageKey, resolveStorageScopeForUser } from '../../../store/storageScope';
 import {
@@ -30,12 +39,6 @@ interface Props {
   page?: boolean;
 }
 type IdentityType = 'none' | 'work' | 'class';
-
-interface RoutineSnapshot {
-  wakeTime: string; sleepTime: string;
-  breakfastTime: string; lunchTime: string; dinnerTime: string;
-  reminderEnabled?: boolean;
-}
 
 interface RoutineFormSignature {
   identity: IdentityType;
@@ -55,36 +58,6 @@ interface RoutineFormSignature {
   classEveningStart: string;
   classEveningEnd: string;
   reminderEnabled: boolean;
-}
-
-const ROUTINE_STORAGE_PREFIX = 'profile:routine:v1:';
-const TIME_TEXT_PATTERN = /^\d{2}:\d{2}$/;
-
-function getRoutineStorageKey(userId: string | null | undefined) {
-  return `${ROUTINE_STORAGE_PREFIX}${userId || 'guest'}`;
-}
-function readRoutineSnapshot(key: string): RoutineSnapshot | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const p = JSON.parse(raw) as Partial<RoutineSnapshot>;
-    const ok = (v: unknown) => typeof v === 'string' && TIME_TEXT_PATTERN.test(v);
-    if (!ok(p.wakeTime) || !ok(p.sleepTime) || !ok(p.breakfastTime) || !ok(p.lunchTime) || !ok(p.dinnerTime)) return null;
-    const reminderEnabled = typeof p.reminderEnabled === 'boolean' ? p.reminderEnabled : undefined;
-    return {
-      wakeTime: p.wakeTime as string,
-      sleepTime: p.sleepTime as string,
-      breakfastTime: p.breakfastTime as string,
-      lunchTime: p.lunchTime as string,
-      dinnerTime: p.dinnerTime as string,
-      ...(typeof reminderEnabled === 'boolean' ? { reminderEnabled } : {}),
-    };
-  } catch { return null; }
-}
-function writeRoutineSnapshot(key: string, s: RoutineSnapshot) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(key, JSON.stringify(s));
 }
 function buildClassSchedule(
   ms: string, me: string, as_: string, ae: string, es: string, ee: string,
@@ -247,25 +220,30 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
     [user?.id],
   );
 
-  const cloudSnapshot = React.useMemo<RoutineSnapshot>(() => {
-    const m = userProfileV2?.manual;
-    const mtt = Array.isArray(m?.mealTimesText) ? m.mealTimesText : [];
-    const mt = Array.isArray(m?.mealTimes) ? m.mealTimes : [];
-    return {
-      wakeTime: m?.wakeTime || DEFAULT_WAKE_TIME,
-      sleepTime: m?.sleepTime || DEFAULT_SLEEP_TIME,
-      breakfastTime: mtt[0] || toHourText(mt[0], DEFAULT_BREAKFAST),
-      lunchTime: mtt[1] || toHourText(mt[1], DEFAULT_LUNCH),
-      dinnerTime: mtt[2] || toHourText(mt[2], DEFAULT_DINNER),
-    };
-  }, [userProfileV2]);
+  const cloudSnapshot = React.useMemo<RoutineSnapshot>(() => buildCloudRoutineSnapshot(userProfileV2), [userProfileV2]);
 
   const localSnapshot = React.useMemo(
     () => readRoutineSnapshot(storageKey),
     [storageKey, userProfileV2],
   );
-  const resolved = localSnapshot || cloudSnapshot;
+  const resolvedRoutine = React.useMemo(
+    () => resolveRoutineSnapshot(localSnapshot, cloudSnapshot),
+    [localSnapshot, cloudSnapshot],
+  );
+  const resolved = resolvedRoutine.snapshot;
   const baselineSig = React.useMemo(() => routineSig(resolved), [resolved]);
+
+  React.useEffect(() => {
+    if (resolvedRoutine.source !== 'cloud') return;
+    if (!cloudSnapshot.updatedAt) return;
+    writeRoutineSnapshot(
+      storageKey,
+      withRoutineSnapshotMeta(cloudSnapshot, {
+        updatedAt: cloudSnapshot.updatedAt,
+        pendingSync: false,
+      }),
+    );
+  }, [cloudSnapshot, resolvedRoutine.source, storageKey]);
 
   React.useEffect(() => {
     setWakeTime(resolved.wakeTime); setSleepTime(resolved.sleepTime);
@@ -288,8 +266,8 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
     setClassAfternoonEnd(v2?.classSchedule?.afternoon?.end ?? '17:30');
     setClassEveningStart(v2?.classSchedule?.evening?.start ?? '19:00');
     setClassEveningEnd(v2?.classSchedule?.evening?.end ?? '21:00');
-    setReminderEnabled(v2?.reminderEnabled ?? localSnapshot?.reminderEnabled ?? true);
-  }, [userProfileV2, localSnapshot?.reminderEnabled]);
+    setReminderEnabled(resolved.reminderEnabled ?? v2?.reminderEnabled ?? true);
+  }, [resolved.reminderEnabled, userProfileV2]);
 
   React.useEffect(() => {
     const count = localStorage.getItem(reminderTodayCountStorageKey);
@@ -384,8 +362,15 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
     }
     setSaveText('');
     setSaving(true);
+    const localUpdatedAt = new Date().toISOString();
     // Persist locally first, then sync to Supabase in background.
-    writeRoutineSnapshot(storageKey, { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime, reminderEnabled });
+    writeRoutineSnapshot(
+      storageKey,
+      withRoutineSnapshotMeta(
+        { wakeTime, sleepTime, breakfastTime, lunchTime, dinnerTime, reminderEnabled },
+        { updatedAt: localUpdatedAt, pendingSync: true },
+      ),
+    );
     localStorage.removeItem(reminderScheduledDateStorageKey);
 
     const hasWork = identity === 'work';
@@ -408,7 +393,7 @@ export const RoutineSettingsPanel: React.FC<Props> = ({ plain = false, page = fa
       classScheduleSource: hasClass ? 'manual' : undefined,
     };
     const { error } = await updateUserProfile({ manual: { ...baseManual, ...v2Extra } as UserProfileManualV2 });
-    if (error) {
+    if (error && import.meta.env.DEV) {
       // Keep local save result; cloud sync can retry later.
       console.warn('[RoutineSettingsPanel] local save done, cloud sync failed:', error);
     }

@@ -62,3 +62,19 @@ export async function setupKeyboardViewportFix(): Promise<void> {
     }, 16);
   });
 }
+
+export async function dismissKeyboard(target?: HTMLElement | null): Promise<void> {
+  if (typeof document !== 'undefined') {
+    const activeElement = document.activeElement as HTMLElement | null;
+    const elementToBlur = target ?? activeElement;
+    if (elementToBlur && typeof elementToBlur.blur === 'function') {
+      elementToBlur.blur();
+    }
+  }
+
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+    return;
+  }
+
+  await Keyboard.hide().catch(() => {});
+}

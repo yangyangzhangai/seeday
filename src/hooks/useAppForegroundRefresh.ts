@@ -32,6 +32,7 @@ export function useAppForegroundRefresh() {
         } catch (error) {
           logSupabaseAuthDebug('useAppForegroundRefresh:appStateChange:refresh:unexpected', error);
         }
+        void useAuthStore.getState().refreshUserProfile().catch(() => {});
         void useOutboxStore.getState().flush(userId)
           .then(() => useReminderStore.getState().syncCloudResponses(userId))
           .catch(() => {});

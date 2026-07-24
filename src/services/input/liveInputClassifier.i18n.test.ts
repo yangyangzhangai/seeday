@@ -39,6 +39,42 @@ describe('classifyLiveInput en/it baseline regressions', () => {
     expect(result.internalKind).toBe('standalone_mood');
   });
 
+  it('classifies English stretched intensifier phrase: sooo good', () => {
+    const result = classify('sooo good');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English stretched intensifier sentence: I feel sooo good', () => {
+    const result = classify('I feel sooo good');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English stretched intensifier phrase: reeeally tired', () => {
+    const result = classify('reeeally tired');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English stretched mood adjective: goooood', () => {
+    const result = classify('goooood');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English stretched mood sentence: I feel goooood', () => {
+    const result = classify('I feel goooood');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
+  it('classifies English stretched happy adjective: happppy today', () => {
+    const result = classify('happppy today');
+    expect(result.kind).toBe('mood');
+    expect(result.internalKind).toBe('standalone_mood');
+  });
+
   it('classifies English colloquial down phrase: I am pissed off', () => {
     const result = classify('I am pissed off');
     expect(result.kind).toBe('mood');

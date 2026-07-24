@@ -57,6 +57,7 @@ export interface AuthState {
   updateUserProfile: (
     updater: Partial<UserProfileV2> | ((prev: UserProfileV2 | null) => UserProfileV2),
   ) => Promise<{ error: any }>;
+  refreshUserProfile: () => Promise<void>;
   updateAccountState: (
     updater: Partial<UserAccountState> | ((prev: UserAccountState | null) => UserAccountState),
   ) => Promise<{ error: any }>;
