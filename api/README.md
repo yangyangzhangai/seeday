@@ -15,7 +15,7 @@
 | --- | --- | --- | --- |
 | `POST` | `/api/annotation` | `annotation.ts` (entry) + `src/server/annotation-handler.ts` + `src/server/annotation-prompts.ts` + `src/server/annotation-prompt-builder.ts` | `{ content, tone, displayDuration, source, reason?, suggestion? }` |
 | `POST` | `/api/classify` | `classify.ts` | `{ success: true, data, raw }` |
-| `POST` | `/api/diary` | `diary.ts` | `{ success: true, content }` |
+| `POST` | `/api/diary` | `diary.ts` | full/teaser: `{ success: true, content }`; insight: `{ insight }` |
 | `POST` | `/api/magic-pen-parse` | `magic-pen-parse.ts` | `{ success: true, data: { segments, unparsed }, raw, traceId, parseStrategy, providerUsed }` |
 | `POST` | `/api/todo-decompose` | `classify.ts`（`module=todo_decompose` 分支；`vercel.json` 重写兼容旧路径） | `{ success: true, steps, parseStatus, model, provider }` |
 | `POST` | `/api/extract-profile` | `extract-profile.ts` | `{ success: true, profile, skipped?, reason? }` |
@@ -32,12 +32,16 @@
 `/api/todo-decompose` is rewritten to the `/api/classify` `todo_decompose` branch, so it follows the same auth + Plus guard and membership error contract.
 `/api/magic-pen-parse` request body includes: `rawText`, `todayDateStr`, `currentHour`, optional `lang` (`zh`/`en`/`it`), and optional local-time context (`currentLocalDateTime`, `timezoneOffsetMinutes`) for finer future/past disambiguation.
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
-`/api/magic-pen-parse` currently tries DashScope OpenAI-compatible Qwen first (`qwen-flash`, overridable by `MAGIC_PEN_FALLBACK_MODEL`), then falls back to Zhipu (`glm-4.7-flash`) when needed.
+`/api/magic-pen-parse` first uses DashScope OpenAI-compatible Qwen (`qwen-plus`, overridable by `MAGIC_PEN_MODEL`), then falls back to Zhipu (`glm-4.7-flash`). Parseable JSON is not sufficient for success: empty extraction, low original-text coverage, missing explicit time anchors, and severely under-split complex input are treated as `low_quality` and trigger fallback. When all providers fail, the response keeps the complete original `rawText` in `unparsed`.
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
 `/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[] + lang` (`zh`/`en`/`it`) from frontend weekly-report flow.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
+`/api/plant-generate` accepts optional `action: 'snapshot_existing'`. This action is allowed before 20:00 only for an already-existing user/date record and stores its current cloud-derived root/activity/direction snapshot inside `root_metrics`; it never creates a new plant.
+Newly generated records include the same root snapshot, and Plus observation text is rejected/retried when it exceeds the card budget before falling back to the existing localized static line.
 Frontend annotation and report-diary requests now include the current `aiMode`, and plant diary generation reads `user_metadata.ai_mode` server-side so all diary/comment surfaces can follow the same four companion personas.
 `/api/diary` now supports `mode: 'full' | 'teaser'`; teaser mode uses deterministic template selection (no LLM call) for Free diary teaser rendering.
+`/api/diary` full mode uses a soft 2-4 paragraph length target and never post-slices the generated body by character or word count. Provider truncation or a missing terminal sentence triggers one concise retry; a second incomplete result returns an error so it cannot be persisted as a generated diary.
+`/api/diary` `action='insight'` returns one complete card-sized phrase: Chinese uses a 20-character safety budget, while English and Italian use at most eight whole words and are never sliced mid-word.
 `/api/subscription` requires `Authorization: Bearer <supabase access token>` and `SUPABASE_SERVICE_ROLE_KEY`; iOS flow supports `source='iap'` (`activate`/`restore`/`cancel`) and web stripe flow supports `source='stripe'` with `action='stripe_checkout'` (create checkout session URL) + `action='stripe_finalize'` (verify returned `stripe_session_id` then persist membership metadata). The handler now also mirrors the normalized plan/trial snapshot into `public.user_account_state` so frontend onboarding/account-state reads do not depend on ad-hoc metadata aliases alone.
 Apple App Store Server API authorization JWTs are signed with ES256 using the JWS-required IEEE-P1363 signature encoding. Transaction lookup uses Apple's current `api.storekit.apple.com` hosts and retries against Sandbox when Production returns `401` or `404`, covering TestFlight/Sandbox transactions without changing the client request contract; `api/subscription.test.ts` guards both behaviors.
 Annotation request `userContext` now supports `statusSummary`, `contextHints`, `frequentActivities`, `todayContext`, `characterStateText`, `characterStateMeta`, `currentDate`, `countryCode`, `holiday`, optional `latitude`/`longitude`, optional env context (`weatherContext`/`seasonContext`/`weatherAlerts`), `allowSuggestion`, `consecutiveTextCount`, and `recoveryNudge` for suggestion-mode gating and interruption-recovery reminders. `pendingTodos[*]` also supports `createdAt/ageDays` so suggestion mode can detect stale todos.
@@ -63,7 +67,7 @@ Membership AI classification path observability is recorded through `/api/live-i
 - `/api/report` -> 当前未接入外部模型（占位返回）
 - `/api/diary` -> `OPENAI_API_KEY`（`gpt-4o`）
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
-- `/api/magic-pen-parse` -> `ZHIPU_API_KEY` 主路，`QWEN_API_KEY` 兜底
+- `/api/magic-pen-parse` -> `QWEN_API_KEY`（默认 `qwen-plus`，可选 `MAGIC_PEN_MODEL`）主路，`ZHIPU_API_KEY` 质量/调用失败兜底
 - `/api/subscription` -> Apple App Store Server API（`APPLE_IAP_ISSUER_ID`、`APPLE_IAP_KEY_ID`、`APPLE_IAP_PRIVATE_KEY`、`APPLE_IAP_BUNDLE_ID`）+ Stripe API（`STRIPE_SECRET_KEY`、`STRIPE_PRICE_MONTHLY`、`STRIPE_PRICE_ANNUAL`）
 
 ## 本地调试（Windows）
@@ -86,4 +90,4 @@ npm run dev
 
 ## Endpoint test anchor
 
-- `src/server/magic-pen-parse.test.ts`: 覆盖 `rawText` 入参校验、模型输出包裹 JSON 解析、非法输出安全兜底。
+- `src/server/magic-pen-parse.test.ts` + `src/server/magic-pen-quality.test.ts`: 覆盖入参校验、包裹 JSON 解析、低质量输出换模、原文安全兜底和中英文覆盖率/时间锚点判断。

@@ -26,6 +26,7 @@ import type { Message } from './useChatStore.types';
 import type { Todo } from './useTodoStore';
 import type { Report, ReportStats } from './useReportStore';
 import { useOutboxStore } from './useOutboxStore';
+import { mergeReportByWindow } from './reportRecordResolver';
 
 type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom';
 
@@ -202,7 +203,8 @@ export async function triggerWeeklyProfileExtraction(messages: Message[]): Promi
 }
 
 export function mergeReportIntoList(reports: Report[], type: ReportType, date: number, newReport: Report): Report[] {
-  return [...reports.filter((report) => !(report.type === type && isSameDay(report.date, date))), newReport];
+  if (newReport.type !== type || !isSameDay(newReport.date, date)) return reports;
+  return mergeReportByWindow(reports, newReport);
 }
 
 export async function syncReportToSupabase(report: Report): Promise<void> {

@@ -50,12 +50,14 @@ describe('api/magic-pen-parse handler', () => {
   const originalApiKey = process.env.ZHIPU_API_KEY;
   const originalQwenApiKey = process.env.QWEN_API_KEY;
   const originalDashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL;
+  const originalMagicPenModel = process.env.MAGIC_PEN_MODEL;
   const originalFallbackModel = process.env.MAGIC_PEN_FALLBACK_MODEL;
 
   beforeEach(() => {
     process.env.ZHIPU_API_KEY = 'test-key';
     delete process.env.QWEN_API_KEY;
     delete process.env.DASHSCOPE_BASE_URL;
+    delete process.env.MAGIC_PEN_MODEL;
     delete process.env.MAGIC_PEN_FALLBACK_MODEL;
     vi.restoreAllMocks();
   });
@@ -64,6 +66,7 @@ describe('api/magic-pen-parse handler', () => {
     process.env.ZHIPU_API_KEY = originalApiKey;
     process.env.QWEN_API_KEY = originalQwenApiKey;
     process.env.DASHSCOPE_BASE_URL = originalDashscopeBaseUrl;
+    process.env.MAGIC_PEN_MODEL = originalMagicPenModel;
     process.env.MAGIC_PEN_FALLBACK_MODEL = originalFallbackModel;
     vi.unstubAllGlobals();
   });
@@ -256,7 +259,7 @@ describe('api/magic-pen-parse handler', () => {
     expect(segment.endTime).toBe('09:00');
   });
 
-  it('falls back to safe empty result when model output is invalid', async () => {
+  it('preserves the original input when all model output is invalid', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -278,8 +281,10 @@ describe('api/magic-pen-parse handler', () => {
       success: true,
       data: {
         segments: [],
-        unparsed: ['（AI 解析失败，请手动录入）'],
+        unparsed: ['今天做了很多事'],
       },
+      parseStrategy: 'fallback_failed',
+      providerUsed: 'none',
     });
   });
 
@@ -303,7 +308,7 @@ describe('api/magic-pen-parse handler', () => {
     const call = fetchMock.mock.calls[0];
     expect(call).toBeDefined();
     const payload = JSON.parse(call[1].body as string);
-    expect(payload.messages[0].content).toContain('You are a text parser for a time-tracking assistant.');
+    expect(payload.messages[0].content).toContain('You are Xiaoshi, a time-recording assistant');
   });
 
   it('injects local datetime context into prompt when provided', async () => {
@@ -337,7 +342,7 @@ describe('api/magic-pen-parse handler', () => {
     expect(payload.messages[0].content).toContain('480');
   });
 
-  it('falls back to qwen-flash when zhipu returns empty content', async () => {
+  it('falls back to zhipu when qwen returns structurally valid but empty output', async () => {
     process.env.QWEN_API_KEY = 'test-qwen-key';
     process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 
@@ -345,7 +350,9 @@ describe('api/magic-pen-parse handler', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ choices: [{ message: { content: '' } }] }),
+        json: async () => ({
+          choices: [{ message: { content: '{"segments":[],"unparsed":[]}' } }],
+        }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -371,7 +378,7 @@ describe('api/magic-pen-parse handler', () => {
     expect(res.statusCode).toBe(200);
     expect(res.payload).toMatchObject({
       success: true,
-      providerUsed: 'qwen_flash_fallback',
+      providerUsed: 'zhipu',
       data: {
         segments: [
           {
@@ -384,9 +391,12 @@ describe('api/magic-pen-parse handler', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const fallbackCall = fetchMock.mock.calls[1];
-    expect(String(fallbackCall[0])).toContain('/chat/completions');
-    const fallbackPayload = JSON.parse(fallbackCall[1].body as string);
-    expect(fallbackPayload.model).toBe('qwen-flash');
+    const qwenCall = fetchMock.mock.calls[0];
+    expect(String(qwenCall[0])).toContain('/chat/completions');
+    const qwenPayload = JSON.parse(qwenCall[1].body as string);
+    expect(qwenPayload.model).toBe('qwen-plus');
+    expect(res.payload).toMatchObject({
+      attempts: [{ provider: 'qwen', reason: 'low_quality' }],
+    });
   });
 });

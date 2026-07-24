@@ -34,6 +34,7 @@ import type { Todo, TodoState } from '../store/todoStoreTypes';
 import { useReminderStore } from '../store/useReminderStore';
 import { parseReminderResponseRow } from '../api/reminderResponses';
 import { cancelReminderOccurrence } from '../services/notifications/localNotificationService';
+import { mergeReportByWindow } from '../store/reportRecordResolver';
 
 type SupportedLang = 'zh' | 'en' | 'it';
 
@@ -323,10 +324,9 @@ export function useRealtimeSync() {
         { event: 'INSERT', schema: 'public', table: 'reports', filter: `user_id=eq.${userId}` },
         ({ new: row }) => {
           const report = fromDbReport(row);
-          useReportStore.setState((state) => {
-            if (state.reports.some((item) => item.id === report.id)) return state;
-            return { reports: [report, ...state.reports] };
-          });
+          useReportStore.setState((state) => ({
+            reports: mergeReportByWindow(state.reports, report),
+          }));
         },
       )
       .on(
@@ -334,15 +334,9 @@ export function useRealtimeSync() {
         { event: 'UPDATE', schema: 'public', table: 'reports', filter: `user_id=eq.${userId}` },
         ({ new: row }) => {
           const report = fromDbReport(row);
-          useReportStore.setState((state) => {
-            const exists = state.reports.some((item) => item.id === report.id);
-            if (!exists) {
-              return { reports: [report, ...state.reports] };
-            }
-            return {
-              reports: state.reports.map((item) => (item.id === report.id ? { ...item, ...report } : item)),
-            };
-          });
+          useReportStore.setState((state) => ({
+            reports: mergeReportByWindow(state.reports, report),
+          }));
         },
       )
       .on(

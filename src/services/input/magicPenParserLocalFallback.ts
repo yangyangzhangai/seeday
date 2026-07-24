@@ -1,27 +1,20 @@
 // DOC-DEPS: LLM.md -> docs/MAGIC_PEN_CAPTURE_SPEC.md -> src/features/chat/README.md -> src/features/growth/GrowthPage.tsx
 import { v4 as uuidv4 } from 'uuid';
 import { validateDrafts } from './magicPenDraftBuilder';
+import {
+  classifyMagicPenFallbackSegment,
+  splitMagicPenFallbackSegments,
+} from './magicPenFallbackSemantics';
 import { buildSuggestedTimeWindow } from './magicPenTimeUtils';
 import { extractTodoDueDate } from './magicPenDateParser';
 import {
-  ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS,
-  ZH_MAGIC_PEN_ACTIVITY_VERBS,
   ZH_MAGIC_PEN_CONNECTORS,
-  ZH_MAGIC_PEN_CROSS_DAY_WORDS,
   ZH_MAGIC_PEN_TODO_DATE_ANCHOR_PATTERN,
   ZH_MAGIC_PEN_PERIOD_WINDOWS,
   ZH_MAGIC_PEN_PUNCT_SPLITTER,
-  ZH_MAGIC_PEN_TODO_DUTY_WORDS,
-  ZH_MAGIC_PEN_TODO_FUTURE_WORDS,
-  ZH_MAGIC_PEN_UNPARSED_HINT_WORDS,
 } from './magicPenRules.zh';
 import type { MagicPenDraftConfidence, MagicPenDraftItem, MagicPenParseResult } from './magicPenTypes';
 import type { SupportedLang } from './lexicon/getLexicon';
-
-interface SegmentClassification {
-  kind: 'activity_backfill' | 'todo_add' | 'unparsed';
-  confidence: MagicPenDraftConfidence;
-}
 
 interface ParsedClockToken {
   hour: number;
@@ -34,29 +27,18 @@ function normalizeText(rawText: string): string {
 }
 
 function splitByConnectors(segment: string): string[] {
-  const connectorPattern = new RegExp(`(${ZH_MAGIC_PEN_CONNECTORS.join('|')})`, 'g');
-  const tokens = segment.split(connectorPattern).map((item) => item.trim()).filter(Boolean);
-  if (tokens.length <= 1) return tokens;
+  const connectors = ['然后记得', '后来记得', ...ZH_MAGIC_PEN_CONNECTORS];
+  const marked = segment.replace(new RegExp(`(${connectors.join('|')})`, 'g'), '\n$1');
+  const chunks = marked.split('\n').map((item) => item.trim()).filter(Boolean);
   const parts: string[] = [];
-  let headConsumed = false;
-  for (let i = 0; i < tokens.length; i += 1) {
-    const token = tokens[i];
-    if (ZH_MAGIC_PEN_CONNECTORS.includes(token) && i + 1 < tokens.length) {
-      const tail = `${token}${tokens[i + 1]}`.trim();
-      if (token === '记得' && parts.length > 0 && isTodoDateOnlyChunk(parts[parts.length - 1])) {
-        parts[parts.length - 1] = `${parts[parts.length - 1]}${tail}`.trim();
-      } else {
-        parts.push(tail);
-      }
-      i += 1;
-      continue;
-    }
-    if (!headConsumed) {
-      parts.push(token);
-      headConsumed = true;
+  for (const chunk of chunks) {
+    if (/^记得/.test(chunk) && parts.length > 0 && isTodoDateOnlyChunk(parts[parts.length - 1])) {
+      parts[parts.length - 1] = `${parts[parts.length - 1]}${chunk}`;
+    } else {
+      parts.push(chunk);
     }
   }
-  return parts.filter(Boolean);
+  return parts;
 }
 
 function isTodoDateOnlyChunk(segment: string): boolean {
@@ -87,59 +69,6 @@ function splitSegments(text: string): string[] {
     .flatMap(splitByConnectors)
     .flatMap(splitByTodoDateAnchors);
   return segments.map((item) => item.trim()).filter(Boolean);
-}
-
-function includesAny(input: string, words: string[]): boolean {
-  return words.some((word) => input.includes(word));
-}
-
-function isCrossDaySegment(segment: string): boolean {
-  return includesAny(segment, ZH_MAGIC_PEN_CROSS_DAY_WORDS);
-}
-
-function isFuturePeriodSegment(segment: string, now: Date): boolean {
-  const currentHour = now.getHours();
-  if (currentHour >= 12) return false;
-  if (/(今晚|今夜)/.test(segment)) {
-    return currentHour < 20;
-  }
-  return Object.entries(ZH_MAGIC_PEN_PERIOD_WINDOWS).some(([label, window]) => (
-    segment.includes(label) && currentHour < window.startHour
-  ));
-}
-
-function classifySegment(segment: string, now: Date): SegmentClassification {
-  if (segment.includes('很多事')) {
-    return { kind: 'unparsed', confidence: 'low' };
-  }
-  const hasFutureSignal = includesAny(segment, ZH_MAGIC_PEN_TODO_FUTURE_WORDS);
-  const hasFuturePeriodSignal = isFuturePeriodSegment(segment, now);
-  const hasFutureLikeSignal = hasFutureSignal || hasFuturePeriodSignal;
-  const hasDutySignal = includesAny(segment, ZH_MAGIC_PEN_TODO_DUTY_WORDS);
-  const hasDateSignal = new RegExp(ZH_MAGIC_PEN_TODO_DATE_ANCHOR_PATTERN).test(segment);
-  const hasTodoSignal = hasFutureLikeSignal || hasDutySignal || hasDateSignal;
-  const hasActivityEvidence = includesAny(segment, ZH_MAGIC_PEN_ACTIVITY_EVIDENCE_WORDS);
-  const hasActivityVerb = includesAny(segment, ZH_MAGIC_PEN_ACTIVITY_VERBS);
-
-  if (hasTodoSignal && hasFutureLikeSignal && hasDutySignal) {
-    return { kind: 'todo_add', confidence: 'high' };
-  }
-  if (hasDutySignal) {
-    return { kind: 'todo_add', confidence: hasFutureLikeSignal ? 'high' : 'medium' };
-  }
-  if (hasActivityEvidence && hasActivityVerb && !hasFutureLikeSignal) {
-    return { kind: 'activity_backfill', confidence: 'high' };
-  }
-  if (hasTodoSignal) {
-    return { kind: 'todo_add', confidence: 'medium' };
-  }
-  if (hasActivityEvidence && hasActivityVerb) {
-    return { kind: 'activity_backfill', confidence: 'medium' };
-  }
-  if (includesAny(segment, ZH_MAGIC_PEN_UNPARSED_HINT_WORDS)) {
-    return { kind: 'unparsed', confidence: 'low' };
-  }
-  return { kind: 'unparsed', confidence: 'low' };
 }
 
 function toLocalEpoch(baseDate: Date, hour: number, minute: number): number {
@@ -234,18 +163,52 @@ function stripTimePrefix(content: string): string {
 function stripTodoDateAndDutyPrefix(content: string): string {
   return content
     .replace(/^(然后|后来|顺便|以及)/, '')
-    .replace(/^(记得|还要|要|得|需要|别忘了|提醒我)\s*/, '')
-    .replace(/(明天|后天|今天|待会|一会|稍后|晚点|之后|晚上|今晚|今夜|下周[一二三四五六日天]|这周|本周|本月)/g, '')
+    .replace(/^(记得|还要|要|得|需要|必须|应该|打算|计划|准备|别忘了|提醒我)\s*/, '')
+    .replace(/(明天|后天|今天|待会儿?|等会儿?|等下|一会儿?|稍后|晚点|之后|今早|早上|上午|中午|下午|晚上|今晚|今夜|下周[一二三四五六日天]|这周|本周|本月)/g, '')
     .replace(/\d{1,2}[.-]\d{1,2}/g, '')
     .replace(/\d{1,2}月\d{1,2}(?:日|号)?/g, '')
     .replace(/^我(?=[\u4e00-\u9fa5])/u, '')
-    .replace(/^\s*(记得|还要|要|得|需要|别忘了|提醒我)\s*/, '')
+    .replace(/^\s*(记得|还要|要|得|需要|必须|应该|打算|计划|准备|别忘了|提醒我)\s*/, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function buildTodoDraft(segment: string, confidence: MagicPenDraftConfidence, now: Date): MagicPenDraftItem {
-  const cleanedContent = stripTodoDateAndDutyPrefix(segment);
+function stripLocalizedTodoPrefix(content: string, lang: SupportedLang): string {
+  if (lang === 'zh') return stripTodoDateAndDutyPrefix(content);
+  if (lang === 'en') {
+    return content
+      .replace(/^\s*(?:and\s+)?(?:later|soon|tonight|tomorrow|afterwards)\b[\s,]*/i, '')
+      .replace(/^\s*(?:i\s+)?(?:need to|have to|must|should|remember to|plan to|am going to|will)\s+/i, '')
+      .trim();
+  }
+  return content
+    .replace(/^\s*(?:e\s+)?(?:poi|pi[uù]\s+tardi|tra poco|stasera|domani|dopo)\b[\s,]*/i, '')
+    .replace(/^\s*(?:io\s+)?(?:devo|dobbiamo|bisogna|ricorda(?:ti)?(?:\s+di)?|ho bisogno di|intendo|voglio)\s+/i, '')
+    .trim();
+}
+
+function localizedTodoDueDate(segment: string, now: Date, lang: SupportedLang): number | undefined {
+  if (lang === 'zh') return extractTodoDueDate(segment, now);
+  const tomorrowPattern = lang === 'en' ? /\btomorrow\b/i : /\bdomani\b/i;
+  if (tomorrowPattern.test(segment)) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    return tomorrow.getTime();
+  }
+  const soonPattern = lang === 'en'
+    ? /\b(?:later|soon|tonight|this afternoon|this evening)\b/i
+    : /\b(?:pi[uù] tardi|tra poco|stasera|nel pomeriggio|questa sera)\b/i;
+  return soonPattern.test(segment) ? now.getTime() + 30 * 60 * 1000 : undefined;
+}
+
+function buildTodoDraft(
+  segment: string,
+  confidence: MagicPenDraftConfidence,
+  now: Date,
+  lang: SupportedLang,
+): MagicPenDraftItem {
+  const cleanedContent = stripLocalizedTodoPrefix(segment, lang);
   return {
     id: uuidv4(),
     kind: 'todo_add',
@@ -257,73 +220,78 @@ function buildTodoDraft(segment: string, confidence: MagicPenDraftConfidence, no
     todo: {
       priority: 'important-not-urgent',
       scope: 'daily',
-      dueDate: extractTodoDueDate(segment, now),
+      dueDate: localizedTodoDueDate(segment, now, lang),
+    },
+  };
+}
+
+function resolveLocalActivityTiming(
+  segment: string,
+  now: Date,
+): {
+  activity: NonNullable<MagicPenDraftItem['activity']>;
+  needsUserConfirmation: boolean;
+} {
+  const explicitRange = extractExplicitRangeTime(segment, now);
+  if (explicitRange) return toResolvedTiming(explicitRange, 'exact', false);
+
+  const exact = extractExactTime(segment, now);
+  if (exact) return toResolvedTiming(exact, 'exact', true);
+
+  const period = extractPeriodTime(segment, now);
+  if (period) return toResolvedTiming(period, 'period', true);
+  return {
+    needsUserConfirmation: true,
+    activity: {
+      timeResolution: 'missing',
+      startAt: now.getTime() - 30 * 60 * 1000,
+      endAt: now.getTime(),
+    },
+  };
+}
+
+function toResolvedTiming(
+  range: { startAt: number; endAt: number; label?: string },
+  timeResolution: 'exact' | 'period',
+  needsUserConfirmation: boolean,
+): {
+  activity: NonNullable<MagicPenDraftItem['activity']>;
+  needsUserConfirmation: boolean;
+} {
+  return {
+    needsUserConfirmation,
+    activity: {
+      startAt: range.startAt,
+      endAt: range.endAt,
+      timeResolution,
+      suggestedTimeLabel: range.label,
     },
   };
 }
 
 function buildActivityDraft(segment: string, confidence: MagicPenDraftConfidence, now: Date): MagicPenDraftItem {
-  const explicitRange = extractExplicitRangeTime(segment, now);
-  if (explicitRange) {
-    return {
-      id: uuidv4(),
-      kind: 'activity_backfill',
-      content: stripTimePrefix(segment),
-      sourceText: segment,
-      confidence,
-      needsUserConfirmation: false,
-      errors: [],
-      activity: {
-        startAt: explicitRange.startAt,
-        endAt: explicitRange.endAt,
-        timeResolution: 'exact',
-        suggestedTimeLabel: explicitRange.label,
-      },
-    };
-  }
-
-  const exact = extractExactTime(segment, now);
-  if (exact) {
-    return {
-      id: uuidv4(),
-      kind: 'activity_backfill',
-      content: stripTimePrefix(segment),
-      sourceText: segment,
-      confidence,
-      needsUserConfirmation: true,
-      errors: [],
-      activity: {
-        startAt: exact.startAt,
-        endAt: exact.endAt,
-        timeResolution: 'exact',
-        suggestedTimeLabel: exact.label,
-      },
-    };
-  }
-
-  const period = extractPeriodTime(segment, now);
-  if (period) {
-    return {
-      id: uuidv4(),
-      kind: 'activity_backfill',
-      content: stripTimePrefix(segment),
-      sourceText: segment,
-      confidence,
-      needsUserConfirmation: true,
-      errors: [],
-      activity: {
-        startAt: period.startAt,
-        endAt: period.endAt,
-        timeResolution: 'period',
-        suggestedTimeLabel: period.label,
-      },
-    };
-  }
-
+  const timing = resolveLocalActivityTiming(segment, now);
   return {
     id: uuidv4(),
     kind: 'activity_backfill',
     content: stripTimePrefix(segment),
+    sourceText: segment,
+    confidence,
+    needsUserConfirmation: timing.needsUserConfirmation,
+    errors: [],
+    activity: timing.activity,
+  };
+}
+
+function buildUntimedActivityDraft(
+  segment: string,
+  confidence: MagicPenDraftConfidence,
+  now: Date,
+): MagicPenDraftItem {
+  return {
+    id: uuidv4(),
+    kind: 'activity_backfill',
+    content: segment.trim(),
     sourceText: segment,
     confidence,
     needsUserConfirmation: true,
@@ -336,53 +304,49 @@ function buildActivityDraft(segment: string, confidence: MagicPenDraftConfidence
   };
 }
 
-function buildDraftFromSegment(segment: string, now: Date): MagicPenDraftItem | null {
-  if (isCrossDaySegment(segment)) return null;
-  const classified = classifySegment(segment, now);
-  if (classified.kind === 'todo_add') return buildTodoDraft(segment, classified.confidence, now);
-  if (classified.kind === 'activity_backfill') return buildActivityDraft(segment, classified.confidence, now);
-  return null;
+function buildAutoWriteItem(
+  segment: string,
+  kind: 'activity' | 'mood',
+  confidence: MagicPenDraftConfidence,
+  linkedMoodContent?: string,
+): MagicPenParseResult['autoWriteItems'][number] {
+  return {
+    id: uuidv4(),
+    kind,
+    content: segment.trim(),
+    sourceText: segment,
+    confidence,
+    linkedMoodContent,
+  };
 }
 
-function parseMagicPenInputLocalConservativeNonZh(rawText: string): MagicPenParseResult {
-  const normalized = normalizeText(rawText);
-  if (!normalized) return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
-
-  const hasMultiSegmentSignal = /[\n,，;；。!?]|\b(and|then|also|but|e|poi|ma|anche)\b/i.test(normalized);
-  if (hasMultiSegmentSignal) {
-    return { drafts: [], unparsedSegments: [normalized], autoWriteItems: [] };
+function appendFallbackSegment(
+  result: MagicPenParseResult,
+  segment: string,
+  now: Date,
+  lang: SupportedLang,
+): void {
+  const decision = classifyMagicPenFallbackSegment(segment, now, lang);
+  if (decision.kind === 'todo_add') {
+    result.drafts.push(buildTodoDraft(segment, decision.confidence, now, lang));
+    return;
   }
-
-  const todoSignal = /\b(need to|needs to|should|must|remember to|tonight|tomorrow|devo|devi|dobbiamo|bisogna|ricorda|ricordati|stasera|domani)\b/i;
-  if (!todoSignal.test(normalized)) {
-    return { drafts: [], unparsedSegments: [normalized], autoWriteItems: [] };
+  if (decision.kind === 'activity_backfill') {
+    result.drafts.push(lang === 'zh'
+      ? buildActivityDraft(segment, decision.confidence, now)
+      : buildUntimedActivityDraft(segment, decision.confidence, now));
+    return;
   }
-
-  const cleanedContent = normalized
-    .replace(/\b(i\s+need\s+to|need\s+to|i\s+should|should|remember\s+to|devo|devi|dobbiamo|bisogna|ricordati\s+di|ricorda\s+di)\b/gi, '')
-    .replace(/\b(tonight|tomorrow|stasera|domani)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const draft: MagicPenDraftItem = {
-    id: uuidv4(),
-    kind: 'todo_add',
-    content: cleanedContent || normalized,
-    sourceText: normalized,
-    confidence: 'medium',
-    needsUserConfirmation: false,
-    errors: [],
-    todo: {
-      priority: 'important-not-urgent',
-      scope: 'daily',
-    },
-  };
-
-  return {
-    drafts: validateDrafts([draft], [], Date.now()),
-    unparsedSegments: [],
-    autoWriteItems: [],
-  };
+  if (decision.kind === 'realtime_activity' || decision.kind === 'realtime_mood') {
+    result.autoWriteItems.push(buildAutoWriteItem(
+      segment,
+      decision.kind === 'realtime_activity' ? 'activity' : 'mood',
+      decision.confidence,
+      decision.linkedMoodContent,
+    ));
+    return;
+  }
+  result.unparsedSegments.push(segment);
 }
 
 export function parseMagicPenInputLocal(
@@ -390,29 +354,17 @@ export function parseMagicPenInputLocal(
   now: Date = new Date(),
   lang: SupportedLang = 'zh',
 ): MagicPenParseResult {
-  if (lang !== 'zh') {
-    return parseMagicPenInputLocalConservativeNonZh(rawText);
-  }
-
   const normalized = normalizeText(rawText);
   if (!normalized) return { drafts: [], unparsedSegments: [], autoWriteItems: [] };
 
-  const segments = splitSegments(normalized);
-  const drafts: MagicPenDraftItem[] = [];
-  const unparsedSegments: string[] = [];
-
-  for (const segment of segments) {
-    const draft = buildDraftFromSegment(segment, now);
-    if (draft) {
-      drafts.push(draft);
-      continue;
-    }
-    unparsedSegments.push(segment);
-  }
+  const segments = lang === 'zh'
+    ? splitSegments(normalized)
+    : splitMagicPenFallbackSegments(normalized, lang);
+  const result: MagicPenParseResult = { drafts: [], unparsedSegments: [], autoWriteItems: [] };
+  segments.forEach((segment) => appendFallbackSegment(result, segment, now, lang));
 
   return {
-    drafts: validateDrafts(drafts, [], now.getTime()),
-    unparsedSegments,
-    autoWriteItems: [],
+    ...result,
+    drafts: validateDrafts(result.drafts, [], now.getTime()),
   };
 }

@@ -3,6 +3,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import OpenAI from 'openai';
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../src/lib/aiCompanion.js';
 import { removeThinkingTags } from '../src/lib/aiParser.js';
+import { compactDiaryInsight } from '../src/lib/diaryInsightText.js';
+import { shouldRetryDiaryDraft } from '../src/server/diary-body-integrity.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { buildDiaryTeaser } from '../src/server/diaryTeasers.js';
 
@@ -100,12 +102,54 @@ function buildDiaryAddresseeUserRule(lang: 'zh' | 'en' | 'it', addressee: string
 
 function buildDiaryLengthUserRule(lang: 'zh' | 'en' | 'it'): string {
   if (lang === 'zh') {
-    return '正文控制在150-260字，不要超过260字；不要输出任何额外小标题或分节。';
+    return '正文篇幅适中，通常写2-4个自然段。长度只作参考，不要为了满足字数截断内容；必须写完最后一句并使用完整标点，不要输出额外小标题或分节。';
   }
   if (lang === 'it') {
-    return 'Corpo del diario tra 110 e 170 parole, senza superare 170 parole; non aggiungere sottotitoli o sezioni extra.';
+    return "Scrivi un diario di lunghezza moderata, di solito in 2-4 paragrafi naturali. La lunghezza e solo indicativa: non troncare mai una frase, completa l'ultima frase con la punteggiatura finale e non aggiungere sottotitoli o sezioni extra.";
   }
-  return 'Keep the diary body within 110-170 words, never above 170 words; do not add extra subtitles or section blocks.';
+  return 'Write a moderately sized diary, usually in 2-4 natural paragraphs. Length is only a guide: never cut off a sentence, finish the final sentence with terminal punctuation, and do not add extra subtitles or section blocks.';
+}
+
+function buildDiaryRetryRule(lang: 'zh' | 'en' | 'it'): string {
+  if (lang === 'zh') {
+    return '上一次生成没有完整结束。请重新生成一篇更精炼但内容完整的日记，必须写完最后一句并保留自然落款。';
+  }
+  if (lang === 'it') {
+    return "Il tentativo precedente non era completo. Rigenera un diario piu conciso ma completo, termina l'ultima frase e conserva una firma naturale.";
+  }
+  return 'The previous attempt was incomplete. Generate a more concise but complete diary, finish the final sentence, and keep a natural sign-off.';
+}
+
+async function requestDiaryDraft(systemPrompt: string, userPrompt: string) {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.75,
+    max_tokens: 900,
+  });
+
+  return {
+    content: completion.choices?.[0]?.message?.content || '',
+    finishReason: completion.choices?.[0]?.finish_reason,
+  };
+}
+
+function normalizeDiaryDraft(
+  rawContent: string,
+  lang: 'zh' | 'en' | 'it',
+  addressee: string,
+): string {
+  const cleaned = stripModelSignoff(removeThinkingTags(rawContent));
+  return containsGenericUserRefs(cleaned, lang)
+    ? forceAddresseeReplacement(cleaned, lang, addressee)
+    : cleaned;
+}
+
+function isInvalidDiaryDraft(content: string): boolean {
+  return !content || content.startsWith('ERROR:') || content.includes('Cannot read');
 }
 
 function stripModelSignoff(content: string): string {
@@ -170,33 +214,6 @@ function ensureDiarySignoff(
   return `${trimmed}\n\n${SIGNOFF_FALLBACKS[lang][aiMode]}`;
 }
 
-function splitSignoffTail(content: string): { body: string; signoff: string } {
-  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (lines.length === 0) return { body: '', signoff: '' };
-  const last = lines[lines.length - 1];
-  if (/^[-—–]{1,2}\s*.+/.test(last)) {
-    return {
-      body: lines.slice(0, -1).join('\n').trim(),
-      signoff: last,
-    };
-  }
-  return { body: lines.join('\n').trim(), signoff: '' };
-}
-
-function clampDiaryBodyByLang(content: string, lang: 'zh' | 'en' | 'it'): string {
-  const { body, signoff } = splitSignoffTail(content);
-  if (!body) return signoff ? signoff : '';
-  if (lang === 'zh') {
-    const chars = Array.from(body);
-    const clipped = chars.length > 260 ? chars.slice(0, 260).join('').trim() : body;
-    return signoff ? `${clipped}\n\n${signoff}` : clipped;
-  }
-
-  const words = body.split(/\s+/).filter(Boolean);
-  const clipped = words.length > 170 ? words.slice(0, 170).join(' ').trim() : body;
-  return signoff ? `${clipped}\n\n${signoff}` : clipped;
-}
-
 // buildDiaryTeaser moved to src/server/diaryTeasers.ts
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -252,10 +269,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : 'Summarize overall habit/goal completion and give one tiny suggestion.')
         : (normalizedLang === 'zh' ? '给出一句具体洞察。' : normalizedLang === 'it' ? 'Dai un osservazione concreta.' : 'Give one specific insight.');
     const systemMsg = normalizedLang === 'zh'
-      ? `${modePrompt}\n\n你是一位简洁的生活教练。根据用户提供的${topicZh}数据，输出一句不超过20个中文字的洞察。${behaviorRule}只输出这句话，不加任何多余内容。`
+      ? `${modePrompt}\n\n你是一位简洁的生活教练。根据用户提供的${topicZh}数据，输出一句不超过20个中文字、语义完整的洞察。${behaviorRule}只输出这句话，不加任何多余内容。`
       : normalizedLang === 'it'
-        ? `${modePrompt}\n\nSei un life coach sintetico. In base alla ${topicIt} dell'utente, scrivi una sola frase di insight (circa massimo 20 parole). ${behaviorRule} Restituisci solo quella frase.`
-        : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one short insight sentence (about 20 words max). ${behaviorRule} Output only that sentence.`;
+        ? `${modePrompt}\n\nSei un life coach sintetico. In base alla ${topicIt} dell'utente, scrivi una sola frase completa di massimo 8 parole. ${behaviorRule} Restituisci solo quella frase.`
+        : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one complete insight sentence of at most 8 words. ${behaviorRule} Output only that sentence.`;
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -264,7 +281,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         max_tokens: 60,
       });
       const raw: string = completion.choices?.[0]?.message?.content || '';
-      res.status(200).json({ insight: raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim().slice(0, 20) });
+      res.status(200).json({ insight: compactDiaryInsight(raw, normalizedLang) });
     } catch {
       res.status(200).json({ insight: '' });
     }
@@ -317,35 +334,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const finalSystemPrompt = buildDiaryModePrompt(normalizedLang, normalizedMode);
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: finalSystemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      temperature: 0.75,
-      max_tokens: 520,
-    });
-    let content = completion.choices?.[0]?.message?.content || '';
+    let draft = await requestDiaryDraft(finalSystemPrompt, userContent);
+    let content = normalizeDiaryDraft(draft.content, normalizedLang, addressee);
 
-    // 如果返回内容看起来像错误信息，视为失败
-    if (!content || content.startsWith('ERROR:') || content.includes('Cannot read')) {
-      const errorMsg = content || 'AI 返回内容为空';
-      console.error('Diary API returned error content:', {
-        errorLength: errorMsg.length,
+    if (isInvalidDiaryDraft(content) || shouldRetryDiaryDraft(content, draft.finishReason, normalizedLang)) {
+      const retryPrompt = `${userContent}\n\n[Completeness correction - highest priority]\n${buildDiaryRetryRule(normalizedLang)}`;
+      draft = await requestDiaryDraft(finalSystemPrompt, retryPrompt);
+      content = normalizeDiaryDraft(draft.content, normalizedLang, addressee);
+    }
+
+    if (isInvalidDiaryDraft(content) || shouldRetryDiaryDraft(content, draft.finishReason, normalizedLang)) {
+      console.error('Diary API returned incomplete content after retry:', {
+        contentLength: content.length,
+        finishReason: draft.finishReason,
       });
-      jsonError(res, 500, 'AI 服务返回异常', errorMsg);
+      jsonError(res, 502, DIARY_ERROR_MESSAGE[normalizedLang]);
       return;
     }
 
-    content = stripModelSignoff(removeThinkingTags(content));
-
-    if (containsGenericUserRefs(content, normalizedLang)) {
-      content = forceAddresseeReplacement(content, normalizedLang, addressee);
-    }
-
     content = ensureDiarySignoff(content, normalizedLang, normalizedMode);
-    content = clampDiaryBodyByLang(content, normalizedLang);
 
     res.status(200).json({
       success: true,

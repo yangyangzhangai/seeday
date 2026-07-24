@@ -1,6 +1,7 @@
 // DOC-DEPS: src/features/report/README.md, docs/PROJECT_MAP.md
-import { getDaysInMonth, isSameDay } from 'date-fns';
+import { getDaysInMonth } from 'date-fns';
 import type { Report } from '../../store/useReportStore';
+import { findPreferredReportForWindow } from '../../store/reportRecordResolver';
 
 export type PageData = {
   type: 'cover' | 'day-left' | 'day-right' | 'blank' | 'back';
@@ -79,7 +80,7 @@ export function buildPages(month: Date, reports: Report[]): PageData[] {
   pages.push({ type: 'cover' });
   for (let d = 1; d <= days; d++) {
     const date = new Date(month.getFullYear(), month.getMonth(), d);
-    const report = reports.find(r => r.type === 'daily' && isSameDay(new Date(r.date), date));
+    const report = findPreferredReportForWindow(reports, 'daily', date) ?? undefined;
     pages.push({ type: 'day-left', dayNum: d, date, report });
     pages.push({ type: 'day-right', dayNum: d, date, report });
   }

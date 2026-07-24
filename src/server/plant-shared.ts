@@ -2,6 +2,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { DailyPlantRecord, RootMetrics, RootType } from '../types/plant.js';
+import type { PlantRootSnapshot } from '../types/plant.js';
+import { parsePlantRootSnapshot } from '../lib/plantRootSnapshot.js';
 import { jsonError } from './http.js';
 import { getSupabaseAnonKey, getSupabaseUrl } from './supabase-request-auth.js';
 
@@ -157,7 +159,10 @@ export function resolvePlantId(params: {
   return `${params.rootType}_${params.stage}_${suffix}`;
 }
 
-export function toRootMetricsJson(metrics: RootMetrics): Record<string, unknown> {
+export function toRootMetricsJson(
+  metrics: RootMetrics,
+  rootSnapshot?: PlantRootSnapshot,
+): Record<string, unknown> {
   return {
     dominant_ratio: metrics.dominantRatio,
     top2_gap: metrics.top2Gap,
@@ -167,6 +172,7 @@ export function toRootMetricsJson(metrics: RootMetrics): Record<string, unknown>
     total_minutes: metrics.totalMinutes,
     active_target_directions: metrics.activeTargetDirections,
     direction_breakdown: metrics.directionBreakdown,
+    root_snapshot: rootSnapshot ?? null,
   };
 }
 
@@ -194,6 +200,7 @@ export function serializePlantRecord(row: Record<string, any>): DailyPlantRecord
     isSpecial: Boolean(row.is_special),
     isSupportVariant: Boolean(row.is_support_variant),
     diaryText: row.diary_text ?? undefined,
+    rootSnapshot: parsePlantRootSnapshot(rootMetrics.root_snapshot),
     generatedAt: row.generated_at ? new Date(row.generated_at).getTime() : Date.now(),
     cycleId: row.cycle_id ?? null,
   };

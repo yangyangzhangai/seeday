@@ -643,12 +643,12 @@ interface MagicPenParseResponse {
   };
   traceId?: string;
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
-  providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
+  providerUsed?: 'zhipu' | 'qwen' | 'none';
   fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception' | 'qwen';
   failureCategory?: 'model_output_invalid' | 'provider_call_failed' | 'unknown';
   attempts?: Array<{
-    provider: 'zhipu' | 'qwen_flash_fallback';
-    reason: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
+    provider: 'zhipu' | 'qwen';
+    reason: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'low_quality' | 'exception';
     status?: number;
     elapsedMs: number;
   }>;
@@ -720,7 +720,7 @@ interface ShortInsightResponse {
 }
 
 /**
- * 调用 Short Insight API - 生成 ≤20 字的活动或心情分析
+ * 调用 Short Insight API - 生成适合日记卡片展示的完整短句
  */
 export async function callShortInsightAPI(request: ShortInsightRequest): Promise<string> {
   const { aiModeEnabled } = useAuthStore.getState().preferences;

@@ -100,7 +100,7 @@ public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
     private func startTransactionUpdatesListenerIfNeeded() {
         guard transactionUpdatesTask == nil else { return }
 
-        transactionUpdatesTask = Task.detached(priority: .background) { [weak self] in
+        transactionUpdatesTask = Task(priority: .background) { [weak self] in
             for await result in Transaction.updates {
                 if Task.isCancelled { break }
 
@@ -108,14 +108,18 @@ public class SeedayIAPPlugin: CAPPlugin, CAPBridgedPlugin {
                 case .verified(let transaction):
                     await transaction.finish()
                     let payload = Self.makeTransactionPayload(transaction)
-                    await MainActor.run {
-                        self?.notifyListeners("iapTransactionUpdated", data: payload)
-                    }
+                    guard let plugin = self else { break }
+                    await plugin.notifyTransactionUpdated(payload)
                 case .unverified(_, let error):
                     CAPLog.print("⚡️  SeedayIAP: unverified transaction update: \(error.localizedDescription)")
                 }
             }
         }
+    }
+
+    @MainActor
+    private func notifyTransactionUpdated(_ payload: [String: Any]) {
+        notifyListeners("iapTransactionUpdated", data: payload)
     }
 
     private static func makeTransactionPayload(_ transaction: Transaction) -> [String: Any] {

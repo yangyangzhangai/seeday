@@ -16,7 +16,7 @@
 | 日记生成（长文） | `api/diary.ts`；调用：`src/store/reportActions.ts` | OpenAI Chat Completions；`gpt-4o` | 基于结构化日报数据+历史上下文生成 AI 日记 | 长上下文总结、叙事能力、事实约束 | 30B-70B |
 | 报告短洞察（短文） | `api/diary.ts`（`action='insight'`）；调用：`src/features/report/ReportDetailModal.tsx` | OpenAI；`gpt-4o-mini` | 生成 todo/habit 的短洞察句（超短） | 极短文本压缩、格式遵循 | 7B-14B |
 | 时间记录分类器 | `api/classify.ts`；调用：`src/store/useChatStore.ts`、`src/store/useTodoStore.ts` | DashScope 兼容接口 + Qwen；默认 `qwen-plus` | 将输入分类成结构化数据（类别、时段、能量日志）；并做瓶子语义匹配 | 分类抽取、语义匹配、JSON 稳定 | 14B-32B |
-| 魔法笔解析 | `api/magic-pen-parse.ts`；调用：`src/services/input/magicPenParser.ts` | Zhipu `glm-4.7-flash` + Qwen fallback（`qwen-flash`） | 将自然语言拆成 `activity/mood/todo_add/activity_backfill` 等结构 | 非结构文本解析、时间抽取、鲁棒 JSON | 14B-32B（偏低延迟） |
+| 魔法笔解析 | `api/magic-pen-parse.ts`；调用：`src/services/input/magicPenParser.ts` | Qwen `qwen-plus` 主路 + Zhipu `glm-4.7-flash` 质量/调用失败兜底 | 将自然语言拆成 `activity/mood/todo_add/activity_backfill`，并校验原文覆盖率与时间锚点 | 多语言复杂句拆分、时间抽取、鲁棒 JSON | 主力结构化抽取 |
 | 报告分析（日报/周报/月报） | `api/report.ts`；调用：`src/store/reportActions.ts` | 未接入模型（占位返回） | 当前能力未上线，接口返回占位文案 | 不适用 | 不适用 |
 | 植物日记与 plantId 选择 | `api/plant-generate.ts` -> `src/server/plant-diary-service.ts` | OpenAI Chat Completions；`gpt-4.1-mini` | 从候选植物中选 `plantId` 并生成一句观察文案 | 受限集合选择、短文案、多语言 | 7B-20B |
 
@@ -26,13 +26,13 @@
 - `/api/todo-decompose` -> `QWEN_API_KEY`（zh，`TODO_DECOMPOSE_MODEL_ZH`）+ `GEMINI_API_KEY`（en/it，`TODO_DECOMPOSE_MODEL`）；可选 `TODO_DECOMPOSE_GEMINI_BASE_URL`、`TODO_DECOMPOSE_GEMINI_FALLBACK_MODEL`、`TODO_DECOMPOSE_VERBOSE_LOGS`
 - `/api/diary` -> `OPENAI_API_KEY`
 - `/api/classify` -> `QWEN_API_KEY`（可选 `CLASSIFY_MODEL`、`DASHSCOPE_BASE_URL`）
-- `/api/magic-pen-parse` -> `ZHIPU_API_KEY` + `QWEN_API_KEY`（可选 `MAGIC_PEN_FALLBACK_MODEL`）
+- `/api/magic-pen-parse` -> `QWEN_API_KEY` + `ZHIPU_API_KEY`（可选 `MAGIC_PEN_MODEL`，默认 `qwen-plus`）
 - `/api/report` -> 当前未读取外部模型密钥
 - `src/server/plant-diary-service.ts`（由 `/api/plant-generate` 调用）-> `OPENAI_API_KEY`
 
 ## 补充观察
 
-- `api/magic-pen-parse.ts` 中当前调用顺序为：先尝试 Qwen fallback，再尝试 Zhipu 主模型（与“主路/兜底”命名直觉相反）。
+- `api/magic-pen-parse.ts` 先尝试 Qwen `qwen-plus`，空结果、低原文覆盖率、漏时间锚点或复杂句拆分不足均按低质量失败处理，再尝试 Zhipu。
 - `api/README.md` 提到 `/api/plant-diary`，但仓库中无 `api/plant-diary.ts`；植物日记能力由 `api/plant-generate.ts` + `src/server/plant-diary-service.ts` 组成。
 
 ## 主流模型官网定价速查（2026-04-09 抓取）

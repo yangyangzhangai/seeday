@@ -1,18 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { isSameDay } from 'date-fns';
 import { cn } from '../../lib/utils';
 import { triggerLightHaptic } from '../../lib/haptics';
-import { useReportStore } from '../../store/useReportStore';
 
 export const BottomNav = () => {
-  const reports = useReportStore((state) => state.reports);
-  const todayDailyReport = reports.find((report) => report.type === 'daily' && isSameDay(new Date(report.date), new Date()));
-  const hasTodayDiary = Boolean(todayDailyReport?.aiAnalysis?.trim() || todayDailyReport?.teaserText?.trim());
   const navItems = [
     { to: '/chat', icon: 'chat_bubble' },
     { to: '/growth', icon: 'schedule' },
-    { to: hasTodayDiary ? '/report?action=open-today-diary' : '/report', icon: 'menu_book' },
+    { to: '/report', icon: 'menu_book' },
     { to: '/profile', icon: 'person' },
   ] as const;
 

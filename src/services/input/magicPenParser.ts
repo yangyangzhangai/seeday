@@ -13,7 +13,7 @@ interface ParseMagicPenOptions {
 
 function classifyParseOutcome(response: {
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
-  providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
+  providerUsed?: 'zhipu' | 'qwen' | 'none';
   failureCategory?: 'model_output_invalid' | 'provider_call_failed' | 'unknown';
   data: { unparsed: string[] };
 }): 'ok' | 'partial_unrecognized' | 'parse_failed' {
@@ -27,7 +27,20 @@ function classifyParseOutcome(response: {
 }
 
 function preprocessRawText(rawText: string): string {
-  return rawText.trim().replace(/[^\S\n]+/g, ' ').slice(0, 500);
+  return rawText.trim().replace(/[^\S\n]+/g, ' ');
+}
+
+function recoverLocally(
+  rawText: string,
+  now: Date,
+  lang: 'zh' | 'en' | 'it',
+): MagicPenParseResult {
+  const fallback = parseMagicPenInputLocal(rawText, now, lang);
+  const hasRecognizedItems = fallback.drafts.length > 0 || fallback.autoWriteItems.length > 0;
+  if (hasRecognizedItems || fallback.unparsedSegments.length > 0) {
+    return fallback;
+  }
+  return { drafts: [], unparsedSegments: [rawText], autoWriteItems: [] };
 }
 
 function toLocalDateString(date: Date): string {
@@ -69,6 +82,7 @@ export async function parseMagicPenInput(
     const parseOutcome = classifyParseOutcome(response);
 
     if (parseOutcome === 'parse_failed') {
+      return recoverLocally(cleaned, now, options.lang ?? 'zh');
     }
 
     const built = buildDraftsFromAIResult(response.data, now, options.lang ?? 'zh');
@@ -79,14 +93,19 @@ export async function parseMagicPenInput(
       : [];
     const salvagedSourceSet = new Set(salvagedDrafts.map((draft) => draft.sourceText.trim()));
     const remainingUnparsed = built.unparsedSegments.filter((segment) => !salvagedSourceSet.has(segment.trim()));
-    return {
+    const result = {
       drafts: validateDrafts([...built.drafts, ...salvagedDrafts], [], now.getTime()),
       unparsedSegments: remainingUnparsed,
       autoWriteItems: built.autoWriteItems,
     };
+    if (result.drafts.length === 0
+      && result.unparsedSegments.length === 0
+      && result.autoWriteItems.length === 0) {
+      return recoverLocally(cleaned, now, options.lang ?? 'zh');
+    }
+    return result;
   } catch (error) {
-    const fallback = parseMagicPenInputLocal(cleaned, now, options.lang ?? 'zh');
     void error;
-    return fallback;
+    return recoverLocally(cleaned, now, options.lang ?? 'zh');
   }
 }

@@ -9,8 +9,20 @@ import {
   resolveSupportVariant,
 } from '../src/lib/plantCalculator.js';
 import { mapSourcesToPlantActivities } from '../src/lib/plantActivityMapper.js';
+import {
+  buildPlantRootSnapshot,
+  normalizePlantDirectionOrder,
+  parsePlantRootSnapshot,
+} from '../src/lib/plantRootSnapshot.js';
 import { getAvailablePlants, extractStageFromPlantId } from '../src/lib/plantRegistry.js';
-import type { PlantGenerateRequest, PlantGenerateResponse, RootType } from '../src/types/plant.js';
+import {
+  DEFAULT_DIRECTION_ORDER,
+  type PlantCategoryKey,
+  type PlantGenerateRequest,
+  type PlantGenerateResponse,
+  type PlantRootSnapshot,
+  type RootType,
+} from '../src/types/plant.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { generatePlantDiaryWithFallback, FREE_FALLBACK_TEXT } from '../src/server/plant-diary-service.js';
 import {
@@ -29,6 +41,49 @@ interface MessageRow {
   activity_type: string | null;
   is_mood: boolean | null;
   timestamp: number;
+}
+
+interface DirectionRow {
+  direction_index: number;
+  category_key: string;
+}
+
+function resolveDirectionOrder(rows: DirectionRow[]): PlantCategoryKey[] {
+  const order = [...DEFAULT_DIRECTION_ORDER];
+  rows.forEach((row) => {
+    const index = Number(row.direction_index);
+    if (index >= 0 && index < 5 && DEFAULT_DIRECTION_ORDER.includes(row.category_key as PlantCategoryKey)) {
+      order[index] = row.category_key as PlantCategoryKey;
+    }
+  });
+  return normalizePlantDirectionOrder(order);
+}
+
+function buildSnapshot(
+  date: string,
+  messages: MessageRow[],
+  directionRows: DirectionRow[],
+): PlantRootSnapshot {
+  const activities = mapSourcesToPlantActivities(messages.map(row => ({
+    id: row.id,
+    content: row.content,
+    duration: row.duration,
+    activityType: row.activity_type,
+    isMood: row.is_mood,
+  })));
+  const messageMap = new Map(messages.map(message => [message.id, message]));
+  return buildPlantRootSnapshot(date, resolveDirectionOrder(directionRows), activities.map((activity) => {
+    const source = messageMap.get(activity.id);
+    return {
+      id: activity.id,
+      content: source?.content ?? '',
+      activityType: source?.activity_type,
+      timestamp: Number(source?.timestamp ?? 0),
+      categoryKey: activity.categoryKey,
+      minutes: activity.minutes,
+      focus: activity.focus,
+    };
+  }));
 }
 
 function resolveMonthRange(date: string): { startDate: string; endDate: string } {
@@ -65,8 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const body = (req.body ?? {}) as Partial<PlantGenerateRequest>;
   const timezone = body.timezone || 'UTC';
   const date = body.date || getDateInTimezone(timezone);
+  const action = body.action === 'snapshot_existing' ? 'snapshot_existing' : 'generate';
 
-  if (isTooEarlyToGenerate(date, timezone)) {
+  if (action === 'generate' && isTooEarlyToGenerate(date, timezone)) {
     res.status(400).json(buildTooEarlyResponse());
     return;
   }
@@ -75,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const dayWindow = resolveDayWindow(date, timezone, body.dayStartMs, body.dayEndMs);
   const { startDate: monthStartDate, endDate: monthEndDate } = resolveMonthRange(date);
 
-  const [existingResult, messagesResult, monthlyResult] = await Promise.all([
+  const [existingResult, messagesResult, monthlyResult, directionResult] = await Promise.all([
     auth.db
       .from('daily_plant_records')
       .select('*')
@@ -97,13 +153,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       .eq('user_id', auth.user.id)
       .gte('date', monthStartDate)
       .lte('date', monthEndDate),
+    auth.db
+      .from('plant_direction_config')
+      .select('direction_index, category_key')
+      .eq('user_id', auth.user.id)
+      .order('direction_index', { ascending: true }),
   ]);
 
   if (existingResult.error) {
     jsonError(res, 500, 'Failed to read daily plant record', existingResult.error.message);
     return;
   }
-  if (existingResult.data) {
+  const existingSnapshot = parsePlantRootSnapshot(existingResult.data?.root_metrics?.root_snapshot);
+  if (existingResult.data && existingSnapshot) {
     res.status(200).json({
       success: true,
       status: 'already_generated',
@@ -116,13 +178,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     jsonError(res, 500, 'Failed to read activity records', messagesResult.error.message);
     return;
   }
-  if (monthlyResult.error) {
-    jsonError(res, 500, 'Failed to read monthly plant history', monthlyResult.error.message);
+  if (directionResult.error) {
+    jsonError(res, 500, 'Failed to read plant direction config', directionResult.error.message);
     return;
   }
 
   const messages = ((messagesResult.data ?? []) as MessageRow[])
     .filter(row => !isLegacyChatActivityType(row.activity_type));
+  const rootSnapshot = buildSnapshot(
+    date,
+    messages,
+    (directionResult.data ?? []) as DirectionRow[],
+  );
+
+  if (existingResult.data) {
+    const rootMetrics = {
+      ...((existingResult.data.root_metrics ?? {}) as Record<string, unknown>),
+      root_snapshot: rootSnapshot,
+    };
+    const { data: updated, error: updateError } = await auth.db
+      .from('daily_plant_records')
+      .update({ root_metrics: rootMetrics })
+      .eq('id', existingResult.data.id)
+      .eq('user_id', auth.user.id)
+      .select('*')
+      .single();
+    if (updateError) {
+      jsonError(res, 500, 'Failed to persist plant root snapshot', updateError.message);
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      status: 'already_generated',
+      plant: serializePlantRecord(updated),
+    } satisfies PlantGenerateResponse);
+    return;
+  }
+
+  if (action === 'snapshot_existing') {
+    jsonError(res, 404, 'Plant record not found');
+    return;
+  }
+  if (monthlyResult.error) {
+    jsonError(res, 500, 'Failed to read monthly plant history', monthlyResult.error.message);
+    return;
+  }
+
   const activities = mapSourcesToPlantActivities(messages.map(row => ({
     id: row.id,
     content: row.content,
@@ -210,7 +311,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       user_id: auth.user.id,
       date,
       timezone,
-      root_metrics: toRootMetricsJson(metrics),
+      root_metrics: toRootMetricsJson(metrics, rootSnapshot),
       root_type: rootType,
       plant_id: plantId,
       plant_stage: plantStage,

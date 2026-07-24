@@ -4,7 +4,7 @@ import type { PlantCategoryKey } from '../../types/plant';
 import { buildRootSegments } from '../../lib/rootRenderer';
 import { mapSourcesToPlantActivities } from '../../lib/plantActivityMapper';
 import { cn } from '../../lib/utils';
-import { APP_MODAL_CARD_CLASS, APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
+import { APP_MODAL_OVERLAY_CLASS } from '../../lib/modalTheme';
 import { useChatStore } from '../../store/useChatStore';
 import { usePlantStore, resolvePlantDurationForMessage } from '../../store/usePlantStore';
 import { PlantFlipCard } from './plant/PlantFlipCard';
@@ -17,8 +17,10 @@ interface PlantCardModalProps {
 export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose }) => {
   const messages = useChatStore(state => state.messages);
   const directionOrder = usePlantStore(state => state.directionOrder);
+  const cardDirectionOrder = plant.rootSnapshot?.directionOrder ?? directionOrder;
 
   const segments = useMemo(() => {
+    if (plant.rootSnapshot) return plant.rootSnapshot.segments;
     const dayStart = new Date(`${plant.date}T00:00:00`);
     const dayStartMs = dayStart.getTime();
     if (!Number.isFinite(dayStartMs)) return [];
@@ -56,17 +58,21 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({ plant, onClose }
 
   return (
     <div
-      className={cn('fixed inset-0 z-[100] flex items-end animate-in fade-in transition-all', APP_MODAL_OVERLAY_CLASS)}
+      className={cn('fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in transition-all', APP_MODAL_OVERLAY_CLASS)}
       onClick={onClose}
     >
       <div
-        className={cn(APP_MODAL_CARD_CLASS, 'w-full max-h-[92vh] rounded-t-3xl overflow-hidden')}
+        style={{
+          width: 'min(290px, calc(100vw - 32px), calc((100dvh - 32px) * 0.75))',
+          aspectRatio: '3 / 4',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <PlantFlipCard
           plant={plant}
           segments={segments}
-          directionOrder={directionOrder}
+          directionOrder={cardDirectionOrder}
+          cardOnly
           onClose={onClose}
         />
       </div>

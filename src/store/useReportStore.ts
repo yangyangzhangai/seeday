@@ -1,7 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/features/report/README.md
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { isSameDay } from 'date-fns';
 import { supabase } from '../api/supabase';
 import { getSupabaseSession } from '../lib/supabase-utils';
 import { fromDbReport } from '../lib/dbMappers';
@@ -24,6 +23,21 @@ import { getDateRange } from './reportHelpers';
 import { PERSIST_KEYS, LEGACY_PERSIST_KEYS } from './persistKeys';
 import { readLegacyPersistedState } from './persistMigrationHelpers';
 import { createScopedJSONStorage } from './scopedPersistStorage';
+import {
+  buildDiaryPageSnapshot,
+  generateDiaryPageSnapshot,
+  upgradeDiaryPageSnapshot,
+  type DiaryPageSnapshot,
+  type DiarySnapshotLang,
+} from './reportDiarySnapshot';
+import {
+  dedupeReportsByWindow,
+  findPreferredReportForWindow,
+  hasStoredDiaryText,
+  mergeSameReportRecord,
+} from './reportRecordResolver';
+
+const diarySnapshotUpgradeRequests = new Map<string, Promise<DiaryPageSnapshot>>();
 
 export interface ReportStats {
   completedTodos: number;
@@ -73,6 +87,7 @@ export interface ReportStats {
     low: { completed: number; total: number };
     completedTitles: string[];
   };
+  diaryPageSnapshot?: DiaryPageSnapshot;
 }
 
 export interface StickerItem {
@@ -107,6 +122,7 @@ interface ReportState {
   updateReport: (id: string, updates: Partial<Report>) => void;
   // 日记三步流程
   generateAIDiary: (reportId: string) => Promise<void>;
+  ensureDiaryPageSnapshot: (reportId: string) => void;
   // 存储计算结果供历史对比
   computedHistory: ComputedResult[];
 }
@@ -133,31 +149,14 @@ export const useReportStore = create<ReportState>()(
 
           if (data && data.length > 0) {
             const mappedReports: Report[] = data.map(fromDbReport);
-            const cloudDedupedReports = mappedReports.reduce<Report[]>(
-              (reports, report) => mergeReportIntoList(reports, report.type, report.date, report),
-              [],
-            );
-
             const localReports = get().reports;
-            const localOnlyReports = localReports.filter(
-              (localReport) => !cloudDedupedReports.some((cloudReport) => cloudReport.id === localReport.id),
-            );
-
-            const mergedReports = [...cloudDedupedReports];
-            for (const localReport of localOnlyReports) {
-              const existingByWindow = mergedReports.find(
-                (report) => report.type === localReport.type && isSameDay(report.date, localReport.date),
-              );
-              if (existingByWindow) {
-                continue;
-              }
-              mergedReports.push(localReport);
-            }
-
-            mergedReports.sort((left, right) => right.date - left.date);
+            const mergedReports = dedupeReportsByWindow([...localReports, ...mappedReports]);
             set({ reports: mergedReports, lastFetchedAt: Date.now() });
 
-            localOnlyReports.forEach((report) => {
+            mergedReports.filter((report) => {
+              const cloud = mappedReports.find(item => item.id === report.id);
+              return !cloud || (hasStoredDiaryText(report) && !hasStoredDiaryText(cloud));
+            }).forEach((report) => {
               void syncReportToSupabase(report);
             });
           } else {
@@ -179,7 +178,7 @@ export const useReportStore = create<ReportState>()(
         set(state => {
           const nextReports = state.reports.map((report) => {
             if (report.id !== id) return report;
-            nextReport = { ...report, ...updates };
+            nextReport = mergeSameReportRecord(report, { ...report, ...updates });
             return nextReport;
           });
           return { reports: nextReports };
@@ -225,7 +224,10 @@ export const useReportStore = create<ReportState>()(
         const chatStore = useChatStore.getState();
         const moodStore = useMoodStore.getState();
         const growthStore = useGrowthStore.getState();
-        const existingReport = get().reports.find((report) => report.type === type && isSameDay(report.date, date));
+        const existingReport = findPreferredReportForWindow(get().reports, type, date);
+        if (existingReport && hasStoredDiaryText(existingReport)) {
+          return existingReport.id;
+        }
 
         // Fetch messages for the target date range from Supabase (not just today's in-memory messages)
         const { start, end } = getDateRange(type, date, customEndDate);
@@ -285,9 +287,24 @@ export const useReportStore = create<ReportState>()(
           const start = new Date(report.startDate ?? report.date);
           const end = new Date(report.endDate ?? report.date);
           const messages = await chatStore.getMessagesForDateRange(start, end);
+          const generationStats = report.type === 'daily'
+            ? createGeneratedReport({
+              type: report.type,
+              date: report.date,
+              customEndDate: report.endDate,
+              todos: todoStore.todos,
+              messages,
+              moodStore,
+              bottles: growthStore.bottles,
+            }).stats
+            : report.stats;
+          const reportAtGeneration = {
+            ...report,
+            stats: generationStats,
+          };
 
           const result = await runAIDiary({
-            report,
+            report: reportAtGeneration,
             todos: todoStore.todos,
             messages,
             moodStore,
@@ -304,12 +321,17 @@ export const useReportStore = create<ReportState>()(
             }));
           }
 
-          const existingStats = get().reports.find(r => r.id === reportId)?.stats;
+          const snapshotLang = (i18n.language?.split('-')[0] || 'en') as DiarySnapshotLang;
+          const diaryPageSnapshot = report.type === 'daily' && generationStats
+            ? await generateDiaryPageSnapshot(generationStats, snapshotLang)
+            : undefined;
           get().updateReport(reportId, {
             aiAnalysis: isPlus ? result.content : report.aiAnalysis,
             teaserText: isPlus ? report.teaserText : result.content,
             analysisStatus: 'success',
-            stats: existingStats,
+            stats: generationStats
+              ? { ...generationStats, diaryPageSnapshot }
+              : generationStats,
           });
 
         } catch (error) {
@@ -321,6 +343,37 @@ export const useReportStore = create<ReportState>()(
             errorMessage: error instanceof Error ? error.message : i18n.t('report_error_unknown')
           });
         }
+      },
+
+      ensureDiaryPageSnapshot: (reportId) => {
+        const report = get().reports.find(item => item.id === reportId);
+        if (!report?.stats) return;
+        if (!report.aiAnalysis?.trim() && !report.teaserText?.trim()) return;
+        const storedSnapshot = report.stats.diaryPageSnapshot;
+        if (storedSnapshot?.version === 2) return;
+        const lang = (i18n.language?.split('-')[0] || 'en') as DiarySnapshotLang;
+        if (!storedSnapshot) {
+          get().updateReport(reportId, {
+            stats: {
+              ...report.stats,
+              diaryPageSnapshot: buildDiaryPageSnapshot(report.stats, lang),
+            },
+          });
+          return;
+        }
+        if (diarySnapshotUpgradeRequests.has(reportId)) return;
+
+        const request = upgradeDiaryPageSnapshot(storedSnapshot);
+        diarySnapshotUpgradeRequests.set(reportId, request);
+        void request.then((upgradedSnapshot) => {
+          const latest = get().reports.find(item => item.id === reportId);
+          if (!latest?.stats || latest.stats.diaryPageSnapshot?.version !== 1) return;
+          get().updateReport(reportId, {
+            stats: { ...latest.stats, diaryPageSnapshot: upgradedSnapshot },
+          });
+        }).finally(() => {
+          diarySnapshotUpgradeRequests.delete(reportId);
+        });
       }
     }),
     {
@@ -336,11 +389,17 @@ export const useReportStore = create<ReportState>()(
         computedHistory: state.computedHistory,
         lastFetchedAt: state.lastFetchedAt,
       }),
-      merge: (persistedState, currentState) => ({
-        ...(currentState as ReportState),
-        ...(readLegacyPersistedState<ReportState>(LEGACY_PERSIST_KEYS.report) || {}),
-        ...((persistedState as Partial<ReportState>) || {}),
-      }),
+      merge: (persistedState, currentState) => {
+        const merged = {
+          ...(currentState as ReportState),
+          ...(readLegacyPersistedState<ReportState>(LEGACY_PERSIST_KEYS.report) || {}),
+          ...((persistedState as Partial<ReportState>) || {}),
+        };
+        return {
+          ...merged,
+          reports: dedupeReportsByWindow(merged.reports ?? []),
+        };
+      },
     }
   )
 );

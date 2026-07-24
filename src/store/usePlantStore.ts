@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../api/supabase';
-import { callPlantGenerateAPI } from '../api/client';
+import { callPlantGenerateAPI, callPlantHistoryAPI } from '../api/client';
 import i18n from '../i18n';
 import { buildRootSegments } from '../lib/rootRenderer';
 import { mapSourcesToPlantActivities } from '../lib/plantActivityMapper';
@@ -25,6 +25,9 @@ import { reportTelemetryEvent } from '../services/input/reportTelemetryEvent';
 interface PlantState {
   todaySegments: RootSegment[];
   todayPlant: DailyPlantRecord | null;
+  historyUserId: string | null;
+  historyPlantsByDate: Record<string, DailyPlantRecord>;
+  loadedHistoryRanges: Record<string, boolean>;
   directionOrder: PlantCategoryKey[];
   isGenerating: boolean;
   selectedRootId: string | null;
@@ -34,11 +37,43 @@ interface PlantState {
   startActivitySync: () => void;
   stopActivitySync: () => void;
   generatePlant: () => Promise<PlantGenerateResponse>;
+  ensureTodayRootSnapshot: () => Promise<void>;
+  cachePlantRecord: (plant: DailyPlantRecord, userId?: string | null) => void;
+  loadPlantHistory: (startDate: string, endDate: string, force?: boolean) => Promise<DailyPlantRecord[]>;
   setSelectedRootId: (id: string | null) => void;
   setDirectionOrder: (order: PlantCategoryKey[]) => Promise<void>;
 }
 
 let chatSubscription: (() => void) | null = null;
+let rootSnapshotRequest: Promise<void> | null = null;
+const plantHistoryRequests = new Map<string, Promise<DailyPlantRecord[]>>();
+
+function getHistoryRangeKey(startDate: string, endDate: string): string {
+  return `${startDate}:${endDate}`;
+}
+
+function getCachedHistoryRange(
+  plantsByDate: Record<string, DailyPlantRecord>,
+  startDate: string,
+  endDate: string,
+): DailyPlantRecord[] {
+  return Object.values(plantsByDate)
+    .filter((plant) => plant.date >= startDate && plant.date <= endDate)
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+export function resolveCachedPlantForDate(
+  state: Pick<PlantState, 'historyUserId' | 'historyPlantsByDate' | 'todayPlant'>,
+  userId: string | null | undefined,
+  requestedDate: string,
+  currentDate: string,
+): DailyPlantRecord | null {
+  if (requestedDate === currentDate && state.todayPlant?.date === requestedDate) {
+    return state.todayPlant;
+  }
+  if (!userId || state.historyUserId !== userId) return null;
+  return state.historyPlantsByDate[requestedDate] ?? null;
+}
 
 function resolvePlantLang(): 'zh' | 'en' | 'it' {
   const lang = i18n.language?.toLowerCase() ?? 'en';
@@ -199,6 +234,9 @@ export const usePlantStore = create<PlantState>()(
     (set, get) => ({
       todaySegments: [],
       todayPlant: null,
+      historyUserId: null,
+      historyPlantsByDate: {},
+      loadedHistoryRanges: {},
       directionOrder: [...DEFAULT_DIRECTION_ORDER],
       isGenerating: false,
       selectedRootId: null,
@@ -207,8 +245,22 @@ export const usePlantStore = create<PlantState>()(
       loadTodayData: async () => {
         const session = await getSupabaseSession();
         if (!session) {
-          set({ todayPlant: null, todaySegments: [], lastAutoBackfillAttemptDate: null });
+          set({
+            todayPlant: null,
+            todaySegments: [],
+            historyUserId: null,
+            historyPlantsByDate: {},
+            loadedHistoryRanges: {},
+            lastAutoBackfillAttemptDate: null,
+          });
           return;
+        }
+        if (get().historyUserId !== session.user.id) {
+          set({
+            historyUserId: session.user.id,
+            historyPlantsByDate: {},
+            loadedHistoryRanges: {},
+          });
         }
 
         const { date, timezone } = getTodayDateAndRange();
@@ -241,7 +293,9 @@ export const usePlantStore = create<PlantState>()(
         set({ directionOrder: resolveDirectionOrderPreference(localDirectionOrder, cloudDirectionOrder) });
 
         if (plantRes.data) {
-          set({ todayPlant: fromDbPlantRecord(plantRes.data) });
+          const todayPlant = fromDbPlantRecord(plantRes.data);
+          set({ todayPlant });
+          get().cachePlantRecord(todayPlant, session.user.id);
         } else {
           set({ todayPlant: null });
         }
@@ -374,6 +428,9 @@ export const usePlantStore = create<PlantState>()(
           });
           if (response.status === 'generated' || response.status === 'already_generated') {
             set({ todayPlant: response.plant, selectedRootId: null });
+            if (response.plant) {
+              get().cachePlantRecord(response.plant, session.user.id);
+            }
           }
           void reportTelemetryEvent('plant_generate_succeeded', {
             date: payload.date,
@@ -391,6 +448,91 @@ export const usePlantStore = create<PlantState>()(
         } finally {
           set({ isGenerating: false });
         }
+      },
+
+      ensureTodayRootSnapshot: async () => {
+        const currentPlant = get().todayPlant;
+        if (!currentPlant || currentPlant.rootSnapshot) return;
+        const payload = getTodayDateAndRange();
+        if (currentPlant.date !== payload.date) return;
+        if (rootSnapshotRequest) return rootSnapshotRequest;
+
+        rootSnapshotRequest = callPlantGenerateAPI({
+          ...payload,
+          action: 'snapshot_existing',
+          lang: resolvePlantLang(),
+        }).then((response) => {
+          if (response.plant?.rootSnapshot) {
+            set({ todayPlant: response.plant });
+            get().cachePlantRecord(response.plant);
+          }
+        }).catch((error) => {
+          if (import.meta.env.DEV) {
+            console.warn('[plant] root snapshot backfill failed', error);
+          }
+        }).finally(() => {
+          rootSnapshotRequest = null;
+        });
+        return rootSnapshotRequest;
+      },
+
+      cachePlantRecord: (plant, explicitUserId) => {
+        const userId = explicitUserId ?? plant.userId ?? null;
+        if (!userId) return;
+        const state = get();
+        const sameUser = state.historyUserId === userId;
+        set({
+          historyUserId: userId,
+          historyPlantsByDate: {
+            ...(sameUser ? state.historyPlantsByDate : {}),
+            [plant.date]: plant,
+          },
+          loadedHistoryRanges: sameUser ? state.loadedHistoryRanges : {},
+        });
+      },
+
+      loadPlantHistory: async (startDate, endDate, force = false) => {
+        const session = await getSupabaseSession();
+        if (!session) return [];
+        const userId = session.user.id;
+        const rangeKey = getHistoryRangeKey(startDate, endDate);
+        const state = get();
+        const sameUser = state.historyUserId === userId;
+        if (sameUser && !force && state.loadedHistoryRanges[rangeKey]) {
+          return getCachedHistoryRange(state.historyPlantsByDate, startDate, endDate);
+        }
+
+        const requestKey = `${userId}:${rangeKey}`;
+        const existingRequest = plantHistoryRequests.get(requestKey);
+        if (existingRequest) return existingRequest;
+
+        const request = callPlantHistoryAPI(startDate, endDate)
+          .then((response) => {
+            if (!response.success) return [];
+            const current = get();
+            const stillSameUser = current.historyUserId === userId;
+            const historyPlantsByDate = stillSameUser
+              ? { ...current.historyPlantsByDate }
+              : {};
+            response.records.forEach((plant) => {
+              historyPlantsByDate[plant.date] = plant;
+            });
+            set({
+              historyUserId: userId,
+              historyPlantsByDate,
+              loadedHistoryRanges: {
+                ...(stillSameUser ? current.loadedHistoryRanges : {}),
+                [rangeKey]: true,
+              },
+            });
+            return response.records;
+          })
+          .catch(() => [])
+          .finally(() => {
+            plantHistoryRequests.delete(requestKey);
+          });
+        plantHistoryRequests.set(requestKey, request);
+        return request;
       },
 
       setSelectedRootId: (id) => set({ selectedRootId: id }),

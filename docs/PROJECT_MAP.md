@@ -71,6 +71,7 @@ src/
 - `src/server/country-resolver.ts`、`holiday-resolver.ts`：国家与节日上下文。
 - `src/server/weather-*.ts`、`air-quality-provider.ts`：天气、空气质量和预警。
 - `src/server/magic-pen-prompts.ts`：魔法笔 prompt。
+- `src/server/magic-pen-quality.ts`：魔法笔中英文原文覆盖率、时间锚点与复杂句拆分质量门槛。
 - `src/server/todo-decompose-service.ts`：待办拆解共享服务。
 - `src/server/plant-*.ts`：植物接口和日记共享逻辑。
 
@@ -96,7 +97,7 @@ src/
 | Store | `src/store/` | `src/store/README.md` |
 | Serverless API | `api/` | `api/README.md` |
 | 输入分类 | `src/services/input/` | 本文第 8 节 |
-| 魔法笔 | `src/services/input/magicPenParser.ts` | `docs/MAGIC_PEN_CAPTURE_SPEC.md` |
+| 魔法笔 | `src/services/input/magicPenParser.ts`、`magicPenFallbackSemantics.ts` | `docs/MAGIC_PEN_CAPTURE_SPEC.md` |
 
 
 ### ??????????

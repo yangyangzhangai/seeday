@@ -1,7 +1,13 @@
 // DOC-DEPS: src/features/report/README.md, docs/CURRENT_TASK.md, docs/PROJECT_MAP.md
 import { describe, expect, it } from 'vitest';
 import type { Report } from '../../store/useReportStore';
-import { isFutureDiaryDate, resolveDiaryBookInitialTarget } from './reportPageHelpers';
+import {
+  findTodayDailyReport,
+  findDailyReportForDate,
+  isFutureDiaryDate,
+  reportHasGeneratedDiary,
+  resolveDiaryBookInitialTarget,
+} from './reportPageHelpers';
 
 function createDailyReport(day: number, overrides: Partial<Report> = {}): Report {
   return {
@@ -43,5 +49,28 @@ describe('reportPageHelpers', () => {
     expect(isFutureDiaryDate(new Date(2026, 6, 17, 12, 0, 0, 0), now)).toBe(true);
     expect(isFutureDiaryDate(new Date(2026, 6, 14, 12, 0, 0, 0), now)).toBe(false);
     expect(isFutureDiaryDate(new Date(2026, 6, 15, 23, 59, 59, 999), now)).toBe(false);
+  });
+
+  it('resolves a generated today diary before the first report-page paint', () => {
+    const today = createDailyReport(15, { aiAnalysis: 'Generated diary' });
+    const reports = [createDailyReport(14), today];
+
+    const resolved = findTodayDailyReport(reports, new Date(2026, 6, 15, 9, 0, 0, 0));
+
+    expect(resolved?.id).toBe(today.id);
+    expect(reportHasGeneratedDiary(resolved)).toBe(true);
+    expect(reportHasGeneratedDiary(createDailyReport(15))).toBe(false);
+  });
+
+  it('resolves the generated record when the same day also has a placeholder', () => {
+    const placeholder = createDailyReport(14, { id: 'placeholder' });
+    const generated = createDailyReport(14, {
+      id: 'generated',
+      aiAnalysis: 'Original diary',
+      analysisStatus: 'success',
+    });
+
+    expect(findDailyReportForDate([placeholder, generated], generated.date)?.id).toBe('generated');
+    expect(findDailyReportForDate([generated, placeholder], generated.date)?.id).toBe('generated');
   });
 });

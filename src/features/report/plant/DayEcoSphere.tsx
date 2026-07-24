@@ -13,9 +13,11 @@ import {
   ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
 } from '../DiaryDonutChart';
 import { getMoodDisplayLabel } from '../../../lib/moodOptions';
-import { useBubbleMotionController } from './useBubbleMotionController';
+import { ECO_BUBBLE_SIZE, useBubbleMotionController } from './useBubbleMotionController';
 
-const ECO_CHART_SIZE = 150;
+const ECO_CHART_INNER_RADIUS = 25;
+const ECO_CHART_OUTER_RADIUS = 53;
+const ECO_CHART_FONT_SIZE = 10;
 
 // ── helpers ──
 function normalizeChartPercents(items: DataItem[]): DataItem[] {
@@ -38,8 +40,8 @@ function FloatingChart({ data, chartId, labelColor, isEmpty }: FloatingChartProp
     <div data-eco-bubble="true" style={{ WebkitTapHighlightColor: 'transparent' }}>
       {isEmpty ? (
         <div style={{
-          width: 80,
-          height: 80,
+          width: ECO_BUBBLE_SIZE,
+          height: ECO_BUBBLE_SIZE,
           borderRadius: '50%',
           background: [
             'radial-gradient(circle at 34% 28%, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.0) 36%)',
@@ -61,10 +63,10 @@ function FloatingChart({ data, chartId, labelColor, isEmpty }: FloatingChartProp
           maxIndex={maxIndex}
           chartId={chartId}
           labelColor={labelColor}
-          size={ECO_CHART_SIZE}
-          innerRadius={27}
-          outerRadius={57}
-          fontSize={10.5}
+          size={ECO_BUBBLE_SIZE}
+          innerRadius={ECO_CHART_INNER_RADIUS}
+          outerRadius={ECO_CHART_OUTER_RADIUS}
+          fontSize={ECO_CHART_FONT_SIZE}
         />
       )}
     </div>

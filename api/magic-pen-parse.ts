@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { MAGIC_PEN_PROMPT_EN, MAGIC_PEN_PROMPT_IT, MAGIC_PEN_PROMPT_ZH } from '../src/server/magic-pen-prompts.js';
+import { assessMagicPenResult } from '../src/server/magic-pen-quality.js';
 
 type MagicPenKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 type MagicPenConfidence = 'high' | 'medium' | 'low';
@@ -26,10 +27,8 @@ interface MagicPenAIResult {
 }
 
 const STRICT_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const AI_PARSE_FAILURE_TEXT = '（AI 解析失败，请手动录入）';
-
 type MagicPenParseStrategy = 'direct_json' | 'wrapped_object' | 'fallback_failed';
-type MagicPenProvider = 'zhipu' | 'qwen_flash_fallback';
+type MagicPenProvider = 'zhipu' | 'qwen';
 
 type ProviderFailureReason =
   | 'timeout'
@@ -37,6 +36,7 @@ type ProviderFailureReason =
   | 'empty_content'
   | 'invalid_payload'
   | 'parse_failed'
+  | 'low_quality'
   | 'exception';
 
 interface ParsedMagicPenAIResponse {
@@ -68,7 +68,7 @@ type MagicPenFailureCategory = 'model_output_invalid' | 'provider_call_failed' |
 
 const ZHIPU_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const DEFAULT_QWEN_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_FALLBACK_MODEL = 'qwen-flash';
+const DEFAULT_QWEN_MODEL = 'qwen-plus';
 const PRIMARY_TIMEOUT_MS = 12000;
 const FALLBACK_TIMEOUT_MS = 12000;
 
@@ -108,6 +108,15 @@ function getTimeoutMs(value: string | undefined, fallbackMs: number): number {
 function normalizeBaseUrl(baseUrl: string | undefined): string {
   const value = (baseUrl || DEFAULT_QWEN_BASE_URL).trim();
   return value.replace(/\/+$/, '');
+}
+
+function resolveQwenModel(): string {
+  const current = process.env.MAGIC_PEN_MODEL?.trim();
+  if (current) return current;
+
+  const legacy = process.env.MAGIC_PEN_FALLBACK_MODEL?.trim();
+  if (legacy && legacy !== 'qwen-flash') return legacy;
+  return DEFAULT_QWEN_MODEL;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -224,7 +233,7 @@ function sanitizeSegment(segment: unknown): MagicPenAISegment | null {
 
 function normalizeAIResult(input: unknown): MagicPenAIResult {
   if (!input || typeof input !== 'object') {
-    return { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] };
+    return { segments: [], unparsed: [] };
   }
   const payload = input as Record<string, unknown>;
   const segments = Array.isArray(payload.segments)
@@ -238,7 +247,7 @@ function normalizeAIResult(input: unknown): MagicPenAIResult {
 
 function inferFailureCategory(attempts: ProviderCallFailure[]): MagicPenFailureCategory {
   if (attempts.length === 0) return 'unknown';
-  if (attempts.some((item) => item.reason === 'parse_failed')) {
+  if (attempts.some((item) => item.reason === 'parse_failed' || item.reason === 'low_quality')) {
     return 'model_output_invalid';
   }
   return 'provider_call_failed';
@@ -267,7 +276,7 @@ function parseMagicPenAIResponse(raw: string): ParsedMagicPenAIResponse {
   }
 
   return {
-    data: { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] },
+    data: { segments: [], unparsed: [] },
     strategy: 'fallback_failed',
   };
 }
@@ -297,7 +306,7 @@ async function callProvider(
           { role: 'user', content: rawText },
         ],
         temperature: 0.2,
-        max_tokens: 1024,
+        max_tokens: 2048,
         stream: false,
       }),
     }, timeoutMs);
@@ -333,6 +342,18 @@ async function callProvider(
       return buildProviderFailure(provider, elapsedMs, 'parse_failed', {
         status: response.status,
         details: summarizeTextLength(raw),
+      });
+    }
+
+    const quality = assessMagicPenResult(rawText, parsed.data);
+    if (!quality.ok) {
+      return buildProviderFailure(provider, elapsedMs, 'low_quality', {
+        status: response.status,
+        details: [
+          quality.failure,
+          `total:${quality.totalCoverage.toFixed(2)}`,
+          `recognized:${quality.recognizedCoverage.toFixed(2)}`,
+        ].join(','),
       });
     }
 
@@ -430,14 +451,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const providerAttempts: ProviderCallFailure[] = [];
 
-    const fallbackModel = (process.env.MAGIC_PEN_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL).trim() || DEFAULT_FALLBACK_MODEL;
+    const fallbackModel = resolveQwenModel();
     const fallbackBaseUrl = process.env.QWEN_BASE_URL || process.env.DASHSCOPE_BASE_URL;
     const fallbackApiUrl = `${normalizeBaseUrl(fallbackBaseUrl)}/chat/completions`;
     const fallbackTimeoutMs = getTimeoutMs(process.env.MAGIC_PEN_FALLBACK_TIMEOUT_MS, FALLBACK_TIMEOUT_MS);
 
     if (fallbackApiKey) {
       const fallbackResult = await callProvider(
-        'qwen_flash_fallback',
+        'qwen',
         fallbackApiUrl,
         fallbackApiKey,
         fallbackModel,
@@ -559,7 +580,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(200).json({
       success: true,
-      data: { segments: [], unparsed: [AI_PARSE_FAILURE_TEXT] },
+      data: { segments: [], unparsed: [rawText] },
       raw: '',
       traceId,
       parseStrategy: 'fallback_failed',

@@ -13,7 +13,140 @@ All notable effective changes are documented here.
 
 > Note: 仅保留近期变更；更早且已收口记录已归档清理，避免维护噪音。
 
+## 2026-07-24
+
+### Fix: Magic Pen keeps multilingual complex input intact
+
+- Complex Magic Pen requests now default to Qwen `qwen-plus` through the existing DashScope endpoint and fall back to Zhipu `glm-4.7-flash`; no provider or Serverless function was added.
+- Parseable JSON must also pass semantic quality checks for non-empty extraction, total/recognized original-text coverage, explicit time-anchor preservation, and minimum splitting of complex multi-clause input.
+- Low-quality output triggers the second provider instead of being reported as success. When all providers fail, the response returns the complete submitted text in `unparsed` rather than a fixed Chinese failure placeholder.
+- Frontend preprocessing no longer slices input at 500 characters. Remote failure invokes the existing safe local parser and preserves any unrecovered original text in the existing localized review surface.
+- The remote-failure parser now uses one conservative ZH/EN/IT semantic pipeline instead of Chinese substring rules plus an all-or-nothing non-Chinese branch. It separates clauses, reuses shared activity/mood lexicons, and distinguishes realtime, past, future, intent, wish, negation, and cross-day evidence.
+- Todo recovery now requires both a plan/duty/time signal and recognizable action evidence. Chinese `得` only acts as duty in an action context, so phrases such as `工作得有点烦了` and `觉得累` cannot become todos; ambiguous wishes remain unparsed.
+- English and Italian mixed notes can recover explicit current activity/mood, future todos, and past activity backfills locally while vague phrases such as `maybe later` remain untouched.
+- High-confidence realtime auto-write rules are unchanged; uncertain content remains review-only.
+- No user-visible static copy or translation source changed.
+
+Validation:
+
+- `npx vitest run src/services/input/magicPenParserLocalFallback.test.ts src/services/input/magicPenParser.remoteFallback.test.ts src/services/input/magicPenTodoSalvage.test.ts src/server/magic-pen-quality.test.ts src/server/magic-pen-parse.test.ts --exclude '.claude/**'` (30 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- `npx vitest run --exclude '.claude/**'` (781 passed, 14 pre-existing failures: timezone-sensitive Magic Pen period assertions plus unrelated companion prompt, DB mapper, chat persistence/mood, reminder, and annotation tests)
+- `npm run test:unit` also scans stale `.claude/worktrees` copies and therefore duplicates their outdated Magic Pen/provider assertions and other historical failures.
+
+### Style: Report eco-sphere charts use one 140px footprint
+
+- Activity and mood eco-sphere charts above the Report soil are reduced from `150px` to `140px`.
+- Empty transparent bubbles now use the same `140px` dimensions instead of the former `80px`, so empty and populated states occupy the same visible footprint.
+- Motion bounds, collision separation, ring radii, and label size follow the shared bubble dimension; data logic, colors, and movement behavior are unchanged.
+
+### Fix: Observation diaries finish their final sentence and detail analysis shows in full
+
+- Full `/api/diary` generation no longer slices Chinese at 260 characters or English/Italian at 170 words after generation.
+- The prompt now treats length as a soft 2-4 paragraph target. A provider token stop or missing final punctuation triggers one concise regeneration; if that result is still incomplete, the API returns an error instead of persisting a dangling sentence.
+- Diary detail removes the two-line clamp from activity, mood, todo, and habit analysis. Each section has a stable minimum height, and the first page scrolls vertically on shorter screens.
+- Todo completion such as `7/14` and habit star count remain separate subdued statistic lines below their complete analysis text.
+- Existing generated diary storage remains `reports.ai_analysis`; no historical observation was rewritten and no new static user-visible translation was added.
+
+Validation:
+
+- `npx vitest run src/server/diary-body-integrity.test.ts src/features/report/reportObservation.test.ts src/store/reportRecordResolver.test.ts` (11 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- Browser verification: July 23 detail shows the complete activity/mood/todo/habit analysis without a line clamp, keeps `7/14` and `0 颗星` as separate statistic lines, and emits no console errors.
+
+### Fix: Generated observation diaries remain immutable across startup and navigation
+
+- Startup yesterday-repair now checks the report before and after message loading and never rebuilds a report that already has `aiAnalysis` or `teaserText`.
+- `generateReport()` returns an existing generated report unchanged, and `updateReport()` preserves its stored full/teaser diary plus frozen first-page snapshot when a later sparse or conflicting update arrives.
+- Persist hydration, cloud fetch, Supabase Realtime, Report navigation, and Diary Book page construction now share one same-day report resolver. Generated records beat placeholders; duplicate generated records with snapshots select the earliest frozen generation deterministically.
+- Diary Book and Report detail now share the same observation-text resolver, companion-aware existing loading key, and existing localized fallback source, so temporary state cannot select two unrelated default paragraphs.
+- Existing cloud rows are not deleted. The client deterministically ignores non-preferred duplicates, avoiding destructive cleanup while preventing view-to-view switching.
+- Storage remains `reports.ai_analysis` / `reports.teaser_text`; no new user-visible copy or machine translation was added.
+
+Validation:
+
+- `npx vitest run src/store/reportRecordResolver.test.ts src/store/useReportStore.test.ts src/features/report/reportObservation.test.ts src/features/report/reportPageHelpers.test.ts src/features/report/reportPage.integration.test.tsx src/store/reportDiarySnapshot.test.ts src/hooks/useRealtimeSync.test.ts --exclude '.claude/**'` (23 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- Browser verification: after an 8-second post-reload startup cycle, the July 23 Diary Book observation remained byte-for-byte identical; double-opening detail produced the same 275-character AI body, with no page console errors.
+
+### Fix: Diary todo and habit insights keep complete phrases
+
+- `/api/diary` short insights no longer apply an unconditional 20-character slice to every language. English and Italian are compacted at whole-word boundaries to at most eight words; Chinese keeps its 20-character card budget with sentence punctuation.
+- Daily first-page snapshots now write version 2 and share the same compaction rule as the server, preventing a second frontend hard cut.
+- Existing version-1 snapshots upgrade once using only their frozen todo/habit counts. Successful upgrades replace legacy clipped summaries and remain immutable afterward.
+- Diary detail gives the summary up to two lines while keeping completion/star counts on a separate compact line; Diary Book also preserves normal word boundaries inside its two-line area.
+- Storage remains `reports.stats.diaryPageSnapshot`; short insights remain AI-generated in the selected ZH/EN/IT language. No new static user-visible copy or machine-translated copy was added.
+
+Validation:
+
+- `npx vitest run src/lib/diaryInsightText.test.ts src/store/reportDiarySnapshot.test.ts src/features/report/reportPage.integration.test.tsx --exclude '.claude/**'` (10 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+- Browser verification: July 23 Diary detail shows complete todo/habit summary phrases with their `7/14` and star count on separate lines; no page console errors were emitted.
+
+### Fix: Diary header parity, long-press card save, and plant preloading
+
+- The persistent detail header now matches the original Report controls exactly: Calendar is `44x44`, Diary Book is a `44px`-high icon-and-text button, and the title shifts left only on narrow viewports to prevent overlap.
+- A stationary 650ms long press on the card-only popup saves/shares the currently visible side through the existing export path, provides haptic confirmation, and suppresses the subsequent click so the card does not also flip.
+- Historical plant state now lives in `usePlantStore` as one account-scoped date cache shared by Diary detail and Diary Book. Month requests are deduplicated and awaited before the viewer opens, while background reconciliation preserves already-rendered plants.
+- Cross-midnight stale `todayPlant` records are excluded from the current-day fast path, preventing an older local record from replacing a complete historical cloud snapshot.
+- Successful diary generation now stores an immutable `stats.diaryPageSnapshot` with activity/mood chart inputs, todo/habit counts, and all four analysis strings. Both diary surfaces read the same snapshot and no longer regenerate short insights or recalculate the first page from later activity, mood, todo, or habit changes.
+- Existing generated diaries build and persist one deterministic compatibility snapshot from their already-stored report stats; the previously generated transient todo/habit wording was never stored and therefore cannot be reconstructed.
+- No user-visible copy or translation source changed.
+
+Validation:
+
+- `npx vitest run src/store/reportDiarySnapshot.test.ts src/store/usePlantStore.history.test.ts src/store/usePlantStore.test.ts src/store/usePlantStore.direction-sync.test.ts src/features/report/reportPageHelpers.test.ts src/features/report/reportPage.integration.test.tsx --exclude '.claude/**'` (18 passed)
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- Browser verification: original header controls measure `44x44` and `108x44`; after closing and reopening July Diary Book, the July 23 plant is complete in the first visible viewer state; Diary detail and viewer show the same frozen first-page analysis before and after waiting; normal card tap still flips to the complete frozen root back.
+
 ## 2026-07-23
+
+### Fix: Generated diary becomes the stable report landing page
+
+- A generated today diary or free teaser is selected during `ReportPage`'s first render, eliminating the plant-card frame that previously appeared before the `open-today-diary` effect ran.
+- Bottom navigation now always targets `/report`; the report route owns the synchronous choice between its pre-diary plant/root surface and persistent today-detail surface.
+- Starting diary generation enters detail page 2 immediately and stays under user-controlled two-page swiping; the former two-second automatic slide is removed.
+- Persistent today detail renders inside the report page frame so bottom navigation remains reachable, and its centered header retains both Calendar and Diary Book controls instead of exposing a close path back to the plant surface.
+- The Calendar overlay now renders independently of the pre-diary plant-page branch, allowing the restored detail-header control to open the same historical-date flow.
+- Tapping the detail plant image opens only the frozen flippable card centered over the backdrop; the full-sheet shell and save action are omitted in this context, while card close, flip, frozen roots, and backdrop return remain unchanged.
+
+Validation:
+
+- `npx vitest run src/features/report/reportPageHelpers.test.ts src/features/report/reportPage.integration.test.tsx --exclude '.claude/**'`
+- `npm run lint:all`
+- `npm run lint:state-consistency`
+- `npm run build`
+- `git diff --check`
+
+### Fix: Generated plant cards now honor their irreversible snapshot
+
+- The localized plant registry name and date now sit together at the center of the front card's bottom metadata row with a compact gap and the same subdued styling; saved front-card exports use the same layout, and the former external line is removed.
+- Report plant generation now opens the existing translated irreversible confirmation for both the page button and evening-reminder deep link before any API request starts.
+- `/api/plant-generate` persists a root snapshot in the existing `daily_plant_records.root_metrics` JSONB value, including deterministic root segments, direction order, and activity detail fields used by the card back.
+- Generated cards read only the saved snapshot, so later activity edits/deletes and direction-setting changes do not alter an existing card on the same or another device.
+- Existing records without a snapshot use `action: snapshot_existing` on the same endpoint to freeze their current cloud reconstruction when first opened; no new Serverless function or SQL migration is required.
+- Plus plant observation prompts now target 24-40 Chinese characters or 14-22 English/Italian words with a 140-character ceiling. Oversized AI output retries and then falls back; historical long copy uses a complete-sentence-first compact renderer without changing the stored original.
+- No new user-visible copy or machine translation was added; confirmation reuses `plant_generate_confirm`, `confirm`, and `cancel`.
+
+Validation:
+
+- `npx vitest run src/lib/plantDiaryText.test.ts src/lib/plantRootSnapshot.test.ts src/lib/dbPlantSnapshot.test.ts src/lib/rootRenderer.test.ts src/features/report/plant/plantGenerateUi.test.ts --exclude '.claude/**'` (20 passed)
+- `npx tsc --noEmit`
+- Full unit run excluding `.claude/**`: 735 passed, 15 unrelated existing failures; focused plant tests pass.
 
 ### Fix: Mood foreign-key retries stop after verified parent cleanup
 
@@ -66,6 +199,16 @@ Validation:
 - Browser smoke check reached the local app successfully; authenticated Growth-page interaction remains for iOS/device verification.
 
 ## 2026-07-20
+
+### Fix: IAP transaction listener avoids Swift 6 captured-self warning
+
+- `ios/App/App/SeedayIAPPlugin.swift`: changes the StoreKit transaction update listener from `Task.detached` plus nested `MainActor.run` self capture to a background-priority `Task` that calls a `@MainActor` notification helper, removing the Xcode Swift concurrency warning without changing purchase, restore, or transaction payload behavior.
+
+Validation:
+
+- `npm run lint:docs-sync`
+- `git diff --check`
+- Xcode command-line build was not run because local Xcode cache/simulator access requires approval; verify once in Xcode after this patch.
 
 ### Refactor: Split Todo store sync helpers out of the main store file
 

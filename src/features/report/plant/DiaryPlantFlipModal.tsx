@@ -15,8 +15,10 @@ interface Props {
 
 export const DiaryPlantFlipModal: React.FC<Props> = ({ plant, dayMessages, onClose }) => {
   const directionOrder = usePlantStore(state => state.directionOrder);
+  const cardDirectionOrder = plant.rootSnapshot?.directionOrder ?? directionOrder;
 
   const segments = useMemo(() => {
+    if (plant.rootSnapshot) return plant.rootSnapshot.segments;
     const dayStart = new Date(`${plant.date}T00:00:00`).getTime();
     const dayEnd = dayStart + 86_400_000;
     const nowMs = Date.now();
@@ -51,7 +53,7 @@ export const DiaryPlantFlipModal: React.FC<Props> = ({ plant, dayMessages, onClo
         <PlantFlipCard
           plant={plant}
           segments={segments}
-          directionOrder={directionOrder}
+          directionOrder={cardDirectionOrder}
           onClose={onClose}
         />
       </div>

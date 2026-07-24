@@ -17,6 +17,10 @@ import { DayEcoSphere } from './DayEcoSphere';
 import {
   APP_GREEN_GLASS_BUTTON_STYLE,
   APP_GREEN_GLASS_TEXT,
+  APP_MODAL_CARD_CLASS,
+  APP_MODAL_OVERLAY_CLASS,
+  APP_MODAL_PRIMARY_BUTTON_CLASS,
+  APP_MODAL_SECONDARY_BUTTON_CLASS,
 } from '../../../lib/modalTheme';
 
 const SOIL_CANVAS_TOP_OFFSET_PX = 106;
@@ -57,6 +61,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   const todayPlant = usePlantStore(state => state.todayPlant);
   const isPlantGenerating = usePlantStore(state => state.isGenerating);
   const generatePlant = usePlantStore(state => state.generatePlant);
+  const ensureTodayRootSnapshot = usePlantStore(state => state.ensureTodayRootSnapshot);
   const selectedRootId = usePlantStore(state => state.selectedRootId);
   const directionOrder = usePlantStore(state => state.directionOrder);
   const loadTodayData = usePlantStore(state => state.loadTodayData);
@@ -73,6 +78,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   const [diaryStatusHint, setDiaryStatusHint] = useState<string | null>(null);
   const [isDiaryGenerating, setIsDiaryGenerating] = useState(false);
   const [showEarlyCard, setShowEarlyCard] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
   const activeDiaryReportIdRef = useRef<string | null>(null);
   const pendingDiaryReportIdRef = useRef<string | null>(null);
   const plantActionsRef = useRef<HTMLDivElement | null>(null);
@@ -202,6 +208,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
   // When plant is locked, the store clears todaySegments (refreshTodaySegments returns early).
   // Recompute from messages so the flip card back can display the root system.
   const flipCardSegments = useMemo(() => {
+    if (todayPlant?.rootSnapshot) return todayPlant.rootSnapshot.segments;
     if (todaySegments.length > 0) return todaySegments;
     if (!todayPlant) return [];
     const now = new Date();
@@ -222,6 +229,12 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
       `plant-${todayPlant.date}`,
     );
   }, [todayPlant, todaySegments, messages, directionOrder]);
+  const flipCardDirectionOrder = todayPlant?.rootSnapshot?.directionOrder ?? directionOrder;
+
+  useEffect(() => {
+    if (!todayPlant || todayPlant.rootSnapshot) return;
+    void ensureTodayRootSnapshot();
+  }, [ensureTodayRootSnapshot, todayPlant]);
 
   const messageMap = useMemo(() => {
     const map = new Map<string, {
@@ -284,11 +297,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
     isTooEarly: plantIsTooEarly,
   });
 
-  const handleGeneratePlant = useCallback(async () => {
-    if (plantIsTooEarly) {
-      setShowEarlyCard(prev => !prev);
-      return;
-    }
+  const executeGeneratePlant = useCallback(async () => {
     playLoopSound('plantGrow');
     try {
       const response = await generatePlant();
@@ -302,7 +311,15 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
       stopSound('plantGrow');
       setPlantStatusHint(t('plant_generate_failed'));
     }
-  }, [generatePlant, plantIsTooEarly, t]);
+  }, [generatePlant, t]);
+
+  const handleGeneratePlant = useCallback(() => {
+    if (plantIsTooEarly) {
+      setShowEarlyCard(prev => !prev);
+      return;
+    }
+    setShowGenerateConfirm(true);
+  }, [plantIsTooEarly]);
 
   const handleGenerateDiary = useCallback(async () => {
     if (diaryAlreadyGenerated) {
@@ -367,7 +384,7 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
         <PlantFlipCard
           plant={todayPlant}
           segments={flipCardSegments}
-          directionOrder={directionOrder}
+          directionOrder={flipCardDirectionOrder}
           onGenerateDiary={handleOpenDiaryFromPlant}
           isGeneratingDiary={isDiaryGenerating}
           isDiaryButtonDisabled={!canGenerateDiary}
@@ -469,6 +486,39 @@ export const PlantRootSection: React.FC<PlantRootSectionProps> = ({
           </div>
         )}
       </div>
+
+      {showGenerateConfirm ? (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center p-6 ${APP_MODAL_OVERLAY_CLASS}`}
+          onClick={() => setShowGenerateConfirm(false)}
+        >
+          <div
+            className={`${APP_MODAL_CARD_CLASS} w-full max-w-xs rounded-3xl p-6 text-center`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-sm leading-6 text-slate-700">{t('plant_generate_confirm')}</p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                className={`${APP_MODAL_SECONDARY_BUTTON_CLASS} flex-1 py-2.5 text-sm`}
+                onClick={() => setShowGenerateConfirm(false)}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                className={`${APP_MODAL_PRIMARY_BUTTON_CLASS} flex-1 py-2.5 text-sm`}
+                onClick={() => {
+                  setShowGenerateConfirm(false);
+                  void executeGeneratePlant();
+                }}
+              >
+                {t('confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className="px-4 pt-2"

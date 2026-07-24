@@ -46,6 +46,48 @@ describe('useReportStore regeneration persistence', () => {
     expect(useReportStore.getState().reports[0].id).toBe(firstId);
   });
 
+  it('does not regenerate or clear an already generated daily diary', async () => {
+    const date = new Date('2026-03-20T12:00:00Z').getTime();
+    useReportStore.setState({
+      reports: [{
+        id: 'generated-report',
+        title: 'Today',
+        date,
+        type: 'daily',
+        content: 'Generated report',
+        aiAnalysis: 'Original immutable diary',
+        analysisStatus: 'success',
+        stats: { completedTodos: 0, totalTodos: 0, completionRate: 0 },
+      }],
+    });
+
+    const reportId = await useReportStore.getState().generateReport('daily', date);
+
+    expect(reportId).toBe('generated-report');
+    expect(useReportStore.getState().reports[0].aiAnalysis).toBe('Original immutable diary');
+    expect(useOutboxStore.getState().entries).toEqual([]);
+  });
+
+  it('rejects an update that tries to replace generated diary text', async () => {
+    useReportStore.setState({
+      reports: [{
+        id: 'generated-report',
+        title: 'Today',
+        date: new Date('2026-03-20T12:00:00Z').getTime(),
+        type: 'daily',
+        content: 'Generated report',
+        aiAnalysis: 'Original immutable diary',
+        analysisStatus: 'success',
+      }],
+    });
+
+    await useReportStore.getState().updateReport('generated-report', {
+      aiAnalysis: 'Replacement diary',
+    });
+
+    expect(useReportStore.getState().reports[0].aiAnalysis).toBe('Original immutable diary');
+  });
+
   it('queues full report upsert when updateReport runs without session', async () => {
     useReportStore.setState({
       reports: [{

@@ -1,5 +1,6 @@
 import type { AIAnnotation } from '../types/annotation';
 import type { DailyPlantRecord } from '../types/plant';
+import { parsePlantRootSnapshot } from './plantRootSnapshot';
 import type { StardustMemory } from '../types/stardust';
 import { normalizeActivityType, normalizeTodoCategory } from './activityType';
 import type { Message, MessageType, MoodDescription } from '../store/useChatStore';
@@ -338,6 +339,7 @@ export function fromDbPlantRecord(row: any): DailyPlantRecord {
     isSpecial: Boolean(row.is_special),
     isSupportVariant: Boolean(row.is_support_variant),
     diaryText: row.diary_text ?? undefined,
+    rootSnapshot: parsePlantRootSnapshot(row.root_metrics?.root_snapshot),
     generatedAt: row.generated_at ? new Date(row.generated_at).getTime() : Date.now(),
     cycleId: row.cycle_id ?? null,
   };
@@ -358,6 +360,7 @@ export function toDbPlantRecord(record: DailyPlantRecord, userId: string): Recor
       total_minutes: record.rootMetrics.totalMinutes,
       active_target_directions: record.rootMetrics.activeTargetDirections,
       direction_breakdown: record.rootMetrics.directionBreakdown,
+      root_snapshot: record.rootSnapshot ?? null,
     },
     root_type: record.rootType,
     plant_id: record.plantId,

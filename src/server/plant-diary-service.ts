@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, type AiCompanionMode } from '../lib/aiCompanion.js';
 import { removeThinkingTags } from '../lib/aiParser.js';
+import { isPlantDiaryTextWithinCardLimit } from '../lib/plantDiaryText.js';
 import type { PlantEntry } from '../lib/plantRegistry.js';
 import type { PlantCategoryKey, PlantDiaryRequest, RootType } from '../types/plant.js';
 
@@ -108,7 +109,7 @@ function buildPromptZh(input: PlantDiaryServiceInput, modeHint: string): string 
     '请按以下顺序思考，只输出最终JSON，不输出思考过程：',
     '1. 从候选植物中选一株，说明选它的理由，理由必须基于这株植物的花语、外观形态、生长习性、生长环境之一。',
     '2. 找出“植物的这个特性”和“今天这个人最值得被看见的那一层”之间最准确的交叉点。这一层可以是某个细节、今天整体的节奏感、某种贯穿全天的状态，也可以是这个人一贯品质在今天的体现。选其中和这株植物最意外或最准确的那个交叉点，只说那一处。',
-    '3. 用第二人称“你”落笔，20到60字，语气自然诗意。',
+    '3. 用第二人称“你”落笔，24到40字，语气自然诗意，确保能完整显示在植物卡片上。',
     '',
     '硬性规则：',
     '• plantId 必须来自候选植物列表，不得自造。',
@@ -141,7 +142,7 @@ function buildPromptEn(input: PlantDiaryServiceInput, modeHint: string): string 
     'Think in this order. Output final JSON only. Do not output your reasoning:',
     '1. Choose one plant from the candidate list. Your reason must be based on at least one of: floriography/symbolism, visible morphology, growth habit, or habitat.',
     '2. Find the most accurate intersection between that plant trait and the most worth-seeing layer of today\'s person: a specific detail, the day\'s overall rhythm, a state that ran through the whole day, or a long-term trait revealed today. Pick only one intersection, the most precise or unexpectedly fitting one.',
-    '3. Write in second person ("you"), 20-60 words, natural and poetic.',
+    '3. Write in second person ("you"), 14-22 words and no more than 140 characters, natural and poetic.',
     '',
     'Hard rules:',
     '• plantId must come from the candidate list; do not invent IDs.',
@@ -174,7 +175,7 @@ function buildPromptIt(input: PlantDiaryServiceInput, modeHint: string): string 
     'Pensa in questo ordine. Restituisci solo JSON finale, senza il ragionamento:',
     '1. Scegli una pianta dalla lista candidata. Il motivo deve basarsi su almeno uno tra: linguaggio dei fiori/simbolismo, morfologia visibile, abitudine di crescita o habitat.',
     '2. Trova il punto di incrocio più preciso tra quel tratto della pianta e lo strato più degno di essere visto nella persona di oggi: un dettaglio, il ritmo complessivo della giornata, uno stato trasversale, oppure una qualità abituale emersa oggi. Scegline uno solo, il più accurato o sorprendentemente adatto.',
-    '3. Scrivi in seconda persona ("tu"), 20-60 parole, tono naturale e poetico.',
+    '3. Scrivi in seconda persona ("tu"), 14-22 parole e non oltre 140 caratteri, con tono naturale e poetico.',
     '',
     'Regole vincolanti:',
     '• plantId deve provenire dalla lista candidata; non inventare ID.',
@@ -214,6 +215,7 @@ function parseAiResponse(
 ): { text: string; chosenPlantId: string } {
   const fallbackPlantId = availablePlants[0]?.id ?? 'sha_early_0001';
   const validIds = availablePlants.map(p => p.id);
+  let resolved: { text: string; chosenPlantId: string };
   try {
     const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(clean) as { plantId?: unknown; text?: unknown };
@@ -226,14 +228,18 @@ function parseAiResponse(
     const rawPlantId = typeof parsed.plantId === 'string' ? parsed.plantId.trim() : '';
     const chosenPlantId = validIds.includes(rawPlantId) ? rawPlantId : fallbackPlantId;
 
-    return { text: normalizePlantDiaryAddressee(text, lang), chosenPlantId };
+    resolved = { text: normalizePlantDiaryAddressee(text, lang), chosenPlantId };
   } catch {
     const stripped = raw.replace(/^\s*\{[^}]*"text"\s*:\s*"/, '').replace(/"\s*\}.*$/s, '').trim();
-    return {
+    resolved = {
       text: normalizePlantDiaryAddressee(stripped || raw.slice(0, 120), lang),
       chosenPlantId: fallbackPlantId,
     };
   }
+  if (!isPlantDiaryTextWithinCardLimit(resolved.text, lang)) {
+    throw new Error('plant diary text exceeds card limit');
+  }
+  return resolved;
 }
 
 function containsGenericUserRefs(content: string, lang: Lang): boolean {

@@ -37,6 +37,22 @@ export interface RootMetrics {
   directionBreakdown: Partial<Record<PlantCategoryKey, DirectionBreakdownItem>>;
 }
 
+export interface PlantRootSnapshotActivity {
+  id: string;
+  content: string;
+  activityType?: string | null;
+  timestamp: number;
+  categoryKey: PlantCategoryKey;
+  minutes: number;
+  focus: FocusLevel;
+}
+
+export interface PlantRootSnapshot {
+  directionOrder: PlantCategoryKey[];
+  segments: RootSegment[];
+  activities: PlantRootSnapshotActivity[];
+}
+
 export interface DailyPlantRecord {
   id: string;
   userId: string;
@@ -49,6 +65,7 @@ export interface DailyPlantRecord {
   isSpecial: boolean;
   isSupportVariant: boolean;
   diaryText?: string;
+  rootSnapshot?: PlantRootSnapshot;
   generatedAt: number;
   cycleId?: string | null;
 }
@@ -71,6 +88,7 @@ export type PlantApiStatus = 'too_early' | 'empty_day' | 'generated' | 'already_
 export interface PlantGenerateRequest {
   date: string;
   timezone: string;
+  action?: 'generate' | 'snapshot_existing';
   dayStartMs?: number;
   dayEndMs?: number;
   lang?: 'zh' | 'en' | 'it';

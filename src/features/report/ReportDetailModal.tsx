@@ -8,15 +8,18 @@ import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useGrowthStore } from '../../store/useGrowthStore';
+import { resolveCachedPlantForDate, usePlantStore } from '../../store/usePlantStore';
+import { useReportStore } from '../../store/useReportStore';
 import type { DailyPlantRecord } from '../../types/plant';
 import type { MoodDistributionItem } from './reportPageHelpers';
 import type { ActivityDistributionItem } from './reportPageHelpers';
 import { getDailyActivityDistribution, getDailyMoodDistribution, getMessagesForReport } from './reportPageHelpers';
-import { callPlantGenerateAPI, callPlantHistoryAPI, callShortInsightAPI } from '../../api/client';
+import { callPlantGenerateAPI } from '../../api/client';
 import { getMoodDisplayLabel } from '../../lib/moodOptions';
 import { getPlantDisplayName } from '../../lib/plantDisplayName';
 import { APP_GREEN_GLASS_BUTTON_STYLE } from '../../lib/modalTheme';
 import { computeDailyTodoStats, generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
+import { buildDiaryPageSnapshot, type DiarySnapshotLang } from '../../store/reportDiarySnapshot';
 import { PlantImage } from './plant/PlantImage';
 import growthStarImage from '../../assets/growth/growth-star.png';
 import {
@@ -24,6 +27,11 @@ import {
   ACTIVITY_I18N_KEYS, ACTIVITY_UI_COLORS, MOOD_UI_COLORS,
 } from './DiaryDonutChart';
 import { ReportDetailPageHeader } from './ReportDetailPageHeader';
+import { DIARY_COPY } from './diaryBookViewerData';
+import {
+  getReportCompanionName,
+  resolveReportObservationText,
+} from './reportObservation';
 
 const DIARY_DONUT_SCALE = 0.9;
 const DIARY_DONUT_SIZE = 110 * DIARY_DONUT_SCALE;
@@ -42,8 +50,9 @@ interface ReportDetailModalProps {
   onShowTaskList: (type: 'completed' | 'total') => void;
   generateAIDiary: (reportId: string) => Promise<void>;
   initialPage?: 0 | 1;
-  autoReturnToFirstPageAfterDiaryReady?: boolean;
-  onAutoReturnToFirstPageHandled?: () => void;
+  presentation?: 'modal' | 'page';
+  onOpenCalendar?: () => void;
+  onOpenDiaryBook?: () => void;
   readOnly?: boolean;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
@@ -51,27 +60,6 @@ interface ReportDetailModalProps {
 }
 
 type Lang = 'zh' | 'en' | 'it';
-type ReportGeneratingVariantKey =
-  | 'report_generating_variant_1'
-  | 'report_generating_variant_2'
-  | 'report_generating_variant_3'
-  | 'report_generating_variant_4';
-
-const REPORT_GENERATING_VARIANTS: ReportGeneratingVariantKey[] = [
-  'report_generating_variant_1',
-  'report_generating_variant_2',
-  'report_generating_variant_3',
-  'report_generating_variant_4',
-];
-
-function getCompanionName(mode: string): string {
-  if (mode === 'agnes') return 'Agnes';
-  if (mode === 'zep') return 'Zep';
-  if (mode === 'momo') return 'Momo';
-  return 'Van';
-}
-
-
 const COPY: Record<Lang, {
   pageTitle: string;
   sectionActivity: string;
@@ -84,7 +72,6 @@ const COPY: Record<Lang, {
   moodLine1: string;
   todoFallback: string;
   habitsFallback: string;
-  observationFallback: string;
   diaryPlaceholder: string;
 }> = {
   zh: {
@@ -99,8 +86,6 @@ const COPY: Record<Lang, {
     moodLine1: '整体情绪比较轻松愉快',
     todoFallback: '你今天做得很好',
     habitsFallback: '继续保持，进度很稳',
-    observationFallback:
-      '今天看着这株植物，叶片舒展而有层次，光线落在叶面上很温柔。它安静地生长，也像你今天的状态一样，慢慢变得更稳。愿你继续保持这份耐心与柔软，在自己的节奏里往前走。',
     diaryPlaceholder: '今天还没有写下内容。',
   },
   en: {
@@ -115,8 +100,6 @@ const COPY: Record<Lang, {
     moodLine1: 'Feeling joyful most of the day',
     todoFallback: 'You did great today',
     habitsFallback: 'Nice rhythm, keep going',
-    observationFallback:
-      'Dear friend, I came to your little room today and was drawn to the photos on the windowsill. Its lush green leaves spread out in layers, each one clear and tender under the light. Looking at this plant, I feel your life is quietly growing too, just like it. I hope you always keep this patience and tenderness, with your plants and with yourself.',
     diaryPlaceholder: 'No diary content yet.',
   },
   it: {
@@ -131,20 +114,10 @@ const COPY: Record<Lang, {
     moodLine1: 'Umore positivo per gran parte della giornata',
     todoFallback: 'Hai fatto un ottimo lavoro oggi',
     habitsFallback: 'Continua cosi, ottimo passo',
-    observationFallback:
-      'Oggi, guardando questa pianta, ho visto foglie aperte e piene di vita, illuminate da una luce morbida. Cresce in silenzio, con costanza, proprio come stai facendo tu. Ti auguro di mantenere sempre questa pazienza e questa gentilezza, con le tue piante e con te stessa.',
     diaryPlaceholder: 'Nessun contenuto del diario per ora.',
   },
 };
 
-
-function clampInsightText(raw: string, maxChars = 20): string {
-  const text = raw.trim().replace(/\s+/g, ' ');
-  if (!text) return '';
-  const chars = Array.from(text);
-  if (chars.length <= maxChars) return text;
-  return `${chars.slice(0, maxChars).join('')}…`;
-}
 
 function isLikelyLegacyClampedSummary(text: string): boolean {
   const trimmed = text.trim();
@@ -168,66 +141,6 @@ function shouldUseStoredLocalizedSummary(text: string, lang: Lang): boolean {
   return true;
 }
 
-function toPercent(rate: number): number {
-  if (!Number.isFinite(rate)) return 0;
-  return Math.max(0, Math.min(100, Math.round(rate * 100)));
-}
-
-function buildTodoSummary(params: {
-  lang: Lang;
-  completed: number;
-  total: number;
-  completionRate: number;
-  completedTitles: string[];
-  dominantActivity?: { type: string; percent: number };
-}): string {
-  const {
-    lang,
-    completed,
-    total,
-    completionRate,
-    completedTitles,
-    dominantActivity,
-  } = params;
-  const rate = toPercent(completionRate);
-  const topType = dominantActivity?.type || (lang === 'zh' ? '无' : lang === 'it' ? 'nessuna' : 'none');
-  const topPercent = Math.max(0, Math.min(100, Math.round(dominantActivity?.percent ?? 0)));
-
-  if (lang === 'zh') {
-    const tasks = completedTitles.slice(0, 3).join('、') || '无';
-    return `待办完成${completed}/${total}(${rate}%)；完成项:${tasks}；时间重心:${topType}${topPercent}%`;
-  }
-  if (lang === 'it') {
-    const tasks = completedTitles.slice(0, 3).join(', ') || 'nessuna';
-    return `Todo ${completed}/${total} (${rate}%). Svolte: ${tasks}. Tempo su ${topType} ${topPercent}%.`;
-  }
-  const tasks = completedTitles.slice(0, 3).join(', ') || 'none';
-  return `Todo ${completed}/${total} (${rate}%). Done: ${tasks}. Time focus: ${topType} ${topPercent}%.`;
-}
-
-function buildHabitSummary(params: {
-  lang: Lang;
-  habitDone: number;
-  habitTotal: number;
-  goalDone: number;
-  goalTotal: number;
-  starsToday: number;
-}): string {
-  const { lang, habitDone, habitTotal, goalDone, goalTotal, starsToday } = params;
-  const total = habitTotal + goalTotal;
-  const done = habitDone + goalDone;
-  const rate = total > 0 ? toPercent(done / total) : 0;
-
-  if (lang === 'zh') {
-    return `习惯${habitDone}/${habitTotal}，目标${goalDone}/${goalTotal}，今日星星${starsToday}颗，总体完成${rate}%`;
-  }
-  if (lang === 'it') {
-    return `Abitudini ${habitDone}/${habitTotal}, obiettivi ${goalDone}/${goalTotal}, stelle oggi ${starsToday}, completamento ${rate}%.`;
-  }
-  return `Habits ${habitDone}/${habitTotal}, goals ${goalDone}/${goalTotal}, stars today ${starsToday}, completion ${rate}%.`;
-}
-
-
 function WaveDivider() {
   return (
     <div
@@ -246,9 +159,22 @@ function SectionRow({ left, lines }: { left: React.ReactNode; lines: string[] })
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 8px 1fr' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{left}</div>
       <div />
-      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px', overflow: 'hidden' }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
         {lines.map((line, index) => (
-          <div key={index} className="text-xs leading-relaxed" style={{ color: '#1A1A1A', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{line}</div>
+          <div
+            key={index}
+            style={{
+              color: index === 0 ? '#1A1A1A' : '#737373',
+              fontSize: index === 0 ? '12px' : '11px',
+              lineHeight: index === 0 ? 1.4 : 1.2,
+              whiteSpace: index === 0 ? 'normal' : 'nowrap',
+              overflowWrap: 'break-word',
+              overflow: index === 0 ? 'visible' : 'hidden',
+              textOverflow: index === 0 ? undefined : 'ellipsis',
+            }}
+          >
+            {line}
+          </div>
         ))}
       </div>
     </div>
@@ -266,8 +192,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   onShowTaskList: _onShowTaskList,
   generateAIDiary: _generateAIDiary,
   initialPage,
-  autoReturnToFirstPageAfterDiaryReady = false,
-  onAutoReturnToFirstPageHandled,
+  presentation = 'modal',
+  onOpenCalendar,
+  onOpenDiaryBook,
   readOnly: _readOnly,
   onNavigatePrev,
   onNavigateNext,
@@ -282,17 +209,22 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const todos = useTodoStore((state) => state.todos);
   const bottles = useGrowthStore((state) => state.bottles);
   const aiMode = useAuthStore((state) => state.preferences.aiMode);
+  const userId = useAuthStore((state) => state.user?.id);
+  const selectedReportDay = selectedReport?.date
+    ? format(new Date(selectedReport.date), 'yyyy-MM-dd')
+    : null;
+  const todayPlant = usePlantStore((state) => state.todayPlant);
+  const historyUserId = usePlantStore((state) => state.historyUserId);
+  const historyPlantsByDate = usePlantStore((state) => state.historyPlantsByDate);
+  const loadPlantHistory = usePlantStore((state) => state.loadPlantHistory);
+  const cachePlantRecord = usePlantStore((state) => state.cachePlantRecord);
+  const ensureDiaryPageSnapshot = useReportStore((state) => state.ensureDiaryPageSnapshot);
+  const currentDay = format(new Date(), 'yyyy-MM-dd');
   const pagesRef = useRef<HTMLDivElement | null>(null);
   const [activePage, setActivePage] = useState(initialPage ?? 0);
-  const [todoInsight, setTodoInsight] = useState('');
-  const [habitInsight, setHabitInsight] = useState('');
-  const [dayPlant, setDayPlant] = useState<DailyPlantRecord | null>(null);
   const [diaryActionHint, setDiaryActionHint] = useState<string | null>(null);
   const [isDiaryGenerating, setIsDiaryGenerating] = useState(false);
-  const [reportGeneratingVariantKey, setReportGeneratingVariantKey] =
-    useState<ReportGeneratingVariantKey>(REPORT_GENERATING_VARIANTS[0]);
   const plantAutoAttemptedRef = useRef<Set<string>>(new Set());
-  const autoReturnTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const page = initialPage ?? 0;
@@ -303,20 +235,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     });
   }, [selectedReport?.id, initialPage]);
 
-  useEffect(() => {
-    return () => {
-      if (autoReturnTimeoutRef.current !== null) {
-        window.clearTimeout(autoReturnTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedReport?.analysisStatus !== 'generating') return;
-    const randomIndex = Math.floor(Math.random() * REPORT_GENERATING_VARIANTS.length);
-    setReportGeneratingVariantKey(REPORT_GENERATING_VARIANTS[randomIndex]);
-  }, [selectedReport?.id, selectedReport?.analysisStatus]);
-
   const lang = useMemo<Lang>(() => {
     const raw = i18n.language?.split('-')[0] ?? 'en';
     if (raw === 'zh' || raw === 'it') return raw;
@@ -324,31 +242,60 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [i18n.language]);
 
   const copy = COPY[lang];
-  const dayPlantName = dayPlant ? getPlantDisplayName(dayPlant.plantId, lang) : '';
-
-  const reportMessages = useMemo(
-    () => getMessagesForReport(chatMessages, dateCache, selectedReport),
-    [chatMessages, dateCache, selectedReport],
-  );
-  const activityDistribution = useMemo(
-    () => getDailyActivityDistribution(reportMessages, selectedReport),
-    [reportMessages, selectedReport],
-  );
-  const moodDistribution = useMemo(
-    () => getDailyMoodDistribution(reportMessages, { activityMood, customMoodLabel, customMoodApplied }, selectedReport),
-    [reportMessages, activityMood, customMoodLabel, customMoodApplied, selectedReport],
-  );
-  const dayMinutes = 24 * 60;
-  const isTodayReport = useMemo(
-    () => Boolean(selectedReport?.date && isSameDay(new Date(selectedReport.date), new Date())),
-    [selectedReport?.date],
-  );
+  const visibleDayPlant = selectedReportDay
+    ? resolveCachedPlantForDate(
+      { historyUserId, historyPlantsByDate, todayPlant },
+      userId,
+      selectedReportDay,
+      currentDay,
+    )
+    : null;
+  const dayPlantName = visibleDayPlant ? getPlantDisplayName(visibleDayPlant.plantId, lang) : '';
   const diaryAlreadyGenerated = useMemo(() => {
     if (!selectedReport) return false;
     const fullText = selectedReport.aiAnalysis?.trim();
     const teaserText = selectedReport.teaserText?.trim();
     return isPlus ? Boolean(fullText) : Boolean(teaserText);
   }, [isPlus, selectedReport]);
+  const diaryPageSnapshot = useMemo(() => {
+    if (!selectedReport?.stats || !diaryAlreadyGenerated) return null;
+    return selectedReport.stats.diaryPageSnapshot
+      ?? buildDiaryPageSnapshot(selectedReport.stats, lang as DiarySnapshotLang);
+  }, [diaryAlreadyGenerated, lang, selectedReport?.stats]);
+
+  useEffect(() => {
+    if (
+      !selectedReport
+      || !diaryAlreadyGenerated
+      || selectedReport.stats?.diaryPageSnapshot?.version === 2
+    ) return;
+    ensureDiaryPageSnapshot(selectedReport.id);
+  }, [
+    diaryAlreadyGenerated,
+    ensureDiaryPageSnapshot,
+    selectedReport?.id,
+    selectedReport?.stats?.diaryPageSnapshot,
+  ]);
+
+  const reportMessages = useMemo(
+    () => getMessagesForReport(chatMessages, dateCache, selectedReport),
+    [chatMessages, dateCache, selectedReport],
+  );
+  const activityDistribution = useMemo(
+    () => diaryPageSnapshot
+      ? diaryPageSnapshot.actionAnalysis.map(item => ({ type: item.category, minutes: item.minutes }))
+      : getDailyActivityDistribution(reportMessages, selectedReport),
+    [diaryPageSnapshot, reportMessages, selectedReport],
+  );
+  const moodDistribution = useMemo(
+    () => diaryPageSnapshot?.moodDistribution
+      ?? getDailyMoodDistribution(reportMessages, { activityMood, customMoodLabel, customMoodApplied }, selectedReport),
+    [diaryPageSnapshot, reportMessages, activityMood, customMoodLabel, customMoodApplied, selectedReport],
+  );
+  const isTodayReport = useMemo(
+    () => Boolean(selectedReport?.date && isSameDay(new Date(selectedReport.date), new Date())),
+    [selectedReport?.date],
+  );
   const diaryCanGenerate = useMemo(() => {
     if (!isTodayReport) return false;
     if (new Date().getHours() < 20) return false;
@@ -358,7 +305,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [diaryAlreadyGenerated, isDiaryGenerating, isTodayReport, selectedReport?.analysisStatus]);
 
   const liveTodayTodoStats = useMemo(() => {
-    if (!isTodayReport || !selectedReport?.date) return null;
+    if (diaryPageSnapshot || !isTodayReport || !selectedReport?.date) return null;
     const targetDate = new Date(selectedReport.date);
     const dailyStats = computeDailyTodoStats(
       todos,
@@ -379,30 +326,37 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       goalDoneCount: dailyStats.goalProgress.filter((item) => item.doneToday).length,
       goalTotalCount: dailyStats.goalProgress.length,
     };
-  }, [isTodayReport, selectedReport?.date, todos, bottles]);
+  }, [diaryPageSnapshot, isTodayReport, selectedReport?.date, todos, bottles]);
 
-  const todoCompleted = liveTodayTodoStats?.completed ?? selectedReport?.stats?.completedTodos ?? 0;
-  const todoTotal = liveTodayTodoStats?.total ?? selectedReport?.stats?.totalTodos ?? 0;
-  const todoCompletionRate = todoTotal > 0
-    ? todoCompleted / todoTotal
-    : Math.max(0, Math.min(1, selectedReport?.stats?.completionRate ?? 0));
-  const todoCompletedTitles = liveTodayTodoStats?.oneTimeCompletedTitles ?? selectedReport?.stats?.oneTimeTasks?.completedTitles ?? [];
-  const dominantActivity = useMemo(() => {
-    if (activityDistribution.length === 0) return undefined;
-    const top = activityDistribution.reduce((best, current) => (
-      current.minutes > best.minutes ? current : best
-    ), activityDistribution[0]);
-    return {
-      type: t(ACTIVITY_I18N_KEYS[top.type] || top.type),
-      percent: dayMinutes > 0 ? (top.minutes / dayMinutes) * 100 : 0,
-    };
-  }, [activityDistribution, t]);
-
-  const habitDoneCount = liveTodayTodoStats?.habitDoneCount ?? selectedReport?.stats?.habitCheckin?.filter((item) => item.done).length ?? 0;
-  const habitTotalCount = liveTodayTodoStats?.habitTotalCount ?? selectedReport?.stats?.habitCheckin?.length ?? 0;
-  const goalDoneCount = liveTodayTodoStats?.goalDoneCount ?? selectedReport?.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0;
-  const goalTotalCount = liveTodayTodoStats?.goalTotalCount ?? selectedReport?.stats?.goalProgress?.length ?? 0;
-  const todayStars = habitDoneCount + goalDoneCount;
+  const todoCompleted = diaryPageSnapshot?.todoCompleted
+    ?? liveTodayTodoStats?.completed
+    ?? selectedReport?.stats?.completedTodos
+    ?? 0;
+  const todoTotal = diaryPageSnapshot?.todoTotal
+    ?? liveTodayTodoStats?.total
+    ?? selectedReport?.stats?.totalTodos
+    ?? 0;
+  const todoCompletionRate = diaryPageSnapshot?.todoCompletionRate
+    ?? (todoTotal > 0
+      ? todoCompleted / todoTotal
+      : Math.max(0, Math.min(1, selectedReport?.stats?.completionRate ?? 0)));
+  const habitDoneCount = diaryPageSnapshot?.habitDone
+    ?? liveTodayTodoStats?.habitDoneCount
+    ?? selectedReport?.stats?.habitCheckin?.filter((item) => item.done).length
+    ?? 0;
+  const habitTotalCount = diaryPageSnapshot?.habitTotal
+    ?? liveTodayTodoStats?.habitTotalCount
+    ?? selectedReport?.stats?.habitCheckin?.length
+    ?? 0;
+  const goalDoneCount = diaryPageSnapshot?.goalDone
+    ?? liveTodayTodoStats?.goalDoneCount
+    ?? selectedReport?.stats?.goalProgress?.filter((item) => item.doneToday).length
+    ?? 0;
+  const goalTotalCount = diaryPageSnapshot?.goalTotal
+    ?? liveTodayTodoStats?.goalTotalCount
+    ?? selectedReport?.stats?.goalProgress?.length
+    ?? 0;
+  const todayStars = diaryPageSnapshot?.starsToday ?? habitDoneCount + goalDoneCount;
 
   const handleGenerateDiaryClick = useCallback(async () => {
     if (!selectedReport) return;
@@ -423,54 +377,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     }
   }, [_generateAIDiary, diaryAlreadyGenerated, selectedReport, t]);
 
-  const todoInsightSummary = useMemo(() => {
-    if (todoTotal <= 0) return '';
-    return buildTodoSummary({
-      lang,
-      completed: todoCompleted,
-      total: todoTotal,
-      completionRate: todoCompletionRate,
-      completedTitles: todoCompletedTitles,
-      dominantActivity,
-    });
-  }, [lang, todoCompleted, todoTotal, todoCompletionRate, todoCompletedTitles, dominantActivity]);
-
-  const habitInsightSummary = useMemo(() => {
-    if (habitTotalCount + goalTotalCount <= 0) return '';
-    return buildHabitSummary({
-      lang,
-      habitDone: habitDoneCount,
-      habitTotal: habitTotalCount,
-      goalDone: goalDoneCount,
-      goalTotal: goalTotalCount,
-      starsToday: todayStars,
-    });
-  }, [lang, habitDoneCount, habitTotalCount, goalDoneCount, goalTotalCount, todayStars]);
-
   useEffect(() => {
     let cancelled = false;
-    setTodoInsight('');
-    setHabitInsight('');
-
-    if (todoInsightSummary) {
-      void callShortInsightAPI({ kind: 'todo', summary: todoInsightSummary, lang }).then((text) => {
-        if (!cancelled && text) setTodoInsight(clampInsightText(text, 20));
-      });
-    }
-    if (habitInsightSummary) {
-      void callShortInsightAPI({ kind: 'habit', summary: habitInsightSummary, lang }).then((text) => {
-        if (!cancelled && text) setHabitInsight(clampInsightText(text, 20));
-      });
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedReport?.id, todoInsightSummary, habitInsightSummary, lang]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setDayPlant(null);
 
     const date = selectedReport?.date;
     if (!date) return () => { cancelled = true; };
@@ -486,11 +394,27 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         ? 'it'
         : 'en';
 
-    void callPlantHistoryAPI(dayStr, dayStr)
+    void loadPlantHistory(dayStr, dayStr)
       .then(async (res) => {
         if (cancelled) return;
-        if (res.success && res.records.length > 0) {
-          setDayPlant(res.records[0]);
+        if (res.length > 0) {
+          const existingPlant = res[0];
+          if (existingPlant.rootSnapshot) {
+            return;
+          }
+          try {
+            const snapshotted = await callPlantGenerateAPI({
+              date: dayStr,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+              lang: plantLang,
+              action: 'snapshot_existing',
+            });
+            if (!cancelled) {
+              cachePlantRecord(snapshotted.plant ?? existingPlant, userId);
+            }
+          } catch {
+            if (!cancelled) cachePlantRecord(existingPlant, userId);
+          }
           return;
         }
         if (!isPastDay) return;
@@ -506,27 +430,32 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           });
           if (cancelled) return;
           if (generated.plant) {
-            setDayPlant(generated.plant);
+            cachePlantRecord(generated.plant, userId);
             return;
           }
           if (generated.status === 'generated' || generated.status === 'already_generated') {
-            const refreshed = await callPlantHistoryAPI(dayStr, dayStr);
-            if (!cancelled && refreshed.success && refreshed.records.length > 0) {
-              setDayPlant(refreshed.records[0]);
+            const refreshed = await loadPlantHistory(dayStr, dayStr, true);
+            if (!cancelled && refreshed.length > 0) {
+              cachePlantRecord(refreshed[0], userId);
             }
           }
         } catch {
           // keep placeholder when generation fails or empty day
         }
       })
-      .catch(() => {
-        if (!cancelled) setDayPlant(null);
-      });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [selectedReport?.id, selectedReport?.date, i18n.language]);
+  }, [
+    cachePlantRecord,
+    i18n.language,
+    loadPlantHistory,
+    selectedReport?.date,
+    selectedReport?.id,
+    userId,
+  ]);
 
   const dateLabel = useMemo(() => {
     const date = selectedReport?.date ? new Date(selectedReport.date) : new Date();
@@ -534,36 +463,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     const pattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
     return format(date, pattern, { locale });
   }, [selectedReport?.date, lang]);
-
-  const scrollToPage = useCallback((page: 0 | 1) => {
-    const el = pagesRef.current;
-    if (!el) return;
-    el.scrollTo({ left: page === 1 ? el.clientWidth : 0, behavior: 'smooth' });
-    setActivePage(page);
-  }, []);
-
-  useEffect(() => {
-    if (!autoReturnToFirstPageAfterDiaryReady) return;
-    if (!diaryAlreadyGenerated) return;
-    if (activePage !== 1) {
-      onAutoReturnToFirstPageHandled?.();
-      return;
-    }
-    if (autoReturnTimeoutRef.current !== null) {
-      window.clearTimeout(autoReturnTimeoutRef.current);
-    }
-    autoReturnTimeoutRef.current = window.setTimeout(() => {
-      scrollToPage(0);
-      onAutoReturnToFirstPageHandled?.();
-      autoReturnTimeoutRef.current = null;
-    }, 2000);
-    return () => {
-      if (autoReturnTimeoutRef.current !== null) {
-        window.clearTimeout(autoReturnTimeoutRef.current);
-        autoReturnTimeoutRef.current = null;
-      }
-    };
-  }, [activePage, autoReturnToFirstPageAfterDiaryReady, diaryAlreadyGenerated, onAutoReturnToFirstPageHandled, scrollToPage]);
 
   const onScroll = useCallback(() => {
     const el = pagesRef.current;
@@ -580,31 +479,14 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     (onBack ?? onClose)();
   }, [onNavigatePrev, onBack, onClose]);
 
-  const observationText = useMemo(() => {
-    const isGenerating = selectedReport?.analysisStatus === 'generating';
-    if (isGenerating) {
-      return t(reportGeneratingVariantKey, { companion: getCompanionName(aiMode) });
-    }
-    // Free: show loading state (not fallback) until teaser is generated, to avoid text flicker
-    const isFreeWaitingForTeaser = !isPlus && !selectedReport?.teaserText?.trim() && selectedReport?.analysisStatus !== 'error';
-    if (isFreeWaitingForTeaser) {
-      return t(reportGeneratingVariantKey, { companion: getCompanionName(aiMode) });
-    }
-    const raw = isPlus
-      ? selectedReport?.aiAnalysis?.trim()
-      : selectedReport?.teaserText?.trim();
-    const text = raw && raw.length > 0 ? raw : copy.observationFallback;
-    return text;
-  }, [
-    aiMode,
-    copy.observationFallback,
+  const observationText = resolveReportObservationText({
+    report: selectedReport,
     isPlus,
-    reportGeneratingVariantKey,
-    selectedReport?.aiAnalysis,
-    selectedReport?.analysisStatus,
-    selectedReport?.teaserText,
-    t,
-  ]);
+    loadingText: t('report_generating_variant_1', {
+      companion: getReportCompanionName(aiMode),
+    }),
+    fallbackText: DIARY_COPY[lang].observationFallback,
+  });
   const shouldShowUpgradeMask = !isPlus && selectedReport?.analysisStatus !== 'generating';
 
   const myDiaryText = useMemo(() => {
@@ -641,6 +523,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   }, [moodDistribution, t]);
 
   const actionSummaryText = useMemo(() => {
+    if (diaryPageSnapshot) return diaryPageSnapshot.activitySummary;
     const stored = typeof selectedReport?.stats?.actionSummary === 'string'
       ? selectedReport.stats.actionSummary.trim()
       : '';
@@ -649,9 +532,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     const source = selectedReport?.stats?.actionAnalysis;
     if (!source || source.length === 0) return '';
     return generateActionSummary(source, lang);
-  }, [selectedReport?.stats?.actionSummary, selectedReport?.stats?.actionAnalysis, lang]);
+  }, [diaryPageSnapshot, selectedReport?.stats?.actionSummary, selectedReport?.stats?.actionAnalysis, lang]);
 
   const moodSummaryText = useMemo(() => {
+    if (diaryPageSnapshot) return diaryPageSnapshot.moodSummary;
     const stored = typeof selectedReport?.stats?.moodSummary === 'string'
       ? selectedReport.stats.moodSummary.trim()
       : '';
@@ -660,7 +544,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     const source = selectedReport?.stats?.moodDistribution;
     if (!source || source.length === 0) return '';
     return generateMoodSummary(source, lang);
-  }, [selectedReport?.stats?.moodSummary, selectedReport?.stats?.moodDistribution, lang]);
+  }, [diaryPageSnapshot, selectedReport?.stats?.moodSummary, selectedReport?.stats?.moodDistribution, lang]);
 
   const activityAnalysisLine1 = actionSummaryText || copy.activityLine1;
   const moodAnalysisLine1 = moodSummaryText || copy.moodLine1;
@@ -673,20 +557,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       Math.max(todoCompletionRate > 0 ? 1 : 0, Math.round(todoCompletionRate * todoSegments)),
     )
     : 0;
-  const todoAnalysisLine1 = todoInsight || copy.todoFallback;
+  const todoAnalysisLine1 = diaryPageSnapshot?.todoSummary || copy.todoFallback;
   const todoAnalysisLine2 = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : '';
-  const habitAnalysisLine1 = habitInsight || copy.habitsFallback;
+  const habitAnalysisLine1 = diaryPageSnapshot?.habitSummary || copy.habitsFallback;
   const habitAnalysisLine2 = t('diary_star_count', { count: todayStars });
 
   if (!selectedReport) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[60]"
+      className={presentation === 'page' ? 'absolute inset-0 z-10' : 'fixed inset-0 z-[60]'}
       style={{
         background: '#FFFFFF',
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: presentation === 'page' ? 0 : 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       <div
@@ -705,11 +589,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               title={copy.pageTitle}
               onBack={handleHeaderBack}
               onClose={onClose}
+              onOpenCalendar={onOpenCalendar}
+              onOpenDiaryBook={onOpenDiaryBook}
+              calendarLabel={t('report_calendar_view')}
+              diaryBookLabel={t('report_view_diary_book')}
+              isPrimaryPage={presentation === 'page'}
               onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
             />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflowY: 'auto', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: '1 0 138px', minHeight: '138px', display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionActivity}</div>
                   <SectionRow
                     left={<DonutChart
@@ -728,7 +617,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                 <WaveDivider />
 
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: '1 0 138px', minHeight: '138px', display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionMood}</div>
                   <SectionRow
                     left={<DonutChart
@@ -747,7 +636,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                 <WaveDivider />
 
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: '1 0 138px', minHeight: '138px', display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionTodo}</div>
                   <SectionRow
                     left={(
@@ -763,7 +652,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                 <WaveDivider />
 
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: '1 0 138px', minHeight: '138px', display: 'flex', flexDirection: 'column' }}>
                   <div className="text-sm font-bold" style={{ flexShrink: 0, alignSelf: 'flex-start', padding: '1px 6px' }}>{copy.sectionHabits}</div>
                   <SectionRow
                     left={(
@@ -801,6 +690,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               title={copy.pageTitle}
               onBack={handleHeaderBack}
               onClose={onClose}
+              onOpenCalendar={onOpenCalendar}
+              onOpenDiaryBook={onOpenDiaryBook}
+              calendarLabel={t('report_calendar_view')}
+              diaryBookLabel={t('report_view_diary_book')}
+              isPrimaryPage={presentation === 'page'}
               onNextDate={onNavigateNext && canNavigateNext !== false ? onNavigateNext : undefined}
             />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '12px', paddingLeft: '16px', paddingRight: '16px', overflow: 'hidden', minHeight: 0 }}>
@@ -811,16 +705,16 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingRight: 8 }}>
                     <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                       <div style={{ float: 'left', width: 150, marginRight: 8, background: '#FFFFFF' }}>
-                        {dayPlant ? (
+                        {visibleDayPlant ? (
                           <button
                             type="button"
-                            onClick={() => onOpenPlantCard?.(dayPlant)}
+                            onClick={() => onOpenPlantCard?.(visibleDayPlant)}
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
                           >
                             <PlantImage
-                              plantId={dayPlant.plantId}
-                              rootType={dayPlant.rootType}
-                              plantStage={dayPlant.plantStage}
+                              plantId={visibleDayPlant.plantId}
+                              rootType={visibleDayPlant.rootType}
+                              plantStage={visibleDayPlant.plantStage}
                               imgClassName="w-full h-auto"
                             />
                             {dayPlantName ? (
@@ -927,7 +821,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         className="rounded-full px-5 py-1.5 text-[13px] font-medium transition active:opacity-70 disabled:opacity-55 disabled:cursor-not-allowed"
                         style={APP_GREEN_GLASS_BUTTON_STYLE}
                       >
-                        {isDiaryGenerating ? t('report_generating', { companion: getCompanionName(aiMode) }) : t('report_generate_button')}
+                        {isDiaryGenerating ? t('report_generating', { companion: getReportCompanionName(aiMode) }) : t('report_generate_button')}
                       </button>
                       {diaryActionHint ? (
                         <p className="text-[10px] font-medium text-center" style={{ color: '#5f6f65', margin: 0 }}>

@@ -7,7 +7,7 @@ import {
   type TiltVector,
 } from '../../../services/native/motionService';
 
-const BUBBLE_SIZE = 150;
+export const ECO_BUBBLE_SIZE = 140;
 const EDGE_PADDING = 4;
 const MAX_SPEED = 65;
 const AIR_DRAG = 0.992;
@@ -16,7 +16,7 @@ const DRIFT_STRENGTH = 10;
 const GRAVITY_STRENGTH = 100;
 const SHAKE_GAIN = 0.028;
 const SHAKE_THRESHOLD = 1.7;
-const OVERLAP_THRESHOLD = BUBBLE_SIZE * (2 / 3);
+const OVERLAP_THRESHOLD = ECO_BUBBLE_SIZE * (2 / 3);
 const WANDER_CHANGE_MIN = 1.8;
 const WANDER_CHANGE_MAX = 5.2;
 const WANDER_SMOOTHING = 0.08;
@@ -211,8 +211,8 @@ export function useBubbleMotionController(): BubbleMotionController {
     const el = containerRef.current;
     if (!el) return;
     areaRef.current = { width: el.clientWidth, height: el.clientHeight };
-    const maxX = Math.max(EDGE_PADDING, areaRef.current.width - BUBBLE_SIZE - EDGE_PADDING);
-    const maxY = Math.max(EDGE_PADDING, areaRef.current.height - BUBBLE_SIZE - EDGE_PADDING);
+    const maxX = Math.max(EDGE_PADDING, areaRef.current.width - ECO_BUBBLE_SIZE - EDGE_PADDING);
+    const maxY = Math.max(EDGE_PADDING, areaRef.current.height - ECO_BUBBLE_SIZE - EDGE_PADDING);
     if (!initPositionsRef.current && maxX > EDGE_PADDING && maxY > EDGE_PADDING) {
       const first = statesRef.current[0];
       const second = statesRef.current[1];
@@ -250,8 +250,8 @@ export function useBubbleMotionController(): BubbleMotionController {
       lastTs = now;
       const { width, height } = areaRef.current;
       if (width > 0 && height > 0) {
-        const maxX = Math.max(EDGE_PADDING, width - BUBBLE_SIZE - EDGE_PADDING);
-        const maxY = Math.max(EDGE_PADDING, height - BUBBLE_SIZE - EDGE_PADDING);
+        const maxX = Math.max(EDGE_PADDING, width - ECO_BUBBLE_SIZE - EDGE_PADDING);
+        const maxY = Math.max(EDGE_PADDING, height - ECO_BUBBLE_SIZE - EDGE_PADDING);
         statesRef.current.forEach((state, index) => {
           updateWander(state, dt, index);
           const ax = state.wanderX + state.joltX + gravityRef.current.x * GRAVITY_STRENGTH + shakeRef.current.x * 430;

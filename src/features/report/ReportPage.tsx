@@ -1,16 +1,14 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format, isSameDay, startOfDay, endOfDay, startOfMonth, isSunday, endOfMonth } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { zhCN, enUS, it } from 'date-fns/locale';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import { X } from 'lucide-react';
 import { useReportStore } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useTodoStore } from '../../store/useTodoStore';
 import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePlantStore } from '../../store/usePlantStore';
 import type { DailyPlantRecord } from '../../types/plant';
 import { cn } from '../../lib/utils';
 import {
@@ -18,7 +16,6 @@ import {
   APP_GREEN_GLASS_BUTTON_STYLE,
   APP_GREEN_GLASS_TEXT,
   APP_MODAL_CARD_CLASS,
-  APP_MODAL_CLOSE_CLASS,
   APP_MODAL_OVERLAY_CLASS,
   APP_MODAL_PRIMARY_BUTTON_CLASS,
 } from '../../lib/modalTheme';
@@ -27,20 +24,21 @@ import { TaskListModal } from './TaskListModal';
 import { DiaryBookShelf } from './DiaryBookShelf';
 import { UpgradeModal } from './UpgradeModal';
 import { PlantCardModal } from './PlantCardModal';
+import { ReportCalendarModal, type ReportCalendarValue } from './ReportCalendarModal';
 import {
   getDailyMoodDistribution,
   getMessagesForReport,
+  findDailyReportForDate,
+  findTodayDailyReport,
   isFutureDiaryDate,
+  reportHasGeneratedDiary,
   resolveDiaryBookInitialTarget,
 } from './reportPageHelpers';
 import { PlantRootSection } from './plant/PlantRootSection';
 
-type ValuePiece = Date | null;
-type Value = ValuePiece | [ValuePiece, ValuePiece];
-
 export const ReportPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [date, setDate] = useState<Value>(new Date());
+  const [date, setDate] = useState<ReportCalendarValue>(new Date());
   const { reports, generateReport, generateAIDiary, updateReport } = useReportStore();
   const { todos } = useTodoStore();
   const { t, i18n } = useTranslation();
@@ -52,28 +50,59 @@ export const ReportPage = () => {
   const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
   const isPlus = useAuthStore((state) => state.isPlus);
   const user = useAuthStore((state) => state.user);
+  const loadPlantHistory = usePlantStore((state) => state.loadPlantHistory);
+  const today = new Date();
+  const todayDailyReport = findTodayDailyReport(reports, today);
+  const shouldOpenTodayDiaryOnMount = reportHasGeneratedDiary(todayDailyReport)
+    || searchParams.get('action') === 'open-today-diary';
 
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(
+    () => shouldOpenTodayDiaryOnMount ? todayDailyReport?.id ?? null : null,
+  );
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showTaskList, setShowTaskList] = useState<'completed' | 'total' | null>(null);
   const [showEarlyTip, setShowEarlyTip] = useState(false);
   const [showDiaryBook, setShowDiaryBook] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [calendarDevNotice, setCalendarDevNotice] = useState<string | null>(null);
-  const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(undefined);
+  const [diaryInitialPage, setDiaryInitialPage] = useState<0 | 1 | undefined>(
+    () => shouldOpenTodayDiaryOnMount ? 0 : undefined,
+  );
   const [openedFromDiaryBook, setOpenedFromDiaryBook] = useState(false);
   const [savedDiaryBookMonth, setSavedDiaryBookMonth] = useState<Date | undefined>(undefined);
   const [savedDiaryBookFlippedCount, setSavedDiaryBookFlippedCount] = useState<number | undefined>(undefined);
   const [diaryNavDate, setDiaryNavDate] = useState<Date | null>(null);
-  const [autoReturnToFirstPageAfterDiaryReady, setAutoReturnToFirstPageAfterDiaryReady] = useState(false);
+  const [isTodayDiaryHome, setIsTodayDiaryHome] = useState(shouldOpenTodayDiaryOnMount);
   const [todayDiaryDraft, setTodayDiaryDraft] = useState('');
   const [openedPlantCard, setOpenedPlantCard] = useState<DailyPlantRecord | null>(null);
   const [autoGeneratePlantToken, setAutoGeneratePlantToken] = useState(0);
   const navigate = useNavigate();
   const currentLang = i18n.language?.split('-')[0] || 'en';
-  const today = new Date();
 
   const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
+  const isPrimaryTodayDiary = Boolean(
+    isTodayDiaryHome
+    && selectedReport
+    && todayDailyReport
+    && selectedReport.id === todayDailyReport.id
+    && !openedFromDiaryBook
+    && !diaryNavDate,
+  );
+
+  useEffect(() => {
+    if (!todayDailyReport || !reportHasGeneratedDiary(todayDailyReport)) return;
+    if (openedFromDiaryBook || diaryNavDate || showDiaryBook) return;
+    setIsTodayDiaryHome(true);
+    setSelectedReportId(todayDailyReport.id);
+    setDiaryInitialPage(current => current ?? 0);
+  }, [
+    diaryNavDate,
+    openedFromDiaryBook,
+    showDiaryBook,
+    todayDailyReport?.aiAnalysis,
+    todayDailyReport?.id,
+    todayDailyReport?.teaserText,
+  ]);
 
   useEffect(() => {
     if (!selectedReport || isPlus) return;
@@ -93,9 +122,7 @@ export const ReportPage = () => {
   );
 
   const handleDateClick = async (value: Date) => {
-    const existingReport = reports.find(
-      (report) => report.type === 'daily' && isSameDay(new Date(report.date), value)
-    );
+    const existingReport = findDailyReportForDate(reports, value);
 
     // Today and future days: calendar cannot view or generate.
     if (isSameDay(value, today) || isFutureDiaryDate(value, today)) return;
@@ -127,10 +154,9 @@ export const ReportPage = () => {
       setShowEarlyTip(true);
       return;
     }
-    const todayReport = reports.find(
-      (report) => report.type === 'daily' && isSameDay(new Date(report.date), now)
-    );
+    const todayReport = findDailyReportForDate(reports, now);
     setDiaryInitialPage(1);
+    setIsTodayDiaryHome(true);
     let reportId: string;
     if (todayReport) {
       reportId = todayReport.id;
@@ -147,7 +173,6 @@ export const ReportPage = () => {
     setSelectedReportId(reportId);
     setOpenedFromDiaryBook(false);
     setDiaryNavDate(null);
-    setAutoReturnToFirstPageAfterDiaryReady(true);
 
     // Auto-trigger diary generation (full AI for plus, teaser for free)
     const report = useReportStore.getState().reports.find(r => r.id === reportId);
@@ -158,11 +183,10 @@ export const ReportPage = () => {
     if (needsGeneration) generateAIDiary(reportId);
   }, [generateAIDiary, generateReport, reports, todayDiaryDraft, updateReport]);
 
-  const openTodayDiaryDetail = useCallback(async (options?: { initialPage?: 0 | 1; autoReturnToFirstPageAfterDiaryReady?: boolean }) => {
+  const openTodayDiaryDetail = useCallback(async (options?: { initialPage?: 0 | 1 }) => {
     const now = new Date();
-    let reportId = reports.find(
-      (report) => report.type === 'daily' && isSameDay(new Date(report.date), now)
-    )?.id;
+    setIsTodayDiaryHome(true);
+    let reportId = findDailyReportForDate(reports, now)?.id;
 
     if (!reportId) {
       reportId = await generateReport('daily', now.getTime());
@@ -172,7 +196,6 @@ export const ReportPage = () => {
     setDiaryInitialPage(options?.initialPage);
     setOpenedFromDiaryBook(false);
     setDiaryNavDate(null);
-    setAutoReturnToFirstPageAfterDiaryReady(Boolean(options?.autoReturnToFirstPageAfterDiaryReady));
   }, [generateReport, reports]);
 
   useEffect(() => {
@@ -192,7 +215,7 @@ export const ReportPage = () => {
       return;
     }
     if (action === 'open-today-diary') {
-      void openTodayDiaryDetail({ initialPage: 0, autoReturnToFirstPageAfterDiaryReady: false });
+      void openTodayDiaryDetail({ initialPage: 0 });
     }
   }, [handleGenerateDiary, openTodayDiaryDetail, searchParams, setSearchParams]);
 
@@ -201,9 +224,7 @@ export const ReportPage = () => {
     setSavedDiaryBookMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     setSavedDiaryBookFlippedCount(flippedCount);
     await loadMessagesForDateRange(startOfDay(date), endOfDay(date));
-    const existingReport = reports.find(
-      r => r.type === 'daily' && isSameDay(new Date(r.date), date)
-    );
+    const existingReport = findDailyReportForDate(reports, date);
     const reportId = existingReport?.id ?? await generateReport('daily', date.getTime());
     // All four updates batch into one render: modal appears, book disappears simultaneously
     setDiaryInitialPage(subPage);
@@ -216,7 +237,7 @@ export const ReportPage = () => {
     try {
       await loadMessagesForDateRange(startOfDay(targetDate), endOfDay(targetDate));
     } catch { /* ignore */ }
-    const existingReport = reports.find(r => r.type === 'daily' && isSameDay(new Date(r.date), targetDate));
+    const existingReport = findDailyReportForDate(reports, targetDate);
     const reportId = existingReport?.id ?? await generateReport('daily', targetDate.getTime());
     setDiaryNavDate(new Date(targetDate));
     setDiaryInitialPage(undefined);
@@ -255,7 +276,12 @@ export const ReportPage = () => {
       if (dailyReports.length > 0) {
         const initialDiaryDate = resolveDiaryBookInitialTarget(dailyReports, now);
         if (initialDiaryDate) {
-          setSavedDiaryBookMonth(startOfMonth(initialDiaryDate));
+          const initialMonth = startOfMonth(initialDiaryDate);
+          await loadPlantHistory(
+            format(initialMonth, 'yyyy-MM-dd'),
+            format(endOfMonth(initialMonth), 'yyyy-MM-dd'),
+          );
+          setSavedDiaryBookMonth(initialMonth);
           setSavedDiaryBookFlippedCount(initialDiaryDate.getDate());
         } else {
           setSavedDiaryBookMonth(undefined);
@@ -268,7 +294,7 @@ export const ReportPage = () => {
       setShowDiaryBook(true);
     };
     void open();
-  }, [generateReport, user?.created_at]);
+  }, [generateReport, loadPlantHistory, user?.created_at]);
 
   const handleDiaryNavPrev = useCallback(async () => {
     const base = diaryNavDate ?? new Date();
@@ -297,9 +323,45 @@ export const ReportPage = () => {
     window.setTimeout(() => setCalendarDevNotice(null), 1800);
   }, [t]);
 
+  const handleOpenCalendar = useCallback(() => {
+    setDate(new Date());
+    setCalendarDevNotice(null);
+    setShowCalendarModal(true);
+  }, []);
+
+  const handleCloseCalendar = useCallback(() => {
+    setShowCalendarModal(false);
+    setCalendarDevNotice(null);
+  }, []);
+
+  const restoreTodayDiaryHome = useCallback(() => {
+    setSelectedReportId(isTodayDiaryHome ? todayDailyReport?.id ?? null : null);
+    setOpenedFromDiaryBook(false);
+    setDiaryInitialPage(isTodayDiaryHome ? 0 : undefined);
+    setDiaryNavDate(null);
+  }, [isTodayDiaryHome, todayDailyReport?.id]);
+
+  const handleCloseReportDetail = useCallback(() => {
+    if (isPrimaryTodayDiary) return;
+    restoreTodayDiaryHome();
+  }, [isPrimaryTodayDiary, restoreTodayDiaryHome]);
+
+  const handleBackToDiaryBook = useCallback(() => {
+    restoreTodayDiaryHome();
+    setShowDiaryBook(true);
+  }, [restoreTodayDiaryHome]);
+
+  const handleCloseDiaryBook = useCallback(() => {
+    setShowDiaryBook(false);
+    setSavedDiaryBookMonth(undefined);
+    setSavedDiaryBookFlippedCount(undefined);
+  }, []);
+
   return (
     <div className="flex h-full items-center justify-center bg-transparent px-0 md:px-8">
       <div className="app-mobile-page-frame relative flex h-full w-full max-w-[430px] flex-col overflow-hidden text-slate-900 [box-shadow:0_0_0_1px_rgba(0,0,0,0.06),0_24px_64px_rgba(0,0,0,0.1)] md:h-[calc(100%-24px)] md:max-w-[980px] md:rounded-[30px] md:border md:border-white/70 md:bg-[#fcfaf7]/85 md:[box-shadow:0_0_0_1px_rgba(255,255,255,0.45),0_24px_64px_rgba(15,23,42,0.12)]">
+      {!isTodayDiaryHome ? (
+        <>
       <header
         className="app-mobile-page-header relative sticky top-0 z-10 px-4 pb-3 pt-11"
         style={{
@@ -322,11 +384,7 @@ export const ReportPage = () => {
           </div>
           <div className="flex items-center gap-2 justify-self-end">
             <button
-              onClick={() => {
-                setDate(new Date());
-                setCalendarDevNotice(null);
-                setShowCalendarModal(true);
-              }}
+              onClick={handleOpenCalendar}
               aria-label={t('report_calendar_view')}
               title={t('report_calendar_view')}
               className="w-11 h-11 flex items-center justify-center rounded-2xl cursor-pointer transition-all hover:scale-105 active:scale-95 group"
@@ -375,135 +433,42 @@ export const ReportPage = () => {
         </div>
       )}
 
-      {showCalendarModal && (
-        <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', APP_MODAL_OVERLAY_CLASS)} onClick={() => { setShowCalendarModal(false); setCalendarDevNotice(null); }}>
-          <div
-            className={cn(APP_MODAL_CARD_CLASS, 'w-full max-w-xs rounded-[34px] p-4 animate-in fade-in zoom-in-95')}
-            style={{
-              background: 'rgba(255,255,255,0.72)',
-              border: '1px solid rgba(255,255,255,0.82)',
-              boxShadow: '0 24px 54px rgba(40,56,44,0.18), inset 0 1px 0 rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(18px) saturate(130%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(130%)',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-slate-700">{t('report_calendar_view')}</span>
-              <button onClick={() => { setShowCalendarModal(false); setCalendarDevNotice(null); }} className={cn(APP_MODAL_CLOSE_CLASS, 'p-1')}>
-                <X size={24} strokeWidth={1.5} />
-              </button>
-            </div>
-            <div className="calendar-wrapper report-calendar-frost relative flex justify-center">
-              {calendarDevNotice ? (
-                <div className="pointer-events-none absolute left-1/2 -top-7 z-10 -translate-x-1/2 px-1 py-0.5 text-center text-[12px] font-medium text-[#4a5d4c]">
-                  {calendarDevNotice}
-                </div>
-              ) : null}
-              <Calendar
-                onChange={setDate}
-                value={date}
-                onClickDay={(value) => { handleDateClick(value); setShowCalendarModal(false); }}
-                tileDisabled={({ date: calendarDate, view }) => (
-                  view === 'month' && (isSameDay(calendarDate, today) || isFutureDiaryDate(calendarDate, today))
-                )}
-                locale={i18n.language}
-                className="w-full border-none text-[13px] font-medium"
-                showNeighboringMonth={false}
-                formatDay={(_, calendarDate) => String(calendarDate.getDate())}
-                formatShortWeekday={(_, calendarDate) => {
-                  return format(calendarDate, 'EEEEE', { locale: calendarLocale });
-                }}
-                tileContent={({ date: calendarDate, view }) => {
-                  if (view !== 'month') return null;
-                  const sunday = isSunday(calendarDate);
-                  const monthEnd = calendarDate.getDate() === endOfMonth(calendarDate).getDate();
-                  if (!sunday && !monthEnd) return null;
-                  return (
-                    <div className="pointer-events-auto absolute inset-x-0 bottom-[1px] flex items-center justify-center gap-1">
-                      {sunday ? (
-                        <button
-                          type="button"
-                          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            showCalendarFeatureNotice('weekly');
-                          }}
-                          className="calendar-tag-hit calendar-tag-hit--weekly"
-                           aria-label={t('report_weekly_coming_soon')}
-                           title={t('report_weekly_coming_soon')}
-                        />
-                      ) : null}
-                      {monthEnd ? (
-                        <button
-                          type="button"
-                          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            showCalendarFeatureNotice('monthly');
-                          }}
-                          className="calendar-tag-hit calendar-tag-hit--monthly"
-                           aria-label={t('report_monthly_coming_soon')}
-                           title={t('report_monthly_coming_soon')}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-center gap-4 text-[11px] font-medium text-[#4a5d4c]">
-              <button
-                type="button"
-                className="flex items-center gap-1.5"
-                onClick={() => showCalendarFeatureNotice('weekly')}
-              >
-                <span className="calendar-tag-dot calendar-tag-dot--weekly" />
-                <span>{t('report_weekly')}</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-1.5"
-                onClick={() => showCalendarFeatureNotice('monthly')}
-              >
-                <span className="calendar-tag-dot calendar-tag-dot--monthly" />
-                <span>{t('report_monthly')}</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-1.5"
-                onClick={() => showCalendarFeatureNotice('custom')}
-              >
-                <span className="calendar-tag-dot calendar-tag-dot--custom" />
-                <span>{t('report_custom')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        </>
+      ) : (
+        <div className="h-full w-full bg-white" aria-hidden="true" />
       )}
+
+      {showCalendarModal ? (
+        <ReportCalendarModal
+          value={date}
+          today={today}
+          locale={i18n.language}
+          dateLocale={calendarLocale}
+          notice={calendarDevNotice}
+          onChange={setDate}
+          onClickDay={(value) => {
+            handleDateClick(value);
+            handleCloseCalendar();
+          }}
+          onClose={handleCloseCalendar}
+          onFeatureNotice={showCalendarFeatureNotice}
+        />
+      ) : null}
 
       <ReportDetailModal
         selectedReport={selectedReport}
         isPlus={isPlus}
         onUpgradeClick={() => navigate('/upgrade')}
         dailyMoodDistribution={dailyMoodDistribution}
-        onClose={() => { setSelectedReportId(null); setOpenedFromDiaryBook(false); setDiaryInitialPage(undefined); setDiaryNavDate(null); setAutoReturnToFirstPageAfterDiaryReady(false); }}
-        onBack={openedFromDiaryBook ? () => {
-          setSelectedReportId(null);
-          setOpenedFromDiaryBook(false);
-          setDiaryInitialPage(undefined);
-          setDiaryNavDate(null);
-          setAutoReturnToFirstPageAfterDiaryReady(false);
-          setShowDiaryBook(true); // reopen diary book
-        } : undefined}
+        onClose={handleCloseReportDetail}
+        onBack={openedFromDiaryBook ? handleBackToDiaryBook : undefined}
         onOpenPlantCard={(plant) => setOpenedPlantCard(plant)}
         onShowTaskList={setShowTaskList}
         generateAIDiary={generateAIDiary}
         initialPage={diaryInitialPage}
-        autoReturnToFirstPageAfterDiaryReady={autoReturnToFirstPageAfterDiaryReady}
-        onAutoReturnToFirstPageHandled={() => setAutoReturnToFirstPageAfterDiaryReady(false)}
+        presentation={isPrimaryTodayDiary ? 'page' : 'modal'}
+        onOpenCalendar={isPrimaryTodayDiary ? handleOpenCalendar : undefined}
+        onOpenDiaryBook={isPrimaryTodayDiary ? handleOpenDiaryBook : undefined}
         readOnly={(() => {
           if (!selectedReport) return false;
           const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -523,7 +488,7 @@ export const ReportPage = () => {
 
       {showDiaryBook && (
         <DiaryBookShelf
-          onClose={() => { setShowDiaryBook(false); setSavedDiaryBookMonth(undefined); setSavedDiaryBookFlippedCount(undefined); }}
+          onClose={handleCloseDiaryBook}
           reports={reports}
           onOpenDiaryPage={handleOpenDiaryPage}
           initialOpenMonth={savedDiaryBookMonth}

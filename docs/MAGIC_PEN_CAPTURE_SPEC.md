@@ -11,6 +11,8 @@
    英语本地证据包含 `compromise/two` 语法和精确活动历史；纯短名词仅为中置信活动，不会绕过 high-confidence 快速通道门槛。
 5. 魔法笔 AI 的四类保持 `activity / mood / todo_add / activity_backfill`，这是复杂内容分段类型，不复用普通分类器的 `internalKind`。
 6. AI 拆出的活动和心情可由 draft builder 通过 `linkedMoodContent` 合并为“活动草稿 + 附加心情”，不需要第五类。
+7. AI 提供方全部失败时，中英意统一进入保守本地兜底：先分句并提取当前/过去/未来、动作、情绪、义务、愿望、否定和跨天证据，再按明确优先级分类。单字不得独立决定类型；低置信、愿望、否定和冲突内容保留在 `unparsed`。
+8. 本地兜底复用 `src/services/input/lexicon/` 的三语活动与心情 SSOT；明确当前活动/心情可沿用 auto-write，未来动作生成待办，过去动作生成补录草稿。
 
 ## Session-31 Discussion Override (2026-03-14)
 
@@ -629,28 +631,28 @@ unparsed（无法分类）：以下情况归入此类：
 
 #### AI 模型选择
 
-主 provider 使用智谱 `glm-4.7-flash`（`ZHIPU_API_KEY`），并在主路失败时自动回退到 DashScope OpenAI-compatible `qwen-flash`（`QWEN_API_KEY` + `DASHSCOPE_BASE_URL`）。
+主 provider 使用 DashScope OpenAI-compatible `qwen-plus`（`QWEN_API_KEY` + `DASHSCOPE_BASE_URL`，可由 `MAGIC_PEN_MODEL` 覆盖），并在调用失败或语义质量不合格时自动回退到智谱 `glm-4.7-flash`（`ZHIPU_API_KEY`）。
 
 主 provider 参数：
 
 ```ts
 {
-  model: 'glm-4.7-flash',
-  temperature: 0.3,    // 低温度保证结构化输出稳定
-  max_tokens: 1024,
+  model: 'qwen-plus',
+  temperature: 0.2,    // 低温度保证结构化输出稳定
+  max_tokens: 2048,
   stream: false,
 }
 ```
 
 > [!NOTE]
-> 当前线上实现采用双 provider 容错：优先走智谱；当主路超时、空响应、解析失败或 HTTP 错误时，自动降级到 `qwen-flash`，保证 mode-on 连续输入稳定性。
+> 简单单意图输入仍可走本地 fast path；进入 AI 端点的通常是混合或复杂输入，因此默认使用 `qwen-plus`。双 provider 不仅处理网络/格式失败，也处理空提取、原文覆盖不足、漏掉明确时间锚点和复杂句严重欠拆分。
 
 #### AI 响应解析与容错
 
-`api/magic-pen-parse.ts` 内必须实现 `parseMagicPenAIResponse(raw: string): MagicPenAIResult`，并配合 provider fallback：
+`api/magic-pen-parse.ts` 先通过 `parseMagicPenAIResponse(...)` 恢复 JSON，再由 `src/server/magic-pen-quality.ts` 做语义质量检查：
 
 ```ts
-function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
+function parseMagicPenAIResponse(raw: string): ParsedMagicPenAIResponse {
   // 策略1：直接 JSON.parse
   try { return validateAndReturn(JSON.parse(raw.trim())); } catch {}
 
@@ -660,23 +662,25 @@ function parseMagicPenAIResponse(raw: string): MagicPenAIResult {
     try { return validateAndReturn(JSON.parse(match[0])); } catch {}
   }
 
-  // 策略3：解析失败
-  console.warn('[magic-pen-parse] AI 响应解析失败，全部归入 unparsed');
-  return { segments: [], unparsed: ['（AI 解析失败，请手动录入）'] };
+  // 策略3：格式失败，交给下一个 provider
+  return { data: { segments: [], unparsed: [] }, strategy: 'fallback_failed' };
 }
 ```
 
 Provider fallback 触发条件（任一命中）：
-1. 主 provider 超时（默认 12s，可由 `MAGIC_PEN_PRIMARY_TIMEOUT_MS` 覆盖）
+1. 主 provider 超时（默认 12s，可由 `MAGIC_PEN_FALLBACK_TIMEOUT_MS` 覆盖）
 2. 主 provider HTTP 非 2xx
 3. 主 provider 返回空 `choices[0].message.content`
 4. 主 provider 返回内容无法通过 `parseMagicPenAIResponse(...)`
+5. 非空输入得到空 `segments`
+6. `sourceText + unparsed` 对原文总体覆盖不足
+7. 已识别 `sourceText` 覆盖不足、遗漏明确时间锚点，或复杂多分句只提取出一个片段
 
-Fallback provider 使用 DashScope OpenAI-compatible `/chat/completions`，默认模型 `qwen-flash`（可由 `MAGIC_PEN_FALLBACK_MODEL` 覆盖）。
+所有 provider 都失败时，服务端返回 `providerUsed: 'none'`，并把完整原始 `rawText` 放入 `unparsed`。禁止用固定中文错误占位语替换原文。
 
 `validateAndReturn` 必须校验：
 1. `segments` 是数组
-2. 每个 segment 的 `kind` 必须是 `'activity_backfill'` 或 `'todo_add'`
+2. 每个 segment 的 `kind` 必须是 `'activity'`、`'mood'`、`'activity_backfill'` 或 `'todo_add'`
 3. `startTime` / `endTime` 如果存在，必须匹配 `HH:mm` 格式
 4. 不合法的 segment 静默过滤（不阻断整个请求）
 
@@ -699,8 +703,8 @@ interface MagicPenParseResponse {
   data: MagicPenAIResult;
   traceId?: string;
   parseStrategy?: 'direct_json' | 'wrapped_object' | 'fallback_failed';
-  providerUsed?: 'zhipu' | 'qwen_flash_fallback' | 'none';
-  fallbackFrom?: 'timeout' | 'http_error' | 'empty_content' | 'invalid_payload' | 'parse_failed' | 'exception';
+  providerUsed?: 'zhipu' | 'qwen' | 'none';
+  fallbackFrom?: 'qwen';
 }
 
 export async function callMagicPenParseAPI(
@@ -783,8 +787,8 @@ export function buildDraftsFromAIResult(
 | 错误场景 | 前端行为 |
 |------|------|
 | 网络错误 / 超时 | 发送触发解析失败时走本地 fallback，仍打开 Sheet |
-| AI 返回空 segments | 全部原文进入 `unparsedSegments`，提示用户"无法识别，请手动录入" |
-| AI 返回格式异常 | `parseMagicPenAIResponse` 兜底处理，全部归入 `unparsedSegments` |
+| AI 返回空 segments / 低覆盖率结果 | 按低质量失败自动尝试第二 provider |
+| AI 返回格式异常 | 自动尝试第二 provider；全部失败时完整原文进入 `unparsedSegments` |
 | API Key 缺失 | serverless 返回 500，前端提示"服务暂不可用" |
 
 补充约束：
@@ -792,6 +796,7 @@ export function buildDraftsFromAIResult(
 1. 若一次发送同时包含 realtime 与 magic，AI parse 失败只影响 magic side flow，不影响已提交的 realtime 结果。
 2. `uncertain` 片段的安全优先级高于"零掉地"：允许进入 `MagicPenSheet` 的 `unparsedSegments`，不允许静默直写 realtime。
 3. 发送期必须有本地 pending guard，避免重复点击导致双写或重复打开 sheet。
+4. 前端预处理不得静默截断输入；远端失败时先走安全本地 parser，无法恢复的内容必须以原文进入 Sheet。
 
 ## 7. 时间规则
 
@@ -1026,7 +1031,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 参数校验...
   // 构建 prompt（替换 {{todayDateStr}} 和 {{currentHour}}）...
-  // 调用主 provider（Zhipu）并按策略回退到 qwen-flash ...
+  // 调用主 provider（Qwen qwen-plus）并在调用/质量失败时回退到 Zhipu ...
   // 解析响应 + 校验...
   // 返回 { success: true, data: MagicPenAIResult }
 }
@@ -1337,7 +1342,7 @@ chat_magic_pen_service_unavailable: 'Service temporarily unavailable',
 1. 在聊天页输入栏保留一个显式 wand mode toggle。
 2. 发送时先做 clause-level dual routing：强 realtime 直写，magic / uncertain 走 review。
 3. `uncertain` 子句默认进入 magic review / `unparsedSegments`，而不是直接写入 realtime。
-4. 解析层采用 AI 结构化提取（`/api/magic-pen-parse`：主路智谱 GLM-4.7-flash，失败自动回退 qwen-flash），并按 `lang` 路由 prompt。
+4. 解析层采用 AI 结构化提取（`/api/magic-pen-parse`：主路 Qwen `qwen-plus`，调用/质量失败自动回退智谱 `glm-4.7-flash`），并按 `lang` 路由 prompt。
 5. 前端 `magicPenDraftBuilder.ts` 负责将 AI 结果转为标准 draft、做时间合法性校验和 batch 冲突检测——所有确定性逻辑不依赖 AI。
 6. 活动补录直接调用 `insertActivity(null, null, content, startAt, endAt)`，绝不复用主输入发送链路。
 7. Todo 提取复用 `useTodoStore.addTodo()`。

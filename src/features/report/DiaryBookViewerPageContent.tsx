@@ -4,29 +4,28 @@ import { format, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useMoodStore } from '../../store/useMoodStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { normalizeMoodKey } from '../../lib/moodOptions';
-import { computeActivityDistribution } from './reportPageHelpers';
 import type { DailyPlantRecord } from '../../types/plant';
 import { PlantImage } from './plant/PlantImage';
-import { generateActionSummary, generateMoodSummary } from '../../store/reportHelpers';
+import { buildDiaryPageSnapshot } from '../../store/reportDiarySnapshot';
 import { DIARY_COPY, type DiaryLang, type PageData } from './diaryBookViewerData';
 import {
   ACTIVITY_UI_COLORS,
   MOOD_UI_COLORS,
   DIARY_LINE_SOLID,
   DIARY_LINE_DASHED,
-  CUSTOM_MOOD_LABELS,
   BASE_PAGE_W,
   BASE_PAGE_H,
   BASE_HEIGHT_SHRINK,
   LEATHER_TEXTURE,
   PARCHMENT_TEXTURE,
   PAPER_COLOR,
-  shouldUseStoredLocalizedSummary,
 } from './diaryBookViewerTheme';
 import type { Message } from '../../store/useChatStore';
+import {
+  getReportCompanionName,
+  resolveReportObservationText,
+} from './reportObservation';
 
 type PageContentProps = {
   page: PageData;
@@ -49,9 +48,7 @@ export function DiaryBookViewerPageContent({
   const { i18n, t: tr } = useTranslation();
   const navigate = useNavigate();
   const isPlus = useAuthStore((state) => state.isPlus);
-  const activityMood = useMoodStore((state) => state.activityMood);
-  const customMoodLabel = useMoodStore((state) => state.customMoodLabel);
-  const customMoodApplied = useMoodStore((state) => state.customMoodApplied);
+  const aiMode = useAuthStore((state) => state.preferences.aiMode);
   const trapInset = px(BASE_HEIGHT_SHRINK / 2);
   const langRaw = i18n.language?.split('-')[0] ?? 'en';
   const lang: DiaryLang = langRaw === 'zh' || langRaw === 'it' ? langRaw : 'en';
@@ -117,34 +114,14 @@ export function DiaryBookViewerPageContent({
   const dayMsgs = allMessages
     .filter((m) => m.timestamp >= dayStart && m.timestamp <= dayEnd && m.type !== 'system' && m.mode === 'record')
     .sort((a, b) => a.timestamp - b.timestamp);
-  const actDist = computeActivityDistribution(dayMsgs);
+  const diaryPageSnapshot = report.stats?.diaryPageSnapshot
+    ?? (report.stats ? buildDiaryPageSnapshot(report.stats, lang) : null);
 
-  const actionAnalysis = (report.stats?.actionAnalysis ?? [])
+  const actionAnalysis = (diaryPageSnapshot?.actionAnalysis ?? report.stats?.actionAnalysis ?? [])
     .filter((item) => item.minutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
 
-  const moodMinutes: Record<string, number> = {};
-  dayMsgs.forEach((msg) => {
-    if (msg.isActive) return;
-    const baseMood = activityMood[msg.id] ?? msg.moodDescriptions?.[0]?.content;
-    const customLabel = customMoodLabel[msg.id];
-    const useCustom = customMoodApplied[msg.id] === true;
-    const normalizedCustomLabel = customLabel?.trim() ?? '';
-    const mood = useCustom && normalizedCustomLabel && !CUSTOM_MOOD_LABELS.has(normalizedCustomLabel)
-      ? normalizedCustomLabel
-      : baseMood;
-    if (mood && msg.duration && msg.duration > 0) {
-      const key = normalizeMoodKey(mood) || mood;
-      moodMinutes[key] = (moodMinutes[key] || 0) + msg.duration;
-    }
-  });
-
-  const moodDist = Object.entries(moodMinutes)
-    .map(([mood, minutes]) => ({ mood, minutes }))
-    .filter((item) => item.minutes > 0)
-    .sort((a, b) => b.minutes - a.minutes);
-
-  const moodDistribution = (report.stats?.moodDistribution ?? [])
+  const moodDistribution = (diaryPageSnapshot?.moodDistribution ?? report.stats?.moodDistribution ?? [])
     .filter((item) => item.minutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
 
@@ -153,23 +130,13 @@ export function DiaryBookViewerPageContent({
       color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
       value: item.minutes,
     }))
-    : actDist.length > 0
-      ? actDist.slice(0, 5).map((item, index) => ({
-        color: ACTIVITY_UI_COLORS[index] || ACTIVITY_UI_COLORS[ACTIVITY_UI_COLORS.length - 1],
-        value: item.minutes,
-      }))
-      : [{ color: '#E5E7EB', value: 1 }];
+    : [{ color: '#E5E7EB', value: 1 }];
   const moodSlices = moodDistribution.length > 0
     ? moodDistribution.slice(0, 4).map((item, index) => ({
       color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
       value: item.minutes,
     }))
-    : moodDist.length > 0
-      ? moodDist.slice(0, 4).map((item, index) => ({
-        color: MOOD_UI_COLORS[index] || MOOD_UI_COLORS[MOOD_UI_COLORS.length - 1],
-        value: item.minutes,
-      }))
-      : [{ color: '#E5E7EB', value: 1 }];
+    : [{ color: '#E5E7EB', value: 1 }];
 
   const buildConic = (slices: Array<{ color: string; value: number }>) => {
     const total = slices.reduce((sum, item) => sum + item.value, 0) || 1;
@@ -183,25 +150,29 @@ export function DiaryBookViewerPageContent({
     return `conic-gradient(${stops.join(', ')})`;
   };
 
-  const todoCompleted = report.stats?.completedTodos ?? 0;
-  const todoTotal = report.stats?.totalTodos ?? 0;
-  const todoRate = todoTotal > 0 ? todoCompleted / todoTotal : 0;
+  const todoCompleted = diaryPageSnapshot?.todoCompleted ?? report.stats?.completedTodos ?? 0;
+  const todoTotal = diaryPageSnapshot?.todoTotal ?? report.stats?.totalTodos ?? 0;
+  const todoRate = diaryPageSnapshot?.todoCompletionRate
+    ?? (todoTotal > 0 ? todoCompleted / todoTotal : 0);
   const todoSegments = 12;
   const todoLitCount = todoTotal > 0 ? Math.max(1, Math.round(todoRate * todoSegments)) : 0;
-  const habitDone = report.stats?.habitCheckin?.filter((item) => item.done).length ?? 0;
-  const goalDone = report.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0;
-  const starsToday = habitDone + goalDone;
+  const starsToday = diaryPageSnapshot?.starsToday
+    ?? (report.stats?.habitCheckin?.filter((item) => item.done).length ?? 0)
+      + (report.stats?.goalProgress?.filter((item) => item.doneToday).length ?? 0);
   const starSlots = Math.max(8, starsToday);
 
   const dateLocale = lang === 'zh' ? zhCN : lang === 'it' ? itLocale : enUS;
   const datePattern = lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMMM d, yyyy';
   const headerDate = dayDate ? format(dayDate, datePattern, { locale: dateLocale }) : '';
   const isFreeWaitingForTeaser = !isPlus && !report.teaserText?.trim() && report.analysisStatus !== 'error' && report.analysisStatus !== 'generating';
-  const observationText = isPlus
-    ? report.aiAnalysis?.trim() || copy.observationFallback
-    : isFreeWaitingForTeaser
-      ? tr('report_generating_variant_1', { companion: 'Van' })
-      : report.teaserText?.trim() || copy.observationFallback;
+  const observationText = resolveReportObservationText({
+    report,
+    isPlus,
+    loadingText: tr('report_generating_variant_1', {
+      companion: getReportCompanionName(aiMode),
+    }),
+    fallbackText: copy.observationFallback,
+  });
   const myDiary = report.userNote?.trim() || copy.diaryPlaceholder;
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -222,6 +193,8 @@ export function DiaryBookViewerPageContent({
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
+    wordBreak: 'normal',
+    overflowWrap: 'break-word',
   };
   const observationTextStyle: React.CSSProperties = {
     minHeight: '64%',
@@ -241,22 +214,10 @@ export function DiaryBookViewerPageContent({
   const donutSize = px(26);
 
   if (page.type === 'day-left') {
-    const storedActivitySummary = report.stats?.actionSummary?.trim() || '';
-    const storedMoodSummary = report.stats?.moodSummary?.trim() || '';
-    const activitySummary = shouldUseStoredLocalizedSummary(storedActivitySummary, lang)
-      ? storedActivitySummary
-      : actionAnalysis.length > 0
-        ? generateActionSummary(actionAnalysis, lang)
-        : copy.activityFallback;
-    const moodSummary = shouldUseStoredLocalizedSummary(storedMoodSummary, lang)
-      ? storedMoodSummary
-      : moodDistribution.length > 0
-        ? generateMoodSummary(moodDistribution, lang)
-        : moodDist.length > 0
-          ? generateMoodSummary(moodDist, lang)
-          : copy.moodFallback;
-    const todoSummary = todoTotal > 0 ? `${todoCompleted}/${todoTotal}` : copy.todoFallback;
-    const habitSummary = starsToday > 0 ? tr('diary_star_count', { count: starsToday }) : copy.habitsFallback;
+    const activitySummary = diaryPageSnapshot?.activitySummary ?? copy.activityFallback;
+    const moodSummary = diaryPageSnapshot?.moodSummary ?? copy.moodFallback;
+    const todoSummary = diaryPageSnapshot?.todoSummary ?? copy.todoFallback;
+    const habitSummary = diaryPageSnapshot?.habitSummary ?? copy.habitsFallback;
 
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', background: PAPER_COLOR }}>

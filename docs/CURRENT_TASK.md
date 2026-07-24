@@ -1,9 +1,33 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-07-23
+Last Updated: 2026-07-24
 Owner: current working session
 
 Session Notes:
+
+- 2026-07-24: Replaced Magic Pen's keyword-only remote-failure fallback with one conservative ZH/EN/IT semantic classifier. It segments multilingual clauses, reuses shared activity/mood lexicons, distinguishes realtime/past/future/action/mood/intent/wish/negation/cross-day evidence, requires action context before creating a todo, and preserves ambiguous text for review. Chinese `得` no longer acts as a standalone duty signal; English/Italian complex notes can recover current activity/mood, future todos, and past backfills locally.
+
+- 2026-07-24: Hardened Magic Pen multilingual and complex-sentence parsing. AI-routed inputs now default to Qwen `qwen-plus`, reject semantically empty/low-coverage/missing-time/under-split JSON before trying Zhipu, preserve the complete original input after provider exhaustion, and no longer silently truncate requests at 500 characters. The existing high-confidence realtime auto-write gate remains unchanged.
+
+- 2026-07-24: Reduced the Report root activity/mood eco-sphere charts from 150px to 140px and unified data, empty-transparent, movement-boundary, and collision sizing through one shared constant; ring radii and label size scale with the new visual size.
+
+- 2026-07-24: Removed the full observation diary's fixed character/word slicing. Full diary generation now uses a soft 2-4 paragraph target, retries once when the provider stops early or the final sentence is incomplete, and refuses to persist a second incomplete result. Diary detail first-page analysis now wraps in full with vertical scrolling on shorter screens, while todo completion and habit stars remain separate secondary statistic lines.
+
+- 2026-07-24: Locked generated observation diaries against startup sparse-report repair and later same-ID updates. Report hydration, cloud fetch, Realtime, Diary Book, and detail navigation now resolve same-day duplicates through one deterministic preference rule, while both report surfaces share one observation-text resolver and the same existing localized loading/fallback copy.
+
+- 2026-07-24: Fixed Diary todo/habit insights being cut mid-word by the former shared 20-character slice. Short insights now use complete compact sentences (up to 8 words for English/Italian and a 20-character safety budget for Chinese), both Diary surfaces preserve normal word wrapping, and stored v1 first-page snapshots upgrade once from their frozen counts before remaining immutable as v2.
+
+- 2026-07-24: Unified historical plant reads under `usePlantStore` with account-scoped date caching, range request dedupe, and month preload before Diary Book opens; Report detail and viewer no longer own separate caches or clear a visible plant during reconciliation. Daily diary generation now persists an immutable first-page snapshot for activity, mood, todo, and habit charts/counts/copy, and both diary surfaces consume it; legacy generated reports freeze a deterministic snapshot from their stored report stats on first open.
+
+- 2026-07-24: Matched the persistent diary header controls back to the original Report header geometry: Calendar remains `44x44`, Diary Book is again a `44px`-high text button, and narrow screens move the title left to avoid overlap. The card-only plant popup now saves its current side after a stationary 650ms long press with haptic feedback and suppresses the following flip click. Diary detail seeds plant data from the true current-day persisted plant or a user/date-scoped session cache, preserving cached content while cloud history reconciles and allowing the offscreen second-page image to preload.
+
+- 2026-07-23: Restored both Calendar and Diary Book controls to the persistent today-diary header. Calendar rendering now lives outside the pre-diary plant-page branch so it opens from either report surface. The detail plant popup now centers only the flippable card over the backdrop, omitting the former white sheet and save action while preserving close, backdrop dismiss, and frozen root behavior.
+
+- 2026-07-23: Made a generated today diary the persistent `/report` primary surface. Report entry resolves the existing daily report during the first render instead of briefly mounting the plant card and handling a later query action; diary generation enters page 2 and no longer auto-slides after completion. The primary detail stays inside the report frame with bottom navigation available, its header opens Diary Book instead of closing to the plant surface, and its plant image opens the frozen flippable card whose backdrop returns to the same detail page.
+
+- 2026-07-23: Moved the localized plant registry name from the line below `PlantFlipCard` into a compact centered bottom metadata row beside the date, sharing the same subdued color and sizing; the export-only front uses the same layout, while the root back, diary detail photo label, and generation data remain unchanged.
+
+- 2026-07-23: Hardened the daily-plant lock contract. Manual and evening-reminder plant actions now show the existing irreversible confirmation before generation; generated records persist the exact root segments, direction order, and activity-detail snapshot inside `root_metrics`, while legacy records lazily freeze their current cloud reconstruction on first open. Plant observation copy now has card-sized server limits with retry/fallback, and historical overlong copy renders as a sentence-aware compact version without an ellipsis.
 
 - 2026-07-23: Fixed recurring `moods` 409/23503 sync failures caused by local mood metadata outliving its parent message. Activity deletion now clears matching local/cloud mood rows and mood outbox entries; auth upload and outbox replay verify parent messages across local messages, date cache, pending chat writes, and cloud before pruning only confirmed orphans. Standalone `is_mood` messages and unresolved offline parents are retained.
 
@@ -12,6 +36,8 @@ Session Notes:
 - 2026-07-23: Fixed generated activity cards remaining after a completed Growth todo is unchecked. `deleteActivity()` now removes the message from the active timeline and every persisted date-cache bucket atomically, preventing date switches or reloads from restoring the withdrawn activity.
 
 - 2026-07-23: Improved compact Growth todo-card touch accuracy without removing whole-card detail expansion. Completion/start/focus keep their visual sizes but now use 44px touch targets; the right action cluster absorbs near misses, and pointer-origin tracking prevents a press that starts on an action then drifts outside from expanding the card.
+
+- 2026-07-20: Removed the Xcode Swift concurrency warning in `SeedayIAPPlugin.swift` by moving StoreKit transaction listener JS notifications into a `@MainActor` helper and using a background-priority `Task` instead of `Task.detached` with nested `MainActor.run`; StoreKit purchase/restore payloads and JS event name are unchanged.
 
 - 2026-07-20: Split `useTodoStore` sync/cascade helper logic into new `src/store/todoStoreSync.ts`, bringing `src/store/useTodoStore.ts` back under the hard max-lines pre-commit limit without changing todo behavior or contracts.
 

@@ -105,6 +105,10 @@
 - Outbox flush 触发点已接入 `useAuthStore.initialize()`、`useNetworkSync` 的 `online` 事件、以及 `useAppForegroundRefresh` 的前台恢复，断网后的核心写操作可在重连后自动补推。
 - Outbox 失败 UI 已按 Young 极简方案落地：统一“右上角小云朵 + `重试` 文案”按钮（`CloudRetryButton`），仅在需要手动补推时展示；点击即触发 `useOutboxStore.retryNow()`，不向用户暴露技术级错误详情。
 - `usePlantStore.loadTodayData()` 对根系方向配置改为 local-first 合并：云端无数据时保留本地；云端若仅返回默认顺序且本地已有非默认自定义顺序，则保留本地，避免自定义方向被旧云端值回滚。
+- `usePlantStore.ensureTodayRootSnapshot()` 为缺少生成时快照的旧植物调用现有 `/api/plant-generate` `snapshot_existing` 动作；新旧植物一旦拿到 `rootSnapshot`，卡片背面只读取快照，不再跟随当天消息或方向设置变化。
+- `usePlantStore.loadPlantHistory(startDate, endDate)` 统一管理账号隔离的日期植物缓存与范围请求去重；Report detail 和 Diary Book 不再各自维护缓存，打开月份前会先填充同一份内存缓存，云端回拉不会先清空已显示植物。
+- `useReportStore.generateAIDiary()` 成功时把第一页活动、情绪、待办、习惯的数据与分析文案固化到 `stats.diaryPageSnapshot` v2；`ensureDiaryPageSnapshot()` 为缺少快照的旧日报补齐确定性快照，并仅对已有 v1 快照使用其冻结的待办/习惯计数重新请求一次完整短评，升级成功后不再变化。
+- `reportRecordResolver.ts` 统一处理同类型/同日期报告：已生成 `aiAnalysis`/`teaserText` 的记录优先于占位记录，已有生成文案与快照不会被后续稀疏更新清空；持久化水合、云端拉取、Realtime 和 Report 页面都复用这套规则。`generateReport()` 遇到已生成报告会直接返回原 ID，昨日自动补全只修复尚未生成的稀疏报告。
 - `DATA_STORAGE_P2` Phase 2/3 已接入：新增 `scopedPersistStorage.ts` 并将 12 个 persisted domain store 统一改为 `skipHydration + 手动 rehydrate`，在 `VITE_MULTI_ACCOUNT_ISOLATION_V2` 开启时按 active scope 读写 `seeday:v2:user:<userId>:<domain>` / `seeday:v2:anon:<domain>`；关闭开关时保持 `seeday:v1:<domain>` 兼容行为。
 - `useAuthStore.initialize()` / `SIGNED_IN` / `SIGNED_OUT` 已改为 scope-first 顺序：先切换 scope，再 `rehydrateAllDomainPersistStores()`，最后执行 sync/fetch；`clearLocalDomainStores` 改为 scope-aware 清理，避免全域盲清。
 - `useOutboxStore.flush()` 已增加 active scope 校验：在 v2 模式下仅当 `activeScope.userId === resolvedUserId` 时才执行 flush，避免切号后串账号补推。

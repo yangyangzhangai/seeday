@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> src/store/useReportStore.ts -> src/store/usePlantStore.ts
 import { useEffect, useRef } from 'react';
-import { isSameDay, format } from 'date-fns';
+import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useReportStore } from '../store/useReportStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -9,6 +9,11 @@ import { useTodoStore } from '../store/useTodoStore';
 import { useMoodStore } from '../store/useMoodStore';
 import { useGrowthStore } from '../store/useGrowthStore';
 import { callPlantGenerateAPI } from '../api/client';
+import {
+  findPreferredReportForWindow,
+  hasStoredDiaryText,
+  shouldRepairSparseReport,
+} from '../store/reportRecordResolver';
 
 const RETRY_COOLDOWN_MS = 60 * 1000;
 const WARMUP_TIMEOUT_MS = 6000;
@@ -48,24 +53,17 @@ async function warmupRequiredDomains(): Promise<void> {
   await waitForDomainWarmup();
 }
 
-function isReportStatsSparse(reportId: string): boolean {
-  const report = useReportStore.getState().reports.find((item) => item.id === reportId);
-  const stats = report?.stats;
-  if (!stats) return true;
-  const hasAction = (stats.actionAnalysis?.length || 0) > 0;
-  const hasMood = (stats.moodDistribution?.length || 0) > 0;
-  const hasTodo = (stats.totalTodos || 0) > 0;
-  return !hasAction && !hasMood && !hasTodo;
-}
-
 async function repairSparseDailyReportIfNeeded(reportId: string, date: Date): Promise<string> {
   const chatStore = useChatStore.getState();
   const reportStore = useReportStore.getState();
+  const beforeLoad = reportStore.reports.find(item => item.id === reportId);
+  if (!shouldRepairSparseReport(beforeLoad)) return reportId;
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
   const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
   const messages = await chatStore.getMessagesForDateRange(dayStart, dayEnd);
   if (messages.length === 0) return reportId;
-  if (!isReportStatsSparse(reportId)) return reportId;
+  const afterLoad = useReportStore.getState().reports.find(item => item.id === reportId);
+  if (!shouldRepairSparseReport(afterLoad)) return reportId;
   return reportStore.generateReport('daily', date.getTime());
 }
 
@@ -88,7 +86,7 @@ async function generatePlantForDate(date: Date, lang: string): Promise<void> {
 async function generateAIDiaryIfNeeded(reportId: string): Promise<void> {
   const reportStore = useReportStore.getState();
   const report = reportStore.reports.find(r => r.id === reportId);
-  if (!report || report.aiAnalysis || report.analysisStatus === 'generating') return;
+  if (!report || hasStoredDiaryText(report) || report.analysisStatus === 'generating') return;
   try {
     await reportStore.generateAIDiary(reportId);
   } catch {
@@ -103,9 +101,7 @@ async function runMidnightGenerate(isPlus: boolean, lang: string): Promise<void>
   await warmupRequiredDomains();
 
   const reportStore = useReportStore.getState();
-  const existing = reportStore.reports.find(
-    r => r.type === 'daily' && isSameDay(new Date(r.date), yesterday),
-  );
+  const existing = findPreferredReportForWindow(reportStore.reports, 'daily', yesterday);
   const initialReportId = existing?.id ?? await reportStore.generateReport('daily', yesterday.getTime());
   const reportId = await repairSparseDailyReportIfNeeded(initialReportId, yesterday);
 

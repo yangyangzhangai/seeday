@@ -4,12 +4,12 @@ import { format, getDaysInMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { enUS, it as itLocale, zhCN } from 'date-fns/locale';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Report } from '../../store/useReportStore';
+import { useReportStore, type Report } from '../../store/useReportStore';
 import { useChatStore } from '../../store/useChatStore';
 import type { Message } from '../../store/useChatStore';
-import { callPlantHistoryAPI } from '../../api/client';
 import type { DailyPlantRecord } from '../../types/plant';
 import { usePlantStore } from '../../store/usePlantStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { DiaryPlantFlipModal } from './plant/DiaryPlantFlipModal';
 import { DiaryBookViewerExpandedView, type ExpandTarget } from './DiaryBookViewerExpandedView';
 import { buildPages } from './diaryBookViewerData';
@@ -48,8 +48,12 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   const globalMessages = useChatStore(state => state.messages);
   const dateCache = useChatStore(state => state.dateCache);
   const loadMessagesForDateRange = useChatStore(state => state.loadMessagesForDateRange);
+  const userId = useAuthStore(state => state.user?.id ?? null);
   const todayPlant = usePlantStore(state => state.todayPlant);
-  const [plantRecords, setPlantRecords] = useState<DailyPlantRecord[]>([]);
+  const historyUserId = usePlantStore(state => state.historyUserId);
+  const historyPlantsByDate = usePlantStore(state => state.historyPlantsByDate);
+  const loadPlantHistory = usePlantStore(state => state.loadPlantHistory);
+  const ensureDiaryPageSnapshot = useReportStore(state => state.ensureDiaryPageSnapshot);
 
   useEffect(() => {
     loadMessagesForDateRange(startOfMonth(currentMonth), endOfMonth(currentMonth));
@@ -58,22 +62,36 @@ export const DiaryBookViewer: React.FC<Props> = ({ onClose, onBackToShelf, repor
   useEffect(() => {
     const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
     const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
-    callPlantHistoryAPI(startDate, endDate)
-      .then(res => { if (res.success) setPlantRecords(res.records); })
-      .catch(() => {});
-  }, [currentMonth]);
+    void loadPlantHistory(startDate, endDate);
+  }, [currentMonth, loadPlantHistory]);
 
   useEffect(() => {
-    if (!todayPlant) return;
-    setPlantRecords(prev => {
-      const idx = prev.findIndex(r => r.date === todayPlant.date);
-      if (idx === -1) return [...prev, todayPlant];
-      if (prev[idx].plantId === todayPlant.plantId) return prev;
-      const next = [...prev];
-      next[idx] = todayPlant;
-      return next;
+    reports.forEach((report) => {
+      if (report.type !== 'daily' || report.stats?.diaryPageSnapshot?.version === 2) return;
+      if (!report.aiAnalysis?.trim() && !report.teaserText?.trim()) return;
+      ensureDiaryPageSnapshot(report.id);
     });
-  }, [todayPlant]);
+  }, [ensureDiaryPageSnapshot, reports]);
+
+  const plantRecords = useMemo(() => {
+    const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
+    const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+    const records = historyUserId === userId
+      ? Object.values(historyPlantsByDate).filter(
+        plant => plant.date >= startDate && plant.date <= endDate,
+      )
+      : [];
+    const todayDate = format(new Date(), 'yyyy-MM-dd');
+    if (
+      todayPlant?.date === todayDate
+      && todayPlant.date >= startDate
+      && todayPlant.date <= endDate
+      && !records.some(plant => plant.date === todayPlant.date)
+    ) {
+      records.push(todayPlant);
+    }
+    return records;
+  }, [currentMonth, historyPlantsByDate, historyUserId, todayPlant, userId]);
 
   const monthStartStr = (() => {
     const d = startOfMonth(currentMonth);

@@ -8,10 +8,12 @@ import type { DailyPlantRecord, PlantCategoryKey, RootSegment } from '../../../t
 import { renderRootSegments } from '../../../lib/rootRenderer';
 import { toPlantCategoryKey } from '../../../lib/plantActivityMapper';
 import { getPlantDisplayName } from '../../../lib/plantDisplayName';
+import { compactPlantDiaryText, resolvePlantDiaryLang } from '../../../lib/plantDiaryText';
 import { useChatStore } from '../../../store/useChatStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PlantImage } from './PlantImage';
 import { SoilCanvas } from './SoilCanvas';
+import { useLongPressSave } from './useLongPressSave';
 
 function getCompanionName(mode: string): string {
   if (mode === 'agnes') return 'Agnes';
@@ -30,10 +32,32 @@ function getCategoryI18nKey(category: PlantCategoryKey): string {
   }
 }
 
+function PlantCardMetadata({ name, date }: { name: string | null; date: string }) {
+  const textStyle: React.CSSProperties = {
+    opacity: 0.52,
+    color: '#5c4b37',
+    fontSize: 11,
+    lineHeight: 1.4,
+    whiteSpace: 'nowrap',
+    fontFamily: '"LXGW WenKai", cursive',
+    letterSpacing: '0.06em',
+  };
+  return (
+    <div style={{
+      width: '100%', display: 'flex', alignItems: 'baseline', justifyContent: 'center',
+      gap: 8, boxSizing: 'border-box',
+    }}>
+      {name ? <span style={textStyle}>{name}</span> : <span />}
+      <span style={textStyle}>{date}</span>
+    </div>
+  );
+}
+
 interface PlantFlipCardProps {
   plant: DailyPlantRecord;
   segments: RootSegment[];
   directionOrder: PlantCategoryKey[];
+  cardOnly?: boolean;
   onClose?: () => void;
   onGenerateDiary?: () => void;
   isGeneratingDiary?: boolean;
@@ -42,7 +66,7 @@ interface PlantFlipCardProps {
 }
 
 export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
-  plant, segments, directionOrder, onClose, onGenerateDiary, isGeneratingDiary = false, isDiaryButtonDisabled = false, diaryButtonHint = null,
+  plant, segments, directionOrder, cardOnly = false, onClose, onGenerateDiary, isGeneratingDiary = false, isDiaryButtonDisabled = false, diaryButtonHint = null,
 }) => {
   const { t, i18n } = useTranslation();
   const [flipped, setFlipped] = useState(false);
@@ -56,12 +80,37 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
     () => getPlantDisplayName(plant.plantId, i18n.resolvedLanguage ?? i18n.language),
     [i18n.language, i18n.resolvedLanguage, plant.plantId],
   );
+  const cardDiaryText = useMemo(
+    () => compactPlantDiaryText(
+      plant.diaryText ?? '',
+      resolvePlantDiaryLang(i18n.resolvedLanguage ?? i18n.language),
+    ),
+    [i18n.language, i18n.resolvedLanguage, plant.diaryText],
+  );
 
   const messageMap = useMemo(() => {
-    const map = new Map<string, { content: string; activityType?: string | null; timestamp: number }>();
-    messages.forEach(m => map.set(m.id, { content: m.content, activityType: m.activityType, timestamp: m.timestamp }));
+    const map = new Map<string, {
+      content: string;
+      activityType?: string | null;
+      timestamp: number;
+      categoryKey?: PlantCategoryKey;
+    }>();
+    if (plant.rootSnapshot) {
+      plant.rootSnapshot.activities.forEach(activity => map.set(activity.id, {
+        content: activity.content,
+        activityType: activity.activityType,
+        timestamp: activity.timestamp,
+        categoryKey: activity.categoryKey,
+      }));
+      return map;
+    }
+    messages.forEach(m => map.set(m.id, {
+      content: m.content,
+      activityType: m.activityType,
+      timestamp: m.timestamp,
+    }));
     return map;
-  }, [messages]);
+  }, [messages, plant.rootSnapshot]);
 
   const selectedSegment = useMemo(
     () => segments.find(s => s.id === selectedRootId) ?? null,
@@ -83,7 +132,8 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
     const timeRange = startTs
       ? `${format(startTs, 'HH:mm')}-${format(endTs, 'HH:mm')}`
       : '-';
-    const category = toPlantCategoryKey(selectedMessage?.activityType, selectedMessage?.content);
+    const category = selectedMessage?.categoryKey
+      ?? toPlantCategoryKey(selectedMessage?.activityType, selectedMessage?.content);
     return {
       title: t('plant_detail_title'),
       activity: `${t('plant_detail_activity')}: ${selectedMessage?.content ?? '-'}`,
@@ -130,6 +180,10 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
       if (import.meta.env.DEV) console.error('[PlantFlipCard] save failed', err);
     }
   };
+  const longPressSaveHandlers = useLongPressSave({
+    enabled: cardOnly,
+    onSave: saveCard,
+  });
 
   const cardFaceStyle: React.CSSProperties = {
     position: 'absolute',
@@ -152,9 +206,24 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col items-center overflow-y-auto px-4 pt-4 pb-6 gap-4">
+    <div className={cardOnly
+      ? 'h-full w-full'
+      : 'h-full flex flex-col items-center overflow-y-auto px-4 pt-4 pb-6 gap-4'}
+    >
       {/* ── Flip card ── */}
-      <div style={{ position: 'relative', width: '100%', maxWidth: 290, aspectRatio: '3 / 4', flexShrink: 0 }}>
+      <div
+        {...longPressSaveHandlers}
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: cardOnly ? 'none' : 290,
+          height: cardOnly ? '100%' : undefined,
+          aspectRatio: '3 / 4',
+          flexShrink: 0,
+          WebkitTouchCallout: cardOnly ? 'none' : undefined,
+          userSelect: cardOnly ? 'none' : undefined,
+        }}
+      >
         {onClose && (
           <button
             onClick={onClose}
@@ -201,12 +270,12 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
 
             {/* Text + date — bottom-aligned so content always appears in the lower area */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: 8, paddingBottom: 20, overflow: 'hidden' }}>
-              {plant.diaryText ? (
+              {cardDiaryText ? (
                 <p className="line-clamp-5" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.75rem', lineHeight: 1.7, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
-                  {plant.diaryText}
+                  {cardDiaryText}
                 </p>
               ) : null}
-              <span style={{ opacity: 0.52, fontSize: 11, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
+              <PlantCardMetadata name={plantName} date={plant.date} />
             </div>
 
             {/* Tap-to-flip hint */}
@@ -252,12 +321,12 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
               </div>
 
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: 8, paddingBottom: 30, overflow: 'hidden' }}>
-                {plant.diaryText ? (
+                {cardDiaryText ? (
                   <p className="line-clamp-5" style={{ textAlign: 'center', color: '#5c4b37', fontSize: '0.75rem', lineHeight: 1.7, letterSpacing: '0.04em', fontFamily: '"LXGW WenKai", cursive' }}>
-                    {plant.diaryText}
+                    {cardDiaryText}
                   </p>
                 ) : null}
-                <span style={{ opacity: 0.52, fontSize: 11, color: '#5c4b37', whiteSpace: 'nowrap', fontFamily: '"LXGW WenKai", cursive', letterSpacing: '0.06em' }}>{plant.date}</span>
+                <PlantCardMetadata name={plantName} date={plant.date} />
               </div>
             </div>
           </div>
@@ -296,21 +365,8 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
         </div>
       </div>
 
-      {plantName ? (
-        <p
-          style={{
-            margin: '-6px 0 0',
-            color: 'rgba(92,75,55,0.68)',
-            fontSize: 11,
-            lineHeight: 1.4,
-            textAlign: 'center',
-          }}
-        >
-          {plantName}
-        </p>
-      ) : null}
-
       {/* ── Action buttons ── */}
+      {!cardOnly ? (
       <div style={{ width: '100%', maxWidth: 290, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
         {onGenerateDiary ? (
             <button
@@ -337,6 +393,7 @@ export const PlantFlipCard: React.FC<PlantFlipCardProps> = ({
           {t('plant_save_card')}
         </button>
       </div>
+      ) : null}
     </div>
   );
 };

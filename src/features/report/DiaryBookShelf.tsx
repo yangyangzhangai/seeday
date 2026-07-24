@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { format, startOfMonth, subMonths, isSameMonth, getDaysInMonth, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, isSameMonth, getDaysInMonth, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
 import { zhCN, enUS, it as itLocale } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { Report } from '../../store/useReportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useChatStore } from '../../store/useChatStore';
+import { usePlantStore } from '../../store/usePlantStore';
 import { DiaryBookViewer } from './DiaryBookViewer';
 import { APP_GLASS_BUTTON_BASE_STYLE } from '../../lib/modalTheme';
 
@@ -257,6 +258,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const { t, i18n } = useTranslation();
   const user = useAuthStore(s => s.user);
   const getMessagesForDateRange = useChatStore(s => s.getMessagesForDateRange);
+  const loadPlantHistory = usePlantStore(s => s.loadPlantHistory);
   const firstBookMonth = useMemo(() => {
     const dailyReports = reports
       .filter((report) => report.type === 'daily')
@@ -328,17 +330,25 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   const setBookName = (m: Date, name: string) =>
     setBookNames(prev => ({ ...prev, [m.getTime()]: name }));
 
-  const openMonthByDate = useCallback((targetDate: Date) => {
+  const preloadPlantMonth = useCallback(async (monthDate: Date) => {
+    await loadPlantHistory(
+      format(startOfMonth(monthDate), 'yyyy-MM-dd'),
+      format(endOfMonth(monthDate), 'yyyy-MM-dd'),
+    );
+  }, [loadPlantHistory]);
+
+  const openMonthByDate = useCallback(async (targetDate: Date) => {
     const monthDate = startOfMonth(targetDate);
     const idx = months.findIndex((m) => isSameMonth(m, monthDate));
     if (idx < 0) return false;
+    await preloadPlantMonth(monthDate);
     setViewerFlippedCount(targetDate.getDate());
     setOpenMonth(monthDate);
     setSearchOpen(false);
     setSelectedIdx(idx);
     setEditingIdx(null);
     return true;
-  }, [months]);
+  }, [months, preloadPlantMonth]);
 
   const getDateRecordCount = useCallback(async (date: Date) => {
     const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
@@ -369,7 +379,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         return;
       }
 
-      const ok = openMonthByDate(targetDate);
+      const ok = await openMonthByDate(targetDate);
       if (!ok) {
         setSearchError(t('diary_shelf_no_diary'));
         return;
@@ -433,12 +443,13 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
   }, [firstBookMonth]);
 
   /* Keyboard navigation */
-  const openSelected = useCallback(() => {
+  const openSelected = useCallback(async () => {
     if (selectedIdx !== null) {
+      await preloadPlantMonth(months[selectedIdx]);
       setViewerFlippedCount(undefined);
       setOpenMonth(months[selectedIdx]);
     }
-  }, [months, selectedIdx]);
+  }, [months, preloadPlantMonth, selectedIdx]);
 
   useEffect(() => {
     if (openMonth || searchOpen) return;
@@ -453,7 +464,7 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
         setSelectedIdx(prev => Math.max((prev ?? 1) - 1, 0));
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openSelected();
+        void openSelected();
       } else if (e.key === 'Escape') {
         onClose();
       }
@@ -876,8 +887,10 @@ export const DiaryBookShelf: React.FC<Props> = ({ onClose, reports, onOpenDiaryP
                     setEditingIdx(null);
                     setSelectedIdx(idx);
                   } else {
-                    setViewerFlippedCount(undefined);
-                    setOpenMonth(m);
+                    void preloadPlantMonth(m).then(() => {
+                      setViewerFlippedCount(undefined);
+                      setOpenMonth(m);
+                    });
                   }
                 }}
                 onStartEdit={() => { setSelectedIdx(idx); setEditingIdx(idx); }}

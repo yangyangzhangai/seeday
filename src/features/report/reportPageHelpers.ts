@@ -5,6 +5,10 @@ import type { Todo } from '../../store/useTodoStore';
 import type { ActivityRecordType } from '../../lib/activityType';
 import { normalizeActivityType } from '../../lib/activityType';
 import { normalizeMoodKey } from '../../lib/moodOptions';
+import {
+  findPreferredReportForWindow,
+  hasStoredDiaryText,
+} from '../../store/reportRecordResolver';
 
 export interface ActivityDistributionItem {
   type: ActivityRecordType;
@@ -14,6 +18,18 @@ export interface ActivityDistributionItem {
 export interface MoodDistributionItem {
   mood: string;
   minutes: number;
+}
+
+export function reportHasGeneratedDiary(report: Report | null | undefined): boolean {
+  return hasStoredDiaryText(report);
+}
+
+export function findDailyReportForDate(reports: Report[], date: number | Date): Report | null {
+  return findPreferredReportForWindow(reports, 'daily', date);
+}
+
+export function findTodayDailyReport(reports: Report[], now = new Date()): Report | null {
+  return findDailyReportForDate(reports, now);
 }
 
 interface MoodSnapshot {
