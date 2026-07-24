@@ -229,21 +229,6 @@ export function useRealtimeSync() {
         },
       )
 
-      // ── user_profiles ────────────────────────────────────────────────────
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_profiles',
-          filter: `user_id=eq.${userId}`,
-        },
-        ({ eventType }) => {
-          if (eventType === 'DELETE') return;
-          void useAuthStore.getState().refreshUserProfile().catch(() => {});
-        },
-      )
-
       // ── todos ────────────────────────────────────────────────────────────
       .on(
         'postgres_changes',

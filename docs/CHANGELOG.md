@@ -1,11 +1,5 @@
 # Changelog
 
-## 2026-07-24 - Cross-device routine profile sync reconciliation
-
-- Fixed routine/manual cross-device drift by timestamping the local routine snapshot and comparing it against `user_profiles.profile.updatedAt` instead of always preferring local cache.
-- `RoutineSettingsPanel` now keeps offline edits renderable immediately, marks them as pending locally, and rewrites the local routine snapshot back to a synced cloud copy once the cloud profile becomes the freshest source.
-- Added `user_profiles` refresh hooks on Supabase Realtime, native foreground restore, and network/visibility recovery so web-side routine edits converge on iOS/web without requiring a full sign-out/sign-in cycle.
-
 ## 2026-07-24 - English stretched mood words stay mood
 
 - Fixed the ordinary English activity/mood classifier so elongated mood phrasing like `sooo good`, `reeeally tired`, `I feel goooood`, and `happppy today` no longer miss the mood regex path and fall through to activity.

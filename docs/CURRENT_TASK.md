@@ -5,8 +5,6 @@ Owner: current working session
 
 Session Notes:
 
-- 2026-07-24: Fixed cross-device routine/profile manual sync drift. Routine Settings now stamps a local routine snapshot timestamp, compares it against `user_profiles.profile.updatedAt`, prefers whichever copy is fresher instead of blindly preferring stale local cache, and refreshes `user_profiles` on Realtime / foreground / online recovery. When cloud wins, the routine page rewrites the local snapshot back to a synced non-pending copy; when local is newer, offline edits still render immediately and survive until the next cloud flush.
-
 - 2026-07-24: Expanded the English stretched-word mood fallback for ordinary record input. The EN mood-pattern path now normalizes a small whitelist of elongated intensifiers (`sooo/reeeally/veeery/quiiite`) and high-value mood adjectives (`goooood/greeeat/happppy/tiiiired/saaad`) before sentence-level mood matching only, so those forms stay `standalone_mood` without changing activity/history parsing or stored user text. Regression coverage was added in `src/services/input/liveInputClassifier.i18n.test.ts`.
 
 - 2026-07-24: Fixed iOS Capacitor My Diary save keyboard dismissal on the Report root plant surface. Tapping Save now completes the existing note persist path, exits edit mode, and explicitly dismisses the focused textarea / native iPhone keyboard together, while guarding the blur-triggered autosave path from double-saving during the close sequence.

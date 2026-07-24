@@ -64,7 +64,6 @@
 - token 控制策略：仅“特殊待办”附加 `eventData.summary`（单行摘要 + 近 90 天统计）。特殊判定为任一命中：关联瓶子、重复任务（daily/weekly/monthly）、创建 >= 3 天；其余一次性新建轻量待办不附加 summary。
 - 用户画像 v1.1 基建已接入：`useAuthStore` 新增 `longTermProfileEnabled` + `userProfileV2` 状态，并提供 `updateLongTermProfileEnabled()` / `updateUserProfile()`。2026-07-07 起，`login_days` 改写 `user_login_days`，`user_profile_v2` / `long_term_profile_enabled` 改写 `user_profiles`，Auth metadata 仅作为旧账号迁移兜底，避免 JWT 请求头继续增长。
 - 作息与 AI 专属记忆已拆分：作息字段（`wakeTime/sleepTime/mealTimes`）保持普通功能可编辑，AI 专属记忆（`manual.freeText` + prompt 注入）按 Plus 功能门控。
-- `useAuthStore.refreshUserProfile()` 现负责 `user_profiles` 的轻量重拉与本地 pending profile flush；Realtime、前台恢复、网络恢复会触发它，让跨设备 routine/manual 更新在不阻塞离线 UI 的前提下按 `updatedAt` 收敛。
 - 语言偏好已接入云端同步：`useAuthStore.updateLanguagePreference()` 会将 UI 语言写入 `user_metadata.i18nextLng`；登录初始化与 `SIGNED_IN` 时若云端缺失该 key 会自动回填，若存在则优先云端值并同步到 i18n。
 - suggestion 画像门控已接入：`useAnnotationStore` 在 `isPlus && longTermProfileEnabled=true` 时构建并透传 `userContext.userProfileSnapshot`，并将 declared/observed 饭点注入建议上下文提示检测。
 - 周报触发画像提取已接入：`useReportStore.generateReport('weekly', ...)` 会在 `isPlus && longTermProfileEnabled=true` 时并行调用 `/api/extract-profile`（携带最近消息），并在成功后通过 `useAuthStore.updateUserProfile(...)` 合并写回 `observed/dynamicSignals/anniversariesVisible/hiddenMoments/lastExtractedAt`。

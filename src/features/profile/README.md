@@ -59,7 +59,6 @@ UpgradePage
 - **AI personas**: van (free), agnes/zep/momo (PLUS); selection stored in `preferences.aiMode`
 - **Annotation drop-rate**: controls AI extraction aggressiveness; medium/high gated behind PLUS
 - **Routine settings**: wake/sleep/meal-time fields are editable for all users and persisted in `manual`
-- **Routine sync resolution**: the routine page keeps a user-scoped local snapshot for instant/offline rendering, but now resolves display values by comparing that snapshot timestamp against `user_profiles.profile.updatedAt`; foreground/network/Realtime profile refreshes let web <-> iOS routine edits converge without forcing a re-login.
 - **AI personal memory**: Plus-only; `isPlus && longTermProfileEnabled` controls whether profile snapshot is injected into annotation/suggestion prompt chain and whether weekly extraction runs
 - **Life goal sync**: `manual.lifeGoal` is shared with Growth-side life goal panel (two-way sync via `useAuthStore.updateUserProfile()`)
 - **Weekly streak**: calculated from `user_login_days` plus activity fallback for older accounts

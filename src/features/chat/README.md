@@ -10,7 +10,6 @@
 - Main user flows:
   - Auto-recognized record input: `sendAutoRecognizedInput()` must return exactly one of `new_activity / standalone_mood / mood_about_last_activity`
   - English local evidence uses `compromise/two` grammar plus exact matches from the latest 50 activity messages; this history is local context, not a new persisted profile or classification kind
-  - Before English mood sentence-pattern matching, the classifier now also applies a conservative whitelist normalization for stretched emphasis words such as `sooo`, `reeeally`, and `goooood`; this only boosts mood-signal recall and does not rewrite stored text or global activity parsing
   - Magic Pen side flow: simple single-intent input may use the local fast path; mixed activity+mood evidence is checked before short-text handling and routes the whole unsliced input to `parseMagicPenInput(...)`; AI keeps `activity / mood / todo_add / activity_backfill`
   - Complex Magic Pen AI output passes a semantic quality gate before use. Empty, low-coverage, missing-time-anchor, or under-split output retries through the second provider; provider exhaustion keeps the original input in the existing unparsed review area and then uses the local parser where it can safely recover drafts
   - Remote-failure recovery uses one conservative ZH/EN/IT semantic fallback: it segments clauses, reuses the shared activity/mood lexicons, requires action context for todo intent, and leaves wishes, negation, cross-day text, and conflicting evidence unparsed instead of guessing
