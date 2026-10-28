@@ -1,6 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import OpenAI from 'openai';
+import { aiChatRequestOptions, createAiChatClient, resolveAiChatRuntime } from '../src/server/ai-routing.js';
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, normalizeAiCompanionMode } from '../src/lib/aiCompanion.js';
 import { removeThinkingTags } from '../src/lib/aiParser.js';
 import { compactDiaryInsight } from '../src/lib/diaryInsightText.js';
@@ -8,8 +8,6 @@ import { shouldRetryDiaryDraft } from '../src/server/diary-body-integrity.js';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { buildDiaryTeaser } from '../src/server/diaryTeasers.js';
 import { requireSupabaseAiConsent } from '../src/server/ai-consent.js';
-
-const openai = new OpenAI();
 
 /**
  * Vercel Serverless Function - AI Diary API
@@ -122,15 +120,17 @@ function buildDiaryRetryRule(lang: 'zh' | 'en' | 'it'): string {
 }
 
 async function requestDiaryDraft(systemPrompt: string, userPrompt: string) {
+  const runtime = resolveAiChatRuntime('diary');
+  const openai = createAiChatClient(runtime);
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    store: false,
+    model: runtime.model,
+    ...aiChatRequestOptions(runtime.provider),
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.75,
-    max_tokens: 900,
+    temperature: runtime.provider === 'deepseek' ? 1.0 : 0.75,
+    max_tokens: runtime.provider === 'deepseek' ? 1600 : 900,
   });
 
   return {
@@ -229,7 +229,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Short insight branch: action === 'insight'
   if (action === 'insight') {
     if (!(await requireSupabaseAiConsent(req, res))) return;
-    const apiKey = process.env.OPENAI_API_KEY;
+    const runtime = resolveAiChatRuntime('insight');
+    const apiKey = runtime.apiKey;
     if (!apiKey || !kind || !summary) {
       res.status(200).json({ insight: '' });
       return;
@@ -277,12 +278,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? `${modePrompt}\n\nSei un life coach sintetico. In base alla ${topicIt} dell'utente, scrivi una sola frase completa di massimo 8 parole. ${behaviorRule} Restituisci solo quella frase.`
         : `${modePrompt}\n\nYou are a concise life coach. Based on the user's ${topicEn}, output one complete insight sentence of at most 8 words. ${behaviorRule} Output only that sentence.`;
     try {
+      const openai = createAiChatClient(runtime);
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        store: false,
+        model: runtime.model,
+        ...aiChatRequestOptions(runtime.provider),
         messages: [{ role: 'system', content: systemMsg }, { role: 'user', content: String(summary) }],
-        temperature: 0.7,
-        max_tokens: 60,
+        temperature: runtime.provider === 'deepseek' ? 0.6 : 0.7,
+        max_tokens: runtime.provider === 'deepseek' ? 128 : 60,
       });
       const raw: string = completion.choices?.[0]?.message?.content || '';
       res.status(200).json({ insight: compactDiaryInsight(raw, normalizedLang) });
@@ -308,7 +310,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!(await requireSupabaseAiConsent(req, res))) return;
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = resolveAiChatRuntime('diary').apiKey;
   if (!apiKey) {
     jsonError(res, 500, 'Server configuration error: Missing API key');
     return;

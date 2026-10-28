@@ -1,5 +1,6 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/用户画像模块_需求与技术文档_v1.md
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
+import { aiChatRequestOptions, createAiChatClient, resolveAiChatRuntime } from './ai-routing.js';
 import { z } from 'zod';
 import type {
   ConfidenceSignal,
@@ -273,18 +274,19 @@ export async function extractUserProfileFromMessages(params: {
     return { lastExtractedAt: nowIso };
   }
 
-  const client = params.openai ?? new OpenAI({ apiKey: params.apiKey });
-  const model = (params.model || process.env.PROFILE_EXTRACT_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
+  const runtime = resolveAiChatRuntime('profile');
+  const client = params.openai ?? createAiChatClient({ ...runtime, apiKey: params.apiKey });
+  const model = params.model?.trim() || runtime.model;
   const lang = params.lang === 'zh' || params.lang === 'it' ? params.lang : 'en';
   const prompt = buildPromptByLang(lang, nowIso, buildInputDigest(trimmedMessages));
 
   const completion = await client.chat.completions.create({
     model,
-    store: false,
+    ...aiChatRequestOptions(runtime.provider),
     response_format: { type: 'json_object' },
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.2,
-    max_tokens: 1600,
+    max_tokens: runtime.provider === 'deepseek' ? 4096 : 1600,
   });
 
   const rawText = completion.choices?.[0]?.message?.content || '{}';

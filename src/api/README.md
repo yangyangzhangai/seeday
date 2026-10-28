@@ -56,9 +56,11 @@ Reminder receipts use the authenticated Supabase client directly; RLS restricts 
 
 ## Current Notes
 
+- 2026-10-28: DeepSeek sampling/output budgets are tuned server-side per feature; frontend payloads and response contracts are unchanged. Prompts and provider-switch configuration are unchanged; see `docs/AI_USAGE_INVENTORY.md` for current budgets.
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
 - `callClassifierAPI()` now forwards Supabase `Authorization` header; backend `/api/classify` enforces Plus membership and can return `403 membership_required` for non-Plus users.
-- Annotation, classifier/todo-decompose, full diary/insight, Magic Pen, and profile extraction now all attach Supabase auth and require current AI consent. Diary teaser remains deterministic; plant generation remains available without consent but the server uses only local fallback text and skips OpenAI.
+- Annotation, classifier/todo-decompose, full diary/insight, Magic Pen, and profile extraction now all attach Supabase auth and require current AI consent. Diary teaser remains deterministic; plant generation remains available without consent but the server uses only local fallback text and skips all AI providers.
+- AI routing is configured server-side through `AI_PROVIDER_MODE` (default DeepSeek, optional `legacy`). Frontend request/response contracts and language/persona inputs are unchanged. Model names, non-thinking settings, output budgets, and rollback configuration are maintained in `docs/AI_USAGE_INVENTORY.md`.
 - `callClassifierAPI()` unified response is now single-input schema: `data.kind` (`activity|mood`, mandatory binary), `data.activity_type` (six activity classes), `data.mood_type` (8-key mood enum or null), `data.matched_bottle` (optional), and `data.confidence` (0~1).
 - API client now normalizes server errors into `ApiClientError` (`code/status/details/path/requestId`) and exports `isMembershipRequiredError()` for stable branch handling without brittle string matching.
 - Membership classification observability now reuses `/api/live-input-telemetry` `classification` ingest path with `reasons[]` tags (`membership_classification`, `user_plan:*`, `classification_path:*`, `ai_called:*`, `ai_result_kind:*`, `bottle_match_source:*`) to avoid adding extra endpoint/files.
@@ -85,9 +87,9 @@ Reminder receipts use the authenticated Supabase client directly; RLS restricts 
 - Annotation suggestion mode now uses a dedicated companion system prompt instead of the plain annotation system prompt. Todo targeting uses `todoId` as the only hard locator, rewrites `todoTitle` from the canonical pending-todo row, and only forced suggestion mode may whole-payload-fallback to another todo; allow-suggestion mode now drops the button instead of swapping in a different fallback todo.
 - `callAnnotationAPI()` response may include `narrativeEvent` (`eventType/eventId/instruction/isTriggeredReply`) so store layer can correlate low-density-triggered replies with `event_condensed` telemetry.
 - Annotation prompt assembly now goes through `src/server/annotation-prompt-builder.ts`, which centralizes prompt packaging for both annotation/suggestion paths and returns a unified `{ model, instructions, input }` payload to the LLM call.
-- Annotation provider 路由：中文使用 DeepSeek，英/意使用 OpenAI GPT；具体模型和环境变量以 `docs/AI_USAGE_INVENTORY.md` 为准。
+- Annotation provider 路由由服务端统一配置，默认三语均使用 DeepSeek；原英/意 OpenAI 路径仅在 legacy 模式启用，具体模型以 `docs/AI_USAGE_INVENTORY.md` 为准。
 - Annotation 事件层新增待办完成透传：完成待办时会发送 `activity_completed`，并在 `eventData` 附带 `todoCompletionContext`（important/recurrence/createdAt/threeMonth）与按条件附加的紧凑 `summary`，普通输入继续走 `activity_recorded`。
-- `callTodoDecomposeAPI()` routes to `/api/todo-decompose`（由 `vercel.json` rewrite 到 `/api/classify` 的 `todo_decompose` 分支）；中文使用 DeepSeek，英/意使用 Gemini，具体配置以 `docs/AI_USAGE_INVENTORY.md` 为准。
+- `callTodoDecomposeAPI()` routes to `/api/todo-decompose`（由 `vercel.json` rewrite 到 `/api/classify` 的 `todo_decompose` 分支）；默认三语均使用 DeepSeek，原英/意 Gemini 适配器仅在 legacy 模式启用，具体配置以 `docs/AI_USAGE_INVENTORY.md` 为准。
 - `callTodoDecomposeAPI()` now forwards Supabase `Authorization` header as a member-only path guard, aligned with `/api/classify` auth + Plus enforcement.
 - Plant diary generation now reads the authenticated user's `user_metadata.ai_mode` on the server side before building diary prompts.
 - The legacy `/api/chat` companion-response endpoint has been retired. `/chat` now runs as a record timeline plus Magic Pen surface, and all remaining AI calls still route through `/api/*`.

@@ -8,6 +8,7 @@ import {
 import { MAGIC_PEN_PROMPT_EN, MAGIC_PEN_PROMPT_IT, MAGIC_PEN_PROMPT_ZH } from '../src/server/magic-pen-prompts.js';
 import { assessMagicPenResult } from '../src/server/magic-pen-quality.js';
 import { requireSupabaseAiConsent } from '../src/server/ai-consent.js';
+import { aiChatRequestOptions, resolveAiRoute } from '../src/server/ai-routing.js';
 
 type MagicPenKind = 'activity' | 'mood' | 'todo_add' | 'activity_backfill';
 type MagicPenConfidence = 'high' | 'medium' | 'low';
@@ -293,7 +294,8 @@ async function callProvider(
           { role: 'user', content: rawText },
         ],
         temperature: 0.2,
-        max_tokens: 2048,
+        max_tokens: 4096,
+        ...aiChatRequestOptions('deepseek'),
         response_format: { type: 'json_object' },
         stream: false,
       }),
@@ -422,7 +424,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const runtime = resolveDeepSeekRuntime({
     apiKey: process.env.MAGIC_PEN_DEEPSEEK_API_KEY,
     baseURL: process.env.MAGIC_PEN_DEEPSEEK_BASE_URL,
-    model: process.env.MAGIC_PEN_MODEL,
+    model: resolveAiRoute('magic_pen').model,
   });
   if (!runtime.apiKey) {
     logMagicPen(traceId, 'request.missing_api_keys');

@@ -14,6 +14,8 @@ function restoreEnv(name: string, value: string | undefined): void {
 
 describe('todo-decompose-service provider routing', () => {
   beforeEach(() => {
+    vi.stubEnv('AI_PROVIDER_MODE', 'deepseek');
+    vi.stubEnv('DEEPSEEK_FLASH_MODEL', '');
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key';
     process.env.DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1/';
     process.env.GEMINI_API_KEY = 'test-gemini-key';
@@ -44,19 +46,23 @@ describe('todo-decompose-service provider routing', () => {
     restoreEnv('GEMINI_API_KEY', originalGeminiKey);
     restoreEnv('GEMINI_BASE_URL', originalGeminiBase);
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
-  it('uses DeepSeek for Chinese', async () => {
-    const result = await decomposeTodoWithAIDiagnostics({ title: '准备项目简报', lang: 'zh' });
+  it.each(['zh', 'en', 'it'] as const)('uses non-thinking DeepSeek Flash for %s', async (lang) => {
+    const result = await decomposeTodoWithAIDiagnostics({ title: '准备项目简报', lang });
     expect(result).toMatchObject({
       provider: 'deepseek',
-      model: 'deepseek-chat',
+      model: 'deepseek-flash',
       steps: [{ title: '打开简报', durationMinutes: 10 }],
     });
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('https://api.deepseek.com/v1/chat/completions');
+    const payload = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+    expect(payload).toMatchObject({ thinking: { type: 'disabled' }, max_tokens: 768, temperature: 0.5 });
   });
 
   it.each(['en', 'it'] as const)('keeps Gemini for %s', async (lang) => {
+    vi.stubEnv('AI_PROVIDER_MODE', 'legacy');
     const result = await decomposeTodoWithAIDiagnostics({
       title: 'Prepare the project brief',
       lang,

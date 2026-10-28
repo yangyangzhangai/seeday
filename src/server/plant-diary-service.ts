@@ -1,6 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
 import { buildAiCompanionModePrompt, normalizeAiCompanionLang, type AiCompanionMode } from '../lib/aiCompanion.js';
 import { removeThinkingTags } from '../lib/aiParser.js';
+import { aiChatRequestOptions, resolveAiChatRuntime } from './ai-routing.js';
 import { isPlantDiaryTextWithinCardLimit } from '../lib/plantDiaryText.js';
 import type { PlantEntry } from '../lib/plantRegistry.js';
 import type { PlantCategoryKey, PlantDiaryRequest, RootType } from '../types/plant.js';
@@ -281,23 +282,24 @@ async function runRequest(
   input: PlantDiaryServiceInput,
   timeoutMs: number,
 ): Promise<{ text: string; chosenPlantId: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
+  const runtime = resolveAiChatRuntime('plant');
+  const apiKey = runtime.apiKey;
+  if (!apiKey) throw new Error('Missing API key');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const lang = normalizeAiCompanionLang(input.lang) as Lang;
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${runtime.baseURL}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        store: false,
+        model: runtime.model,
+        ...aiChatRequestOptions(runtime.provider),
         messages: buildMessages(input),
-        temperature: 0.80,
-        max_tokens: 280,
+        temperature: runtime.provider === 'deepseek' ? 1.0 : 0.8,
+        max_tokens: runtime.provider === 'deepseek' ? 256 : 280,
         stream: false,
       }),
       signal: controller.signal,

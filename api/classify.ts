@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, jsonError, requireMethod } from '../src/server/http.js';
 import { requireSupabaseRequestAuth } from '../src/server/supabase-request-auth.js';
 import { requireAiConsentForAuth } from '../src/server/ai-consent.js';
+import { aiChatRequestOptions, resolveAiRoute } from '../src/server/ai-routing.js';
 import { decomposeTodoWithAIDiagnostics } from '../src/server/todo-decompose-service.js';
 import { matchBottleByKeywords } from '../src/lib/bottleMatcher.js';
 import {
@@ -419,8 +420,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[Todo Decompose API] request.failed', {
         lang,
         titleLength: typeof title === 'string' ? title.trim().length : 0,
-        modelZh: process.env.TODO_DECOMPOSE_MODEL_ZH || 'deepseek-chat',
-        modelDefault: process.env.TODO_DECOMPOSE_MODEL || 'gemini-2.5-flash',
+        modelZh: resolveAiRoute('todo_decompose', 'zh').model,
+        modelDefault: resolveAiRoute('todo_decompose', 'en').model,
         hasDeepSeekKey: Boolean(process.env.DEEPSEEK_API_KEY),
         hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
         deepseekBase: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
@@ -441,7 +442,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const runtime = resolveDeepSeekRuntime({ model: process.env.CLASSIFY_MODEL });
+  const runtime = resolveDeepSeekRuntime({ model: resolveAiRoute('classify').model });
   const apiUrl = getDeepSeekChatCompletionsUrl(runtime.baseURL);
 
   if (!runtime.apiKey) {
@@ -472,8 +473,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
           { role: 'user', content: rawInput }
         ],
-        temperature: 0.6,
-        max_tokens: 2048,
+        temperature: 0.2,
+        max_tokens: 384,
+        ...aiChatRequestOptions('deepseek'),
         stream: false,
       }),
     });

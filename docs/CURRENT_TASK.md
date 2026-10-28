@@ -1,9 +1,14 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-08-04
+Last Updated: 2026-10-28
 Owner: current working session
 
 Session Notes:
+
+- 2026-10-28: User approved API parameter tuning only. Applied the discussed DeepSeek temperature/output budgets to all call paths while retaining disabled thinking. Full diary/retries: 1.0/1600; annotation: 1.1/256; suggestion: 0.7/512; rewrite: 1.2/256; classification: 0.2/384; decomposition: 0.5/768; insight: 0.6/128; profile and Magic Pen: 0.2/4096; plant: 1.0/256. OpenAI/Gemini retain prior settings. Prompts, environment-variable migration and timeout changes are deferred. Validation: all 861 unit tests, lint/type/docs/state checks, full-repository secret scan and production build pass; user authorized committing and pushing on 2026-10-28; deployment outcome must be verified separately.
+
+- 2026-10-21: Migrated all eight AI capabilities and all languages to non-thinking DeepSeek by default. Full diary uses `deepseek-v4-pro`; annotations/suggestions, classification, decomposition, insights, profiles, Magic Pen, and short plant observations use `deepseek-flash`. `src/server/ai-routing.ts` centralizes model selection and `AI_PROVIDER_MODE=legacy` restores retained OpenAI/Gemini adapters through configuration plus redeployment. Endpoint contracts, prompts, token budgets, consent/auth checks and local fallbacks remain unchanged. Updated the inventory, environment example and API guides; production deployment and real-provider quality/latency checks are still pending. On 2026-10-28, fetched and fast-forwarded main to `9a55ec3`, then reapplied these edits and resolved both documentation conflicts while retaining upstream UI history. HEAD matches origin/main.
+- 2026-10-28 validation: preloaded Chat/Mood stores before fake timers in the orphan-mood test to eliminate its dynamic-import timeout without changing production behavior or increasing timeout. Post-merge lint/type/docs/state checks, secret scan, build, and all 861 tests across 108 files pass. User authorized committing and pushing on 2026-10-28; deployment outcome must be verified separately.
 
 - 2026-08-04: Closed the remaining user-facing shared-UI migration gaps without entering the explicitly preserved purchase, Diary Book content, Report calendar, or Onboarding showcase boundaries. Chat, Growth, Report, and Profile now render their unchanged page-specific contents through the shared frosted `Header`; Auth copy and actions use the established display/body/caption/badge/form semantics; AI consent, reminder, evening-check, quick-activity, and fatal-error surfaces use shared modal and typography foundations. `AppSelectMenu` now supports placeholders and invalid states and replaces the separate Feedback menu plus Root Direction's transparent native select layer while preserving values, duplicate validation, telemetry, and save behavior. Root Direction's decorative backdrop no longer impersonates the close control, while its visible close button now carries the existing localized accessible name.
 

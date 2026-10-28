@@ -1,4 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
+import { aiChatRequestOptions, resolveAiRoute } from './ai-routing.js';
 import {
   getDeepSeekChatCompletionsUrl,
   resolveDeepSeekRuntime,
@@ -149,8 +150,7 @@ function normalizeSteps(steps: unknown): TodoDecomposeStep[] {
 
 function resolveDecomposeModel(lang: DecomposeLang, model?: string): string {
   if (typeof model === 'string' && model.trim()) return model.trim();
-  if (lang === 'zh') return process.env.TODO_DECOMPOSE_MODEL_ZH?.trim() || 'deepseek-chat';
-  return process.env.TODO_DECOMPOSE_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  return resolveAiRoute('todo_decompose', lang).model;
 }
 
 type TodoDecomposeParams = {
@@ -185,7 +185,8 @@ async function requestDeepSeekDecomposition(params: TodoDecomposeParams, model: 
       ],
       response_format: { type: 'json_object' },
       temperature: 0.5,
-      max_tokens: 512,
+      max_tokens: 768,
+      ...aiChatRequestOptions('deepseek'),
       stream: false,
     }),
   });
@@ -292,7 +293,7 @@ export async function decomposeTodoWithAI(params: TodoDecomposeParams): Promise<
 
 export async function decomposeTodoWithAIDiagnostics(params: TodoDecomposeParams): Promise<TodoDecomposeResult> {
   const model = resolveDecomposeModel(params.lang, params.model);
-  const provider = params.lang === 'zh' ? 'deepseek' : 'gemini';
+  const provider = resolveAiRoute('todo_decompose', params.lang).provider === 'gemini' ? 'gemini' : 'deepseek';
   const result = provider === 'deepseek'
     ? { rawContent: await requestDeepSeekDecomposition(params, model), model }
     : await requestGeminiDecomposition(params, model);

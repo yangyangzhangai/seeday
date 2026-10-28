@@ -1,4 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
+import { resolveAiRoute } from './ai-routing.js';
 import {
   buildAiCompanionModePrompt,
   buildAiCompanionSuggestionPrompt,
@@ -173,6 +174,5 @@ export function getDefaultAnnotations(lang: string): AnnotationMap {
 }
 
 export function getModel(lang: string): string {
-  if (lang === 'en' || lang === 'it') return 'gpt-4.1-mini';
-  return 'deepseek-chat';
+  return resolveAiRoute('annotation', lang).model;
 }

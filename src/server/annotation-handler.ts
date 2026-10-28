@@ -363,7 +363,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const defaultSet = getDefaultAnnotations(resolvedLang);
   const routeModel = getModel(resolvedLang);
-  const runtime = resolveAnnotationRuntime(routeModel);
+  const runtime = resolveAnnotationRuntime(routeModel, resolvedLang);
 
   if (!runtime.apiKey) {
     const defaultAnnotation = defaultSet[eventType] || defaultSet.activity_completed;
@@ -520,8 +520,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model: promptPackage.model,
         instructions: promptPackage.instructions,
         input: promptPackage.input,
-        temperature: 0.6,
-        maxOutputTokens: 300,
+        temperature: runtime.provider === 'deepseek' ? 0.7 : 0.6,
+        maxOutputTokens: runtime.provider === 'deepseek' ? 512 : 300,
         apiKey: runtime.apiKey,
         baseURL: runtime.baseURL,
         expectJson: true,
@@ -760,8 +760,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model: promptPackage.model,
       instructions: promptPackage.instructions,
       input: promptPackage.input,
-      temperature: 0.7,
-      maxOutputTokens: 480,
+      temperature: runtime.provider === 'deepseek' ? 1.1 : 0.7,
+      maxOutputTokens: runtime.provider === 'deepseek' ? 256 : 480,
       apiKey: runtime.apiKey,
       baseURL: runtime.baseURL,
     });
@@ -848,8 +848,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             model: promptPackage.model,
             instructions: promptPackage.instructions,
             input: rewritePrompt,
-            temperature: resolvedLang === 'zh' ? 0.75 : 0.8,
-            maxOutputTokens: resolvedLang === 'zh' ? 180 : 480,
+            temperature: runtime.provider === 'deepseek' ? 1.2 : (resolvedLang === 'zh' ? 0.75 : 0.8),
+            maxOutputTokens: runtime.provider === 'deepseek' ? 256 : (resolvedLang === 'zh' ? 180 : 480),
             apiKey: runtime.apiKey,
             baseURL: runtime.baseURL,
           });

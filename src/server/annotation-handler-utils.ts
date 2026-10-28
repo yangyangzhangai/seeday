@@ -2,6 +2,7 @@
 import type OpenAI from 'openai';
 import type { AnnotationPromptPackage } from './annotation-prompt-builder.js';
 import type { AnnotationProvider } from './annotation-provider-runtime.js';
+import { aiChatRequestOptions } from './ai-routing.js';
 
 type AnnotationLang = 'zh' | 'en' | 'it';
 
@@ -48,6 +49,7 @@ export async function callAnnotationLLM(
       ],
       temperature: params.temperature,
       max_tokens: params.maxOutputTokens,
+      ...aiChatRequestOptions('deepseek'),
       ...(params.expectJson ? { response_format: { type: 'json_object' } } : {}),
     });
 

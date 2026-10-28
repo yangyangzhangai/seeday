@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-28 - Tune DeepSeek request budgets by feature
+
+- Applied the discussed per-feature temperatures and output limits, including retries, rewrites and pre-decomposition; all DeepSeek requests remain non-thinking. Current values are recorded in `docs/AI_USAGE_INVENTORY.md`.
+- Preserved existing prompts, response schemas, timeouts/fallbacks and the prior OpenAI/Gemini parameters. Prompt editing and environment-based prompt management are deferred by user request.
+- Updated request assertions and API documentation. Risk: larger Magic Pen/profile budgets require real-provider latency/quality checks; raising the budget does not bypass existing timeouts. Rollback: revert this parameter adjustment or use the retained legacy provider configuration. Validation: all 861 unit tests, lint/type/docs/state checks, full-repository secret scan and production build pass; no publication performed.
+
+## 2026-10-21 - DeepSeek Pro/Flash defaults with configuration rollback
+
+- Moved all eight AI capabilities and all languages to DeepSeek: full diary uses `deepseek-v4-pro`; other requests use `deepseek-flash`. Every DeepSeek call explicitly sends `thinking.type=disabled`, including retries and suggestion pre-decomposition.
+- Added centralized routing and environment overrides. Retained OpenAI Responses/Chat Completions and Gemini generateContent adapters; `AI_PROVIDER_MODE=legacy` plus valid provider keys and a server redeploy restores the old supplier mapping without code edits. DeepSeek paths default to Flash in both modes.
+- Preserved frontend contracts, output budgets, prompts, membership/consent guards, local fallbacks and the function count. OpenAI clients now initialize lazily so default mode works with only a DeepSeek key; legacy requests retain `store:false` / Gemini `thinkingBudget:0`.
+- Updated the AI inventory, API guides, project map, session anchor and `.env.example`. Existing user-facing privacy/i18n copy was not rewritten.
+- Risk/rollback: model style, structured extraction quality and latency require real-provider checks after deployment. Roll back via `AI_PROVIDER_MODE=legacy` and redeploy; no schema migration is involved. Remote August 4 UI commits were merged on 2026-10-28 at `9a55ec3`; no deployment or live AI calls were performed.
+- Validation (2026-10-28): post-merge lint/type/docs/state checks, the full-repository secret scan (545 files), production build, and all 861 tests across 108 files pass. The outbox regression test now loads Chat/Mood dependencies before fake timers instead of importing them during the timed test; production behavior and timeout remain unchanged. Routing tests additionally assert temperature and output-token budgets. User authorized GitHub publication on 2026-10-28.
+
 ## 2026-08-04 - Complete shared UI migration gaps
 
 - Replaced the unused legacy avatar header with a shared frosted page-header shell and reused it on Chat, Growth, Report, and Profile without changing their controls or layout.

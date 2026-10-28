@@ -71,6 +71,7 @@ src/
 - `src/server/apple-account-revoke.ts`：Apple authorization code 交换、identity 核对与 token revoke。
 - `src/server/ai-consent.ts`：第三方 AI 当前同意版本的服务端数据库核验与失败关闭响应。
 - `src/server/deepseek-runtime.ts`：DeepSeek 路径共用的密钥、base URL、默认模型和兼容客户端。
+- `src/server/ai-routing.ts`：全部 AI 能力的 Pro/Flash 默认路由、非思考请求参数及旧 OpenAI/Gemini 配置切换；映射与预算以 `docs/AI_USAGE_INVENTORY.md` 为准。
 - `src/server/annotation-*.ts`：批注 handler、prompt、suggestion 和相似度。
 - `src/server/country-resolver.ts`、`holiday-resolver.ts`：国家与节日上下文。
 - `src/server/weather-*.ts`、`air-quality-provider.ts`：天气、空气质量和预警。

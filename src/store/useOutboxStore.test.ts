@@ -21,6 +21,8 @@ vi.mock('./storageScope', async () => {
 });
 
 import { resetOutboxExecutorsForTests, setOutboxExecutorForTests, useOutboxStore } from './useOutboxStore';
+import { useChatStore } from './useChatStore';
+import { useMoodStore } from './useMoodStore';
 
 describe('useOutboxStore', () => {
   beforeEach(() => {
@@ -74,8 +76,6 @@ describe('useOutboxStore', () => {
 
   it('removes a verified orphan mood before retrying its cloud write', async () => {
     const moodExecutor = vi.fn().mockResolvedValue(undefined);
-    const { useChatStore } = await import('./useChatStore');
-    const { useMoodStore } = await import('./useMoodStore');
     useChatStore.setState({ messages: [], dateCache: {} });
     useMoodStore.setState({ activityMood: { 'orphan-message': 'down' } });
     supabaseMocks.from.mockReturnValue({

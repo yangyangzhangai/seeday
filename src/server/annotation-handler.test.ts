@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const responsesCreateMock = vi.fn();
 const chatCompletionsCreateMock = vi.fn();
@@ -45,6 +45,7 @@ function createResponseMock() {
 
 describe('annotation-handler', () => {
   beforeEach(() => {
+    vi.stubEnv('AI_PROVIDER_MODE', 'legacy');
     vi.resetModules();
     responsesCreateMock.mockReset();
     chatCompletionsCreateMock.mockReset();
@@ -65,6 +66,34 @@ describe('annotation-handler', () => {
     process.env.GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
     process.env.ANNOTATION_CHARACTER_STATE_ENABLED = 'true';
   });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(['zh', 'en', 'it'])('routes %s annotations to non-thinking Flash by default', async (lang) => {
+    vi.stubEnv('AI_PROVIDER_MODE', 'deepseek');
+    vi.stubEnv('DEEPSEEK_FLASH_MODEL', '');
+    chatCompletionsCreateMock.mockResolvedValue({
+      choices: [{ message: { content: lang === 'zh'
+        ? '你今天认真完成了评审，也给自己留下了休息的时间。'
+        : 'You actually did the thing today, and it counts' } }],
+    });
+    const { default: handler } = await import('./annotation-handler');
+    const res = createResponseMock();
+    await handler({ method: 'POST', body: {
+      eventType: 'activity_recorded', eventData: { content: 'Finished the review' },
+      userContext: { todayActivities: 1, todayDuration: 45, currentHour: 10,
+        recentAnnotations: [], recentMoodMessages: [], todayActivitiesList: [] },
+      lang, aiMode: 'zep',
+    } } as any, res as any);
+    expect(responsesCreateMock).not.toHaveBeenCalled();
+    expect(chatCompletionsCreateMock).toHaveBeenCalled();
+    for (const [request] of chatCompletionsCreateMock.mock.calls) {
+      expect(request).toMatchObject({ model: 'deepseek-flash', thinking: { type: 'disabled' },
+        temperature: 1.1, max_tokens: 256 });
+    }
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toMatchObject({ source: 'ai' });
+  }, 10_000);
 
   it('passes the selected ai mode without reusing a previous response id', async () => {
     const { default: handler } = await import('./annotation-handler');

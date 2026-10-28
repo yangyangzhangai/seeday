@@ -9,7 +9,7 @@
 1. 仅处理服务端逻辑，不依赖 `window`、`localStorage` 等浏览器对象。
 2. 前端统一通过 `src/api/client.ts` 调用，不在 `src/**` 直连第三方 AI。
 3. 所有函数统一设置 CORS，并只接受各自的预期方法（含 `OPTIONS` 预检）；当前绝大多数为 `POST`，`/api/plant-history` 为 `GET`。
-4. 密钥统一从 `process.env` 读取；DeepSeek、OpenAI、Gemini 的现行端点与语言映射详见 `docs/AI_USAGE_INVENTORY.md`。
+4. 密钥统一从 `process.env` 读取；模型由 `src/server/ai-routing.ts` 集中选择，默认全部 DeepSeek、关闭 thinking；保留旧供应商供 `AI_PROVIDER_MODE=legacy` 切换。模型/语言映射、请求预算见 `docs/AI_USAGE_INVENTORY.md`。
 5. 第三方 AI 端点必须在调用服务商前核验当前版本的 `user_account_state.ai_consent_*`。纯 AI 端点未同意返回 `403 ai_consent_required`，consent 状态无法读取时返回 `503 ai_consent_verification_failed`；不得因校验故障放行。
 
 ## 端点清单（与当前实现一致）
@@ -38,7 +38,7 @@
 `segments[*]` may include `timeRelation` (`realtime`/`future`/`past`/`unknown`) for parser-first runtime gating.
 `/api/magic-pen-parse` 对可解析 JSON 仍执行语义质量门槛：空提取、低原文覆盖、漏掉明确时间锚点或复杂句拆分严重不足均视为 `low_quality`。远端失败时，响应会把完整 `rawText` 保留在 `unparsed`，供前端运行既有本地兜底。服务商与模型配置统一见 `docs/AI_USAGE_INVENTORY.md`。
 Plant endpoints require `Authorization: Bearer <supabase access token>` and validate current user before DB read/write.
-`/api/plant-generate` 是混合端点：未同意或 consent 状态不可读时仍可完成确定性植物计算，但必须使用本地静态文案，不得调用 OpenAI。
+`/api/plant-generate` 是混合端点：未同意或 consent 状态不可读时仍可完成确定性植物计算，但必须使用本地静态文案，不得调用任何 AI 服务商。
 `/api/extract-profile` requires `Authorization: Bearer <supabase access token>` and accepts `recentMessages[] + lang` (`zh`/`en`/`it`) from frontend weekly-report flow.
 `/api/delete-account` requires `Authorization: Bearer <supabase access token>` plus `SUPABASE_SERVICE_ROLE_KEY`. It fails closed: for Apple-linked accounts the iOS client reauthorizes through the native Apple sheet and sends a fresh authorization code; the server exchanges it for an Apple token, verifies the returned Apple subject/audience against the linked Supabase identity, revokes the token, then deletes known user-scoped tables, all `seeday-images/<userId>/**` objects, and finally the Supabase Auth user. Any exchange/identity/revoke/storage/table/auth failure aborts the remaining flow.
 `/api/plant-generate` `status` supports: `too_early` / `empty_day` / `generated` / `already_generated` / `monthly_exhausted`.
@@ -67,6 +67,8 @@ Membership AI classification path observability is recorded through `/api/live-i
 
 ## 外部服务配置
 
+- 2026-10-28：按用途调整 DeepSeek 的 temperature/max_tokens（含日记重试、批注重写和待办预拆解），详见 AI 清单的请求预算表；提示词、超时、前端契约与旧 OpenAI/Gemini 参数保持原值。
+- 模型迁移不改变前端端点、请求字段或响应结构。默认模式所有语言走 DeepSeek Chat Completions，完整日记用 Pro，其余能力用 Flash，均发送 `thinking: { type: 'disabled' }`。保留 OpenAI Responses/Chat Completions 和 Gemini generateContent 适配器；切换环境变量并重新部署即可恢复，不新增 Serverless Function。
 - AI 服务商、模型、发送数据范围和 AI 日志边界只在 `docs/AI_USAGE_INVENTORY.md` 维护；本文件不再复制 provider 映射。
 - 所有 OpenAI Chat Completions / Responses 请求均显式发送 `store: false`，避免在当前组织的 per-call logging 策略下创建应用状态；供应商 abuse-monitoring 留存仍以 `docs/AI_USAGE_INVENTORY.md` 的控制台证据和官方边界为准。
 - `/api/subscription` 使用 Apple App Store Server API（`APPLE_IAP_ISSUER_ID`、`APPLE_IAP_KEY_ID`、`APPLE_IAP_PRIVATE_KEY`、`APPLE_IAP_BUNDLE_ID`）和 Stripe API（`STRIPE_SECRET_KEY`、`STRIPE_PRICE_MONTHLY`、`STRIPE_PRICE_ANNUAL`）。

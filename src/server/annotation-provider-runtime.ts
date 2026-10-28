@@ -1,15 +1,16 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> docs/AI_USAGE_INVENTORY.md -> api/README.md
 import OpenAI from 'openai';
 import { resolveDeepSeekRuntime } from './deepseek-runtime.js';
+import { resolveAiRoute } from './ai-routing.js';
 
 export type AnnotationProvider = 'deepseek' | 'openai';
 
-export function resolveAnnotationRuntime(model: string): {
+export function resolveAnnotationRuntime(model: string, lang = 'zh'): {
   provider: AnnotationProvider;
   apiKey: string;
   baseURL?: string;
 } {
-  if (/deepseek/i.test(model)) {
+  if (resolveAiRoute('annotation', lang).provider === 'deepseek') {
     const runtime = resolveDeepSeekRuntime({
       baseURL: process.env.ANNOTATION_DEEPSEEK_BASE_URL,
       model,

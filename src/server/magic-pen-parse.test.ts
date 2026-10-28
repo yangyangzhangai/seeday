@@ -387,7 +387,9 @@ describe('api/magic-pen-parse handler', () => {
     const deepSeekCall = fetchMock.mock.calls[0];
     expect(String(deepSeekCall[0])).toContain('https://api.deepseek.com/v1/chat/completions');
     const deepSeekPayload = JSON.parse(deepSeekCall[1].body as string);
-    expect(deepSeekPayload.model).toBe('deepseek-chat');
+    expect(deepSeekPayload.model).toBe('deepseek-flash');
+    expect(deepSeekPayload.thinking).toEqual({ type: 'disabled' });
+    expect(deepSeekPayload).toMatchObject({ temperature: 0.2, max_tokens: 4096 });
     expect(res.payload).toMatchObject({
       attempts: [{ provider: 'deepseek', reason: 'low_quality' }],
     });

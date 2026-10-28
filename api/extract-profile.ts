@@ -6,6 +6,7 @@ import {
   type ExtractProfileMessage,
 } from '../src/server/extract-profile-service.js';
 import { requireSupabaseAiConsent } from '../src/server/ai-consent.js';
+import { resolveAiChatRuntime } from '../src/server/ai-routing.js';
 
 function normalizeLang(raw: unknown): 'zh' | 'en' | 'it' {
   if (raw === 'zh' || raw === 'it') return raw;
@@ -47,9 +48,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const runtime = resolveAiChatRuntime('profile');
+  const apiKey = runtime.apiKey;
   if (!apiKey) {
-    jsonError(res, 500, 'Server configuration error: Missing OPENAI_API_KEY');
+    jsonError(res, 500, 'Server configuration error: Missing API key');
     return;
   }
 
@@ -57,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const profile = await extractUserProfileFromMessages({
       messages: recentMessages,
       apiKey,
-      model: process.env.PROFILE_EXTRACT_MODEL,
+      model: runtime.model,
       lang,
     });
 
