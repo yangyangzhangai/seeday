@@ -9,7 +9,7 @@ function splitDiarySignoffTail(content: string): { body: string; signoff: string
   const lines = content.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
   if (lines.length === 0) return { body: '', signoff: '' };
 
-  const last = lines.at(-1) || '';
+  const last = lines[lines.length - 1] || '';
   if (!SIGNOFF_LINE_PATTERN.test(last)) {
     return { body: lines.join('\n').trim(), signoff: '' };
   }

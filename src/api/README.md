@@ -56,6 +56,8 @@ Reminder receipts use the authenticated Supabase client directly; RLS restricts 
 
 ## Current Notes
 
+- 2026-10-29: Server ESM compatibility fixes preserve all frontend API contracts. Shared annotation parsing now handles invalid provider output without accessing Vite globals. `npm run lint:server` checks the API dependency graph, and API test files are excluded from deployment; provider/login authentication failures remain a separate diagnostic concern.
+
 - 2026-10-28: DeepSeek sampling/output budgets are tuned server-side per feature; frontend payloads and response contracts are unchanged. Prompts and provider-switch configuration are unchanged; see `docs/AI_USAGE_INVENTORY.md` for current budgets.
 - The ongoing `moodauto` classifier/refactor work remains in `src/services/input` + `src/store` and does not add new frontend API endpoints.
 - `callClassifierAPI()` now forwards Supabase `Authorization` header; backend `/api/classify` enforces Plus membership and can return `403 membership_required` for non-Plus users.

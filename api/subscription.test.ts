@@ -1,7 +1,7 @@
 // DOC-DEPS: LLM.md -> docs/PROJECT_MAP.md -> api/README.md
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildAppleApiToken, fetchAppleTransactionAcrossEnvironments } from './subscription';
+import { buildAppleApiToken, fetchAppleTransactionAcrossEnvironments } from './subscription.js';
 
 function decodeBase64Url(value: string): Buffer {
   return Buffer.from(value, 'base64url');

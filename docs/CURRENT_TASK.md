@@ -1,9 +1,11 @@
 # CURRENT TASK (Session Resume Anchor)
 
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
 Owner: current working session
 
 Session Notes:
+
+- 2026-10-29: Fixed reported Vercel Node ESM compile errors: shared annotation parser no longer reads Vite-only `import.meta.env` on failure; server-reachable type imports use `.js`; diary signoff reads the last array element without ES2022 `at`. Excluded API test files from deployment via `.vercelignore` and corrected subscription test import. Added `tsconfig.server.json` and `lint:server` to `lint:all` because root `tsc --noEmit` does not check referenced projects or server entrypoints. Native Node parser regression covers malformed/invalid output. Validation: server typecheck, lint/docs/state checks, full secret scan and production build pass; all 861 existing tests pass and the new native Node regression passes after correcting its punctuation expectation. Explicit app/node typechecks report 29/2 pre-existing errors, identical to HEAD with no new diagnostics; user authorized committing and pushing this fix on 2026-10-29; deployment outcome remains unverified. These build errors do not establish the cause of the earlier classifier 401.
 
 - 2026-10-28: User approved API parameter tuning only. Applied the discussed DeepSeek temperature/output budgets to all call paths while retaining disabled thinking. Full diary/retries: 1.0/1600; annotation: 1.1/256; suggestion: 0.7/512; rewrite: 1.2/256; classification: 0.2/384; decomposition: 0.5/768; insight: 0.6/128; profile and Magic Pen: 0.2/4096; plant: 1.0/256. OpenAI/Gemini retain prior settings. Prompts, environment-variable migration and timeout changes are deferred. Validation: all 861 unit tests, lint/type/docs/state checks, full-repository secret scan and production build pass; user authorized committing and pushing on 2026-10-28; deployment outcome must be verified separately.
 

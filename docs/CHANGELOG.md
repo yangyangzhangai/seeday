@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-29 - Fix server compilation and shared annotation parser compatibility
+
+- Removed browser-only debug logging from the shared annotation parser so invalid model output can return null or continue fallback parsing in Node. Added a native Node ESM regression for malformed JSON, invalid output and valid extraction.
+- Corrected Node ESM type-import extensions throughout the API dependency graph and the subscription test; replaced diary `Array.at` with equivalent indexing.
+- Excluded `api/**/*.test.ts` from deployments using `.vercelignore`; added a NodeNext/ES2020 server type check to `lint:all` without changing the Vite compiler configuration.
+- Risk: deployment compatibility changes require a fresh Vercel build; these fixes do not prove or resolve provider authentication errors. Rollback: revert this compatibility patch. Validation: server typecheck, lint/docs/state checks, full secret scan and production build pass; 861 existing tests pass plus the new Node regression passes on targeted rerun after its punctuation expectation was corrected. Explicit app/node typechecks still have 29/2 pre-existing diagnostics, verified against HEAD with zero new diagnostics. User authorized GitHub publication on 2026-10-29; deployment outcome remains unverified.
+
 ## 2026-10-28 - Tune DeepSeek request budgets by feature
 
 - Applied the discussed per-feature temperatures and output limits, including retries, rewrites and pre-decomposition; all DeepSeek requests remain non-thinking. Current values are recorded in `docs/AI_USAGE_INVENTORY.md`.

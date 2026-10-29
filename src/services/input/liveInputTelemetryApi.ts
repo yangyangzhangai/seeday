@@ -1,4 +1,4 @@
-import type { InternalLiveInputKind, LiveInputClassification, LiveInputConfidence, LiveInputKind } from './types';
+import type { InternalLiveInputKind, LiveInputClassification, LiveInputConfidence, LiveInputKind } from './types.js';
 
 export type LiveInputTelemetryEventType =
   | 'classification'

@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/CURRENT_TASK.md -> docs/Seeday_植物生长_PRD_v1_8.docx -> docs/Seeday_植物生长_技术实现文档_v1.7.docx
-import type { DirectionIndex, FocusLevel, RootSegment } from '../types/plant';
+import type { DirectionIndex, FocusLevel, RootSegment } from '../types/plant.js';
 
 export interface RootRenderActivityInput {
   activityId: string;

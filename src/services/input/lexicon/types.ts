@@ -4,8 +4,8 @@
 // Each supported language (zh / en / it) implements all three interfaces.
 // Consumers should import from getLexicon.ts rather than from language files directly.
 
-import type { MoodKey } from '../../../lib/moodOptions';
-import type { ActivityRecordType } from '../../../lib/activityType';
+import type { MoodKey } from '../../../lib/moodOptions.js';
+import type { ActivityRecordType } from '../../../lib/activityType.js';
 
 // ─── Activity ────────────────────────────────────────────────────────────────
 

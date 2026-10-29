@@ -1,0 +1,2 @@
+# Tests stay available locally and in CI, but are not deployed as API functions.
+api/**/*.test.ts

@@ -1,3 +1,4 @@
+// DOC-DEPS: LLM.md -> api/README.md
 export type CommentLang = 'zh' | 'en' | 'it';
 
 const COMMENT_ANCHORS = [
@@ -93,7 +94,7 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
       }
     }
   } catch {
-    if (import.meta.env.DEV) console.warn('[JSON解析失败] 降级到策略二');
+    // Shared with Node handlers: continue parsing without browser-only globals.
   }
 
   for (const anchor of COMMENT_ANCHORS) {
@@ -125,6 +126,5 @@ export function extractComment(rawText: string, lang: CommentLang = 'zh'): strin
     }
   }
 
-  if (import.meta.env.DEV) console.error('[提取失败] 原始内容:', rawText);
   return null;
 }

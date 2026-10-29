@@ -1,6 +1,6 @@
-import type { ActivityType } from '../lib/activityType';
-import type { AiCompanionMode } from '../lib/aiCompanion';
-import type { UserProfileSnapshot } from './userProfile';
+import type { ActivityType } from '../lib/activityType.js';
+import type { AiCompanionMode } from '../lib/aiCompanion.js';
+import type { UserProfileSnapshot } from './userProfile.js';
 /**
  * AI 批注系统类型定义
  * 

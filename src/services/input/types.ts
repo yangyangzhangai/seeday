@@ -1,5 +1,5 @@
 // DOC-DEPS: LLM.md -> docs/ACTIVITY_MOOD_AUTO_RECOGNITION.md -> src/features/chat/README.md
-import type { MoodKey } from '../../lib/moodOptions';
+import type { MoodKey } from '../../lib/moodOptions.js';
 
 export type LiveInputKind = 'activity' | 'mood';
 

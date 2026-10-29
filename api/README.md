@@ -76,6 +76,10 @@ Membership AI classification path observability is recorded through `/api/live-i
 
 ## 本地调试（Windows）
 
+- `npm run lint:server` checks all production API entrypoints and their dependencies using `tsconfig.server.json` (NodeNext/ES2020); it is included in `lint:all`. The root solution's `tsc --noEmit` does not check these files.
+- Shared helpers used by server handlers must not access Vite-only `import.meta.env`; use explicit `.js` extensions for Node ESM imports, including type-only imports.
+- `.vercelignore` excludes `api/**/*.test.ts` from deployment while retaining local/CI test discovery, following [Vercel's deployment exclusion mechanism](https://vercel.com/docs/deployments/vercel-ignore).
+
 ```powershell
 npm install
 Copy-Item .env.example .env

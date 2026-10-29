@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { SupportedLang } from '../services/input/lexicon/getLexicon';
+import type { SupportedLang } from '../services/input/lexicon/getLexicon.js';
 
 export const MOOD_KEYS = [
   'happy',
